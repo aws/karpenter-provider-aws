@@ -14,7 +14,7 @@ See [Configuring NodePools]({{< ref "./concepts/#configuring-nodepools" >}}) for
 AWS is the first cloud provider supported by Karpenter, although it is designed to be used with other cloud providers as well.
 
 ### Can I write my own cloud provider for Karpenter?
-Yes, but there is no documentation yet for it. Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter-core/tree/v0.36.2/pkg/cloudprovider) documentation to see how the AWS provider is built, but there are other sections of the code that will require changes too.
+Yes, but there is no documentation yet for it. Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter-core/tree/v0.36.4/pkg/cloudprovider) documentation to see how the AWS provider is built, but there are other sections of the code that will require changes too.
 
 ### What operating system nodes does Karpenter deploy?
 Karpenter uses the OS defined by the [AMI Family in your EC2NodeClass]({{< ref "./concepts/nodeclasses#specamifamily" >}}).
@@ -26,7 +26,7 @@ Karpenter has multiple mechanisms for configuring the [operating system]({{< ref
 Karpenter is flexible to multi-architecture configurations using [well known labels]({{< ref "./concepts/scheduling/#supported-labels">}}).
 
 ### What RBAC access is required?
-All the required RBAC rules can be found in the Helm chart template. See [clusterrole-core.yaml](https://github.com/aws/karpenter/blob/v0.36.2/charts/karpenter/templates/clusterrole-core.yaml), [clusterrole.yaml](https://github.com/aws/karpenter/blob/v0.36.2/charts/karpenter/templates/clusterrole.yaml), [rolebinding.yaml](https://github.com/aws/karpenter/blob/v0.36.2/charts/karpenter/templates/rolebinding.yaml), and [role.yaml](https://github.com/aws/karpenter/blob/v0.36.2/charts/karpenter/templates/role.yaml) files for details.
+All the required RBAC rules can be found in the Helm chart template. See [clusterrole-core.yaml](https://github.com/aws/karpenter/blob/v0.36.4/charts/karpenter/templates/clusterrole-core.yaml), [clusterrole.yaml](https://github.com/aws/karpenter/blob/v0.36.2/charts/karpenter/templates/clusterrole.yaml), [rolebinding.yaml](https://github.com/aws/karpenter/blob/v0.36.2/charts/karpenter/templates/rolebinding.yaml), and [role.yaml](https://github.com/aws/karpenter/blob/v0.36.4/charts/karpenter/templates/role.yaml) files for details.
 
 ### Can I run Karpenter outside of a Kubernetes cluster?
 Yes, as long as the controller has network and IAM/RBAC access to the Kubernetes API and your provider API.
@@ -104,13 +104,11 @@ The EC2 fleet API attempts to provision the instance type based on the [Price Ca
 Karpenter currently calculates the applicable daemonsets at the NodePool level with label selectors/taints, etc. It does not look to see if there are requirements on the daemonsets that would exclude it from running on particular instances that the NodePool could or couldn't launch.
 The recommendation for now is to use multiple NodePools with taints/tolerations or label selectors to limit daemonsets to only nodes launched from specific NodePoools.
 
-### What if there is no Spot capacity? Will Karpenter use On-Demand?
+### What if there is no Spot capacity?
 
 The best defense against running out of Spot capacity is to allow Karpenter to provision as many distinct instance types as possible. Even instance types that have higher specs (e.g. vCPU, memory, etc.) than what you need can still be cheaper in the Spot market than using On-Demand instances. When Spot capacity is constrained, On-Demand capacity can also be constrained since Spot is fundamentally spare On-Demand capacity.
 
-Allowing Karpenter to provision nodes from a large, diverse set of instance types will help you to stay on Spot longer and lower your costs due to Spot’s discounted pricing. Moreover, if Spot capacity becomes constrained, this diversity will also increase the chances that you’ll be able to continue to launch On-Demand capacity for your workloads.
-
-If your Karpenter NodePool specifies allows both Spot and On-Demand capacity, Karpenter will fallback to provision On-Demand capacity if there is no Spot capacity available. However, it’s strongly recommended that you allow at least 20 instance types in your NodePool since this additional diversity increases the chances that your workloads will not need to launch On-Demand capacity at all.
+Allowing Karpenter to provision nodes from a large, diverse set of instance types will help you to stay on Spot longer and lower your costs due to Spot’s discounted pricing. Moreover, if Spot capacity becomes constrained, this instance type diversity will also increase the chances that you’ll be able to continue to launch On-Demand capacity for your workloads.
 
 Karpenter has a concept of an “offering” for each instance type, which is a combination of zone and capacity type. Whenever the Fleet API returns an insufficient capacity error for Spot instances, those particular offerings are temporarily removed from consideration (across the entire NodePool) so that Karpenter can make forward progress with different options.
 

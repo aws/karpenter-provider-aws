@@ -101,7 +101,7 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="evictionSoft OwnerKey does not have a matching evictionSoftGracePeriod",rule="has(self.evictionSoft) ? self.evictionSoft.all(e, (e in self.evictionSoftGracePeriod)):true"
 	// +kubebuilder:validation:XValidation:message="evictionSoftGracePeriod OwnerKey does not have a matching evictionSoft",rule="has(self.evictionSoftGracePeriod) ? self.evictionSoftGracePeriod.all(e, (e in self.evictionSoft)):true"
 	// +optional
-	Kubelet *KubeletConfiguration `json:"kubelet,omitempty" hash:"ignore"`
+	Kubelet *KubeletConfiguration `json:"kubelet,omitempty"`
 	// BlockDeviceMappings to be applied to provisioned nodes.
 	// +kubebuilder:validation:XValidation:message="must have only one blockDeviceMappings with rootVolume",rule="self.filter(x, has(x.rootVolume)?x.rootVolume==true:false).size() <= 1"
 	// +kubebuilder:validation:MaxItems:=50
@@ -325,14 +325,15 @@ type MetadataOptions struct {
 
 type BlockDeviceMapping struct {
 	// The device name (for example, /dev/sdh or xvdh).
-	// +required
+	// +optional
 	DeviceName *string `json:"deviceName,omitempty"`
 	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
 	// +kubebuilder:validation:XValidation:message="snapshotID or volumeSize must be defined",rule="has(self.snapshotID) || has(self.volumeSize)"
-	// +required
+	// +optional
 	EBS *BlockDevice `json:"ebs,omitempty"`
 	// RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
 	// configure at most one root volume in BlockDeviceMappings.
+	// +optional
 	RootVolume bool `json:"rootVolume,omitempty"`
 }
 
@@ -442,7 +443,7 @@ type EC2NodeClass struct {
 // 1. A field changes its default value for an existing field that is already hashed
 // 2. A field is added to the hash calculation with an already-set value
 // 3. A field is removed from the hash calculations
-const EC2NodeClassHashVersion = "v3"
+const EC2NodeClassHashVersion = "v4"
 
 func (in *EC2NodeClass) Hash() string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]interface{}{
@@ -472,12 +473,6 @@ func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]strin
 		EKSClusterNameTagKey: clusterName,
 		LabelNodeClass:       in.Name,
 	})
-}
-
-// UbuntuIncompatible returns true if the NodeClass has the ubuntu compatibility annotation. This will cause the NodeClass to show
-// as NotReady in its status conditions, opting its referencing NodePools out of provisioning and drift.
-func (in *EC2NodeClass) UbuntuIncompatible() bool {
-	return lo.Contains(strings.Split(in.Annotations[AnnotationUbuntuCompatibilityKey], ","), AnnotationUbuntuCompatibilityIncompatible)
 }
 
 // AMIFamily returns the family for a NodePool based on the following items, in order of precdence:

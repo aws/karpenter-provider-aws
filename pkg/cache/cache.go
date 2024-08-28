@@ -37,7 +37,7 @@ const (
 	AssociatePublicIPAddressTTL = 5 * time.Minute
 	// SSMGetParametersByPathTTL is the time to drop SSM Parameters by path data. This only queries EKS Optimized AMI
 	// releases, so we should expect this to be updated relatively infrequently.
-	SSMGetParametersByPathTTL = 30 * time.Minute
+	SSMGetParametersByPathTTL = 24 * time.Hour
 )
 
 const (

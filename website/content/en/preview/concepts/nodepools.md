@@ -27,7 +27,7 @@ Here are things you should know about NodePools:
 Objects for setting Kubelet features have been moved from the NodePool spec to the EC2NodeClasses spec, to not require other Karpenter providers to support those features.
 {{% /alert %}}
 
-For some example `NodePool` configurations, see the [examples in the Karpenter GitHub repository](https://github.com/aws/karpenter/blob/main/examples/v1beta1/).
+For some example `NodePool` configurations, see the [examples in the Karpenter GitHub repository](https://github.com/aws/karpenter/blob/main/examples/v1/).
 
 ```yaml
 apiVersion: karpenter.sh/v1
@@ -416,6 +416,16 @@ For more information on weighting NodePools, see the [Weighted NodePools section
 * The `status.conditions.lastTransitionTime` object contains a programatic identifier that indicates the time of the condition's previous transition.
 * The `status.conditions.reason` object indicates the reason for the condition's previous transition.
 * The `status.conditions.message` object provides human-readable details about the condition's previous transition.
+
+NodePools have the following status conditions:
+
+| Condition Type      | Description                                                                                                                                       |
+|---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| NodeClassReady      | Underlying nodeClass is ready                                                                                                                     |
+| ValidationSucceeded | NodePool CRD validation succeeded                                                                                                                 |
+| Ready               | Top level condition that indicates if the nodePool is ready. This condition will not be true until all the other conditions on nodePool are true. |
+
+If a NodePool is not ready, it will not be considered for scheduling.
 
 ## status.resources
 Objects under `status.resources` provide information about the status of resources such as `cpu`, `memory`, and `ephemeral-storage`.

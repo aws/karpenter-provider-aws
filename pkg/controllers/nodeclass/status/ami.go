@@ -35,10 +35,6 @@ type AMI struct {
 }
 
 func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	if nodeClass.UbuntuIncompatible() {
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeAMIsReady, "AMINotFound", "Ubuntu AMI discovery is not supported at v1, refer to the upgrade guide (https://karpenter.sh/docs/upgrading/upgrade-guide/#upgrading-to-100)")
-		return reconcile.Result{}, nil
-	}
 	amis, err := a.amiProvider.List(ctx, nodeClass)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting amis, %w", err)

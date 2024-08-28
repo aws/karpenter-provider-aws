@@ -27,13 +27,12 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
-	"github.com/aws/karpenter-provider-aws/pkg/utils"
-
-	"sigs.k8s.io/karpenter/pkg/cloudprovider"
-	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
 
 var DefaultEBS = v1.BlockDevice{
@@ -152,10 +151,7 @@ func (r Resolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClai
 			}
 		})
 		for params, instanceTypes := range paramsToInstanceTypes {
-			resolved, err := r.resolveLaunchTemplate(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, options)
-			if err != nil {
-				return nil, err
-			}
+			resolved := r.resolveLaunchTemplate(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, options)
 			resolvedTemplates = append(resolvedTemplates, resolved)
 		}
 	}
@@ -206,15 +202,15 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.KubeletConf
 }
 
 func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
-	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, options *Options) (*LaunchTemplate, error) {
-	kubeletConfig, err := utils.GetKubeletConfigurationWithNodeClaim(nodeClaim, nodeClass)
-	if err != nil {
-		return nil, fmt.Errorf("resolving kubelet configuration, %w", err)
-	}
+	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, options *Options) *LaunchTemplate {
+	kubeletConfig := nodeClass.Spec.Kubelet
 	if kubeletConfig == nil {
 		kubeletConfig = &v1.KubeletConfiguration{}
 	}
 	if kubeletConfig.MaxPods == nil {
+		// nolint:gosec
+		// We know that it's not possible to have values that would overflow int32 here since we control
+		// the maxPods values that we pass in here
 		kubeletConfig.MaxPods = lo.ToPtr(int32(maxPods))
 	}
 	taints := lo.Flatten([][]corev1.Taint{
@@ -252,5 +248,5 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *k
 	if resolved.MetadataOptions == nil {
 		resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
 	}
-	return resolved, nil
+	return resolved
 }

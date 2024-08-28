@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2024-07-10T14:30:58Z for us-east-1
+// generated at 2024-08-26T13:09:30Z for us-east-1
 
 var InitialOnDemandPricesAWS = map[string]map[string]float64{
 	// us-east-1
@@ -92,6 +92,9 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		"c7gn.12xlarge": 2.995200, "c7gn.16xlarge": 3.993600, "c7gn.2xlarge": 0.499200, "c7gn.4xlarge": 0.998400,
 		"c7gn.8xlarge": 1.996800, "c7gn.large": 0.124800, "c7gn.medium": 0.062400, "c7gn.metal": 3.993600,
 		"c7gn.xlarge": 0.249600,
+		// c7i-flex family
+		"c7i-flex.2xlarge": 0.339150, "c7i-flex.4xlarge": 0.678300, "c7i-flex.8xlarge": 1.356600,
+		"c7i-flex.large": 0.084790, "c7i-flex.xlarge": 0.169580,
 		// c7i family
 		"c7i.12xlarge": 2.142000, "c7i.16xlarge": 2.856000, "c7i.24xlarge": 4.284000, "c7i.2xlarge": 0.357000,
 		"c7i.48xlarge": 8.568000, "c7i.4xlarge": 0.714000, "c7i.8xlarge": 1.428000, "c7i.large": 0.089250,
@@ -130,6 +133,9 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		// g6 family
 		"g6.12xlarge": 4.601600, "g6.16xlarge": 3.396800, "g6.24xlarge": 6.675200, "g6.2xlarge": 0.977600,
 		"g6.48xlarge": 13.350400, "g6.4xlarge": 1.323200, "g6.8xlarge": 2.014400, "g6.xlarge": 0.804800,
+		// g6e family
+		"g6e.12xlarge": 10.492640, "g6e.16xlarge": 7.577190, "g6e.24xlarge": 15.065590, "g6e.2xlarge": 2.242080,
+		"g6e.48xlarge": 30.131180, "g6e.4xlarge": 3.004240, "g6e.8xlarge": 4.528560, "g6e.xlarge": 1.861000,
 		// gr6 family
 		"gr6.4xlarge": 1.539200, "gr6.8xlarge": 2.446400,
 		// h1 family

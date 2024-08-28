@@ -294,6 +294,17 @@ func (env *Environment) EventuallyExpectTerminatingWithTimeout(timeout time.Dura
 	}).WithTimeout(timeout).Should(Succeed())
 }
 
+func (env *Environment) EventuallyExpectNoLeakedKubeNodeLease() {
+	GinkgoHelper()
+	// expect no kube node lease to be leaked
+	leases := &coordinationv1.LeaseList{}
+	Expect(env.Client.List(env.Context, leases, client.InNamespace("kube-node-lease"))).To(Succeed())
+	leakedLeases := lo.Filter(leases.Items, func(l coordinationv1.Lease, _ int) bool {
+		return l.OwnerReferences == nil
+	})
+	Expect(leakedLeases).To(HaveLen(0))
+}
+
 func (env *Environment) EventuallyExpectHealthyWithTimeout(timeout time.Duration, pods ...*corev1.Pod) {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
@@ -314,6 +325,17 @@ func (env *Environment) ConsistentlyExpectTerminatingPods(duration time.Duration
 		for _, pod := range pods {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
 			g.Expect(pod.DeletionTimestamp.IsZero()).To(BeFalse())
+		}
+	}, duration.String()).Should(Succeed())
+}
+
+func (env *Environment) ConsistentlyExpectActivePods(duration time.Duration, pods ...*corev1.Pod) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting %d pods to be live for %s", len(pods), duration))
+	Consistently(func(g Gomega) {
+		for _, pod := range pods {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+			g.Expect(pod.DeletionTimestamp.IsZero()).To(BeTrue())
 		}
 	}, duration.String()).Should(Succeed())
 }
@@ -567,7 +589,7 @@ func (env *Environment) ConsistentlyExpectDisruptionsWithNodeCount(disruptingNod
 
 		nodes = lo.Filter(nodeList.Items, func(n corev1.Node, _ int) bool {
 			_, ok := lo.Find(n.Spec.Taints, func(t corev1.Taint) bool {
-				return karpv1.IsDisruptingTaint(t)
+				return t.MatchTaint(&karpv1.DisruptedNoScheduleTaint)
 			})
 			return ok
 		})
