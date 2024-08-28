@@ -754,6 +754,12 @@ The following commands can be used to determine the versions availble for an ali
   {{% /tab %}}
 {{< /tabpane >}}
 
+{{% alert title="Warning" color="warning" %}}
+Karpenter supports automatic AMI selection and upgrades using the `latest` version pin, but this is **not** recommended for production environments.
+When using `latest`, a new AMI release will cause Karpenter to drift all out-of-date nodes in the cluster, replacing them with nodes running the new AMI.
+We strongly recommend evaluating new AMIs in a lower environment before rolling them out into a production environment.
+More details on Karpenter's recommendations for managing AMIs can be found [here]({{< ref "../tasks/managing-amis" >}}).
+{{% /alert %}}
 
 To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To select AMIs that are not owned by `amazon` or the account that Karpenter is running in, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs.
 
