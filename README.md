@@ -19,7 +19,7 @@ Karpenter improves the efficiency and cost of running workloads on Kubernetes cl
 
 ## Karpenter Architecture
 
-![Karpenter Architecture](assets/karpenter-architecture.png)
+![Karpenter Architecture](assets/karpenter-architecture-AWS.png)
 
 ### Architecture Workflow
 
