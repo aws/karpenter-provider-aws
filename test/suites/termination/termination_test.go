@@ -20,6 +20,10 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 )
@@ -46,5 +50,149 @@ var _ = Describe("Termination", func() {
 		Eventually(func(g Gomega) {
 			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(BeElementOf("terminated", "shutting-down"))
 		}, time.Second*10).Should(Succeed())
+	})
+	// Pods from Karpenter nodes are expected to drain in the following order:
+	//   1. Non-Critical Non-Daemonset pods
+	//   2. Non-Critical Daemonset pods
+	//   3. Critical Non-Daemonset pods
+	//   4. Critical Daemonset pods
+	// Pods in one group are expected to be fully removed before the next group is executed
+	It("should drain pods on a node in order", func() {
+		daemonSet := test.DaemonSet(test.DaemonSetOptions{
+			Selector: map[string]string{"app": "non-critical-daemonset"},
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"drain-test": "true",
+						"app":        "daemonset",
+					},
+				},
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(60)),
+				Image:                         "alpine:3.20.2",
+				Command:                       []string{"/bin/sh", "-c", "sleep 1000"},
+				PreStopSleep:                  lo.ToPtr(int64(60)),
+				ResourceRequirements:          corev1.ResourceRequirements{Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi")}},
+			},
+		})
+		nodeCriticalDaemonSet := test.DaemonSet(test.DaemonSetOptions{
+			Selector: map[string]string{"app": "critical-daemonset"},
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"drain-test": "true",
+						"app":        "node-critical-daemonset",
+					},
+				},
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(10)), // shorter terminationGracePeriod since it's the last pod
+				Image:                         "alpine:3.20.2",
+				Command:                       []string{"/bin/sh", "-c", "sleep 1000"},
+				PreStopSleep:                  lo.ToPtr(int64(10)), // shorter preStopSleep since it's the last pod
+				PriorityClassName:             "system-node-critical",
+				ResourceRequirements:          corev1.ResourceRequirements{Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi")}},
+			},
+		})
+		clusterCriticalDaemonSet := test.DaemonSet(test.DaemonSetOptions{
+			Selector: map[string]string{"app": "critical-daemonset"},
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"drain-test": "true",
+						"app":        "cluster-critical-daemonset",
+					},
+				},
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(10)), // shorter terminationGracePeriod since it's the last pod
+				Image:                         "alpine:3.20.2",
+				Command:                       []string{"/bin/sh", "-c", "sleep 1000"},
+				PreStopSleep:                  lo.ToPtr(int64(10)), // shorter preStopSleep since it's the last pod
+				PriorityClassName:             "system-cluster-critical",
+				ResourceRequirements:          corev1.ResourceRequirements{Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi")}},
+			},
+		})
+		deployment := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(1),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"drain-test": "true",
+						"app":        "deployment",
+					},
+				},
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(60)),
+				Image:                         "alpine:3.20.2",
+				Command:                       []string{"/bin/sh", "-c", "sleep 1000"},
+				PreStopSleep:                  lo.ToPtr(int64(60)),
+				ResourceRequirements:          corev1.ResourceRequirements{Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi")}},
+			},
+		})
+		nodeCriticalDeployment := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(1),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"drain-test": "true",
+						"app":        "node-critical-deployment",
+					},
+				},
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(60)),
+				Image:                         "alpine:3.20.2",
+				Command:                       []string{"/bin/sh", "-c", "sleep 1000"},
+				PreStopSleep:                  lo.ToPtr(int64(60)),
+				PriorityClassName:             "system-node-critical",
+				ResourceRequirements:          corev1.ResourceRequirements{Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi")}},
+			},
+		})
+		clusterCriticalDeployment := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(1),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"drain-test": "true",
+						"app":        "cluster-critical-deployment",
+					},
+				},
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(60)),
+				Image:                         "alpine:3.20.2",
+				Command:                       []string{"/bin/sh", "-c", "sleep 1000"},
+				PreStopSleep:                  lo.ToPtr(int64(60)),
+				PriorityClassName:             "system-cluster-critical",
+				ResourceRequirements:          corev1.ResourceRequirements{Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi")}},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, daemonSet, nodeCriticalDaemonSet, clusterCriticalDaemonSet, deployment, nodeCriticalDeployment, clusterCriticalDeployment)
+
+		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		_ = env.EventuallyExpectCreatedNodeCount("==", 1)[0]
+		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(map[string]string{"drain-test": "true"}), 6)
+
+		daemonsetPod := env.ExpectPodsMatchingSelector(labels.SelectorFromSet(map[string]string{"app": "daemonset"}))[0]
+		nodeCriticalDaemonsetPod := env.ExpectPodsMatchingSelector(labels.SelectorFromSet(map[string]string{"app": "node-critical-daemonset"}))[0]
+		clusterCriticalDaemonsetPod := env.ExpectPodsMatchingSelector(labels.SelectorFromSet(map[string]string{"app": "cluster-critical-daemonset"}))[0]
+		deploymentPod := env.ExpectPodsMatchingSelector(labels.SelectorFromSet(map[string]string{"app": "deployment"}))[0]
+		nodeCriticalDeploymentPod := env.ExpectPodsMatchingSelector(labels.SelectorFromSet(map[string]string{"app": "node-critical-deployment"}))[0]
+		clusterCriticalDeploymentPod := env.ExpectPodsMatchingSelector(labels.SelectorFromSet(map[string]string{"app": "cluster-critical-deployment"}))[0]
+
+		env.ExpectDeleted(nodeClaim)
+
+		// Wait for non-critical deployment pod to drain and delete
+		env.EventuallyExpectTerminating(deploymentPod)
+		// We check that other pods are live for 30s since pre-stop sleep and terminationGracePeriod are 60s
+		env.ConsistentlyExpectActivePods(time.Second*30, daemonsetPod, nodeCriticalDeploymentPod, nodeCriticalDaemonsetPod, clusterCriticalDeploymentPod, clusterCriticalDaemonsetPod)
+		env.EventuallyExpectNotFound(deploymentPod)
+
+		// Wait for non-critical daemonset pod to drain and delete
+		env.EventuallyExpectTerminating(daemonsetPod)
+		// We check that other pods are live for 30s since pre-stop sleep and terminationGracePeriod are 60s
+		env.ConsistentlyExpectActivePods(time.Second*30, nodeCriticalDeploymentPod, nodeCriticalDaemonsetPod, clusterCriticalDeploymentPod, clusterCriticalDaemonsetPod)
+		env.EventuallyExpectNotFound(daemonsetPod)
+
+		// Wait for critical deployment pod to drain and delete
+		env.EventuallyExpectTerminating(nodeCriticalDeploymentPod, clusterCriticalDeploymentPod)
+		// We check that other pods are live for 30s since pre-stop sleep and terminationGracePeriod are 60s
+		env.ConsistentlyExpectActivePods(time.Second*30, nodeCriticalDaemonsetPod, clusterCriticalDaemonsetPod)
+		env.EventuallyExpectNotFound(nodeCriticalDeploymentPod, clusterCriticalDeploymentPod)
+
+		// Wait for critical daemonset pod to drain and delete
+		env.EventuallyExpectTerminating(nodeCriticalDaemonsetPod, clusterCriticalDaemonsetPod)
+		env.EventuallyExpectNotFound(nodeCriticalDaemonsetPod, clusterCriticalDaemonsetPod)
 	})
 })
