@@ -29,10 +29,15 @@ This document proposes supporting ODCR in Karpenter
     * [Drift](#drift)
         + [The NodePool selects on `karpenter.sh/capacity-type: reserved` but the instance is no longer in a reservation](#the-nodepool-selects-on-karpentershcapacity-type-reserved-but-the-instance-is-no-longer-in-a-reservation)
         + [The `capacityReservationSelectorTerms` no longer selects an instance's capacity reservation](#the-capacityreservationselectorterms-no-longer-selects-an-instances-capacity-reservation)
-    * [Open Questions](#open-questions)
-    * [Action Items](#action-items)
     * [Appendix](#appendix)
         + [Input/Output for CreateFleet with CapacityReservations](#inputoutput-for-createfleet-with-capacityreservations)
+            - [CreateFleet with ODCR targeting -- specifying `usageStrategy: use-capacity-reservation-first`](#createfleet-with-odcr-targeting-specifying-usagestrategy-use-capacity-reservation-first)
+            - [CreateFleet without ODCR targeting -- specifying `usageStrategy: use-capaity-reservation-first`](#createfleet-without-odcr-targeting-specifying-usagestrategy-use-capaity-reservation-first)
+            - [CreateFleet Targeting Open ODCRs -- specifying `usageStrategy: use-capacity-reservation-first`](#createfleet-targeting-open-odcrs-specifying-usagestrategy-use-capacity-reservation-first)
+            - [CreateFleet with ODCR targeting -- specifying `usageStrategy: null`](#createfleet-with-odcr-targeting-specifying-usagestrategy-null)
+            - [CreateFleet without ODCR targeting -- specifying `usageStrategy: null`](#createfleet-without-odcr-targeting-specifying-usagestrategy-null)
+            - [CreateFleet without ODCR targeting -- specifying `usageStrategy: null` and `capacityReservationPreference: none`](#createfleet-without-odcr-targeting-specifying-usagestrategy-null-and-capacityreservationpreference-none)
+            - [Specifying Multiple ODCRs with the same Instance Type/Availability Zone Combination](#specifying-multiple-odcrs-with-the-same-instance-typeavailability-zone-combination)
 
 ## Overview
 
@@ -197,7 +202,7 @@ _Note: Updates to the scheduling representation of our offerings, including chan
 
 ### Consider ODCR first during Scheduling
 
-Karpenter's current scheduling algorithm uses [First-Fit Decreasing bin-packing](https://en.wikipedia.org/wiki/First-fit-decreasing_bin_packing#:~:text=First%2Dfit%2Ddecreasing%20(FFD,is%20at%20most%20the%20capacity.) as a heuristic to optimize pod scheduling to nodes. For a new node that Karpenter chooses to launch, it will continue packing pods onto this new node until there are no more available instances type offerings. This happens regardless of the remaining capacity types in the offerings AND regardless of the price as offerings are removed.
+Karpenter's current scheduling algorithm uses [First-Fit Decreasing bin-packing](https://en.wikipedia.org/wiki/First-fit-decreasing_bin_packing#:~:text=First%2Dfit%2Ddecreasing%20FFD,is%20at%20most%20the%20capacity). as a heuristic to optimize pod scheduling to nodes. For a new node that Karpenter chooses to launch, it will continue packing pods onto this new node until there are no more available instances type offerings. This happens regardless of the remaining capacity types in the offerings AND regardless of the price as offerings are removed.
 
 This presents a challenge for prioritizing ODCRs -- since this algorithm may remove `reserved` offerings to continue packing into `on-demand` and `spot` offerings, thus increasing the cost of the cluster and not fully utilizing the available capacity reservations.
 
@@ -323,6 +328,8 @@ As a result, Karpenter will not use this option when launching instances with `C
 
 In some race condition scenarios, CreateFleet when creating instances against a single targeted Capacity Reservation will fail if the Reservation is already fully utilized, resulting in an `ReservationCapacityExceeded` error. In these cases, Karpenter will throw an Insufficient Capacity error internally, delete the NodeClaim used for the request and attempt to reschedule capacity again given th remaining application pods.
 
+> For more information on how CreateFleet interacts with capacity reservations and `usageStrategy`, see https://docs.aws.amazon.com/emr/latest/ManagementGuide/on-demand-capacity-reservations.html.
+
 ### Open Capacity Reservations
 
 "Open" is one of the `instanceMatchCriteria` options for a capacity reservation. This criteria allows EC2 to automatically assign a launched instance to an ODCR so long as the instance matches the instance type and availability zone of an available, open ODCR.
@@ -387,16 +394,38 @@ In this case, since the NodePool is selecting on a label that does not exist on 
 
 In this case, there is no existing mechanism in Karpenter that would catch this. Karpenter will need to implement an additional mechanism that validates that an instance's capacity reservation falls within the valid set of reservations selected-on from the `capacityReservationSelectorTerms`. Specifically, it needs to validate that that id exists with the `capacityReservation` section of the EC2NodeClass status.
 
-## Open Questions
-
-1. How do we deal with selecting on an incredibly large array of capacity reservations that we would have to store in the NodeClass status? How do we ensure that this doesn't significantly bloat the output?
-
-## Action Items
-
-- [ ] Add to the appendix section with CreateFleet examples
-
 ## Appendix
 
 ### Input/Output for CreateFleet with CapacityReservations
 
-[TODO: Fill in a section on the various results of calling CreateFleet with different ODCR inputs]
+#### CreateFleet with ODCR targeting -- specifying `usageStrategy: use-capacity-reservation-first`
+
+CreateFleet will not use any launch templates that target capacity reservations when using `usageStrategy: use-capacity-reservation-first`.
+
+#### CreateFleet without ODCR targeting -- specifying `usageStrategy: use-capaity-reservation-first`
+
+CreateFleet will find available open ODCRs and prioritize launching into these before launching regular on-demand capacity. These ODCRs will be ordered by the `lowest-price` allocation strategy. Once all open ODCRs from passed-through instance type/availability zone combinations have been exhausted, Fleet will launch standard on-demand capacity -- even if targeted ODCRs are available.
+
+#### CreateFleet Targeting Open ODCRs -- specifying `usageStrategy: use-capacity-reservation-first`
+
+CreateFleet will not use any launch templates that target capacity reservations when using `usageStrategy: use-capacity-reservation-first`
+
+#### CreateFleet with ODCR targeting -- specifying `usageStrategy: null`
+
+CreateFleet does not have any knowledge about ODCRs in this mode will use the `lowest-price` allocation strategy to order the instance types/availability zones. When specifying multiple ODCRs in separate launch templates and running out of capacity in one ODCR, CreateFleet will automatically select the other ODCR that has capacity.
+
+When all ODCRs are exhausted, CreateFleet will return `ReservationCapacityExceeded` rather than falling back to standard on-demand capacity.
+
+#### CreateFleet without ODCR targeting -- specifying `usageStrategy: null`
+
+This is the current state today. CreateFleet has no knowledge about capacity reservations and will not specifically try to launch into them. If a user gets lucky and Fleet happens to launch into an instance type/availability zone combination that _happens_ to match an open ODCR, then the instance will be attached to this ODCR.
+
+#### CreateFleet without ODCR targeting -- specifying `usageStrategy: null` and `capacityReservationPreference: none`
+
+CreateFleet has no knowledge about capacity reservations and will not specifically try to launch into them. If a user gets lucky and Fleet happens to launch into an instance type/availability zone combination that _happens_ to match an open ODCR, __the instance will not join the ODCR and will become standard on-demand capacity due to the `capacityReservationPreference`.__
+
+#### Specifying Multiple ODCRs with the same Instance Type/Availability Zone Combination
+
+CreateFleet will reject the call outright since you are not allowed to specify duplicate instance type/availability zone combinations, even if the launch templates contain different data -- such as different capacity reservation ids.
+
+> For more information on CreateFleet's handling when specifying different `usageStrategy` and `capacityReservationPreference` values, see https://docs.aws.amazon.com/emr/latest/ManagementGuide/on-demand-capacity-reservations.html.
