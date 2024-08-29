@@ -964,6 +964,10 @@ Since the Kubelet & Containerd will be using the instance-store filesystem, you 
 
 You can control the UserData that is applied to your worker nodes via this field. This allows you to run custom scripts or pass-through custom configuration to Karpenter instances on start-up.
 
+{{% alert title="Note" color="primary" %}}
+If you need to call the bootstrap script yourself, you must use the [custom AMI family]({{< ref "./nodeclasses/#custom" >}})
+{{% /alert %}}
+
 ```yaml
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
