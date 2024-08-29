@@ -57,7 +57,7 @@ type EKSAPI interface {
 	Reset()
 }
 
-type PRICINGAPI interface {
+type PricingAPI interface {
 	// Pricing Methods
 	GetProductsPages(aws.Context, *pricing.GetProductsInput, func(*pricing.GetProductsOutput, bool) bool, ...request.Option) error
 }
