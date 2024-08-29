@@ -47,8 +47,8 @@ Each [Capacity Reservation](https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/serv
   - Targeted -- only accept instances that matches all attributes + explicitly targeted the capacity reservation
   - Open -- if capacity reservation accepts all instances that matches all attributes
 - Reservation type
-  - Default -- standard capacity reservations, pre-reserved capacity for on-demand instances in arbitrary instance counts
-  - Capacity Block -- pre-reserved capacity in specific block sizes that is only allocated for a specific amount of time (up to 14 days in 1-day increments or up to 28 days in 7-day increments)
+  - [Default](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html) -- standard capacity reservations, pre-reserved capacity for on-demand instances in arbitrary instance counts
+  - [Capacity Block](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-using.html) -- pre-reserved capacity in specific block sizes that is only allocated for a specific amount of time (up to 14 days in 1-day increments or up to 28 days in 7-day increments)
 - A start and end date (if applicable) for when the reservation of capacity is available
 
 AWS also supports grouping Capacity Reservation into [Capacity Reservation groups](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-cr-group.html). Both these entities are supported in Launch Template's CapacityReservationTarget [definitions](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-capacityreservationtarget.html).
@@ -309,7 +309,7 @@ _Note: `CreateFleet` does not currently support passing multiple launch template
 
 ### Capacity Reservation Targeting and CreateFleet Usage Strategy
 
-`CreateFleet` supports a parameter called `usageStrategy` within the `capacityReservationOptions` stanza of the `onDemandOptions`. This `usageStrategy` allows you to inform Fleet that you are using capacity reservations and to consider them first when launching. Currently, the only available enum for this field is `use-capacity-reservations-first`, which tells Fleet to use-up any available ODCRs (whether targeted or open) when launching and then fall-back to on-demand to fulfill the remaining capacity. This fall-back behavior isn't necessarily desired for an orchestrator like Karpenter where we might have used a different NodePool or a different instance type option entirely if Karpenter controlled the fallback.
+`CreateFleet` supports a parameter called [`usageStrategy`](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CapacityReservationOptionsRequest.html) within the `capacityReservationOptions` stanza of the `onDemandOptions`. This `usageStrategy` allows you to inform Fleet that you are using capacity reservations and to consider them first when launching. Currently, the only available enum for this field is `use-capacity-reservations-first`, which tells Fleet to use-up any available ODCRs (whether targeted or open) when launching and then fall-back to on-demand to fulfill the remaining capacity. This fall-back behavior isn't necessarily desired for an orchestrator like Karpenter where we might have used a different NodePool or a different instance type option entirely if Karpenter controlled the fallback.
 
 As a result, Karpenter will not use this option when launching instances with `CreateFleet`. Instead, Karpenter will specifically target all ODCRs that are selected-on for a given launch request by passing the ID through the LaunchTemplate. `usageStrategy` will not be specified, but only ODCR launch templates will be included in a request that is targeting ODCRs. As a result, Fleet will choose the cheapest instance type from the available options based on the `lowest-price` allocation strategy and launch an instance the respective ODCR.
 
@@ -317,7 +317,11 @@ In some race condition scenarios, CreateFleet when creating instances against a 
 
 ### Open Capacity Reservations
 
-[TODO: Fill in a section on how we are handling Open Capacity Reservations when it comes to launching]
+"Open" is one of the `instanceMatchCriteria` options for a capacity reservation. This criteria allows EC2 to automatically assign a launched instance to an ODCR so long as the instance matches the instance type and availability zone of an available, open ODCR.
+
+Because EC2 is in control of the assignment between instances and ODCRs and not Karpenter, open ODCRs interact poorly with Karpenter's drift mechanisms.
+
+As an example, take an EC2NodeClass that is selecting on ODCR `cr-123456789`. This capacity reservation is completely utilize, so we launch a standard OD instance from the selected instance types in the NodePool. This launch _happens_ to match an open ODCR, so we see an assignment occur to a capacity reservation. Karpenter now recognizes that this instance is in an ODCR, but this ODCR doesn't match the selected ODCRs, so it begins to replace the instance due to drift. A new instance that is launched matches the ODCR again and this cycle continues.
 
 ## Capacity Reservation Expiration/Cancellation
 
