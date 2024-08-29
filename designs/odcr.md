@@ -193,7 +193,11 @@ _Note: Updates to the scheduling representation of our offerings, including chan
 
 ### Consider ODCR first during Scheduling
 
-[TODO: Fill in a section on how we are going to prioritize ODCRs during provisioning]
+Karpenter's current scheduling algorithm uses [First-Fit Decreasing bin-packing](https://en.wikipedia.org/wiki/First-fit-decreasing_bin_packing#:~:text=First%2Dfit%2Ddecreasing%20(FFD,is%20at%20most%20the%20capacity.) as a heuristic to optimize pod scheduling to nodes. For a new node that Karpenter chooses to launch, it will continue packing pods onto this new node until there are no more available instances type offerings. This happens regardless of the remaining capacity types in the offerings AND regardless of the price as offerings are removed.
+
+This presents a challenge for prioritizing ODCRs -- since this algorithm may remove `reserved` offerings to continue packing into `on-demand` and `spot` offerings, thus increasing the cost of the cluster and not fully utilizing the available capacity reservations.
+
+To solve for this problem, Karpenter will implement special handling for offerings under a specific price. If offerings are below a specific price threshold (e.g. `0.0000000001`), we will consider these offerings as "free" and uniquely prioritize them. This means that if we are about to remove an offering in our scheduling simulation that is below this price threshold such that there are no more offerings below this threshold, rather than scheduling this pod to the same node, we will create a new node, retaining the "free" offering, ensuring "free" offerings are prioritized by the scheduler.
 
 ### Adding ODCRs as Additional Instance Type Offerings
 
@@ -323,6 +327,8 @@ Because EC2 is in control of the assignment between instances and ODCRs and not 
 
 As an example, take an EC2NodeClass that is selecting on ODCR `cr-123456789`. This capacity reservation is completely utilize, so we launch a standard OD instance from the selected instance types in the NodePool. This launch _happens_ to match an open ODCR, so we see an assignment occur to a capacity reservation. Karpenter now recognizes that this instance is in an ODCR, but this ODCR doesn't match the selected ODCRs, so it begins to replace the instance due to drift. A new instance that is launched matches the ODCR again and this cycle continues.
 
+To avoid this problem, when an EC2NodeClass uses the `capacityReservationSelectorTerms` block, we will opt-out of open matching in our LaunchTemplates by setting `capacityReservationPreference` as `none`. This means that it won't be possible for any instance launched from this EC2NodeClass to join an ODCR that hasn't been explicitly selected on, solving the drift problem.
+
 ## Capacity Reservation Expiration/Cancellation
 
 Capacity reservations [support an option to expire the reservation at a specific date and time](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-reservations-using.html). When the reservation expires, any instances present in the reservation at the time will have their association with the reservation removed and the instances will be charged at the standard on-demand instance rate.
@@ -380,13 +386,10 @@ In this case, there is no existing mechanism in Karpenter that would catch this.
 ## Open Questions
 
 1. How do we deal with selecting on an incredibly large array of capacity reservations that we would have to store in the NodeClass status? How do we ensure that this doesn't significantly bloat the output?
-2. How are we going to prioritize ODCR offerings when scheduling? These are effectively "0-cost" instances so we should prioritize them if the user selects on them.
 
 ## Action Items
 
-- [ ] Make a note that we are going to be passing `none` to the capacity reservation preference during launch so that we don't have the option to match "open" when a user specifies `capacityReservationSelectorTerms`
 - [ ] Add to the appendix section with CreateFleet examples
-- [ ] Add to the section on prioritizing ODCR offerings during scheduling
 
 ## Appendix
 
