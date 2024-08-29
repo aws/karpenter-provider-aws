@@ -26,7 +26,8 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"karpenter-provider-aws/pkg/aws"
+	"karpenter-provider-aws/pkg/aws/awsclient"
+	"karpenter-provider-aws/pkg/aws/awsapi"
 )
 
 type TerminateInstancesBatcher struct {

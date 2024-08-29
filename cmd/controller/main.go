@@ -39,7 +39,6 @@ func main() {
 		op.AMIProvider,
 		op.SecurityGroupProvider,
 	)
-	awsConfig := op.Config
 	lo.Must0(op.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 

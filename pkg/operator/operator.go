@@ -22,7 +22,8 @@ import (
 	"net"
 	"os"
 
-	"karpenter-provider-aws/pkg/aws"
+	"karpenter-provider-aws/pkg/aws/awsclient"
+	"karpenter-provider-aws/pkg/aws/awsapi"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsclient "github.com/aws/aws-sdk-go-v2/aws/client"
 	"github.com/aws/aws-sdk-go-v2/aws/ec2metadata"

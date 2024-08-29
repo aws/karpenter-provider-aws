@@ -2,6 +2,7 @@ package aws
 
 import (
 	"context"
+	"karpenter-provider-aws/pkg/aws/awsapi"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -9,30 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/pricing"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
-
-type EC2Client struct {
-	EC2Client *ec2.Client
-}
-
-type SQSClient struct {
-	SQSClient *sqs.Client
-}
-
-type IAMClient struct {
-	IAMClient *iam.Client
-}
-
-type EKSClient struct {
-	EKSClient *eks.Client
-}
-
-type PricingClient struct {
-	PricingClient *pricing.Client
-}
-
-type SSMClient struct {
-	SSMClient *ssm.Client
-}
 
 func NewEC2Client(ctx context.Context) *ec2.Client {
 	cfg := LoadDefaultConfig(ctx)

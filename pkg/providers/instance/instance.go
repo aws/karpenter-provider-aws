@@ -22,7 +22,8 @@ import (
 	"sort"
 	"strings"
 
-	"karpenter-provider-aws/pkg/aws"
+	"karpenter-provider-aws/pkg/aws/awsclient"
+	"karpenter-provider-aws/pkg/aws/awsapi"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"

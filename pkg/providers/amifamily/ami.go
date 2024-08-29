@@ -27,7 +27,8 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"karpenter-provider-aws/pkg/aws"
+	"karpenter-provider-aws/pkg/aws/awsclient"
+	"karpenter-provider-aws/pkg/aws/awsapi"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"

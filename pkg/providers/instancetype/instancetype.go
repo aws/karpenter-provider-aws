@@ -21,7 +21,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"karpenter-provider-aws/pkg/aws"
+	"karpenter-provider-aws/pkg/aws/awsclient"
+	"karpenter-provider-aws/pkg/aws/awsapi"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
