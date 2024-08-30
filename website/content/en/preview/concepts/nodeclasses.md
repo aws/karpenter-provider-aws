@@ -429,6 +429,10 @@ spec:
 
 ### AL2
 
+{{% alert title="Note" color="primary" %}}
+Note that Karpenter will automatically generate a call to the /etc/eks/bootstrap.sh script as part of its generated UserData. When using amiFamily AL2 you should not call this script yourself in .spec.userData. If you need to, use the [Custom AMI family]({{< ref "./nodeclasses/#custom" >}}) instead.
+{{% /alert %}}
+
 ```bash
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="//"
@@ -963,10 +967,6 @@ Since the Kubelet & Containerd will be using the instance-store filesystem, you 
 ## spec.userData
 
 You can control the UserData that is applied to your worker nodes via this field. This allows you to run custom scripts or pass-through custom configuration to Karpenter instances on start-up.
-
-{{% alert title="Note" color="primary" %}}
-If you need to call the bootstrap script yourself, you must use the [custom AMI family]({{< ref "./nodeclasses/#custom" >}})
-{{% /alert %}}
 
 ```yaml
 apiVersion: karpenter.k8s.aws/v1
