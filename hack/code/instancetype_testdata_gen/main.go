@@ -25,7 +25,7 @@ import (
 	"sort"
 	"strings"
 	"karpenter-provider-aws/pkg/aws/awsclient"
-	"karpenter-provider-aws/pkg/aws/awsapi"
+	"karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -66,7 +66,7 @@ func main() {
 	ctx := context.Background()
 	cfg := lo.Must(config.LoadDefaultConfig(ctx))
 
-	ec2Client := ec2.NewFromConfig(cfg)
+	ec2api := ec2.NewFromConfig(cfg)
 	instanceTypes := strings.Split(instanceTypesStr, ",")
 
 	src := &bytes.Buffer{}
@@ -74,7 +74,7 @@ func main() {
 	license := lo.Must(os.ReadFile("hack/boilerplate.go.txt"))
 	fmt.Fprintln(src, string(license))
 	fmt.Fprint(src, packageHeader)
-	fmt.Fprintln(src, getDescribeInstanceTypesOutput(ctx, ec2Client, instanceTypes))
+	fmt.Fprintln(src, getDescribeInstanceTypesOutput(ctx, ec2api, instanceTypes))
 
 	// Format and print to the file
 	formatted, err := format.Source(src.Bytes())
@@ -86,8 +86,8 @@ func main() {
 	}
 }
 
-func getDescribeInstanceTypesOutput(ctx context.Context, ec2Client *ec2.client, instanceTypes []string) string {
-	out, err := ec2Client.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{
+func getDescribeInstanceTypesOutput(ctx context.Context, ec2api *ec2.client, instanceTypes []string) string {
+	out, err := ec2api.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{
 		InstanceTypes: instanceTypes,
 	})
 	if err != nil {

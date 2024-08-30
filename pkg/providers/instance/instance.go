@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"karpenter-provider-aws/pkg/aws/awsclient"
-	"karpenter-provider-aws/pkg/aws/awsapi"
+	"karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -73,7 +73,7 @@ type Provider interface {
 
 type DefaultProvider struct {
 	region                 string
-	ec2Client              awsapi.EC2API
+	ec2api                 sdk.EC2API
 	unavailableOfferings   *cache.UnavailableOfferings
 	instanceTypeProvider   instancetype.Provider
 	subnetProvider         subnet.Provider
@@ -81,16 +81,16 @@ type DefaultProvider struct {
 	ec2Batcher             *batcher.Batcher[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 }
 
-func NewDefaultProvider(ctx context.Context, region string, ec2Client awsapi.EC2API, unavailableOfferings *cache.UnavailableOfferings,
+func NewDefaultProvider(ctx context.Context, region string, ec2api sdk.EC2API, unavailableOfferings *cache.UnavailableOfferings,
 	instanceTypeProvider instancetype.Provider, subnetProvider subnet.Provider, launchTemplateProvider launchtemplate.Provider) *DefaultProvider {
 	return &DefaultProvider{
 		region:                 region,
-		ec2Client:              ec2Client,
+		ec2api:                 ec2api,
 		unavailableOfferings:   unavailableOfferings,
 		instanceTypeProvider:   instanceTypeProvider,
 		subnetProvider:         subnetProvider,
 		launchTemplateProvider: launchTemplateProvider,
-		ec2Batcher:             batcher.EC2(ctx, ec2Client),
+		ec2Batcher:             batcher.EC2(ctx, ec2api),
 	}
 }
 
@@ -141,7 +141,7 @@ func (p *DefaultProvider) Get(ctx context.Context, id string) (*Instance, error)
 
 func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 	var out = &ec2.DescribeInstancesOutput{}
-	err := p.ec2Client.DescribeInstancesPages(ctx, &ec2.DescribeInstancesInput{
+	err := p.ec2api.DescribeInstancesPages(ctx, &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("tag-key"),
@@ -190,7 +190,7 @@ func (p *DefaultProvider) CreateTags(ctx context.Context, id string, tags map[st
 	ec2Tags := lo.MapToSlice(tags, func(key, value string) *ec2.Tag {
 		return &ec2.Tag{Key: aws.String(key), Value: aws.String(value)}
 	})
-	if _, err := p.ec2Client.CreateTags(ctx, &ec2.CreateTagsInput{
+	if _, err := p.ec2api.CreateTags(ctx, &ec2.CreateTagsInput{
 		Resources: aws.StringSlice([]string{id}),
 		Tags:      ec2Tags,
 	}); err != nil {

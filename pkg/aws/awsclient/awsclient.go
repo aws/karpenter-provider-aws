@@ -1,8 +1,8 @@
-package aws
+package awsclient
 
 import (
 	"context"
-	"karpenter-provider-aws/pkg/aws/awsapi"
+	"karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -10,36 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/pricing"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
-
-func NewEC2Client(ctx context.Context) *ec2.Client {
-	cfg := LoadDefaultConfig(ctx)
-	return ec2.NewFromConfig(cfg)
-}
-
-func NewSQSClient(ctx context.Context) *sqs.Client {
-	cfg := LoadDefaultConfig(ctx)
-	return sqs.NewFromConfig(cfg)
-}
-
-func NewIAMClient(ctx context.Context) *iam.Client {
-	cfg := LoadDefaultConfig(ctx)
-	return iam.NewFromConfig(cfg)
-}
-
-func NewEKSClient(ctx context.Context) *eks.Client {
-	cfg := LoadDefaultConfig(ctx)
-	return eks.NewFromConfig(cfg)
-}
-
-func NewPricingClient(ctx context.Context) *pricing.Client {
-	cfg := LoadDefaultConfig(ctx)
-	return pricing.NewFromConfig(cfg)
-}
-
-func NewSSMClient(ctx context.Context) *ssm.Client {
-	cfg := LoadDefaultConfig(ctx)
-	return ssm.NewFromConfig(cfg)
-}
 
 func DescribeInstances(ctx context.Context, client *ec2.Client) (*ec2.DescribeInstancesOutput, error) {
 	return client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{})

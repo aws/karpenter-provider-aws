@@ -22,7 +22,7 @@ import (
 	"sync/atomic"
 
 	"karpenter-provider-aws/pkg/aws/awsclient"
-	"karpenter-provider-aws/pkg/aws/awsapi"
+	"karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
@@ -58,7 +58,7 @@ type Provider interface {
 
 type DefaultProvider struct {
 	region          string
-	ec2Client       awsapi.EC2API
+	ec2api          sdk.EC2API
 	subnetProvider  subnet.Provider
 	pricingProvider pricing.Provider
 
@@ -83,10 +83,10 @@ type DefaultProvider struct {
 	instanceTypeOfferingsSeqNum uint64
 }
 
-func NewDefaultProvider(region string, instanceTypesCache *cache.Cache, ec2Client awsapi.EC2API, subnetProvider subnet.Provider,
+func NewDefaultProvider(region string, instanceTypesCache *cache.Cache, ec2api sdk.EC2API, subnetProvider subnet.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider pricing.Provider) *DefaultProvider {
 	return &DefaultProvider{
-		ec2Client:             ec2Client,
+		ec2api:                ec2api,
 		region:                region,
 		subnetProvider:        subnetProvider,
 		pricingProvider:       pricingProvider,
@@ -192,7 +192,7 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 	defer p.muInstanceTypeInfo.Unlock()
 	var instanceTypes []*ec2.InstanceTypeInfo
 
-	if err := p.ec2Client.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{
+	if err := p.ec2api.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("supported-virtualization-type"),
@@ -232,7 +232,7 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 
 	// Get offerings from EC2
 	instanceTypeOfferings := map[string]sets.Set[string]{}
-	if err := p.ec2Client.DescribeInstanceTypeOfferingsPages(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: aws.String("availability-zone")},
+	if err := p.ec2api.DescribeInstanceTypeOfferingsPages(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: aws.String("availability-zone")},
 		func(output *ec2.DescribeInstanceTypeOfferingsOutput, lastPage bool) bool {
 			for _, offering := range output.InstanceTypeOfferings {
 				if _, ok := instanceTypeOfferings[aws.StringValue(offering.InstanceType)]; !ok {
