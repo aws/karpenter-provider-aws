@@ -137,14 +137,6 @@ controller:
   healthProbe:
     # -- The container port to use for http health probe.
     port: 8081
-webhook:
-  # -- Whether to enable the webhooks and webhook permissions.
-  enabled: true
-  # -- The container port to use for the webhook.
-  port: 8443
-  metrics:
-    # -- The container port to use for webhook metrics.
-    port: 8001
 # -- Global log level, defaults to 'info'
 logLevel: info
 # -- Log outputPaths - defaults to stdout only

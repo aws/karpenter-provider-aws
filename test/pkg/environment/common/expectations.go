@@ -329,6 +329,17 @@ func (env *Environment) ConsistentlyExpectTerminatingPods(duration time.Duration
 	}, duration.String()).Should(Succeed())
 }
 
+func (env *Environment) ConsistentlyExpectActivePods(duration time.Duration, pods ...*corev1.Pod) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting %d pods to be live for %s", len(pods), duration))
+	Consistently(func(g Gomega) {
+		for _, pod := range pods {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+			g.Expect(pod.DeletionTimestamp.IsZero()).To(BeTrue())
+		}
+	}, duration.String()).Should(Succeed())
+}
+
 func (env *Environment) ConsistentlyExpectHealthyPods(duration time.Duration, pods ...*corev1.Pod) {
 	GinkgoHelper()
 	By(fmt.Sprintf("expecting %d pods to be ready for %s", len(pods), duration))
@@ -578,7 +589,7 @@ func (env *Environment) ConsistentlyExpectDisruptionsWithNodeCount(disruptingNod
 
 		nodes = lo.Filter(nodeList.Items, func(n corev1.Node, _ int) bool {
 			_, ok := lo.Find(n.Spec.Taints, func(t corev1.Taint) bool {
-				return karpv1.IsDisruptingTaint(t)
+				return t.MatchTaint(&karpv1.DisruptedNoScheduleTaint)
 			})
 			return ok
 		})
