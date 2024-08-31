@@ -245,4 +245,26 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectUniqueNodeNames(selector, 1)
 	})
+	It("should use evictionSoft and evictionHard settings in kubelet when Bottlerocket is used", func() {
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			EvictionSoft: map[string]string{"memory.available": "10%"},
+			EvictionHard: map[string]string{"memory.available": "5%"},
+		}
+		numPods := 3
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "sample-app"},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+
+		env.ExpectCreated(nodeClass, nodePool, dep)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+		env.EventuallyExpectUniqueNodeNames(selector, 1)
+	})
 })
