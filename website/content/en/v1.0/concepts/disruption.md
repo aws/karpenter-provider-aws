@@ -15,7 +15,7 @@ The finalizer blocks deletion of the node object while the Termination Controlle
 
 Karpenter automatically discovers disruptable nodes and spins up replacements when needed. Karpenter disrupts nodes by executing one [automated method](#automated-methods) at a time, first doing Drift then Consolidation. Each method varies slightly, but they all follow the standard disruption process. Karpenter uses [disruption budgets]({{<ref "#disruption-budgets" >}}) to control the speed at which these disruptions begin.
 1. Identify a list of prioritized candidates for the disruption method.
-   * If there are [pods that cannot be evicted](#pod-eviction) on the node, Karpenter will ignore the node and try disrupting it later.
+   * If there are [pods that cannot be evicted](#pod-level-controls) on the node, Karpenter will ignore the node and try disrupting it later.
    * If there are no disruptable nodes, continue to the next disruption method.
 2. For each disruptable node:
    1. Check if disrupting it would violate its NodePool's disruption budget.
