@@ -31,12 +31,6 @@ This document proposes supporting ODCR in Karpenter
         + [The `capacityReservationSelectorTerms` no longer selects an instance's capacity reservation](#the-capacityreservationselectorterms-no-longer-selects-an-instances-capacity-reservation)
     * [Appendix](#appendix)
         + [Input/Output for CreateFleet with CapacityReservations](#inputoutput-for-createfleet-with-capacityreservations)
-            - [CreateFleet with ODCR targeting -- specifying `usageStrategy: use-capacity-reservation-first`](#createfleet-with-odcr-targeting-specifying-usagestrategy-use-capacity-reservation-first)
-            - [CreateFleet without ODCR targeting -- specifying `usageStrategy: use-capaity-reservation-first`](#createfleet-without-odcr-targeting-specifying-usagestrategy-use-capaity-reservation-first)
-            - [CreateFleet Targeting Open ODCRs -- specifying `usageStrategy: use-capacity-reservation-first`](#createfleet-targeting-open-odcrs-specifying-usagestrategy-use-capacity-reservation-first)
-            - [CreateFleet with ODCR targeting -- specifying `usageStrategy: null`](#createfleet-with-odcr-targeting-specifying-usagestrategy-null)
-            - [CreateFleet without ODCR targeting -- specifying `usageStrategy: null`](#createfleet-without-odcr-targeting-specifying-usagestrategy-null)
-            - [CreateFleet without ODCR targeting -- specifying `usageStrategy: null` and `capacityReservationPreference: none`](#createfleet-without-odcr-targeting-specifying-usagestrategy-null-and-capacityreservationpreference-none)
             - [Specifying Multiple ODCRs with the same Instance Type/Availability Zone Combination](#specifying-multiple-odcrs-with-the-same-instance-typeavailability-zone-combination)
 
 ## Overview
@@ -398,31 +392,16 @@ In this case, there is no existing mechanism in Karpenter that would catch this.
 
 ### Input/Output for CreateFleet with CapacityReservations
 
-#### CreateFleet with ODCR targeting -- specifying `usageStrategy: use-capacity-reservation-first`
-
-CreateFleet will not use any launch templates that target capacity reservations when using `usageStrategy: use-capacity-reservation-first`.
-
-#### CreateFleet without ODCR targeting -- specifying `usageStrategy: use-capaity-reservation-first`
-
-CreateFleet will find available open ODCRs and prioritize launching into these before launching regular on-demand capacity. These ODCRs will be ordered by the `lowest-price` allocation strategy. Once all open ODCRs from passed-through instance type/availability zone combinations have been exhausted, Fleet will launch standard on-demand capacity -- even if targeted ODCRs are available.
-
-#### CreateFleet Targeting Open ODCRs -- specifying `usageStrategy: use-capacity-reservation-first`
-
-CreateFleet will not use any launch templates that target capacity reservations when using `usageStrategy: use-capacity-reservation-first`
-
-#### CreateFleet with ODCR targeting -- specifying `usageStrategy: null`
-
-CreateFleet does not have any knowledge about ODCRs in this mode will use the `lowest-price` allocation strategy to order the instance types/availability zones. When specifying multiple ODCRs in separate launch templates and running out of capacity in one ODCR, CreateFleet will automatically select the other ODCR that has capacity.
-
-When all ODCRs are exhausted, CreateFleet will return `ReservationCapacityExceeded` rather than falling back to standard on-demand capacity.
-
-#### CreateFleet without ODCR targeting -- specifying `usageStrategy: null`
-
-This is the current state today. CreateFleet has no knowledge about capacity reservations and will not specifically try to launch into them. If a user gets lucky and Fleet happens to launch into an instance type/availability zone combination that _happens_ to match an open ODCR, then the instance will be attached to this ODCR.
-
-#### CreateFleet without ODCR targeting -- specifying `usageStrategy: null` and `capacityReservationPreference: none`
-
-CreateFleet has no knowledge about capacity reservations and will not specifically try to launch into them. If a user gets lucky and Fleet happens to launch into an instance type/availability zone combination that _happens_ to match an open ODCR, __the instance will not join the ODCR and will become standard on-demand capacity due to the `capacityReservationPreference`.__
+| ODCR Targeting                      | `usageStrategy`                  | `capacityReservationPreference` | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+|-------------------------------------|----------------------------------|---------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Yes, targeting `targeted`           | `use-capacity-reservation-first` | `null` (default `open`)         | CreateFleet will not use any launch templates that target capacity reservations when using `usageStrategy: use-capacity-reservation-first`.                                                                                                                                                                                                                                                                                                                                                |
+| No                                  | `use-capacity-reservation-first` | `null` (default `open`)         | CreateFleet will find available open ODCRs and prioritize launching into these before launching regular on-demand capacity. These ODCRs will be ordered by the `lowest-price` allocation strategy. Once all open ODCRs from passed-through instance type/availability zone combinations have been exhausted, Fleet will launch standard on-demand capacity -- even if targeted ODCRs are available.                                                                                        |
+| Yes, targeting `open`               | `use-capacity-reservation-first` | `null` (default `open`)         | CreateFleet will not use any launch templates that target capacity reservations when using `usageStrategy: use-capacity-reservation-first`                                                                                                                                                                                                                                                                                                                                                 |
+| Yes, targeting `targeted`           | `null`                           | `null` (default `open`)         | CreateFleet does not have any knowledge about ODCRs in this mode will use the `lowest-price` allocation strategy to order the instance types/availability zones. When specifying multiple ODCRs in separate launch templates and running out of capacity in one ODCR, CreateFleet will automatically select the other ODCR that has capacity. When all ODCRs are exhausted, CreateFleet will return `ReservationCapacityExceeded` rather than falling back to standard on-demand capacity. |
+| No                                  | `null`                           | `null` (default `open`)         | This is the current state today. CreateFleet has no knowledge about capacity reservations and will not specifically try to launch into them. If a user gets lucky and Fleet happens to launch into an instance type/availability zone combination that _happens_ to match an open ODCR, then the instance will be attached to this ODCR.                                                                                                                                                   |
+| Yes, targeting `open`               | `null`                           | `null` (default `open`)         | Same as targeting `targeted` ODCRs. It will use the `lowest-price` allocation strategy to select on the instance type/availability zone.                                                                                                                                                                                                                                                                                                                                                   |
+| No                                  | `null`                           | `none`                          | CreateFleet has no knowledge about capacity reservations and will not specifically try to launch into them. If a user gets lucky and Fleet happens to launch into an instance type/availability zone combination that _happens_ to match an open ODCR, __the instance will not join the ODCR and will become standard on-demand capacity due to the `capacityReservationPreference`.__                                                                                                     |
+| Yes, targeting `targeted` or `open` | `null`                           | `none`                          | Errors on launch. A capacity reservation preference of `none` cannot be used while targeting ODCRs in the launch template.                                                                                                                                                                                                                                                                                                                                                                 |
 
 #### Specifying Multiple ODCRs with the same Instance Type/Availability Zone Combination
 
