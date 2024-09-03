@@ -9,7 +9,7 @@ For users with a high variance of instance types that want to achieve high utili
     * Pre-populate values when possible:
       * Known instance types can be handled via similar implementation as [[DRAFT] Add capacity memory overhead generation #4517](https://github.com/aws/karpenter-provider-aws/pull/4517).
       * Unknown instance types such as the case of new ones being introduced can defer to an initial value calculated against vmMemoryOverheadPercent
-    * Once a particular instance type has been launched, the cached values are updated with actual.
+    * Once a particular instance type has been launched and the NodeClaim is registered to the cluster the cached value is updated with actual and will continue being updated for every new node to address the case where the overhead value may change.
 
 # Recommendations
 
