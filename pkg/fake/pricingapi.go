@@ -19,13 +19,12 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/request"
 	"github.com/aws/aws-sdk-go-v2/service/pricing"
-	"github.com/aws/aws-sdk-go-v2/service/pricing/pricing/types"
+	"github.com/aws/aws-sdk-go-v2/service/pricing/types"
 )
 
 type PricingAPI interface {
-	GetProductsPages(aws.Context, *pricing.GetProductsInput, func(*pricing.GetProductsOutput, bool) bool, ...request.Option) error
+	GetProductsPages(aws.Context, *pricing.GetProductsInput, func(*pricing.GetProductsOutput, bool) bool, ...func(*pricing.Options)) error
 }
 
 type PricingAPI struct {
@@ -42,7 +41,7 @@ func (p *PricingAPI) Reset() {
 	p.GetProductsOutput.Reset()
 }
 
-func (p *PricingAPI) GetProductsPages(_ aws.Context, _ *pricing.GetProductsInput, fn func(*pricing.GetProductsOutput, bool) bool, _ ...request.Option) error {
+func (p *PricingAPI) GetProductsPages(_ aws.Context, _ *pricing.GetProductsInput, fn func(*pricing.GetProductsOutput, bool) bool, _ ...func(*pricing.Options)) error {
 	if !p.NextError.IsNil() {
 		return p.NextError.Get()
 	}

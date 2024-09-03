@@ -26,7 +26,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -51,6 +50,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
+	"github.com/aws/smithy-go"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -253,11 +253,11 @@ var _ = Describe("InterruptionHandling", func() {
 
 var _ = Describe("Error Handling", func() {
 	It("should send an error on polling when QueueNotExists", func() {
-		sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(servicesqs.ErrCodeQueueDoesNotExist), fake.MaxCalls(0))
+		sqsapi.ReceiveMessageBehavior.Error.Set(smithyErrWithCode(servicesqs.ErrCodeQueueDoesNotExist), fake.MaxCalls(0))
 		_ = ExpectSingletonReconcileFailed(ctx, controller)
 	})
 	It("should send an error on polling when AccessDenied", func() {
-		sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode("AccessDenied"), fake.MaxCalls(0))
+		sqsapi.ReceiveMessageBehavior.Error.Set(smithyErrWithCode("AccessDenied"), fake.MaxCalls(0))
 		_ = ExpectSingletonReconcileFailed(ctx, controller)
 	})
 	It("should not return an error when deleting a nodeClaim that is already deleted", func() {
@@ -280,8 +280,13 @@ func ExpectMessagesCreated(messages ...interface{}) {
 	)
 }
 
-func awsErrWithCode(code string) awserr.Error {
-	return awserr.New(code, "", fmt.Errorf(""))
+func smithyErrWithCode(code string) Error {
+	return &smithy.GenericAPIError{
+		return &smithy.GenericAPIError{
+			Code:    code,
+			Message: "error",
+		},
+	}
 }
 
 func spotInterruptionMessage(involvedInstanceID string) spotinterruption.Message {

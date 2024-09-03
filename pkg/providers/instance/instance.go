@@ -22,10 +22,11 @@ import (
 	"sort"
 	"strings"
 
-	"karpenter-provider-aws/pkg/aws/awsclient"
+	"github.com/aws/smithy-go"
+
 	"karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/awserr"
+
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
@@ -247,9 +248,9 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 			}
 			return nil, fmt.Errorf("creating fleet %w", err)
 		}
-		var reqFailure awserr.RequestFailure
+		var apiErr smithy.APIError
 		if errors.As(err, &reqFailure) {
-			return nil, fmt.Errorf("creating fleet %w (%s)", err, reqFailure.RequestID())
+			return nil, fmt.Errorf("creating fleet %w (%s)", err, apiErr.RequestID())
 		}
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}

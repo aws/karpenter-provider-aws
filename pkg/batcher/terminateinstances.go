@@ -26,22 +26,21 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"karpenter-provider-aws/pkg/aws/awsclient"
-	"karpenter-provider-aws/pkg/aws/awsapi"
+	"karpenter-provider-aws/pkg/aws/sdk"
 )
 
 type TerminateInstancesBatcher struct {
 	batcher *Batcher[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
 }
 
-func NewTerminateInstancesBatcher(ctx context.Context, ec2Client awsapi.EC2API) *TerminateInstancesBatcher {
+func NewTerminateInstancesBatcher(ctx context.Context, ec2api sdk.EC2API) *TerminateInstancesBatcher {
 	options := Options[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]{
 		Name:          "terminate_instances",
 		IdleTimeout:   100 * time.Millisecond,
 		MaxTimeout:    1 * time.Second,
 		MaxItems:      500,
 		RequestHasher: OneBucketHasher[ec2.TerminateInstancesInput],
-		BatchExecutor: execTerminateInstancesBatch(ec2Client),
+		BatchExecutor: execTerminateInstancesBatch(ec2api),
 	}
 	return &TerminateInstancesBatcher{batcher: NewBatcher(ctx, options)}
 }
@@ -54,7 +53,7 @@ func (b *TerminateInstancesBatcher) TerminateInstances(ctx context.Context, term
 	return result.Output, result.Err
 }
 
-func execTerminateInstancesBatch(ec2Client awsapi.EC2API) BatchExecutor[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput] {
+func execTerminateInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput] {
 	return func(ctx context.Context, inputs []*ec2.TerminateInstancesInput) []Result[ec2.TerminateInstancesOutput] {
 		results := make([]Result[ec2.TerminateInstancesOutput], len(inputs))
 		firstInput := inputs[0]
@@ -68,7 +67,7 @@ func execTerminateInstancesBatch(ec2Client awsapi.EC2API) BatchExecutor[ec2.Term
 
 		// Execute fully aggregated request
 		// We don't care about the error here since we'll break up the batch upon any sort of failure
-		output, err := ec2Client.TerminateInstances(ctx, firstInput)
+		output, err := ec2api.TerminateInstances(ctx, firstInput)
 		if err != nil {
 			log.FromContext(ctx).Error(err, "failed terminating instances")
 		}
@@ -109,7 +108,7 @@ func execTerminateInstancesBatch(ec2Client awsapi.EC2API) BatchExecutor[ec2.Term
 			go func(instanceID string) {
 				defer wg.Done()
 				// try to execute separately
-				out, err := ec2Client.TerminateInstances(ctx, &ec2.TerminateInstancesInput{InstanceIds: []*string{instanceID}})
+				out, err := ec2api.TerminateInstances(ctx, &ec2.TerminateInstancesInput{InstanceIds: []*string{instanceID}})
 
 				// Find all indexes where we are requesting this instance and populate with the result
 				for reqID := range inputs {

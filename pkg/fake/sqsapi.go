@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/request"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
@@ -36,9 +35,9 @@ type SQSBehavior struct {
 }
 
 type SQSAPI interface {
-	GetQueueUrl(context.Context, *sqs.GetQueueUrlInput, ...request.Option) (*sqs.GetQueueUrlOutput, error)
-	ReceiveMessage(context.Context, *sqs.ReceiveMessageInput, ...request.Option) (*sqs.ReceiveMessageOutput, error)
-	DeleteMessage(context.Context, *sqs.DeleteMessageInput, ...request.Option) (*sqs.DeleteMessageOutput, error)
+	GetQueueUrl(context.Context, *sqs.GetQueueUrlInput, ...func(*sqs.Options)) (*sqs.GetQueueUrlOutput, error)
+	ReceiveMessage(context.Context, *sqs.ReceiveMessageInput, ...func(*sqs.Options)) (*sqs.ReceiveMessageOutput, error)
+	DeleteMessage(context.Context, *sqs.DeleteMessageInput, ...func(*sqs.Options)) (*sqs.DeleteMessageOutput, error)
 }
 
 type SQSAPI struct {
@@ -55,7 +54,7 @@ func (s *SQSAPI) Reset() {
 }
 
 //nolint:revive,stylecheck
-func (s *SQSAPI) GetQueueUrl(_ context.Context, input *sqs.GetQueueUrlInput, _ ...request.Option) (*sqs.GetQueueUrlOutput, error) {
+func (s *SQSAPI) GetQueueUrl(_ context.Context, input *sqs.GetQueueUrlInput, _ ...func(*sqs.Options)) (*sqs.GetQueueUrlOutput, error) {
 	return s.GetQueueURLBehavior.Invoke(input, func(_ *sqs.GetQueueUrlInput) (*sqs.GetQueueUrlOutput, error) {
 		return &sqs.GetQueueUrlOutput{
 			QueueUrl: aws.String(dummyQueueURL),
@@ -63,13 +62,13 @@ func (s *SQSAPI) GetQueueUrl(_ context.Context, input *sqs.GetQueueUrlInput, _ .
 	})
 }
 
-func (s *SQSAPI) ReceiveMessage(_ context.Context, input *sqs.ReceiveMessageInput, _ ...request.Option) (*sqs.ReceiveMessageOutput, error) {
+func (s *SQSAPI) ReceiveMessage(_ context.Context, input *sqs.ReceiveMessageInput, _ ...func(*sqs.Options)) (*sqs.ReceiveMessageOutput, error) {
 	return s.ReceiveMessageBehavior.Invoke(input, func(_ *sqs.ReceiveMessageInput) (*sqs.ReceiveMessageOutput, error) {
 		return nil, nil
 	})
 }
 
-func (s *SQSAPI) DeleteMessage(_ context.Context, input *sqs.DeleteMessageInput, _ ...request.Option) (*sqs.DeleteMessageOutput, error) {
+func (s *SQSAPI) DeleteMessage(_ context.Context, input *sqs.DeleteMessageInput, _ ...func(*sqs.Options)) (*sqs.DeleteMessageOutput, error) {
 	return s.DeleteMessageBehavior.Invoke(input, func(_ *sqs.DeleteMessageInput) (*sqs.DeleteMessageOutput, error) {
 		return nil, nil
 	})

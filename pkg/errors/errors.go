@@ -17,7 +17,6 @@ package errors
 import (
 	"errors"
 
-	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -58,9 +57,9 @@ func IsNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
-	var awsError awserr.Error
-	if errors.As(err, &awsError) {
-		return notFoundErrorCodes.Has(awsError.Code())
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return notFoundErrorCodes.Has(apiErr.Code())
 	}
 	return false
 }
@@ -76,9 +75,9 @@ func IsAlreadyExists(err error) bool {
 	if err == nil {
 		return false
 	}
-	var awsError awserr.Error
-	if errors.As(err, &awsError) {
-		return alreadyExistsErrorCodes.Has(awsError.Code())
+	var apiErr smithy.APIError 
+	if errors.As(err, &apiErr) {
+		return alreadyExistsErrorCodes.Has(apiErr.Code())
 	}
 	return false
 }
@@ -101,9 +100,9 @@ func IsLaunchTemplateNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
-	var awsError awserr.Error
-	if errors.As(err, &awsError) {
-		return awsError.Code() == launchTemplateNameNotFoundCode
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.Code() == launchTemplateNameNotFoundCode
 	}
 	return false
 }

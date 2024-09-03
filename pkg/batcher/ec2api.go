@@ -16,15 +16,14 @@ package batcher
 
 import (
 	"context"
-	"karpenter-provider-aws/pkg/aws/awsclient"
-	"karpenter-provider-aws/pkg/aws/awsapi"
+	"karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
-func EC2(ctx context.Context, ec2Client awsapi.EC2API) *AWSAPI {
+func EC2(ctx context.Context, ec2api sdk.EC2API) *SDK {
 	return &EC2API{
-		CreateFleetBatcher:        NewCreateFleetBatcher(ctx, ec2Client),
-		DescribeInstancesBatcher:  NewDescribeInstancesBatcher(ctx, ec2Client),
-		TerminateInstancesBatcher: NewTerminateInstancesBatcher(ctx, ec2Client),
+		CreateFleetBatcher:        NewCreateFleetBatcher(ctx, ec2api),
+		DescribeInstancesBatcher:  NewDescribeInstancesBatcher(ctx, ec2api),
+		TerminateInstancesBatcher: NewTerminateInstancesBatcher(ctx, ec2api),
 	}
 }

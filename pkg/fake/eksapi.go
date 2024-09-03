@@ -17,7 +17,6 @@ package fake
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws/request"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/samber/lo"
@@ -32,7 +31,7 @@ type EKSAPIBehavior struct {
 }
 
 type EKSAPI interface {
-	DescribeCluster(context.Context, *eks.DescribeClusterInput, ...request.Option) (*eks.DescribeClusterOutput, error)
+	DescribeCluster(context.Context, *eks.DescribeClusterInput, ...func(*eks.Options)) (*eks.DescribeClusterOutput, error)
 	Reset()
 }
 
@@ -51,7 +50,7 @@ func (s *EKSAPI) Reset() {
 	s.DescribeClusterBehavior.Reset()
 }
 
-func (s *EKSAPI) DescribeCluster(_ context.Context, input *eks.DescribeClusterInput, _ ...request.Option) (*eks.DescribeClusterOutput, error) {
+func (s *EKSAPI) DescribeCluster(_ context.Context, input *eks.DescribeClusterInput, _ ...func(*eks.Options)) (*eks.DescribeClusterOutput, error) {
 	return s.DescribeClusterBehavior.Invoke(input, func(*eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
 		return &eks.DescribeClusterOutput{
 			Cluster: &eks.Cluster{

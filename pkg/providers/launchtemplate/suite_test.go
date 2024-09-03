@@ -26,10 +26,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/smithy-go"
+
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	admv1alpha1 "github.com/awslabs/amazon-eks-ami/nodeadm/api/v1alpha1"
 	"github.com/awslabs/operatorpkg/object"
@@ -393,7 +394,10 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				// Remove expiration from cached LT
 				awsEnv.LaunchTemplateCache.Set(ltName, lt, -1)
 			})
-			awsEnv.EC2API.CreateFleetBehavior.Error.Set(awserr.New("InvalidLaunchTemplateName.NotFoundException", "", nil), fake.MaxCalls(1))
+			awsEnv.EC2API.CreateFleetBehavior.Error.Set(&smith.GenericAPIError{
+				Code:    aws.String("InvalidLaunchTemplateName.Fault"),
+				Message: aws.String("The launch template name is invalid."),
+			}, fake.MaxCalls(1))
 			pod = coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)

@@ -22,13 +22,10 @@ import (
 	"net"
 	"os"
 
-	"karpenter-provider-aws/pkg/aws/awsclient"
-	"karpenter-provider-aws/pkg/aws/awsapi"
+	"karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsclient "github.com/aws/aws-sdk-go-v2/aws/client"
-	"github.com/aws/aws-sdk-go-v2/aws/ec2metadata"
-	"github.com/aws/aws-sdk-go-v2/aws/endpoints"
-	"github.com/aws/aws-sdk-go-v2/aws/request"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -77,7 +74,7 @@ type Operator struct {
 
 	Config                    aws.Config
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
-	ec2Client                 awsapi.EC2API                
+	ec2api                   sdk.EC2API                
 	SubnetProvider            subnet.Provider
 	SecurityGroupProvider     securitygroup.Provider
 	InstanceProfileProvider   instanceprofile.Provider
@@ -110,13 +107,13 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	// See: https://github.com/aws/aws-sdk-go-v2/issues/1744
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
-		metadataClient := ec2metadata.NewEC2Metadata(cfg)
-		region, err := metadataClient.Region(ctx)
+		metadataClient := imds.New(imds.Options{})
+		regionOutput, err := metadataClient.GetRegion(ctx, &imds.GetRegionInput{})
 		if err != nil {
 			log.FromContext(ctx).Error(err, "failed to get region from metadata server")
 			os.Exit(1)
 		}
-		cfg.Region = region
+		cfg.Region = regionOutput.Region
 	}
 
 	ec2api := ec2.NewFromConfig(cfg)
