@@ -35,7 +35,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
-	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/env"
@@ -134,11 +133,7 @@ func NewEnvironment(t *testing.T) *Environment {
 }
 
 func GetTimeStreamAPI(session *session.Session) timestreamwriteiface.TimestreamWriteAPI {
-	if lo.Must(env.GetBool("ENABLE_METRICS", false)) {
-		By("enabling metrics firing for this suite")
-		return timestreamwrite.New(session, &aws.Config{Region: aws.String(env.GetString("METRICS_REGION", metricsDefaultRegion))})
-	}
-	return &NoOpTimeStreamAPI{}
+	return timestreamwrite.New(session, &aws.Config{Region: aws.String(env.GetString("METRICS_REGION", metricsDefaultRegion))})
 }
 
 func (env *Environment) DefaultEC2NodeClass() *v1.EC2NodeClass {

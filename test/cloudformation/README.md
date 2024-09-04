@@ -13,7 +13,7 @@ aws cloudformation deploy \
 aws cloudformation deploy \
    --stack-name GithubActionsTimestream \
    --template-file timestream_cloudformation.yaml \
-   --parameter-overrides "DatabaseName=karpenterTesting" "TableName=scaleTestDurations" "SweeperTableName=sweeperCleanedResources" "ResourceCountTableName=resourceCount"
+   --parameter-overrides "DatabaseName=karpenterTesting" "TableName=scaleTestDurations" "SweeperTableName=sweeperCleanedResources" "ResourceCountTableName=resourceCount" "TestStatusTableName=testStatus"
 ```
 
 ### [Optional] Deploying ManagedGrafana and its Policy

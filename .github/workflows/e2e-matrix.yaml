@@ -11,6 +11,9 @@ on:
       cleanup:
         type: boolean
         required: true
+      enable_metrics:
+        type: boolean
+        required: true
       git_ref:
         type: string
       workflow_trigger:
@@ -45,6 +48,10 @@ on:
         type: boolean
         required: true
         default: true
+      enable_metrics:
+        required: true
+        default: false
+        type: boolean
 # All jobs will run under the following conditions:
 #   1. Upstream Karpenter repo triggered the job by schedule, push, or dispatch
 #   2. Upstream Karpenter repo triggered the job by workflow_run, which requires maintainer check to succeed
@@ -93,6 +100,7 @@ jobs:
       region: ${{ matrix.suite.region }}
       k8s_version: ${{ inputs.k8s_version }}
       cleanup: ${{ inputs.cleanup }}
+      enable_metrics: ${{ inputs.enable_metrics }}
       workflow_trigger: ${{ inputs.workflow_trigger }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
