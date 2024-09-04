@@ -445,7 +445,7 @@ provisioner: ebs.csi.aws.com
 volumeBindingMode: WaitForFirstConsumer
 allowedTopologies:
 - matchLabelExpressions:
-  - key: topology.ebs.csi.aws.com/zone
+  - key: topology.kubernetes.io/zone
     values: ["us-west-2a", "us-west-2b"]
 ---
 apiVersion: v1
@@ -464,7 +464,7 @@ spec:
 {{% alert title="Note" color="primary" %}}
 ☁️ AWS Specific
 
-The EBS CSI driver uses `topology.ebs.csi.aws.com/zone` instead of the standard `topology.kubernetes.io/zone` label. Karpenter is aware of label aliasing and translates this label into `topology.kubernetes.io/zone` in memory. When configuring a `StorageClass` for the EBS CSI Driver, you must use `topology.ebs.csi.aws.com/zone`.
+Volumes created by the EBS CSI driver [prior to version v1.33.0](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/CHANGELOG.md#v1330) use `topology.ebs.csi.aws.com/zone` instead of the standard `topology.kubernetes.io/zone` label. Karpenter is aware of label aliasing and translates this label into `topology.kubernetes.io/zone` in memory.
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
