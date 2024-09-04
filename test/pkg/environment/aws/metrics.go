@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
+	"github.com/onsi/ginkgo/v2/types"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
@@ -34,7 +35,8 @@ import (
 const (
 	metricsDefaultRegion = "us-east-2"
 	databaseName         = "karpenterTesting"
-	tableName            = "scaleTestDurations"
+	scaleTestTableName   = "scaleTestDurations"
+	testStatusTableName  = "testStatus"
 )
 
 var _ timestreamwriteiface.TimestreamWriteAPI = (*NoOpTimeStreamAPI)(nil)
@@ -90,20 +92,28 @@ func (env *Environment) MeasureDurationFor(f func(), eventType EventType, dimens
 	})
 	switch eventType {
 	case ProvisioningEventType:
-		env.ExpectMetric("provisioningDuration", time.Since(start).Seconds(), dimensions)
+		env.ExpectMetric(scaleTestTableName, "provisioningDuration", time.Since(start).Seconds(), dimensions)
 	case DeprovisioningEventType:
-		env.ExpectMetric("deprovisioningDuration", time.Since(start).Seconds(), dimensions)
+		env.ExpectMetric(scaleTestTableName, "deprovisioningDuration", time.Since(start).Seconds(), dimensions)
 	}
 }
 
-func (env *Environment) ExpectMetric(name string, value float64, labels map[string]string) {
+func (env *Environment) ExpectTestStatusMetric(testName string, state types.SpecState) {
+	GinkgoHelper()
+	env.ExpectMetric(testStatusTableName, "status", 1, map[string]string{
+		"test_name": testName,
+		"status":    state.String(),
+	})
+}
+
+func (env *Environment) ExpectMetric(tableName, metricName string, value float64, labels map[string]string) {
 	GinkgoHelper()
 	_, err := env.TimeStreamAPI.WriteRecordsWithContext(env.Context, &timestreamwrite.WriteRecordsInput{
 		DatabaseName: aws.String(databaseName),
 		TableName:    aws.String(tableName),
 		Records: []*timestreamwrite.Record{
 			{
-				MeasureName:  aws.String(name),
+				MeasureName:  aws.String(metricName),
 				MeasureValue: aws.String(fmt.Sprintf("%f", value)),
 				Dimensions: lo.MapToSlice(labels, func(k, v string) *timestreamwrite.Dimension {
 					return &timestreamwrite.Dimension{

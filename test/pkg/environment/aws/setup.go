@@ -15,6 +15,7 @@ limitations under the License.
 package aws
 
 import (
+	"github.com/onsi/ginkgo/v2"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -40,6 +41,7 @@ func (env *Environment) Cleanup() {
 }
 
 func (env *Environment) AfterEach() {
+	env.ExpectTestStatusMetric(ginkgo.CurrentSpecReport().FullText(), ginkgo.CurrentSpecReport().State)
 	env.Environment.AfterEach()
 	// Ensure we reset settings after collecting the controller logs
 	env.ExpectSettingsReplaced(persistedSettings...)
