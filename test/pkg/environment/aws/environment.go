@@ -19,6 +19,7 @@ import (
 	"os"
 	"testing"
 
+	. "github.com/onsi/ginkgo/v2"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -133,7 +134,11 @@ func NewEnvironment(t *testing.T) *Environment {
 }
 
 func GetTimeStreamAPI(session *session.Session) timestreamwriteiface.TimestreamWriteAPI {
-	return timestreamwrite.New(session, &aws.Config{Region: aws.String(env.GetString("METRICS_REGION", metricsDefaultRegion))})
+	if lo.Must(env.GetBool("ENABLE_METRICS", false)) {
+		By("enabling metrics firing for this suite")
+		return timestreamwrite.New(session, &aws.Config{Region: aws.String(env.GetString("METRICS_REGION", metricsDefaultRegion))})
+	}
+	return &NoOpTimeStreamAPI{}
 }
 
 func (env *Environment) DefaultEC2NodeClass() *v1.EC2NodeClass {

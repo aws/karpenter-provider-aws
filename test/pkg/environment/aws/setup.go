@@ -41,7 +41,7 @@ func (env *Environment) Cleanup() {
 }
 
 func (env *Environment) AfterEach() {
-	env.ExpectTestStatusMetric(ginkgo.CurrentSpecReport().FullText(), ginkgo.CurrentSpecReport().State)
+	env.ExpectTestStatusMetric(ginkgo.CurrentSpecReport().FullText(), ginkgo.CurrentSpecReport().Failed())
 	env.Environment.AfterEach()
 	// Ensure we reset settings after collecting the controller logs
 	env.ExpectSettingsReplaced(persistedSettings...)

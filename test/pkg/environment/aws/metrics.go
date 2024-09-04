@@ -23,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
-	"github.com/onsi/ginkgo/v2/types"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
@@ -98,12 +97,17 @@ func (env *Environment) MeasureDurationFor(f func(), eventType EventType, dimens
 	}
 }
 
-func (env *Environment) ExpectTestStatusMetric(testName string, state types.SpecState) {
+func (env *Environment) ExpectTestStatusMetric(testName string, failed bool) {
 	GinkgoHelper()
-	env.ExpectMetric(testStatusTableName, "status", 1, map[string]string{
-		"test_name": testName,
-		"status":    state.String(),
-	})
+	if failed {
+		env.ExpectMetric(testStatusTableName, "failed", 1, map[string]string{
+			"testName": testName,
+		})
+	} else {
+		env.ExpectMetric(testStatusTableName, "passed", 1, map[string]string{
+			"testName": testName,
+		})
+	}
 }
 
 func (env *Environment) ExpectMetric(tableName, metricName string, value float64, labels map[string]string) {
