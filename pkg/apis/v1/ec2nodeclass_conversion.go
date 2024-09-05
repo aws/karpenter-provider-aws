@@ -26,8 +26,9 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 func (in *EC2NodeClass) ConvertTo(ctx context.Context, to apis.Convertible) error {
