@@ -2,8 +2,8 @@
 set -euo pipefail
 
 compatibilitymatrix() {
-    go run hack/docs/versioncompatibility/main.go hack/docs/compatibilitymetrix/compatibility-karpenter.yaml "$(git describe --exact-match --tags || echo "no tag")"
-    go run hack/docs/compatibilitymetrix/main.go website/content/en/preview/upgrading/compatibility.md hack/docs/compatibilitymetrix/compatibility-karpenter.yaml 6
+    go run hack/docs/versioncompatibility/main.go hack/docs/compatibilitymatrix/compatibility-karpenter.yaml "$(git describe --exact-match --tags || echo "no tag")"
+    go run hack/docs/compatibilitymatrix/main.go website/content/en/preview/upgrading/compatibility.md hack/docs/compatibilitymatrix/compatibility-karpenter.yaml 6
 }
 
 
