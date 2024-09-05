@@ -2393,7 +2393,6 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *corev1beta1.
 			}
 		}
 		for _, o := range instanceType.Offerings {
-			o := o
 			if o.Requirements.Get(corev1beta1.CapacityTypeLabelKey).Any() != corev1beta1.CapacityTypeSpot {
 				continue
 			}
