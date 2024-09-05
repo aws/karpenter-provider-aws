@@ -46,7 +46,8 @@ Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line
 | Feature                 | Default | Stage  | Since   | Until   |
 |-------------------------|---------|--------|---------|---------|
 | Drift                   | false   | Alpha  | v0.21.x | v0.32.x |
-| Drift                   | true    | Beta   | v0.33.x |         |
+| Drift                   | true    | Beta   | v0.33.x | v1.0.0  |
+| Drift                   | true    | GA     | v1.0.0  | -       |
 | SpotToSpotConsolidation | false   | Alpha  | v0.34.x |         |
 
 ### Batching Parameters
