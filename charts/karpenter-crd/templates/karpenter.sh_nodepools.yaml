@@ -953,17 +953,6 @@ spec:
       storage: true
       subresources:
         status: {}
-  conversion:
-    strategy: Webhook
-    webhook:
-      conversionReviewVersions:
-        - v1beta1
-        - v1
-      clientConfig:
-        service:
-          name: karpenter
-          namespace: kube-system
-          port: 8443
 {{- if .Values.webhook.enabled }} 
   conversion:
     strategy: Webhook
