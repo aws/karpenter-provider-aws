@@ -102,7 +102,7 @@ func NewProvider(versionProvider *version.Provider, ssmProvider ssm.Provider, ec
 		cache:           cache,
 		ec2api:          ec2api,
 		cm:              pretty.NewChangeMonitor(),
-		ssmProvider: ssmProvider,
+		ssmProvider:     ssmProvider,
 		versionProvider: versionProvider,
 	}
 }

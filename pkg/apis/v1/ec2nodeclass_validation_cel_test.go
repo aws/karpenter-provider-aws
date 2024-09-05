@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	v1 "github.com/aws/karpenter/pkg/apis/v1"
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -29,6 +28,8 @@ import (
 	"knative.dev/pkg/ptr"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
+
+	v1 "github.com/aws/karpenter/pkg/apis/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
