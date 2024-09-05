@@ -13,13 +13,13 @@ Before you begin upgrading Karpenter, consider Karpenter compatibility issues re
 
 ## Compatibility Matrix
 
-[comment]: <> (the content below is generated from hack/docs/compataiblitymetrix_gen_docs.go)
+[comment]: <> (the content below is generated from hack/docs/compatibilitymatrix/main.go)
 
 | KUBERNETES |   1.23   |   1.24   |   1.25   |   1.26   |   1.27   |   1.28   |   1.29   |
 |------------|----------|----------|----------|----------|----------|----------|----------|
 | karpenter  | \>= 0.21 | \>= 0.21 | \>= 0.25 | \>= 0.28 | \>= 0.28 | \>= 0.31 | \>= 0.34 |
 
-[comment]: <> (end docs generated content from hack/docs/compataiblitymetrix_gen_docs.go)
+[comment]: <> (end docs generated content from hack/docs/compatibilitymatrix/main.go)
 
 {{% alert title="Note" color="warning" %}}
 Karpenter currently does not support the following [new `topologySpreadConstraints` keys](https://kubernetes.io/blog/2023/04/17/fine-grained-pod-topology-spread-features-beta/), promoted to beta in Kubernetes 1.27:
