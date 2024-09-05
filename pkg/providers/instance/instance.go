@@ -16,7 +16,7 @@ package instance
 
 import (
 	"context"
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"math"
 	"sort"
@@ -229,7 +229,7 @@ func (p *Provider) launchInstance(ctx context.Context, nodeClass *v1beta1.EC2Nod
 			return nil, fmt.Errorf("creating fleet %w", err)
 		}
 		var reqFailure awserr.RequestFailure
-		if errors.As(err, &reqFailure) {
+		if stderrors.As(err, &reqFailure) {
 			return nil, fmt.Errorf("creating fleet %w (%s)", err, reqFailure.RequestID())
 		}
 		return nil, fmt.Errorf("creating fleet %w", err)
@@ -502,7 +502,7 @@ func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
 		unique.Insert(fmt.Sprintf("%s: %s", aws.StringValue(err.ErrorCode), aws.StringValue(err.ErrorMessage)))
 	}
 	for errorCode := range unique {
-		errs = multierr.Append(errs, fmt.Errorf(errorCode))
+		errs = multierr.Append(errs, stderrors.New(errorCode))
 	}
 	// If all the Fleet errors are ICE errors then we should wrap the combined error in the generic ICE error
 	iceErrorCount := lo.CountBy(errors, func(err *ec2.CreateFleetError) bool { return awserrors.IsUnfulfillableCapacity(err) })
