@@ -213,6 +213,9 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeCla
 			return nil, err
 		}
 	}
+	// nolint:gosec
+	// We know that it's not possible to have values that would overflow int32 here since we control
+	// the maxPods values that we pass in here
 	if kubeletConfig.MaxPods == nil {
 		kubeletConfig.MaxPods = lo.ToPtr(int32(maxPods))
 	}
