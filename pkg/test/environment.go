@@ -66,7 +66,7 @@ type Environment struct {
 	SubnetCache               *cache.Cache
 	SecurityGroupCache        *cache.Cache
 	InstanceProfileCache      *cache.Cache
-	SSMProviderCache              *cache.Cache
+	SSMProviderCache          *cache.Cache
 
 	// Providers
 	InstanceTypesProvider   *instancetype.Provider
@@ -147,7 +147,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		SecurityGroupCache:        securityGroupCache,
 		InstanceProfileCache:      instanceProfileCache,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
-		SSMProviderCache:              ssmProviderCache,
+		SSMProviderCache:          ssmProviderCache,
 
 		InstanceTypesProvider:   instanceTypesProvider,
 		InstanceProvider:        instanceProvider,
