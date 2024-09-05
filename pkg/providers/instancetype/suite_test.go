@@ -2323,7 +2323,6 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *corev1beta1.
 			}
 		}
 		for _, o := range instanceType.Offerings {
-			o := o
 			if o.CapacityType != corev1beta1.CapacityTypeSpot {
 				continue
 			}
