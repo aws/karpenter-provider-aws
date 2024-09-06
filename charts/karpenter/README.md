@@ -79,7 +79,6 @@ cosign verify public.ecr.aws/karpenter/karpenter:0.36.0 \
 | podDisruptionBudget.name | string | `"karpenter"` |  |
 | podLabels | object | `{}` | Additional labels for the pod. |
 | podSecurityContext | object | `{"fsGroup":65532}` | SecurityContext for the pod. |
-| postInstallHook.image | string | `public.ecr.aws/bitnami/kubectl:1.30` | The image to run the post-install hook. This minimally needs to have `kubectl` installed |
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
 | replicas | int | `2` | Number of replicas. |
 | revisionHistoryLimit | int | `10` | The number of old ReplicaSets to retain to allow rollback. |
@@ -108,7 +107,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:0.36.0 \
 | terminationGracePeriodSeconds | string | `nil` | Override the default termination grace period for the pod. |
 | tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"}]` | Tolerations to allow the pod to be scheduled to nodes with taints. |
 | topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"}]` | Topology spread constraints to increase the controller resilience by distributing pods across the cluster zones. If an explicit label selector is not provided one will be created from the pod selector labels. |
-| webhook.enabled | bool | `false` | Whether to enable the webhooks and webhook permissions. |
+| webhook.enabled | bool | `true` | Whether to enable the webhooks and webhook permissions. |
 | webhook.metrics.port | int | `8001` | The container port to use for webhook metrics. |
 | webhook.port | int | `8443` | The container port to use for the webhook. |
 
