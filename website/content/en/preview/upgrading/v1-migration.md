@@ -54,14 +54,14 @@ The upgrade guide will first require upgrading to your latest patch version prio
    The Karpenter version you are running must be between minor version `v0.33` and `v0.37`. To be able to roll back from Karpenter v1, you must rollback to on the following patch release versions for your minor version, which will include the conversion webhooks for a smooth rollback:
 
    * v0.37.3
-   * v0.36.4
-   * v0.35.7
-   * v0.34.8
-   * v0.33.7
+   * v0.36.5
+   * v0.35.8
+   * v0.34.9
+   * v0.33.8
 
 3. Review for breaking changes between v0.33 and v0.37: If you are already running Karpenter v0.37.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the [Upgrade Guide]({{<ref "upgrade-guide#upgrading-to-0320" >}}) for each minor release.
 
-4. Set environment variables for upgrading to the latest patch version. Note that `v0.33.7` and `v0.34.8` both need to include the v prefix, whereas `v0.35+` should not.
+4. Set environment variables for upgrading to the latest patch version. Note that `v0.33.8` and `v0.34.9` both need to include the v prefix, whereas `v0.35+` should not.
 
     ```bash
     export KARPENTER_VERSION=<latest patch version of your current v1beta1 minor version>
@@ -255,10 +255,10 @@ Keep in mind that rollback, without replacing the Karpenter nodes, will not be s
 Once the Karpenter CRDs are upgraded to v1, conversion webhooks are needed to help convert APIs that are stored in etcd from v1 to v1beta1. Also changes to the CRDs will need to at least include the latest version of the CRD in this case being v1. The patch versions of the v1beta1 Karpenter controller that include the conversion wehooks include:
 
 * v0.37.3
-* v0.36.4
-* v0.35.7
-* v0.34.8
-* v0.33.7
+* v0.36.5
+* v0.35.8
+* v0.34.9
+* v0.33.8
 
 {{% alert title="Note" color="warning" %}}
 When rolling back from v1, Karpenter will not retain data that was only valid in v1 APIs. For instance, if you were upgrading from v0.33.5 to v1, updated the `NodePool.Spec.Disruption.Budgets` field and then rolled back to v0.33.7, Karpenter would not retain the `NodePool.Spec.Disruption.Budgets` field, as that was introduced in v0.34.x. If you are configuring the kubelet field, and have removed the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation, rollback is not supported without replacing your nodes between EC2NodeClass and NodePool.
@@ -272,7 +272,7 @@ Since both v1beta1 and v1 will be served, `kubectl` will default to returning th
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
-# Note: v0.33.7 and v0.34.8 include the v prefix, omit it for versions v0.35+
+# Note: v0.33.8 and v0.34.9 include the v prefix, omit it for versions v0.35+
 export KARPENTER_VERSION="<rollback version of karpenter>"
 export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
 export CLUSTER_NAME="<name of your cluster>"
@@ -291,7 +291,7 @@ echo "${KARPENTER_NAMESPACE}" "${KARPENTER_VERSION}" "${CLUSTER_NAME}" "${TEMPOU
 
 2. Rollback the Karpenter Policy
 
-**v0.33.7 and v0.34.8:**
+**v0.33.8 and v0.34.9:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/"${KARPENTER_VERSION}"/website/content/en/docs/getting-started/getting-started-with-karpenter/cloudformation.yaml > ${TEMPOUT} \
     && aws cloudformation deploy \
