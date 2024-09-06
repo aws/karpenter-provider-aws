@@ -21,6 +21,7 @@ import (
 
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -702,6 +703,101 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				Expect(node.Labels[v1.LabelTopologyZoneID]).To(Equal(zoneInfo.ZoneID))
 			}
 		})
+	})
+	It("should provision nodes for self-affinity with matchLabelKeys", func() {
+		if env.K8sMinorVersion() < 31 {
+			Skip("matchLabelKeys for pod affinity is only supported on k8s >= 1.31")
+		}
+		const replicaCount = 2
+		appLabels := map[string]string{"test": "foo"}
+		deployment := test.Deployment(test.DeploymentOptions{
+			Replicas: replicaCount,
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: appLabels,
+				},
+				PodRequirements: []corev1.PodAffinityTerm{{
+					TopologyKey:    corev1.LabelHostname,
+					MatchLabelKeys: []string{"pod-template-hash"},
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: appLabels,
+					},
+				}},
+				// Encourage pods to schedule to separate nodes, we should only create a single node due to the affinity term
+				TopologySpreadConstraints: []corev1.TopologySpreadConstraint{{
+					TopologyKey: corev1.LabelHostname,
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: appLabels,
+					},
+					MaxSkew:           1,
+					WhenUnsatisfiable: corev1.ScheduleAnyway,
+				}},
+			},
+		})
+		env.ExpectCreated(nodePool, nodeClass, deployment)
+		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Labels), replicaCount)
+		env.ExpectNodeClaimCount("==", 1)
+		env.ExpectNodeCount("==", 1)
+	})
+	It("should provision nodes for anti-affinity with matchLabelKeys", func() {
+		if env.K8sMinorVersion() < 31 {
+			Skip("matchLabelKeys is only supported on k8s >= 1.31")
+		}
+		const replicaCount = 2
+		appLabels := map[string]string{"app": "test"}
+		deployment := test.Deployment(test.DeploymentOptions{
+			Replicas: replicaCount,
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: appLabels,
+				},
+				PodAntiRequirements: []corev1.PodAffinityTerm{{
+					TopologyKey:    corev1.LabelHostname,
+					MatchLabelKeys: []string{"pod-template-hash"},
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: appLabels,
+					},
+				}},
+			},
+		})
+		env.ExpectCreated(nodePool, nodeClass, deployment)
+		pods := env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Labels), replicaCount)
+		Expect(len(lo.UniqBy(pods, func(p *corev1.Pod) string {
+			return p.Spec.NodeName
+		}))).To(Equal(replicaCount))
+		env.ExpectNodeClaimCount("==", replicaCount)
+		env.ExpectNodeCount("==", replicaCount)
+	})
+	It("should provision nodes for anti-affinity with mismatchLabelKeys", func() {
+		if env.K8sMinorVersion() < 31 {
+			Skip("mismatchLabelKeys is only supported on k8s >= 1.31")
+		}
+		const deploymentCount = 2
+		appLabels := map[string]string{"foo": "bar"}
+		deployments := lo.Times(deploymentCount, func(_ int) *appsv1.Deployment {
+			return test.Deployment(test.DeploymentOptions{
+				Replicas: 1,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: appLabels,
+					},
+					PodAntiRequirements: []corev1.PodAffinityTerm{{
+						TopologyKey:       corev1.LabelHostname,
+						MismatchLabelKeys: []string{"pod-template-hash"},
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: appLabels,
+						},
+					}},
+				},
+			})
+		})
+		env.ExpectCreated(nodePool, nodeClass, deployments[0], deployments[1])
+		pods := env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(appLabels), deploymentCount)
+		Expect(len(lo.UniqBy(pods, func(p *corev1.Pod) string {
+			return p.Spec.NodeName
+		}))).To(Equal(deploymentCount))
+		env.ExpectNodeClaimCount("==", deploymentCount)
+		env.ExpectNodeCount("==", deploymentCount)
 	})
 })
 
