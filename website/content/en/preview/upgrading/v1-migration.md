@@ -15,7 +15,7 @@ Before you begin upgrading to `v1.0.0`, you should know that:
 * You must be upgrading to `v1.0.0` from a version of Karpenter that only supports v1beta1 APIs, e.g. NodePools, NodeClaims, and NodeClasses (v0.33+).
 * Karpenter `v1.0.0`+ supports Karpenter v1 and v1beta1 APIs and will not work with earlier Provisioner, AWSNodeTemplate or Machine v1alpha1 APIs. Do not upgrade to `v1.0.0`+ without first [upgrading to `0.32.x`]({{<ref "upgrade-guide#upgrading-to-0320" >}}) or later and then upgrading to v0.33.
 * Version `v1.0.0` adds [conversion webhooks](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#webhook-conversion) to automatically pull the v1 API version of previously applied v1beta1 NodePools, EC2NodeClasses, and NodeClaims. Karpenter will stop serving the v1beta1 API version at v1.1.0 and will drop the conversion webhooks at that time. You will need to migrate all stored manifests to v1 API versions on Karpenter v1.0+. Keep in mind that this is a conversion and not dual support, which means that resources are updated in-place rather than migrated over from the previous version.
-* If you need to rollback the upgrade to v1, you need to upgrade to a special patch version of the minor version you came from. For instance, if you came from v0.33.5, you'll need to downgrade back to v0.33.6. More details on how to do this in [Downgrading]({{<ref "#downgrading" >}}).
+* If you need to rollback the upgrade to v1, you need to upgrade to a special patch version of the minor version you came from. For instance, if you came from v0.33.6, you'll need to downgrade back to v0.33.7. More details on how to do this in [Downgrading]({{<ref "#downgrading" >}}).
 * Validate that you are running at least Kubernetes 1.25. Use the [compatibility matrix]({{<ref "compatibility#compatibility-matrix">}}) to confirm you are on a supported Kubernetes version.
 * Karpenter runs a helm post-install-hook as part of upgrading to and from v1.0.0. If you're running Karpenter on a non x86_64 node, you'll need to update your `values.postInstallHook.image` values in your helm `values.yaml` file to point to a compatible image with kubectl. For instance, [an ARM compatible version](https://hub.docker.com/layers/bitnami/kubectl/1.30/images/sha256-d63c6609dd5c336fd036bd303fd4ce5f272e73ddd1923d32c12d62b7149067ed?context=explore).
 
@@ -53,15 +53,15 @@ The upgrade guide will first require upgrading to your latest patch version prio
 
    The Karpenter version you are running must be between minor version `v0.33` and `v0.37`. To be able to roll back from Karpenter v1, you must rollback to on the following patch release versions for your minor version, which will include the conversion webhooks for a smooth rollback:
 
-   * v0.37.1
-   * v0.36.3
-   * v0.35.6
-   * v0.34.7
-   * v0.33.6
+   * v0.37.3
+   * v0.36.4
+   * v0.35.7
+   * v0.34.8
+   * v0.33.7
 
 3. Review for breaking changes between v0.33 and v0.37: If you are already running Karpenter v0.37.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the [Upgrade Guide]({{<ref "upgrade-guide#upgrading-to-0320" >}}) for each minor release.
 
-4. Set environment variables for upgrading to the latest patch version. Note that `v0.33.6` and `v0.34.7` both need to include the v prefix, whereas `v0.35+` should not.
+4. Set environment variables for upgrading to the latest patch version. Note that `v0.33.7` and `v0.34.8` both need to include the v prefix, whereas `v0.35+` should not.
 
     ```bash
     export KARPENTER_VERSION=<latest patch version of your current v1beta1 minor version>
@@ -254,14 +254,14 @@ Keep in mind that rollback, without replacing the Karpenter nodes, will not be s
 
 Once the Karpenter CRDs are upgraded to v1, conversion webhooks are needed to help convert APIs that are stored in etcd from v1 to v1beta1. Also changes to the CRDs will need to at least include the latest version of the CRD in this case being v1. The patch versions of the v1beta1 Karpenter controller that include the conversion wehooks include:
 
-* v0.37.1
-* v0.36.3
-* v0.35.6
-* v0.34.7
-* v0.33.6
+* v0.37.3
+* v0.36.4
+* v0.35.7
+* v0.34.8
+* v0.33.7
 
 {{% alert title="Note" color="warning" %}}
-When rolling back from v1, Karpenter will not retain data that was only valid in v1 APIs. For instance, if you were upgrading from v0.33.5 to v1, updated the `NodePool.Spec.Disruption.Budgets` field and then rolled back to v0.33.6, Karpenter would not retain the `NodePool.Spec.Disruption.Budgets` field, as that was introduced in v0.34.x. If you are configuring the kubelet field, and have removed the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation, rollback is not supported without replacing your nodes between EC2NodeClass and NodePool.
+When rolling back from v1, Karpenter will not retain data that was only valid in v1 APIs. For instance, if you were upgrading from v0.33.5 to v1, updated the `NodePool.Spec.Disruption.Budgets` field and then rolled back to v0.33.7, Karpenter would not retain the `NodePool.Spec.Disruption.Budgets` field, as that was introduced in v0.34.x. If you are configuring the kubelet field, and have removed the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation, rollback is not supported without replacing your nodes between EC2NodeClass and NodePool.
 {{% /alert %}}
 
 {{% alert title="Note" color="warning" %}}
@@ -272,7 +272,7 @@ Since both v1beta1 and v1 will be served, `kubectl` will default to returning th
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
-# Note: v0.33.6 and v0.34.7 include the v prefix, omit it for versions v0.35+
+# Note: v0.33.7 and v0.34.8 include the v prefix, omit it for versions v0.35+
 export KARPENTER_VERSION="<rollback version of karpenter>"
 export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
 export CLUSTER_NAME="<name of your cluster>"
@@ -291,7 +291,7 @@ echo "${KARPENTER_NAMESPACE}" "${KARPENTER_VERSION}" "${CLUSTER_NAME}" "${TEMPOU
 
 2. Rollback the Karpenter Policy
 
-**v0.33.6 and v0.34.7:**
+**v0.33.7 and v0.34.8:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/"${KARPENTER_VERSION}"/website/content/en/docs/getting-started/getting-started-with-karpenter/cloudformation.yaml > ${TEMPOUT} \
     && aws cloudformation deploy \
