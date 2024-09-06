@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.15.0
+    controller-gen.kubebuilder.io/version: v0.16.2
   name: ec2nodeclasses.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws
@@ -164,23 +164,17 @@ spec:
                               gp2 volumes, this represents the baseline performance of the volume and the
                               rate at which the volume accumulates I/O credits for bursting.
 
-
                               The following are the supported values for each volume type:
-
 
                                  * gp3: 3,000-16,000 IOPS
 
-
                                  * io1: 100-64,000 IOPS
 
-
                                  * io2: 100-64,000 IOPS
-
 
                               For io1 and io2 volumes, we guarantee 64,000 IOPS only for Instances built
                               on the Nitro System (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances).
                               Other instance families guarantee performance up to 32,000 IOPS.
-
 
                               This parameter is supported for io1, io2, and gp3 volumes only. This parameter
                               is not supported for gp2, st1, sc1, or standard volumes.
@@ -204,15 +198,11 @@ spec:
                               a volume size. The following are the supported volumes sizes for each volume
                               type:
 
-
                                  * gp2 and gp3: 1-16,384
-
 
                                  * io1 and io2: 4-16,384
 
-
                                  * st1 and sc1: 125-16,384
-
 
                                  * standard: 1-1,024
                             pattern: ^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$
@@ -392,13 +382,11 @@ spec:
                   description: |-
                     MetadataOptions for the generated launch template of provisioned nodes.
 
-
                     This specifies the exposure of the Instance Metadata Service to
                     provisioned EC2 nodes. For more information,
                     see Instance Metadata and User Data
                     (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html)
                     in the Amazon Elastic Compute Cloud User Guide.
-
 
                     Refer to recommended, security best practices
                     (https://aws.github.io/aws-eks-best-practices/security/docs/iam/#restrict-access-to-the-instance-profile-assigned-to-the-worker-node)
@@ -413,7 +401,6 @@ spec:
                         HTTPEndpoint enables or disables the HTTP metadata endpoint on provisioned
                         nodes. If metadata options is non-nil, but this parameter is not specified,
                         the default state is "enabled".
-
 
                         If you specify a value of "disabled", instance metadata will not be accessible
                         on the node.
@@ -450,13 +437,11 @@ spec:
                         requests. If metadata options is non-nil, but this parameter is not
                         specified, the default state is "required".
 
-
                         If the state is optional, one can choose to retrieve instance metadata with
                         or without a signed token header on the request. If one retrieves the IAM
                         role credentials without a token, the version 1.0 role credentials are
                         returned. If one retrieves the IAM role credentials using a valid signed
                         token, the version 2.0 role credentials are returned.
-
 
                         If the state is "required", one must send a signed token header with any
                         instance metadata retrieval requests. In this state, retrieving the IAM
@@ -693,12 +678,7 @@ spec:
                           - Unknown
                         type: string
                       type:
-                        description: |-
-                          type of condition in CamelCase or in foo.example.com/CamelCase.
-                          ---
-                          Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be
-                          useful (see .node.status.conditions), the ability to deconflict is important.
-                          The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                        description: type of condition in CamelCase or in foo.example.com/CamelCase.
                         maxLength: 316
                         pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                         type: string
@@ -864,23 +844,17 @@ spec:
                               gp2 volumes, this represents the baseline performance of the volume and the
                               rate at which the volume accumulates I/O credits for bursting.
 
-
                               The following are the supported values for each volume type:
-
 
                                  * gp3: 3,000-16,000 IOPS
 
-
                                  * io1: 100-64,000 IOPS
 
-
                                  * io2: 100-64,000 IOPS
-
 
                               For io1 and io2 volumes, we guarantee 64,000 IOPS only for Instances built
                               on the Nitro System (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances).
                               Other instance families guarantee performance up to 32,000 IOPS.
-
 
                               This parameter is supported for io1, io2, and gp3 volumes only. This parameter
                               is not supported for gp2, st1, sc1, or standard volumes.
@@ -904,15 +878,11 @@ spec:
                               a volume size. The following are the supported volumes sizes for each volume
                               type:
 
-
                                  * gp2 and gp3: 1-16,384
-
 
                                  * io1 and io2: 4-16,384
 
-
                                  * st1 and sc1: 125-16,384
-
 
                                  * standard: 1-1,024
                             pattern: ^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$
@@ -978,13 +948,11 @@ spec:
                   description: |-
                     MetadataOptions for the generated launch template of provisioned nodes.
 
-
                     This specifies the exposure of the Instance Metadata Service to
                     provisioned EC2 nodes. For more information,
                     see Instance Metadata and User Data
                     (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html)
                     in the Amazon Elastic Compute Cloud User Guide.
-
 
                     Refer to recommended, security best practices
                     (https://aws.github.io/aws-eks-best-practices/security/docs/iam/#restrict-access-to-the-instance-profile-assigned-to-the-worker-node)
@@ -999,7 +967,6 @@ spec:
                         HTTPEndpoint enables or disables the HTTP metadata endpoint on provisioned
                         nodes. If metadata options is non-nil, but this parameter is not specified,
                         the default state is "enabled".
-
 
                         If you specify a value of "disabled", instance metadata will not be accessible
                         on the node.
@@ -1036,13 +1003,11 @@ spec:
                         requests. If metadata options is non-nil, but this parameter is not
                         specified, the default state is "required".
 
-
                         If the state is optional, one can choose to retrieve instance metadata with
                         or without a signed token header on the request. If one retrieves the IAM
                         role credentials without a token, the version 1.0 role credentials are
                         returned. If one retrieves the IAM role credentials using a valid signed
                         token, the version 2.0 role credentials are returned.
-
 
                         If the state is "required", one must send a signed token header with any
                         instance metadata retrieval requests. In this state, retrieving the IAM
@@ -1269,12 +1234,7 @@ spec:
                           - Unknown
                         type: string
                       type:
-                        description: |-
-                          type of condition in CamelCase or in foo.example.com/CamelCase.
-                          ---
-                          Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be
-                          useful (see .node.status.conditions), the ability to deconflict is important.
-                          The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                        description: type of condition in CamelCase or in foo.example.com/CamelCase.
                         maxLength: 316
                         pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                         type: string
