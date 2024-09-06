@@ -200,7 +200,7 @@ Karpenter's current scheduling algorithm uses [First-Fit Decreasing bin-packing]
 
 This presents a challenge for prioritizing ODCRs -- since this algorithm may remove `reserved` offerings to continue packing into `on-demand` and `spot` offerings, thus increasing the cost of the cluster and not fully utilizing the available capacity reservations.
 
-To solve for this problem, Karpenter will implement special handling for offerings under a specific price. If offerings are below a specific price threshold (e.g. `0.0000000001`), we will consider these offerings as "free" and uniquely prioritize them. This means that if we are about to remove an offering in our scheduling simulation that is below this price threshold such that there are no more offerings below this threshold, rather than scheduling this pod to the same node, we will create a new node, retaining the "free" offering, ensuring "free" offerings are prioritized by the scheduler.
+To solve for this problem, Karpenter will implement special handling for `karpenter.sh/capacity-type: reserved`. If there are reserved offerings available, we will consider these offerings as "free" and uniquely prioritize them. This means that if we are about to remove the final `reserved` offering in our scheduling simulation such there are no more `reserved` offerings, rather than scheduling this pod to the same node, we will create a new node, retaining the `reserved` offering, ensuring these offerings are prioritized by the scheduler.
 
 ### Adding ODCRs as Additional Instance Type Offerings
 
