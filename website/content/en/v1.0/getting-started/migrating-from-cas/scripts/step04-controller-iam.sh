@@ -36,7 +36,6 @@ cat << EOF > controller-policy.json
                 "ec2:DescribeInstances",
                 "ec2:DescribeInstanceTypes",
                 "ec2:DescribeInstanceTypeOfferings",
-                "ec2:DescribeAvailabilityZones",
                 "ec2:DeleteLaunchTemplate",
                 "ec2:CreateTags",
                 "ec2:CreateLaunchTemplate",
