@@ -70,9 +70,9 @@ AWS also supports grouping Capacity Reservation into [Capacity Reservation group
 
 ## Non-Goals
 
-Below lists the non-goals for _this RFC design._ Each of these items represents natural follow-ups for the initial implementation and are features we will consider based on feature requests.
+Below lists the non-goals for _this RFC design._ Each of these items represents potential follow-ups for the initial implementation and are features we will consider based on feature requests.
 
-1. Ensure OD instances, created as fallback, can be automatically attached to an ODCR after that fact, if ODCR has availibility later (follow up needed)
+1. Ensure OD instances can be automatically attached to an ODCR after the fact rather than replaced/drifted if an ODCR has availability later
 2. Support [Capacity Blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-using.html) as a capacity-type -- though capacity blocks are not supported with this design, they are a natural extension of it. We could support selection on capacity blocks through the `capacityReservationSelectorTerms`.
 3. Support [Capacity Reservation Groups](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-cr-group.html) -- though capacity reservation groups are not supported with this design, they are a natural extension of it. We could support an additional field `reservationGroup` in the `capacityReservationSelectorTerms`.
 
@@ -206,7 +206,7 @@ To solve for this problem, Karpenter will implement special handling for offerin
 
 We can surface ODCR capacity as additional offerings attached to each instance type. Offerings currently allow us to track the pricing of variants of a specific instance type, primarily based on capacity type and availability zone today.
 
-To track capacity reservation capacity, we can add additional offerings to an instance type when there is a capacity reservation that is matched on by an EC2NodeClass's `capacityReservationSelectorTerms`. This offering will have a price near 0 to model the fact that the reservation is already paid-for and to ensure the offering is prioritized ahead of other offerings. 
+To track reservation capacity, we can add additional offerings to an instance type when there is a capacity reservation that is matched on by an EC2NodeClass's `capacityReservationSelectorTerms`. This offering will have a price near 0 to model the fact that the reservation is already paid-for and to ensure the offering is prioritized ahead of other offerings. 
 
 When there are multiple capacity reservation offerings for an instance type for different AZs, we will produce separate offerings for these different zones. When there are multiple capacity reservation offerings for instance type in the same AZ, we will only produce a single offering. With this change, an example instance type offerings set will look like the following
 
@@ -320,7 +320,7 @@ _Note: `CreateFleet` does not currently support passing multiple launch template
 
 As a result, Karpenter will not use this option when launching instances with `CreateFleet`. Instead, Karpenter will specifically target all ODCRs that are selected-on for a given launch request by passing the ID through the LaunchTemplate. `usageStrategy` will not be specified, but only ODCR launch templates will be included in a request that is targeting ODCRs. As a result, Fleet will choose the cheapest instance type from the available options based on the `lowest-price` allocation strategy and launch an instance the respective ODCR.
 
-In some race condition scenarios, CreateFleet when creating instances against a single targeted Capacity Reservation will fail if the Reservation is already fully utilized, resulting in an `ReservationCapacityExceeded` error. In these cases, Karpenter will throw an Insufficient Capacity error internally, delete the NodeClaim used for the request and attempt to reschedule capacity again given th remaining application pods.
+In some race condition scenarios, CreateFleet, when creating instances against targeted Capacity Reservations, will fail if all Reservations are already fully utilized, resulting in an `ReservationCapacityExceeded` error across the request. In these cases, Karpenter will throw an Insufficient Capacity error internally, delete the NodeClaim used for the request and attempt to reschedule capacity again given th remaining application pods.
 
 > For more information on how CreateFleet interacts with capacity reservations and `usageStrategy`, see https://docs.aws.amazon.com/emr/latest/ManagementGuide/on-demand-capacity-reservations.html.
 
@@ -368,9 +368,9 @@ Treating the price of all capacity reservation offerings as `0` sounds sensical 
 
 In practicality, that larger capacity reservation could have been used for other work -- perhaps on another cluster, but may have been held by a single pod that prevented Karpenter from consolidating it.
 
-To solve for this edge case, we won't model the pricing of capacity reservations as `0` but as a "near-0" value. We'll divide the existing price of the on-demand offering by 10,000,000 to represent a price that is less than every other instance type offering, but still maintains the relative ordering of on-demand instance types.
+To solve for this edge case, we won't model the pricing of capacity reservations as `0` but as a "near-0" value. We'll divide the existing price of the on-demand offering by the most expensive hourly rate offering (e.g. $407.68 for the `u7in-32tb.224xlarge`) over the least expensive hourly rate offering for a spot instance (e.g. $0.0015 for `t4g.nano`). We'll then take this value and then further divide it by 1,000,000 to get a sufficiently small number that is significantly smaller than the least expensive offering.
 
-_NOTE: To contrive the number we use here, we can take the most expensive hourly rate for an on-demand instance ($407.68 for the `u7in-32tb.224xlarge`) and the least expensive hourly rate for a spot instnace ($0.0015 for `t4g.nano`) to calculate `407.68/0.0015 = 271,787`). We then add some buffer to this number with a couple orders of magnitude to get to `10,000,000`_
+This value will be calculated dynamically based on the pricing info that Karpeneter discovers at runtime. This allow us to represent a price that is less than every other instance type offering, but still maintains the relative ordering of on-demand instance types.
 
 In practice, this means that if a user has two capacity reservation offerings available: one for a `c6a.48xlarge` and another for a `c6a.large`, where we launch into the `c6a.48xlarge` first, we will still be able to consolidate down to the `c6a.large` when pods are scaled back down.
 
