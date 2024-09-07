@@ -430,7 +430,7 @@ spec:
 ### AL2
 
 {{% alert title="Note" color="primary" %}}
-Note that Karpenter will automatically generate a call to the /etc/eks/bootstrap.sh script as part of its generated UserData. When using amiFamily AL2 you should not call this script yourself in .spec.userData. If you need to, use the [Custom AMI family]({{< ref "./nodeclasses/#custom" >}}) instead.
+Note that Karpenter will automatically generate a call to the `/etc/eks/bootstrap.sh` script as part of its generated UserData. When using `amiFamily: AL2` you should not call this script yourself in `.spec.userData`. If you need to, use the [Custom AMI family]({{< ref "./nodeclasses/#custom" >}}) instead.
 {{% /alert %}}
 
 ```bash
