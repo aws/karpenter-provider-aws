@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
@@ -156,7 +156,7 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 				RootVolume: true,
 				EBS: &BlockDevice{
 					Encrypted:  lo.ToPtr(true),
-					VolumeType: lo.ToPtr(ec2.VolumeTypeGp3),
+					VolumeType: lo.ToPtr(string(ec2types.VolumeTypeGp3)),
 					VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
 				},
 			}}

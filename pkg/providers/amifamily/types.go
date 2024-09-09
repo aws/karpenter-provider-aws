@@ -21,6 +21,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -90,7 +91,7 @@ func (v Variant) Requirements() scheduling.Requirements {
 }
 
 type DescribeImageQuery struct {
-	Filters []*ec2.Filter
+	Filters []ec2types.Filter
 	Owners  []string
 	// KnownRequirements is a map from image IDs to a set of known requirements.
 	// When discovering image IDs via SSM we know additional requirements which aren't surfaced by ec2:DescribeImage (e.g. GPU / Neuron compatibility)
@@ -100,11 +101,16 @@ type DescribeImageQuery struct {
 }
 
 func (q DescribeImageQuery) DescribeImagesInput() *ec2.DescribeImagesInput {
+	var owners []string
+	for _, owner := range q.Owners {
+		owners = append(owners, owner)
+	}
+
 	return &ec2.DescribeImagesInput{
 		// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
 		Filters:    lo.Ternary(len(q.Filters) > 0, q.Filters, nil),
-		Owners:     lo.Ternary(len(q.Owners) > 0, lo.ToSlicePtr(q.Owners), nil),
-		MaxResults: aws.Int64(1000),
+		Owners:     owners,
+		MaxResults: aws.Int32(1000),
 	}
 }
 

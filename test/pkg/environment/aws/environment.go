@@ -15,8 +15,8 @@ limitations under the License.
 package aws
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/fis"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -32,7 +33,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
-	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite/types"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -58,13 +58,13 @@ type Environment struct {
 	*common.Environment
 	Region string
 
-	STSAPI        *sts.STS
-	EC2API        *ec2.EC2
-	SSMAPI        *ssm.SSM
-	IAMAPI        *iam.IAM
-	FISAPI        *fis.FIS
-	EKSAPI        *eks.EKS
-	TimeStreamAPI TimestreamWriteAPI
+	STSAPI        *sts.Client
+	EC2API        *ec2.Client
+	SSMAPI        *ssm.Client
+	IAMAPI        *iam.Client
+	FISAPI        *fis.Client
+	EKSAPI        *eks.Client
+	TimeStreamAPI *timestreamwrite.Client
 
 	SQSProvider sqs.Provider
 
@@ -83,6 +83,7 @@ type ZoneInfo struct {
 
 func NewEnvironment(t *testing.T) *Environment {
 	env := common.NewEnvironment(t)
+	cfg := lo.Must(config.LoadDefaultConfig(context.Background()))
 
 	awsEnv := &Environment{
 		Region:      cfg.Region,
@@ -94,7 +95,7 @@ func NewEnvironment(t *testing.T) *Environment {
 		IAMAPI:        iam.NewFromConfig(cfg),
 		FISAPI:        fis.NewFromConfig(cfg),
 		EKSAPI:        eks.NewFromConfig(cfg),
-		TimeStreamAPI: GetTimeStreamAPI(cfg),
+		TimeStreamAPI: timestreamwrite.NewFromConfig(cfg),
 
 		ClusterName:     lo.Must(os.LookupEnv("CLUSTER_NAME")),
 		ClusterEndpoint: lo.Must(os.LookupEnv("CLUSTER_ENDPOINT")),
@@ -107,12 +108,12 @@ func NewEnvironment(t *testing.T) *Environment {
 	}
 	// Initialize the provider only if the INTERRUPTION_QUEUE environment variable is defined
 	if v, ok := os.LookupEnv("INTERRUPTION_QUEUE"); ok {
-		sqsapi := sqs.NewFromConfig(cfg)
+		sqsapi := servicesqs.NewFromConfig(cfg)
 		out := lo.Must(sqsapi.GetQueueUrl(env.Context, &servicesqs.GetQueueUrlInput{QueueName: aws.String(v)}))
 		awsEnv.SQSProvider = lo.Must(sqs.NewDefaultProvider(sqsapi, lo.FromPtr(out.QueueUrl)))
 	}
 	// Populate ZoneInfo for all AZs in the region
-	awsEnv.ZoneInfo = lo.Map(lo.Must(awsEnv.EC2API.DescribeAvailabilityZones(&ec2.DescribeAvailabilityZonesInput{})).AvailabilityZones, func(zone *ec2.AvailabilityZone, _ int) ZoneInfo {
+	awsEnv.ZoneInfo = lo.Map(lo.Must(awsEnv.EC2API.DescribeAvailabilityZones(context.Background(), &ec2.DescribeAvailabilityZonesInput{})).AvailabilityZones, func(zone ec2types.AvailabilityZone, _ int) ZoneInfo {
 		return ZoneInfo{
 			Zone:     lo.FromPtr(zone.ZoneName),
 			ZoneID:   lo.FromPtr(zone.ZoneId),
@@ -122,25 +123,28 @@ func NewEnvironment(t *testing.T) *Environment {
 	return awsEnv
 }
 
-func GetTimeStreamAPI(cfg aws.Config) timestreamwrite.Client {
+func GetTimeStreamAPI(cfg aws.Config) *timestreamwrite.Client {
 	if lo.Must(env.GetBool("ENABLE_METRICS", false)) {
 		By("enabling metrics firing for this suite")
 
 		metricsRegion := env.GetString("METRICS_REGION", metricsDefaultRegion)
-		timestreamCfg, err := config.LoadDefaultConfig(ctx, 
+		timestreamCfg, err := config.LoadDefaultConfig(context.Background(),
 			config.WithRegion(metricsRegion),
 		)
 		if err != nil {
 			return nil
 		}
-		return timestreamwrite.NewFromConfig(timestreamCfg)
+
+		client := timestreamwrite.NewFromConfig(timestreamCfg)
+		return client
 	}
-	return &NoOpTimeStreamAPI{}
+
+	return nil
 }
 
 func (n *NoOpTimeStreamAPI) WriteRecords() (*timestreamwrite.WriteRecordsOutput, error) {
 	return &timestreamwrite.WriteRecordsOutput{}, nil
-} 
+}
 
 func (env *Environment) DefaultEC2NodeClass() *v1.EC2NodeClass {
 	nodeClass := test.EC2NodeClass()

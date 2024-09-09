@@ -22,14 +22,14 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
 type Provider interface {
 	Name() string
-	GetSQSMessages(context.Context) ([]*sqs.Message, error)
+	GetSQSMessages(context.Context) ([]*sqstypes.Message, error)
 	SendMessage(context.Context, interface{}) (string, error)
-	DeleteSQSMessage(context.Context, *sqs.Message) error
+	DeleteSQSMessage(context.Context, *sqstypes.Message) error
 }
 
 type SQSAPI interface {
@@ -40,7 +40,6 @@ type SQSAPI interface {
 
 // DefaultProvider is a default implementation of the Provider interface
 // for interacting with AWS SQS queues.
-//
 type DefaultProvider struct {
 	client SQSAPI
 
@@ -59,16 +58,16 @@ func (p *DefaultProvider) Name() string {
 	return ss[len(ss)-1]
 }
 
-func (p *DefaultProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
+func (p *DefaultProvider) GetSQSMessages(ctx context.Context) ([]*sqstypes.Message, error) {
 	input := &sqs.ReceiveMessageInput{
-		MaxNumberOfMessages: aws.Int64(10),
-		VisibilityTimeout:   aws.Int64(20), // Seconds
-		WaitTimeSeconds:     aws.Int64(20), // Seconds, maximum for long polling
-		AttributeNames: []*string{
-			aws.String(sqs.MessageSystemAttributeNameSentTimestamp),
+		MaxNumberOfMessages: 10,
+		VisibilityTimeout:   20, // Seconds
+		WaitTimeSeconds:     20, // Seconds, maximum for long polling
+		AttributeNames: []sqstypes.QueueAttributeName{
+			"SentTimestamp",
 		},
-		MessageAttributeNames: []*string{
-			aws.String(sqs.QueueAttributeNameAll),
+		MessageAttributeNames: []string{
+			"All",
 		},
 		QueueUrl: aws.String(p.queueURL),
 	}
@@ -78,7 +77,13 @@ func (p *DefaultProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, e
 		return nil, fmt.Errorf("receiving sqs messages, %w", err)
 	}
 
-	return result.Messages, nil
+	return []*sqstypes.Message(func() []*sqstypes.Message {
+		m := make([]*sqstypes.Message, len(result.Messages))
+		for i, msg := range result.Messages {
+			m[i] = &msg
+		}
+		return m
+	}()), nil
 }
 
 func (p *DefaultProvider) SendMessage(ctx context.Context, body interface{}) (string, error) {
@@ -94,10 +99,10 @@ func (p *DefaultProvider) SendMessage(ctx context.Context, body interface{}) (st
 	if err != nil {
 		return "", fmt.Errorf("sending messages to sqs queue, %w", err)
 	}
-	return aws.StringValue(result.MessageId), nil
+	return aws.ToString(result.MessageId), nil
 }
 
-func (p *DefaultProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
+func (p *DefaultProvider) DeleteSQSMessage(ctx context.Context, msg *sqstypes.Message) error {
 	input := &sqs.DeleteMessageInput{
 		QueueUrl:      aws.String(p.queueURL),
 		ReceiptHandle: msg.ReceiptHandle,

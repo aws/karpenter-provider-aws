@@ -16,8 +16,8 @@ package batcher
 
 import (
 	"context"
-	"karpenter-provider-aws/pkg/aws/sdk"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 )
 
 func EC2(ctx context.Context, ec2api sdk.EC2API) *SDK {

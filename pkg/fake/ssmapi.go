@@ -27,25 +27,21 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
+	ssmtypes "github.com/aws/aws-sdk-go-v2/service/ssm/types"
 )
 
-type SSMAPI interface {
-	GetParametersByPathPages(_ context.Context, input *ssm.GetParametersByPathInput, f func(*ssm.GetParametersByPathOutput, bool) bool, _ ...func(*ssm.Options)) error
-}
-
 type SSMAPI struct {
-	SSMAPI
+	SSMClient                 *ssm.Client
 	Parameters                map[string]string
 	GetParametersByPathOutput *ssm.GetParametersByPathOutput
 	WantErr                   error
 
-	defaultParametersForPath map[string][]*ssm.Parameter
+	defaultParametersForPath map[string][]*ssmtypes.Parameter
 }
 
 func NewSSMAPI() *SSMAPI {
 	return &SSMAPI{
-		defaultParametersForPath: map[string][]*ssm.Parameter{},
+		defaultParametersForPath: map[string][]*ssmtypes.Parameter{},
 	}
 }
 
@@ -61,33 +57,41 @@ func (a SSMAPI) GetParametersByPathPages(_ context.Context, input *ssm.GetParame
 		return nil
 	}
 	if len(a.Parameters) != 0 {
+		var parameters []ssmtypes.Parameter
+		for _, param := range lo.FilterMap(lo.Entries(a.Parameters), func(p lo.Entry[string, string], _ int) (*ssmtypes.Parameter, bool) {
+			// The parameter does not start with the path
+			if !strings.HasPrefix(p.Key, lo.FromPtr(input.Path)) {
+				return nil, false
+			}
+			// The parameter starts with the input path, but the last segment of the input path is only a subset of the matching segment of the parameters path.
+			// Ex: "/aws/service/eks-optimized-ami/amazon-linux-2" is a prefix for "/aws/service/eks-optimized-ami/amazon-linux-2-gpu/..." but we shouldn't match
+			if strings.TrimPrefix(p.Key, lo.FromPtr(input.Path))[0] != '/' {
+				return nil, false
+			}
+			return &ssmtypes.Parameter{
+				Name:  lo.ToPtr(p.Key),
+				Value: lo.ToPtr(p.Value),
+			}, true
+		}) {
+			parameters = append(parameters, *param)
+		}
 		f(&ssm.GetParametersByPathOutput{
-			Parameters: lo.FilterMap(lo.Entries(a.Parameters), func(p lo.Entry[string, string], _ int) (*ssm.Parameter, bool) {
-				// The parameter does not start with the path
-				if !strings.HasPrefix(p.Key, lo.FromPtr(input.Path)) {
-					return nil, false
-				}
-				// The parameter starts with the input path, but the last segment of the input path is only a subset of the matching segment of the parameters path.
-				// Ex: "/aws/service/eks-optimized-ami/amazon-linux-2" is a prefix for "/aws/service/eks-optimized-ami/amazon-linux-2-gpu/..." but we shouldn't match
-				if strings.TrimPrefix(p.Key, lo.FromPtr(input.Path))[0] != '/' {
-					return nil, false
-				}
-				return &ssm.Parameter{
-					Name:  lo.ToPtr(p.Key),
-					Value: lo.ToPtr(p.Value),
-				}, true
-			}),
+			Parameters: parameters,
 		}, true)
 		return nil
 	}
 	if params := a.getDefaultParametersForPath(lo.FromPtr(input.Path)); params != nil {
-		f(&ssm.GetParametersByPathOutput{Parameters: params}, true)
+		var parameters []ssmtypes.Parameter
+		for _, param := range params {
+			parameters = append(parameters, *param)
+		}
+		f(&ssm.GetParametersByPathOutput{Parameters: parameters}, true)
 		return nil
 	}
 	return fmt.Errorf("path %q does not exist", lo.FromPtr(input.Path))
 }
 
-func (a SSMAPI) getDefaultParametersForPath(path string) []*ssm.Parameter {
+func (a SSMAPI) getDefaultParametersForPath(path string) []*ssmtypes.Parameter {
 	// If we've already generated default parameters, return the same parameters across calls. This ensures we don't
 	// drift due to different results from one call to the next.
 	if params, ok := a.defaultParametersForPath[path]; ok {
@@ -120,8 +124,8 @@ func (a SSMAPI) getDefaultParametersForPath(path string) []*ssm.Parameter {
 		if !regexp.MustCompile(matchStr).MatchString(path) {
 			continue
 		}
-		params := lo.Map(suffixes, func(suffix string, _ int) *ssm.Parameter {
-			return &ssm.Parameter{
+		params := lo.Map(suffixes, func(suffix string, _ int) *ssmtypes.Parameter {
+			return &ssmtypes.Parameter{
 				Name:  lo.ToPtr(fmt.Sprintf("%s/%s", path, suffix)),
 				Value: lo.ToPtr(fmt.Sprintf("ami-%s", randomdata.Alphanumeric(16))),
 			}

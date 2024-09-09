@@ -22,18 +22,18 @@ import (
 	"net"
 	"os"
 
-	"karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/retry"
-	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
-	"github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 	prometheusv2 "github.com/jonathan-innis/aws-sdk-go-prometheus/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -74,7 +74,7 @@ type Operator struct {
 
 	Config                    aws.Config
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
-	ec2api                   sdk.EC2API                
+	ec2api                    sdk.EC2API
 	SubnetProvider            subnet.Provider
 	SecurityGroupProvider     securitygroup.Provider
 	InstanceProfileProvider   instanceprofile.Provider
@@ -94,7 +94,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		config.WithRetryer(func() aws.Retryer {
 			return retry.NewStandard(func(o *retry.StandardOptions) {
 				o.MaxAttempts = 5
-			}),
+			})
 		}),
 		config.WithAPIOptions(
 			middleware.AddUserAgentKey("CustomUserAgent"),
@@ -123,7 +123,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	ssmapi := ssm.NewFromConfig(cfg)
 
 	// Check EC2 connectivity
-	
+
 	if err := CheckEC2Connectivity(ctx, ec2api); err != nil {
 		log.FromContext(ctx).Error(err, "ec2 api connectivity check failed")
 		os.Exit(1)
@@ -214,8 +214,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 
 // WithUserAgent adds a karpenter specific user-agent string to AWS session
 func WithUserAgent(ctx context.Context, cfg aws.Config) (aws.Config, error) {
-	userAgent := fmt.Sprintf("karpenter.sh-%s", operator.Version)
-	cfg.APIOptions = append(cfg.APIOptions, 
+	cfg.APIOptions = append(cfg.APIOptions,
 		middleware.AddUserAgentKey("CustomUserAgent"),
 	)
 	return cfg, nil
@@ -223,7 +222,7 @@ func WithUserAgent(ctx context.Context, cfg aws.Config) (aws.Config, error) {
 
 // CheckEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
 // are having issues connecting to the EC2 API.
-func CheckEC2Connectivity(ctx context.Context, api EC2API) error {
+func CheckEC2Connectivity(ctx context.Context, api ec2.Client) error {
 	_, err := api.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
 	var apiErr *ec2types.ClientError
 	if errors.As(err, &apiErr) && apiErr.Code() == "DryRunOperation" {

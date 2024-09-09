@@ -19,6 +19,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -37,8 +38,8 @@ var _ = Describe("Launch Template Deletion", func() {
 		env.ExpectDeleted(nodePool, nodeClass)
 		Eventually(func(g Gomega) {
 			output, _ := env.EC2API.DescribeLaunchTemplates(env.Context, &ec2.DescribeLaunchTemplatesInput{
-				Filters: []*ec2.Filter{
-					{Name: aws.String(fmt.Sprintf("tag:%s", v1.LabelNodeClass)), Values: []*string{aws.String(nodeClass.Name)}},
+				Filters: []ec2types.Filter{
+					{Name: aws.String(fmt.Sprintf("tag:%s", v1.LabelNodeClass)), Values: []string{*aws.String(nodeClass.Name)}},
 				},
 			})
 			g.Expect(output.LaunchTemplates).To(HaveLen(0))

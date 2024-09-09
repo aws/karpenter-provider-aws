@@ -20,7 +20,6 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 )
@@ -36,10 +35,10 @@ type ssmapi interface {
 type DefaultProvider struct {
 	sync.Mutex
 	cache  *cache.Cache
-	ssmapi SSMAPI
+	ssmapi *ssm.Client
 }
 
-func NewDefaultProvider(ssmapi SSMAPI, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(ssmapi *ssm.Client, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ssmapi: ssmapi,
 		cache:  cache,
@@ -55,20 +54,25 @@ func (p *DefaultProvider) List(ctx context.Context, path string) (map[string]str
 		return paths.(map[string]string), nil
 	}
 	values := map[string]string{}
-	if err := p.ssmapi.GetParametersByPathPages(ctx, &ssm.GetParametersByPathInput{
+	paginator := ssm.NewGetParametersByPathPaginator(p.ssmapi, &ssm.GetParametersByPathInput{
 		Recursive: lo.ToPtr(true),
 		Path:      &path,
-	}, func(out *ssm.GetParametersByPathOutput, _ bool) bool {
-		for _, parameter := range out.Parameters {
+	})
+
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("getting ssm parameters for path %q, %w", path, err)
+		}
+
+		for _, parameter := range output.Parameters {
 			if parameter.Name == nil || parameter.Value == nil {
 				continue
 			}
 			values[*parameter.Name] = *parameter.Value
 		}
-		return true
-	}); err != nil {
-		return nil, fmt.Errorf("getting ssm parameters for path %q, %w", path, err)
 	}
+
 	p.cache.SetDefault(path, values)
 	return values, nil
 }

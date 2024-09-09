@@ -18,7 +18,7 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/service/eks"
-	"github.com/aws/aws-sdk-go-v2/service/eks/types"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/samber/lo"
 )
 
@@ -30,13 +30,8 @@ type EKSAPIBehavior struct {
 	DescribeClusterBehavior MockedFunction[eks.DescribeClusterInput, eks.DescribeClusterOutput]
 }
 
-type EKSAPI interface {
-	DescribeCluster(context.Context, *eks.DescribeClusterInput, ...func(*eks.Options)) (*eks.DescribeClusterOutput, error)
-	Reset()
-}
-
 type EKSAPI struct {
-	EKSAPI
+	EKSClient *eks.Client
 	EKSAPIBehavior
 }
 
@@ -53,8 +48,8 @@ func (s *EKSAPI) Reset() {
 func (s *EKSAPI) DescribeCluster(_ context.Context, input *eks.DescribeClusterInput, _ ...func(*eks.Options)) (*eks.DescribeClusterOutput, error) {
 	return s.DescribeClusterBehavior.Invoke(input, func(*eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
 		return &eks.DescribeClusterOutput{
-			Cluster: &eks.Cluster{
-				KubernetesNetworkConfig: &eks.KubernetesNetworkConfigResponse{
+			Cluster: &ekstypes.Cluster{
+				KubernetesNetworkConfig: &ekstypes.KubernetesNetworkConfigResponse{
 					ServiceIpv4Cidr: lo.ToPtr("10.100.0.0/16"),
 				},
 			},

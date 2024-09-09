@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
@@ -85,10 +85,11 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover AMIs for alias "al2023@%s"`, amiVersion)
 	}
 
+	imageIDStrings := dereferenceStringPointers(imageIDs)
 	return DescribeImageQuery{
-		Filters: []*ec2.Filter{{
+		Filters: []ec2types.Filter{{
 			Name:   lo.ToPtr("image-id"),
-			Values: imageIDs,
+			Values: imageIDStrings,
 		}},
 		KnownRequirements: requirements,
 	}, nil

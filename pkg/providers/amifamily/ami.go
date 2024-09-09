@@ -20,14 +20,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"karpenter-provider-aws/pkg/aws/sdk"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
@@ -46,7 +47,7 @@ type Provider interface {
 type DefaultProvider struct {
 	sync.Mutex
 	cache           *cache.Cache
-	ec2api		    sdk.EC2API          
+	ec2api          sdk.EC2API
 	cm              *pretty.ChangeMonitor
 	versionProvider version.Provider
 	ssmProvider     ssm.Provider
@@ -101,12 +102,12 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		return []DescribeImageQuery{query}, nil
 	}
 
-	idFilter := &ec2.Filter{Name: aws.String("image-id")}
+	idFilter := &ec2types.Filter{Name: aws.String("image-id")}
 	queries := []DescribeImageQuery{}
 	for _, term := range nodeClass.Spec.AMISelectorTerms {
 		switch {
 		case term.ID != "":
-			idFilter.Values = append(idFilter.Values, aws.String(term.ID))
+			idFilter.Values = append(idFilter.Values, *aws.String(term.ID))
 		default:
 			query := DescribeImageQuery{
 				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{}),
@@ -117,22 +118,22 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 				query = DescribeImageQuery{
 					Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{"self", "amazon"}),
 				}
-				query.Filters = append(query.Filters, &ec2.Filter{
+				query.Filters = append(query.Filters, ec2types.Filter{
 					Name:   aws.String("name"),
-					Values: aws.StringSlice([]string{term.Name}),
+					Values: []string{term.Name},
 				})
 
 			}
 			for k, v := range term.Tags {
 				if v == "*" {
-					query.Filters = append(query.Filters, &ec2.Filter{
+					query.Filters = append(query.Filters, ec2types.Filter{
 						Name:   aws.String("tag-key"),
-						Values: []*string{aws.String(k)},
+						Values: []string{*aws.String(k)},
 					})
 				} else {
-					query.Filters = append(query.Filters, &ec2.Filter{
+					query.Filters = append(query.Filters, ec2types.Filter{
 						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-						Values: []*string{aws.String(v)},
+						Values: []string{*aws.String(v)},
 					})
 				}
 			}
@@ -140,7 +141,7 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		}
 	}
 	if len(idFilter.Values) > 0 {
-		queries = append(queries, DescribeImageQuery{Filters: []*ec2.Filter{idFilter}})
+		queries = append(queries, DescribeImageQuery{Filters: []ec2types.Filter{*idFilter}})
 	}
 	return queries, nil
 }
@@ -160,7 +161,7 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 	for _, query := range queries {
 		if err = p.ec2api.DescribeImagesPages(ctx, query.DescribeImagesInput(), func(page *ec2.DescribeImagesOutput, _ bool) bool {
 			for _, image := range page.Images {
-				arch, ok := v1.AWSToKubeArchitectures[lo.FromPtr(image.Architecture)]
+				arch, ok := v1.AWSToKubeArchitectures[string(image.Architecture)]
 				if !ok {
 					continue
 				}

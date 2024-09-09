@@ -23,12 +23,10 @@ import (
 	"github.com/aws/smithy-go"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	
-	"github.com/aws/aws-sdk-go-v2/service/iam"
-	"github.com/aws/aws-sdk-go-v2/service/iam/types"
-	"github.com/samber/lo"
 
-	"karpenter-provider-aws/pkg/aws/sdk"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
+	"github.com/samber/lo"
 )
 
 const ()
@@ -47,25 +45,33 @@ type IAMAPIBehavior struct {
 type IAMAPI struct {
 	sync.Mutex
 
-	IAMAPI
+	IAMClient *iam.Client
 	IAMAPIBehavior
 
-	InstanceProfiles map[string]*iam.InstanceProfile
+	InstanceProfiles map[string]*iamtypes.InstanceProfile
 }
 
 func NewIAMAPI() *IAMAPI {
-	return &IAMAPI{InstanceProfiles: map[string]*iam.InstanceProfile{}}
+	return &IAMAPI{InstanceProfiles: map[string]*iamtypes.InstanceProfile{}}
 }
 
 // Reset must be called between tests otherwise tests will pollute
 // each other.
+func toSliceOfValues[T any](pointers []T) []T {
+	values := make([]T, len(pointers))
+	for i, p := range pointers {
+		values[i] = p
+	}
+	return values
+}
+
 func (s *IAMAPI) Reset() {
 	s.GetInstanceProfileBehavior.Reset()
 	s.CreateInstanceProfileBehavior.Reset()
 	s.DeleteInstanceProfileBehavior.Reset()
 	s.AddRoleToInstanceProfileBehavior.Reset()
 	s.RemoveRoleFromInstanceProfileBehavior.Reset()
-	s.InstanceProfiles = map[string]*iam.InstanceProfile{}
+	s.InstanceProfiles = map[string]*iamtypes.InstanceProfile{}
 }
 
 func (s *IAMAPI) GetInstanceProfile(_ context.Context, input *iam.GetInstanceProfileInput, _ ...func(*iam.Options)) (*iam.GetInstanceProfileOutput, error) {
@@ -73,13 +79,13 @@ func (s *IAMAPI) GetInstanceProfile(_ context.Context, input *iam.GetInstancePro
 		s.Lock()
 		defer s.Unlock()
 
-		if i, ok := s.InstanceProfiles[aws.StringValue(input.InstanceProfileName)]; ok {
+		if i, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
 			return &iam.GetInstanceProfileOutput{InstanceProfile: i}, nil
 		}
 		return nil, &smithy.GenericAPIError{
-			Code: iam.ErrCodeNoSuchEntityException,
+			Code: "NoSuchEntityException",
 			Message: fmt.Sprintf("Instance Profile %s cannot be found",
-				aws.StringValue(input.InstanceProfileName)),
+				aws.ToString(input.InstanceProfileName)),
 		}
 	})
 }
@@ -89,21 +95,21 @@ func (s *IAMAPI) CreateInstanceProfile(_ context.Context, input *iam.CreateInsta
 		s.Lock()
 		defer s.Unlock()
 
-		if _, ok := s.InstanceProfiles[aws.StringValue(input.InstanceProfileName)]; ok {
+		if _, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
 			return nil, &smithy.GenericAPIError{
-				Code: iam.ErrCodeEntityAlreadyExistsException,
+				Code: "EntityAlreadyExistsException",
 				Message: fmt.Sprintf("Instance Profile %s already exists",
-					aws.StringValue(input.InstanceProfileName)),
+					aws.ToString(input.InstanceProfileName)),
 			}
 		}
-		instanceProfile := &iam.InstanceProfile{
+		instanceProfile := &iamtypes.InstanceProfile{
 			CreateDate:          aws.Time(time.Now()),
 			InstanceProfileId:   aws.String(InstanceProfileID()),
 			InstanceProfileName: input.InstanceProfileName,
 			Path:                input.Path,
 			Tags:                input.Tags,
 		}
-		s.InstanceProfiles[aws.StringValue(input.InstanceProfileName)] = instanceProfile
+		s.InstanceProfiles[aws.ToString(input.InstanceProfileName)] = instanceProfile
 		return &iam.CreateInstanceProfileOutput{InstanceProfile: instanceProfile}, nil
 	})
 }
@@ -113,21 +119,21 @@ func (s *IAMAPI) DeleteInstanceProfile(_ context.Context, input *iam.DeleteInsta
 		s.Lock()
 		defer s.Unlock()
 
-		if i, ok := s.InstanceProfiles[aws.StringValue(input.InstanceProfileName)]; ok {
+		if i, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
 			if len(i.Roles) > 0 {
 				return nil, &smithy.GenericAPIError{
-					Code: iam.ErrCodeDeleteConflictException,
+					Code: "DeleteConflictException",
 					Message: fmt.Sprintf("Instance Profile %s has roles and cannot be deleted",
-						aws.StringValue(input.InstanceProfileName)),
+						aws.ToString(input.InstanceProfileName)),
 				}
 			}
-			delete(s.InstanceProfiles, aws.StringValue(input.InstanceProfileName))
+			delete(s.InstanceProfiles, aws.ToString(input.InstanceProfileName))
 			return &iam.DeleteInstanceProfileOutput{}, nil
 		}
 		return nil, &smithy.GenericAPIError{
-			Code: iam.ErrCodeNoSuchEntityException,
+			Code: "NoSuchEntityException",
 			Message: fmt.Sprintf("Instance Profile %s cannot be found",
-				aws.StringValue(input.InstanceProfileName)),
+				aws.ToString(input.InstanceProfileName)),
 		}
 	})
 }
@@ -137,16 +143,16 @@ func (s *IAMAPI) TagInstanceProfile(_ context.Context, input *iam.TagInstancePro
 		s.Lock()
 		defer s.Unlock()
 
-		if profile, ok := s.InstanceProfiles[aws.StringValue(input.InstanceProfileName)]; ok {
-			profile.Tags = lo.UniqBy(append(input.Tags, profile.Tags...), func(t *iam.Tag) string {
+		if profile, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
+			profile.Tags = lo.UniqBy(append(toSliceOfValues(input.Tags), toSliceOfValues(profile.Tags)...), func(t iamtypes.Tag) string {
 				return lo.FromPtr(t.Key)
 			})
 			return nil, nil
 		}
 		return nil, &smithy.GenericAPIError{
-			Code: iam.ErrCodeNoSuchEntityException,
+			Code: "NoSuchEntityException",
 			Message: fmt.Sprintf("Instance Profile %s cannot be found",
-				aws.StringValue(input.InstanceProfileName)),
+				aws.ToString(input.InstanceProfileName)),
 		}
 	})
 }
@@ -156,21 +162,21 @@ func (s *IAMAPI) AddRoleToInstanceProfile(_ context.Context, input *iam.AddRoleT
 		s.Lock()
 		defer s.Unlock()
 
-		if i, ok := s.InstanceProfiles[aws.StringValue(input.InstanceProfileName)]; ok {
+		if i, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
 			if len(i.Roles) > 0 {
 				return nil, &smithy.GenericAPIError{
-					Code: iam.ErrCodeLimitExceededException,
+					Code: "LimitExceededException",
 					Message: fmt.Sprintf("Instance Profile %s already has a role",
-						aws.StringValue(input.InstanceProfileName)),
+						aws.ToString(input.InstanceProfileName)),
 				}
 			}
-			i.Roles = append(i.Roles, &iam.Role{RoleId: aws.String(RoleID()), RoleName: input.RoleName})
+			i.Roles = append(i.Roles, iamtypes.Role{RoleId: aws.String(RoleID()), RoleName: input.RoleName})
 			return nil, nil
 		}
 		return nil, &smithy.GenericAPIError{
-			Code: iam.ErrCodeNoSuchEntityException,
+			Code: "NoSuchEntityException",
 			Message: fmt.Sprintf("Instance Profile %s cannot be found",
-				aws.StringValue(input.InstanceProfileName)),
+				aws.ToString(input.InstanceProfileName)),
 		}
 	})
 }
@@ -180,24 +186,24 @@ func (s *IAMAPI) RemoveRoleFromInstanceProfile(_ context.Context, input *iam.Rem
 		s.Lock()
 		defer s.Unlock()
 
-		if i, ok := s.InstanceProfiles[aws.StringValue(input.InstanceProfileName)]; ok {
-			newRoles := lo.Reject(i.Roles, func(r *iam.Role, _ int) bool {
-				return aws.StringValue(r.RoleName) == aws.StringValue(input.RoleName)
+		if i, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
+			newRoles := lo.Reject(toSliceOfValues(i.Roles), func(r iamtypes.Role, _ int) bool {
+				return aws.ToString(r.RoleName) == aws.ToString(input.RoleName)
 			})
 			if len(i.Roles) == len(newRoles) {
 				return nil, &smithy.GenericAPIError{
-					Code: iam.ErrCodeNoSuchEntityException,
+					Code: "NoSuchEntityException",
 					Message: fmt.Sprintf("Instance Profile %s does not have role %s",
-						aws.StringValue(input.InstanceProfileName), aws.StringValue(input.RoleName)),
+						aws.ToString(input.InstanceProfileName), aws.ToString(input.RoleName)),
 				}
 			}
 			i.Roles = newRoles
 			return nil, nil
 		}
 		return nil, &smithy.GenericAPIError{
-			Code: iam.ErrCodeNoSuchEntityException,
+			Code: "NoSuchEntityException",
 			Message: fmt.Sprintf("Instance Profile %s cannot be found",
-				aws.StringValue(input.InstanceProfileName)),
+				aws.ToString(input.InstanceProfileName)),
 		}
 	})
 }

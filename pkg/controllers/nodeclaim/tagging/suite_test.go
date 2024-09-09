@@ -22,7 +22,9 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+
+	ec2 "github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -75,14 +77,14 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("TaggingController", func() {
-	var ec2Instance *ec2.Instance
+	var ec2Instance *ec2types.Instance
 
 	BeforeEach(func() {
-		ec2Instance = &ec2.Instance{
-			State: &ec2.InstanceState{
-				Name: aws.String(ec2.InstanceStateNameRunning),
+		ec2Instance = &ec2types.Instance{
+			State: &ec2types.InstanceState{
+				Name: ec2types.InstanceStateNameRunning,
 			},
-			Tags: []*ec2.Tag{
+			Tags: []ec2types.Tag{
 				{
 					Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
 					Value: aws.String("owned"),
@@ -97,14 +99,14 @@ var _ = Describe("TaggingController", func() {
 				},
 			},
 			PrivateDnsName: aws.String(fake.PrivateDNSName()),
-			Placement: &ec2.Placement{
+			Placement: &ec2types.Placement{
 				AvailabilityZone: aws.String(fake.DefaultRegion),
 			},
 			InstanceId:   aws.String(fake.InstanceID()),
-			InstanceType: aws.String("m5.large"),
+			InstanceType: "m5.large",
 		}
 
-		awsEnv.EC2API.Instances.Store(*ec2Instance.InstanceId, ec2Instance)
+		awsEnv.EC2API.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{InstanceIds: []string{*ec2Instance.InstanceId}})
 	})
 
 	It("shouldn't tag instances without a Node", func() {
@@ -117,7 +119,7 @@ var _ = Describe("TaggingController", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim)
 		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1.AnnotationInstanceTagged)))
-		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag *ec2.Tag) bool {
+		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag ec2types.Tag) bool {
 			return *tag.Key == v1.TagName
 		})).To(BeFalse())
 	})
@@ -133,7 +135,7 @@ var _ = Describe("TaggingController", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim)
 		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1.AnnotationInstanceTagged)))
-		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag *ec2.Tag) bool {
+		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag ec2types.Tag) bool {
 			return *tag.Key == v1.TagName
 		})).To(BeFalse())
 	})
@@ -160,7 +162,7 @@ var _ = Describe("TaggingController", func() {
 		})
 
 		ExpectApplied(ctx, env.Client, nodeClaim)
-		awsEnv.EC2API.Instances.Delete(*ec2Instance.InstanceId)
+		awsEnv.EC2API.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{InstanceIds: []string{*ec2Instance.InstanceId}})
 		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1.AnnotationInstanceTagged)))
 	})
@@ -180,7 +182,7 @@ var _ = Describe("TaggingController", func() {
 		Expect(env.Client.Delete(ctx, nodeClaim)).To(Succeed())
 		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1.AnnotationInstanceTagged)))
-		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag *ec2.Tag) bool {
+		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag ec2types.Tag) bool {
 			return *tag.Key == v1.TagName
 		})).To(BeFalse())
 	})
@@ -196,12 +198,12 @@ var _ = Describe("TaggingController", func() {
 			})
 
 			for _, tag := range customTags {
-				ec2Instance.Tags = append(ec2Instance.Tags, &ec2.Tag{
+				ec2Instance.Tags = append(ec2Instance.Tags, ec2types.Tag{
 					Key:   aws.String(tag),
 					Value: aws.String("custom-tag"),
 				})
 			}
-			awsEnv.EC2API.Instances.Store(*ec2Instance.InstanceId, ec2Instance)
+			awsEnv.EC2API.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{InstanceIds: []string{*ec2Instance.InstanceId}})
 
 			ExpectApplied(ctx, env.Client, nodeClaim)
 			ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)

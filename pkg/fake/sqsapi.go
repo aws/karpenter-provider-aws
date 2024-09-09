@@ -19,7 +19,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
 const (
@@ -32,16 +31,11 @@ type SQSBehavior struct {
 	GetQueueURLBehavior    MockedFunction[sqs.GetQueueUrlInput, sqs.GetQueueUrlOutput]
 	ReceiveMessageBehavior MockedFunction[sqs.ReceiveMessageInput, sqs.ReceiveMessageOutput]
 	DeleteMessageBehavior  MockedFunction[sqs.DeleteMessageInput, sqs.DeleteMessageOutput]
-}
-
-type SQSAPI interface {
-	GetQueueUrl(context.Context, *sqs.GetQueueUrlInput, ...func(*sqs.Options)) (*sqs.GetQueueUrlOutput, error)
-	ReceiveMessage(context.Context, *sqs.ReceiveMessageInput, ...func(*sqs.Options)) (*sqs.ReceiveMessageOutput, error)
-	DeleteMessage(context.Context, *sqs.DeleteMessageInput, ...func(*sqs.Options)) (*sqs.DeleteMessageOutput, error)
+	SendMessageBehavior    MockedFunction[sqs.SendMessageInput, sqs.SendMessageOutput]
 }
 
 type SQSAPI struct {
-	SQSAPI
+	SQSClient *sqs.Client
 	SQSBehavior
 }
 
@@ -71,5 +65,13 @@ func (s *SQSAPI) ReceiveMessage(_ context.Context, input *sqs.ReceiveMessageInpu
 func (s *SQSAPI) DeleteMessage(_ context.Context, input *sqs.DeleteMessageInput, _ ...func(*sqs.Options)) (*sqs.DeleteMessageOutput, error) {
 	return s.DeleteMessageBehavior.Invoke(input, func(_ *sqs.DeleteMessageInput) (*sqs.DeleteMessageOutput, error) {
 		return nil, nil
+	})
+}
+
+func (s *SQSAPI) SendMessage(_ context.Context, input *sqs.SendMessageInput, _ ...func(*sqs.Options)) (*sqs.SendMessageOutput, error) {
+	return s.SendMessageBehavior.Invoke(input, func(_ *sqs.SendMessageInput) (*sqs.SendMessageOutput, error) {
+		return &sqs.SendMessageOutput{
+			MessageId: aws.String("fake-message-id"),
+		}, nil
 	})
 }

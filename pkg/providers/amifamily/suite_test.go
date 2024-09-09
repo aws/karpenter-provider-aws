@@ -26,6 +26,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -74,13 +75,13 @@ var _ = BeforeSuite(func() {
 var _ = BeforeEach(func() {
 	// Set up the DescribeImages API so that we can call it by ID with the mock parameters that we generate
 	awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-		Images: []*ec2.Image{
+		Images: []ec2types.Image{
 			{
 				Name:         aws.String(amd64AMI),
 				ImageId:      aws.String("amd64-ami-id"),
 				CreationDate: aws.String(time.Time{}.Format(time.RFC3339)),
-				Architecture: aws.String("x86_64"),
-				Tags: []*ec2.Tag{
+				Architecture: "x86_64",
+				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
@@ -89,8 +90,8 @@ var _ = BeforeEach(func() {
 				Name:         aws.String(arm64AMI),
 				ImageId:      aws.String("arm64-ami-id"),
 				CreationDate: aws.String(time.Time{}.Add(time.Minute).Format(time.RFC3339)),
-				Architecture: aws.String("arm64"),
-				Tags: []*ec2.Tag{
+				Architecture: "arm64",
+				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String(arm64AMI)},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
@@ -99,8 +100,8 @@ var _ = BeforeEach(func() {
 				Name:         aws.String(amd64NvidiaAMI),
 				ImageId:      aws.String("amd64-nvidia-ami-id"),
 				CreationDate: aws.String(time.Time{}.Add(2 * time.Minute).Format(time.RFC3339)),
-				Architecture: aws.String("x86_64"),
-				Tags: []*ec2.Tag{
+				Architecture: "x86_64",
+				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String(amd64NvidiaAMI)},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
@@ -109,8 +110,8 @@ var _ = BeforeEach(func() {
 				Name:         aws.String(arm64NvidiaAMI),
 				ImageId:      aws.String("arm64-nvidia-ami-id"),
 				CreationDate: aws.String(time.Time{}.Add(2 * time.Minute).Format(time.RFC3339)),
-				Architecture: aws.String("arm64"),
-				Tags: []*ec2.Tag{
+				Architecture: "arm64",
+				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String(arm64NvidiaAMI)},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
@@ -264,14 +265,14 @@ var _ = Describe("AMIProvider", func() {
 		})
 	})
 	Context("AMI Tag Requirements", func() {
-		var img *ec2.Image
+		var img *ec2types.Image
 		BeforeEach(func() {
-			img = &ec2.Image{
+			img = &ec2types.Image{
 				Name:         aws.String(amd64AMI),
 				ImageId:      aws.String("amd64-ami-id"),
 				CreationDate: aws.String(time.Now().Format(time.RFC3339)),
-				Architecture: aws.String("x86_64"),
-				Tags: []*ec2.Tag{
+				Architecture: "x86_64",
+				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 					{Key: aws.String(corev1.LabelInstanceTypeStable), Value: aws.String("m5.large")},
@@ -279,8 +280,8 @@ var _ = Describe("AMIProvider", func() {
 				},
 			}
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-				Images: []*ec2.Image{
-					img,
+				Images: []ec2types.Image{
+					*img,
 				},
 			})
 		})
@@ -294,9 +295,9 @@ var _ = Describe("AMIProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(amis).To(HaveLen(1))
 			Expect(amis).To(ConsistOf(amifamily.AMI{
-				Name:         aws.StringValue(img.Name),
-				AmiID:        aws.StringValue(img.ImageId),
-				CreationDate: aws.StringValue(img.CreationDate),
+				Name:         aws.ToString(img.Name),
+				AmiID:        aws.ToString(img.ImageId),
+				CreationDate: aws.ToString(img.CreationDate),
 				Requirements: scheduling.NewRequirements(
 					scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
 				),
@@ -319,10 +320,10 @@ var _ = Describe("AMIProvider", func() {
 			Expect(err).To(BeNil())
 			ExpectConsistsOfAMIQueries([]amifamily.DescribeImageQuery{
 				{
-					Filters: []*ec2.Filter{
+					Filters: []ec2types.Filter{
 						{
 							Name:   aws.String("tag:Name"),
-							Values: aws.StringSlice([]string{"my-ami"}),
+							Values: []string{"my-ami"},
 						},
 					},
 					Owners: []string{},
@@ -340,10 +341,10 @@ var _ = Describe("AMIProvider", func() {
 			Expect(err).To(BeNil())
 			ExpectConsistsOfAMIQueries([]amifamily.DescribeImageQuery{
 				{
-					Filters: []*ec2.Filter{
+					Filters: []ec2types.Filter{
 						{
 							Name:   aws.String("name"),
-							Values: aws.StringSlice([]string{"my-ami"}),
+							Values: []string{"my-ami"},
 						},
 					},
 					Owners: []string{
@@ -369,10 +370,10 @@ var _ = Describe("AMIProvider", func() {
 			Expect(err).To(BeNil())
 			ExpectConsistsOfAMIQueries([]amifamily.DescribeImageQuery{
 				{
-					Filters: []*ec2.Filter{
+					Filters: []ec2types.Filter{
 						{
 							Name:   aws.String("image-id"),
-							Values: aws.StringSlice([]string{"ami-abcd1234", "ami-cafeaced"}),
+							Values: []string{"ami-abcd1234", "ami-cafeaced"},
 						},
 					},
 				},
@@ -420,19 +421,19 @@ var _ = Describe("AMIProvider", func() {
 			ExpectConsistsOfAMIQueries([]amifamily.DescribeImageQuery{
 				{
 					Owners: []string{"0123456789"},
-					Filters: []*ec2.Filter{
+					Filters: []ec2types.Filter{
 						{
 							Name:   aws.String("name"),
-							Values: aws.StringSlice([]string{"my-name"}),
+							Values: []string{"my-name"},
 						},
 					},
 				},
 				{
 					Owners: []string{"self"},
-					Filters: []*ec2.Filter{
+					Filters: []ec2types.Filter{
 						{
 							Name:   aws.String("name"),
-							Values: aws.StringSlice([]string{"my-name"}),
+							Values: []string{"my-name"},
 						},
 					},
 				},
@@ -564,7 +565,7 @@ func ExpectConsistsOfAMIQueries(expected, actual []amifamily.DescribeImageQuery)
 		for _, elem := range list {
 			for _, f := range elem.Filters {
 				sort.Slice(f.Values, func(i, j int) bool {
-					return lo.FromPtr(f.Values[i]) < lo.FromPtr(f.Values[j])
+					return f.Values[i] < f.Values[j]
 				})
 			}
 			sort.Slice(elem.Owners, func(i, j int) bool { return elem.Owners[i] < elem.Owners[j] })

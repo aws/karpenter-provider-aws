@@ -23,7 +23,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -118,7 +118,7 @@ func main() {
 		},
 	}
 	subnets := lo.Must(op.SubnetProvider.List(ctx, nodeClass))
-	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1.Subnet {
+	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2types.Subnet, _ int) v1.Subnet {
 		return v1.Subnet{
 			ID:   *ec2subnet.SubnetId,
 			Zone: *ec2subnet.AvailabilityZone,

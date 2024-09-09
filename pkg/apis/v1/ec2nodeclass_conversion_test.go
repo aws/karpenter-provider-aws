@@ -26,7 +26,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	. "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
@@ -132,7 +132,7 @@ var _ = Describe("Convert v1 to v1beta1 EC2NodeClass API", func() {
 				RootVolume: true,
 				EBS: &BlockDevice{
 					Encrypted:  lo.ToPtr(true),
-					VolumeType: lo.ToPtr(ec2.VolumeTypeGp3),
+					VolumeType: lo.ToPtr(string(ec2types.VolumeTypeGp3)),
 					VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
 				},
 			}}
@@ -151,7 +151,7 @@ var _ = Describe("Convert v1 to v1beta1 EC2NodeClass API", func() {
 				RootVolume: true,
 				EBS: &BlockDevice{
 					Encrypted:  lo.ToPtr(false),
-					VolumeType: lo.ToPtr(ec2.VolumeTypeGp2),
+					VolumeType: lo.ToPtr(string(ec2types.VolumeTypeGp2)),
 					VolumeSize: lo.ToPtr(resource.MustParse("40Gi")),
 				},
 			}}
@@ -162,7 +162,7 @@ var _ = Describe("Convert v1 to v1beta1 EC2NodeClass API", func() {
 				RootVolume: true,
 				EBS: &v1beta1.BlockDevice{
 					Encrypted:  lo.ToPtr(false),
-					VolumeType: lo.ToPtr(ec2.VolumeTypeGp2),
+					VolumeType: lo.ToPtr(string(ec2types.VolumeTypeGp2)),
 					VolumeSize: lo.ToPtr(resource.MustParse("40Gi")),
 				},
 			}}))
@@ -428,7 +428,7 @@ var _ = Describe("Convert v1beta1 to v1 EC2NodeClass API", func() {
 				RootVolume: true,
 				EBS: &BlockDevice{
 					Encrypted:  lo.ToPtr(true),
-					VolumeType: lo.ToPtr(ec2.VolumeTypeGp3),
+					VolumeType: lo.ToPtr(string(ec2types.VolumeTypeGp3)),
 					VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
 				},
 			}}))
@@ -441,7 +441,7 @@ var _ = Describe("Convert v1beta1 to v1 EC2NodeClass API", func() {
 				RootVolume: true,
 				EBS: &v1beta1.BlockDevice{
 					Encrypted:  lo.ToPtr(false),
-					VolumeType: lo.ToPtr(ec2.VolumeTypeGp2),
+					VolumeType: lo.ToPtr(string(ec2types.VolumeTypeGp2)),
 					VolumeSize: lo.ToPtr(resource.MustParse("40Gi")),
 				},
 			}}
@@ -454,7 +454,7 @@ var _ = Describe("Convert v1beta1 to v1 EC2NodeClass API", func() {
 				RootVolume: true,
 				EBS: &BlockDevice{
 					Encrypted:  lo.ToPtr(false),
-					VolumeType: lo.ToPtr(ec2.VolumeTypeGp2),
+					VolumeType: lo.ToPtr(string(ec2types.VolumeTypeGp2)),
 					VolumeSize: lo.ToPtr(resource.MustParse("40Gi")),
 				},
 			}}))

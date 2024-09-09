@@ -17,6 +17,7 @@ package controllers
 import (
 	"context"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/awslabs/operatorpkg/controller"
 	"github.com/awslabs/operatorpkg/status"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -30,7 +31,6 @@ import (
 	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/samber/lo"
 	"k8s.io/utils/clock"
@@ -70,10 +70,10 @@ func NewControllers(ctx context.Context, mgr manager.Manager, cfg aws.Config, cl
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsClient := servicesqs.NewFromConfig(cfg)
-		out:= lo.Must(sqsClient.GetQueueUrl(ctx, &servicesqs.GetQueueUrlInput{
-			QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)
+		out := lo.Must(sqsClient.GetQueueUrl(ctx, &servicesqs.GetQueueUrlInput{
+			QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue),
 		}))
-		controllers = append(controllers, interruption.NewController(KubeClient, clk, recorder, lo.Must(sqs.NewDefaultProvider(sqsClient, lo.FromPtr(out.QueueURL))), unavailableOfferings))
+		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, lo.Must(sqs.NewDefaultProvider(sqsClient, lo.FromPtr(out.QueueUrl))), unavailableOfferings))
 	}
 	return controllers
 }

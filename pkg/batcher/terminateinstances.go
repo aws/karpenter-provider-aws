@@ -20,13 +20,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
+
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"karpenter-provider-aws/pkg/aws/sdk"
 )
 
 type TerminateInstancesBatcher struct {
@@ -63,7 +64,7 @@ func execTerminateInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.TerminateI
 			firstInput.InstanceIds = append(firstInput.InstanceIds, input.InstanceIds...)
 		}
 		// Create a set of all instance IDs
-		stillRunning := sets.NewString(lo.Map(firstInput.InstanceIds, func(i *string, _ int) string { return *i })...)
+		stillRunning := sets.NewString(lo.Map(firstInput.InstanceIds, func(i string, _ int) string { return i })...)
 
 		// Execute fully aggregated request
 		// We don't care about the error here since we'll break up the batch upon any sort of failure
@@ -79,15 +80,15 @@ func execTerminateInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.TerminateI
 		// Check the fulfillment for partial or no fulfillment by checking for missing instance IDs or invalid instance states
 		for _, instanceStateChanges := range output.TerminatingInstances {
 			// Remove all instances that successfully terminated and separate into distinct outputs
-			if lo.Contains([]string{types.InstanceStateNameShuttingDown, types.InstanceStateNameTerminated}, string(instanceStateChanges.CurrentState.Name)) {
+			if lo.Contains([]string{string(ec2types.InstanceStateNameShuttingDown), string(ec2types.InstanceStateNameTerminated)}, string(instanceStateChanges.CurrentState.Name)) {
 				stillRunning.Delete(*instanceStateChanges.InstanceId)
 
 				// Find all indexes where we are requesting this instance and populate with the result
 				for reqID := range inputs {
-					if *inputs[reqID].InstanceIds[0] == *instanceStateChanges.InstanceId {
+					if inputs[reqID].InstanceIds[0] == *instanceStateChanges.InstanceId {
 						results[reqID] = Result[ec2.TerminateInstancesOutput]{
 							Output: &ec2.TerminateInstancesOutput{
-								TerminatingInstances: []*ec2.InstanceStateChange{{
+								TerminatingInstances: []ec2types.InstanceStateChange{{
 									InstanceId:    instanceStateChanges.InstanceId,
 									CurrentState:  instanceStateChanges.CurrentState,
 									PreviousState: instanceStateChanges.PreviousState,
@@ -108,11 +109,11 @@ func execTerminateInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.TerminateI
 			go func(instanceID string) {
 				defer wg.Done()
 				// try to execute separately
-				out, err := ec2api.TerminateInstances(ctx, &ec2.TerminateInstancesInput{InstanceIds: []*string{instanceID}})
+				out, err := ec2api.TerminateInstances(ctx, &ec2.TerminateInstancesInput{InstanceIds: []string{instanceID}})
 
 				// Find all indexes where we are requesting this instance and populate with the result
 				for reqID := range inputs {
-					if *inputs[reqID].InstanceIds[0] == instanceID {
+					if inputs[reqID].InstanceIds[0] == instanceID {
 						results[reqID] = Result[ec2.TerminateInstancesOutput]{Output: out, Err: err}
 					}
 				}

@@ -20,13 +20,11 @@ import (
 	"sync"
 	"time"
 
-	"karpenter-provider-aws/pkg/aws/sdk"
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
+
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
-	"github.com/samber/lo"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -67,6 +65,7 @@ func execDescribeInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.DescribeIns
 		results := make([]Result[ec2.DescribeInstancesOutput], len(inputs))
 		firstInput := inputs[0]
 
+		missingInstanceIDs := make(map[string]struct{})
 		paginator := ec2.NewDescribeInstancesPaginator(ec2api, firstInput)
 
 		for paginator.HasMorePages() {
@@ -82,14 +81,14 @@ func execDescribeInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.DescribeIns
 				for _, i := range r.Instances {
 					// Find all indexes where we are requesting this instance and populate with the result
 					for reqID := range inputs {
-						if *inputs[reqID].InstanceIds[0] == *i.InstanceId {
+						if inputs[reqID].InstanceIds[0] == *i.InstanceId {
 							inst := i
 							results[reqID] = Result[ec2.DescribeInstancesOutput]{Output: &ec2.DescribeInstancesOutput{
 								Reservations: []types.Reservation{{
-									OwnerId: r.OwnerId,
-									RequesterId: r.RequesterId,
+									OwnerId:       r.OwnerId,
+									RequesterId:   r.RequesterId,
 									ReservationId: r.ReservationId,
-									Instances: []types.Instance{inst},
+									Instances:     []types.Instance{inst},
 								}},
 							}}
 						}
@@ -111,12 +110,12 @@ func execDescribeInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.DescribeIns
 				// try to execute separately
 				out, err := ec2api.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 					Filters:     firstInput.Filters,
-					InstanceIds: []*string{instanceID},
+					InstanceIds: []string{instanceID},
 				})
 
 				// Find all indexes where we are requesting this instance and populate with the result
 				for reqID := range inputs {
-					if *inputs[reqID].InstanceIds[0] == instanceID {
+					if inputs[reqID].InstanceIds[0] == instanceID {
 						results[reqID] = Result[ec2.DescribeInstancesOutput]{Output: out, Err: err}
 					}
 				}

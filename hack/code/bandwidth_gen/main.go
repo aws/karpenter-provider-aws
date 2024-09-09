@@ -29,6 +29,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 )
 
@@ -148,14 +149,14 @@ func getAllInstanceTypes() []string {
 	}
 	cfg := lo.Must(config.LoadDefaultConfig(context.Background()))
 
-	ec2api := ec2.New(cfg)
+	ec2api := ec2.NewFromConfig(cfg)
 	var allInstanceTypes []string
 
 	params := &ec2.DescribeInstanceTypesInput{}
 	// Retrieve the instance types in a loop using NextToken
 	for {
-		result := lo.Must(ec2api.DescribeInstanceTypes(params))
-		allInstanceTypes = append(allInstanceTypes, lo.Map(result.InstanceTypes, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })...)
+		result := lo.Must(ec2api.DescribeInstanceTypes(context.Background(), params))
+		allInstanceTypes = append(allInstanceTypes, lo.Map(result.InstanceTypes, func(info ec2types.InstanceTypeInfo, _ int) string { return string(info.InstanceType) })...)
 		// Check if they are any instances left
 		if result.NextToken != nil {
 			params.NextToken = result.NextToken

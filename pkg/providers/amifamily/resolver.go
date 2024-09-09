@@ -20,7 +20,7 @@ import (
 	"net"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -38,7 +38,7 @@ import (
 
 var DefaultEBS = v1.BlockDevice{
 	Encrypted:  aws.Bool(true),
-	VolumeType: aws.String(ec2.VolumeTypeGp3),
+	VolumeType: aws.String(string(ec2types.VolumeTypeGp3)),
 	VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
 }
 
@@ -181,10 +181,10 @@ func GetAMIFamily(amiFamily string, options *Options) AMIFamily {
 
 func (o Options) DefaultMetadataOptions() *v1.MetadataOptions {
 	return &v1.MetadataOptions{
-		HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled),
-		HTTPProtocolIPv6:        aws.String(lo.Ternary(o.KubeDNSIP == nil || o.KubeDNSIP.To4() != nil, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled)),
+		HTTPEndpoint:            aws.String(string(ec2types.LaunchTemplateInstanceMetadataEndpointStateEnabled)),
+		HTTPProtocolIPv6:        aws.String(lo.Ternary(o.KubeDNSIP == nil || o.KubeDNSIP.To4() != nil, string(ec2types.LaunchTemplateInstanceMetadataProtocolIpv6Disabled), string(ec2types.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))),
 		HTTPPutResponseHopLimit: aws.Int64(2),
-		HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateRequired),
+		HTTPTokens:              aws.String(string(ec2types.LaunchTemplateHttpTokensStateRequired)),
 	}
 }
 
@@ -240,7 +240,7 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *k
 		),
 		BlockDeviceMappings: nodeClass.Spec.BlockDeviceMappings,
 		MetadataOptions:     nodeClass.Spec.MetadataOptions,
-		DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
+		DetailedMonitoring:  *nodeClass.Spec.DetailedMonitoring,
 		AMIID:               amiID,
 		InstanceTypes:       instanceTypes,
 		EFACount:            efaCount,

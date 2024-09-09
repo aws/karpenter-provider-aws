@@ -25,6 +25,7 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -81,11 +82,19 @@ var _ = Describe("InstanceType", func() {
 	It("should update instance type date with response from the DescribeInstanceTypes API", func() {
 		ec2InstanceTypes := fake.MakeInstances()
 		ec2Offerings := fake.MakeInstanceOfferings(ec2InstanceTypes)
+		var ec2instanceTypes []ec2types.InstanceTypeInfo
+		for _, info := range ec2InstanceTypes {
+			ec2instanceTypes = append(ec2instanceTypes, *info)
+		}
+		var instanceTypeOfferings []ec2types.InstanceTypeOffering
+		for _, offering := range ec2Offerings {
+			instanceTypeOfferings = append(instanceTypeOfferings, *offering)
+		}
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-			InstanceTypes: ec2InstanceTypes,
+			InstanceTypes: ec2instanceTypes,
 		})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-			InstanceTypeOfferings: ec2Offerings,
+			InstanceTypeOfferings: instanceTypeOfferings,
 		})
 
 		ExpectSingletonReconciled(ctx, controller)
@@ -109,17 +118,25 @@ var _ = Describe("InstanceType", func() {
 		})
 		Expect(err).To(BeNil())
 		for i := range instanceTypes {
-			Expect(instanceTypes[i].Name).To(Equal(lo.FromPtr(ec2InstanceTypes[i].InstanceType)))
+			Expect(instanceTypes[i].Name).To(Equal(string(ec2InstanceTypes[i].InstanceType)))
 		}
 	})
 	It("should update instance type offering date with response from the DescribeInstanceTypesOfferings API", func() {
 		ec2InstanceTypes := fake.MakeInstances()
 		ec2Offerings := fake.MakeInstanceOfferings(ec2InstanceTypes)
+		var ec2instanceTypes []ec2types.InstanceTypeInfo
+		for _, info := range ec2InstanceTypes {
+			ec2instanceTypes = append(ec2instanceTypes, *info)
+		}
+		var instanceTypeOfferings []ec2types.InstanceTypeOffering
+		for _, offering := range ec2Offerings {
+			instanceTypeOfferings = append(instanceTypeOfferings, *offering)
+		}
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-			InstanceTypes: ec2InstanceTypes,
+			InstanceTypes: ec2instanceTypes,
 		})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-			InstanceTypeOfferings: ec2Offerings,
+			InstanceTypeOfferings: instanceTypeOfferings,
 		})
 
 		ExpectSingletonReconciled(ctx, controller)
@@ -145,8 +162,8 @@ var _ = Describe("InstanceType", func() {
 
 		Expect(len(instanceTypes)).To(BeNumerically("==", len(ec2InstanceTypes)))
 		for x := range instanceTypes {
-			offering, found := lo.Find(ec2Offerings, func(off *ec2.InstanceTypeOffering) bool {
-				return instanceTypes[x].Name == lo.FromPtr(off.InstanceType)
+			offering, found := lo.Find(ec2Offerings, func(off *ec2types.InstanceTypeOffering) bool {
+				return instanceTypes[x].Name == string(off.InstanceType)
 			})
 			Expect(found).To(BeTrue())
 			for y := range instanceTypes[x].Offerings {

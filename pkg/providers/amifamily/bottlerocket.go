@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -71,10 +71,11 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 	if len(imageIDs) == 0 {
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "bottlerocket@%s"`, amiVersion)
 	}
+	imageIDStrings := dereferenceStringPointers(imageIDs)
 	return DescribeImageQuery{
-		Filters: []*ec2.Filter{{
+		Filters: []ec2types.Filter{{
 			Name:   lo.ToPtr("image-id"),
-			Values: imageIDs,
+			Values: imageIDStrings,
 		}},
 		KnownRequirements: requirements,
 	}, nil

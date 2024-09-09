@@ -15,20 +15,15 @@ limitations under the License.
 package fake
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/pricing"
-	"github.com/aws/aws-sdk-go-v2/service/pricing/types"
 )
 
-type PricingAPI interface {
-	GetProductsPages(aws.Context, *pricing.GetProductsInput, func(*pricing.GetProductsOutput, bool) bool, ...func(*pricing.Options)) error
-}
-
 type PricingAPI struct {
-	PricingAPI
+	PricingClient *pricing.Client
 	PricingBehavior
 }
 type PricingBehavior struct {
@@ -41,7 +36,7 @@ func (p *PricingAPI) Reset() {
 	p.GetProductsOutput.Reset()
 }
 
-func (p *PricingAPI) GetProductsPages(_ aws.Context, _ *pricing.GetProductsInput, fn func(*pricing.GetProductsOutput, bool) bool, _ ...func(*pricing.Options)) error {
+func (p *PricingAPI) GetProductsPages(_ context.Context, _ *pricing.GetProductsInput, fn func(*pricing.GetProductsOutput, bool) bool, _ ...func(*pricing.Options)) error {
 	if !p.NextError.IsNil() {
 		return p.NextError.Get()
 	}
@@ -53,12 +48,12 @@ func (p *PricingAPI) GetProductsPages(_ aws.Context, _ *pricing.GetProductsInput
 	return errors.New("no pricing data provided")
 }
 
-func NewOnDemandPrice(instanceType string, price float64) aws.JSONValue {
+func NewOnDemandPrice(instanceType string, price float64) map[string]interface{} {
 	return NewOnDemandPriceWithCurrency(instanceType, price, "USD")
 }
 
-func NewOnDemandPriceWithCurrency(instanceType string, price float64, currency string) aws.JSONValue {
-	return aws.JSONValue{
+func NewOnDemandPriceWithCurrency(instanceType string, price float64, currency string) map[string]interface{} {
+	return map[string]interface{}{
 		"product": map[string]interface{}{
 			"attributes": map[string]interface{}{
 				"instanceType": instanceType,
