@@ -75,7 +75,8 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			karpv1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceGeneration,
-					Operator: corev1.NodeSelectorOpExists,
+					Operator: corev1.NodeSelectorOpGt,
+					Values:   []string{"4"},
 				},
 			},
 		)
