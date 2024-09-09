@@ -51,18 +51,16 @@ type AMIs []AMI
 // If deprecation time is nil or two AMIs have the same deprecation time, the AMIs will be sorted by ID, which is guaranteed to be unique, in ascending order.
 // finally, if creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by ID, which is guaranteed to be unique, in ascending order.
 func (a AMIs) Sort() {
-	maxTime := time.Unix(math.MaxInt64, 0)
-	minTime := time.Unix(math.MinInt64, 0)
 	sort.Slice(a, func(i, j int) bool {
-		ideptime := parseTimeWithDefault(a[i].DeprecationTime, maxTime)
-		jdeptime := parseTimeWithDefault(a[j].DeprecationTime, maxTime)
+		ideptime := ParseTimeWithDefault(a[i].DeprecationTime, MaxTime)
+		jdeptime := ParseTimeWithDefault(a[j].DeprecationTime, MaxTime)
 
 		if ideptime.Unix() != jdeptime.Unix() {
 			return ideptime.Unix() > jdeptime.Unix()
 		}
 
-		itime := parseTimeWithDefault(a[i].CreationDate, minTime)
-		jtime := parseTimeWithDefault(a[j].CreationDate, minTime)
+		itime := ParseTimeWithDefault(a[i].CreationDate, MinTime)
+		jtime := ParseTimeWithDefault(a[j].CreationDate, MinTime)
 
 		if itime.Unix() != jtime.Unix() {
 			return itime.Unix() > jtime.Unix()
@@ -71,7 +69,7 @@ func (a AMIs) Sort() {
 	})
 }
 
-func parseTimeWithDefault(dateStr string, defaultTime time.Time) time.Time {
+func ParseTimeWithDefault(dateStr string, defaultTime time.Time) time.Time {
 	if dateStr == "" {
 		return defaultTime
 	}
@@ -81,9 +79,11 @@ func parseTimeWithDefault(dateStr string, defaultTime time.Time) time.Time {
 type Variant string
 
 var (
-	VariantStandard Variant = "standard"
-	VariantNvidia   Variant = "nvidia"
-	VariantNeuron   Variant = "neuron"
+	VariantStandard Variant   = "standard"
+	VariantNvidia   Variant   = "nvidia"
+	VariantNeuron   Variant   = "neuron"
+	MaxTime         time.Time = time.Unix(math.MaxInt64, 0)
+	MinTime         time.Time = time.Unix(math.MinInt64, 0)
 )
 
 func NewVariant(v string) (Variant, error) {
