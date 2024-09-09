@@ -557,6 +557,63 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		))
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
 	})
+	It("Should resolve valid AMI selector and add appropriate status for deprecated AMIs", func() {
+		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+			Images: []*ec2.Image{
+				{
+					Name:            aws.String("test-ami-3"),
+					ImageId:         aws.String("ami-id-789"),
+					CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
+					DeprecationTime: aws.String(time.Now().Add(-1 * time.Minute).Format(time.RFC3339)),
+					Architecture:    aws.String("x86_64"),
+					Tags: []*ec2.Tag{
+						{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
+						{Key: aws.String("foo"), Value: aws.String("bar")},
+					},
+				},
+				{
+					Name:         aws.String("test-ami-2"),
+					ImageId:      aws.String("ami-id-456"),
+					CreationDate: aws.String("2021-08-31T00:12:42.000Z"),
+					Architecture: aws.String("arm64"),
+					Tags: []*ec2.Tag{
+						{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
+						{Key: aws.String("foo"), Value: aws.String("bar")},
+					},
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.Status.AMIs).To(Equal(
+			[]v1.AMI{
+				{
+					Name: "test-ami-2",
+					ID:   "ami-id-456",
+					Requirements: []corev1.NodeSelectorRequirement{{
+						Key:      corev1.LabelArchStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{karpv1.ArchitectureArm64},
+					},
+					},
+				},
+				{
+					Name: "test-ami-3",
+					ID:   "ami-id-789",
+					Requirements: []corev1.NodeSelectorRequirement{{
+						Key:      corev1.LabelArchStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{karpv1.ArchitectureAmd64},
+					},
+					},
+				},
+			},
+		))
+		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).Reason).To(Equal("AMIsDeprecated"))
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).Message).To(Equal("AMISelector matched deprecated AMIs ami-id-789"))
+	})
 	It("should get error when resolving AMIs and have status condition set to false", func() {
 		awsEnv.EC2API.NextError.Set(fmt.Errorf("unable to resolve AMI"))
 		ExpectApplied(ctx, env.Client, nodeClass)
