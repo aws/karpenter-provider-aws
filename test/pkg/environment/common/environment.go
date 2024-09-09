@@ -163,7 +163,7 @@ func (env *Environment) DefaultNodePool(nodeClass *v1.EC2NodeClass) *karpv1.Node
 			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 				Key:      v1.LabelInstanceGeneration,
 				Operator: corev1.NodeSelectorOpGt,
-				Values:   []string{"2"},
+				Values:   []string{"4"}, // use Gen 5 and up as some gen 4 and below are deprecated
 			},
 		},
 		// Filter out a1 instance types, which are incompatible with AL2023 AMIs
