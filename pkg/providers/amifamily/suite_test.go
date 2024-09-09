@@ -304,13 +304,15 @@ var _ = Describe("AMIProvider", func() {
 		})
 	})
 	Context("AMI List requirements", func() {
-		// The List call should priortize the older deprecated ami over the deprecated ami
-		It("should priortize the non deprecated ami over deprecated ami", func() {
+		BeforeEach(func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 				{
 					Tags: map[string]string{"*": "*"},
 				},
 			}
+		})
+		// The List call should priortize the older deprecated ami over the deprecated ami
+		It("should priortize the non deprecated ami over deprecated ami", func() {
 			// Here we have two AMIs one which is deprecated and older and one which is newer and non deprecated
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []*ec2.Image{
@@ -350,11 +352,6 @@ var _ = Describe("AMIProvider", func() {
 			}))
 		})
 		It("should priortize the younger ami if both are deprecated", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-				{
-					Tags: map[string]string{"*": "*"},
-				},
-			}
 			//Both amis are deprecated and have the same deprecation time
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []*ec2.Image{
