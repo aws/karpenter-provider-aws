@@ -53,7 +53,7 @@ The upgrade guide will first require upgrading to your latest patch version prio
    The Karpenter version you are running must be between minor version `v0.33` and `v0.37`. To be able to roll back from Karpenter v1, you must rollback to on the following patch release versions for your minor version, which will include the conversion webhooks for a smooth rollback:
 
    * v0.37.3
-   * v0.36.6
+   * v0.36.5
    * v0.35.8
    * v0.34.9
    * v0.33.8
@@ -319,7 +319,7 @@ export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/
 2. Set Karpenter Version
 
 ```bash
-# Note: v0.33.8 and v0.34.9 include the v prefix, omit it for versions v0.35+
+# Note: v0.33.x and v0.34.x include the v prefix, omit it for versions v0.35+
 export KARPENTER_VERSION="<rollback version of karpenter>"
 ```
 
