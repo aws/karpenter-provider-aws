@@ -171,33 +171,32 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 					// If we already have an image with the same set of requirements, but this image (candidate) is newer, replace the previous (existing) image.
 					// If we already have an image with the same set of requirements which is deprecated, but this image (candidate) is newer or non deprecated, replace the previous (existing) image
 					reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
+					candidateDeprecated := parseTimeWithDefault(lo.FromPtr(image.DeprecationTime), maxTime).Unix() <= time.Now().Unix()
 					if v, ok := images[reqsHash]; ok {
-						candidateCreationTime := ParseTimeWithDefault(lo.FromPtr(image.CreationDate), MinTime)
-						existingCreationTime := ParseTimeWithDefault(v.CreationDate, MinTime)
-						candidateDeprecated := ParseTimeWithDefault(lo.FromPtr(image.DeprecationTime), MaxTime).Unix() >= time.Now().Unix()
-						existingDeprecated := ParseTimeWithDefault(v.DeprecationTime, MaxTime).Unix() >= time.Now().Unix()
+						existingCreationTime := parseTimeWithDefault(v.CreationDate, minTime)
+						candidateCreationTime := parseTimeWithDefault(lo.FromPtr(image.CreationDate), minTime)
 						if existingCreationTime == candidateCreationTime && lo.FromPtr(image.Name) < v.Name {
 							continue
 						}
 						// If existing AMI is non-deprecated and the candidate AMI is deprecated, return the existing AMI
-						if existingDeprecated && !candidateDeprecated {
+						if !v.Deprecated && candidateDeprecated {
 							continue
 						}
 						// If both AMIs are non deprecated and the candidate AMI creation time is less than the existing AMI, skip storing and returning the candidate AMI
-						if existingDeprecated && candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
+						if !v.Deprecated && !candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
 							continue
 						}
 						// If both AMIs are deprecated and the candidate AMI creation time is less than the existing AMI, skip storing and returning the candidate AMI
-						if !existingDeprecated && !candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
+						if v.Deprecated && candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
 							continue
 						}
 					}
 					images[reqsHash] = AMI{
-						Name:            lo.FromPtr(image.Name),
-						AmiID:           lo.FromPtr(image.ImageId),
-						CreationDate:    lo.FromPtr(image.CreationDate),
-						DeprecationTime: lo.FromPtr(image.DeprecationTime),
-						Requirements:    reqs,
+						Name:         lo.FromPtr(image.Name),
+						AmiID:        lo.FromPtr(image.ImageId),
+						CreationDate: lo.FromPtr(image.CreationDate),
+						Deprecated:   candidateDeprecated,
+						Requirements: reqs,
 					}
 				}
 			}

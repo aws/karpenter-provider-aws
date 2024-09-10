@@ -37,11 +37,11 @@ const (
 )
 
 type AMI struct {
-	Name            string
-	AmiID           string
-	CreationDate    string
-	DeprecationTime string
-	Requirements    scheduling.Requirements
+	Name         string
+	AmiID        string
+	CreationDate string
+	Deprecated   bool
+	Requirements scheduling.Requirements
 }
 
 type AMIs []AMI
@@ -50,8 +50,8 @@ type AMIs []AMI
 // If creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by ID, which is guaranteed to be unique, in ascending order.
 func (a AMIs) Sort() {
 	sort.Slice(a, func(i, j int) bool {
-		itime := ParseTimeWithDefault(a[i].CreationDate, MinTime)
-		jtime := ParseTimeWithDefault(a[j].CreationDate, MinTime)
+		itime := parseTimeWithDefault(a[i].CreationDate, minTime)
+		jtime := parseTimeWithDefault(a[j].CreationDate, minTime)
 
 		if itime.Unix() != jtime.Unix() {
 			return itime.Unix() > jtime.Unix()
@@ -60,7 +60,7 @@ func (a AMIs) Sort() {
 	})
 }
 
-func ParseTimeWithDefault(dateStr string, defaultTime time.Time) time.Time {
+func parseTimeWithDefault(dateStr string, defaultTime time.Time) time.Time {
 	if dateStr == "" {
 		return defaultTime
 	}
@@ -73,8 +73,8 @@ var (
 	VariantStandard Variant   = "standard"
 	VariantNvidia   Variant   = "nvidia"
 	VariantNeuron   Variant   = "neuron"
-	MaxTime         time.Time = time.Unix(math.MaxInt64, 0)
-	MinTime         time.Time = time.Unix(math.MinInt64, 0)
+	maxTime         time.Time = time.Unix(math.MaxInt64, 0)
+	minTime         time.Time = time.Unix(math.MinInt64, 0)
 )
 
 func NewVariant(v string) (Variant, error) {

@@ -36,7 +36,6 @@ type AMI struct {
 }
 
 func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	currentTime := time.Now().Unix()
 	amis, err := a.amiProvider.List(ctx, nodeClass)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting amis, %w", err)
@@ -50,8 +49,7 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 	// This is used to set the status conditions accordingly if any deprecated AMIs exist and are being used
 	deprecatedAMIs := lo.Map(
 		lo.Filter(amis, func(ami amifamily.AMI, _ int) bool {
-			parsedDeprecationTime := amifamily.ParseTimeWithDefault(ami.DeprecationTime, amifamily.MaxTime)
-			return parsedDeprecationTime.Unix() <= currentTime
+			return ami.Deprecated
 		}),
 		func(ami amifamily.AMI, _ int) string {
 			return ami.AmiID
