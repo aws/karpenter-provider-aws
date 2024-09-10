@@ -47,18 +47,9 @@ type AMI struct {
 type AMIs []AMI
 
 // Sort orders the AMIs by creation date in descending order.
-// If there are any amis with deprecation time, they will be sorted by deprecation time in descending order
-// If deprecation time is nil or two AMIs have the same deprecation time, the AMIs will be sorted by ID, which is guaranteed to be unique, in ascending order.
-// finally, if creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by ID, which is guaranteed to be unique, in ascending order.
+// If creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by ID, which is guaranteed to be unique, in ascending order.
 func (a AMIs) Sort() {
 	sort.Slice(a, func(i, j int) bool {
-		ideptime := ParseTimeWithDefault(a[i].DeprecationTime, MaxTime)
-		jdeptime := ParseTimeWithDefault(a[j].DeprecationTime, MaxTime)
-
-		if ideptime.Unix() != jdeptime.Unix() {
-			return ideptime.Unix() > jdeptime.Unix()
-		}
-
 		itime := ParseTimeWithDefault(a[i].CreationDate, MinTime)
 		jtime := ParseTimeWithDefault(a[j].CreationDate, MinTime)
 
