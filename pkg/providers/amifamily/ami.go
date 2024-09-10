@@ -156,7 +156,6 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 		return append(AMIs{}, images.(AMIs)...), nil
 	}
 	images := map[uint64]AMI{}
-	currentTime := time.Now().Unix()
 	for _, query := range queries {
 		if err = p.ec2api.DescribeImagesPagesWithContext(ctx, query.DescribeImagesInput(), func(page *ec2.DescribeImagesOutput, _ bool) bool {
 			for _, image := range page.Images {
@@ -170,26 +169,26 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 					// Checks and store for AMIs
 					// Following checks are needed in order to always priortize non deprecated AMIs
 					// If we already have an image with the same set of requirements, but this image (candidate) is newer, replace the previous (existing) image.
-					// If we already have an image with the same set of requirements which is deprecated, but this image (candidate) is newer and non deprecated, replace the previous (existing) image
+					// If we already have an image with the same set of requirements which is deprecated, but this image (candidate) is newer or non deprecated, replace the previous (existing) image
 					reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
 					if v, ok := images[reqsHash]; ok {
 						candidateCreationTime := ParseTimeWithDefault(lo.FromPtr(image.CreationDate), MinTime)
 						existingCreationTime := ParseTimeWithDefault(v.CreationDate, MinTime)
-						candidateDeprecationTime := ParseTimeWithDefault(lo.FromPtr(image.DeprecationTime), MaxTime)
-						existingDeprecationTime := ParseTimeWithDefault(v.DeprecationTime, MaxTime)
+						candidateDeprecated := ParseTimeWithDefault(lo.FromPtr(image.DeprecationTime), MaxTime).Unix() >= time.Now().Unix()
+						existingDeprecated := ParseTimeWithDefault(v.DeprecationTime, MaxTime).Unix() >= time.Now().Unix()
 						if existingCreationTime == candidateCreationTime && lo.FromPtr(image.Name) < v.Name {
 							continue
 						}
-						// If existing AMI is non deprecated, skip storing and returning the candidate AMI
-						if existingDeprecationTime.Unix() >= currentTime && candidateDeprecationTime.Unix() <= currentTime {
+						// If existing AMI is non-deprecated and the candidate AMI is deprecated, return the existing AMI
+						if existingDeprecated && !candidateDeprecated {
 							continue
 						}
 						// If both AMIs are non deprecated and the candidate AMI creation time is less than the existing AMI, skip storing and returning the candidate AMI
-						if existingDeprecationTime.Unix() >= currentTime && candidateDeprecationTime.Unix() >= currentTime && candidateCreationTime.Unix() < existingCreationTime.Unix() {
+						if existingDeprecated && candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
 							continue
 						}
 						// If both AMIs are deprecated and the candidate AMI creation time is less than the existing AMI, skip storing and returning the candidate AMI
-						if existingDeprecationTime.Unix() <= currentTime && candidateDeprecationTime.Unix() <= currentTime && candidateCreationTime.Unix() < existingCreationTime.Unix() {
+						if !existingDeprecated && !candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
 							continue
 						}
 					}
