@@ -72,9 +72,6 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.0.0 \
 | podDisruptionBudget.name | string | `"karpenter"` |  |
 | podLabels | object | `{}` | Additional labels for the pod. |
 | podSecurityContext | object | `{"fsGroup":65532}` | SecurityContext for the pod. |
-| postInstallHook.image.digest | string | `"sha256:13a2ad1bd37ce42ee2a6f1ab0d30595f42eb7fe4a90d6ec848550524104a1ed6"` | SHA256 digest of the post-install hook image. |
-| postInstallHook.image.repository | string | `"public.ecr.aws/bitnami/kubectl"` | Repository path to the post-install hook. This minimally needs to have `kubectl` installed |
-| postInstallHook.image.tag | string | `"1.30"` | Tag of the post-install hook image. |
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
 | replicas | int | `2` | Number of replicas. |
 | revisionHistoryLimit | int | `10` | The number of old ReplicaSets to retain to allow rollback. |
@@ -100,9 +97,6 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.0.0 \
 | terminationGracePeriodSeconds | string | `nil` | Override the default termination grace period for the pod. |
 | tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"}]` | Tolerations to allow the pod to be scheduled to nodes with taints. |
 | topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"DoNotSchedule"}]` | Topology spread constraints to increase the controller resilience by distributing pods across the cluster zones. If an explicit label selector is not provided one will be created from the pod selector labels. |
-| webhook.enabled | bool | `true` | Whether to enable the webhooks and webhook permissions. |
-| webhook.metrics.port | int | `8001` | The container port to use for webhook metrics. |
-| webhook.port | int | `8443` | The container port to use for the webhook. |
 
 ----------------------------------------------
 
