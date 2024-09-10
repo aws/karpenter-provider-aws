@@ -173,7 +173,7 @@ Karpenter will add the `Drifted` status condition on NodeClaims if the NodeClaim
 Automated forceful methods will begin draining nodes as soon as the condition is met. Note that these methods blow past NodePool Disruption Budgets, and do not wait for a pre-spin replacement node to be healthy for the pods to reschedule, unlike the graceful methods mentioned above. Use Pod Disruption Budgets and `do-not-disrupt` on your nodes to rate-limit the speed at which your applications are disrupted.
 
 ### Expiration
-Karpenter will disrupt nodes as soon as they're expired after they've lived for the duration of the NodePool's `spec.template.spec.expireAfter`. You can use expiration to periodically recycle nodes due to security concern. 
+Karpenter will disrupt nodes as soon as they're expired after they've lived for the duration of the NodePool's `spec.template.spec.expireAfter`. You can use expiration to periodically recycle nodes due to security concern.
 
 ### Interruption
 
@@ -200,17 +200,25 @@ To enable interruption handling, configure the `--interruption-queue` CLI argume
 
 ## Controls
 
-### TerminationGracePeriod 
+### TerminationGracePeriod
 
-You can set a NodePool's `terminationGracePeriod` through the `spec.template.spec.terminationGracePeriod` field. This field defines  the duration of time that a node can be draining before it's forcibly deleted. A node begins draining when it's deleted. Pods will be deleted preemptively based on its TerminationGracePeriodSeconds before this terminationGracePeriod ends to give as much time to cleanup as possible. Note that if your pod's terminationGracePeriodSeconds is larger than this terminationGracePeriod, Karpenter may forcibly delete the pod before it has its full terminationGracePeriod to cleanup. 
+You can set a NodePool's `terminationGracePeriod` through the `spec.template.spec.terminationGracePeriod` field.
+This field defines  the duration of time that a node can be draining before it's forcibly deleted.
+A node begins draining when it's deleted.
+Pods will be deleted preemptively based on its TerminationGracePeriodSeconds before this terminationGracePeriod ends to give as much time to cleanup as possible.
+Note that if your pod's terminationGracePeriodSeconds is larger than this terminationGracePeriod, Karpenter may forcibly delete the pod before it has its full terminationGracePeriod to cleanup.
 
-This is especially useful in combination with `nodepool.spec.template.spec.expireAfter` to define an absolute maximum on the lifetime of a node, where a node is deleted at `expireAfter` and finishes draining within the `terminationGracePeriod` thereafter. Pods blocking eviction like PDBs and do-not-disrupt will block full draining until the `terminationGracePeriod` is reached. 
+This is especially useful in combination with `nodepool.spec.template.spec.expireAfter` to define an absolute maximum on the lifetime of a node, where a node is deleted at `expireAfter` and finishes draining within the `terminationGracePeriod` thereafter.
+Pods blocking eviction like PDBs and do-not-disrupt will block full draining until the `terminationGracePeriod` is reached.
 
-For instance, a NodeClaim with `terminationGracePeriod` set to `1h` and an `expireAfter` set to `23h` will begin draining after it's lived for `23h`. Let's say a `do-not-disrupt` pod has `TerminationGracePeriodSeconds` set to `300` seconds. If the node hasn't been fully drained after `55m`, Karpenter will delete the pod to allow it's full `terminationGracePeriodSeconds` to cleanup. If no pods are blocking draining, Karpenter will cleanup the node as soon as the node is fully drained, rather than waiting for the NodeClaim's `terminationGracePeriod` to finish.
+For instance, a NodeClaim with `terminationGracePeriod` set to `1h` and an `expireAfter` set to `23h` will begin draining after it's lived for `23h`.
+Let's say a `do-not-disrupt` pod has `TerminationGracePeriodSeconds` set to `300` seconds.
+If the node hasn't been fully drained after `55m`, Karpenter will delete the pod to allow it's full `terminationGracePeriodSeconds` to cleanup.
+If no pods are blocking draining, Karpenter will cleanup the node as soon as the node is fully drained, rather than waiting for the NodeClaim's `terminationGracePeriod` to finish.
 
 ### NodePool Disruption Budgets
 
-You can rate limit Karpenter's disruption through the NodePool's `spec.disruption.budgets`. If undefined, Karpenter will default to one budget with `nodes: 10%`. Budgets will consider nodes that are actively being deleted for any reason, and will only block Karpenter from disrupting nodes voluntarily through drift, emptiness, and consolidation. Note that NodePool Disruption Budgets do not prevent Karpenter from cleaning up expired or drifted nodes. 
+You can rate limit Karpenter's disruption through the NodePool's `spec.disruption.budgets`. If undefined, Karpenter will default to one budget with `nodes: 10%`. Budgets will consider nodes that are actively being deleted for any reason, and will only block Karpenter from disrupting nodes voluntarily through drift, emptiness, and consolidation. Note that NodePool Disruption Budgets do not prevent Karpenter from cleaning up expired or drifted nodes.
 
 #### Reasons
 Karpenter allows specifying if a budget applies to any of `Drifted`, `Underutilized`, or `Empty`. When a budget has no reasons, it's assumed that it applies to all reasons. When calculating allowed disruptions for a given reason, Karpenter will take the minimum of the budgets that have listed the reason or have left reasons undefined.
@@ -223,7 +231,7 @@ If the budget is configured with a percentage value, such as `20%`, Karpenter wi
 For example, the following NodePool with three budgets defines the following requirements:
 - The first budget will only allow 20% of nodes owned by that NodePool to be disrupted if it's empty or drifted. For instance, if there were 19 nodes owned by the NodePool, 4 empty or drifted nodes could be disrupted, rounding up from `19 * .2 = 3.8`.
 - The second budget acts as a ceiling to the previous budget, only allowing 5 disruptions when there are more than 25 nodes.
-- The last budget only blocks disruptions during the first 10 minutes of the day, where 0 disruptions are allowed, only applying to underutilized nodes. 
+- The last budget only blocks disruptions during the first 10 minutes of the day, where 0 disruptions are allowed, only applying to underutilized nodes.
 
 ```yaml
 apiVersion: karpenter.sh/v1
@@ -232,20 +240,20 @@ metadata:
   name: default
 spec:
   template:
-    spec: 
+    spec:
       expireAfter: 720h # 30 * 24h = 720h
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
     budgets:
     - nodes: "20%"
-      reasons: 
+      reasons:
       - "Empty"
       - "Drifted"
     - nodes: "5"
     - nodes: "0"
       schedule: "@daily"
       duration: 10m
-      reasons: 
+      reasons:
       - "Underutilized"
 ```
 
@@ -274,8 +282,14 @@ Duration and Schedule must be defined together. When omitted, the budget is alwa
 
 ### Pod-Level Controls
 
-You can block Karpenter from voluntarily choosing to disrupt certain pods by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the pod. This is useful for pods that you want to run from start to finish without disruption. By opting pods out of this disruption, you are telling Karpenter that it should not voluntarily remove a node containing this pod.
+You can block Karpenter from voluntarily choosing to disrupt certain pods by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the pod.
+You can treat this annotation as a single-node, permanently blocking PDB.
+This has the following consequences:
+- Nodes with `do-not-disrupt` pods will be excluded from **voluntary** disruption, i.e. [Consolidation]({{<ref "#consolidation" >}}) and [Drift]({{<ref "#drift" >}}).
+- Like pods with a blocking PDB, pods with the `do-not-disrupt` annotation will **not** be gracefully evicted by the [Termination Controller]({{ref "#terminationcontroller"}}).
+  Karpenter will not be able to complete termination of the node until one of the following conditions is met: the `do-not-disrupt` pod is removed, it enters a [terminating](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) or [terminal](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) state, or the owning NodeClaim's [TerminationGracePeriod]({{<ref "#terminationgraceperiod" >}}) has been met.
 
+This is useful for pods that you want to run from start to finish without disruption.
 Examples of pods that you might want to opt-out of disruption include an interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
 
 ```yaml
@@ -292,18 +306,14 @@ spec:
 This annotation will be ignored for [terminating pods](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) and [terminal pods](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) (Failed/Succeeded).
 {{% /alert %}}
 
-Examples of voluntary node removal that will be prevented by this annotation include:
-- [Consolidation]({{<ref "#consolidation" >}})
-- [Drift]({{<ref "#drift" >}})
-- Expiration
-
 {{% alert title="Note" color="primary" %}}
-Voluntary node removal does not include [Interruption]({{<ref "#interruption" >}}) or manual deletion initiated through `kubectl delete node`. Both of these are considered involuntary events, since node removal cannot be delayed.
+The `do-not-disrupt` annotation does **not** exclude nodes from involuntary disruption methods, i.e. [Expiration]({{<ref "#expiration" >}}), [Interruption]({{<ref "#interruption" >}}), and manual deletion (e.g. `kubectl delete node ...`).
 {{% /alert %}}
 
 ### Node-Level Controls
 
-You can block Karpenter from voluntarily choosing to disrupt certain nodes by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the node. This will prevent disruption actions on the node.
+You can block Karpenter from voluntarily choosing to disrupt certain nodes by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the node.
+This will prevent voluntary disruption actions against the node.
 
 ```yaml
 apiVersion: v1
