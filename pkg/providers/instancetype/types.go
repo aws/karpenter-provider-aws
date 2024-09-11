@@ -250,6 +250,14 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		requirements.Get(v1.LabelInstanceGPUCount).Insert(fmt.Sprint(aws.Int64Value(gpu.Count)))
 		requirements.Get(v1.LabelInstanceGPUMemory).Insert(fmt.Sprint(aws.Int64Value(gpu.MemoryInfo.SizeInMiB)))
 	}
+	// Accelerators - excluding Neuron
+	if info.InferenceAcceleratorInfo != nil && len(info.InferenceAcceleratorInfo.Accelerators) == 1 && info.NeuronInfo == nil {
+		accelerator := info.InferenceAcceleratorInfo.Accelerators[0]
+		requirements.Get(v1.LabelInstanceAcceleratorName).Insert(lowerKabobCase(aws.StringValue(accelerator.Name)))
+		requirements.Get(v1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase(aws.StringValue(accelerator.Manufacturer)))
+		requirements.Get(v1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(accelerator.Count)))
+		requirements.Get(v1.LabelInstanceAcceleratorMemory).Insert(fmt.Sprint(aws.Int64Value(info.InferenceAcceleratorInfo.TotalInferenceMemoryInMiB)))
+	}
 	// Neuron
 	if info.NeuronInfo != nil && len(info.NeuronInfo.NeuronDevices) == 1 {
 		device := info.NeuronInfo.NeuronDevices[0]
@@ -406,7 +414,6 @@ func awsNeuronCores(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	if info.NeuronInfo != nil {
 		neuronDevice := info.NeuronInfo.NeuronDevices[0]
 		neuronCorePerDevice := neuronDevice.CoreInfo.Count
-
 		count = *neuronDevice.Count * *neuronCorePerDevice
 	}
 	return resources.Quantity(fmt.Sprint(count))
