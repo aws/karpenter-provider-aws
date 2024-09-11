@@ -175,18 +175,20 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 					if v, ok := images[reqsHash]; ok {
 						existingCreationTime := parseTimeWithDefault(v.CreationDate, minTime)
 						candidateCreationTime := parseTimeWithDefault(lo.FromPtr(image.CreationDate), minTime)
-						if existingCreationTime == candidateCreationTime && lo.FromPtr(image.Name) < v.Name {
+						// If both AMIs have the same creation time
+						// And if the existing AMI is non-deprecated and the candidate AMI is deprecated, return the existing AMI
+						if existingCreationTime == candidateCreationTime && !v.Deprecated && candidateDeprecated && lo.FromPtr(image.Name) < v.Name {
 							continue
 						}
 						// If existing AMI is non-deprecated and the candidate AMI is deprecated, return the existing AMI
 						if !v.Deprecated && candidateDeprecated {
 							continue
 						}
-						// If both AMIs are non deprecated and the candidate AMI creation time is less than the existing AMI, skip storing and returning the candidate AMI
+						// If both AMIs are non deprecated and the candidate AMI is older than the existing AMI, return the existing AMI
 						if !v.Deprecated && !candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
 							continue
 						}
-						// If both AMIs are deprecated and the candidate AMI creation time is less than the existing AMI, skip storing and returning the candidate AMI
+						// If both AMIs are deprecated and the candidate AMI is older than the existing AMI, return the existing AMI
 						if v.Deprecated && candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
 							continue
 						}

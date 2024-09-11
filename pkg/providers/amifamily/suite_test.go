@@ -393,6 +393,48 @@ var _ = Describe("AMIProvider", func() {
 				),
 			}))
 		})
+		It("should priortize the non-deprecated ami with deprecation time when both have same creation time and different name", func() {
+			// Here we have two AMIs one which is deprecated and one which is non-deprecated both with the same creation time but with different names
+			// List operation will priortize the non-deprecated AMI
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []*ec2.Image{
+					{
+						Name:            aws.String("test-ami-2"),
+						ImageId:         aws.String("ami-5678"),
+						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
+						DeprecationTime: aws.String(time.Now().Add(-1 * time.Minute).Format(time.RFC3339)),
+						Architecture:    aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+					{
+						Name:            aws.String("test-ami-1"),
+						ImageId:         aws.String("ami-1234"),
+						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
+						DeprecationTime: aws.String(time.Now().Add(time.Minute).Format(time.RFC3339)),
+						Architecture:    aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+				},
+			})
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis).To(ConsistOf(amifamily.AMI{
+				Name:         "test-ami-1",
+				AmiID:        "ami-1234",
+				CreationDate: "2021-08-31T00:12:42.000Z",
+				Deprecated:   false,
+				Requirements: scheduling.NewRequirements(
+					scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
+				),
+			}))
+		})
 		It("should priortize the newer ami if both are deprecated", func() {
 			//Both amis are deprecated and have the same deprecation time
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
