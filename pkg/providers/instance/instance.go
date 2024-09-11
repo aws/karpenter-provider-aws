@@ -536,7 +536,7 @@ func combineFleetErrors(errors []*ec2types.CreateFleetError) (errs error) {
 		unique.Insert(fmt.Sprintf("%s: %s", aws.ToString(err.ErrorCode), aws.ToString(err.ErrorMessage)))
 	}
 	for errorCode := range unique {
-		errs = multierr.Append(errs, errors.New(errorCode))
+		errs = multierr.Append(errs, fmt.Errorf("%s", errorCode))
 	}
 	// If all the Fleet errors are ICE errors then we should wrap the combined error in the generic ICE error
 	iceErrorCount := lo.CountBy(errors, func(err *ec2types.CreateFleetError) bool { return awserrors.IsUnfulfillableCapacity(err) })

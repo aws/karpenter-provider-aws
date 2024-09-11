@@ -61,6 +61,7 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 	if len(imageIDs) == 0 {
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "bottlerocket@%s"`, amiVersion)
 	}
+
 	return DescribeImageQuery{
 		Filters: []ec2types.Filter{{
 			Name:   aws.String("image-id"),

@@ -51,11 +51,11 @@ func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provide
 	if err != nil {
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "windows%s@%s"`, w.Version, amiVersion)
 	}
-	imageIDStrings := dereferenceStringPointers((imageIDs))
+
 	return DescribeImageQuery{
-		Filters: []ec2types.Filter{ec2types.Filter{
-			Name:   lo.ToPtr("image-id"),
-			Values: imageIDStrings,
+		Filters: []ec2types.Filter{{
+			Name:   aws.String("image-id"),
+			Values: []string{imageID},
 		}},
 		KnownRequirements: map[string][]scheduling.Requirements{
 			imageID: []scheduling.Requirements{scheduling.NewRequirements(

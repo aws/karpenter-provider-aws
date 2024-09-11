@@ -134,7 +134,5 @@ func (a SSMAPI) getDefaultParametersForPath(path string) []*ssmtypes.Parameter {
 
 func (a *SSMAPI) Reset() {
 	a.Parameters = nil
-	a.GetParameterOutput = nil
 	a.WantErr = nil
-	a.defaultParameters = map[string]string{}
 }
