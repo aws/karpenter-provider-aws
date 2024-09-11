@@ -42,6 +42,7 @@ type Bottlerocket struct {
 func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
 	// Bottlerocket AMIs versions are prefixed with a v on GitHub, but not in the SSM path. We should accept both.
 	trimmedAMIVersion := strings.TrimLeft(amiVersion, "v")
+	imageIDs := []string{}
 	ids := map[string][]Variant{}
 	for path, variants := range map[string][]Variant{
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion):        {VariantStandard},
@@ -53,17 +54,17 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 		if err != nil {
 			continue
 		}
+		imageIDs = append(imageIDs, imageID)
 		ids[imageID] = variants
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
-	if len(ids) == 0 {
+	if len(imageIDs) == 0 {
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "bottlerocket@%s"`, amiVersion)
 	}
-	imageIDStrings := dereferenceStringPointers(imageIDs)
 	return DescribeImageQuery{
 		Filters: []ec2types.Filter{{
-			Name:   lo.ToPtr("image-id"),
-			Values: imageIDStrings,
+			Name:   aws.String("image-id"),
+			Values: imageIDs,
 		}},
 		KnownRequirements: lo.MapValues(ids, func(variants []Variant, _ string) []scheduling.Requirements {
 			return lo.Map(variants, func(v Variant, _ int) scheduling.Requirements { return v.Requirements() })
