@@ -71,7 +71,7 @@ func execCreateFleetBatch(ec2api sdk.EC2API) BatchExecutor[ec2.CreateFleetInput,
 			for _, instanceID := range reservation.InstanceIds {
 				requestIdx++
 				if requestIdx >= len(inputs) {
-					log.FromContext(ctx).Error(fmt.Errorf("received more instances than requested, ignoring instance %s", aws.String(instanceID)), "received error while batching")
+					log.FromContext(ctx).Error(fmt.Errorf("received more instances than requested, ignoring instance %v", instanceID), "received error while batching")
 					continue
 				}
 				results = append(results, Result[ec2.CreateFleetOutput]{

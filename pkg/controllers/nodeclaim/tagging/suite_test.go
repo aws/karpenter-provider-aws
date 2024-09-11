@@ -106,7 +106,7 @@ var _ = Describe("TaggingController", func() {
 			InstanceType: "m5.large",
 		}
 
-		awsEnv.EC2API.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{InstanceIds: []string{*ec2Instance.InstanceId}})
+		lo.Must(awsEnv.EC2API.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{InstanceIds: []string{*ec2Instance.InstanceId}}))
 	})
 
 	It("shouldn't tag instances without a Node", func() {
@@ -162,7 +162,7 @@ var _ = Describe("TaggingController", func() {
 		})
 
 		ExpectApplied(ctx, env.Client, nodeClaim)
-		awsEnv.EC2API.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{InstanceIds: []string{*ec2Instance.InstanceId}})
+		lo.Must(awsEnv.EC2API.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{InstanceIds: []string{*ec2Instance.InstanceId}}))
 		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1.AnnotationInstanceTagged)))
 	})
@@ -203,7 +203,7 @@ var _ = Describe("TaggingController", func() {
 					Value: aws.String("custom-tag"),
 				})
 			}
-			awsEnv.EC2API.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{InstanceIds: []string{*ec2Instance.InstanceId}})
+			lo.Must(awsEnv.EC2API.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{InstanceIds: []string{*ec2Instance.InstanceId}}))
 
 			ExpectApplied(ctx, env.Client, nodeClaim)
 			ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
