@@ -76,17 +76,17 @@ spec:
               value: "1.19.0-0"
             - name: KARPENTER_SERVICE
               value: {{ include "karpenter.fullname" . }}
-          {{- if .Values.webhook.enabled }}
-            - name: WEBHOOK_PORT
-              value: "{{ .Values.webhook.port }}"
-            - name: WEBHOOK_METRICS_PORT
-              value: "{{ .Values.webhook.metrics.port }}"
-          {{- end }}
-            - name: DISABLE_WEBHOOK
-              value: "{{ not .Values.webhook.enabled }}"
           {{- with .Values.logLevel }}
             - name: LOG_LEVEL
               value: "{{ . }}"
+          {{- end }}
+          {{- with .Values.logOutputPaths }}
+            - name: LOG_OUTPUT_PATHS
+              value: "{{ join "," . }}"
+          {{- end }}
+          {{- with .Values.logErrorOutputPaths }}
+            - name: LOG_ERROR_OUTPUT_PATHS
+              value: "{{ join "," . }}"
           {{- end }}
             - name: METRICS_PORT
               value: "{{ .Values.controller.metrics.port }}"
@@ -151,14 +151,6 @@ spec:
             - name: http-metrics
               containerPort: {{ .Values.controller.metrics.port }}
               protocol: TCP
-          {{- if .Values.webhook.enabled }}
-            - name: webhook-metrics
-              containerPort: {{ .Values.webhook.metrics.port }}
-              protocol: TCP
-            - name: https-webhook
-              containerPort: {{ .Values.webhook.port }}
-              protocol: TCP
-          {{- end }}
             - name: http
               containerPort: {{ .Values.controller.healthProbe.port }}
               protocol: TCP

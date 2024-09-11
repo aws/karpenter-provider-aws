@@ -160,7 +160,7 @@ status:
   # Generated instance profile name from "role"
   instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
 ```
-Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable to all providers. To explore various `EC2NodeClass` configurations, refer to the examples provided [in the Karpenter Github repository](https://github.com/aws/karpenter/blob/v0.36.0/examples/v1beta1/).
+Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable to all providers. To explore various `EC2NodeClass` configurations, refer to the examples provided [in the Karpenter Github repository](https://github.com/aws/karpenter/blob/v0.36.4/examples/v1beta1/).
 
 ## spec.amiFamily
 
@@ -749,7 +749,7 @@ spec:
     chown -R ec2-user ~ec2-user/.ssh
 ```
 
-For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/v0.36.0/examples/v1beta1/).
+For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/v0.36.4/examples/v1beta1/).
 
 Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#specamifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
 

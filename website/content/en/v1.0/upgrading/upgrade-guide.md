@@ -11,7 +11,7 @@ Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes 
 This guide contains information needed to upgrade to the latest release of Karpenter, along with compatibility issues you need to be aware of when upgrading from earlier Karpenter versions.
 
 {{% alert title="Warning" color="warning" %}}
-With the release of Karpenter v1.0.0, the Karpenter team will be dropping support for karpenter versions v0.32 and below. We recommend upgrading to the latest version of Karpenter and keeping Karpenter up-to-date for bug fixes and new features.
+With the release of Karpenter v1.0, the Karpenter team will be dropping support for karpenter versions v0.32 and below. We recommend upgrading to the latest version of Karpenter and keeping Karpenter up-to-date for bug fixes and new features.
 {{% /alert %}}
 
 ### CRD Upgrades
@@ -89,6 +89,7 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
 * Karpenter no longer updates the logger name when creating controller loggers. We now adhere to the controller-runtime standard, where the logger name will be set as `"logger": "controller"` always and the controller name will be stored in the structured value `"controller"`
 * Karpenter updated the NodeClass controller naming in the following way: `nodeclass` -> `nodeclass.status`, `nodeclass.hash`, `nodeclass.termination`
 * Karpenter's NodeClaim status conditions no longer include the `severity` field
+* Starting with `0.37.3` Karpenter has enabled conversion webhooks by default to improve the v1 migration experience. If working with a cluster with a network policy that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
 
 ### Upgrading to `0.36.0`+
 
@@ -101,6 +102,7 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
 {{% /alert %}}
 
 * Karpenter changed the name of the `karpenter_cloudprovider_instance_type_price_estimate` metric to `karpenter_cloudprovider_instance_type_offering_price_estimate` to align with the new `karpenter_cloudprovider_instance_type_offering_available` metric. The `region` label was also dropped from the metric, since this can be inferred from the environment that Karpenter is running in.
+* Starting with `0.36.5` Karpenter has enabled conversion webhooks by default to improve the v1 migration experience. If working with a cluster with a network policy that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
 
 ### Upgrading to `0.35.0`+
 
@@ -109,6 +111,7 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
 {{% /alert %}}
 
 * Karpenter OCI tags and Helm chart version are now valid semantic versions, meaning that the `v` prefix from the git tag has been removed and they now follow the `x.y.z` pattern.
+* Starting with `0.35.8` Karpenter has enabled conversion webhooks by default to improve the v1 migration experience. If working with a cluster with a network policy that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
 
 ### Upgrading to `0.34.0`+
 
@@ -129,6 +132,7 @@ The Ubuntu EKS optimized AMI has moved from 20.04 to 22.04 for Kubernetes 1.29+.
 * Karpenter now adds a default `podSecurityContext` that configures the `fsgroup: 65536` of volumes in the pod. If you are using sidecar containers, you should review if this configuration is compatible for them. You can disable this default `podSecurityContext` through helm by performing `--set podSecurityContext=null` when installing/upgrading the chart.
 * The `dnsPolicy` for the Karpenter controller pod has been changed back to the Kubernetes cluster default of `ClusterFirst`. Setting our `dnsPolicy` to `Default` (confusingly, this is not the Kubernetes cluster default) caused more confusion for any users running IPv6 clusters with dual-stack nodes or anyone running Karpenter with dependencies on cluster services (like clusters running service meshes). This change may be breaking for any users on Fargate or MNG who were allowing Karpenter to manage their in-cluster DNS service (`core-dns` on most clusters). If you still want the old behavior here, you can change the `dnsPolicy` to point to use `Default` by setting the helm value on install/upgrade with `--set dnsPolicy=Default`. More details on this issue can be found in the following Github issues: [#2186](https://github.com/aws/karpenter-provider-aws/issues/2186) and [#4947](https://github.com/aws/karpenter-provider-aws/issues/4947).
 * Karpenter now disallows `nodepool.spec.template.spec.resources` to be set. The webhook validation never allowed `nodepool.spec.template.spec.resources`. We are now ensuring that CEL validation also disallows `nodepool.spec.template.spec.resources` to be set. If you were previously setting the resources field on your NodePool, ensure that you remove this field before upgrading to the newest version of Karpenter or else updates to the resource may fail on the new version.
+* Starting with `0.34.9` Karpenter has enabled conversion webhooks by default to improve the v1 migration experience. If working with a cluster with a network policy that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
 
 ### Upgrading to `0.33.0`+
 
@@ -145,6 +149,7 @@ The Ubuntu EKS optimized AMI has moved from 20.04 to 22.04 for Kubernetes 1.29+.
 * `0.33.0` drops looking up the `zap-logger-config` through ConfigMap discovery. Instead, Karpenter now expects the logging config to be mounted on the filesystem if you are using this to configure Zap logging. This is not enabled by default, but can be enabled through `--set logConfig.enabled=true` in the Helm values. If you are setting any values in the `logConfig` from the `0.32.x` upgrade, such as `logConfig.logEncoding`, note that you will have to explicitly set `logConfig.enabled=true` alongside it. Also, note that setting the Zap logging config is a deprecated feature in beta and is planned to be dropped at v1. View the [Logging Configuration Section of the v1beta1 Migration Guide]({{<ref "../../v0.32/upgrading/v1beta1-migration#logging-configuration-is-no-longer-dynamic" >}}) for more details.
 * `0.33.0` change the default `LOG_LEVEL` from `debug` to `info` by default. If you are still enabling logging configuration through the `zap-logger-config`, no action is required.
 * `0.33.0` drops support for comma delimited lists on tags for `SubnetSelectorTerm`, `SecurityGroupsSelectorTerm`, and `AMISelectorTerm`. Karpenter now supports multiple terms for each of the selectors which means that we can specify a more explicit OR-based constraint through separate terms rather than a comma-delimited list of values.
+* Starting with `0.33.8` Karpenter has enabled conversion webhooks by default to improve the v1 migration experience. If working with a cluster with a network policy that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
 
 ### Upgrading to `0.32.0`+
 

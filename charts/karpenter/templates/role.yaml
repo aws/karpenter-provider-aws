@@ -14,19 +14,7 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "watch"]
-{{- if .Values.webhook.enabled }}
-  - apiGroups: [""]
-    resources: ["configmaps", "secrets"]
-    verbs: ["get", "list", "watch"]
-{{- end }}
   # Write
-{{- if .Values.webhook.enabled }}
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["update"]
-    resourceNames:
-      - "{{ include "karpenter.fullname" . }}-cert"
-{{- end }}
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["patch", "update"]

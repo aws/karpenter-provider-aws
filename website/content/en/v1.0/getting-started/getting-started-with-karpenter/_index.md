@@ -12,7 +12,7 @@ Karpenter automatically provisions new nodes in response to unschedulable pods. 
 This guide shows how to get started with Karpenter by creating a Kubernetes cluster and installing Karpenter.
 To use Karpenter, you must be running a supported Kubernetes cluster on a supported cloud provider.
 
-The guide below explains how to utilize the [Karpenter provider for AWS](https://github.com/aws/karpenter-provider-aws) with EKS. 
+The guide below explains how to utilize the [Karpenter provider for AWS](https://github.com/aws/karpenter-provider-aws) with EKS.
 
 See the [AKS Node autoprovisioning article](https://learn.microsoft.com/azure/aks/node-autoprovision) on how to use Karpenter on Azure's AKS or go to the [Karpenter provider for Azure open source repository](https://github.com/Azure/karpenter-provider-azure) for self-hosting on Azure and additional information.
 
@@ -48,7 +48,7 @@ After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
-export KARPENTER_VERSION="1.0.0"
+export KARPENTER_VERSION="1.0.2"
 export K8S_VERSION="1.30"
 ```
 
@@ -115,13 +115,13 @@ See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/
 As the OCI Helm chart is signed by [Cosign](https://github.com/sigstore/cosign) as part of the release process you can verify the chart before installing it by running the following command.
 
 ```bash
-cosign verify public.ecr.aws/karpenter/karpenter:1.0.0 \
+cosign verify public.ecr.aws/karpenter/karpenter:1.0.2 \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v1.0.0 \
-  --annotations version=1.0.0
+  --certificate-github-workflow-ref=refs/tags/v1.0.2 \
+  --annotations version=1.0.2
 ```
 
 {{% alert title="DNS Policy Notice" color="warning" %}}

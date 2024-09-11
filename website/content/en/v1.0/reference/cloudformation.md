@@ -17,7 +17,7 @@ These descriptions should allow you to understand:
 To download a particular version of `cloudformation.yaml`, set the version and use `curl` to pull the file to your local system:
 
 ```bash
-export KARPENTER_VERSION="1.0.0"
+export KARPENTER_VERSION="1.0.1"
 curl https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > cloudformation.yaml
 ```
 
@@ -298,7 +298,6 @@ This allows the Karpenter controller to do any of those read-only actions across
   "Effect": "Allow",
   "Resource": "*",
   "Action": [
-    "ec2:DescribeAvailabilityZones",
     "ec2:DescribeImages",
     "ec2:DescribeInstances",
     "ec2:DescribeInstanceTypeOfferings",
@@ -375,7 +374,10 @@ This gives EC2 permission explicit permission to use the `KarpenterNodeRole-${Cl
   "Action": "iam:PassRole",
   "Condition": {
     "StringEquals": {
-      "iam:PassedToService": "ec2.amazonaws.com"
+      "iam:PassedToService": [
+        "ec2.amazonaws.com",
+        "ec2.amazonaws.com.cn"
+      ]
     }
   }
 }
