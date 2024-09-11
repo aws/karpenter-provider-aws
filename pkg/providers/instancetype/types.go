@@ -404,9 +404,10 @@ func amdGPUs(info *ec2.InstanceTypeInfo) *resource.Quantity {
 func awsNeuronCores(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	count := int64(0)
 	if info.NeuronInfo != nil {
-		for _, device := range info.NeuronInfo.NeuronDevices {
-			count += *device.CoreInfo.Count
-		}
+		neuronDevice := info.NeuronInfo.NeuronDevices[0]
+		neuronCorePerDevice := neuronDevice.CoreInfo.Count
+
+		count = *neuronDevice.Count * *neuronCorePerDevice
 	}
 	return resources.Quantity(fmt.Sprint(count))
 }
