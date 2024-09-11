@@ -141,7 +141,7 @@ func Filter(filters []*ec2types.Filter, id, name string, tags []*ec2types.Tag) b
 				return true
 			}
 		default:
-			panic(fmt.Sprintf("Unsupported mock filter %q", filter))
+			fmt.Printf("Unsupported mock filter: %v\n", filter)
 		}
 		return false
 	})
