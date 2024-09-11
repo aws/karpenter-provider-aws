@@ -124,7 +124,7 @@ below are the resources available with some assumptions and after the instance o
 	resourceNameMap := sets.New[string]()
 
 	// Iterate through regions and take the union of instance types we discover across both
-	for _, region := range []string{"us-east-1", "us-west-2"} {
+	for _, region := range []string{"us-east-1", "us-east-2", "us-west-2"} {
 		sess := session.Must(session.NewSession(&aws.Config{Region: lo.ToPtr(region)}))
 		ec2api := ec2.New(sess)
 		subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
