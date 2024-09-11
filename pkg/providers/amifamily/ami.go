@@ -180,17 +180,15 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 						if existingCreationTime == candidateCreationTime && !v.Deprecated && candidateDeprecated && lo.FromPtr(image.Name) < v.Name {
 							continue
 						}
-						// If existing AMI is non-deprecated and the candidate AMI is deprecated, return the existing AMI
-						if !v.Deprecated && candidateDeprecated {
-							continue
-						}
-						// If both AMIs are non deprecated and the candidate AMI is older than the existing AMI, return the existing AMI
-						if !v.Deprecated && !candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
-							continue
-						}
-						// If both AMIs are deprecated and the candidate AMI is older than the existing AMI, return the existing AMI
-						if v.Deprecated && candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
-							continue
+						// If the existing AMI is non-deprecated
+						if !v.Deprecated {
+							if candidateDeprecated {
+								continue // If candidate AMI is deprecated, return the existing AMI
+							} else if !candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
+								continue // If candidate AMI is non-deprecated and candidate AMI is older than the existing AMI, return the existing AMI
+							}
+						} else if candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
+							continue // If both AMIs are deprecated and the candidate AMI is older than existing AMI, return the existing AMI
 						}
 					}
 					images[reqsHash] = AMI{
