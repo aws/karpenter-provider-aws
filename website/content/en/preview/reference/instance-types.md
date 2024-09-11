@@ -5491,6 +5491,9 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|8|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|qualcomm|
+ |karpenter.k8s.aws/instance-accelerator-name|qualcomm-ai100|
  |karpenter.k8s.aws/instance-category|dl|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
