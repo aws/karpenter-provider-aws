@@ -22,7 +22,7 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 type Bottlerocket struct {

@@ -15,14 +15,16 @@ limitations under the License.
 package drift_test
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"testing"
 	"time"
 
-	awssdk "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/eks"
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/awslabs/operatorpkg/object"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -433,7 +435,7 @@ var _ = Describe("Drift", func() {
 	})
 	It("should disrupt nodes that have drifted due to securitygroup", func() {
 		By("getting the cluster vpc id")
-		output, err := env.EKSAPI.DescribeCluster(&eks.DescribeClusterInput{Name: awssdk.String(env.ClusterName)})
+		output, err := env.EKSAPI.DescribeCluster(context.Background(), &eks.DescribeClusterInput{Name: awssdk.String(env.ClusterName)})
 		Expect(err).To(BeNil())
 
 		By("creating new security group")
@@ -441,10 +443,10 @@ var _ = Describe("Drift", func() {
 			GroupName:   awssdk.String("security-group-drift"),
 			Description: awssdk.String("End-to-end Drift Test, should delete after drift test is completed"),
 			VpcId:       output.Cluster.ResourcesVpcConfig.VpcId,
-			TagSpecifications: []*ec2.TagSpecification{
+			TagSpecifications: []ec2types.TagSpecification{
 				{
-					ResourceType: awssdk.String("security-group"),
-					Tags: []*ec2.Tag{
+					ResourceType: "security-group",
+					Tags: []ec2types.Tag{
 						{
 							Key:   awssdk.String("karpenter.sh/discovery"),
 							Value: awssdk.String(env.ClusterName),
@@ -461,7 +463,7 @@ var _ = Describe("Drift", func() {
 				},
 			},
 		}
-		_, _ = env.EC2API.CreateSecurityGroup(createSecurityGroup)
+		_, _ = env.EC2API.CreateSecurityGroup(context.Background(), createSecurityGroup)
 
 		By("looking for security groups")
 		var securitygroups []aws.SecurityGroup
@@ -469,19 +471,19 @@ var _ = Describe("Drift", func() {
 		Eventually(func(g Gomega) {
 			securitygroups = env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 			testSecurityGroup, _ = lo.Find(securitygroups, func(sg aws.SecurityGroup) bool {
-				return awssdk.StringValue(sg.GroupName) == "security-group-drift"
+				return awssdk.ToString(sg.GroupName) == "security-group-drift"
 			})
 			g.Expect(testSecurityGroup).ToNot(BeNil())
 		}).Should(Succeed())
 
 		By("creating a new provider with the new securitygroup")
 		awsIDs := lo.FilterMap(securitygroups, func(sg aws.SecurityGroup, _ int) (string, bool) {
-			if awssdk.StringValue(sg.GroupId) != awssdk.StringValue(testSecurityGroup.GroupId) {
-				return awssdk.StringValue(sg.GroupId), true
+			if awssdk.ToString(sg.GroupId) != awssdk.ToString(testSecurityGroup.GroupId) {
+				return awssdk.ToString(sg.GroupId), true
 			}
 			return "", false
 		})
-		sgTerms := []v1.SecurityGroupSelectorTerm{{ID: awssdk.StringValue(testSecurityGroup.GroupId)}}
+		sgTerms := []v1.SecurityGroupSelectorTerm{{ID: awssdk.ToString(testSecurityGroup.GroupId)}}
 		for _, id := range awsIDs {
 			sgTerms = append(sgTerms, v1.SecurityGroupSelectorTerm{ID: id})
 		}
@@ -493,7 +495,7 @@ var _ = Describe("Drift", func() {
 		node := env.ExpectCreatedNodeCount("==", 1)[0]
 
 		sgTerms = lo.Reject(sgTerms, func(t v1.SecurityGroupSelectorTerm, _ int) bool {
-			return t.ID == awssdk.StringValue(testSecurityGroup.GroupId)
+			return t.ID == awssdk.ToString(testSecurityGroup.GroupId)
 		})
 		nodeClass.Spec.SecurityGroupSelectorTerms = sgTerms
 		env.ExpectCreatedOrUpdated(nodeClass)

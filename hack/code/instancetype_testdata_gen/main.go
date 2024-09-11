@@ -25,10 +25,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 )
 
@@ -36,8 +35,8 @@ const packageHeader = `
 package fake
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
 // GENERATED FILE. DO NOT EDIT DIRECTLY.
@@ -63,8 +62,9 @@ func main() {
 		log.Fatalf("setting AWS_REGION, %s", err)
 	}
 	ctx := context.Background()
-	sess := session.Must(session.NewSession())
-	ec2Client := ec2.New(sess)
+	cfg := lo.Must(config.LoadDefaultConfig(ctx))
+
+	ec2api := ec2.NewFromConfig(cfg)
 	instanceTypes := strings.Split(instanceTypesStr, ",")
 
 	src := &bytes.Buffer{}
@@ -72,7 +72,7 @@ func main() {
 	license := lo.Must(os.ReadFile("hack/boilerplate.go.txt"))
 	fmt.Fprintln(src, string(license))
 	fmt.Fprint(src, packageHeader)
-	fmt.Fprintln(src, getDescribeInstanceTypesOutput(ctx, ec2Client, instanceTypes))
+	fmt.Fprintln(src, getDescribeInstanceTypesOutput(ctx, ec2api, instanceTypes))
 
 	// Format and print to the file
 	formatted, err := format.Source(src.Bytes())
@@ -84,16 +84,21 @@ func main() {
 	}
 }
 
-func getDescribeInstanceTypesOutput(ctx context.Context, ec2Client ec2iface.EC2API, instanceTypes []string) string {
-	out, err := ec2Client.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
-		InstanceTypes: aws.StringSlice(instanceTypes),
+func getDescribeInstanceTypesOutput(ctx context.Context, ec2api *ec2.Client, instanceTypes []string) string {
+	var instanceTypeValues []ec2types.InstanceType
+	for _, it := range instanceTypes {
+		instanceTypeValues = append(instanceTypeValues, ec2types.InstanceType(it))
+	}
+
+	out, err := ec2api.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{
+		InstanceTypes: instanceTypeValues,
 	})
 	if err != nil {
 		log.Fatalf("describing instance types, %s", err)
 	}
 	// Sort them by name so that we get a consistent ordering
 	sort.SliceStable(out.InstanceTypes, func(i, j int) bool {
-		return aws.StringValue(out.InstanceTypes[i].InstanceType) < aws.StringValue(out.InstanceTypes[j].InstanceType)
+		return out.InstanceTypes[i].InstanceType < out.InstanceTypes[j].InstanceType
 	})
 
 	src := &bytes.Buffer{}
@@ -110,17 +115,34 @@ func getDescribeInstanceTypesOutput(ctx context.Context, ec2Client ec2iface.EC2A
 	return src.String()
 }
 
-func getInstanceTypeInfo(info *ec2.InstanceTypeInfo) string {
+func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 	src := &bytes.Buffer{}
-	fmt.Fprintf(src, "InstanceType: aws.String(\"%s\"),\n", lo.FromPtr(info.InstanceType))
-	fmt.Fprintf(src, "SupportedUsageClasses: aws.StringSlice([]string{%s}),\n", getStringSliceData(info.SupportedUsageClasses))
-	fmt.Fprintf(src, "SupportedVirtualizationTypes: aws.StringSlice([]string{%s}),\n", getStringSliceData(info.SupportedVirtualizationTypes))
+	var supportedUsageClasses []*string
+	for _, usageClass := range info.SupportedUsageClasses {
+		s := fmt.Sprintf("%s", usageClass)
+		supportedUsageClasses = append(supportedUsageClasses, &s)
+	}
+	var supportedVirtualizationTypes []*string
+	for _, virtualizationType := range info.SupportedVirtualizationTypes {
+		s := fmt.Sprintf("%s", virtualizationType)
+		supportedVirtualizationTypes = append(supportedVirtualizationTypes, &s)
+	}
+	fmt.Fprintf(src, "InstanceType: aws.String(\"%s\"),\n", string(info.InstanceType))
+	fmt.Fprintf(src, "SupportedUsageClasses: aws.StringSlice([]string{%s}),\n", getStringSliceData(supportedUsageClasses))
+	fmt.Fprintf(src, "SupportedVirtualizationTypes: aws.StringSlice([]string{%s}),\n", getStringSliceData(supportedVirtualizationTypes))
 	fmt.Fprintf(src, "BurstablePerformanceSupported: aws.Bool(%t),\n", lo.FromPtr(info.BurstablePerformanceSupported))
 	fmt.Fprintf(src, "BareMetal: aws.Bool(%t),\n", lo.FromPtr(info.BareMetal))
-	fmt.Fprintf(src, "Hypervisor: aws.String(\"%s\"),\n", lo.FromPtr(info.Hypervisor))
+	fmt.Fprintf(src, "Hypervisor: aws.String(\"%s\"),\n", lo.FromPtr(&info.Hypervisor))
+
+	var supportedArchitectures []*string
+	for _, architecture := range info.ProcessorInfo.SupportedArchitectures {
+		s := fmt.Sprintf("%s", architecture)
+		supportedArchitectures = append(supportedArchitectures, &s)
+	}
+
 	fmt.Fprintf(src, "ProcessorInfo: &ec2.ProcessorInfo{\n")
 	fmt.Fprintf(src, "Manufacturer: aws.String(\"%s\"),\n", lo.FromPtr(info.ProcessorInfo.Manufacturer))
-	fmt.Fprintf(src, "SupportedArchitectures: aws.StringSlice([]string{%s}),\n", getStringSliceData(info.ProcessorInfo.SupportedArchitectures))
+	fmt.Fprintf(src, "SupportedArchitectures: aws.StringSlice([]string{%s}),\n", getStringSliceData(supportedArchitectures))
 	fmt.Fprintf(src, "},\n")
 	fmt.Fprintf(src, "VCpuInfo: &ec2.VCpuInfo{\n")
 	fmt.Fprintf(src, "DefaultCores: aws.Int64(%d),\n", lo.FromPtr(info.VCpuInfo.DefaultCores))
@@ -142,16 +164,16 @@ func getInstanceTypeInfo(info *ec2.InstanceTypeInfo) string {
 			fmt.Fprintf(src, "MaximumThroughputInMBps: aws.Float64(%.2f),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.MaximumThroughputInMBps))
 			fmt.Fprintf(src, "},\n")
 		}
-		fmt.Fprintf(src, "EbsOptimizedSupport: aws.String(\"%s\"),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedSupport))
-		fmt.Fprintf(src, "EncryptionSupport: aws.String(\"%s\"),\n", lo.FromPtr(info.EbsInfo.EncryptionSupport))
-		fmt.Fprintf(src, "NvmeSupport: aws.String(\"%s\"),\n", lo.FromPtr(info.EbsInfo.NvmeSupport))
+		fmt.Fprintf(src, "EbsOptimizedSupport: aws.String(\"%s\"),\n", string(info.EbsInfo.EbsOptimizedSupport))
+		fmt.Fprintf(src, "EncryptionSupport: aws.String(\"%s\"),\n", string(info.EbsInfo.EncryptionSupport))
+		fmt.Fprintf(src, "NvmeSupport: aws.String(\"%s\"),\n", string(info.EbsInfo.NvmeSupport))
 		fmt.Fprintf(src, "},\n")
 	}
 	if info.InferenceAcceleratorInfo != nil {
 		fmt.Fprintf(src, "InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{\n")
 		fmt.Fprintf(src, "Accelerators: []*ec2.InferenceDeviceInfo{\n")
 		for _, elem := range info.InferenceAcceleratorInfo.Accelerators {
-			fmt.Fprintf(src, getInferenceAcceleratorDeviceInfo(elem))
+			fmt.Fprintf(src, getInferenceAcceleratorDeviceInfo(&elem))
 		}
 		fmt.Fprintf(src, "},\n")
 		fmt.Fprintf(src, "},\n")
@@ -160,14 +182,14 @@ func getInstanceTypeInfo(info *ec2.InstanceTypeInfo) string {
 		fmt.Fprintf(src, "GpuInfo: &ec2.GpuInfo{\n")
 		fmt.Fprintf(src, "Gpus: []*ec2.GpuDeviceInfo{\n")
 		for _, elem := range info.GpuInfo.Gpus {
-			fmt.Fprintf(src, getGPUDeviceInfo(elem))
+			fmt.Fprintf(src, getGPUDeviceInfo(&elem))
 		}
 		fmt.Fprintf(src, "},\n")
 		fmt.Fprintf(src, "},\n")
 	}
 	if info.InstanceStorageInfo != nil {
 		fmt.Fprintf(src, "InstanceStorageInfo: &ec2.InstanceStorageInfo{")
-		fmt.Fprintf(src, "NvmeSupport: aws.String(\"%s\"),\n", lo.FromPtr(info.InstanceStorageInfo.NvmeSupport))
+		fmt.Fprintf(src, "NvmeSupport: aws.String(\"%s\"),\n", string(info.InstanceStorageInfo.NvmeSupport))
 		fmt.Fprintf(src, "TotalSizeInGB: aws.Int64(%d),\n", lo.FromPtr(info.InstanceStorageInfo.TotalSizeInGB))
 		fmt.Fprintf(src, "},\n")
 	}
@@ -183,14 +205,14 @@ func getInstanceTypeInfo(info *ec2.InstanceTypeInfo) string {
 	fmt.Fprintf(src, "DefaultNetworkCardIndex: aws.Int64(%d),\n", lo.FromPtr(info.NetworkInfo.DefaultNetworkCardIndex))
 	fmt.Fprintf(src, "NetworkCards: []*ec2.NetworkCardInfo{\n")
 	for _, networkCard := range info.NetworkInfo.NetworkCards {
-		fmt.Fprintf(src, getNetworkCardInfo(networkCard))
+		fmt.Fprintf(src, getNetworkCardInfo(&networkCard))
 	}
 	fmt.Fprintf(src, "},\n")
 	fmt.Fprintf(src, "},\n")
 	return src.String()
 }
 
-func getNetworkCardInfo(info *ec2.NetworkCardInfo) string {
+func getNetworkCardInfo(info *ec2types.NetworkCardInfo) string {
 	src := &bytes.Buffer{}
 	fmt.Fprintf(src, "{\n")
 	fmt.Fprintf(src, "NetworkCardIndex: aws.Int64(%d),\n", lo.FromPtr(info.NetworkCardIndex))
@@ -199,7 +221,7 @@ func getNetworkCardInfo(info *ec2.NetworkCardInfo) string {
 	return src.String()
 }
 
-func getInferenceAcceleratorDeviceInfo(info *ec2.InferenceDeviceInfo) string {
+func getInferenceAcceleratorDeviceInfo(info *ec2types.InferenceDeviceInfo) string {
 	src := &bytes.Buffer{}
 	fmt.Fprintf(src, "{\n")
 	fmt.Fprintf(src, "Name: aws.String(\"%s\"),\n", lo.FromPtr(info.Name))
@@ -209,7 +231,7 @@ func getInferenceAcceleratorDeviceInfo(info *ec2.InferenceDeviceInfo) string {
 	return src.String()
 }
 
-func getGPUDeviceInfo(info *ec2.GpuDeviceInfo) string {
+func getGPUDeviceInfo(info *ec2types.GpuDeviceInfo) string {
 	src := &bytes.Buffer{}
 	fmt.Fprintf(src, "{\n")
 	fmt.Fprintf(src, "Name: aws.String(\"%s\"),\n", lo.FromPtr(info.Name))

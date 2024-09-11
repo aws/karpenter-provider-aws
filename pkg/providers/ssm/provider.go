@@ -3,7 +3,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -11,7 +11,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 package ssm
 
 import (
@@ -19,43 +18,93 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type Provider interface {
+	List(context.Context, string) (map[string]string, error)
 	Get(context.Context, string) (string, error)
 }
 
 type DefaultProvider struct {
 	sync.Mutex
 	cache  *cache.Cache
-	ssmapi ssmiface.SSMAPI
+	ssmapi sdk.SSMAPI
 }
 
-func NewDefaultProvider(ssmapi ssmiface.SSMAPI, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(ssmapi sdk.SSMAPI, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ssmapi: ssmapi,
 		cache:  cache,
 	}
 }
 
-func (p *DefaultProvider) Get(ctx context.Context, parameter string) (string, error) {
+// List calls GetParametersByPath recursively with the provided input path.
+// The result is a map of paths to values for those paths.
+func (p *DefaultProvider) List(ctx context.Context, path string) (map[string]string, error) {
 	p.Lock()
 	defer p.Unlock()
-	if result, ok := p.cache.Get(parameter); ok {
+	if paths, ok := p.cache.Get(path); ok {
+		return paths.(map[string]string), nil
+	}
+	values := map[string]string{}
+
+	paginator := ssm.NewGetParametersByPathPaginator(p.ssmapi, &ssm.GetParametersByPathInput{
+		Recursive: lo.ToPtr(true),
+		Path:      &path,
+	})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("getting ssm parameters for path %q, %w", path, err)
+		}
+		for _, parameter := range page.Parameters {
+			if parameter.Name == nil || parameter.Value == nil {
+				continue
+			}
+			values[*parameter.Name] = *parameter.Value
+		}
+	}
+	p.cache.SetDefault(path, values)
+	return values, nil
+}
+
+func (p *DefaultProvider) Get(ctx context.Context, path string) (string, error) {
+	p.Lock()
+	defer p.Unlock()
+	if result, ok := p.cache.Get(path); ok {
 		return result.(string), nil
 	}
-	result, err := p.ssmapi.GetParameterWithContext(ctx, &ssm.GetParameterInput{
-		Name: lo.ToPtr(parameter),
-	})
+	value, err := p.getParameter(ctx, path)
 	if err != nil {
-		return "", fmt.Errorf("getting ssm parameter %q, %w", parameter, err)
+		return "", err
 	}
-	p.cache.SetDefault(parameter, lo.FromPtr(result.Parameter.Value))
-	log.FromContext(ctx).WithValues("parameter", parameter, "value", result.Parameter.Value).Info("discovered ssm parameter")
-	return lo.FromPtr(result.Parameter.Value), nil
+	p.cache.SetDefault(path, value)
+	return value, nil
+}
+
+func (p *DefaultProvider) getParameter(ctx context.Context, path string) (string, error) {
+	paginator := ssm.NewGetParametersByPathPaginator(p.ssmapi, &ssm.GetParametersByPathInput{
+		Recursive: lo.ToPtr(true),
+		Path:      &path,
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return "", fmt.Errorf("getting ssm parameters for path %q, %w", path, err)
+		}
+
+		for _, parameter := range page.Parameters {
+			if parameter.Name == nil || parameter.Value == nil {
+				continue
+			}
+			return *parameter.Value, nil
+		}
+	}
+
+	return "", fmt.Errorf("no parameter found for path %q", path)
 }

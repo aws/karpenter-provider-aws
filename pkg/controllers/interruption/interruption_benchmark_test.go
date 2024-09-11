@@ -25,13 +25,10 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
-	"github.com/aws/aws-sdk-go/aws"
-	awsclient "github.com/aws/aws-sdk-go/aws/client"
-	"github.com/aws/aws-sdk-go/aws/endpoints"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/aws/session"
-	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/go-logr/zapr"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -163,19 +160,29 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 type providerSet struct {
 	kubeClient  client.Client
-	sqsAPI      sqsiface.SQSAPI
+	sqsAPI      SQSAPI
 	sqsProvider sqs.Provider
 }
 
 func newProviders(ctx context.Context, kubeClient client.Client) providerSet {
-	sess := session.Must(session.NewSession(
-		request.WithRetryer(
-			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
-			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
-		),
+	cfg := lo.Must(config.LoadDefaultConfig(ctx,
+		config.WithRegion("us-west-2"),
+		config.WithSTSRegionalEndpoints(endpoints.RegionalSTSEndpoint),
+		config.WithRetryer(func() aws.Retryer {
+			return retry.NewStandard(func(o *retry.StandardOptions) {
+				o.MaxAttemps = aws.Int(awsclient.DefaultRetryerMaxNumRetries)
+			})
+		}),
 	))
-	sqsAPI := servicesqs.New(sess)
-	out := lo.Must(sqsAPI.GetQueueUrlWithContext(ctx, &servicesqs.GetQueueUrlInput{QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)}))
+	
+	sqsAPI := sqs.NewFromConfig(cfg)
+
+	out, err := sqsAPI.GetQueueUrl(ctx, &servicesqs.GetQueueUrlInput{
+		QueueName: aws.String(options.FromContext(ctx).InterruptionQueue),
+	})
+	if err != nil {
+		log.Fatalf("failed to get queue URL, %v", err)
+	}
 	return providerSet{
 		kubeClient:  kubeClient,
 		sqsAPI:      sqsAPI,
@@ -184,7 +191,7 @@ func newProviders(ctx context.Context, kubeClient client.Client) providerSet {
 }
 
 func (p *providerSet) makeInfrastructure(ctx context.Context) (string, error) {
-	out, err := p.sqsAPI.CreateQueueWithContext(ctx, &servicesqs.CreateQueueInput{
+	out, err := p.sqsAPI.CreateQueue(ctx, &servicesqs.CreateQueueInput{
 		QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue),
 		Attributes: map[string]*string{
 			servicesqs.QueueAttributeNameMessageRetentionPeriod: aws.String("1200"), // 20 minutes for this test
@@ -197,7 +204,7 @@ func (p *providerSet) makeInfrastructure(ctx context.Context) (string, error) {
 }
 
 func (p *providerSet) cleanupInfrastructure(queueURL string) error {
-	if _, err := p.sqsAPI.DeleteQueueWithContext(ctx, &servicesqs.DeleteQueueInput{
+	if _, err := p.sqsAPI.DeleteQueue(ctx, &servicesqs.DeleteQueueInput{
 		QueueUrl: lo.ToPtr(queueURL),
 	}); err != nil {
 		return fmt.Errorf("deleting servicesqs queue, %w", err)

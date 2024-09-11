@@ -21,6 +21,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
@@ -32,9 +33,9 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -56,7 +57,7 @@ type Provider interface {
 
 type DefaultProvider struct {
 	region          string
-	ec2api          ec2iface.EC2API
+	ec2api          sdk.EC2API
 	subnetProvider  subnet.Provider
 	pricingProvider pricing.Provider
 
@@ -66,7 +67,7 @@ type DefaultProvider struct {
 
 	muInstanceTypeInfo sync.RWMutex
 	// TODO @engedaam: Look into only storing the needed EC2InstanceTypeInfo
-	instanceTypesInfo []*ec2.InstanceTypeInfo
+	instanceTypesInfo []ec2types.InstanceTypeInfo
 
 	muInstanceTypeOfferings sync.RWMutex
 	instanceTypeOfferings   map[string]sets.Set[string]
@@ -81,14 +82,14 @@ type DefaultProvider struct {
 	instanceTypeOfferingsSeqNum uint64
 }
 
-func NewDefaultProvider(region string, instanceTypesCache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider,
+func NewDefaultProvider(region string, instanceTypesCache *cache.Cache, ec2api sdk.EC2API, subnetProvider subnet.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider pricing.Provider) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api:                ec2api,
 		region:                region,
 		subnetProvider:        subnetProvider,
 		pricingProvider:       pricingProvider,
-		instanceTypesInfo:     []*ec2.InstanceTypeInfo{},
+		instanceTypesInfo:     []ec2types.InstanceTypeInfo{},
 		instanceTypeOfferings: map[string]sets.Set[string]{},
 		instanceTypesCache:    instanceTypesCache,
 		unavailableOfferings:  unavailableOfferingsCache,
@@ -117,7 +118,7 @@ func (p *DefaultProvider) List(ctx context.Context, kc *v1.KubeletConfiguration,
 	}
 
 	subnetZones := sets.New(lo.Map(nodeClass.Status.Subnets, func(s v1.Subnet, _ int) string {
-		return aws.StringValue(&s.Zone)
+		return aws.ToString(&s.Zone)
 	})...)
 
 	// Compute fully initialized instance types hash key
@@ -152,22 +153,22 @@ func (p *DefaultProvider) List(ctx context.Context, kc *v1.KubeletConfiguration,
 		log.FromContext(ctx).WithValues("zones", allZones.UnsortedList()).V(1).Info("discovered zones")
 	}
 	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
-	result := lo.Map(p.instanceTypesInfo, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
+	result := lo.Map(p.instanceTypesInfo, func(i ec2types.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
 		instanceTypeVCPU.With(prometheus.Labels{
-			instanceTypeLabel: *i.InstanceType,
-		}).Set(float64(aws.Int64Value(i.VCpuInfo.DefaultVCpus)))
+			instanceTypeLabel: string(i.InstanceType),
+		}).Set(float64(*i.VCpuInfo.DefaultVCpus))
 		instanceTypeMemory.With(prometheus.Labels{
-			instanceTypeLabel: *i.InstanceType,
-		}).Set(float64(aws.Int64Value(i.MemoryInfo.SizeInMiB) * 1024 * 1024))
+			instanceTypeLabel: string(i.InstanceType),
+		}).Set(float64(*i.MemoryInfo.SizeInMiB) * 1024 * 1024)
 
 		// !!! Important !!!
 		// Any changes to the values passed into the NewInstanceType method will require making updates to the cache key
 		// so that Karpenter is able to cache the set of InstanceTypes based on values that alter the set of instance types
 		// !!! Important !!!
-		return NewInstanceType(ctx, i, p.region,
+		return NewInstanceType(ctx, &i, p.region,
 			nodeClass.Spec.BlockDeviceMappings, nodeClass.Spec.InstanceStorePolicy,
 			kc.MaxPods, kc.PodsPerCore, kc.KubeReserved, kc.SystemReserved, kc.EvictionHard, kc.EvictionSoft,
-			amiFamily, p.createOfferings(ctx, i, allZones, p.instanceTypeOfferings[aws.StringValue(i.InstanceType)], nodeClass.Status.Subnets),
+			amiFamily, p.createOfferings(ctx, &i, allZones, p.instanceTypeOfferings[string(i.InstanceType)], nodeClass.Status.Subnets),
 		)
 	})
 	p.instanceTypesCache.SetDefault(key, result)
@@ -188,24 +189,29 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 	// TODO @joinnis: This can be made more efficient by holding a Read lock and only obtaining the Write if not in cache
 	p.muInstanceTypeInfo.Lock()
 	defer p.muInstanceTypeInfo.Unlock()
-	var instanceTypes []*ec2.InstanceTypeInfo
 
-	if err := p.ec2api.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
-		Filters: []*ec2.Filter{
+	var instanceTypes []ec2types.InstanceTypeInfo
+
+	paginator := ec2.NewDescribeInstanceTypesPaginator(p.ec2api, &ec2.DescribeInstanceTypesInput{
+		Filters: []ec2types.Filter{
 			{
 				Name:   aws.String("supported-virtualization-type"),
-				Values: []*string{aws.String("hvm")},
+				Values: []string{"hvm"},
 			},
 			{
 				Name:   aws.String("processor-info.supported-architecture"),
-				Values: aws.StringSlice([]string{"x86_64", "arm64"}),
+				Values: []string{"x86_64", "arm64"},
 			},
 		},
-	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return fmt.Errorf("describing instance types, %w", err)
+		}
+
 		instanceTypes = append(instanceTypes, page.InstanceTypes...)
-		return true
-	}); err != nil {
-		return fmt.Errorf("describing instance types, %w", err)
 	}
 
 	if p.cm.HasChanged("instance-types", instanceTypes) {
@@ -230,18 +236,25 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 
 	// Get offerings from EC2
 	instanceTypeOfferings := map[string]sets.Set[string]{}
-	if err := p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: aws.String("availability-zone")},
-		func(output *ec2.DescribeInstanceTypeOfferingsOutput, lastPage bool) bool {
-			for _, offering := range output.InstanceTypeOfferings {
-				if _, ok := instanceTypeOfferings[aws.StringValue(offering.InstanceType)]; !ok {
-					instanceTypeOfferings[aws.StringValue(offering.InstanceType)] = sets.New[string]()
-				}
-				instanceTypeOfferings[aws.StringValue(offering.InstanceType)].Insert(aws.StringValue(offering.Location))
+
+	paginator := ec2.NewDescribeInstanceTypeOfferingsPaginator(p.ec2api, &ec2.DescribeInstanceTypeOfferingsInput{
+		LocationType: ec2types.LocationTypeAvailabilityZone,
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return fmt.Errorf("describing instance type zone offerings, %w", err)
+		}
+
+		for _, offering := range page.InstanceTypeOfferings {
+			if _, ok := instanceTypeOfferings[string(offering.InstanceType)]; !ok {
+				instanceTypeOfferings[string(offering.InstanceType)] = sets.New[string]()
 			}
-			return true
-		}); err != nil {
-		return fmt.Errorf("describing instance type zone offerings, %w", err)
+			instanceTypeOfferings[string(offering.InstanceType)].Insert(lo.FromPtr(offering.Location))
+		}
 	}
+
 	if p.cm.HasChanged("instance-type-offering", instanceTypeOfferings) {
 		// Only update instanceTypesSeqNun with the instance type offerings  have been changed
 		// This is to not create new keys with duplicate instance type offerings option
@@ -261,61 +274,68 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 // offering, you can do the following thanks to this invariant:
 //
 //	offering.Requirements.Get(v1.TopologyLabelZone).Any()
-func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones, instanceTypeZones sets.Set[string], subnets []v1.Subnet) []cloudprovider.Offering {
+func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2types.InstanceTypeInfo, zones, instanceTypeZones sets.Set[string], subnets []v1.Subnet) []cloudprovider.Offering {
 	var offerings []cloudprovider.Offering
 	for zone := range zones {
-		// while usage classes should be a distinct set, there's no guarantee of that
-		for capacityType := range sets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {
-			// exclude any offerings that have recently seen an insufficient capacity error from EC2
-			isUnavailable := p.unavailableOfferings.IsUnavailable(*instanceType.InstanceType, zone, capacityType)
+		if len(instanceType.SupportedUsageClasses) == 0 {
+			continue
+		}
+
+		for _, capacityType := range instanceType.SupportedUsageClasses {
+			isUnavailable := p.unavailableOfferings.IsUnavailable(string(instanceType.InstanceType), zone, string(capacityType))
 			var price float64
 			var ok bool
+
 			switch capacityType {
-			case ec2.UsageClassTypeSpot:
-				price, ok = p.pricingProvider.SpotPrice(*instanceType.InstanceType, zone)
-			case ec2.UsageClassTypeOnDemand:
-				price, ok = p.pricingProvider.OnDemandPrice(*instanceType.InstanceType)
+			case ec2types.UsageClassTypeSpot:
+				price, ok = p.pricingProvider.SpotPrice(string(instanceType.InstanceType), zone)
+			case ec2types.UsageClassTypeOnDemand:
+				price, ok = p.pricingProvider.OnDemandPrice(string(instanceType.InstanceType))
 			case "capacity-block":
-				// ignore since karpenter doesn't support it yet, but do not log an unknown capacity type error
 				continue
 			default:
-				log.FromContext(ctx).WithValues("capacity-type", capacityType, "instance-type", *instanceType.InstanceType).Error(fmt.Errorf("received unknown capacity type"), "failed parsing offering")
+				log.FromContext(ctx).WithValues("capacity-type", capacityType, "instance-type", instanceType.InstanceType).
+					Error(fmt.Errorf("received unknown capacity type"), "failed parsing offering")
 				continue
 			}
 
 			subnet, hasSubnet := lo.Find(subnets, func(s v1.Subnet) bool {
 				return s.Zone == zone
 			})
+
 			available := !isUnavailable && ok && instanceTypeZones.Has(zone) && hasSubnet
 			offering := cloudprovider.Offering{
 				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType),
+					scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, string(capacityType)),
 					scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, zone),
 				),
 				Price:     price,
 				Available: available,
 			}
+
 			if subnet.ZoneID != "" {
 				offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, subnet.ZoneID))
 			}
+
 			offerings = append(offerings, offering)
 			instanceTypeOfferingAvailable.With(prometheus.Labels{
-				instanceTypeLabel: *instanceType.InstanceType,
-				capacityTypeLabel: capacityType,
+				instanceTypeLabel: string(instanceType.InstanceType),
+				capacityTypeLabel: string(capacityType),
 				zoneLabel:         zone,
 			}).Set(float64(lo.Ternary(available, 1, 0)))
 			instanceTypeOfferingPriceEstimate.With(prometheus.Labels{
-				instanceTypeLabel: *instanceType.InstanceType,
-				capacityTypeLabel: capacityType,
+				instanceTypeLabel: string(instanceType.InstanceType),
+				capacityTypeLabel: string(capacityType),
 				zoneLabel:         zone,
 			}).Set(price)
 		}
+
 	}
 	return offerings
 }
 
 func (p *DefaultProvider) Reset() {
-	p.instanceTypesInfo = []*ec2.InstanceTypeInfo{}
+	p.instanceTypesInfo = []ec2types.InstanceTypeInfo{}
 	p.instanceTypeOfferings = map[string]sets.Set[string]{}
 	p.instanceTypesCache.Flush()
 }

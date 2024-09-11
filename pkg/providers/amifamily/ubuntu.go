@@ -15,7 +15,7 @@ limitations under the License.
 package amifamily
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	corev1 "k8s.io/api/core/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"

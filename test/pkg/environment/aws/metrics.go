@@ -15,14 +15,12 @@ limitations under the License.
 package aws
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/timestreamwrite"
-	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
+	timestreamwritetypes "github.com/aws/aws-sdk-go-v2/service/timestreamwrite/types"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
@@ -37,15 +35,7 @@ const (
 	tableName            = "scaleTestDurations"
 )
 
-var _ timestreamwriteiface.TimestreamWriteAPI = (*NoOpTimeStreamAPI)(nil)
-
-type NoOpTimeStreamAPI struct {
-	timestreamwriteiface.TimestreamWriteAPI
-}
-
-func (o NoOpTimeStreamAPI) WriteRecordsWithContext(_ context.Context, _ *timestreamwrite.WriteRecordsInput, _ ...request.Option) (*timestreamwrite.WriteRecordsOutput, error) {
-	return nil, nil
-}
+type NoOpTimeStreamAPI struct{}
 
 type EventType string
 
@@ -98,20 +88,25 @@ func (env *Environment) MeasureDurationFor(f func(), eventType EventType, dimens
 
 func (env *Environment) ExpectMetric(name string, value float64, labels map[string]string) {
 	GinkgoHelper()
-	_, err := env.TimeStreamAPI.WriteRecordsWithContext(env.Context, &timestreamwrite.WriteRecordsInput{
+
+	var dimensions []timestreamwritetypes.Dimension
+	dimensions = lo.MapToSlice(labels, func(k, v string) timestreamwritetypes.Dimension {
+		return timestreamwritetypes.Dimension{
+			Name:  aws.String(k),
+			Value: aws.String(v),
+		}
+	})
+
+	_, err := env.TimeStreamAPI.WriteRecords(env.Context, &timestreamwrite.WriteRecordsInput{
 		DatabaseName: aws.String(databaseName),
 		TableName:    aws.String(tableName),
-		Records: []*timestreamwrite.Record{
+		Records: []timestreamwritetypes.Record{
 			{
-				MeasureName:  aws.String(name),
-				MeasureValue: aws.String(fmt.Sprintf("%f", value)),
-				Dimensions: lo.MapToSlice(labels, func(k, v string) *timestreamwrite.Dimension {
-					return &timestreamwrite.Dimension{
-						Name:  aws.String(k),
-						Value: aws.String(v),
-					}
-				}),
-				Time: aws.String(fmt.Sprintf("%d", time.Now().UnixMilli())),
+				MeasureName:      aws.String(name),
+				MeasureValue:     aws.String(fmt.Sprintf("%f", value)),
+				MeasureValueType: timestreamwritetypes.MeasureValueTypeDouble,
+				Dimensions:       dimensions,
+				Time:             aws.String(fmt.Sprintf("%d", time.Now().UnixMilli())),
 			},
 		},
 	})

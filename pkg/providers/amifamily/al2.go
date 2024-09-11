@@ -18,10 +18,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -37,6 +37,16 @@ import (
 type AL2 struct {
 	DefaultFamily
 	*Options
+}
+
+func dereferenceStringPointers(ptrs []*string) []string {
+	strs := make([]string, 0, len(ptrs))
+	for _, ptr := range ptrs {
+		if ptr != nil {
+			strs = append(strs, *ptr)
+		}
+	}
+	return strs
 }
 
 func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
@@ -68,11 +78,11 @@ func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k
 	if len(ids) == 0 {
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "al2@%s"`, amiVersion)
 	}
-
+	imageIDStrings := dereferenceStringPointers(imageIDs)
 	return DescribeImageQuery{
-		Filters: []*ec2.Filter{{
+		Filters: []ec2types.Filter{{
 			Name:   lo.ToPtr("image-id"),
-			Values: lo.ToSlicePtr(lo.Keys(ids)),
+			Values: imageIDStrings,
 		}},
 		KnownRequirements: lo.MapValues(ids, func(variants []Variant, _ string) []scheduling.Requirements {
 			return lo.Map(variants, func(v Variant, _ int) scheduling.Requirements { return v.Requirements() })

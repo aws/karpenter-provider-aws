@@ -17,10 +17,8 @@ package fake
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
 const (
@@ -33,10 +31,11 @@ type SQSBehavior struct {
 	GetQueueURLBehavior    MockedFunction[sqs.GetQueueUrlInput, sqs.GetQueueUrlOutput]
 	ReceiveMessageBehavior MockedFunction[sqs.ReceiveMessageInput, sqs.ReceiveMessageOutput]
 	DeleteMessageBehavior  MockedFunction[sqs.DeleteMessageInput, sqs.DeleteMessageOutput]
+	SendMessageBehavior    MockedFunction[sqs.SendMessageInput, sqs.SendMessageOutput]
 }
 
 type SQSAPI struct {
-	sqsiface.SQSAPI
+	SQSClient *sqs.Client
 	SQSBehavior
 }
 
@@ -49,7 +48,7 @@ func (s *SQSAPI) Reset() {
 }
 
 //nolint:revive,stylecheck
-func (s *SQSAPI) GetQueueUrlWithContext(_ context.Context, input *sqs.GetQueueUrlInput, _ ...request.Option) (*sqs.GetQueueUrlOutput, error) {
+func (s *SQSAPI) GetQueueUrl(_ context.Context, input *sqs.GetQueueUrlInput, _ ...func(*sqs.Options)) (*sqs.GetQueueUrlOutput, error) {
 	return s.GetQueueURLBehavior.Invoke(input, func(_ *sqs.GetQueueUrlInput) (*sqs.GetQueueUrlOutput, error) {
 		return &sqs.GetQueueUrlOutput{
 			QueueUrl: aws.String(dummyQueueURL),
@@ -57,14 +56,22 @@ func (s *SQSAPI) GetQueueUrlWithContext(_ context.Context, input *sqs.GetQueueUr
 	})
 }
 
-func (s *SQSAPI) ReceiveMessageWithContext(_ context.Context, input *sqs.ReceiveMessageInput, _ ...request.Option) (*sqs.ReceiveMessageOutput, error) {
+func (s *SQSAPI) ReceiveMessage(_ context.Context, input *sqs.ReceiveMessageInput, _ ...func(*sqs.Options)) (*sqs.ReceiveMessageOutput, error) {
 	return s.ReceiveMessageBehavior.Invoke(input, func(_ *sqs.ReceiveMessageInput) (*sqs.ReceiveMessageOutput, error) {
 		return nil, nil
 	})
 }
 
-func (s *SQSAPI) DeleteMessageWithContext(_ context.Context, input *sqs.DeleteMessageInput, _ ...request.Option) (*sqs.DeleteMessageOutput, error) {
+func (s *SQSAPI) DeleteMessage(_ context.Context, input *sqs.DeleteMessageInput, _ ...func(*sqs.Options)) (*sqs.DeleteMessageOutput, error) {
 	return s.DeleteMessageBehavior.Invoke(input, func(_ *sqs.DeleteMessageInput) (*sqs.DeleteMessageOutput, error) {
 		return nil, nil
+	})
+}
+
+func (s *SQSAPI) SendMessage(_ context.Context, input *sqs.SendMessageInput, _ ...func(*sqs.Options)) (*sqs.SendMessageOutput, error) {
+	return s.SendMessageBehavior.Invoke(input, func(_ *sqs.SendMessageInput) (*sqs.SendMessageOutput, error) {
+		return &sqs.SendMessageOutput{
+			MessageId: aws.String("fake-message-id"),
+		}, nil
 	})
 }

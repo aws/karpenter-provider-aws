@@ -15,11 +15,15 @@ limitations under the License.
 package integration_test
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
+
 	"github.com/awslabs/operatorpkg/object"
 
 	"github.com/samber/lo"
@@ -49,21 +53,21 @@ var _ = Describe("Tags", func() {
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 			instance := env.GetInstance(pod.Spec.NodeName)
-			volumes := env.GetVolumes(lo.Map(instance.BlockDeviceMappings, func(bdm *ec2.InstanceBlockDeviceMapping, _ int) *string {
+			volumes := env.GetVolumes(lo.Map(instance.BlockDeviceMappings, func(bdm ec2types.InstanceBlockDeviceMapping, _ int) *string {
 				return bdm.Ebs.VolumeId
 			})...)
-			networkInterfaces := env.GetNetworkInterfaces(lo.Map(instance.NetworkInterfaces, func(ni *ec2.InstanceNetworkInterface, _ int) *string {
+			networkInterfaces := env.GetNetworkInterfaces(lo.Map(instance.NetworkInterfaces, func(ni ec2types.InstanceNetworkInterface, _ int) *string {
 				return ni.NetworkInterfaceId
 			})...)
 
-			Expect(instance.Tags).To(ContainElement(&ec2.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
+			Expect(instance.Tags).To(ContainElement(&ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
 			for _, volume := range volumes {
-				Expect(volume.Tags).To(ContainElement(&ec2.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
+				Expect(volume.Tags).To(ContainElement(&ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
 			}
 			for _, networkInterface := range networkInterfaces {
 				// Any ENI that contains this createdAt tag was created by the VPC CNI DaemonSet
-				if !lo.ContainsBy(networkInterface.TagSet, func(t *ec2.Tag) bool { return lo.FromPtr(t.Key) == createdAtTag }) {
-					Expect(networkInterface.TagSet).To(ContainElement(&ec2.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
+				if !lo.ContainsBy(networkInterface.TagSet, func(t ec2types.Tag) bool { return lo.FromPtr(t.Key) == createdAtTag }) {
+					Expect(networkInterface.TagSet).To(ContainElement(&ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
 				}
 			}
 		})
@@ -82,8 +86,8 @@ var _ = Describe("Tags", func() {
 			env.ExpectCreatedNodeCount("==", 1)
 			instance := env.GetInstance(pod.Spec.NodeName)
 			Expect(instance.SpotInstanceRequestId).ToNot(BeNil())
-			spotInstanceRequest := env.GetSpotInstanceRequest(instance.SpotInstanceRequestId)
-			Expect(spotInstanceRequest.Tags).To(ContainElement(&ec2.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
+			spotInstanceRequest := env.GetSpotInstance(instance.SpotInstanceRequestId)
+			Expect((spotInstanceRequest).Tags).To(ContainElement(&ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
 		})
 		It("should tag managed instance profiles", func() {
 			if env.PrivateCluster {
@@ -94,9 +98,9 @@ var _ = Describe("Tags", func() {
 
 			profile := env.EventuallyExpectInstanceProfileExists(env.GetInstanceProfileName(nodeClass))
 			Expect(profile.Tags).To(ContainElements(
-				&iam.Tag{Key: lo.ToPtr(fmt.Sprintf("kubernetes.io/cluster/%s", env.ClusterName)), Value: lo.ToPtr("owned")},
-				&iam.Tag{Key: lo.ToPtr(v1.LabelNodeClass), Value: lo.ToPtr(nodeClass.Name)},
-				&iam.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)},
+				&iamtypes.Tag{Key: lo.ToPtr(fmt.Sprintf("kubernetes.io/cluster/%s", env.ClusterName)), Value: lo.ToPtr("owned")},
+				&iamtypes.Tag{Key: lo.ToPtr(v1.LabelNodeClass), Value: lo.ToPtr(nodeClass.Name)},
+				&iamtypes.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)},
 			))
 		})
 		It("should tag managed instance profiles with the eks:eks-cluster-name tag key after restart", func() {
@@ -106,10 +110,10 @@ var _ = Describe("Tags", func() {
 			env.ExpectCreated(nodeClass)
 			env.EventuallyExpectInstanceProfileExists(env.GetInstanceProfileName(nodeClass))
 
-			_, err := env.IAMAPI.UntagInstanceProfile(&iam.UntagInstanceProfileInput{
+			_, err := env.IAMAPI.UntagInstanceProfile(context.Background(), &iam.UntagInstanceProfileInput{
 				InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
-				TagKeys: []*string{
-					lo.ToPtr(v1.EKSClusterNameTagKey),
+				TagKeys: []string{
+					*lo.ToPtr(v1.EKSClusterNameTagKey),
 				},
 			})
 			Expect(err).ToNot(HaveOccurred())
@@ -118,11 +122,11 @@ var _ = Describe("Tags", func() {
 			env.EventuallyExpectKarpenterRestarted()
 
 			Eventually(func(g Gomega) {
-				out, err := env.IAMAPI.GetInstanceProfile(&iam.GetInstanceProfileInput{
+				out, err := env.IAMAPI.GetInstanceProfile(context.Background(), &iam.GetInstanceProfileInput{
 					InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
 				})
 				g.Expect(err).ToNot(HaveOccurred())
-				g.Expect(out.InstanceProfile.Tags).To(ContainElement(&iam.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)}))
+				g.Expect(out.InstanceProfile.Tags).To(ContainElement(&iamtypes.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)}))
 			}).WithTimeout(time.Second * 20).Should(Succeed())
 		})
 	})
@@ -200,9 +204,9 @@ var _ = Describe("Tags", func() {
 				g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationClusterNameTaggedCompatability, "true"))
 			}, time.Minute).Should(Succeed())
 
-			_, err := env.EC2API.DeleteTags(&ec2.DeleteTagsInput{
-				Resources: []*string{lo.ToPtr(env.ExpectParsedProviderID(node.Spec.ProviderID))},
-				Tags:      []*ec2.Tag{{Key: lo.ToPtr(v1.EKSClusterNameTagKey)}},
+			_, err := env.EC2API.DeleteTags(context.Background(), &ec2.DeleteTagsInput{
+				Resources: []string{*lo.ToPtr(env.ExpectParsedProviderID(node.Spec.ProviderID))},
+				Tags:      []ec2types.Tag{{Key: lo.ToPtr(v1.EKSClusterNameTagKey)}},
 			})
 			Expect(err).ToNot(HaveOccurred())
 
@@ -213,13 +217,13 @@ var _ = Describe("Tags", func() {
 
 			By(fmt.Sprintf("Polling for the %s tag update", v1.EKSClusterNameTagKey))
 			Eventually(func(g Gomega) {
-				out, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
-					InstanceIds: []*string{lo.ToPtr(env.ExpectParsedProviderID(node.Spec.ProviderID))},
+				out, err := env.EC2API.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{
+					InstanceIds: []string{*lo.ToPtr(env.ExpectParsedProviderID(node.Spec.ProviderID))},
 				})
 				g.Expect(err).ToNot(HaveOccurred())
 				g.Expect(out.Reservations).To(HaveLen(1))
 				g.Expect(out.Reservations[0].Instances).To(HaveLen(1))
-				g.Expect(out.Reservations[0].Instances[0].Tags).To(ContainElement(&ec2.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)}))
+				g.Expect(out.Reservations[0].Instances[0].Tags).To(ContainElement(&ec2types.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)}))
 			}).Should(Succeed())
 		})
 	})

@@ -16,13 +16,16 @@ package amifamily
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -36,6 +39,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
+	"github.com/aws/smithy-go"
 )
 
 type Provider interface {
@@ -45,13 +49,13 @@ type Provider interface {
 type DefaultProvider struct {
 	sync.Mutex
 	cache           *cache.Cache
-	ec2api          ec2iface.EC2API
+	ec2api          sdk.EC2API
 	cm              *pretty.ChangeMonitor
 	versionProvider version.Provider
 	ssmProvider     ssm.Provider
 }
 
-func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provider, ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provider, ec2api sdk.EC2API, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		cache:           cache,
 		ec2api:          ec2api,
@@ -100,12 +104,12 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		return []DescribeImageQuery{query}, nil
 	}
 
-	idFilter := &ec2.Filter{Name: aws.String("image-id")}
+	idFilter := &ec2types.Filter{Name: aws.String("image-id")}
 	queries := []DescribeImageQuery{}
 	for _, term := range nodeClass.Spec.AMISelectorTerms {
 		switch {
 		case term.ID != "":
-			idFilter.Values = append(idFilter.Values, aws.String(term.ID))
+			idFilter.Values = append(idFilter.Values, *aws.String(term.ID))
 		default:
 			query := DescribeImageQuery{
 				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{}),
@@ -116,22 +120,22 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 				query = DescribeImageQuery{
 					Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{"self", "amazon"}),
 				}
-				query.Filters = append(query.Filters, &ec2.Filter{
+				query.Filters = append(query.Filters, ec2types.Filter{
 					Name:   aws.String("name"),
-					Values: aws.StringSlice([]string{term.Name}),
+					Values: []string{term.Name},
 				})
 
 			}
 			for k, v := range term.Tags {
 				if v == "*" {
-					query.Filters = append(query.Filters, &ec2.Filter{
+					query.Filters = append(query.Filters, ec2types.Filter{
 						Name:   aws.String("tag-key"),
-						Values: []*string{aws.String(k)},
+						Values: []string{*aws.String(k)},
 					})
 				} else {
-					query.Filters = append(query.Filters, &ec2.Filter{
+					query.Filters = append(query.Filters, ec2types.Filter{
 						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-						Values: []*string{aws.String(v)},
+						Values: []string{*aws.String(v)},
 					})
 				}
 			}
@@ -139,7 +143,7 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		}
 	}
 	if len(idFilter.Values) > 0 {
-		queries = append(queries, DescribeImageQuery{Filters: []*ec2.Filter{idFilter}})
+		queries = append(queries, DescribeImageQuery{Filters: []ec2types.Filter{*idFilter}})
 	}
 	return queries, nil
 }
@@ -157,9 +161,22 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 	}
 	images := map[uint64]AMI{}
 	for _, query := range queries {
-		if err = p.ec2api.DescribeImagesPagesWithContext(ctx, query.DescribeImagesInput(), func(page *ec2.DescribeImagesOutput, _ bool) bool {
-			for _, image := range page.Images {
-				arch, ok := v1.AWSToKubeArchitectures[lo.FromPtr(image.Architecture)]
+		var nextToken *string
+		for {
+			input := &ec2.DescribeImagesInput{
+				NextToken: nextToken,
+			}
+			output, err := p.ec2api.DescribeImages(ctx, input)
+			if err != nil {
+				var apiErr smithy.APIError
+				if errors.As(err, &apiErr) {
+					return nil, fmt.Errorf("API error: %s - %s", apiErr.ErrorCode(), apiErr.ErrorMessage())
+				}
+				return nil, fmt.Errorf("describing images, %w", err)
+			}
+
+			for _, image := range output.Images {
+				arch, ok := v1.AWSToKubeArchitectures[string(image.Architecture)]
 				if !ok {
 					continue
 				}
@@ -186,9 +203,11 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 					}
 				}
 			}
-			return true
-		}); err != nil {
-			return nil, fmt.Errorf("describing images, %w", err)
+
+			if output.NextToken == nil {
+				break
+			}
+			nextToken = output.NextToken
 		}
 	}
 	p.cache.SetDefault(fmt.Sprintf("%d", hash), AMIs(lo.Values(images)))

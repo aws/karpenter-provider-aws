@@ -19,8 +19,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/aws/karpenter-provider-aws/pkg/batcher"
 
@@ -31,27 +32,22 @@ import (
 var _ = Describe("CreateFleet Batching", func() {
 	var cfb *batcher.CreateFleetBatcher
 
-	BeforeEach(func() {
-		fakeEC2API.Reset()
-		cfb = batcher.NewCreateFleetBatcher(ctx, fakeEC2API)
-	})
-
 	It("should batch the same inputs into a single call", func() {
 		input := &ec2.CreateFleetInput{
-			LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
+			LaunchTemplateConfigs: []ec2types.FleetLaunchTemplateConfigRequest{
 				{
-					LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+					LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
 						LaunchTemplateName: aws.String("my-template"),
 					},
-					Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
+					Overrides: []ec2types.FleetLaunchTemplateOverridesRequest{
 						{
 							AvailabilityZone: aws.String("us-east-1"),
 						},
 					},
 				},
 			},
-			TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
-				TotalTargetCapacity: aws.Int64(1),
+			TargetCapacitySpecification: &ec2types.TargetCapacitySpecificationRequest{
+				TotalTargetCapacity: aws.Int32(1),
 			},
 		}
 		var wg sync.WaitGroup
@@ -67,7 +63,7 @@ var _ = Describe("CreateFleet Batching", func() {
 				var instanceIds []string
 				for _, rsv := range rsp.Instances {
 					for _, id := range rsv.InstanceIds {
-						instanceIds = append(instanceIds, *id)
+						instanceIds = append(instanceIds, id)
 					}
 				}
 				atomic.AddInt64(&receivedInstance, 1)
@@ -83,37 +79,37 @@ var _ = Describe("CreateFleet Batching", func() {
 	})
 	It("should batch different inputs into multiple calls", func() {
 		east1input := &ec2.CreateFleetInput{
-			LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
+			LaunchTemplateConfigs: []ec2types.FleetLaunchTemplateConfigRequest{
 				{
-					LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+					LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
 						LaunchTemplateName: aws.String("my-template"),
 					},
-					Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
+					Overrides: []ec2types.FleetLaunchTemplateOverridesRequest{
 						{
 							AvailabilityZone: aws.String("us-east-1"),
 						},
 					},
 				},
 			},
-			TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
-				TotalTargetCapacity: aws.Int64(1),
+			TargetCapacitySpecification: &ec2types.TargetCapacitySpecificationRequest{
+				TotalTargetCapacity: aws.Int32(1),
 			},
 		}
 		east2input := &ec2.CreateFleetInput{
-			LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
+			LaunchTemplateConfigs: []ec2types.FleetLaunchTemplateConfigRequest{
 				{
-					LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+					LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
 						LaunchTemplateName: aws.String("my-template"),
 					},
-					Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
+					Overrides: []ec2types.FleetLaunchTemplateOverridesRequest{
 						{
 							AvailabilityZone: aws.String("us-east-2"),
 						},
 					},
 				},
 			},
-			TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
-				TotalTargetCapacity: aws.Int64(1),
+			TargetCapacitySpecification: &ec2types.TargetCapacitySpecificationRequest{
+				TotalTargetCapacity: aws.Int32(1),
 			},
 		}
 		var wg sync.WaitGroup
@@ -134,7 +130,7 @@ var _ = Describe("CreateFleet Batching", func() {
 				var instanceIds []string
 				for _, rsv := range rsp.Instances {
 					for _, id := range rsv.InstanceIds {
-						instanceIds = append(instanceIds, *id)
+						instanceIds = append(instanceIds, id)
 					}
 				}
 				atomic.AddInt64(&receivedInstance, 1)
@@ -158,33 +154,33 @@ var _ = Describe("CreateFleet Batching", func() {
 	})
 	It("should return any errors to callers", func() {
 		input := &ec2.CreateFleetInput{
-			LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
+			LaunchTemplateConfigs: []ec2types.FleetLaunchTemplateConfigRequest{
 				{
-					LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+					LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
 						LaunchTemplateName: aws.String("my-template"),
 					},
-					Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
+					Overrides: []ec2types.FleetLaunchTemplateOverridesRequest{
 						{
 							AvailabilityZone: aws.String("us-east-1"),
 						},
 					},
 				},
 			},
-			TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
-				TotalTargetCapacity: aws.Int64(1),
+			TargetCapacitySpecification: &ec2types.TargetCapacitySpecificationRequest{
+				TotalTargetCapacity: aws.Int32(1),
 			},
 		}
 
 		fakeEC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
-			Errors: []*ec2.CreateFleetError{
+			Errors: []ec2types.CreateFleetError{
 				{
 					ErrorCode:    aws.String("some-error"),
 					ErrorMessage: aws.String("some-error"),
-					LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
-						LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecification{
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecification{
 							LaunchTemplateName: aws.String("my-template"),
 						},
-						Overrides: &ec2.FleetLaunchTemplateOverrides{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
 							AvailabilityZone: aws.String("us-east-1"),
 						},
 					},
@@ -192,24 +188,24 @@ var _ = Describe("CreateFleet Batching", func() {
 				{
 					ErrorCode:    aws.String("some-other-error"),
 					ErrorMessage: aws.String("some-other-error"),
-					LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
-						LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecification{
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecification{
 							LaunchTemplateName: aws.String("my-template"),
 						},
-						Overrides: &ec2.FleetLaunchTemplateOverrides{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
 							AvailabilityZone: aws.String("us-east-1"),
 						},
 					},
 				},
 			},
 			FleetId: aws.String("some-id"),
-			Instances: []*ec2.CreateFleetInstance{
+			Instances: []ec2types.CreateFleetInstance{
 				{
-					InstanceIds:                []*string{aws.String("id-1"), aws.String("id-2"), aws.String("id-3"), aws.String("id-4"), aws.String("id-5")},
-					InstanceType:               nil,
+					InstanceIds:                []string{"id-1", "id-2", "id-3", "id-4", "id-5"},
+					InstanceType:               "",
 					LaunchTemplateAndOverrides: nil,
-					Lifecycle:                  nil,
-					Platform:                   nil,
+					Lifecycle:                  "",
+					Platform:                   "",
 				},
 			},
 		})
@@ -232,7 +228,7 @@ var _ = Describe("CreateFleet Batching", func() {
 				var instanceIds []string
 				for _, rsv := range rsp.Instances {
 					for _, id := range rsv.InstanceIds {
-						instanceIds = append(instanceIds, *id)
+						instanceIds = append(instanceIds, id)
 					}
 				}
 				atomic.AddInt64(&receivedInstance, 1)
@@ -251,33 +247,32 @@ var _ = Describe("CreateFleet Batching", func() {
 	})
 	It("should handle partial fulfillment", func() {
 		input := &ec2.CreateFleetInput{
-			LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
+			LaunchTemplateConfigs: []ec2types.FleetLaunchTemplateConfigRequest{
 				{
-					LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+					LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
 						LaunchTemplateName: aws.String("my-template"),
 					},
-					Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
+					Overrides: []ec2types.FleetLaunchTemplateOverridesRequest{
 						{
 							AvailabilityZone: aws.String("us-east-1"),
 						},
 					},
 				},
 			},
-			TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
-				TotalTargetCapacity: aws.Int64(1),
+			TargetCapacitySpecification: &ec2types.TargetCapacitySpecificationRequest{
+				TotalTargetCapacity: aws.Int32(1),
 			},
 		}
-
 		fakeEC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
-			Errors: []*ec2.CreateFleetError{
+			Errors: []ec2types.CreateFleetError{
 				{
 					ErrorCode:    aws.String("some-error"),
 					ErrorMessage: aws.String("some-error"),
-					LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
-						LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecification{
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecification{
 							LaunchTemplateName: aws.String("my-template"),
 						},
-						Overrides: &ec2.FleetLaunchTemplateOverrides{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
 							AvailabilityZone: aws.String("us-east-1"),
 						},
 					},
@@ -285,24 +280,24 @@ var _ = Describe("CreateFleet Batching", func() {
 				{
 					ErrorCode:    aws.String("some-other-error"),
 					ErrorMessage: aws.String("some-other-error"),
-					LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
-						LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecification{
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecification{
 							LaunchTemplateName: aws.String("my-template"),
 						},
-						Overrides: &ec2.FleetLaunchTemplateOverrides{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
 							AvailabilityZone: aws.String("us-east-1"),
 						},
 					},
 				},
 			},
 			FleetId: aws.String("some-id"),
-			Instances: []*ec2.CreateFleetInstance{
+			Instances: []ec2types.CreateFleetInstance{
 				{
-					InstanceIds:                []*string{aws.String("id-1"), aws.String("id-2"), aws.String("id-3")},
-					InstanceType:               nil,
+					InstanceIds:                []string{*aws.String("id-1"), *aws.String("id-2"), *aws.String("id-3")},
+					InstanceType:               "",
 					LaunchTemplateAndOverrides: nil,
-					Lifecycle:                  nil,
-					Platform:                   nil,
+					Lifecycle:                  "",
+					Platform:                   "",
 				},
 			},
 		})
@@ -325,7 +320,7 @@ var _ = Describe("CreateFleet Batching", func() {
 				var instanceIds []string
 				for _, rsv := range rsp.Instances {
 					for _, id := range rsv.InstanceIds {
-						instanceIds = append(instanceIds, *id)
+						instanceIds = append(instanceIds, id)
 					}
 				}
 				Expect(instanceIds).To(Or(HaveLen(0), HaveLen(1)))

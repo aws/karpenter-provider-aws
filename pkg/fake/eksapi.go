@@ -17,9 +17,8 @@ package fake
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/samber/lo"
 )
 
@@ -32,7 +31,7 @@ type EKSAPIBehavior struct {
 }
 
 type EKSAPI struct {
-	eksiface.EKSAPI
+	EKSClient *eks.Client
 	EKSAPIBehavior
 }
 
@@ -46,11 +45,11 @@ func (s *EKSAPI) Reset() {
 	s.DescribeClusterBehavior.Reset()
 }
 
-func (s *EKSAPI) DescribeClusterWithContext(_ context.Context, input *eks.DescribeClusterInput, _ ...request.Option) (*eks.DescribeClusterOutput, error) {
+func (s *EKSAPI) DescribeCluster(_ context.Context, input *eks.DescribeClusterInput, _ ...func(*eks.Options)) (*eks.DescribeClusterOutput, error) {
 	return s.DescribeClusterBehavior.Invoke(input, func(*eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
 		return &eks.DescribeClusterOutput{
-			Cluster: &eks.Cluster{
-				KubernetesNetworkConfig: &eks.KubernetesNetworkConfigResponse{
+			Cluster: &ekstypes.Cluster{
+				KubernetesNetworkConfig: &ekstypes.KubernetesNetworkConfigResponse{
 					ServiceIpv4Cidr: lo.ToPtr("10.100.0.0/16"),
 				},
 			},

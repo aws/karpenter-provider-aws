@@ -20,8 +20,9 @@ import (
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -73,8 +74,8 @@ func PrivateDNSName() string {
 }
 
 // SubnetsFromFleetRequest returns a unique slice of subnetIDs passed as overrides from a CreateFleetInput
-func SubnetsFromFleetRequest(createFleetInput *ec2.CreateFleetInput) []string {
-	return lo.Uniq(lo.Flatten(lo.Map(createFleetInput.LaunchTemplateConfigs, func(ltReq *ec2.FleetLaunchTemplateConfigRequest, _ int) []string {
+func SubnetsFromFleet(createFleetInput *ec2.CreateFleetInput) []string {
+	return lo.Uniq(lo.Flatten(lo.Map(createFleetInput.LaunchTemplateConfigs, func(ltReq ec2types.FleetLaunchTemplateConfigRequest, _ int) []string {
 		var subnets []string
 		for _, override := range ltReq.Overrides {
 			if override.SubnetId != nil {
@@ -87,39 +88,51 @@ func SubnetsFromFleetRequest(createFleetInput *ec2.CreateFleetInput) []string {
 
 // FilterDescribeSecurtyGroups filters the passed in security groups based on the filters passed in.
 // Filters are chained with a logical "AND"
-func FilterDescribeSecurtyGroups(sgs []*ec2.SecurityGroup, filters []*ec2.Filter) []*ec2.SecurityGroup {
-	return lo.Filter(sgs, func(group *ec2.SecurityGroup, _ int) bool {
-		return Filter(filters, *group.GroupId, *group.GroupName, group.Tags)
+func FilterDescribeSecurityGroups(sgs []*ec2types.SecurityGroup, filters []*ec2types.Filter) []*ec2types.SecurityGroup {
+	return lo.Filter(sgs, func(group *ec2types.SecurityGroup, _ int) bool {
+		var tags []*ec2types.Tag
+		for _, tag := range group.Tags {
+			tags = append(tags, &tag)
+		}
+		return Filter(filters, *group.GroupId, *group.GroupName, tags)
 	})
 }
 
 // FilterDescribeSubnets filters the passed in subnets based on the filters passed in.
 // Filters are chained with a logical "AND"
-func FilterDescribeSubnets(subnets []*ec2.Subnet, filters []*ec2.Filter) []*ec2.Subnet {
-	return lo.Filter(subnets, func(subnet *ec2.Subnet, _ int) bool {
-		return Filter(filters, *subnet.SubnetId, "", subnet.Tags)
+func FilterDescribeSubnets(subnets []*ec2types.Subnet, filters []*ec2types.Filter) []*ec2types.Subnet {
+	return lo.Filter(subnets, func(subnet *ec2types.Subnet, _ int) bool {
+		var tags []*ec2types.Tag
+		for _, tag := range subnet.Tags {
+			tags = append(tags, &tag)
+		}
+		return Filter(filters, *subnet.SubnetId, "", tags)
 	})
 }
 
-func FilterDescribeImages(images []*ec2.Image, filters []*ec2.Filter) []*ec2.Image {
-	return lo.Filter(images, func(image *ec2.Image, _ int) bool {
-		return Filter(filters, *image.ImageId, *image.Name, image.Tags)
+func FilterDescribeImages(images []*ec2types.Image, filters []*ec2types.Filter) []*ec2types.Image {
+	return lo.Filter(images, func(image *ec2types.Image, _ int) bool {
+		var tags []*ec2types.Tag
+		for _, tag := range image.Tags {
+			tags = append(tags, &tag)
+		}
+		return Filter(filters, *image.ImageId, *image.Name, tags)
 	})
 }
 
 //nolint:gocyclo
-func Filter(filters []*ec2.Filter, id, name string, tags []*ec2.Tag) bool {
-	return lo.EveryBy(filters, func(filter *ec2.Filter) bool {
-		switch filterName := aws.StringValue(filter.Name); {
+func Filter(filters []*ec2types.Filter, id, name string, tags []*ec2types.Tag) bool {
+	return lo.EveryBy(filters, func(filter *ec2types.Filter) bool {
+		switch filterName := aws.ToString(filter.Name); {
 		case filterName == "subnet-id" || filterName == "group-id" || filterName == "image-id":
 			for _, val := range filter.Values {
-				if id == aws.StringValue(val) {
+				if id == val {
 					return true
 				}
 			}
 		case filterName == "group-name" || filterName == "name":
 			for _, val := range filter.Values {
-				if name == aws.StringValue(val) {
+				if name == val {
 					return true
 				}
 			}
@@ -136,23 +149,23 @@ func Filter(filters []*ec2.Filter, id, name string, tags []*ec2.Tag) bool {
 
 // matchTags is a predicate that matches a slice of tags with a tag:<key> or tag-keys filter
 // nolint: gocyclo
-func matchTags(tags []*ec2.Tag, filter *ec2.Filter) bool {
+func matchTags(tags []*ec2types.Tag, filter *ec2types.Filter) bool {
 	if strings.HasPrefix(*filter.Name, "tag:") {
 		tagKey := strings.Split(*filter.Name, ":")[1]
 		for _, val := range filter.Values {
 			for _, tag := range tags {
-				if tagKey == *tag.Key && (*val == "*" || *val == *tag.Value) {
+				if tagKey == *tag.Key && (val == "*" || val == *tag.Value) {
 					return true
 				}
 			}
 		}
 	} else if strings.HasPrefix(*filter.Name, "tag-key") {
 		for _, v := range filter.Values {
-			if aws.StringValue(v) == "*" {
+			if v == "*" {
 				return true
 			}
 			for _, t := range tags {
-				if aws.StringValue(t.Key) == aws.StringValue(v) {
+				if aws.ToString(t.Key) == v {
 					return true
 				}
 			}
@@ -161,52 +174,56 @@ func matchTags(tags []*ec2.Tag, filter *ec2.Filter) bool {
 	return false
 }
 
-func MakeInstances() []*ec2.InstanceTypeInfo {
-	var instanceTypes []*ec2.InstanceTypeInfo
+func MakeInstances() []*ec2types.InstanceTypeInfo {
+	var instanceTypes []*ec2types.InstanceTypeInfo
 	ctx := options.ToContext(context.Background(), &options.Options{IsolatedVPC: true})
 	// Use keys from the static pricing data so that we guarantee pricing for the data
 	// Create uniform instance data so all of them schedule for a given pod
 	for _, it := range pricing.NewDefaultProvider(ctx, nil, nil, "us-east-1").InstanceTypes() {
-		instanceTypes = append(instanceTypes, &ec2.InstanceTypeInfo{
-			InstanceType: aws.String(it),
-			ProcessorInfo: &ec2.ProcessorInfo{
-				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+		var supportedUsageClasses []ec2types.UsageClassType
+		for _, usageClass := range DefaultSupportedUsageClasses {
+			supportedUsageClasses = append(supportedUsageClasses, ec2types.UsageClassType(*usageClass))
+		}
+		instanceTypes = append(instanceTypes, &ec2types.InstanceTypeInfo{
+			InstanceType: ec2types.InstanceType(it),
+			ProcessorInfo: &ec2types.ProcessorInfo{
+				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
 			},
-			VCpuInfo: &ec2.VCpuInfo{
-				DefaultCores: aws.Int64(1),
-				DefaultVCpus: aws.Int64(2),
+			VCpuInfo: &ec2types.VCpuInfo{
+				DefaultCores: aws.Int32(1),
+				DefaultVCpus: aws.Int32(2),
 			},
-			MemoryInfo: &ec2.MemoryInfo{
+			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(8192),
 			},
-			NetworkInfo: &ec2.NetworkInfo{
-				Ipv4AddressesPerInterface: aws.Int64(10),
-				DefaultNetworkCardIndex:   aws.Int64(0),
-				NetworkCards: []*ec2.NetworkCardInfo{{
-					NetworkCardIndex:         lo.ToPtr(int64(0)),
-					MaximumNetworkInterfaces: aws.Int64(3),
+			NetworkInfo: &ec2types.NetworkInfo{
+				Ipv4AddressesPerInterface: aws.Int32(10),
+				DefaultNetworkCardIndex:   aws.Int32(0),
+				NetworkCards: []ec2types.NetworkCardInfo{{
+					NetworkCardIndex:         lo.ToPtr(int32(0)),
+					MaximumNetworkInterfaces: aws.Int32(3),
 				}},
 			},
-			SupportedUsageClasses: DefaultSupportedUsageClasses,
+			SupportedUsageClasses: supportedUsageClasses,
 		})
 	}
 	return instanceTypes
 }
 
-func MakeUniqueInstancesAndFamilies(instances []*ec2.InstanceTypeInfo, numInstanceFamilies int) ([]*ec2.InstanceTypeInfo, sets.Set[string]) {
-	var instanceTypes []*ec2.InstanceTypeInfo
+func MakeUniqueInstancesAndFamilies(instances []*ec2types.InstanceTypeInfo, numInstanceFamilies int) ([]*ec2types.InstanceTypeInfo, sets.Set[string]) {
+	var instanceTypes []*ec2types.InstanceTypeInfo
 	instanceFamilies := sets.Set[string]{}
 	for _, it := range instances {
 		var found bool
 		for instFamily := range instanceFamilies {
-			if strings.Split(*it.InstanceType, ".")[0] == instFamily {
+			if strings.Split(string(it.InstanceType), ".")[0] == instFamily {
 				found = true
 				break
 			}
 		}
 		if !found {
 			instanceTypes = append(instanceTypes, it)
-			instanceFamilies.Insert(strings.Split(*it.InstanceType, ".")[0])
+			instanceFamilies.Insert(strings.Split(string(it.InstanceType), ".")[0])
 			if len(instanceFamilies) == numInstanceFamilies {
 				break
 			}
@@ -215,12 +232,12 @@ func MakeUniqueInstancesAndFamilies(instances []*ec2.InstanceTypeInfo, numInstan
 	return instanceTypes, instanceFamilies
 }
 
-func MakeInstanceOfferings(instanceTypes []*ec2.InstanceTypeInfo) []*ec2.InstanceTypeOffering {
-	var instanceTypeOfferings []*ec2.InstanceTypeOffering
+func MakeInstanceOfferings(instanceTypes []*ec2types.InstanceTypeInfo) []*ec2types.InstanceTypeOffering {
+	var instanceTypeOfferings []*ec2types.InstanceTypeOffering
 
 	// Create uniform instance offering data so all of them schedule for a given pod
 	for _, instanceType := range instanceTypes {
-		instanceTypeOfferings = append(instanceTypeOfferings, &ec2.InstanceTypeOffering{
+		instanceTypeOfferings = append(instanceTypeOfferings, &ec2types.InstanceTypeOffering{
 			InstanceType: instanceType.InstanceType,
 			Location:     aws.String("test-zone-1a"),
 		})

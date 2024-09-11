@@ -18,8 +18,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -55,13 +56,13 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			},
 		})
 		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-			Images: []*ec2.Image{
+			Images: []ec2types.Image{
 				{
 					Name:         aws.String("test-ami-1"),
 					ImageId:      aws.String("ami-test1"),
 					CreationDate: aws.String(time.Now().Format(time.RFC3339)),
-					Architecture: aws.String("x86_64"),
-					Tags: []*ec2.Tag{
+					Architecture: "x86_64",
+					Tags: []ec2types.Tag{
 						{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
@@ -70,8 +71,8 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 					Name:         aws.String("test-ami-2"),
 					ImageId:      aws.String("ami-test2"),
 					CreationDate: aws.String(time.Now().Add(time.Minute).Format(time.RFC3339)),
-					Architecture: aws.String("x86_64"),
-					Tags: []*ec2.Tag{
+					Architecture: "x86_64",
+					Tags: []ec2types.Tag{
 						{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
@@ -80,8 +81,8 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 					Name:         aws.String("test-ami-3"),
 					ImageId:      aws.String("ami-test3"),
 					CreationDate: aws.String(time.Now().Add(2 * time.Minute).Format(time.RFC3339)),
-					Architecture: aws.String("x86_64"),
-					Tags: []*ec2.Tag{
+					Architecture: "x86_64",
+					Tags: []ec2types.Tag{
 						{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
@@ -99,13 +100,13 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		}
 
 		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-			Images: []*ec2.Image{
+			Images: []ec2types.Image{
 				{
 					Name:         aws.String("test-ami-1"),
 					ImageId:      aws.String("ami-id-123"),
 					CreationDate: aws.String(time.Now().Format(time.RFC3339)),
-					Architecture: aws.String("x86_64"),
-					Tags: []*ec2.Tag{
+					Architecture: "x86_64",
+					Tags: []ec2types.Tag{
 						{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
@@ -114,8 +115,8 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 					Name:         aws.String("test-ami-2"),
 					ImageId:      aws.String("ami-id-456"),
 					CreationDate: aws.String(time.Now().Add(time.Minute).Format(time.RFC3339)),
-					Architecture: aws.String("x86_64"),
-					Tags: []*ec2.Tag{
+					Architecture: "x86_64",
+					Tags: []ec2types.Tag{
 						{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
@@ -124,8 +125,8 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 					Name:         aws.String("test-ami-3"),
 					ImageId:      aws.String("ami-id-789"),
 					CreationDate: aws.String(time.Now().Add(2 * time.Minute).Format(time.RFC3339)),
-					Architecture: aws.String("arm64"),
-					Tags: []*ec2.Tag{
+					Architecture: "arm64",
+					Tags: []ec2types.Tag{
 						{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
@@ -221,13 +222,13 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			Alias: "bottlerocket@latest",
 		}}
 		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-			Images: []*ec2.Image{
+			Images: []ec2types.Image{
 				{
 					Name:         aws.String("test-ami-1"),
 					ImageId:      aws.String("ami-id-123"),
 					CreationDate: aws.String(time.Now().Format(time.RFC3339)),
-					Architecture: aws.String("x86_64"),
-					Tags: []*ec2.Tag{
+					Architecture: "x86_64",
+					Tags: []ec2types.Tag{
 						{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
@@ -236,8 +237,8 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 					Name:         aws.String("test-ami-2"),
 					ImageId:      aws.String("ami-id-456"),
 					CreationDate: aws.String(time.Now().Add(time.Minute).Format(time.RFC3339)),
-					Architecture: aws.String("arm64"),
-					Tags: []*ec2.Tag{
+					Architecture: "arm64",
+					Tags: []ec2types.Tag{
 						{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
