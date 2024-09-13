@@ -59,32 +59,62 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 			Images: []*ec2.Image{
 				{
-					Name:         aws.String("test-ami-1"),
-					ImageId:      aws.String("ami-test1"),
+					Name:         aws.String("amd64-standard"),
+					ImageId:      aws.String("ami-amd64-standard"),
 					CreationDate: aws.String(time.Now().Format(time.RFC3339)),
 					Architecture: aws.String("x86_64"),
 					Tags: []*ec2.Tag{
-						{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
+						{Key: aws.String("Name"), Value: aws.String("amd64-standard")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
 				},
 				{
-					Name:         aws.String("test-ami-2"),
-					ImageId:      aws.String("ami-test2"),
+					Name:         aws.String("amd64-standard-new"),
+					ImageId:      aws.String("ami-amd64-standard-new"),
 					CreationDate: aws.String(time.Now().Add(time.Minute).Format(time.RFC3339)),
 					Architecture: aws.String("x86_64"),
 					Tags: []*ec2.Tag{
-						{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
+						{Key: aws.String("Name"), Value: aws.String("amd64-standard")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
 				},
 				{
-					Name:         aws.String("test-ami-3"),
-					ImageId:      aws.String("ami-test3"),
-					CreationDate: aws.String(time.Now().Add(2 * time.Minute).Format(time.RFC3339)),
+					Name:         aws.String("amd64-nvidia"),
+					ImageId:      aws.String("ami-amd64-nvidia"),
+					CreationDate: aws.String(time.Now().Format(time.RFC3339)),
 					Architecture: aws.String("x86_64"),
 					Tags: []*ec2.Tag{
-						{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
+						{Key: aws.String("Name"), Value: aws.String("amd64-nvidia")},
+						{Key: aws.String("foo"), Value: aws.String("bar")},
+					},
+				},
+				{
+					Name:         aws.String("amd64-neuron"),
+					ImageId:      aws.String("ami-amd64-neuron"),
+					CreationDate: aws.String(time.Now().Format(time.RFC3339)),
+					Architecture: aws.String("x86_64"),
+					Tags: []*ec2.Tag{
+						{Key: aws.String("Name"), Value: aws.String("amd64-neuron")},
+						{Key: aws.String("foo"), Value: aws.String("bar")},
+					},
+				},
+				{
+					Name:         aws.String("arm64-standard"),
+					ImageId:      aws.String("ami-arm64-standard"),
+					CreationDate: aws.String(time.Now().Format(time.RFC3339)),
+					Architecture: aws.String("arm64"),
+					Tags: []*ec2.Tag{
+						{Key: aws.String("Name"), Value: aws.String("arm64-standard")},
+						{Key: aws.String("foo"), Value: aws.String("bar")},
+					},
+				},
+				{
+					Name:         aws.String("arm64-nvidia"),
+					ImageId:      aws.String("ami-arm64-nvidia"),
+					CreationDate: aws.String(time.Now().Format(time.RFC3339)),
+					Architecture: aws.String("arm64"),
+					Tags: []*ec2.Tag{
+						{Key: aws.String("Name"), Value: aws.String("arm64-nvidia")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
 				},
@@ -92,68 +122,11 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		})
 	})
 	Context("Aliases", func() {
-		BeforeEach(func() {
-			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-				Images: []*ec2.Image{
-					{
-						Name:         aws.String("amd64-standard"),
-						ImageId:      aws.String("ami-amd64-standard"),
-						CreationDate: aws.String(time.Now().Format(time.RFC3339)),
-						Architecture: aws.String("x86_64"),
-						Tags: []*ec2.Tag{
-							{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
-							{Key: aws.String("foo"), Value: aws.String("bar")},
-						},
-					},
-					{
-						Name:         aws.String("amd64-nvidia"),
-						ImageId:      aws.String("ami-amd64-nvidia"),
-						CreationDate: aws.String(time.Now().Add(time.Minute).Format(time.RFC3339)),
-						Architecture: aws.String("x86_64"),
-						Tags: []*ec2.Tag{
-							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
-							{Key: aws.String("foo"), Value: aws.String("bar")},
-						},
-					},
-					{
-						Name:         aws.String("amd64-neuron"),
-						ImageId:      aws.String("ami-amd64-neuron"),
-						CreationDate: aws.String(time.Now().Add(2 * time.Minute).Format(time.RFC3339)),
-						Architecture: aws.String("x86_64"),
-						Tags: []*ec2.Tag{
-							{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
-							{Key: aws.String("foo"), Value: aws.String("bar")},
-						},
-					},
-					{
-						Name:         aws.String("arm64-standard"),
-						ImageId:      aws.String("ami-arm64-standard"),
-						CreationDate: aws.String(time.Now().Format(time.RFC3339)),
-						Architecture: aws.String("arm64"),
-						Tags: []*ec2.Tag{
-							{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
-							{Key: aws.String("foo"), Value: aws.String("bar")},
-						},
-					},
-					{
-						Name:         aws.String("arm64-nvidia"),
-						ImageId:      aws.String("ami-arm64-nvidia"),
-						CreationDate: aws.String(time.Now().Add(time.Minute).Format(time.RFC3339)),
-						Architecture: aws.String("arm64"),
-						Tags: []*ec2.Tag{
-							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
-							{Key: aws.String("foo"), Value: aws.String("bar")},
-						},
-					},
-				},
-			})
-
-		})
 		It("Should resolve all AMIs with correct requirements for AL2023", func() {
 			awsEnv.SSMAPI.Parameters = map[string]string{
 				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", k8sVersion): "ami-amd64-standard",
-				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/nvidia/recommended/image_id", k8sVersion): "ami-amd64-nvidia",
-				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/neuron/recommended/image_id", k8sVersion): "ami-amd64-neuron",
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/nvidia/recommended/image_id", k8sVersion):   "ami-amd64-nvidia",
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/neuron/recommended/image_id", k8sVersion):   "ami-amd64-neuron",
 				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", k8sVersion):  "ami-arm64-standard",
 			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
@@ -236,9 +209,9 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		})
 		It("Should resolve all AMIs with correct requirements for AL2", func() {
 			awsEnv.SSMAPI.Parameters = map[string]string{
-				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", k8sVersion): "ami-amd64-standard",
-				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", k8sVersion): "ami-amd64-nvidia",
-				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", k8sVersion):  "ami-arm64-standard",
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", k8sVersion):       "ami-amd64-standard",
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", k8sVersion):   "ami-amd64-nvidia",
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", k8sVersion): "ami-arm64-standard",
 			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			ExpectApplied(ctx, env.Client, nodeClass)
@@ -321,10 +294,10 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		})
 		It("Should resolve all AMIs with correct requirements for Bottlerocket", func() {
 			awsEnv.SSMAPI.Parameters = map[string]string{
-				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", k8sVersion): "ami-amd64-standard",
-				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", k8sVersion): "ami-arm64-standard",
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", k8sVersion):        "ami-amd64-standard",
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", k8sVersion):         "ami-arm64-standard",
 				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", k8sVersion): "ami-amd64-nvidia",
-				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/latest/image_id", k8sVersion): "ami-arm64-nvidia",
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/latest/image_id", k8sVersion):  "ami-arm64-nvidia",
 			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			ExpectApplied(ctx, env.Client, nodeClass)
@@ -453,7 +426,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						{
 							Key:      corev1.LabelOSStable,
 							Operator: corev1.NodeSelectorOpIn,
-							Values: []string{string(corev1.Windows)},
+							Values:   []string{string(corev1.Windows)},
 						},
 						{
 							Key:      corev1.LabelArchStable,
@@ -463,7 +436,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						{
 							Key:      corev1.LabelWindowsBuild,
 							Operator: corev1.NodeSelectorOpIn,
-							Values: []string{v1.Windows2019Build},
+							Values:   []string{v1.Windows2019Build},
 						},
 					},
 				},
@@ -488,7 +461,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						{
 							Key:      corev1.LabelOSStable,
 							Operator: corev1.NodeSelectorOpIn,
-							Values: []string{string(corev1.Windows)},
+							Values:   []string{string(corev1.Windows)},
 						},
 						{
 							Key:      corev1.LabelArchStable,
@@ -498,7 +471,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						{
 							Key:      corev1.LabelWindowsBuild,
 							Operator: corev1.NodeSelectorOpIn,
-							Values: []string{v1.Windows2022Build},
+							Values:   []string{v1.Windows2022Build},
 						},
 					},
 				},
@@ -506,39 +479,15 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
 		})
 	})
-	It("should resolve amiSelector AMis and requirements into status when all SSM parameters don't resolve", func() {
+	It("should resolve amiSelector AMIs and requirements into status when all SSM parameters don't resolve", func() {
 		// This parameter set doesn't include any of the Nvidia AMIs
 		awsEnv.SSMAPI.Parameters = map[string]string{
-			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", k8sVersion): "ami-id-123",
-			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", k8sVersion):  "ami-id-456",
+			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", k8sVersion): "ami-amd64-standard",
+			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", k8sVersion):  "ami-arm64-standard",
 		}
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
 			Alias: "bottlerocket@latest",
 		}}
-		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-			Images: []*ec2.Image{
-				{
-					Name:         aws.String("test-ami-1"),
-					ImageId:      aws.String("ami-id-123"),
-					CreationDate: aws.String(time.Now().Format(time.RFC3339)),
-					Architecture: aws.String("x86_64"),
-					Tags: []*ec2.Tag{
-						{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
-						{Key: aws.String("foo"), Value: aws.String("bar")},
-					},
-				},
-				{
-					Name:         aws.String("test-ami-2"),
-					ImageId:      aws.String("ami-id-456"),
-					CreationDate: aws.String(time.Now().Add(time.Minute).Format(time.RFC3339)),
-					Architecture: aws.String("arm64"),
-					Tags: []*ec2.Tag{
-						{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
-						{Key: aws.String("foo"), Value: aws.String("bar")},
-					},
-				},
-			},
-		})
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -546,8 +495,8 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		Expect(len(nodeClass.Status.AMIs)).To(Equal(2))
 		Expect(nodeClass.Status.AMIs).To(ContainElements([]v1.AMI{
 			{
-				Name: "test-ami-2",
-				ID:   "ami-id-456",
+				Name: "arm64-standard",
+				ID:   "ami-arm64-standard",
 				Requirements: []corev1.NodeSelectorRequirement{
 					{
 						Key:      corev1.LabelArchStable,
@@ -565,8 +514,8 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 			{
-				Name: "test-ami-1",
-				ID:   "ami-id-123",
+				Name: "amd64-standard",
+				ID:   "ami-amd64-standard",
 				Requirements: []corev1.NodeSelectorRequirement{
 					{
 						Key:      corev1.LabelArchStable,
@@ -587,20 +536,22 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
 	})
 	It("should resolve a valid AMI selector", func() {
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+			Tags: map[string]string{"Name": "amd64-standard"},
+		}}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.AMIs).To(Equal(
 			[]v1.AMI{
 				{
-					Name: "test-ami-3",
-					ID:   "ami-test3",
+					Name: "amd64-standard-new",
+					ID:   "ami-amd64-standard-new",
 					Requirements: []corev1.NodeSelectorRequirement{{
 						Key:      corev1.LabelArchStable,
 						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{karpv1.ArchitectureAmd64},
-					},
-					},
+					}},
 				},
 			},
 		))
