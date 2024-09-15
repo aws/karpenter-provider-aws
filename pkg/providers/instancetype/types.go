@@ -89,6 +89,7 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		// Well Known to AWS
 		scheduling.NewRequirement(v1.LabelInstanceCPU, corev1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.VCpuInfo.DefaultVCpus))),
 		scheduling.NewRequirement(v1.LabelInstanceCPUManufacturer, corev1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1.LabelInstanceCPUSustainedClockSpeedMhz, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceMemory, corev1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.MemoryInfo.SizeInMiB))),
 		scheduling.NewRequirement(v1.LabelInstanceEBSBandwidth, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceNetworkBandwidth, corev1.NodeSelectorOpDoesNotExist),
@@ -163,6 +164,11 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 	// CPU Manufacturer, valid options: aws, intel, amd
 	if info.ProcessorInfo != nil {
 		requirements.Get(v1.LabelInstanceCPUManufacturer).Insert(lowerKabobCase(aws.StringValue(info.ProcessorInfo.Manufacturer)))
+	}
+	// CPU Sustained Clock Speed
+	if info.ProcessorInfo != nil {
+		// Convert from Ghz to Mhz and round to nearest whole number - converting from float64 to int to support Gt and Lt operators
+		requirements.Get(v1.LabelInstanceCPUSustainedClockSpeedMhz).Insert(fmt.Sprint(int(math.Round(aws.Float64Value(info.ProcessorInfo.SustainedClockSpeedInGhz) * 1000))))
 	}
 	// EBS Max Bandwidth
 	if info.EbsInfo != nil && info.EbsInfo.EbsOptimizedInfo != nil && aws.StringValue(info.EbsInfo.EbsOptimizedSupport) == ec2.EbsOptimizedSupportDefault {
