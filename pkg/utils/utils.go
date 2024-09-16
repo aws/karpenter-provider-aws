@@ -102,14 +102,22 @@ func GetKubletConfigurationWithNodePool(nodePool *karpv1.NodePool, nodeClass *v1
 			return parseKubeletConfiguration(annotation)
 		}
 	}
-	return nodeClass.Spec.Kubelet, nil
+	// DeepCopy the nodeClass.Spec.Kubelet if it exists, so we don't have the chance to mutate it indirectly
+	if nodeClass.Spec.Kubelet != nil {
+		return nodeClass.Spec.Kubelet.DeepCopy(), nil
+	}
+	return nil, nil
 }
 
 func GetKubeletConfigurationWithNodeClaim(nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (*v1.KubeletConfiguration, error) {
 	if annotation, ok := nodeClaim.Annotations[karpv1.KubeletCompatibilityAnnotationKey]; ok {
 		return parseKubeletConfiguration(annotation)
 	}
-	return nodeClass.Spec.Kubelet, nil
+	// DeepCopy the nodeClass.Spec.Kubelet if it exists, so we don't have the chance to mutate it indirectly
+	if nodeClass.Spec.Kubelet != nil {
+		return nodeClass.Spec.Kubelet.DeepCopy(), nil
+	}
+	return nil, nil
 }
 
 func parseKubeletConfiguration(annotation string) (*v1.KubeletConfiguration, error) {
