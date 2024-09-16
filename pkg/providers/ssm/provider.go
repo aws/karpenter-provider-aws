@@ -22,10 +22,10 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type Provider interface {
-	List(context.Context, string) (map[string]string, error)
 	Get(context.Context, string) (string, error)
 }
 
@@ -42,69 +42,19 @@ func NewDefaultProvider(ssmapi sdk.SSMAPI, cache *cache.Cache) *DefaultProvider 
 	}
 }
 
-// List calls GetParametersByPath recursively with the provided input path.
-// The result is a map of paths to values for those paths.
-func (p *DefaultProvider) List(ctx context.Context, path string) (map[string]string, error) {
+func (p *DefaultProvider) Get(ctx context.Context, parameter string) (string, error) {
 	p.Lock()
 	defer p.Unlock()
-	if paths, ok := p.cache.Get(path); ok {
-		return paths.(map[string]string), nil
-	}
-	values := map[string]string{}
-
-	paginator := ssm.NewGetParametersByPathPaginator(p.ssmapi, &ssm.GetParametersByPathInput{
-		Recursive: lo.ToPtr(true),
-		Path:      &path,
-	})
-	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("getting ssm parameters for path %q, %w", path, err)
-		}
-		for _, parameter := range page.Parameters {
-			if parameter.Name == nil || parameter.Value == nil {
-				continue
-			}
-			values[*parameter.Name] = *parameter.Value
-		}
-	}
-	p.cache.SetDefault(path, values)
-	return values, nil
-}
-
-func (p *DefaultProvider) Get(ctx context.Context, path string) (string, error) {
-	p.Lock()
-	defer p.Unlock()
-	if result, ok := p.cache.Get(path); ok {
+	if result, ok := p.cache.Get(parameter); ok {
 		return result.(string), nil
 	}
-	value, err := p.getParameter(ctx, path)
-	if err != nil {
-		return "", err
-	}
-	p.cache.SetDefault(path, value)
-	return value, nil
-}
-
-func (p *DefaultProvider) getParameter(ctx context.Context, path string) (string, error) {
-	paginator := ssm.NewGetParametersByPathPaginator(p.ssmapi, &ssm.GetParametersByPathInput{
-		Recursive: lo.ToPtr(true),
-		Path:      &path,
+	result, err := p.ssmapi.GetParameter(ctx, &ssm.GetParameterInput{
+		Name: lo.ToPtr(parameter),
 	})
-
-	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ctx)
-		if err != nil {
-			return "", fmt.Errorf("getting ssm parameters for path %q, %w", path, err)
-		}
-
-		for _, parameter := range page.Parameters {
-			if parameter.Name == nil || parameter.Value == nil {
-				continue
-			}
-			return *parameter.Value, nil
-		}
+	if err != nil {
+		return "", fmt.Errorf("getting ssm parameter %q, %w", parameter, err)
 	}
-
-	return "", fmt.Errorf("no parameter found for path %q", path)
+	p.cache.SetDefault(parameter, lo.FromPtr(result.Parameter.Value))
+	log.FromContext(ctx).WithValues("parameter", parameter, "value", result.Parameter.Value).Info("discovered ssm parameter")
+	return lo.FromPtr(result.Parameter.Value), nil
 }

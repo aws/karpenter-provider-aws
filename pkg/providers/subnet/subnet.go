@@ -96,13 +96,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// Ensure that all the subnets that are returned here are unique
 	subnets := map[string]*ec2types.Subnet{}
 	for _, filters := range filterSets {
-		output, err := p.ec2api.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{Filters: func() []ec2types.Filter {
-			f := make([]ec2types.Filter, len(filters))
-			for i, p := range filters {
-				f[i] = *p
-			}
-			return f
-		}()})
+		output, err := p.ec2api.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{Filters: lo.FromSlicePtr(filters)})
 		if err != nil {
 			return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
 		}

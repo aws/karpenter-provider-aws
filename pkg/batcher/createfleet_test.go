@@ -32,6 +32,11 @@ import (
 var _ = Describe("CreateFleet Batching", func() {
 	var cfb *batcher.CreateFleetBatcher
 
+	BeforeEach(func() {
+		fakeEC2API.Reset()
+		cfb = batcher.NewCreateFleetBatcher(ctx, fakeEC2API)
+	})
+
 	It("should batch the same inputs into a single call", func() {
 		input := &ec2.CreateFleetInput{
 			LaunchTemplateConfigs: []ec2types.FleetLaunchTemplateConfigRequest{

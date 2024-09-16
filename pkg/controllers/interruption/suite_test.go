@@ -268,22 +268,16 @@ var _ = Describe("Error Handling", func() {
 })
 
 func ExpectMessagesCreated(messages ...interface{}) {
-	var raw []*servicesqstypes.Message
-	raw = lo.Map(messages, func(m interface{}, _ int) *servicesqstypes.Message {
+	raw := lo.Map(messages, func(m interface{}, _ int) *servicesqstypes.Message {
 		return &servicesqstypes.Message{
 			Body:      aws.String(string(lo.Must(json.Marshal(m)))),
 			MessageId: aws.String(string(uuid.NewUUID())),
 		}
 	})
 
-	var messageValues []servicesqstypes.Message
-	for _, msg := range raw {
-		messageValues = append(messageValues, *msg)
-	}
-
 	sqsapi.ReceiveMessageBehavior.Output.Set(
 		&servicesqs.ReceiveMessageOutput{
-			Messages: messageValues,
+			Messages: lo.FromSlicePtr(raw),
 		},
 	)
 }

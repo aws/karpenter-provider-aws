@@ -219,30 +219,12 @@ func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *ami
 	return launchTemplate, nil
 }
 
-func convertTagsToSlice(tags []*ec2types.Tag) []ec2types.Tag {
-	result := make([]ec2types.Tag, len(tags))
-	for i, tag := range tags {
-		result[i] = *tag
-	}
-	return result
-}
-
 func convertBlockDeviceMappings(mappings []*ec2types.LaunchTemplateBlockDeviceMapping) []ec2types.LaunchTemplateBlockDeviceMappingRequest {
 	result := make([]ec2types.LaunchTemplateBlockDeviceMappingRequest, len(mappings))
 	for i, mapping := range mappings {
 		result[i] = ec2types.LaunchTemplateBlockDeviceMappingRequest{
 			DeviceName: mapping.DeviceName,
 			// Assign other fields from the mapping
-		}
-	}
-	return result
-}
-
-func convertStringPointerSliceToStringSlice(pointers []*string) []string {
-	result := make([]string, len(pointers))
-	for i, p := range pointers {
-		if p != nil {
-			result[i] = *p
 		}
 	}
 	return result
@@ -287,7 +269,7 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 	launchTemplateDataTags := []*ec2types.LaunchTemplateTagSpecification{
 		{
 			ResourceType: ec2types.ResourceTypeNetworkInterface,
-			Tags:         convertTagsToSlice(utils.MergeTags(options.Tags)),
+			Tags:         lo.FromSlicePtr(utils.MergeTags(options.Tags)),
 		},
 	}
 
@@ -306,9 +288,6 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 			ResourceType: "spot-instances",
 			Tags:         make([]ec2types.Tag, len(tags)),
 		})
-		for i, tag := range tags {
-			launchTemplateDataTags[len(launchTemplateDataTags)-1].Tags[i] = *tag
-		}
 	}
 	networkInterfaces := p.generateNetworkInterfaces(options)
 	networkInterfaceRequests := make([]ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest, len(networkInterfaces))
@@ -333,7 +312,7 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 				Enabled: aws.Bool(options.DetailedMonitoring),
 			},
 			// If the network interface is defined, the security groups are defined within it
-			SecurityGroupIds: lo.Ternary(networkInterfaces != nil, nil, convertStringPointerSliceToStringSlice(lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) *string { return aws.String(s.ID) }))),
+			SecurityGroupIds: lo.Ternary(networkInterfaces != nil, nil, lo.FromSlicePtr(lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) *string { return aws.String(s.ID) }))),
 			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),
 			MetadataOptions: &ec2types.LaunchTemplateInstanceMetadataOptionsRequest{
@@ -349,7 +328,7 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 		TagSpecifications: []ec2types.TagSpecification{
 			{
 				ResourceType: ec2types.ResourceTypeLaunchTemplate,
-				Tags:         convertTagsToSlice(utils.MergeTags(options.Tags, map[string]string{v1.TagManagedLaunchTemplate: options.ClusterName, v1.LabelNodeClass: options.NodeClassName})),
+				Tags:         lo.FromSlicePtr(utils.MergeTags(options.Tags, map[string]string{v1.TagManagedLaunchTemplate: options.ClusterName, v1.LabelNodeClass: options.NodeClassName})),
 			},
 		},
 	})

@@ -307,13 +307,7 @@ var _ = Describe("CloudProvider", func() {
 			instances, _ = fake.MakeUniqueInstancesAndFamilies(instances, 2)
 			instances[0].VCpuInfo = &ec2types.VCpuInfo{DefaultVCpus: aws.Int32(1)}
 			instances[1].VCpuInfo = &ec2types.VCpuInfo{DefaultVCpus: aws.Int32(8)}
-			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{InstanceTypes: func() []ec2types.InstanceTypeInfo {
-				i := make([]ec2types.InstanceTypeInfo, len(instances))
-				for j, info := range instances {
-					i[j] = *info
-				}
-				return i
-			}()})
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{InstanceTypes: lo.FromSlicePtr(instances)})
 			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: func() []ec2types.InstanceTypeOffering {
 				o := make([]ec2types.InstanceTypeOffering, len(instances))
 				for i, p := range instances {
@@ -1174,7 +1168,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(fake.SubnetsFromFleet(createFleetInput)).To(ConsistOf("test-subnet-2"))
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 		})
 		It("should launch instances into subnet with the most available IP addresses in-between cache refreshes", func() {
 			awsEnv.SubnetCache.Flush()
@@ -1197,13 +1191,13 @@ var _ = Describe("CloudProvider", func() {
 			ExpectScheduled(ctx, env.Client, pod1)
 			ExpectScheduled(ctx, env.Client, pod2)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(fake.SubnetsFromFleet(createFleetInput)).To(ConsistOf("test-subnet-2"))
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 			// Provision for another pod that should now use the other subnet since we've consumed some from the first launch.
 			pod3 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod3)
 			ExpectScheduled(ctx, env.Client, pod3)
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(fake.SubnetsFromFleet(createFleetInput)).To(ConsistOf("test-subnet-1"))
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
 		})
 		It("should update in-flight IPs when a CreateFleet error occurs", func() {
 			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
@@ -1231,7 +1225,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet1)
 			ExpectScheduled(ctx, env.Client, podSubnet1)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(fake.SubnetsFromFleet(createFleetInput)).To(ConsistOf("test-subnet-1"))
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
 
 			nodeClass2 := test.EC2NodeClass(v1.EC2NodeClass{
 				Spec: v1.EC2NodeClassSpec{
@@ -1274,7 +1268,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet2)
 			ExpectScheduled(ctx, env.Client, podSubnet2)
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(fake.SubnetsFromFleet(createFleetInput)).To(ConsistOf("test-subnet-2"))
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 		})
 		It("should launch instances with an alternate NodePool when a NodeClass selects 0 subnets, security groups, or amis", func() {
 			misconfiguredNodeClass := test.EC2NodeClass(v1.EC2NodeClass{

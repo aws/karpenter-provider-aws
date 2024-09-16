@@ -277,9 +277,6 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2types.InstanceTypeInfo, zones, instanceTypeZones sets.Set[string], subnets []v1.Subnet) []cloudprovider.Offering {
 	var offerings []cloudprovider.Offering
 	for zone := range zones {
-		if len(instanceType.SupportedUsageClasses) == 0 {
-			continue
-		}
 
 		for _, capacityType := range instanceType.SupportedUsageClasses {
 			isUnavailable := p.unavailableOfferings.IsUnavailable(string(instanceType.InstanceType), zone, string(capacityType))

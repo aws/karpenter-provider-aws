@@ -97,7 +97,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
 		metadataClient := imds.New(imds.Options{})
-		regionOutput, err := metadataClient.GetRegion(ctx, &imds.GetRegionInput{})
+		regionOutput, err := metadataClient.GetRegion(ctx, nil)
 		if err != nil {
 			log.FromContext(ctx).Error(err, "failed to get region from metadata server")
 			os.Exit(1)
@@ -204,7 +204,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 // WithUserAgent adds a karpenter specific user-agent string to AWS session
 func WithUserAgent(ctx context.Context, cfg aws.Config) (aws.Config, error) {
 	cfg.APIOptions = append(cfg.APIOptions,
-		middleware.AddUserAgentKey("CustomUserAgent"),
+		middleware.AddUserAgentKey(operator.Version),
 	)
 	return cfg, nil
 }
@@ -215,14 +215,11 @@ func CheckEC2Connectivity(ctx context.Context, api *ec2.Client) error {
 	_, err := api.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{
 		DryRun: aws.Bool(true),
 	})
-	if err != nil {
-		var apiErr smithy.APIError
-		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "DryRunOperation" {
-			return nil
-		}
-		return err
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) && apiErr.ErrorCode() == "DryRunOperation" {
+		return nil
 	}
-	return nil
+	return err
 }
 
 func ResolveClusterEndpoint(ctx context.Context, eksAPI sdk.EKSAPI) (string, error) {

@@ -16,6 +16,7 @@ package subnet_test
 
 import (
 	"context"
+	"reflect"
 	"sort"
 	"sync"
 	"testing"
@@ -49,29 +50,6 @@ func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "SubnetProvider")
-}
-
-func SubnetEqual(a, b *ec2types.Subnet) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	return *a.SubnetId == *b.SubnetId &&
-		*a.VpcId == *b.VpcId &&
-		*a.AvailabilityZone == *b.AvailabilityZone &&
-		*a.CidrBlock == *b.CidrBlock &&
-		*a.AvailableIpAddressCount == *b.AvailableIpAddressCount
-}
-
-func ContainsSubnet(subnets []*ec2types.Subnet, subnet *ec2types.Subnet) bool {
-	for _, s := range subnets {
-		if SubnetEqual(s, subnet) {
-			return true
-		}
-	}
-	return false
 }
 
 var _ = BeforeSuite(func() {
@@ -256,10 +234,6 @@ var _ = Describe("SubnetProvider", func() {
 	Context("Provider Cache", func() {
 		It("should resolve subnets from cache that are filtered by id", func() {
 			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
-			expectedSubnetPointers := make([]*ec2types.Subnet, len(expectedSubnets))
-			for i, subnet := range expectedSubnets {
-				expectedSubnetPointers[i] = &subnet
-			}
 
 			for _, subnet := range expectedSubnets {
 				nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
@@ -273,18 +247,13 @@ var _ = Describe("SubnetProvider", func() {
 			}
 
 			for _, cachedObject := range awsEnv.SubnetCache.Items() {
-				cachedSubnets := cachedObject.Object.([]*ec2types.Subnet)
-				for _, cachedSubnet := range cachedSubnets {
-					Expect(ContainsSubnet(expectedSubnetPointers, cachedSubnet)).To(BeTrue())
-				}
+				cachedSubnet := cachedObject.Object.([]*ec2types.Subnet)
+				Expect(cachedSubnet).To(HaveLen(1))
+				reflect.DeepEqual(expectedSubnets, cachedSubnet[0])
 			}
 		})
 		It("should resolve subnets from cache that are filtered by tags", func() {
 			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
-			expectedSubnetPointers := make([]*ec2types.Subnet, len(expectedSubnets))
-			for i, subnet := range expectedSubnets {
-				expectedSubnetPointers[i] = &subnet
-			}
 
 			tagSet := lo.Map(expectedSubnets, func(subnet ec2types.Subnet, _ int) map[string]string {
 				tag, _ := lo.Find(subnet.Tags, func(tag ec2types.Tag) bool {
@@ -304,10 +273,9 @@ var _ = Describe("SubnetProvider", func() {
 			}
 
 			for _, cachedObject := range awsEnv.SubnetCache.Items() {
-				cachedSubnets := cachedObject.Object.([]*ec2types.Subnet)
-				for _, cachedSubnet := range cachedSubnets {
-					Expect(ContainsSubnet(expectedSubnetPointers, cachedSubnet)).To(BeTrue())
-				}
+				cachedSubnet := cachedObject.Object.([]*ec2types.Subnet)
+				Expect(cachedSubnet).To(HaveLen(1))
+				reflect.DeepEqual(expectedSubnets, cachedSubnet[0])
 			}
 		})
 	})

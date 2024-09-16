@@ -23,10 +23,7 @@ import (
 )
 
 const (
-	launchTemplateNameNotFoundCode      = "InvalidLaunchTemplateName.NotFoundException"
-	ErrCodeQueueDoesNotExist            = "AWS.SimpleQueueService.NonExistentQueue"
-	ErrCodeNoSuchEntityException        = "NoSuchEntity"
-	ErrCodeEntityAlreadyExistsException = "EntityAlreadyExists"
+	launchTemplateNameNotFoundCode = "InvalidLaunchTemplateName.NotFoundException"
 )
 
 var (

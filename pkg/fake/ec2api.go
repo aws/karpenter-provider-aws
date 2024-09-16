@@ -241,14 +241,9 @@ func (e *EC2API) CreateTags(_ context.Context, input *ec2.CreateTagsInput, _ ...
 				return *tag.Key, *tag.Value
 			}))
 
-			var instanceTags []ec2types.Tag
-			for key, value := range tags {
-				instanceTags = append(instanceTags, ec2types.Tag{
-					Key:   aws.String(key),
-					Value: aws.String(value),
-				})
-			}
-			instance.Tags = instanceTags
+			instance.Tags = lo.MapToSlice(tags, func(key, value string) ec2types.Tag {
+				return ec2types.Tag{Key: aws.String(key), Value: aws.String(value)}
+			})
 		}
 		return nil, nil
 	})
@@ -278,13 +273,8 @@ func (e *EC2API) DescribeInstances(_ context.Context, input *ec2.DescribeInstanc
 			filters = append(filters, &filter)
 		}
 
-		var filteredInstances []ec2types.Instance
-		for _, instance := range filterInstances(instances, filters) {
-			filteredInstances = append(filteredInstances, *instance)
-		}
-
 		return &ec2.DescribeInstancesOutput{
-			Reservations: []ec2types.Reservation{{Instances: filteredInstances}},
+			Reservations: []ec2types.Reservation{{Instances: lo.FromSlicePtr(filterInstances(instances, filters))}},
 		}, nil
 	})
 }
@@ -353,17 +343,7 @@ func (e *EC2API) DescribeImages(_ context.Context, input *ec2.DescribeImagesInpu
 	if !e.DescribeImagesOutput.IsNil() {
 		describeImagesOutput := e.DescribeImagesOutput.Clone()
 
-		var images []*ec2types.Image
-		for _, img := range describeImagesOutput.Images {
-			images = append(images, &img)
-		}
-
-		var filters []*ec2types.Filter
-		for _, filter := range input.Filters {
-			filters = append(filters, &filter)
-		}
-
-		filteredImages := FilterDescribeImages(images, filters)
+		filteredImages := FilterDescribeImages(lo.ToSlicePtr(describeImagesOutput.Images), lo.ToSlicePtr(input.Filters))
 
 		var describeImagesOutputImages []ec2types.Image
 		for _, img := range filteredImages {
@@ -401,16 +381,8 @@ func (e *EC2API) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 		launchTemplatePtr := value.(*ec2types.LaunchTemplate)
 		if lo.Contains(input.LaunchTemplateNames, aws.ToString(launchTemplatePtr.LaunchTemplateName)) || len(input.Filters) != 0 {
 			var filters []*ec2types.Filter
-			for _, filter := range input.Filters {
-				filters = append(filters, &filter)
-			}
 
-			var tags []*ec2types.Tag
-			for _, tag := range launchTemplatePtr.Tags {
-				tags = append(tags, &tag)
-			}
-
-			if Filter(filters, aws.ToString(launchTemplatePtr.LaunchTemplateId), aws.ToString(launchTemplatePtr.LaunchTemplateName), tags) {
+			if Filter(filters, aws.ToString(launchTemplatePtr.LaunchTemplateId), aws.ToString(launchTemplatePtr.LaunchTemplateName), lo.ToSlicePtr(launchTemplatePtr.Tags)) {
 				output.LaunchTemplates = append(output.LaunchTemplates, *launchTemplatePtr)
 			}
 		}
@@ -455,12 +427,6 @@ func ConvertSubnetsSlice(sgs []*ec2types.Subnet) []ec2types.Subnet {
 func ConvertSecurityGroupsSlice(sgs []*ec2types.SecurityGroup) []ec2types.SecurityGroup {
 	return lo.Map(sgs, func(sg *ec2types.SecurityGroup, _ int) ec2types.SecurityGroup {
 		return *sg
-	})
-}
-
-func ConvertFilters(filters []ec2types.Filter) []*ec2types.Filter {
-	return lo.Map(filters, func(filter ec2types.Filter, _ int) *ec2types.Filter {
-		return &filter
 	})
 }
 
@@ -521,7 +487,7 @@ func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsIn
 	if len(input.Filters) == 0 {
 		return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
 	}
-	return &ec2.DescribeSubnetsOutput{Subnets: ConvertSubnetsSlice(FilterDescribeSubnets(subnets, ConvertFilters(input.Filters)))}, nil
+	return &ec2.DescribeSubnetsOutput{Subnets: ConvertSubnetsSlice(FilterDescribeSubnets(subnets, lo.ToSlicePtr(input.Filters)))}, nil
 }
 
 func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSecurityGroupsInput, _ ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupsOutput, error) {
@@ -562,7 +528,7 @@ func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSe
 	if len(input.Filters) == 0 {
 		return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
 	}
-	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: ConvertSecurityGroupsSlice(FilterDescribeSecurityGroups(sgs, ConvertFilters(input.Filters)))}, nil
+	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: ConvertSecurityGroupsSlice(FilterDescribeSecurityGroups(sgs, lo.ToSlicePtr(input.Filters)))}, nil
 }
 
 func (e *EC2API) DescribeAvailabilityZones(context.Context, *ec2.DescribeAvailabilityZonesInput, ...func(*ec2.Options)) (*ec2.DescribeAvailabilityZonesOutput, error) {

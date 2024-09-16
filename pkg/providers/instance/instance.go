@@ -99,14 +99,6 @@ func NewDefaultProvider(ctx context.Context, region string, ec2api sdk.EC2API, u
 	}
 }
 
-func convertTagsToSlice(tags []*ec2types.Tag) []ec2types.Tag {
-	result := make([]ec2types.Tag, len(tags))
-	for i, tag := range tags {
-		result[i] = *tag
-	}
-	return result
-}
-
 func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
 	schedulingRequirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	// Only filter the instances if there are no minValues in the requirement.
@@ -248,9 +240,9 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 			TotalTargetCapacity:       aws.Int32(1),
 		},
 		TagSpecifications: []ec2types.TagSpecification{
-			{ResourceType: ec2types.ResourceTypeInstance, Tags: convertTagsToSlice(utils.MergeTags(tags))},
-			{ResourceType: ec2types.ResourceTypeVolume, Tags: convertTagsToSlice(utils.MergeTags(tags))},
-			{ResourceType: ec2types.ResourceTypeFleet, Tags: convertTagsToSlice(utils.MergeTags(tags))},
+			{ResourceType: ec2types.ResourceTypeInstance, Tags: lo.FromSlicePtr(utils.MergeTags(tags))},
+			{ResourceType: ec2types.ResourceTypeVolume, Tags: lo.FromSlicePtr(utils.MergeTags(tags))},
+			{ResourceType: ec2types.ResourceTypeFleet, Tags: lo.FromSlicePtr(utils.MergeTags(tags))},
 		},
 	}
 	if capacityType == karpv1.CapacityTypeSpot {
@@ -280,13 +272,10 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 		}
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
-	createFleetErrors := make([]*ec2types.CreateFleetError, len(createFleetOutput.Errors))
-	for i, err := range createFleetOutput.Errors {
-		createFleetErrors[i] = &err
-	}
-	p.updateUnavailableOfferingsCache(ctx, createFleetErrors, capacityType)
+
+	p.updateUnavailableOfferingsCache(ctx, lo.ToSlicePtr(createFleetOutput.Errors), capacityType)
 	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
-		return nil, combineFleetErrors(createFleetErrors)
+		return nil, combineFleetErrors(lo.ToSlicePtr(createFleetOutput.Errors))
 	}
 	return &createFleetOutput.Instances[0], nil
 }
@@ -334,16 +323,12 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(ctx context.Context, nodeClas
 	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	requirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType)
 	for _, launchTemplate := range launchTemplates {
-		overrides := p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, requirements, launchTemplate.ImageID)
 		launchTemplateConfig := &ec2types.FleetLaunchTemplateConfig{
-			Overrides: make([]ec2types.FleetLaunchTemplateOverrides, len(overrides)),
+			Overrides: lo.FromSlicePtr(p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, requirements, launchTemplate.ImageID)),
 			LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecification{
 				LaunchTemplateName: aws.String(launchTemplate.Name),
 				Version:            aws.String("$Latest"),
 			},
-		}
-		for i, o := range overrides {
-			launchTemplateConfig.Overrides[i] = *o
 		}
 		if len(launchTemplateConfig.Overrides) > 0 {
 			launchTemplateConfigs = append(launchTemplateConfigs, launchTemplateConfig)

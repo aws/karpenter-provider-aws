@@ -85,14 +85,14 @@ func main() {
 }
 
 func getDescribeInstanceTypesOutput(ctx context.Context, ec2api *ec2.Client, instanceTypes []string) string {
-	var instanceTypeValues []ec2types.InstanceType
-	for _, it := range instanceTypes {
-		instanceTypeValues = append(instanceTypeValues, ec2types.InstanceType(it))
-	}
+	instanceTypeValues := lo.Map(instanceTypes, func(it string, _ int) ec2types.InstanceType {
+		return ec2types.InstanceType(it)
+	})
 
 	out, err := ec2api.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{
 		InstanceTypes: instanceTypeValues,
 	})
+
 	if err != nil {
 		log.Fatalf("describing instance types, %s", err)
 	}

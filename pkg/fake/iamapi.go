@@ -57,9 +57,9 @@ func NewIAMAPI() *IAMAPI {
 
 // Reset must be called between tests otherwise tests will pollute
 // each other.
-func toSliceOfValues[T any](pointers []T) []T {
-	values := make([]T, len(pointers))
-	for i, p := range pointers {
+func toSliceOfValues[T any](value []T) []T {
+	values := make([]T, len(value))
+	for i, p := range value {
 		values[i] = p
 	}
 	return values
@@ -206,8 +206,4 @@ func (s *IAMAPI) RemoveRoleFromInstanceProfile(_ context.Context, input *iam.Rem
 				aws.ToString(input.InstanceProfileName)),
 		}
 	})
-}
-
-func (s *IAMAPI) UntagInstanceProfile(_ context.Context, input *iam.UntagInstanceProfileInput, _ ...func(*iam.Options)) (*iam.UntagInstanceProfileOutput, error) {
-	return nil, fmt.Errorf("not implemented")
 }

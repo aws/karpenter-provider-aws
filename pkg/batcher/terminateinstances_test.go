@@ -33,6 +33,11 @@ import (
 var _ = Describe("TerminateInstances Batcher", func() {
 	var cfb *batcher.TerminateInstancesBatcher
 
+	BeforeEach(func() {
+		fakeEC2API.Reset()
+		cfb = batcher.NewTerminateInstancesBatcher(ctx, fakeEC2API)
+	})
+
 	It("should batch input into a single call", func() {
 		instanceIDs := []string{"i-1", "i-2", "i-3", "i-4", "i-5"}
 		for _, id := range instanceIDs {

@@ -39,16 +39,6 @@ type AL2 struct {
 	*Options
 }
 
-func dereferenceStringPointers(ptrs []*string) []string {
-	strs := make([]string, 0, len(ptrs))
-	for _, ptr := range ptrs {
-		if ptr != nil {
-			strs = append(strs, *ptr)
-		}
-	}
-	return strs
-}
-
 func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
 	imageIDs := []string{}
 	ids := map[string][]Variant{}

@@ -391,26 +391,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 		ExpectNotScheduled(ctx, env.Client, pod)
 	})
 	It("should order the instance types by price and only consider the cheapest ones", func() {
-		instanceTypes := make([]ec2types.InstanceTypeInfo, len(fake.MakeInstances()))
-		for i, instance := range fake.MakeInstances() {
-			instanceTypes[i] = *instance
-		}
 
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-			InstanceTypes: instanceTypes,
+			InstanceTypes: lo.FromSlicePtr(fake.MakeInstances()),
 		})
-
+		instances := fake.MakeInstances()
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-			InstanceTypeOfferings: func() []ec2types.InstanceTypeOffering {
-				offerings := make([]ec2types.InstanceTypeOffering, len(instanceTypes))
-				for i, instance := range instanceTypes {
-					offerings[i] = ec2types.InstanceTypeOffering{
-						InstanceType: instance.InstanceType,
-						// Set other fields as needed
-					}
-				}
-				return offerings
-			}(),
+			InstanceTypeOfferings: lo.FromSlicePtr(fake.MakeInstanceOfferings(instances)),
 		})
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
@@ -452,25 +439,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 	It("should order the instance types by price and only consider the spot types that are cheaper than the cheapest on-demand", func() {
 		instances := fake.MakeInstances()
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-			InstanceTypes: func() []ec2types.InstanceTypeInfo {
-				result := make([]ec2types.InstanceTypeInfo, len(instances))
-				for i, instance := range instances {
-					result[i] = *instance
-				}
-				return result
-			}(),
+			InstanceTypes: lo.FromSlicePtr(instances),
 		})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-			InstanceTypeOfferings: func() []ec2types.InstanceTypeOffering {
-				result := make([]ec2types.InstanceTypeOffering, 0, len(instances)*3) // Assuming 3 offerings per instance type
-				for _, instance := range instances {
-					result = append(result, ec2types.InstanceTypeOffering{
-						InstanceType: instance.InstanceType,
-						// Set the necessary fields for the InstanceTypeOffering
-					})
-				}
-				return result
-			}(),
+			InstanceTypeOfferings: lo.FromSlicePtr(fake.MakeInstanceOfferings(instances)),
 		})
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
@@ -523,22 +495,18 @@ var _ = Describe("InstanceTypeProvider", func() {
 		// find the cheapest OD price that works
 		cheapestODPrice := math.MaxFloat64
 		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
-			if override.InstanceType != "" {
-				odPrice, ok := awsEnv.PricingProvider.OnDemandPrice(string(override.InstanceType))
-				Expect(ok).To(BeTrue())
-				if odPrice < cheapestODPrice {
-					cheapestODPrice = odPrice
-				}
+			odPrice, ok := awsEnv.PricingProvider.OnDemandPrice(string(override.InstanceType))
+			Expect(ok).To(BeTrue())
+			if odPrice < cheapestODPrice {
+				cheapestODPrice = odPrice
 			}
 		}
 		// and our spot prices should be cheaper than the OD price
 		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
-			if override.InstanceType != "" {
-				instanceType := string(override.InstanceType)
-				spotPrice, ok := awsEnv.PricingProvider.SpotPrice(instanceType, *override.AvailabilityZone)
-				Expect(ok).To(BeTrue())
-				Expect(spotPrice).To(BeNumerically("<", cheapestODPrice))
-			}
+			instanceType := string(override.InstanceType)
+			spotPrice, ok := awsEnv.PricingProvider.SpotPrice(instanceType, *override.AvailabilityZone)
+			Expect(ok).To(BeTrue())
+			Expect(spotPrice).To(BeNumerically("<", cheapestODPrice))
 		}
 	})
 	It("should not remove expensive metal instanceTypeOptions if any of the requirement with minValues is provided", func() {

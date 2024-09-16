@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/samber/lo"
 )
 
 type Provider interface {
@@ -77,13 +78,7 @@ func (p *DefaultProvider) GetSQSMessages(ctx context.Context) ([]*sqstypes.Messa
 		return nil, fmt.Errorf("receiving sqs messages, %w", err)
 	}
 
-	return []*sqstypes.Message(func() []*sqstypes.Message {
-		m := make([]*sqstypes.Message, len(result.Messages))
-		for i, msg := range result.Messages {
-			m[i] = &msg
-		}
-		return m
-	}()), nil
+	return lo.ToSlicePtr(result.Messages), nil
 }
 
 func (p *DefaultProvider) SendMessage(ctx context.Context, body interface{}) (string, error) {

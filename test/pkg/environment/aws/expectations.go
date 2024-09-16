@@ -188,20 +188,10 @@ func (env *Environment) GetVolume(id *string) *ec2types.Volume {
 
 func (env *Environment) GetVolumes(ids ...*string) []*ec2types.Volume {
 	GinkgoHelper()
-	volumeIDs := make([]string, len(ids))
-	for i, id := range ids {
-		volumeIDs[i] = *id
-	}
-	dvo, err := env.EC2API.DescribeVolumes(context.Background(), &ec2.DescribeVolumesInput{
-		VolumeIds: volumeIDs,
-	})
+	dvo, err := env.EC2API.DescribeVolumes(context.Background(), &ec2.DescribeVolumesInput{VolumeIds: lo.FromSlicePtr(ids)})
 	Expect(err).ToNot(HaveOccurred())
 
-	volumes := make([]*ec2types.Volume, len(dvo.Volumes))
-	for i, volume := range dvo.Volumes {
-		volumes[i] = &volume
-	}
-	return volumes
+	return lo.ToSlicePtr(dvo.Volumes)
 }
 
 func (env *Environment) GetNetworkInterface(id *string) *ec2types.NetworkInterface {
@@ -212,20 +202,9 @@ func (env *Environment) GetNetworkInterface(id *string) *ec2types.NetworkInterfa
 
 func (env *Environment) GetNetworkInterfaces(ids ...*string) []*ec2types.NetworkInterface {
 	GinkgoHelper()
-	networkInterfaceIDs := make([]string, len(ids))
-	for i, id := range ids {
-		networkInterfaceIDs[i] = *id
-	}
-	dnio, err := env.EC2API.DescribeNetworkInterfaces(context.Background(), &ec2.DescribeNetworkInterfacesInput{
-		NetworkInterfaceIds: networkInterfaceIDs,
-	})
+	dnio, err := env.EC2API.DescribeNetworkInterfaces(context.Background(), &ec2.DescribeNetworkInterfacesInput{NetworkInterfaceIds: lo.FromSlicePtr(ids)})
 	Expect(err).ToNot(HaveOccurred())
-
-	networkInterfaces := make([]*ec2types.NetworkInterface, len(dnio.NetworkInterfaces))
-	for i, networkInterface := range dnio.NetworkInterfaces {
-		networkInterfaces[i] = &networkInterface
-	}
-	return networkInterfaces
+	return lo.ToSlicePtr(dnio.NetworkInterfaces)
 }
 
 func (env *Environment) GetSpotInstance(id *string) ec2types.SpotInstanceRequest {

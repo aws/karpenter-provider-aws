@@ -65,7 +65,7 @@ func NewInstanceFromFleet(out ec2types.CreateFleetInstance, tags map[string]stri
 	return &Instance{
 		LaunchTime:   time.Now(), // estimate the launch time since we just launched
 		State:        string(ec2types.InstanceStateNamePending),
-		ID:           string(out.InstanceIds[0]),
+		ID:           out.InstanceIds[0],
 		ImageID:      aws.ToString(out.LaunchTemplateAndOverrides.Overrides.ImageId),
 		Type:         string(out.InstanceType),
 		Zone:         aws.ToString(out.LaunchTemplateAndOverrides.Overrides.AvailabilityZone),

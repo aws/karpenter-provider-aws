@@ -16,7 +16,6 @@ package amifamily
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -39,7 +38,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
-	"github.com/aws/smithy-go"
 )
 
 type Provider interface {
@@ -161,21 +159,14 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 	}
 	images := map[uint64]AMI{}
 	for _, query := range queries {
-		var nextToken *string
-		for {
-			input := &ec2.DescribeImagesInput{
-				NextToken: nextToken,
-			}
-			output, err := p.ec2api.DescribeImages(ctx, input)
+		paginator := ec2.NewDescribeImagesPaginator(p.ec2api, query.DescribeImagesInput())
+		for paginator.HasMorePages() {
+			page, err := paginator.NextPage(ctx)
 			if err != nil {
-				var apiErr smithy.APIError
-				if errors.As(err, &apiErr) {
-					return nil, fmt.Errorf("API error: %s - %s", apiErr.ErrorCode(), apiErr.ErrorMessage())
-				}
 				return nil, fmt.Errorf("describing images, %w", err)
 			}
 
-			for _, image := range output.Images {
+			for _, image := range page.Images {
 				arch, ok := v1.AWSToKubeArchitectures[string(image.Architecture)]
 				if !ok {
 					continue
@@ -203,11 +194,6 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 					}
 				}
 			}
-
-			if output.NextToken == nil {
-				break
-			}
-			nextToken = output.NextToken
 		}
 	}
 	p.cache.SetDefault(fmt.Sprintf("%d", hash), AMIs(lo.Values(images)))

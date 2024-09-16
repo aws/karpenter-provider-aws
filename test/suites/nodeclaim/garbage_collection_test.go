@@ -33,6 +33,7 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
+	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -65,8 +66,10 @@ var _ = Describe("GarbageCollection", func() {
 				Name: aws.String(instanceProfileName),
 			},
 
-			SecurityGroupIds: securityGroupIds,
-			SubnetId:         aws.String(subnets[0].ID),
+			SecurityGroupIds: lo.Map(securityGroups, func(s environmentaws.SecurityGroup, _ int) string {
+				return *s.GroupIdentifier.GroupId
+			}),
+			SubnetId: aws.String(subnets[0].ID),
 			BlockDeviceMappings: []ec2types.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
@@ -118,14 +121,19 @@ var _ = Describe("GarbageCollection", func() {
 		Expect(out.Instances).To(HaveLen(1))
 
 		// Always ensure that we cleanup the instance
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		DeferCleanup(func() {
-			_, err := env.EC2API.TerminateInstances(context.Background(), &ec2.TerminateInstancesInput{
+			_, err := env.EC2API.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
 				InstanceIds: []string{*out.Instances[0].InstanceId},
 			})
-			if awserrors.IsNotFound(err) {
-				return
+			if err != nil {
+				if awserrors.IsNotFound(err) {
+					return
+				}
+				Expect(err).ToNot(HaveOccurred())
 			}
-			Expect(err).ToNot(HaveOccurred())
 		})
 
 		// Wait for the node to register with the cluster

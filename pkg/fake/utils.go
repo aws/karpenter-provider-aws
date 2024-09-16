@@ -74,7 +74,7 @@ func PrivateDNSName() string {
 }
 
 // SubnetsFromFleetRequest returns a unique slice of subnetIDs passed as overrides from a CreateFleetInput
-func SubnetsFromFleet(createFleetInput *ec2.CreateFleetInput) []string {
+func SubnetsFromFleetRequest(createFleetInput *ec2.CreateFleetInput) []string {
 	return lo.Uniq(lo.Flatten(lo.Map(createFleetInput.LaunchTemplateConfigs, func(ltReq ec2types.FleetLaunchTemplateConfigRequest, _ int) []string {
 		var subnets []string
 		for _, override := range ltReq.Overrides {
@@ -90,11 +90,7 @@ func SubnetsFromFleet(createFleetInput *ec2.CreateFleetInput) []string {
 // Filters are chained with a logical "AND"
 func FilterDescribeSecurityGroups(sgs []*ec2types.SecurityGroup, filters []*ec2types.Filter) []*ec2types.SecurityGroup {
 	return lo.Filter(sgs, func(group *ec2types.SecurityGroup, _ int) bool {
-		var tags []*ec2types.Tag
-		for _, tag := range group.Tags {
-			tags = append(tags, &tag)
-		}
-		return Filter(filters, *group.GroupId, *group.GroupName, tags)
+		return Filter(filters, *group.GroupId, *group.GroupName, lo.ToSlicePtr(group.Tags))
 	})
 }
 
@@ -102,21 +98,13 @@ func FilterDescribeSecurityGroups(sgs []*ec2types.SecurityGroup, filters []*ec2t
 // Filters are chained with a logical "AND"
 func FilterDescribeSubnets(subnets []*ec2types.Subnet, filters []*ec2types.Filter) []*ec2types.Subnet {
 	return lo.Filter(subnets, func(subnet *ec2types.Subnet, _ int) bool {
-		var tags []*ec2types.Tag
-		for _, tag := range subnet.Tags {
-			tags = append(tags, &tag)
-		}
-		return Filter(filters, *subnet.SubnetId, "", tags)
+		return Filter(filters, *subnet.SubnetId, "", lo.ToSlicePtr(subnet.Tags))
 	})
 }
 
 func FilterDescribeImages(images []*ec2types.Image, filters []*ec2types.Filter) []*ec2types.Image {
 	return lo.Filter(images, func(image *ec2types.Image, _ int) bool {
-		var tags []*ec2types.Tag
-		for _, tag := range image.Tags {
-			tags = append(tags, &tag)
-		}
-		return Filter(filters, *image.ImageId, *image.Name, tags)
+		return Filter(filters, *image.ImageId, *image.Name, lo.ToSlicePtr(image.Tags))
 	})
 }
 

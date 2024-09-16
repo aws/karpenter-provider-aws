@@ -82,19 +82,12 @@ var _ = Describe("InstanceType", func() {
 	It("should update instance type date with response from the DescribeInstanceTypes API", func() {
 		ec2InstanceTypes := fake.MakeInstances()
 		ec2Offerings := fake.MakeInstanceOfferings(ec2InstanceTypes)
-		var ec2instanceTypes []ec2types.InstanceTypeInfo
-		for _, info := range ec2InstanceTypes {
-			ec2instanceTypes = append(ec2instanceTypes, *info)
-		}
-		var instanceTypeOfferings []ec2types.InstanceTypeOffering
-		for _, offering := range ec2Offerings {
-			instanceTypeOfferings = append(instanceTypeOfferings, *offering)
-		}
+
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-			InstanceTypes: ec2instanceTypes,
+			InstanceTypes: lo.FromSlicePtr(ec2InstanceTypes),
 		})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-			InstanceTypeOfferings: instanceTypeOfferings,
+			InstanceTypeOfferings: lo.FromSlicePtr(ec2Offerings),
 		})
 
 		ExpectSingletonReconciled(ctx, controller)

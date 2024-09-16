@@ -84,13 +84,7 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]
 	}
 	securityGroups := map[string]*ec2types.SecurityGroup{}
 	for _, filters := range filterSets {
-		output, err := p.ec2api.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{Filters: func() []ec2types.Filter {
-			f := make([]ec2types.Filter, len(filters))
-			for i, p := range filters {
-				f[i] = *p
-			}
-			return f
-		}()})
+		output, err := p.ec2api.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{Filters: lo.FromSlicePtr(filters)})
 		if err != nil {
 			return nil, fmt.Errorf("describing security groups %+v, %w", filterSets, err)
 		}
