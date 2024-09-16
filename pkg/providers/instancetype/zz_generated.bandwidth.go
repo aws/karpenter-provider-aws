@@ -839,5 +839,6 @@ var (
 		"trn1.32xlarge":       800000,
 		"trn1n.32xlarge":      1600000,
 		"p5.48xlarge":         3200000,
+		"p5e.48xlarge":        3200000,
 	}
 )
