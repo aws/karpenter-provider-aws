@@ -15,6 +15,7 @@ limitations under the License.
 package scheduling_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -26,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
@@ -98,6 +100,28 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 		Expect(env.GetNode(pod.Spec.NodeName).Annotations).To(And(HaveKeyWithValue("foo", "bar"), HaveKeyWithValue(karpv1.DoNotDisruptAnnotationKey, "true")))
+	})
+	It("should ensure the NodePool and the NodeClaim use the same view of the v1beta1 kubelet configuration", func() {
+		v1beta1NodePool := &v1beta1.NodePool{}
+		Expect(nodePool.ConvertTo(env.Context, v1beta1NodePool)).To(Succeed())
+
+		// Allow a reasonable number of pods to schedule
+		v1beta1NodePool.Spec.Template.Spec.Kubelet = &v1beta1.KubeletConfiguration{
+			PodsPerCore: lo.ToPtr(int32(2)),
+		}
+		kubeletHash, err := json.Marshal(v1beta1NodePool.Spec.Template.Spec.Kubelet)
+		Expect(err).ToNot(HaveOccurred())
+		// Ensure that the v1 version of the NodeClass has a configuration that won't let pods schedule
+		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			MaxPods: lo.ToPtr(int32(0)),
+		}
+		pod := test.Pod()
+		env.ExpectCreated(nodeClass, v1beta1NodePool, pod)
+
+		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		Expect(nodeClaim.Annotations).To(HaveKeyWithValue(karpv1.KubeletCompatibilityAnnotationKey, string(kubeletHash)))
+		env.EventuallyExpectCreatedNodeCount("==", 1)
+		env.EventuallyExpectHealthy(pod)
 	})
 
 	Context("Labels", func() {
@@ -487,7 +511,6 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			Expect(lo.FromPtr(env.GetInstance(pod.Spec.NodeName).InstanceType)).To(Equal("c5.large"))
 			Expect(env.GetNode(pod.Spec.NodeName).Labels[karpv1.NodePoolLabelKey]).To(Equal(nodePoolHighPri.Name))
 		})
-
 		DescribeTable(
 			"should provision a right-sized node when a pod has InitContainers (cpu)",
 			func(expectedNodeCPU string, containerRequirements corev1.ResourceRequirements, initContainers ...corev1.Container) {
@@ -624,7 +647,6 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreated(nodePool, nodeClass, pod)
 			env.EventuallyExpectHealthy(pod)
 		})
-
 		It("should provision a node for a pod with overlapping zone and zone-id requirements", func() {
 			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s environmentaws.SubnetInfo) string {
 				return s.Zone

@@ -141,7 +141,7 @@ func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *karpv1.NodeClaim, node
 
 // Remove once v1beta1 is dropped
 func (c *CloudProvider) isKubeletConfigurationDrifted(nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass, nodePool *karpv1.NodePool) (cloudprovider.DriftReason, error) {
-	kubeletHash, err := utils.GetHashKubelet(nodePool, nodeClass)
+	kubeletHash, err := utils.GetHashKubeletWithNodePool(nodePool, nodeClass)
 	if err != nil {
 		return "", err
 	}

@@ -99,7 +99,7 @@ func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *v1.EC2N
 		if err != nil {
 			return err
 		}
-		kubeletHash, err := utils.GetHashKubelet(nodePool, nodeClass)
+		kubeletHash, err := utils.GetHashKubeletWithNodePool(nodePool, nodeClass)
 		if err != nil {
 			return err
 		}

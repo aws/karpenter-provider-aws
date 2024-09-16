@@ -171,7 +171,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 			},
 		})
 		ExpectApplied(ctx, env.Client, nodeClass, nodeClaim, nodePool)
-		expectedHash, _ := utils.GetHashKubelet(nodePool, nodeClass)
+		expectedHash, _ := utils.GetHashKubeletWithNodePool(nodePool, nodeClass)
 
 		ExpectObjectReconciled(ctx, env.Client, hashController, nodeClass)
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
@@ -201,7 +201,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 			PodsPerCore: lo.ToPtr(int32(9334283)),
 		}
 		ExpectApplied(ctx, env.Client, nodeClass, nodeClaim, nodePool)
-		expectedHash, _ := utils.GetHashKubelet(nodePool, nodeClass)
+		expectedHash, _ := utils.GetHashKubeletWithNodePool(nodePool, nodeClass)
 
 		ExpectObjectReconciled(ctx, env.Client, hashController, nodeClass)
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
@@ -435,7 +435,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 			PodsPerCore: lo.ToPtr(int32(9334283)),
 		}
 		ExpectApplied(ctx, env.Client, nodeClass, nodeClaim, nodePool)
-		expectedHash, _ := utils.GetHashKubelet(nil, nodeClass)
+		expectedHash, _ := utils.GetHashKubeletWithNodePool(nil, nodeClass)
 
 		ExpectObjectReconciled(ctx, env.Client, hashController, nodeClass)
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)

@@ -94,11 +94,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("EC2NodeClass %q is incompatible with Karpenter v1, specify your Ubuntu AMIs in your AMISelectorTerms", nodeClass.Name))
 	}
 	// TODO: Remove this after v1
-	nodePool, err := utils.ResolveNodePoolFromNodeClaim(ctx, c.kubeClient, nodeClaim)
-	if err != nil {
-		return nil, err
-	}
-	kubeletHash, err := utils.GetHashKubelet(nodePool, nodeClass)
+	kubeletHash, err := utils.GetHashKubeletWithNodeClaim(nodeClaim, nodeClass)
 	if err != nil {
 		return nil, err
 	}
