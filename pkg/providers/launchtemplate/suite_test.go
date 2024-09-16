@@ -626,7 +626,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should use custom block device mapping", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
@@ -676,7 +675,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should round up for custom block device mappings when specified in gigabytes", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
@@ -1362,7 +1360,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataNotContaining(corev1.LabelNamespaceNodeRestriction)
 		})
 		It("should specify --local-disks raid0 when instance-store policy is set on AL2", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -2122,7 +2119,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	})
 	Context("Detailed Monitoring", func() {
 		It("should default detailed monitoring to off", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2133,7 +2129,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should pass detailed monitoring setting to the launch template at creation", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.DetailedMonitoring = aws.Bool(true)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -2142,6 +2137,31 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(aws.BoolValue(ltInput.LaunchTemplateData.Monitoring.Enabled)).To(BeTrue())
+			})
+		})
+	})
+	Context("Instance Metadata", func() {
+		It("should set the default instance metadata settings on instances", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpEndpoint)).To(Equal(ec2.InstanceMetadataEndpointStateEnabled))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6)).To(Equal(ec2.InstanceMetadataEndpointStateDisabled))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit)).To(BeNumerically("==", 1))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpTokens)).To(Equal(ec2.HttpTokensStateRequired))
+			})
+		})
+		It("should set instance metadata tags to disabled", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.InstanceMetadataTags)).To(Equal(ec2.InstanceMetadataTagsStateDisabled))
 			})
 		})
 	})
