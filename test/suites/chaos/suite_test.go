@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -168,6 +169,7 @@ func (t *taintAdder) Reconcile(ctx context.Context, req reconcile.Request) (reco
 func (t *taintAdder) Builder(mgr manager.Manager) *controllerruntime.Builder {
 	return controllerruntime.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).
+		WithOptions(controller.Options{SkipNameValidation: lo.ToPtr(true)}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(obj client.Object) bool {
 			node := obj.(*corev1.Node)
 			if _, ok := node.Labels[coretest.DiscoveryLabel]; !ok {

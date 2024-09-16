@@ -506,11 +506,8 @@ func (env *Environment) eventuallyExpectScaleDown() {
 
 func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {
 	GinkgoHelper()
-	env.EventuallyExpectNotFoundAssertion(objects...).Should(Succeed())
-}
 
-func (env *Environment) EventuallyExpectNotFoundAssertion(objects ...client.Object) AsyncAssertion {
-	return Eventually(func(g Gomega) {
+	Eventually(func(g Gomega) {
 		for _, object := range objects {
 			err := env.Client.Get(env, client.ObjectKeyFromObject(object), object)
 			g.Expect(errors.IsNotFound(err)).To(BeTrue())

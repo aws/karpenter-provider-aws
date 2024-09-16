@@ -24,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -104,7 +105,11 @@ var _ = Describe("Interruption", func() {
 
 		// We are expecting the node to be terminated before the termination is complete
 		By("waiting to receive the interruption and terminate the node")
-		env.EventuallyExpectNotFoundAssertion(node).WithTimeout(time.Second * 110).Should(Succeed())
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+			g.Expect(!node.DeletionTimestamp.IsZero()).To(BeTrue())
+		}).WithTimeout(time.Minute).Should(Succeed())
+		env.EventuallyExpectNotFound(node)
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 	It("should terminate the node at the API server when the EC2 instance is stopped", func() {
@@ -130,7 +135,12 @@ var _ = Describe("Interruption", func() {
 
 		By("Stopping the EC2 instance without the EKS cluster's knowledge")
 		env.ExpectInstanceStopped(node.Name) // Make a call to the EC2 api to stop the instance
-		env.EventuallyExpectNotFoundAssertion(node).Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+			g.Expect(!node.DeletionTimestamp.IsZero()).To(BeTrue())
+		}).WithTimeout(time.Minute).Should(Succeed())
+		env.EventuallyExpectNotFound(node)
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 	It("should terminate the node at the API server when the EC2 instance is terminated", func() {
@@ -156,7 +166,12 @@ var _ = Describe("Interruption", func() {
 
 		By("Terminating the EC2 instance without the EKS cluster's knowledge")
 		env.ExpectInstanceTerminated(node.Name) // Make a call to the EC2 api to stop the instance
-		env.EventuallyExpectNotFoundAssertion(node).Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+			g.Expect(!node.DeletionTimestamp.IsZero()).To(BeTrue())
+		}).WithTimeout(time.Minute).Should(Succeed())
+		env.EventuallyExpectNotFound(node)
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 	It("should terminate the node when receiving a scheduled change health event", func() {
@@ -184,7 +199,12 @@ var _ = Describe("Interruption", func() {
 
 		By("Creating a scheduled change health event in the SQS message queue")
 		env.ExpectMessagesCreated(scheduledChangeMessage(env.Region, "000000000000", instanceID))
-		env.EventuallyExpectNotFoundAssertion(node).Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+			g.Expect(!node.DeletionTimestamp.IsZero()).To(BeTrue())
+		}).WithTimeout(time.Minute).Should(Succeed())
+		env.EventuallyExpectNotFound(node)
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 })

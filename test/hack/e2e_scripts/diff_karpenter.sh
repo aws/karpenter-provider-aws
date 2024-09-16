@@ -1,5 +1,5 @@
 CHART="oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter"
-if (( "$PRIVATE_CLUSTER" == 'true' )); then
+if [[ "$PRIVATE_CLUSTER" == "true" ]]; then
   CHART="oci://$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/karpenter/snapshot/karpenter"
 fi
 
