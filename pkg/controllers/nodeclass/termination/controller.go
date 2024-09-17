@@ -96,10 +96,11 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	}
 	controllerutil.RemoveFinalizer(nodeClass, v1.TerminationFinalizer)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
-		// We call Update() here rather than Patch() because patching a list with a JSON merge patch
+		// We use client.MergeFromWithOptimisticLock because patching a list with a JSON merge patch
 		// can cause races due to the fact that it fully replaces the list on a change
+		// Here, we are updating the finalizer list
 		// https://github.com/kubernetes/kubernetes/issues/111643#issuecomment-2016489732
-		if err := c.kubeClient.Update(ctx, nodeClass); err != nil {
+		if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); err != nil {
 			if errors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
