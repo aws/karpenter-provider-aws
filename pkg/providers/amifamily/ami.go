@@ -44,8 +44,8 @@ type Provider interface {
 
 type DefaultProvider struct {
 	sync.Mutex
-	clk clock.Clock
 
+	clk             clock.Clock
 	cache           *cache.Cache
 	ec2api          ec2iface.EC2API
 	cm              *pretty.ChangeMonitor
