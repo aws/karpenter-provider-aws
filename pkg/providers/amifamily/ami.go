@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -26,6 +25,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -44,6 +44,8 @@ type Provider interface {
 
 type DefaultProvider struct {
 	sync.Mutex
+	clk clock.Clock
+
 	cache           *cache.Cache
 	ec2api          ec2iface.EC2API
 	cm              *pretty.ChangeMonitor
@@ -51,8 +53,9 @@ type DefaultProvider struct {
 	ssmProvider     ssm.Provider
 }
 
-func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provider, ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(clk clock.Clock, versionProvider version.Provider, ssmProvider ssm.Provider, ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
+		clk:             clk,
 		cache:           cache,
 		ec2api:          ec2api,
 		cm:              pretty.NewChangeMonitor(),
@@ -171,24 +174,27 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 					// If we already have an image with the same set of requirements, but this image (candidate) is newer, replace the previous (existing) image.
 					// If we already have an image with the same set of requirements which is deprecated, but this image (candidate) is newer or non deprecated, replace the previous (existing) image
 					reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-					candidateDeprecated := parseTimeWithDefault(lo.FromPtr(image.DeprecationTime), maxTime).Unix() <= time.Now().Unix()
+					candidateDeprecated := parseTimeWithDefault(lo.FromPtr(image.DeprecationTime), maxTime).Unix() <= p.clk.Now().Unix()
 					if v, ok := images[reqsHash]; ok {
 						existingCreationTime := parseTimeWithDefault(v.CreationDate, minTime)
 						candidateCreationTime := parseTimeWithDefault(lo.FromPtr(image.CreationDate), minTime)
 						// If both AMIs have the same creation time
-						// And if the existing AMI is non-deprecated and the candidate AMI is deprecated, return the existing AMI
+						// And if the existing AMI is non-deprecated
+						// And the candidate AMI is deprecated, return the existing AMI
 						if existingCreationTime == candidateCreationTime && !v.Deprecated && candidateDeprecated && lo.FromPtr(image.Name) < v.Name {
 							continue
 						}
-						// If the existing AMI is non-deprecated
-						if !v.Deprecated {
-							if candidateDeprecated {
-								continue // If candidate AMI is deprecated, return the existing AMI
-							} else if !candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
-								continue // If candidate AMI is non-deprecated and candidate AMI is older than the existing AMI, return the existing AMI
-							}
-						} else if candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
-							continue // If both AMIs are deprecated and the candidate AMI is older than existing AMI, return the existing AMI
+						// If existing AMI is non-deprecated and the candidate AMI is deprecated, return the existing AMI
+						if !v.Deprecated && candidateDeprecated {
+							continue
+						}
+						// If both AMIs are non deprecated and the candidate AMI is older than the existing AMI, return the existing AMI
+						if !v.Deprecated && !candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
+							continue
+						}
+						// If both AMIs are deprecated and the candidate AMI is older than the existing AMI, return the existing AMI
+						if v.Deprecated && candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
+							continue
 						}
 					}
 					images[reqsHash] = AMI{

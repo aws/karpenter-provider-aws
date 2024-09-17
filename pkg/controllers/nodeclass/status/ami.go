@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/samber/lo"
@@ -45,16 +44,6 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeAMIsReady, "AMINotFound", "AMISelector did not match any AMIs")
 		return reconcile.Result{}, nil
 	}
-	// Filter and return only Deprecated AMIs if any exist
-	// This is used to set the status conditions accordingly if any deprecated AMIs exist and are being used
-	deprecatedAMIs := lo.Map(
-		lo.Filter(amis, func(ami amifamily.AMI, _ int) bool {
-			return ami.Deprecated
-		}),
-		func(ami amifamily.AMI, _ int) string {
-			return ami.AmiID
-		},
-	)
 	nodeClass.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1.AMI {
 		reqs := lo.Map(ami.Requirements.NodeSelectorRequirements(), func(item karpv1.NodeSelectorRequirementWithMinValues, _ int) corev1.NodeSelectorRequirement {
 			return item.NodeSelectorRequirement
@@ -72,11 +61,6 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 			Requirements: reqs,
 		}
 	})
-	if len(deprecatedAMIs) > 0 {
-		message := fmt.Sprintf("AMISelector matched deprecated AMIs %s", strings.Join(deprecatedAMIs, ", "))
-		nodeClass.StatusConditions().SetTrueWithReason(v1.ConditionTypeAMIsReady, "AMIsDeprecated", message)
-	} else {
-		nodeClass.StatusConditions().SetTrue(v1.ConditionTypeAMIsReady)
-	}
+	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeAMIsReady)
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }

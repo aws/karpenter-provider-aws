@@ -142,7 +142,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	)
 	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	ssmProvider := ssmp.NewDefaultProvider(ssm.New(sess), cache.New(awscache.SSMGetParametersByPathTTL, awscache.DefaultCleanupInterval))
-	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.NewDefaultResolver()
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
