@@ -203,9 +203,9 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.KubeletConf
 
 func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
 	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, options *Options) *LaunchTemplate {
-	kubeletConfig := nodeClass.Spec.Kubelet
-	if kubeletConfig == nil {
-		kubeletConfig = &v1.KubeletConfiguration{}
+	kubeletConfig := &v1.KubeletConfiguration{}
+	if nodeClass.Spec.Kubelet != nil {
+		kubeletConfig = nodeClass.Spec.Kubelet.DeepCopy()
 	}
 	if kubeletConfig.MaxPods == nil {
 		// nolint:gosec
