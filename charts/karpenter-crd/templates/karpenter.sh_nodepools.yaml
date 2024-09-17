@@ -71,6 +71,8 @@ spec:
                 from a combination of nodepool and pod scheduling constraints.
               properties:
                 disruption:
+                  default:
+                    consolidateAfter: 0s
                   description: Disruption contains the parameters that relate to Karpenter's disruption logic
                   properties:
                     budgets:
