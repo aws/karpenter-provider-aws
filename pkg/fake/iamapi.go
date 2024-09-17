@@ -40,6 +40,7 @@ type IAMAPIBehavior struct {
 	AddRoleToInstanceProfileBehavior      MockedFunction[iam.AddRoleToInstanceProfileInput, iam.AddRoleToInstanceProfileOutput]
 	TagInstanceProfileBehavior            MockedFunction[iam.TagInstanceProfileInput, iam.TagInstanceProfileOutput]
 	RemoveRoleFromInstanceProfileBehavior MockedFunction[iam.RemoveRoleFromInstanceProfileInput, iam.RemoveRoleFromInstanceProfileOutput]
+	UntagInstanceProfileBehavior          MockedFunction[iam.UntagInstanceProfileInput, iam.UntagInstanceProfileOutput]
 }
 
 type IAMAPI struct {
@@ -198,6 +199,25 @@ func (s *IAMAPI) RemoveRoleFromInstanceProfile(_ context.Context, input *iam.Rem
 				}
 			}
 			i.Roles = newRoles
+			return nil, nil
+		}
+		return nil, &smithy.GenericAPIError{
+			Code: "NoSuchEntityException",
+			Message: fmt.Sprintf("Instance Profile %s cannot be found",
+				aws.ToString(input.InstanceProfileName)),
+		}
+	})
+}
+
+func (s *IAMAPI) UntagInstanceProfile(_ context.Context, input *iam.UntagInstanceProfileInput, _ ...func(*iam.Options)) (*iam.UntagInstanceProfileOutput, error) {
+	return s.UntagInstanceProfileBehavior.Invoke(input, func(output *iam.UntagInstanceProfileInput) (*iam.UntagInstanceProfileOutput, error) {
+		s.Lock()
+		defer s.Unlock()
+
+		if profile, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
+			profile.Tags = lo.Reject(toSliceOfValues(profile.Tags), func(t iamtypes.Tag, _ int) bool {
+				return lo.Contains(toSliceOfValues(input.TagKeys), lo.FromPtr(t.Key))
+			})
 			return nil, nil
 		}
 		return nil, &smithy.GenericAPIError{
