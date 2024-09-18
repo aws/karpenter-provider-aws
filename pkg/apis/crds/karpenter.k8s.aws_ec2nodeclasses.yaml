@@ -228,9 +228,6 @@ spec:
                           RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
                           configure at most one root volume in BlockDeviceMappings.
                         type: boolean
-                    required:
-                      - deviceName
-                      - ebs
                     type: object
                   maxItems: 50
                   type: array
