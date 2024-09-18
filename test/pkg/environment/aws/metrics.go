@@ -89,8 +89,7 @@ func (env *Environment) MeasureDurationFor(f func(), eventType EventType, dimens
 func (env *Environment) ExpectMetric(name string, value float64, labels map[string]string) {
 	GinkgoHelper()
 
-	var dimensions []timestreamwritetypes.Dimension
-	dimensions = lo.MapToSlice(labels, func(k, v string) timestreamwritetypes.Dimension {
+	dimensions := lo.MapToSlice(labels, func(k, v string) timestreamwritetypes.Dimension {
 		return timestreamwritetypes.Dimension{
 			Name:  aws.String(k),
 			Value: aws.String(v),

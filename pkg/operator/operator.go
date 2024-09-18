@@ -31,7 +31,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/pricing"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/aws/smithy-go"
 	prometheusv2 "github.com/jonathan-innis/aws-sdk-go-prometheus/v2"
 	"github.com/patrickmn/go-cache"
@@ -43,6 +42,8 @@ import (
 	"k8s.io/client-go/transport"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/operator"
@@ -86,7 +87,7 @@ type Operator struct {
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
-	cfg, err := config.LoadDefaultConfig(ctx,
+	cfg, _ := config.LoadDefaultConfig(ctx,
 		config.WithRetryMaxAttempts(5),
 	)
 	prometheusv2.WithPrometheusMetrics(cfg, crmetrics.Registry)

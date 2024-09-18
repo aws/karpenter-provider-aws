@@ -67,9 +67,7 @@ var _ = Describe("CreateFleet Batching", func() {
 
 				var instanceIds []string
 				for _, rsv := range rsp.Instances {
-					for _, id := range rsv.InstanceIds {
-						instanceIds = append(instanceIds, id)
-					}
+					instanceIds = append(instanceIds, rsv.InstanceIds...)
 				}
 				atomic.AddInt64(&receivedInstance, 1)
 				Expect(instanceIds).To(HaveLen(1))
@@ -134,9 +132,7 @@ var _ = Describe("CreateFleet Batching", func() {
 
 				var instanceIds []string
 				for _, rsv := range rsp.Instances {
-					for _, id := range rsv.InstanceIds {
-						instanceIds = append(instanceIds, id)
-					}
+					instanceIds = append(instanceIds, rsv.InstanceIds...)
 				}
 				atomic.AddInt64(&receivedInstance, 1)
 				Expect(instanceIds).To(HaveLen(1))
@@ -232,9 +228,7 @@ var _ = Describe("CreateFleet Batching", func() {
 
 				var instanceIds []string
 				for _, rsv := range rsp.Instances {
-					for _, id := range rsv.InstanceIds {
-						instanceIds = append(instanceIds, id)
-					}
+					instanceIds = append(instanceIds, rsv.InstanceIds...)
 				}
 				atomic.AddInt64(&receivedInstance, 1)
 				Expect(instanceIds).To(HaveLen(1))
@@ -324,9 +318,7 @@ var _ = Describe("CreateFleet Batching", func() {
 
 				var instanceIds []string
 				for _, rsv := range rsp.Instances {
-					for _, id := range rsv.InstanceIds {
-						instanceIds = append(instanceIds, id)
-					}
+					instanceIds = append(instanceIds, rsv.InstanceIds...)
 				}
 				Expect(instanceIds).To(Or(HaveLen(0), HaveLen(1)))
 				if len(instanceIds) == 1 {

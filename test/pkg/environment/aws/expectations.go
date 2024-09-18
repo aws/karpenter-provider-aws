@@ -98,7 +98,7 @@ func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) 
 				// durationBeforeInterruption is the time before the instance is terminated, so we add 2 minutes
 				"durationBeforeInterruption": "PT120S",
 			},
-			Targets: map[string]string{"SpotInstances": string(key)},
+			Targets: map[string]string{"SpotInstances": key},
 		}
 		template.Targets[key] = fistypes.CreateExperimentTemplateTargetInput{
 			ResourceType:  aws.String("aws:ec2:spot-instance"),

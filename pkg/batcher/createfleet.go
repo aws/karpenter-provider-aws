@@ -22,8 +22,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 )
 
 type CreateFleetBatcher struct {
@@ -54,7 +55,8 @@ func execCreateFleetBatch(ec2api sdk.EC2API) BatchExecutor[ec2.CreateFleetInput,
 	return func(ctx context.Context, inputs []*ec2.CreateFleetInput) []Result[ec2.CreateFleetOutput] {
 		results := make([]Result[ec2.CreateFleetOutput], 0, len(inputs))
 		firstInput := inputs[0]
-		firstInput.TargetCapacitySpecification.TotalTargetCapacity = aws.Int32(int32(len(inputs)))
+		totalTargetCapacity := aws.Int32(int32(len(inputs)))
+		firstInput.TargetCapacitySpecification.TotalTargetCapacity = totalTargetCapacity
 		output, err := ec2api.CreateFleet(ctx, firstInput)
 		if err != nil {
 			for range inputs {

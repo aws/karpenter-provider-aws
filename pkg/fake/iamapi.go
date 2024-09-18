@@ -60,9 +60,7 @@ func NewIAMAPI() *IAMAPI {
 // each other.
 func toSliceOfValues[T any](value []T) []T {
 	values := make([]T, len(value))
-	for i, p := range value {
-		values[i] = p
-	}
+	copy(values, value)
 	return values
 }
 

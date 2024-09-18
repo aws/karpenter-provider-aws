@@ -194,7 +194,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		env.EventuallyExpectNotFound(nodeClaim, node)
 
 		Eventually(func(g Gomega) {
-			g.Expect(fmt.Sprintf("%s", env.GetInstanceByID(instanceID).State.Name)).To(BeElementOf("terminated", "shutting-down"))
+			g.Expect(string(env.GetInstanceByID(instanceID).State.Name)).To(BeElementOf("terminated", "shutting-down"))
 		}, time.Second*10).Should(Succeed())
 	})
 	It("should delete a NodeClaim from the node termination finalizer", func() {
@@ -235,7 +235,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		env.EventuallyExpectNotFound(nodeClaim, node)
 
 		Eventually(func(g Gomega) {
-			g.Expect(fmt.Sprintf("%s", env.GetInstanceByID(instanceID).State.Name)).To(BeElementOf("terminated", "shutting-down"))
+			g.Expect(string(env.GetInstanceByID(instanceID).State.Name)).To(BeElementOf("terminated", "shutting-down"))
 		}, time.Second*10).Should(Succeed())
 	})
 	It("should create a NodeClaim with custom labels passed through the userData", func() {

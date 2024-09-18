@@ -335,7 +335,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
-			instanceNames := lo.Map(instances, func(info *ec2types.InstanceTypeInfo, _ int) string { return fmt.Sprintf("%s", info.InstanceType) })
+			instanceNames := lo.Map(instances, func(info *ec2types.InstanceTypeInfo, _ int) string { return string(info.InstanceType) })
 
 			// Define NodePool that has minValues on instance-type requirement.
 			nodePool = coretest.NodePool(karpv1.NodePool{
@@ -399,7 +399,7 @@ var _ = Describe("CloudProvider", func() {
 			uniqueInstanceTypes := sets.Set[string]{}
 			for _, launchTemplateConfig := range createFleetInput.LaunchTemplateConfigs {
 				for _, override := range launchTemplateConfig.Overrides {
-					uniqueInstanceTypes.Insert(fmt.Sprintf("%s", override.InstanceType))
+					uniqueInstanceTypes.Insert(string(override.InstanceType))
 				}
 			}
 			// This ensures that we have sent the minimum number of requirements defined in the NodePool.
@@ -445,7 +445,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
-			instanceNames := lo.Map(instances, func(info *ec2types.InstanceTypeInfo, _ int) string { return fmt.Sprintf("%s", info.InstanceType) })
+			instanceNames := lo.Map(instances, func(info *ec2types.InstanceTypeInfo, _ int) string { return string(info.InstanceType) })
 
 			// Define NodePool that has minValues on instance-type requirement.
 			nodePool = coretest.NodePool(karpv1.NodePool{
@@ -509,7 +509,7 @@ var _ = Describe("CloudProvider", func() {
 			uniqueInstanceTypes := sets.Set[string]{}
 			for _, launchTemplateConfig := range createFleetInput.LaunchTemplateConfigs {
 				for _, override := range launchTemplateConfig.Overrides {
-					uniqueInstanceTypes.Insert(fmt.Sprintf("%s", override.InstanceType))
+					uniqueInstanceTypes.Insert(string(override.InstanceType))
 				}
 			}
 			// This ensures that we have sent the minimum number of requirements defined in the NodePool.
@@ -564,7 +564,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
-			instanceNames := lo.Map(uniqInstanceTypes, func(info *ec2types.InstanceTypeInfo, _ int) string { return fmt.Sprintf("%s", info.InstanceType) })
+			instanceNames := lo.Map(uniqInstanceTypes, func(info *ec2types.InstanceTypeInfo, _ int) string { return string(info.InstanceType) })
 
 			// Define NodePool that has minValues in multiple requirements.
 			nodePool = coretest.NodePool(karpv1.NodePool{
@@ -627,8 +627,8 @@ var _ = Describe("CloudProvider", func() {
 			uniqueInstanceTypes, uniqueInstanceFamilies := sets.Set[string]{}, sets.Set[string]{}
 			for _, launchTemplateConfig := range createFleetInput.LaunchTemplateConfigs {
 				for _, override := range launchTemplateConfig.Overrides {
-					uniqueInstanceTypes.Insert(fmt.Sprintf("%s", override.InstanceType))
-					uniqueInstanceFamilies.Insert(strings.Split(fmt.Sprintf("%s", override.InstanceType), ".")[0])
+					uniqueInstanceTypes.Insert(string(override.InstanceType))
+					uniqueInstanceFamilies.Insert(strings.Split(string(override.InstanceType), ".")[0])
 				}
 			}
 			// Ensure that there are at least minimum number of unique instance types as per the requirement in the CreateFleet request.
@@ -761,7 +761,7 @@ var _ = Describe("CloudProvider", func() {
 			// Create the instance we want returned from the EC2 API
 			instance = &ec2types.Instance{
 				ImageId:               aws.String(amdAMIID),
-				InstanceType:          ec2types.InstanceType(fmt.Sprintf("%s", selectedInstanceType.Name)),
+				InstanceType:          ec2types.InstanceType(selectedInstanceType.Name),
 				SubnetId:              aws.String(validSubnet1),
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
 				State: &ec2types.InstanceState{

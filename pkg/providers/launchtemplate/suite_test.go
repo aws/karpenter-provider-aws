@@ -2155,10 +2155,10 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpEndpoint)).To(Equal(ec2.InstanceMetadataEndpointStateEnabled))
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6)).To(Equal(ec2.InstanceMetadataEndpointStateDisabled))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2types.InstanceMetadataEndpointStateEnabled))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2types.InstanceMetadataEndpointStateDisabled))
 				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit)).To(BeNumerically("==", 1))
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpTokens)).To(Equal(ec2.HttpTokensStateRequired))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2types.HttpTokensStateRequired))
 			})
 		})
 		It("should set instance metadata tags to disabled", func() {
@@ -2168,7 +2168,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.InstanceMetadataTags)).To(Equal(ec2.InstanceMetadataTagsStateDisabled))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.InstanceMetadataTags).To(Equal(ec2types.InstanceMetadataTagsStateDisabled))
 			})
 		})
 	})

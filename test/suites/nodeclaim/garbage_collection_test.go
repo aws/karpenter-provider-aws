@@ -154,7 +154,7 @@ var _ = Describe("GarbageCollection", func() {
 		// Eventually expect the node and the instance to be removed (shutting-down)
 		env.EventuallyExpectNotFound(node)
 		Eventually(func(g Gomega) {
-			g.Expect(fmt.Sprintf("%s", env.GetInstanceByID(aws.ToString(out.Instances[0].InstanceId)).State.Name)).To(BeElementOf("terminated", "shutting-down"))
+			g.Expect(string(env.GetInstanceByID(aws.ToString(out.Instances[0].InstanceId)).State.Name)).To(BeElementOf("terminated", "shutting-down"))
 		}, time.Second*10).Should(Succeed())
 	})
 	It("should succeed to garbage collect an Instance that was deleted without the cluster's knowledge", func() {

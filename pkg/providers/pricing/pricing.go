@@ -296,31 +296,6 @@ func (p *DefaultProvider) fetchOnDemandPricing(ctx context.Context, additionalFi
 	return prices, nil
 }
 
-func (p *DefaultProvider) spotPage(ctx context.Context, prices map[string]map[string]float64) func(output *ec2.DescribeSpotPriceHistoryOutput, b bool) bool {
-	return func(output *ec2.DescribeSpotPriceHistoryOutput, b bool) bool {
-		for _, sph := range output.SpotPriceHistory {
-			spotPriceStr := aws.ToString(sph.SpotPrice)
-			spotPrice, err := strconv.ParseFloat(spotPriceStr, 64)
-			// these errors shouldn't occur, but if pricing API does have an error, we ignore the record
-			if err != nil {
-				log.FromContext(ctx).V(1).Info(fmt.Sprintf("unable to parse price record %#v", sph))
-				continue
-			}
-			if sph.Timestamp == nil {
-				continue
-			}
-			instanceType := string(sph.InstanceType)
-			az := aws.ToString(sph.AvailabilityZone)
-			_, ok := prices[instanceType]
-			if !ok {
-				prices[instanceType] = map[string]float64{}
-			}
-			prices[instanceType][az] = spotPrice
-		}
-		return true
-	}
-}
-
 // turning off cyclo here, it measures as a 12 due to all of the type checks of the pricing data which returns a deeply
 // nested map[string]interface{}
 // nolint: gocyclo

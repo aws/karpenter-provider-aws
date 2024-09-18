@@ -484,7 +484,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreated(pod, nodeClass, nodePoolLowPri, nodePoolHighPri)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
-			Expect(fmt.Sprintf("%s", env.GetInstance(pod.Spec.NodeName).InstanceType)).To(Equal("c5.large"))
+			Expect(string(env.GetInstance(pod.Spec.NodeName).InstanceType)).To(Equal("c5.large"))
 			Expect(env.GetNode(pod.Spec.NodeName).Labels[karpv1.NodePoolLabelKey]).To(Equal(nodePoolHighPri.Name))
 		})
 

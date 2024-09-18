@@ -22,11 +22,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 

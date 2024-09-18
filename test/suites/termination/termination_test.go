@@ -15,7 +15,6 @@ limitations under the License.
 package termination_test
 
 import (
-	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -49,7 +48,7 @@ var _ = Describe("Termination", func() {
 		env.ExpectDeleted(nodes[0])
 		env.EventuallyExpectNotFound(nodes[0])
 		Eventually(func(g Gomega) {
-			g.Expect(fmt.Sprintf("%s", env.GetInstanceByID(instanceID).State.Name)).To(BeElementOf("terminated", "shutting-down"))
+			g.Expect(string(env.GetInstanceByID(instanceID).State.Name)).To(BeElementOf("terminated", "shutting-down"))
 		}, time.Second*10).Should(Succeed())
 	})
 	// Pods from Karpenter nodes are expected to drain in the following order:

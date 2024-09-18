@@ -21,11 +21,12 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/scheduling"

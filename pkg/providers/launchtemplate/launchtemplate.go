@@ -47,9 +47,10 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
-	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
+
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 )
 
 type Provider interface {
@@ -281,14 +282,6 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 		}
 	}
 
-	// Add the spot-instances-request tag if trying to launch spot capacity
-	if options.CapacityType == karpv1.CapacityTypeSpot {
-		tags := utils.MergeTags(options.Tags)
-		launchTemplateDataTags = append(launchTemplateDataTags, &ec2types.LaunchTemplateTagSpecification{
-			ResourceType: "spot-instances",
-			Tags:         make([]ec2types.Tag, len(tags)),
-		})
-	}
 	networkInterfaces := p.generateNetworkInterfaces(options)
 	networkInterfaceRequests := make([]ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest, len(networkInterfaces))
 	for i, intf := range networkInterfaces {

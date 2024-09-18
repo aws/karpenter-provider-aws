@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	"github.com/aws/karpenter-provider-aws/pkg/batcher"
+
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -84,7 +84,6 @@ type DefaultProvider struct {
 	instanceTypeProvider   instancetype.Provider
 	subnetProvider         subnet.Provider
 	launchTemplateProvider launchtemplate.Provider
-	ec2Batcher             *batcher.Batcher[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 }
 
 func NewDefaultProvider(ctx context.Context, region string, ec2api sdk.EC2API, unavailableOfferings *cache.UnavailableOfferings,
