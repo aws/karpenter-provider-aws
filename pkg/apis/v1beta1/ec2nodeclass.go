@@ -222,11 +222,11 @@ type MetadataOptions struct {
 
 type BlockDeviceMapping struct {
 	// The device name (for example, /dev/sdh or xvdh).
-	// +required
+	// +optional
 	DeviceName *string `json:"deviceName,omitempty"`
 	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
 	// +kubebuilder:validation:XValidation:message="snapshotID or volumeSize must be defined",rule="has(self.snapshotID) || has(self.volumeSize)"
-	// +required
+	// +optional
 	EBS *BlockDevice `json:"ebs,omitempty"`
 	// RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
 	// configure at most one root volume in BlockDeviceMappings.
