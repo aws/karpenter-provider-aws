@@ -142,7 +142,19 @@ func parseKubeletConfiguration(annotation string) (*v1.KubeletConfiguration, err
 	}, nil
 }
 
-func GetHashKubelet(nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (string, error) {
+func GetHashKubeletWithNodeClaim(nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (string, error) {
+	kubelet, err := GetKubeletConfigurationWithNodeClaim(nodeClaim, nodeClass)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprint(lo.Must(hashstructure.Hash(kubelet, hashstructure.FormatV2, &hashstructure.HashOptions{
+		SlicesAsSets:    true,
+		IgnoreZeroValue: true,
+		ZeroNil:         true,
+	}))), nil
+}
+
+func GetHashKubeletWithNodePool(nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (string, error) {
 	kubelet, err := GetKubletConfigurationWithNodePool(nodePool, nodeClass)
 	if err != nil {
 		return "", err
