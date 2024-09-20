@@ -76,6 +76,16 @@ func (b Bottlerocket) Script() (string, error) {
 	for _, taint := range b.Taints {
 		s.Settings.Kubernetes.NodeTaints[taint.Key] = append(s.Settings.Kubernetes.NodeTaints[taint.Key], fmt.Sprintf("%s:%s", taint.Value, taint.Effect))
 	}
+
+	if b.RAIDInstanceStorage {
+		s.Settings.BootstrapCommands = map[string]BootstrapCommand{
+			"000-mount-instance-storage": {
+				Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}},
+				Essential: false,
+				Mode:      BootstrapCommandModeAlways,
+			},
+		}
+	}
 	script, err := s.MarshalTOML()
 	if err != nil {
 		return "", fmt.Errorf("constructing toml UserData %w", err)

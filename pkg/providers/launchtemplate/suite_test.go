@@ -1369,12 +1369,77 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataNotContaining(corev1.LabelNamespaceNodeRestriction)
 		})
 		It("should specify --local-disks raid0 when instance-store policy is set on AL2", func() {
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceLocalStorage,
+					Operator: corev1.NodeSelectorOpExists,
+				},
+			})
 			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
+
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 1))
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--local-disks raid0")
+		})
+		It("should specify RAID0 bootstrap-command when instance-store policy is set on Bottlerocket", func() {
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceLocalStorage,
+					Operator: corev1.NodeSelectorOpExists,
+				},
+			})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 1))
+			ExpectLaunchTemplatesCreatedWithUserDataContaining(`
+[settings.bootstrap-commands.000-mount-instance-storage]
+commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/containerd', '/var/lib/kubelet', '/var/log/pods']]
+mode = 'always'
+essential = false
+`)
+		})
+		It("should specify a smaller ephemeral block device when instance-store policy is set", func() {
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					// Specify one instance type that has instance storage and another that doesn't
+					Values: []string{"m6idn.32xlarge", "t3.large"},
+				},
+			})
+			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+				{
+					DeviceName: lo.ToPtr("/dev/xvda"),
+					EBS: &v1.BlockDevice{
+						Encrypted:  lo.ToPtr(true),
+						VolumeSize: lo.ToPtr(resource.MustParse("100Gi")),
+						VolumeType: lo.ToPtr("gp3"),
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			volumeSizeCounts := map[int]int{}
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 2))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(len(ltInput.LaunchTemplateData.BlockDeviceMappings)).To(Equal(1))
+				volumeSizeCounts[int(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)]++
+			})
+			// Expect one launch template to have a volume at 100Gi and the other at 20Gi
+			Expect(volumeSizeCounts).To(HaveKeyWithValue(100, 1))
+			Expect(volumeSizeCounts).To(HaveKeyWithValue(20, 1))
 		})
 		Context("Bottlerocket", func() {
 			BeforeEach(func() {
@@ -1808,6 +1873,12 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				)
 			})
 			It("should set LocalDiskStrategy to Raid0 when specified by the InstanceStorePolicy", func() {
+				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      v1.LabelInstanceLocalStorage,
+						Operator: corev1.NodeSelectorOpExists,
+					},
+				})
 				nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
@@ -2240,7 +2311,7 @@ func ExpectUserDataCreatedWithNodeConfigs(userData string) []admv1alpha1.NodeCon
 	GinkgoHelper()
 	archive, err := mime.NewArchive(userData)
 	Expect(err).To(BeNil())
-	nodeConfigs := lo.FilterMap([]mime.Entry(archive), func(entry mime.Entry, _ int) (admv1alpha1.NodeConfig, bool) {
+	nodeConfigs := lo.FilterMap(archive, func(entry mime.Entry, _ int) (admv1alpha1.NodeConfig, bool) {
 		config := admv1alpha1.NodeConfig{}
 		if entry.ContentType != mime.ContentTypeNodeConfig {
 			return config, false

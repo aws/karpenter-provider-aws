@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/yaml"
 
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap/mime"
 )
 
@@ -83,7 +82,7 @@ func (n Nodeadm) getNodeConfigYAML() (string, error) {
 	} else {
 		return "", cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("resolving cluster CIDR"))
 	}
-	if lo.FromPtr(n.InstanceStorePolicy) == v1.InstanceStorePolicyRAID0 {
+	if n.RAIDInstanceStorage {
 		config.Spec.Instance.LocalStorage.Strategy = admv1alpha1.LocalStorageRAID0
 	}
 	inlineConfig, err := n.generateInlineKubeletConfiguration()

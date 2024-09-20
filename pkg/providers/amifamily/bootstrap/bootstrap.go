@@ -37,7 +37,7 @@ type Options struct {
 	CABundle            *string
 	ContainerRuntime    *string
 	CustomUserData      *string
-	InstanceStorePolicy *v1.InstanceStorePolicy
+	RAIDInstanceStorage bool
 }
 
 func (o Options) kubeletExtraArgs() (args []string) {
