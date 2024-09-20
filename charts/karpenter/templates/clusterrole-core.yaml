@@ -41,15 +41,6 @@ rules:
   - apiGroups: ["apps"]
     resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
     verbs: ["list", "watch"]
-  {{- if .Values.webhook.enabled }}
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources: ["customresourcedefinitions"]
-    verbs: ["get", "watch", "list"]
-  {{- else }}
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources: ["customresourcedefinitions"]
-    verbs: ["get"]
-  {{- end }}
   - apiGroups: ["policy"]
     resources: ["poddisruptionbudgets"]
     verbs: ["get", "list", "watch"]
@@ -72,15 +63,6 @@ rules:
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["delete"]
-  {{- if .Values.webhook.enabled }}
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources: ["customresourcedefinitions"]
-    verbs: ["update", "patch"]
-  {{- else }}
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources: ["customresourcedefinitions"]
-    verbs: ["patch"]
-  {{- end }}
   {{- with .Values.additionalClusterRoleRules -}}
   {{ toYaml . | nindent 2 }}
   {{- end -}}

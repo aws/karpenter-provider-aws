@@ -4791,6 +4791,137 @@ below are the resources available with some assumptions and after the instance o
  |pods|737|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
+## c7i-flex Family
+### `c7i-flex.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c7i-flex|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|4096|
+ |karpenter.k8s.aws/instance-network-bandwidth|390|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c7i-flex.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|3114Mi|
+ |pods|29|
+ |vpc.amazonaws.com/pod-eni|3|
+### `c7i-flex.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c7i-flex|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-network-bandwidth|781|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c7i-flex.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|6584Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|8|
+### `c7i-flex.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c7i-flex|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|1562|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c7i-flex.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|14162Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
+### `c7i-flex.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c7i-flex|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|3125|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c7i-flex.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|27381Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|34|
+### `c7i-flex.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c7i-flex|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|6250|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c7i-flex.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|57691Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ## d2 Family
 ### `d2.xlarge`
 #### Labels
@@ -5195,6 +5326,38 @@ below are the resources available with some assumptions and after the instance o
  |pods|737|
  |vpc.amazonaws.com/efa|4|
  |vpc.amazonaws.com/pod-eni|62|
+## dl2q Family
+### `dl2q.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-accelerator-count|8|
+ |karpenter.k8s.aws/instance-accelerator-manufacturer|qualcomm|
+ |karpenter.k8s.aws/instance-accelerator-name|qualcomm-ai100|
+ |karpenter.k8s.aws/instance-category|dl|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|dl2q|
+ |karpenter.k8s.aws/instance-generation|2|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|100000|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|dl2q.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |aws.amazon.com/neuron|8|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|718987Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ## f1 Family
 ### `f1.2xlarge`
 #### Labels
@@ -5302,7 +5465,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|112629Mi|
  |nvidia.com/gpu|1|
  |pods|234|
- |vpc.amazonaws.com/pod-eni|6|
 ### `g3.8xlarge`
 #### Labels
  | Label | Value |
@@ -5333,7 +5495,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|228187Mi|
  |nvidia.com/gpu|2|
  |pods|234|
- |vpc.amazonaws.com/pod-eni|6|
 ### `g3.16xlarge`
 #### Labels
  | Label | Value |
@@ -5394,7 +5555,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|27896Mi|
  |nvidia.com/gpu|1|
  |pods|58|
- |vpc.amazonaws.com/pod-eni|10|
 ## g4ad Family
 ### `g4ad.xlarge`
 #### Labels
@@ -6496,6 +6656,268 @@ below are the resources available with some assumptions and after the instance o
  |pods|737|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
+## g6e Family
+### `g6e.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|g|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|5000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|g6e|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|1|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|45776|
+ |karpenter.k8s.aws/instance-gpu-name|l40s|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|250|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|2500|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|g6e.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|29317Mi|
+ |nvidia.com/gpu|1|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
+### `g6e.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|g|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|5000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|g6e|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|1|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|45776|
+ |karpenter.k8s.aws/instance-gpu-name|l40s|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|450|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|5000|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|g6e.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|59627Mi|
+ |nvidia.com/gpu|1|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
+### `g6e.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|g|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|8000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|g6e|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|1|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|45776|
+ |karpenter.k8s.aws/instance-gpu-name|l40s|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|600|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-network-bandwidth|20000|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|g6e.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|118312Mi|
+ |nvidia.com/gpu|1|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
+### `g6e.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|g|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|16000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|g6e|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|1|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|45776|
+ |karpenter.k8s.aws/instance-gpu-name|l40s|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|900|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-network-bandwidth|25000|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|g6e.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|239554Mi|
+ |nvidia.com/gpu|1|
+ |pods|234|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|84|
+### `g6e.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|g|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|g6e|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|4|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|183105|
+ |karpenter.k8s.aws/instance-gpu-name|l40s|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|100000|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|g6e.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|360157Mi|
+ |nvidia.com/gpu|4|
+ |pods|292|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|112|
+### `g6e.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|g|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|g6e|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|1|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|45776|
+ |karpenter.k8s.aws/instance-gpu-name|l40s|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-network-bandwidth|35000|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|g6e.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|476504Mi|
+ |nvidia.com/gpu|1|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+### `g6e.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|g|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|g6e|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|4|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|183105|
+ |karpenter.k8s.aws/instance-gpu-name|l40s|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|200000|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|g6e.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|721682Mi|
+ |nvidia.com/gpu|4|
+ |pods|492|
+ |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|102|
+### `g6e.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|g|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|g6e|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|8|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|366211|
+ |karpenter.k8s.aws/instance-gpu-name|l40s|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|7600|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|400000|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|g6e.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1449132Mi|
+ |nvidia.com/gpu|8|
+ |pods|492|
+ |vpc.amazonaws.com/efa|4|
+ |vpc.amazonaws.com/pod-eni|82|
 ## gr6 Family
 ### `gr6.4xlarge`
 #### Labels
@@ -18814,6 +19236,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|7075Mi|
  |pods|8|
+ |vpc.amazonaws.com/pod-eni|4|
 ### `r8g.large`
 #### Labels
  | Label | Value |
@@ -18839,6 +19262,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14422Mi|
  |pods|29|
+ |vpc.amazonaws.com/pod-eni|9|
 ### `r8g.xlarge`
 #### Labels
  | Label | Value |
@@ -18864,6 +19288,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
 ### `r8g.2xlarge`
 #### Labels
  | Label | Value |
@@ -18889,6 +19314,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59568Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
 ### `r8g.4xlarge`
 #### Labels
  | Label | Value |
@@ -18914,6 +19340,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118253Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ### `r8g.8xlarge`
 #### Labels
  | Label | Value |
@@ -18939,6 +19366,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239495Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ### `r8g.12xlarge`
 #### Labels
  | Label | Value |
@@ -18964,6 +19392,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360736Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ### `r8g.16xlarge`
 #### Labels
  | Label | Value |
@@ -18989,6 +19418,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r8g.24xlarge`
 #### Labels
  | Label | Value |
@@ -19015,6 +19445,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|718928Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r8g.metal-24xl`
 #### Labels
  | Label | Value |
@@ -19041,6 +19472,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|718928Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r8g.48xlarge`
 #### Labels
  | Label | Value |
@@ -19067,6 +19499,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1446378Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r8g.metal-48xl`
 #### Labels
  | Label | Value |
@@ -19093,6 +19526,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1446378Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ## t1 Family
 ### `t1.micro`
 #### Labels
@@ -20113,6 +20547,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|11630731Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ## u7in-16tb Family
 ### `u7in-16tb.224xlarge`
 #### Labels
@@ -20140,6 +20575,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|15514235Mi|
  |pods|394|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|106|
 ## u7in-24tb Family
 ### `u7in-24tb.224xlarge`
 #### Labels
@@ -20167,6 +20603,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|23273698Mi|
  |pods|394|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|106|
 ## u7in-32tb Family
 ### `u7in-32tb.224xlarge`
 #### Labels
@@ -20194,6 +20631,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|31033160Mi|
  |pods|394|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|106|
 ## vt1 Family
 ### `vt1.3xlarge`
 #### Labels

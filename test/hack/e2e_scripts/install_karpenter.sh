@@ -1,19 +1,16 @@
 aws eks update-kubeconfig --name "$CLUSTER_NAME"
 
-WEBHOOK_ENABLED=true
-
 CHART="oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter"
 ADDITIONAL_FLAGS=""
-if (( "$PRIVATE_CLUSTER" == 'true' )); then
+if [[ "$PRIVATE_CLUSTER" == "true" ]]; then
   CHART="oci://$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/karpenter/snapshot/karpenter"
-  ADDITIONAL_FLAGS="--set .Values.controller.image.repository=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/karpenter/snapshot/controller --set .Values.controller.image.digest=\"\""
+  ADDITIONAL_FLAGS="--set .Values.controller.image.repository=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/karpenter/snapshot/controller --set .Values.controller.image.digest=\"\" --set .Values.postInstallHook.image.repository=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/ecr-public/bitnami/kubectl --set .Values.postInstallHook.image.digest=\"\""
 fi
 
 helm upgrade --install karpenter "${CHART}" \
   -n kube-system \
   --version "0-$(git rev-parse HEAD)" \
   --set logLevel=debug \
-  --set webhook.enabled=${WEBHOOK_ENABLED} \
   --set settings.isolatedVPC=${PRIVATE_CLUSTER} \
   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::$ACCOUNT_ID:role/karpenter-irsa-$CLUSTER_NAME" \
   $ADDITIONAL_FLAGS \

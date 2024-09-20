@@ -14,19 +14,7 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "watch"]
-{{- if .Values.webhook.enabled }}
-  - apiGroups: [""]
-    resources: ["configmaps", "secrets"]
-    verbs: ["get", "list", "watch"]
-{{- end }}
   # Write
-{{- if .Values.webhook.enabled }}
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["update"]
-    resourceNames:
-      - "{{ include "karpenter.fullname" . }}-cert"
-{{- end }}
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["patch", "update"]
@@ -55,24 +43,3 @@ rules:
     resources: ["services"]
     resourceNames: ["kube-dns"]
     verbs: ["get"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: {{ include "karpenter.fullname" . }}-lease
-  namespace: kube-node-lease
-  labels:
-    {{- include "karpenter.labels" . | nindent 4 }}
-  {{- with .Values.additionalAnnotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-rules:
-  # Read
-  - apiGroups: ["coordination.k8s.io"]
-    resources: ["leases"]
-    verbs: ["get", "list", "watch"]
-  # Write
-  - apiGroups: ["coordination.k8s.io"]
-    resources: ["leases"]
-    verbs: ["delete"]

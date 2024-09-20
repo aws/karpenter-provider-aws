@@ -25,7 +25,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"knative.dev/pkg/ptr"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
@@ -770,21 +769,21 @@ var _ = Describe("CEL/Validation", func() {
 		Context("GCThresholdPercent", func() {
 			It("should succeed on a valid imageGCHighThresholdPercent", func() {
 				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					ImageGCHighThresholdPercent: ptr.Int32(10),
+					ImageGCHighThresholdPercent: lo.ToPtr(int32(10)),
 				}
 				Expect(env.Client.Create(ctx, nc)).To(Succeed())
 			})
 			It("should fail when imageGCHighThresholdPercent is less than imageGCLowThresholdPercent", func() {
 				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					ImageGCHighThresholdPercent: ptr.Int32(50),
-					ImageGCLowThresholdPercent:  ptr.Int32(60),
+					ImageGCHighThresholdPercent: lo.ToPtr(int32(50)),
+					ImageGCLowThresholdPercent:  lo.ToPtr(int32(60)),
 				}
 				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 			})
 			It("should fail when imageGCLowThresholdPercent is greather than imageGCHighThresheldPercent", func() {
 				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					ImageGCHighThresholdPercent: ptr.Int32(50),
-					ImageGCLowThresholdPercent:  ptr.Int32(60),
+					ImageGCHighThresholdPercent: lo.ToPtr(int32(50)),
+					ImageGCLowThresholdPercent:  lo.ToPtr(int32(60)),
 				}
 				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 			})

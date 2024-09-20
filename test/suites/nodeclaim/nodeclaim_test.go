@@ -19,6 +19,7 @@ import (
 	"os"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -348,7 +349,9 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		}).Should(Succeed())
 
 		// Expect that the nodeClaim is eventually de-provisioned due to the registration timeout
-		env.EventuallyExpectNotFoundAssertion(nodeClaim).WithTimeout(time.Minute * 20).Should(Succeed())
+		Eventually(func(g Gomega) {
+			g.Expect(errors.IsNotFound(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), nodeClaim))).To(BeTrue())
+		}).WithTimeout(time.Minute * 20).Should(Succeed())
 	})
 	It("should delete a NodeClaim if it references a NodeClass that doesn't exist", func() {
 		nodeClaim := test.NodeClaim(karpv1.NodeClaim{

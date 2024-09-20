@@ -64,10 +64,6 @@ Number of nodes terminated in total by Karpenter. Labeled by owning nodepool.
 Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status.
 - Stability Level: BETA
 
-### `karpenter_nodes_leases_deleted_total`
-Number of deleted leaked leases.
-- Stability Level: ALPHA
-
 ### `karpenter_nodes_created_total`
 Number of nodes created in total by Karpenter. Labeled by owning nodepool.
 - Stability Level: STABLE

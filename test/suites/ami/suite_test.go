@@ -158,27 +158,23 @@ var _ = Describe("AMI", func() {
 	})
 
 	Context("AMIFamily", func() {
-		It("should provision a node using the AL2 family", func() {
-			pod := coretest.Pod()
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
-			env.ExpectCreated(nodeClass, nodePool, pod)
-			env.EventuallyExpectHealthy(pod)
-			env.ExpectCreatedNodeCount("==", 1)
-		})
-		It("should provision a node using the AL2023 family", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
-			pod := coretest.Pod()
-			env.ExpectCreated(nodeClass, nodePool, pod)
-			env.EventuallyExpectHealthy(pod)
-			env.ExpectCreatedNodeCount("==", 1)
-		})
-		It("should provision a node using the Bottlerocket family", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-			pod := coretest.Pod()
-			env.ExpectCreated(nodeClass, nodePool, pod)
-			env.EventuallyExpectHealthy(pod)
-			env.ExpectCreatedNodeCount("==", 1)
-		})
+		DescribeTable(
+			"should providion a node using an alias",
+			func(alias string) {
+				pod := coretest.Pod()
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+				env.ExpectCreated(nodeClass, nodePool, pod)
+				env.EventuallyExpectHealthy(pod)
+				env.ExpectCreatedNodeCount("==", 1)
+			},
+			Entry("AL2023 (latest)", "al2023@latest"),
+			Entry("AL2023 (pinned)", "al2023@v20240807"),
+			Entry("AL2 (latest)", "al2@latest"),
+			Entry("AL2 (pinned)", "al2@v20240807"),
+			Entry("Bottlerocket (latest)", "bottlerocket@latest"),
+			Entry("Bottlerocket (pinned with v prefix)", "bottlerocket@v1.21.0"),
+			Entry("Bottlerocket (pinned without v prefix)", "bottlerocket@1.21.0"),
+		)
 		It("should support Custom AMIFamily with AMI Selectors", func() {
 			al2023AMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
 			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)

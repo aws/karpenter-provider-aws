@@ -15,7 +15,7 @@ spec:
           values: ["linux"]
         - key: karpenter.sh/capacity-type
           operator: In
-          values: ["spot"]
+          values: ["on-demand"]
         - key: karpenter.k8s.aws/instance-category
           operator: In
           values: ["c", "m", "r"]
@@ -23,14 +23,15 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
         name: default
+      expireAfter: 720h # 30 * 24h = 720h
   limits:
     cpu: 1000
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
-    expireAfter: 720h # 30 * 24h = 720h
+    consolidateAfter: 1m
 ---
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass

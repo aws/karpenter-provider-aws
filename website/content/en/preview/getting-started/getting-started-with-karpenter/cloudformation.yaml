@@ -167,7 +167,6 @@ Resources:
               "Effect": "Allow",
               "Resource": "*",
               "Action": [
-                "ec2:DescribeAvailabilityZones",
                 "ec2:DescribeImages",
                 "ec2:DescribeInstances",
                 "ec2:DescribeInstanceTypeOfferings",
@@ -187,7 +186,7 @@ Resources:
               "Sid": "AllowSSMReadActions",
               "Effect": "Allow",
               "Resource": "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*",
-              "Action": "ssm:GetParametersByPath"
+              "Action": "ssm:GetParameter"
             },
             {
               "Sid": "AllowPricingReadActions",
@@ -212,7 +211,10 @@ Resources:
               "Action": "iam:PassRole",
               "Condition": {
                 "StringEquals": {
-                  "iam:PassedToService": "ec2.amazonaws.com"
+                  "iam:PassedToService": [
+                    "ec2.amazonaws.com",
+                    "ec2.amazonaws.com.cn"
+                  ]
                 }
               }
             },
