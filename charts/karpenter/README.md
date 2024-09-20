@@ -56,6 +56,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.0.0 \
 | controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
 | controller.sidecarVolumeMounts | list | `[]` | Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts |
 | dnsConfig | object | `{}` | Configure DNS Config for the pod |
+| schedulerName | string | `""` | Override the default scheduler |
 | dnsPolicy | string | `"ClusterFirst"` | Configure the DNS Policy for the pod |
 | extraVolumes | list | `[]` | Additional volumes for the pod. |
 | fullnameOverride | string | `""` | Overrides the chart's computed fullname. |
