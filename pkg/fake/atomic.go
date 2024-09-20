@@ -156,6 +156,10 @@ func (a *AtomicPtrSlice[T]) Pop() *T {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	if len(a.values) == 0 {
+		return nil
+	}
+
 	last := a.values[len(a.values)-1]
 	a.values = a.values[0 : len(a.values)-1]
 	return last

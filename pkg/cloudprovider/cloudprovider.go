@@ -237,6 +237,7 @@ func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeC
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodeClaim.Spec.NodeClassRef.Name}, nodeClass); err != nil {
 		return nil, err
 	}
+
 	// For the purposes of NodeClass CloudProvider resolution, we treat deleting NodeClasses as NotFound
 	if !nodeClass.DeletionTimestamp.IsZero() {
 		// For the purposes of NodeClass CloudProvider resolution, we treat deleting NodeClasses as NotFound,

@@ -53,14 +53,14 @@ type DefaultProvider struct {
 	availableIPAddressCache       *cache.Cache
 	associatePublicIPAddressCache *cache.Cache
 	cm                            *pretty.ChangeMonitor
-	inflightIPs                   map[string]int64
+	inflightIPs                   map[string]int32
 }
 
 type Subnet struct {
 	ID                      string
 	Zone                    string
 	ZoneID                  string
-	AvailableIPAddressCount int64
+	AvailableIPAddressCount int32
 }
 
 func NewDefaultProvider(ec2api sdk.EC2API, cache *cache.Cache, availableIPAddressCache *cache.Cache, associatePublicIPAddressCache *cache.Cache) *DefaultProvider {
@@ -73,7 +73,7 @@ func NewDefaultProvider(ec2api sdk.EC2API, cache *cache.Cache, availableIPAddres
 		availableIPAddressCache:       availableIPAddressCache,
 		associatePublicIPAddressCache: associatePublicIPAddressCache,
 		// inflightIPs is used to track IPs from known launched instances
-		inflightIPs: map[string]int64{},
+		inflightIPs: map[string]int32{},
 	}
 }
 
@@ -134,10 +134,10 @@ func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *
 	defer p.Unlock()
 
 	zonalSubnets := map[string]*Subnet{}
-	availableIPAddressCount := map[string]int64{}
+	availableIPAddressCount := map[string]int32{}
 	for _, subnet := range nodeClass.Status.Subnets {
 		if subnetAvailableIP, ok := p.availableIPAddressCache.Get(subnet.ID); ok {
-			availableIPAddressCount[subnet.ID] = subnetAvailableIP.(int64)
+			availableIPAddressCount[subnet.ID] = (subnetAvailableIP.(int32))
 		}
 	}
 
@@ -204,8 +204,8 @@ func (p *DefaultProvider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInp
 	subnetIDsToAddBackIPs, _ := lo.Difference(fleetInputSubnets, fleetOutputSubnets)
 
 	// Aggregate all the cached subnets ip address count
-	cachedAvailableIPAddressMap := lo.MapEntries(p.availableIPAddressCache.Items(), func(k string, v cache.Item) (string, int64) {
-		return k, v.Object.(int64)
+	cachedAvailableIPAddressMap := lo.MapEntries(p.availableIPAddressCache.Items(), func(k string, v cache.Item) (string, int32) {
+		return k, v.Object.(int32)
 	})
 
 	// Update the inflight IP tracking of subnets stored in the cache that have not be synchronized since the initial
@@ -242,7 +242,7 @@ func (p *DefaultProvider) LivenessProbe(_ *http.Request) error {
 	return nil
 }
 
-func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, reqs scheduling.Requirements) int64 {
+func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, reqs scheduling.Requirements) int32 {
 	// filter for instance types available in the zone and capacity type being requested
 	filteredInstanceTypes := lo.Filter(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
 		return it.Offerings.Available().HasCompatible(reqs)
@@ -251,9 +251,9 @@ func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, r
 		return 0
 	}
 	// Get minimum pods to use when selecting a subnet and deducting what will be launched
-	pods, _ := lo.MinBy(filteredInstanceTypes, func(i *cloudprovider.InstanceType, j *cloudprovider.InstanceType) bool {
+	pods := int32(lo.MinBy(filteredInstanceTypes, func(i *cloudprovider.InstanceType, j *cloudprovider.InstanceType) bool {
 		return i.Capacity.Pods().Cmp(*j.Capacity.Pods()) < 0
-	}).Capacity.Pods().AsInt64()
+	}).Capacity.Pods().Value())
 	return pods
 }
 

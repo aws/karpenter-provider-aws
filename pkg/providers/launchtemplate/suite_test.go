@@ -270,7 +270,16 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodePool2, nodeClass2)
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
-		ltConfigCount := len(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop().LaunchTemplateConfigs) + len(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop().LaunchTemplateConfigs)
+		input1 := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		input2 := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+
+		ltConfigCount := 0
+		if input1 != nil {
+			ltConfigCount += len(input1.LaunchTemplateConfigs)
+		}
+		if input2 != nil {
+			ltConfigCount += len(input2.LaunchTemplateConfigs)
+		}
 		Expect(ltConfigCount).To(BeNumerically("==", awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()))
 		nodeClasses := [2]string{nodeClass.Name, nodeClass2.Name}
 		awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {

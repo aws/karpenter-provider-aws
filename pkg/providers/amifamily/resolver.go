@@ -236,7 +236,7 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *k
 		),
 		BlockDeviceMappings: nodeClass.Spec.BlockDeviceMappings,
 		MetadataOptions:     nodeClass.Spec.MetadataOptions,
-		DetailedMonitoring:  *nodeClass.Spec.DetailedMonitoring,
+		DetailedMonitoring:  lo.FromPtr(nodeClass.Spec.DetailedMonitoring),
 		AMIID:               amiID,
 		InstanceTypes:       instanceTypes,
 		EFACount:            efaCount,
