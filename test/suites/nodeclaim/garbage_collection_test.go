@@ -18,7 +18,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -137,11 +136,9 @@ var _ = Describe("GarbageCollection", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		// Eventually expect the node and the instance to be removed (shutting-down)
+		// Eventually expect the node and the instance to be removed
 		env.EventuallyExpectNotFound(node)
-		Eventually(func(g Gomega) {
-			g.Expect(lo.FromPtr(env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId)).State.Name)).To(BeElementOf("terminated", "shutting-down"))
-		}, time.Second*10).Should(Succeed())
+		Expect(lo.FromPtr(env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId)).State.Name)).To(BeElementOf("terminated", "shutting-down"))
 	})
 	It("should succeed to garbage collect an Instance that was deleted without the cluster's knowledge", func() {
 		// Disable the interruption queue for the garbage collection coretest

@@ -512,7 +512,7 @@ func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {
 			err := env.Client.Get(env, client.ObjectKeyFromObject(object), object)
 			g.Expect(errors.IsNotFound(err)).To(BeTrue())
 		}
-	})
+	}).Should(Succeed())
 }
 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*corev1.Node {
