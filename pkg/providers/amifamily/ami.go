@@ -175,35 +175,19 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 					// If we already have an image with the same set of requirements which is deprecated, but this image (candidate) is newer or non deprecated, replace the previous (existing) image
 					reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
 					candidateDeprecated := parseTimeWithDefault(lo.FromPtr(image.DeprecationTime), maxTime).Unix() <= p.clk.Now().Unix()
-					if v, ok := images[reqsHash]; ok {
-						existingCreationTime := parseTimeWithDefault(v.CreationDate, minTime)
-						candidateCreationTime := parseTimeWithDefault(lo.FromPtr(image.CreationDate), minTime)
-						// If both AMIs have the same creation time
-						// And if the existing AMI is non-deprecated
-						// And the candidate AMI is deprecated, return the existing AMI
-						if existingCreationTime == candidateCreationTime && !v.Deprecated && candidateDeprecated && lo.FromPtr(image.Name) < v.Name {
-							continue
-						}
-						// If existing AMI is non-deprecated and the candidate AMI is deprecated, return the existing AMI
-						if !v.Deprecated && candidateDeprecated {
-							continue
-						}
-						// If both AMIs are non deprecated and the candidate AMI is older than the existing AMI, return the existing AMI
-						if !v.Deprecated && !candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
-							continue
-						}
-						// If both AMIs are deprecated and the candidate AMI is older than the existing AMI, return the existing AMI
-						if v.Deprecated && candidateDeprecated && candidateCreationTime.Unix() < existingCreationTime.Unix() {
-							continue
-						}
-					}
-					images[reqsHash] = AMI{
+					ami := AMI{
 						Name:         lo.FromPtr(image.Name),
 						AmiID:        lo.FromPtr(image.ImageId),
 						CreationDate: lo.FromPtr(image.CreationDate),
 						Deprecated:   candidateDeprecated,
 						Requirements: reqs,
 					}
+					if v, ok := images[reqsHash]; ok {
+						if cmpResult := compareAMI(v, ami); cmpResult <= 0 {
+							continue
+						}
+					}
+					images[reqsHash] = ami
 				}
 			}
 			return true
@@ -230,4 +214,31 @@ func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1.A
 		}
 	}
 	return amiIDs
+}
+
+// Compare two AMI's based on their deprecation status, creation time or name
+// If both AMIs are deprecated, compare creation time and return the one with the newer creation time
+// If both AMIs are non-deprecated, compare creation time and return the one with the newer creation time
+// If one AMI is deprecated, return the non deprecated one
+// The result will be
+// 0 if AMI i == AMI j, where creation date, deprecation status and name are all equal
+// -1 if AMI i < AMI j, if AMI i is non-deprecated or newer than AMI j
+// +1 if AMI i > AMI j, if AMI j is non-deprecated or newer than AMI i
+func compareAMI(i, j AMI) int {
+	iCreationDate := parseTimeWithDefault(i.CreationDate, minTime)
+	jCreationDate := parseTimeWithDefault(j.CreationDate, minTime)
+	// Prioritize non-deprecated AMIs over deprecated ones
+	if i.Deprecated != j.Deprecated {
+		return lo.Ternary(i.Deprecated, 1, -1)
+	}
+	// If both are either non-deprecated or deprecated, compare by creation date
+	if iCreationDate.Unix() != jCreationDate.Unix() {
+		return lo.Ternary(iCreationDate.Unix() > jCreationDate.Unix(), -1, 1)
+	}
+	// If they have the same creation date, use the name as a tie-breaker
+	if i.Name != j.Name {
+		return lo.Ternary(i.Name > j.Name, -1, 1)
+	}
+	// If all attributes are are equal, both AMIs are exactly identical
+	return 0
 }

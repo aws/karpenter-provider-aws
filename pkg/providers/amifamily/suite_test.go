@@ -322,7 +322,7 @@ var _ = Describe("AMIProvider", func() {
 						Name:            aws.String(amd64AMI),
 						ImageId:         aws.String("ami-5678"),
 						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
-						DeprecationTime: aws.String(time.Now().Add(-1 * time.Hour).Format(time.RFC3339)),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(-1 * time.Hour).Format(time.RFC3339)),
 						Architecture:    aws.String("x86_64"),
 						Tags: []*ec2.Tag{
 							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
@@ -362,7 +362,7 @@ var _ = Describe("AMIProvider", func() {
 						Name:            aws.String(amd64AMI),
 						ImageId:         aws.String("ami-5678"),
 						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
-						DeprecationTime: aws.String(time.Now().Add(-10 * time.Minute).Format(time.RFC3339)),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(-10 * time.Minute).Format(time.RFC3339)),
 						Architecture:    aws.String("x86_64"),
 						Tags: []*ec2.Tag{
 							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
@@ -373,7 +373,7 @@ var _ = Describe("AMIProvider", func() {
 						Name:            aws.String(amd64AMI),
 						ImageId:         aws.String("ami-1234"),
 						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
-						DeprecationTime: aws.String(time.Now().Add(10 * time.Minute).Format(time.RFC3339)),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(10 * time.Minute).Format(time.RFC3339)),
 						Architecture:    aws.String("x86_64"),
 						Tags: []*ec2.Tag{
 							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
@@ -404,7 +404,7 @@ var _ = Describe("AMIProvider", func() {
 						Name:            aws.String("test-ami-2"),
 						ImageId:         aws.String("ami-5678"),
 						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
-						DeprecationTime: aws.String(time.Now().Add(-10 * time.Minute).Format(time.RFC3339)),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(-10 * time.Minute).Format(time.RFC3339)),
 						Architecture:    aws.String("x86_64"),
 						Tags: []*ec2.Tag{
 							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
@@ -415,7 +415,7 @@ var _ = Describe("AMIProvider", func() {
 						Name:            aws.String("test-ami-1"),
 						ImageId:         aws.String("ami-1234"),
 						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
-						DeprecationTime: aws.String(time.Now().Add(10 * time.Minute).Format(time.RFC3339)),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(10 * time.Minute).Format(time.RFC3339)),
 						Architecture:    aws.String("x86_64"),
 						Tags: []*ec2.Tag{
 							{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
@@ -445,7 +445,7 @@ var _ = Describe("AMIProvider", func() {
 						Name:            aws.String(amd64AMI),
 						ImageId:         aws.String("ami-5678"),
 						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
-						DeprecationTime: aws.String(time.Now().Add(-1 * time.Hour).Format(time.RFC3339)),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(-1 * time.Hour).Format(time.RFC3339)),
 						Architecture:    aws.String("x86_64"),
 						Tags: []*ec2.Tag{
 							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
@@ -456,7 +456,7 @@ var _ = Describe("AMIProvider", func() {
 						Name:            aws.String(amd64AMI),
 						ImageId:         aws.String("ami-1234"),
 						CreationDate:    aws.String("2020-08-31T00:08:42.000Z"),
-						DeprecationTime: aws.String(time.Now().Add(-1 * time.Hour).Format(time.RFC3339)),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(-1 * time.Hour).Format(time.RFC3339)),
 						Architecture:    aws.String("x86_64"),
 						Tags: []*ec2.Tag{
 							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
