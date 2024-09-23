@@ -2,7 +2,7 @@ aws eks update-kubeconfig --name "$CLUSTER_NAME"
 
 CHART="oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter"
 ADDITIONAL_FLAGS=""
-if (( "$PRIVATE_CLUSTER" == 'true' )); then
+if [[ "$PRIVATE_CLUSTER" == "true" ]]; then
   CHART="oci://$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/karpenter/snapshot/karpenter"
   ADDITIONAL_FLAGS="--set .Values.controller.image.repository=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/karpenter/snapshot/controller --set .Values.controller.image.digest=\"\" --set .Values.postInstallHook.image.repository=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/ecr-public/bitnami/kubectl --set .Values.postInstallHook.image.digest=\"\""
 fi
