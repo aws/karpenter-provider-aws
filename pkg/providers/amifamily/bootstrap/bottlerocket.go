@@ -23,6 +23,8 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/aws-sdk-go/aws"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 type Bottlerocket struct {
@@ -77,7 +79,7 @@ func (b Bottlerocket) Script() (string, error) {
 		s.Settings.Kubernetes.NodeTaints[taint.Key] = append(s.Settings.Kubernetes.NodeTaints[taint.Key], fmt.Sprintf("%s:%s", taint.Value, taint.Effect))
 	}
 
-	if b.RAIDInstanceStorage {
+	if lo.FromPtr(b.InstanceStorePolicy) == v1.InstanceStorePolicyRAID0 {
 		s.Settings.BootstrapCommands = map[string]BootstrapCommand{
 			"000-mount-instance-storage": {
 				Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}},

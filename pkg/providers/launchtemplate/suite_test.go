@@ -1406,41 +1406,6 @@ mode = 'always'
 essential = false
 `)
 		})
-		It("should specify a smaller ephemeral block device when instance-store policy is set", func() {
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceTypeStable,
-					Operator: corev1.NodeSelectorOpIn,
-					// Specify one instance type that has instance storage and another that doesn't
-					Values: []string{"m6idn.32xlarge", "t3.large"},
-				},
-			})
-			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
-			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
-				{
-					DeviceName: lo.ToPtr("/dev/xvda"),
-					EBS: &v1.BlockDevice{
-						Encrypted:  lo.ToPtr(true),
-						VolumeSize: lo.ToPtr(resource.MustParse("100Gi")),
-						VolumeType: lo.ToPtr("gp3"),
-					},
-				},
-			}
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-
-			volumeSizeCounts := map[int]int{}
-			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 2))
-			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(len(ltInput.LaunchTemplateData.BlockDeviceMappings)).To(Equal(1))
-				volumeSizeCounts[int(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)]++
-			})
-			// Expect one launch template to have a volume at 100Gi and the other at 20Gi
-			Expect(volumeSizeCounts).To(HaveKeyWithValue(100, 1))
-			Expect(volumeSizeCounts).To(HaveKeyWithValue(20, 1))
-		})
 		Context("Bottlerocket", func() {
 			BeforeEach(func() {
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}

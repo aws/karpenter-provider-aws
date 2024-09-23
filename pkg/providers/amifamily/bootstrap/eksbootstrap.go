@@ -28,6 +28,8 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 type EKS struct {
@@ -75,7 +77,7 @@ func (e EKS) eksBootstrapScript() string {
 	if args := e.kubeletExtraArgs(); len(args) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", strings.Join(args, " ")))
 	}
-	if e.RAIDInstanceStorage {
+	if lo.FromPtr(e.InstanceStorePolicy) == v1.InstanceStorePolicyRAID0 {
 		userData.WriteString(" \\\n--local-disks raid0")
 	}
 	return userData.String()

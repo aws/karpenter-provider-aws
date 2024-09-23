@@ -75,7 +75,7 @@ func (a AL2023) resolvePath(architecture, variant, k8sVersion, amiVersion string
 	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/%s/%s/%s/image_id", k8sVersion, architecture, variant, name)
 }
 
-func (a AL2023) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, raidInstanceStorage bool) bootstrap.Bootstrapper {
+func (a AL2023) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Nodeadm{
 		Options: bootstrap.Options{
 			ClusterName:         a.Options.ClusterName,
@@ -86,7 +86,7 @@ func (a AL2023) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1
 			Labels:              labels,
 			CABundle:            caBundle,
 			CustomUserData:      customUserData,
-			RAIDInstanceStorage: raidInstanceStorage,
+			InstanceStorePolicy: instanceStorePolicy,
 		},
 	}
 }

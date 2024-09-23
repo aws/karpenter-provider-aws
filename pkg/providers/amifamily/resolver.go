@@ -81,7 +81,7 @@ type LaunchTemplate struct {
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
 	DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error)
-	UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string, raidInstanceStorage bool) bootstrap.Bootstrapper
+	UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1.MetadataOptions
 	EphemeralBlockDevice() *string
@@ -137,9 +137,8 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 		// Similarly, instance types configured with EfAs require unique launch templates depending on the number of
 		// EFAs they support.
 		type launchTemplateParams struct {
-			efaCount            int
-			maxPods             int
-			raidInstanceStorage bool
+			efaCount int
+			maxPods  int
 		}
 		paramsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) launchTemplateParams {
 			return launchTemplateParams{
@@ -149,12 +148,10 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 					0,
 				),
 				maxPods: int(instanceType.Capacity.Pods().Value()),
-				// InstanceStorePolicy is enabled to RAID0 and the instance supports instance store policy
-				raidInstanceStorage: lo.FromPtr(options.InstanceStorePolicy) == v1.InstanceStorePolicyRAID0 && instanceType.Requirements.Get(v1.LabelInstanceLocalStorage).Any() != "",
 			}
 		})
 		for params, instanceTypes := range paramsToInstanceTypes {
-			resolved := r.resolveLaunchTemplate(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, params.raidInstanceStorage, options)
+			resolved := r.resolveLaunchTemplate(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, options)
 			resolvedTemplates = append(resolvedTemplates, resolved)
 		}
 	}
@@ -205,7 +202,7 @@ func (r DefaultResolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.Kube
 }
 
 func (r DefaultResolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
-	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, raidInstanceStorage bool, options *Options) *LaunchTemplate {
+	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, options *Options) *LaunchTemplate {
 	kubeletConfig := &v1.KubeletConfiguration{}
 	if nodeClass.Spec.Kubelet != nil {
 		kubeletConfig = nodeClass.Spec.Kubelet.DeepCopy()
@@ -235,9 +232,9 @@ func (r DefaultResolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeC
 			options.CABundle,
 			instanceTypes,
 			nodeClass.Spec.UserData,
-			raidInstanceStorage,
+			options.InstanceStorePolicy,
 		),
-		BlockDeviceMappings: lo.Map(nodeClass.Spec.BlockDeviceMappings, func(bdm *v1.BlockDeviceMapping, _ int) *v1.BlockDeviceMapping { return bdm.DeepCopy() }),
+		BlockDeviceMappings: nodeClass.Spec.BlockDeviceMappings,
 		MetadataOptions:     nodeClass.Spec.MetadataOptions,
 		DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
 		AMIID:               amiID,
@@ -250,15 +247,6 @@ func (r DefaultResolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeC
 	}
 	if resolved.MetadataOptions == nil {
 		resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
-	}
-	// Scale the data volume down if there is an instance store volume since the bigger device can be used
-	// for ephemeral storage -- this is also how Karpenter models the data in the instance type during scheduling
-	if raidInstanceStorage {
-		for _, mapping := range resolved.BlockDeviceMappings {
-			if lo.FromPtr(mapping.DeviceName) == lo.FromPtr(amiFamily.EphemeralBlockDevice()) {
-				mapping.EBS.VolumeSize = lo.ToPtr(resource.MustParse("20Gi"))
-			}
-		}
 	}
 	return resolved
 }

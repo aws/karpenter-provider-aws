@@ -84,7 +84,7 @@ func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k
 // even if elements of those inputs are in differing orders,
 // guaranteeing it won't cause spurious hash differences.
 // AL2 userdata also works on Ubuntu
-func (a AL2) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, raidInstanceStorage bool) bootstrap.Bootstrapper {
+func (a AL2) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.EKS{
 		Options: bootstrap.Options{
 			ClusterName:         a.Options.ClusterName,
@@ -94,7 +94,7 @@ func (a AL2) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Ta
 			Labels:              labels,
 			CABundle:            caBundle,
 			CustomUserData:      customUserData,
-			RAIDInstanceStorage: raidInstanceStorage,
+			InstanceStorePolicy: instanceStorePolicy,
 		},
 	}
 }
