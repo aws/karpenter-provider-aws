@@ -133,7 +133,7 @@ Karpenter requires a minimum instance type flexibility of 15 instance types when
 
 
 ### Drift
-Drift handles changes to the NodePool/EC2NodeClass. For Drift, values in the NodePool/EC2NodeClass are reflected in the NodeClaimTemplateSpec/EC2NodeClassSpec in the same way that they’re set. A NodeClaim will be detected as drifted if the values in its owning NodePool/EC2NodeClass do not match the values in the NodeClaim. Similar to the upstream `deployment.spec.template` relationship to pods, Karpenter will annotate the owning NodePool and EC2NodeClass with a hash of the NodeClaimTemplateSpec to check for drift. Some special cases will be discovered either from Karpenter or through the CloudProvider interface, triggered by NodeClaim/Instance/NodePool/EC2NodeClass changes.
+Drift handles changes to the NodePool/EC2NodeClass. For Drift, values in the NodePool/EC2NodeClass are reflected in the NodeClaimTemplateSpec/EC2NodeClassSpec in the same way that they’re set. A NodeClaim will be detected as drifted if the values in its owning NodePool/EC2NodeClass do not match the values in the NodeClaim. Similar to the upstream `deployment.spec.template` relationship to pods, Karpenter will annotate the owning NodePool and EC2NodeClass with a hash of the NodeClaimTemplateSpec to check for drift. Some special cases will be discovered either from Karpenter or through the CloudProvider interface, triggered by NodeClaim/Instance/NodePool/EC2NodeClass changes. Karpenter will add the `Drifted` status condition on NodeClaims if the NodeClaim is drifted from its owning NodePool.
 
 #### Special Cases on Drift
 In special cases, drift can correspond to multiple values and must be handled differently. Drift on resolved fields can create cases where drift occurs without changes to CRDs, or where CRD changes do not result in drift. For example, if a NodeClaim has `node.kubernetes.io/instance-type: m5.large`, and requirements change from `node.kubernetes.io/instance-type In [m5.large]` to `node.kubernetes.io/instance-type In [m5.large, m5.2xlarge]`, the NodeClaim will not be drifted because its value is still compatible with the new requirements. Conversely, if a NodeClaim is using a NodeClaim image `ami: ami-abc`, but a new image is published, Karpenter's `EC2NodeClass.spec.amiSelectorTerms` will discover that the new correct value is `ami: ami-xyz`, and detect the NodeClaim as drifted.
@@ -161,12 +161,6 @@ Behavioral Fields are treated as over-arching settings on the NodePool to dictat
 | spec.disruption.*   |
 
 Read the [Drift Design](https://github.com/aws/karpenter-core/blob/main/designs/drift.md) for more.
-
-To enable the drift feature flag, refer to the [Feature Gates]({{<ref "../reference/settings#feature-gates" >}}).
-
-Karpenter will add the `Drifted` status condition on NodeClaims if the NodeClaim is drifted from its owning NodePool. Karpenter will also remove the `Drifted` status condition if either:
-1. The `Drift` feature gate is not enabled but the NodeClaim is drifted, Karpenter will remove the status condition.
-2. The NodeClaim isn't drifted, but has the status condition, Karpenter will remove it.
 
 ## Automated Forceful Methods
 
@@ -327,3 +321,7 @@ spec:
     budgets:
       - nodes: "0"
 ```
+
+{{% alert title="Note" color="primary" %}}
+Unlike other form of disruption, Karpenter will drift nodes by launching one replacement node at a time despite nodepool budget allowing for more then one node. The process will wait until the replacement node is ready and initialized before beginning to launch a new node. Karpenter disrupts and upgrades your nodes, prioritizing availability and safety to your applications.
+{{% /alert %}}
