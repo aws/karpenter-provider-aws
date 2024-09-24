@@ -103,6 +103,8 @@ const (
 	BootstrapCommandModeOff    BootstrapCommandMode = "off"
 )
 
+// BootstrapCommand model defined in the Bottlerocket Core Kit in
+// https://github.com/bottlerocket-os/bottlerocket-core-kit/blob/fdf32c291ad18370de3a5fdc4c20a9588bc14177/sources/bootstrap-commands/src/main.rs#L57
 type BootstrapCommand struct {
 	Commands  [][]string           `toml:"commands"`
 	Mode      BootstrapCommandMode `toml:"mode"`

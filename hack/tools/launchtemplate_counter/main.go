@@ -133,7 +133,7 @@ func main() {
 	})
 	fmt.Printf("Got %d instance types after filtering\n", len(instanceTypes))
 
-	resolver := amifamily.NewResolver()
+	resolver := amifamily.NewDefaultResolver()
 	launchTemplates, err := resolver.Resolve(nodeClass, &karpv1.NodeClaim{}, lo.Slice(instanceTypes, 0, 60), karpv1.CapacityTypeOnDemand, &amifamily.Options{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)})
 
 	if err != nil {
