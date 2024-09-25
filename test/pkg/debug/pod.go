@@ -84,6 +84,6 @@ func (c *PodController) Register(_ context.Context, m manager.Manager) error {
 				return o.GetNamespace() != "kube-system"
 			}),
 		)).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 10, SkipNameValidation: lo.ToPtr(true)}).
 		Complete(c)
 }

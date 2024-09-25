@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2024-08-26T13:09:30Z for us-east-1
+// generated at 2024-09-21T12:51:03Z for us-east-1
 
 var InitialOnDemandPricesAWS = map[string]map[string]float64{
 	// us-east-1
@@ -403,6 +403,10 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		// x2iezn family
 		"x2iezn.12xlarge": 10.008000, "x2iezn.2xlarge": 1.668000, "x2iezn.4xlarge": 3.336000,
 		"x2iezn.6xlarge": 5.004000, "x2iezn.8xlarge": 6.672000, "x2iezn.metal": 10.008000,
+		// x8g family
+		"x8g.12xlarge": 4.689600, "x8g.16xlarge": 6.252800, "x8g.24xlarge": 9.379200, "x8g.2xlarge": 0.781600,
+		"x8g.48xlarge": 18.758400, "x8g.4xlarge": 1.563200, "x8g.8xlarge": 3.126400, "x8g.large": 0.195400,
+		"x8g.medium": 0.097700, "x8g.metal-24xl": 10.317120, "x8g.metal-48xl": 18.758400, "x8g.xlarge": 0.390800,
 		// z1d family
 		"z1d.12xlarge": 4.464000, "z1d.2xlarge": 0.744000, "z1d.3xlarge": 1.116000, "z1d.6xlarge": 2.232000,
 		"z1d.large": 0.186000, "z1d.metal": 4.464000, "z1d.xlarge": 0.372000,
