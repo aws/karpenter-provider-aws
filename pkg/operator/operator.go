@@ -170,7 +170,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		aws.StringValue(sess.Config.Region),
 		ec2api,
 		unavailableOfferingsCache,
-		instanceTypeProvider,
 		subnetProvider,
 		launchTemplateProvider,
 	)
