@@ -32,10 +32,11 @@ import (
 )
 
 const (
-	AMIDrift           cloudprovider.DriftReason = "AMIDrift"
-	SubnetDrift        cloudprovider.DriftReason = "SubnetDrift"
-	SecurityGroupDrift cloudprovider.DriftReason = "SecurityGroupDrift"
-	NodeClassDrift     cloudprovider.DriftReason = "NodeClassDrift"
+	AMIDrift                 cloudprovider.DriftReason = "AMIDrift"
+	SubnetDrift              cloudprovider.DriftReason = "SubnetDrift"
+	SecurityGroupDrift       cloudprovider.DriftReason = "SecurityGroupDrift"
+	NodeClassDrift           cloudprovider.DriftReason = "NodeClassDrift"
+	CapacityReservationDrift cloudprovider.DriftReason = "CapacityReservationDrift"
 )
 
 func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
@@ -43,23 +44,30 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 	if drifted := c.areStaticFieldsDrifted(nodeClaim, nodeClass); drifted != "" {
 		return drifted, nil
 	}
+
 	instance, err := c.getInstance(ctx, nodeClaim.Status.ProviderID)
 	if err != nil {
 		return "", err
 	}
+
 	amiDrifted, err := c.isAMIDrifted(ctx, nodeClaim, nodePool, instance, nodeClass)
 	if err != nil {
 		return "", fmt.Errorf("calculating ami drift, %w", err)
 	}
+
 	securitygroupDrifted, err := c.areSecurityGroupsDrifted(instance, nodeClass)
 	if err != nil {
 		return "", fmt.Errorf("calculating securitygroup drift, %w", err)
 	}
+
 	subnetDrifted, err := c.isSubnetDrifted(instance, nodeClass)
 	if err != nil {
 		return "", fmt.Errorf("calculating subnet drift, %w", err)
 	}
-	drifted := lo.FindOrElse([]cloudprovider.DriftReason{amiDrifted, securitygroupDrifted, subnetDrifted}, "", func(i cloudprovider.DriftReason) bool {
+
+	capacityReservationDrifted := c.isCapacityReservationDrifted(nodeClaim, instance, nodeClass)
+
+	drifted := lo.FindOrElse([]cloudprovider.DriftReason{amiDrifted, securitygroupDrifted, subnetDrifted, capacityReservationDrifted}, "", func(i cloudprovider.DriftReason) bool {
 		return string(i) != ""
 	})
 	return drifted, nil
@@ -103,6 +111,32 @@ func (c *CloudProvider) isSubnetDrifted(instance *instance.Instance, nodeClass *
 		return SubnetDrift, nil
 	}
 	return "", nil
+}
+
+// Checks if the capacity reservation of nodeclaim is drifted, by ensuring node claim capacity reservation
+// matches current ec2nodeclass capacity reservations
+func (c *CloudProvider) isCapacityReservationDrifted(
+	nodeClaim *karpv1.NodeClaim,
+	instance *instance.Instance,
+	nodeClass *v1.EC2NodeClass,
+) cloudprovider.DriftReason {
+	nodeClaimCapacityReservationID := nodeClaim.Labels[v1.LabelCapactiyReservationID]
+	if nodeClaimCapacityReservationID == "" {
+		return ""
+	}
+
+	if nodeClaimCapacityReservationID != lo.FromPtr(instance.CapacityReservationID) {
+		// nodeClaim and instance are not synced yet
+		return ""
+	}
+
+	for _, capacityReservation := range nodeClass.Status.CapacityReservations {
+		if nodeClaimCapacityReservationID == capacityReservation.ID {
+			return ""
+		}
+	}
+
+	return CapacityReservationDrift
 }
 
 // Checks if the security groups are drifted, by comparing the security groups returned from the SecurityGroupProvider

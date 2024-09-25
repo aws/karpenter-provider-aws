@@ -48,6 +48,7 @@ var (
 		"UnfulfillableCapacity",
 		"Unsupported",
 		"InsufficientFreeAddressesInSubnet",
+		"ReservationCapacityExceeded",
 	)
 )
 

@@ -71,6 +71,17 @@ cat << EOF > controller-policy.json
             "Sid": "EKSClusterEndpointLookup"
         },
         {
+            "Effect": "Allow",
+            "Action": "ec2:DescribeCapacityReservations",
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "ec2:Region": "${AWS_REGION}"
+                }
+            }
+            "Sid": "AllowReadCapacityReservations"
+        },
+        {
             "Sid": "AllowScopedInstanceProfileCreationActions",
             "Effect": "Allow",
             "Resource": "*",

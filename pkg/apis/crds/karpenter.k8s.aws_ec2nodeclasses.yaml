@@ -236,6 +236,40 @@ spec:
                   x-kubernetes-validations:
                     - message: must have only one blockDeviceMappings with rootVolume
                       rule: self.filter(x, has(x.rootVolume)?x.rootVolume==true:false).size() <= 1
+                capacityReservationSelectorTerms:
+                  description: CapacityReservationSelectorTerms is a list of or Capacity Reservation selector terms. The terms are ORed.
+                  items:
+                    description: |-
+                      CapacityReservationSelectorTerms specify selectors which are ORed together to generate
+                      a list of filters against the EC2 DescribeCapacityReservation API
+                      ID cannot be specified with any other field within a single selector
+                      All other fields are not mutually exclusive and can be combined
+                    properties:
+                      id:
+                        description: |-
+                          The id for the Capacity Reservation
+                          Specifying '*' for this field selects all ids
+                        type: string
+                      ownerId:
+                        description: |-
+                          The id of the AWS account that owns the Capacity Reservation
+                          If no ownerID is specified, only ODCRs owned by the current account will be used
+                          Specifying '*' for this field selects all ownerIDs
+                        type: string
+                      tags:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Tags is a map of key/value tags used to select capacity reservations
+                          Specifying '*' for a value selects all values for a given tag key.
+                        maxProperties: 20
+                        type: object
+                        x-kubernetes-validations:
+                          - message: empty tag keys or values aren't supported
+                            rule: self.all(k, k != '' && self[k] != '')
+                    type: object
+                  maxItems: 30
+                  type: array
                 context:
                   description: |-
                     Context is a Reserved field in EC2 APIs
@@ -632,6 +666,65 @@ spec:
                     required:
                       - id
                       - requirements
+                    type: object
+                  type: array
+                capacityReservations:
+                  description: |-
+                    CapacityReservations contains the current Capacity Reservations values that are available to the
+                    cluster under the CapacityReservations selectors.
+                  items:
+                    description: CapacityReservation contains resolved Capacity Reservation selector values utilized for node launch
+                    properties:
+                      availabilityZone:
+                        description: AvailabilityZone of the Capacity Reservation
+                        type: string
+                      availableInstanceCount:
+                        description: Available Instance Count of the Capacity Reservation
+                        type: integer
+                      endTime:
+                        description: |-
+                          The date and time at which the Capacity Reservation expires. When a Capacity
+                          Reservation expires, the reserved capacity is released and you can no longer
+                          launch instances into it. The Capacity Reservation's state changes to expired
+                          when it reaches its end date and time.
+                        format: date-time
+                        type: string
+                      id:
+                        description: ID of the Capacity Reservation
+                        type: string
+                      instanceMatchCriteria:
+                        description: |-
+                          Indicates the type of instance launches that the Capacity Reservation accepts. The options include:
+                            - open:
+                                The Capacity Reservation accepts all instances that have
+                                matching attributes (instance type, platform, and Availability
+                                Zone). Instances that have matching attributes launch into the
+                                Capacity Reservation automatically without specifying any
+                                additional parameters.
+                            - targeted:
+                                The Capacity Reservation only accepts instances that
+                                have matching attributes (instance type, platform, and
+                                Availability Zone), and explicitly target the Capacity
+                                Reservation. This ensures that only permitted instances can use
+                                the reserved capacity.
+                        type: string
+                      instanceType:
+                        description: Instance Type of the Capacity Reservation
+                        type: string
+                      ownerId:
+                        description: The id of the AWS account that owns the Capacity Reservation
+                        type: string
+                      totalInstanceCount:
+                        description: Total Instance Count of the Capacity Reservation
+                        type: integer
+                    required:
+                      - availabilityZone
+                      - availableInstanceCount
+                      - id
+                      - instanceMatchCriteria
+                      - instanceType
+                      - ownerId
+                      - totalInstanceCount
                     type: object
                   type: array
                 conditions:

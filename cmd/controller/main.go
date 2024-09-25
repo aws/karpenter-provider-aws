@@ -65,6 +65,7 @@ func main() {
 			op.AMIProvider,
 			op.LaunchTemplateProvider,
 			op.InstanceTypesProvider,
+			op.CapacityReservationProvider,
 		)...).
 		Start(ctx)
 }

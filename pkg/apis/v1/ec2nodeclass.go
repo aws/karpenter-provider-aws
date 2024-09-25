@@ -64,6 +64,10 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Custom,Windows2019,Windows2022}
 	// +optional
 	AMIFamily *string `json:"amiFamily,omitempty" hash:"ignore"`
+	// CapacityReservationSelectorTerms is a list of or Capacity Reservation selector terms. The terms are ORed.
+	// +kubebuilder:validation:MaxItems:=30
+	// +optional
+	CapacityReservationSelectorTerms []CapacityReservationSelectorTerm `json:"capacityReservationSelectorTerms,omitempty" hash:"ignore"`
 	// UserData to be applied to the provisioned nodes.
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
@@ -271,6 +275,28 @@ type KubeletConfiguration struct {
 	// CPUCFSQuota enables CPU CFS quota enforcement for containers that specify CPU limits.
 	// +optional
 	CPUCFSQuota *bool `json:"cpuCFSQuota,omitempty"`
+}
+
+// CapacityReservationSelectorTerms specify selectors which are ORed together to generate
+// a list of filters against the EC2 DescribeCapacityReservation API
+// ID cannot be specified with any other field within a single selector
+// All other fields are not mutually exclusive and can be combined
+type CapacityReservationSelectorTerm struct {
+	// The id for the Capacity Reservation
+	// Specifying '*' for this field selects all ids
+	// +optional
+	ID string `json:"id,omitempty"`
+	// Tags is a map of key/value tags used to select capacity reservations
+	// Specifying '*' for a value selects all values for a given tag key.
+	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
+	// +kubebuilder:validation:MaxProperties:=20
+	// +optional
+	Tags map[string]string `json:"tags,omitempty"`
+	// The id of the AWS account that owns the Capacity Reservation
+	// If no ownerID is specified, only ODCRs owned by the current account will be used
+	// Specifying '*' for this field selects all ownerIDs
+	// +optional
+	OwnerID string `json:"ownerId,omitempty"`
 }
 
 // MetadataOptions contains parameters for specifying the exposure of the

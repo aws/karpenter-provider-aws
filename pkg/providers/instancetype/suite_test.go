@@ -996,7 +996,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					Expect(ok).To(BeTrue())
 					Expect(metric).To(Not(BeNil()))
 					value := metric.GetGauge().Value
-					Expect(aws.Float64Value(value)).To(BeNumerically("==", lo.Ternary(of.Available, 1, 0)))
+					Expect(aws.Float64Value(value)).To(BeNumerically("==", of.Available))
 				}
 			}
 		})

@@ -27,28 +27,30 @@ import (
 // Instance is an internal data representation of either an ec2.Instance or an ec2.FleetInstance
 // It contains all the common data that is needed to inject into the Machine from either of these responses
 type Instance struct {
-	LaunchTime       time.Time
-	State            string
-	ID               string
-	ImageID          string
-	Type             string
-	Zone             string
-	CapacityType     string
-	SecurityGroupIDs []string
-	SubnetID         string
-	Tags             map[string]string
-	EFAEnabled       bool
+	LaunchTime            time.Time
+	State                 string
+	ID                    string
+	ImageID               string
+	Type                  string
+	Zone                  string
+	CapacityType          string
+	CapacityReservationID *string
+	SecurityGroupIDs      []string
+	SubnetID              string
+	Tags                  map[string]string
+	EFAEnabled            bool
 }
 
 func NewInstance(out *ec2.Instance) *Instance {
 	return &Instance{
-		LaunchTime:   aws.TimeValue(out.LaunchTime),
-		State:        aws.StringValue(out.State.Name),
-		ID:           aws.StringValue(out.InstanceId),
-		ImageID:      aws.StringValue(out.ImageId),
-		Type:         aws.StringValue(out.InstanceType),
-		Zone:         aws.StringValue(out.Placement.AvailabilityZone),
-		CapacityType: lo.Ternary(out.SpotInstanceRequestId != nil, karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand),
+		LaunchTime:            aws.TimeValue(out.LaunchTime),
+		State:                 aws.StringValue(out.State.Name),
+		ID:                    aws.StringValue(out.InstanceId),
+		ImageID:               aws.StringValue(out.ImageId),
+		Type:                  aws.StringValue(out.InstanceType),
+		Zone:                  aws.StringValue(out.Placement.AvailabilityZone),
+		CapacityType:          lo.Ternary(out.SpotInstanceRequestId != nil, karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand),
+		CapacityReservationID: out.CapacityReservationId,
 		SecurityGroupIDs: lo.Map(out.SecurityGroups, func(securitygroup *ec2.GroupIdentifier, _ int) string {
 			return aws.StringValue(securitygroup.GroupId)
 		}),
@@ -61,17 +63,18 @@ func NewInstance(out *ec2.Instance) *Instance {
 
 }
 
-func NewInstanceFromFleet(out *ec2.CreateFleetInstance, tags map[string]string, efaEnabled bool) *Instance {
+func NewInstanceFromFleet(out *ec2.CreateFleetInstance, tags map[string]string, efaEnabled bool, capacityReservationID *string) *Instance {
 	return &Instance{
-		LaunchTime:   time.Now(), // estimate the launch time since we just launched
-		State:        ec2.StatePending,
-		ID:           aws.StringValue(out.InstanceIds[0]),
-		ImageID:      aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.ImageId),
-		Type:         aws.StringValue(out.InstanceType),
-		Zone:         aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
-		CapacityType: aws.StringValue(out.Lifecycle),
-		SubnetID:     aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.SubnetId),
-		Tags:         tags,
-		EFAEnabled:   efaEnabled,
+		LaunchTime:            time.Now(), // estimate the launch time since we just launched
+		State:                 ec2.StatePending,
+		ID:                    aws.StringValue(out.InstanceIds[0]),
+		ImageID:               aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.ImageId),
+		Type:                  aws.StringValue(out.InstanceType),
+		Zone:                  aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
+		CapacityType:          aws.StringValue(out.Lifecycle),
+		CapacityReservationID: capacityReservationID,
+		SubnetID:              aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.SubnetId),
+		Tags:                  tags,
+		EFAEnabled:            efaEnabled,
 	}
 }

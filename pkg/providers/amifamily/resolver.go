@@ -66,14 +66,15 @@ type Options struct {
 // LaunchTemplate holds the dynamically generated launch template parameters
 type LaunchTemplate struct {
 	*Options
-	UserData            bootstrap.Bootstrapper
-	BlockDeviceMappings []*v1.BlockDeviceMapping
-	MetadataOptions     *v1.MetadataOptions
-	AMIID               string
-	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
-	DetailedMonitoring  bool
-	EFACount            int
-	CapacityType        string
+	UserData              bootstrap.Bootstrapper
+	BlockDeviceMappings   []*v1.BlockDeviceMapping
+	MetadataOptions       *v1.MetadataOptions
+	AMIID                 string
+	InstanceTypes         []*cloudprovider.InstanceType `hash:"ignore"`
+	DetailedMonitoring    bool
+	EFACount              int
+	CapacityType          string
+	CapacityReservationID *string
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -150,12 +151,54 @@ func (r Resolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClai
 				maxPods: int(instanceType.Capacity.Pods().Value()),
 			}
 		})
+		// tvonhacht: figure out if capacity-reservation is available
 		for params, instanceTypes := range paramsToInstanceTypes {
-			resolved := r.resolveLaunchTemplate(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, options)
+			if r.isCapacityReservationLaunch(nodeClaim, instanceTypes) {
+				requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+				for _, instanceType := range instanceTypes {
+					for _, offering := range instanceType.Offerings {
+						requirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, karpv1.CapacityTypeOnDemand)
+						requirements[v1.LabelCapactiyReservationID] = scheduling.NewRequirement(v1.LabelCapactiyReservationID, corev1.NodeSelectorOpExists)
+						if requirements.Compatible(offering.Requirements, scheduling.AllowUndefinedWellKnownLabels) != nil {
+							continue
+						}
+
+						for _, capacityReservationID := range offering.Requirements.Get(v1.LabelCapactiyReservationID).Values() {
+							resolved := r.resolveLaunchTemplate(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, &capacityReservationID, options)
+							resolvedTemplates = append(resolvedTemplates, resolved)
+						}
+					}
+				}
+				continue
+			}
+
+			resolved := r.resolveLaunchTemplate(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, nil, options)
 			resolvedTemplates = append(resolvedTemplates, resolved)
 		}
 	}
 	return resolvedTemplates, nil
+}
+
+func (r Resolver) isCapacityReservationLaunch(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) bool {
+	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+	// requirements must allow reserved
+	if !requirements.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeReserved) {
+		return false
+	}
+
+	requirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, karpv1.CapacityTypeReserved)
+	requirements[v1.LabelCapactiyReservationID] = scheduling.NewRequirement(v1.LabelCapactiyReservationID, corev1.NodeSelectorOpExists)
+	for _, instanceType := range instanceTypes {
+		for _, offering := range instanceType.Offerings {
+			if requirements.Compatible(offering.Requirements, scheduling.AllowUndefinedWellKnownLabels) == nil {
+				if offering.Requirements.Has(v1.LabelCapactiyReservationID) {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }
 
 func GetAMIFamily(amiFamily string, options *Options) AMIFamily {
@@ -202,7 +245,7 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.KubeletConf
 }
 
 func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
-	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, options *Options) *LaunchTemplate {
+	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, capacityReservationID *string, options *Options) *LaunchTemplate {
 	kubeletConfig := nodeClass.Spec.Kubelet
 	if kubeletConfig == nil {
 		kubeletConfig = &v1.KubeletConfiguration{}
@@ -234,13 +277,14 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *k
 			nodeClass.Spec.UserData,
 			options.InstanceStorePolicy,
 		),
-		BlockDeviceMappings: nodeClass.Spec.BlockDeviceMappings,
-		MetadataOptions:     nodeClass.Spec.MetadataOptions,
-		DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
-		AMIID:               amiID,
-		InstanceTypes:       instanceTypes,
-		EFACount:            efaCount,
-		CapacityType:        capacityType,
+		BlockDeviceMappings:   nodeClass.Spec.BlockDeviceMappings,
+		MetadataOptions:       nodeClass.Spec.MetadataOptions,
+		DetailedMonitoring:    aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
+		AMIID:                 amiID,
+		InstanceTypes:         instanceTypes,
+		EFACount:              efaCount,
+		CapacityType:          capacityType,
+		CapacityReservationID: capacityReservationID,
 	}
 	if len(resolved.BlockDeviceMappings) == 0 {
 		resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()

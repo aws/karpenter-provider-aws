@@ -17,6 +17,7 @@ package v1
 import (
 	"github.com/awslabs/operatorpkg/status"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -62,8 +63,55 @@ type AMI struct {
 	Requirements []corev1.NodeSelectorRequirement `json:"requirements"`
 }
 
+// CapacityReservation contains resolved Capacity Reservation selector values utilized for node launch
+type CapacityReservation struct {
+	// ID of the Capacity Reservation
+	// +required
+	ID string `json:"id"`
+	// AvailabilityZone of the Capacity Reservation
+	// +required
+	AvailabilityZone string `json:"availabilityZone"`
+	// Available Instance Count of the Capacity Reservation
+	// +required
+	AvailableInstanceCount int `json:"availableInstanceCount"`
+	// The date and time at which the Capacity Reservation expires. When a Capacity
+	// Reservation expires, the reserved capacity is released and you can no longer
+	// launch instances into it. The Capacity Reservation's state changes to expired
+	// when it reaches its end date and time.
+	// +optional
+	EndTime *metav1.Time `json:"endTime,omitempty"`
+	// Indicates the type of instance launches that the Capacity Reservation accepts. The options include:
+	//   - open:
+	//       The Capacity Reservation accepts all instances that have
+	//       matching attributes (instance type, platform, and Availability
+	//       Zone). Instances that have matching attributes launch into the
+	//       Capacity Reservation automatically without specifying any
+	//       additional parameters.
+	//   - targeted:
+	//       The Capacity Reservation only accepts instances that
+	//       have matching attributes (instance type, platform, and
+	//       Availability Zone), and explicitly target the Capacity
+	//       Reservation. This ensures that only permitted instances can use
+	//       the reserved capacity.
+	// +required
+	InstanceMatchCriteria string `json:"instanceMatchCriteria"`
+	// Instance Type of the Capacity Reservation
+	// +required
+	InstanceType string `json:"instanceType"`
+	// The id of the AWS account that owns the Capacity Reservation
+	// +required
+	OwnerID string `json:"ownerId"`
+	// Total Instance Count of the Capacity Reservation
+	// +required
+	TotalInstanceCount int `json:"totalInstanceCount"`
+}
+
 // EC2NodeClassStatus contains the resolved state of the EC2NodeClass
 type EC2NodeClassStatus struct {
+	// CapacityReservations contains the current Capacity Reservations values that are available to the
+	// cluster under the CapacityReservations selectors.
+	// +optional
+	CapacityReservations []CapacityReservation `json:"capacityReservations,omitempty"`
 	// Subnets contains the current Subnet values that are available to the
 	// cluster under the subnet selectors.
 	// +optional
