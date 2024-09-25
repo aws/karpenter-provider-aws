@@ -22,7 +22,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -33,8 +32,6 @@ import (
 )
 
 var _ = FDescribe("EC2NodeClass Migration Controller", func() {
-	var nodeClass *v1.EC2NodeClass
-	var nodePool *karpv1.NodePool
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass()
 		nodePool = &karpv1.NodePool{}
