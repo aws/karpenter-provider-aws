@@ -154,6 +154,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 
 		EC2Cache:                      ec2Cache,
 		KubernetesVersionCache:        kubernetesVersionCache,
+		InstanceTypeCache:             instanceTypeCache,
 		LaunchTemplateCache:           launchTemplateCache,
 		SubnetCache:                   subnetCache,
 		AvailableIPAdressCache:        availableIPAdressCache,
