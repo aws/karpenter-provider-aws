@@ -15,9 +15,10 @@ limitations under the License.
 package integration_test
 
 import (
+	"github.com/samber/lo"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
-	"github.com/samber/lo"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
