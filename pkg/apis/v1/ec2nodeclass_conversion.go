@@ -23,6 +23,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 
@@ -34,7 +35,7 @@ import (
 func (in *EC2NodeClass) ConvertTo(ctx context.Context, to apis.Convertible) error {
 	v1beta1enc := to.(*v1beta1.EC2NodeClass)
 	v1beta1enc.ObjectMeta = in.ObjectMeta
-	v1beta1enc.Annotations = lo.OmitByKeys(v1beta1enc.Annotations, []string{AnnotationUbuntuCompatibilityKey})
+	v1beta1enc.Annotations = lo.OmitByKeys(v1beta1enc.Annotations, []string{AnnotationUbuntuCompatibilityKey, karpv1.StoredVersionMigratedKey})
 
 	if value, ok := in.Annotations[AnnotationUbuntuCompatibilityKey]; ok {
 		compatSpecifiers := strings.Split(value, ",")
