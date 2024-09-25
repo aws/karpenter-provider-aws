@@ -55,6 +55,17 @@ func (in *EC2NodeClass) ConvertTo(ctx context.Context, to apis.Convertible) erro
 		v1beta1enc.Spec.AMIFamily = lo.ToPtr(in.AMIFamily())
 	}
 
+	if term, ok := lo.Find(in.Spec.AMISelectorTerms, func(term AMISelectorTerm) bool {
+		return term.Alias != ""
+	}); ok {
+		version := AMIVersionFromAlias(term.Alias)
+		if version != "latest" {
+			v1beta1enc.Annotations = lo.Assign(v1beta1enc.Annotations, map[string]string{
+				AnnotationAliasVersionCompatibilityKey: version,
+			})
+		}
+	}
+
 	in.Spec.convertTo(&v1beta1enc.Spec)
 	in.Status.convertTo((&v1beta1enc.Status))
 	return nil
@@ -133,6 +144,7 @@ func (in *EC2NodeClassStatus) convertTo(v1beta1enc *v1beta1.EC2NodeClassStatus) 
 func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) error {
 	v1beta1enc := from.(*v1beta1.EC2NodeClass)
 	in.ObjectMeta = v1beta1enc.ObjectMeta
+	in.Annotations = lo.OmitByKeys(in.Annotations, []string{AnnotationAliasVersionCompatibilityKey})
 
 	switch lo.FromPtr(v1beta1enc.Spec.AMIFamily) {
 	case AMIFamilyAL2, AMIFamilyAL2023, AMIFamilyBottlerocket, AMIFamilyWindows2019, AMIFamilyWindows2022:
@@ -141,7 +153,11 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 		if len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
 			in.Spec.AMIFamily = nil
 			in.Spec.AMISelectorTerms = []AMISelectorTerm{{
-				Alias: fmt.Sprintf("%s@latest", strings.ToLower(lo.FromPtr(v1beta1enc.Spec.AMIFamily))),
+				Alias: fmt.Sprintf(
+					"%s@%s",
+					strings.ToLower(lo.FromPtr(v1beta1enc.Spec.AMIFamily)),
+					lo.ValueOr(v1beta1enc.Annotations, AnnotationAliasVersionCompatibilityKey, "latest"),
+				),
 			}}
 		} else {
 			in.Spec.AMIFamily = v1beta1enc.Spec.AMIFamily

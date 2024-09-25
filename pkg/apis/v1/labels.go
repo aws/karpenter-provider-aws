@@ -127,7 +127,9 @@ var (
 	AnnotationUbuntuCompatibilityAMIFamily           = "amiFamily"
 	AnnotationUbuntuCompatibilityBlockDeviceMappings = "blockDeviceMappings"
 
-	TagNodeClaim             = v1.Group + "/nodeclaim"
-	TagManagedLaunchTemplate = Group + "/cluster"
-	TagName                  = "Name"
+	TagNodeClaim                           = v1.Group + "/nodeclaim"
+	TagManagedLaunchTemplate               = Group + "/cluster"
+	AnnotationAliasVersionCompatibilityKey = CompatibilityGroup + "/v1-alias-version"
+
+	TagName = "Name"
 )
