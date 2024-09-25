@@ -75,7 +75,7 @@ type Environment struct {
 	InstanceProfileProvider *instanceprofile.DefaultProvider
 	PricingProvider         *pricing.DefaultProvider
 	AMIProvider             *amifamily.DefaultProvider
-	AMIResolver             *amifamily.Resolver
+	AMIResolver             *amifamily.DefaultResolver
 	VersionProvider         *version.DefaultProvider
 	LaunchTemplateProvider  *launchtemplate.DefaultProvider
 }
@@ -109,7 +109,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmProvider, ec2api, ec2Cache)
-	amiResolver := amifamily.NewResolver(amiProvider)
+	amiResolver := amifamily.NewDefaultResolver()
 	instanceTypesProvider := instancetype.NewDefaultProvider(fake.DefaultRegion, instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider :=
 		launchtemplate.NewDefaultProvider(
