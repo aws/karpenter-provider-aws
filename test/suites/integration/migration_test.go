@@ -33,7 +33,7 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 )
 
-var _ = FDescribe("EC2NodeClass Migration Controller", func() {
+var _ = Describe("EC2NodeClass Migration Controller", func() {
 	BeforeEach(func() {
 		nodeClass = env.DefaultEC2NodeClass()
 		nodePool = env.DefaultNodePool(nodeClass)
