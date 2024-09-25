@@ -41,10 +41,12 @@ var DefaultEBS = v1.BlockDevice{
 	VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
 }
 
-// Resolver is able to fill-in dynamic launch template parameters
-type Resolver struct {
-	amiProvider Provider
+type Resolver interface {
+	Resolve(*v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, *Options) ([]*LaunchTemplate, error)
 }
+
+// DefaultResolver is able to fill-in dynamic launch template parameters
+type DefaultResolver struct{}
 
 // Options define the static launch template parameters
 type Options struct {
@@ -111,16 +113,14 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 	}
 }
 
-// NewResolver constructs a new launch template Resolver
-func NewResolver(amiProvider Provider) *Resolver {
-	return &Resolver{
-		amiProvider: amiProvider,
-	}
+// NewDefaultResolver constructs a new launch template DefaultResolver
+func NewDefaultResolver() *DefaultResolver {
+	return &DefaultResolver{}
 }
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r Resolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
+func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.AMIFamily(), options)
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
@@ -184,7 +184,7 @@ func (o Options) DefaultMetadataOptions() *v1.MetadataOptions {
 	}
 }
 
-func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.KubeletConfiguration) *v1.KubeletConfiguration {
+func (r DefaultResolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.KubeletConfiguration) *v1.KubeletConfiguration {
 	if opts.KubeDNSIP == nil {
 		return kubeletConfig
 	}
@@ -201,7 +201,7 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.KubeletConf
 	return newKubeletConfig
 }
 
-func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
+func (r DefaultResolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
 	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, options *Options) *LaunchTemplate {
 	kubeletConfig := &v1.KubeletConfiguration{}
 	if nodeClass.Spec.Kubelet != nil {
