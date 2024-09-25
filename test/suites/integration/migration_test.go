@@ -15,6 +15,7 @@ limitations under the License.
 package integration_test
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/awslabs/operatorpkg/object"
@@ -33,13 +34,16 @@ import (
 
 var _ = FDescribe("EC2NodeClass Migration Controller", func() {
 	BeforeEach(func() {
-		nodeClass = test.EC2NodeClass()
-		nodePool = &karpv1.NodePool{}
+		// customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+		nodeClass = env.DefaultEC2NodeClass()
+		nodePool = env.DefaultNodePool(nodeClass)
 	})
 	It("should have migration key on for v1 resources", func() {
 		env.ExpectCreated(nodeClass, nodePool)
-		Expect(nodeClass.Annotations).To(HaveKey(karpv1.StoredVersionMigratedKey))
-		Expect(nodePool.Annotations).To(HaveKey(karpv1.StoredVersionMigratedKey))
+		time.Sleep(10 * time.Second)
+		fmt.Println(nodeClass.Annotations)
+		Eventually(Expect(nodeClass.Annotations).To(HaveKey(karpv1.StoredVersionMigratedKey)))
+		Eventually(Expect(nodePool.Annotations).To(HaveKey(karpv1.StoredVersionMigratedKey)))
 	})
 	It("should update CRD status", func() {
 		v1beta1NodeClass := test.BetaEC2NodeClass()
