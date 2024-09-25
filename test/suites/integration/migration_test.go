@@ -28,7 +28,7 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 )
 
-var _ = Describe("Migration Controller", func() {
+var _ = Describe("Migration", func() {
 	BeforeEach(func() {
 		nodeClass = env.DefaultEC2NodeClass()
 		nodePool = env.DefaultNodePool(nodeClass)
