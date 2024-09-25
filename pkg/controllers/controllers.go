@@ -21,6 +21,7 @@ import (
 	"github.com/awslabs/operatorpkg/status"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	migration "sigs.k8s.io/karpenter/pkg/controllers/migration/resource"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	nodeclasshash "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/hash"
@@ -67,6 +68,7 @@ func NewControllers(ctx context.Context, mgr manager.Manager, sess *session.Sess
 		controllerspricing.NewController(pricingProvider),
 		controllersinstancetype.NewController(instanceTypeProvider),
 		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter")),
+		migration.NewController[*v1.EC2NodeClass](kubeClient),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsapi := servicesqs.New(sess)
