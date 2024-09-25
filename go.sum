@@ -14,8 +14,8 @@ github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db
 github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881/go.mod h1:+Mk5k0b6HpKobxNq+B56DOhZ+I/NiPhd5MIBhQMSTSs=
 github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647 h1:8yRBVsjGmI7qQsPWtIrbWP+XfwHO9Wq7gdLVzjqiZFs=
 github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647/go.mod h1:9NafTAUHL0FlMeL6Cu5PXnMZ1q/LnC9X2emLXHsVbM8=
-github.com/awslabs/operatorpkg v0.0.0-20240912183034-ab1e7d730cf3 h1:jhFYTRgOZhFMtQ2GzY2dVDAjorHpWI0rt9wDFG5jQ2o=
-github.com/awslabs/operatorpkg v0.0.0-20240912183034-ab1e7d730cf3/go.mod h1:WnRtbjt0U71m4PqDBLybOcY5KkbeGh9FIsJGohVFUo4=
+github.com/awslabs/operatorpkg v0.0.0-20240920182301-771460b3160b h1:aG1+YRmKIf5nLTZJNhw1NmuxvjUprWYyluqJ2jmVqiU=
+github.com/awslabs/operatorpkg v0.0.0-20240920182301-771460b3160b/go.mod h1:RI+iNDn57c3WX0tsZg4rvkmM58lWsEC5cc6E4vJJld8=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
@@ -126,8 +126,8 @@ github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/prometheus/client_golang v1.20.3 h1:oPksm4K8B+Vt35tUhw6GbSNSgVlVSBH0qELP/7u83l4=
-github.com/prometheus/client_golang v1.20.3/go.mod h1:PIEt8X02hGcP8JWbeHyeZ53Y/jReSnHgO035n//V5WE=
+github.com/prometheus/client_golang v1.20.4 h1:Tgh3Yr67PaOv/uTqloMsCEdeuFTatm5zIq5+qNN23vI=
+github.com/prometheus/client_golang v1.20.4/go.mod h1:PIEt8X02hGcP8JWbeHyeZ53Y/jReSnHgO035n//V5WE=
 github.com/prometheus/client_model v0.6.1 h1:ZKSh/rekM+n3CeS952MLRAdFwIKqeY8b62p8ais2e9E=
 github.com/prometheus/client_model v0.6.1/go.mod h1:OrxVMOVHjw3lKMa8+x6HeMGkHMQyHDk9E3jmP2AmGiY=
 github.com/prometheus/common v0.55.0 h1:KEi6DK7lXW/m7Ig5i47x0vRzuBsHuvJdi5ee6Y3G1dc=
@@ -276,8 +276,8 @@ sigs.k8s.io/controller-runtime v0.19.0 h1:nWVM7aq+Il2ABxwiCizrVDSlmDcshi9llbaFbC
 sigs.k8s.io/controller-runtime v0.19.0/go.mod h1:iRmWllt8IlaLjvTTDLhRBXIEtkCK6hwVBJJsYS9Ajf4=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd/go.mod h1:B8JuhiUyNFVKdsE8h686QcCxMaH6HrOAZj4vswFpcB0=
-sigs.k8s.io/karpenter v1.0.1-0.20240917183044-71f7aef707c9 h1:PJsVtGgJUTDqYWXa6xkrTDUNUlMyZj3yDsJTX2tJu5g=
-sigs.k8s.io/karpenter v1.0.1-0.20240917183044-71f7aef707c9/go.mod h1:U70Yuu2wiH1nBC5/nDYYpqYNadYnMgetmVQ5s2NouyU=
+sigs.k8s.io/karpenter v1.0.1-0.20240921204958-04a921c00ad8 h1:F0eGjPSRLd6emk614DNjxgNc97AkVqRSvpnSxxxm0hM=
+sigs.k8s.io/karpenter v1.0.1-0.20240921204958-04a921c00ad8/go.mod h1:U70Yuu2wiH1nBC5/nDYYpqYNadYnMgetmVQ5s2NouyU=
 sigs.k8s.io/structured-merge-diff/v4 v4.4.1 h1:150L+0vs/8DA78h1u02ooW1/fFq/Lwr+sGiqlzvrtq4=
 sigs.k8s.io/structured-merge-diff/v4 v4.4.1/go.mod h1:N8hJocpFajUSSeSJ9bOZ77VzejKZaXsTtZo4/u7Io08=
 sigs.k8s.io/yaml v1.4.0 h1:Mk1wCc2gy/F0THH0TAp1QYyJNzRm2KCLy3o5ASXVI5E=
