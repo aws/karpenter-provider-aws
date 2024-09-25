@@ -138,7 +138,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			"",
 			ec2api,
 			unavailableOfferingsCache,
-			instanceTypesProvider,
 			subnetProvider,
 			launchTemplateProvider,
 		)
