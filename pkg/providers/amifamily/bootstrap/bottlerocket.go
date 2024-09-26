@@ -80,12 +80,13 @@ func (b Bottlerocket) Script() (string, error) {
 	}
 
 	if lo.FromPtr(b.InstanceStorePolicy) == v1.InstanceStorePolicyRAID0 {
-		s.Settings.BootstrapCommands = map[string]BootstrapCommand{
-			"000-mount-instance-storage": {
-				Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}},
-				Essential: false,
-				Mode:      BootstrapCommandModeAlways,
-			},
+		if s.Settings.BootstrapCommands == nil {
+			s.Settings.BootstrapCommands = map[string]BootstrapCommand{}
+		}
+		s.Settings.BootstrapCommands["000-mount-instance-storage"] = BootstrapCommand{
+			Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}},
+			Essential: true,
+			Mode:      BootstrapCommandModeAlways,
 		}
 	}
 	script, err := s.MarshalTOML()

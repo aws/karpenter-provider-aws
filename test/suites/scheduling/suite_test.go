@@ -168,28 +168,6 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 			env.ExpectCreatedNodeCount("==", 1)
 		})
-		It("should support well-known labels for local instance storage", func() {
-			selectors.Insert(v1.LabelInstanceLocalStorage) // Add node selector keys to selectors used in testing to ensure we test all labels
-			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
-				NodePreferences: []corev1.NodeSelectorRequirement{
-					{
-						Key:      v1.LabelInstanceLocalStorage,
-						Operator: corev1.NodeSelectorOpGt,
-						Values:   []string{"0"},
-					},
-				},
-				NodeRequirements: []corev1.NodeSelectorRequirement{
-					{
-						Key:      v1.LabelInstanceLocalStorage,
-						Operator: corev1.NodeSelectorOpGt,
-						Values:   []string{"0"},
-					},
-				},
-			}})
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-			env.ExpectCreatedNodeCount("==", 1)
-		})
 		It("should support well-known labels for encryption in transit", func() {
 			selectors.Insert(v1.LabelInstanceEncryptionInTransitSupported) // Add node selector keys to selectors used in testing to ensure we test all labels
 			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{

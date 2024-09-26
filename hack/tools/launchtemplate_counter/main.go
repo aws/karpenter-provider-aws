@@ -57,16 +57,18 @@ func main() {
 	ec2api := ec2.New(sess)
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	instanceTypeProvider := instancetype.NewDefaultProvider(
-		region,
 		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		subnetProvider,
-		awscache.NewUnavailableOfferings(),
-		pricing.NewDefaultProvider(
-			ctx,
-			pricing.NewAPI(sess, *sess.Config.Region),
-			ec2api,
-			*sess.Config.Region,
+		instancetype.NewDefaultResolver(
+			region,
+			pricing.NewDefaultProvider(
+				ctx,
+				pricing.NewAPI(sess, *sess.Config.Region),
+				ec2api,
+				*sess.Config.Region,
+			),
+			awscache.NewUnavailableOfferings(),
 		),
 	)
 	if err := instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {
@@ -124,7 +126,7 @@ func main() {
 			},
 		},
 	}
-	instanceTypes, err := instanceTypeProvider.List(ctx, &v1.KubeletConfiguration{}, nodeClass)
+	instanceTypes, err := instanceTypeProvider.List(ctx, nodeClass)
 
 	// See how many launch templates we get by constraining our instance types to just be "c", "m", and "r"
 	reqs := scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelInstanceCategory, corev1.NodeSelectorOpIn, "c", "m", "r"))

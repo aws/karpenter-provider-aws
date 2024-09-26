@@ -341,7 +341,6 @@ func getIdentMapping(identName string) (string, error) {
 		"Namespace":         metrics.Namespace,
 
 		"MetricNamespace":            "operator",
-		"TerminationSubsystem":       "termination",
 		"MetricSubsystem":            "status_condition",
 		"TerminationSubsystem":       "termination",
 		"WorkQueueSubsystem":         "workqueue",

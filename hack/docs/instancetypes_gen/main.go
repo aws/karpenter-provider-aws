@@ -200,7 +200,6 @@ below are the resources available with some assumptions and after the instance o
 	delete(labelNameMap, corev1.LabelTopologyZone)
 	delete(labelNameMap, v1.LabelTopologyZoneID)
 	delete(labelNameMap, karpv1.CapacityTypeLabelKey)
-	delete(labelNameMap, v1.LabelInstanceLocalNVME)
 
 	labelNames := lo.Keys(labelNameMap)
 
