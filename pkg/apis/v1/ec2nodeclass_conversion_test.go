@@ -22,6 +22,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,6 +50,19 @@ var _ = Describe("Convert v1 to v1beta1 EC2NodeClass API", func() {
 		})
 		Expect(v1ec2nodeclass.ConvertTo(ctx, v1beta1ec2nodeclass)).To(Succeed())
 		Expect(v1beta1ec2nodeclass.ObjectMeta).To(BeEquivalentTo(v1ec2nodeclass.ObjectMeta))
+	})
+	It("should drop v1 specific annotations on conversion", func() {
+		v1ec2nodeclass.ObjectMeta = test.ObjectMeta(
+			metav1.ObjectMeta{
+				Annotations: map[string]string{
+					karpv1.StoredVersionMigratedKey: "true",
+				},
+			},
+		)
+		v1nc := v1ec2nodeclass.DeepCopy()
+		Expect(v1ec2nodeclass.ConvertTo(ctx, v1beta1ec2nodeclass)).To(Succeed())
+		Expect(v1nc.Annotations).To(HaveKey(karpv1.StoredVersionMigratedKey))
+		Expect(v1beta1ec2nodeclass.Annotations).NotTo(HaveKey(karpv1.StoredVersionMigratedKey))
 	})
 	Context("EC2NodeClass Spec", func() {
 		It("should convert v1 ec2nodeclass subnet selector terms", func() {
