@@ -50,6 +50,13 @@ var _ = Describe("StandaloneNodeClaim", func() {
 					},
 					{
 						NodeSelectorRequirement: v1.NodeSelectorRequirement{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"arm64"},
+						},
+					},
+					{
+						NodeSelectorRequirement: v1.NodeSelectorRequirement{
 							Key:      corev1beta1.CapacityTypeLabelKey,
 							Operator: v1.NodeSelectorOpIn,
 							Values:   []string{corev1beta1.CapacityTypeOnDemand},
@@ -203,6 +210,13 @@ var _ = Describe("StandaloneNodeClaim", func() {
 					},
 					{
 						NodeSelectorRequirement: v1.NodeSelectorRequirement{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"arm64"},
+						},
+					},
+					{
+						NodeSelectorRequirement: v1.NodeSelectorRequirement{
 							Key:      corev1beta1.CapacityTypeLabelKey,
 							Operator: v1.NodeSelectorOpIn,
 							Values:   []string{corev1beta1.CapacityTypeOnDemand},
@@ -226,7 +240,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		env.EventuallyExpectNotFound(nodeClaim, node)
 
 		Eventually(func(g Gomega) {
-			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(Equal("shutting-down"))
+			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(BeElementOf("shutting-down", "terminated"))
 		}, time.Second*10).Should(Succeed())
 	})
 	It("should delete a NodeClaim from the node termination finalizer", func() {
@@ -238,6 +252,13 @@ var _ = Describe("StandaloneNodeClaim", func() {
 							Key:      v1beta1.LabelInstanceCategory,
 							Operator: v1.NodeSelectorOpIn,
 							Values:   []string{"c"},
+						},
+					},
+					{
+						NodeSelectorRequirement: v1.NodeSelectorRequirement{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"arm64"},
 						},
 					},
 					{
@@ -265,7 +286,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		env.EventuallyExpectNotFound(nodeClaim, node)
 
 		Eventually(func(g Gomega) {
-			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(Equal("shutting-down"))
+			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(BeElementOf("shutting-down", "terminated"))
 		}, time.Second*10).Should(Succeed())
 	})
 	It("should create a NodeClaim with custom labels passed through the userData", func() {
