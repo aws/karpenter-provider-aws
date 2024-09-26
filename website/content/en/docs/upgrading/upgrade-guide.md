@@ -11,7 +11,7 @@ Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes 
 This guide contains information needed to upgrade to the latest release of Karpenter, along with compatibility issues you need to be aware of when upgrading from earlier Karpenter versions.
 
 {{% alert title="Warning" color="warning" %}}
-With the release of Karpenter v1.0.1, the Karpenter team will be dropping support for karpenter versions v0.32 and below. We recommend upgrading to the latest version of Karpenter and keeping Karpenter up-to-date for bug fixes and new features.
+With the release of Karpenter v1.0.0, the Karpenter team will be dropping support for karpenter versions v0.32 and below. We recommend upgrading to the latest version of Karpenter and keeping Karpenter up-to-date for bug fixes and new features.
 {{% /alert %}}
 
 ### CRD Upgrades
