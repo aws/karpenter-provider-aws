@@ -92,7 +92,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.0.0 \
 | settings.interruptionQueue | string | `""` | Interruption queue is the name of the SQS queue used for processing interruption events from EC2 Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs. |
 | settings.isolatedVPC | bool | `false` | If true then assume we can't reach AWS services which don't have a VPC endpoint This also has the effect of disabling look-ups to the AWS pricing endpoint |
 | settings.reservedENIs | string | `"0"` | Reserved ENIs are not included in the calculations for max-pods or kube-reserved This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html |
-| settings.vmMemoryOverheadPercent | float | `0.075` | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types |
+| settings.vmMemoryOverheadPercent | float | `0.075` | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types. The value of `0.075` equals to 7.5%. |
 | strategy | object | `{"rollingUpdate":{"maxUnavailable":1}}` | Strategy for updating the pod. |
 | terminationGracePeriodSeconds | string | `nil` | Override the default termination grace period for the pod. |
 | tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"}]` | Tolerations to allow the pod to be scheduled to nodes with taints. |
