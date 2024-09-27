@@ -97,7 +97,7 @@ jobs:
     with:
       # This version includes the IRSA changes to support k8s 1.23
       # https://github.com/aws/karpenter-provider-aws/pull/5445
-      from_git_ref: 6934ef58e8e13686d4f57c2d336dd165cbf3e759
+      from_git_ref: 5710b96e98193537660ced9bd952857c8d8def97
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
