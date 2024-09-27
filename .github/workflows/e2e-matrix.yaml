@@ -85,7 +85,7 @@ jobs:
     with:
       # This version matches the updated create-cluster action, which is now setup-cluster 
       # https://github.com/aws/karpenter/pull/5203/files
-      from_git_ref: 4d5fbcd2059593e613e92f2f0ede22160fc2a1e3
+      from_git_ref: b138dffb16cbd0ce73a419749cf977095e211032
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
