@@ -22,6 +22,15 @@ import (
 	"net"
 	"os"
 
+	//v2
+	configV2 "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	ec2V2 "github.com/aws/aws-sdk-go-v2/service/ec2"
+	iamV2 "github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/smithy-go"
+	prometheusv2 "github.com/jonathan-innis/aws-sdk-go-prometheus/v2"
+
+	//v1
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	awsclient "github.com/aws/aws-sdk-go/aws/client"
@@ -33,7 +42,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
-	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	prometheusv1 "github.com/jonathan-innis/aws-sdk-go-prometheus/v1"
 	"github.com/patrickmn/go-cache"
@@ -73,7 +81,6 @@ type Operator struct {
 
 	Session                   *session.Session
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
-	EC2API                    ec2iface.EC2API
 	SubnetProvider            subnet.Provider
 	SecurityGroupProvider     securitygroup.Provider
 	InstanceProfileProvider   instanceprofile.Provider
@@ -88,6 +95,7 @@ type Operator struct {
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
+	//v1
 	config := &aws.Config{
 		STSRegionalEndpoint: endpoints.RegionalSTSEndpoint,
 	}
@@ -133,7 +141,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(*sess.Config.Region, iam.New(sess), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
 	pricingProvider := pricing.NewDefaultProvider(
 		ctx,
 		pricing.NewAPI(sess, *sess.Config.Region),
@@ -174,12 +181,38 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 	)
+	//v2
+	cfg, err := configV2.LoadDefaultConfig(ctx,
+		configV2.WithRetryMaxAttempts(5),
+	)
+	if err != nil {
+		panic(err)
+	}
+	prometheusv2.WithPrometheusMetrics(cfg, crmetrics.Registry)
+	if cfg.Region == "" {
+		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
+		metaDataClient := imds.NewFromConfig(cfg)
+		region, err := metaDataClient.GetRegion(ctx, nil)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "failed to get region from metadata server")
+			os.Exit(1)
+		}
+		cfg.Region = region.Region
+	}
+	ec2apiV2 := ec2V2.NewFromConfig(cfg)
+	iamapi := iamV2.NewFromConfig(cfg)
+	//check connnectivity
+	if err := CheckEC2ConnectivityV2(ctx, ec2apiV2); err != nil {
+		log.FromContext(ctx).Error(err, "ec2 api connectivity check failed")
+		os.Exit(1)
+	}
+
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(cfg.Region, iamapi, cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
 
 	return ctx, &Operator{
 		Operator:                  operator,
 		Session:                   sess,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
-		EC2API:                    ec2api,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,
 		InstanceProfileProvider:   instanceProfileProvider,
@@ -207,6 +240,19 @@ func CheckEC2Connectivity(ctx context.Context, api ec2iface.EC2API) error {
 	_, err := api.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
 	var aerr awserr.Error
 	if errors.As(err, &aerr) && aerr.Code() == "DryRunOperation" {
+		return nil
+	}
+	return err
+}
+
+// CheckEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
+// are having issues connecting to the EC2 API.
+func CheckEC2ConnectivityV2(ctx context.Context, api *ec2V2.Client) error {
+	_, err := api.DescribeInstanceTypes(ctx, &ec2V2.DescribeInstanceTypesInput{
+		DryRun: aws.Bool(true),
+	})
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) && apiErr.ErrorCode() == "DryRunOperation" {
 		return nil
 	}
 	return err

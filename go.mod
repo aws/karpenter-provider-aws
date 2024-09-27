@@ -1,13 +1,22 @@
 module github.com/aws/karpenter-provider-aws
 
-go 1.23.0
+go 1.23.1
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/PuerkitoBio/goquery v1.10.0
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.55.5
+	github.com/aws/aws-sdk-go-v2 v1.31.0
+	github.com/aws/aws-sdk-go-v2/config v1.26.6
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.14.11
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.177.3
+	github.com/aws/aws-sdk-go-v2/service/eks v1.48.3
+	github.com/aws/aws-sdk-go-v2/service/iam v1.36.2
+	github.com/aws/aws-sdk-go-v2/service/pricing v1.30.5
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.52.7
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
+	github.com/aws/smithy-go v1.21.0
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
 	github.com/awslabs/operatorpkg v0.0.0-20240920182301-771460b3160b
 	github.com/go-logr/zapr v1.3.0
@@ -33,6 +42,18 @@ require (
 	sigs.k8s.io/controller-runtime v0.19.0
 	sigs.k8s.io/karpenter v1.0.1-0.20240921204958-04a921c00ad8
 	sigs.k8s.io/yaml v1.4.0
+)
+
+require (
+	github.com/aws/aws-sdk-go-v2/credentials v1.16.16 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.18 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.18 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.7.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.11.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.11.19 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.18.7 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.21.7 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.26.7 // indirect
 )
 
 require (
