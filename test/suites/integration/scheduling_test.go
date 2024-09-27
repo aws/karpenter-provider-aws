@@ -208,6 +208,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
 				return v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}}
 			})
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2)
 			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
 				NodeSelector:     nodeSelector,
 				NodePreferences:  requirements,
