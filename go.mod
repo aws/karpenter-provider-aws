@@ -11,10 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.26.6
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.14.11
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.177.3
-	github.com/aws/aws-sdk-go-v2/service/eks v1.48.3
 	github.com/aws/aws-sdk-go-v2/service/iam v1.36.2
-	github.com/aws/aws-sdk-go-v2/service/pricing v1.30.5
-	github.com/aws/aws-sdk-go-v2/service/ssm v1.52.7
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
 	github.com/aws/smithy-go v1.21.0
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647

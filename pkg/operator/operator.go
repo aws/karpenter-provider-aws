@@ -172,14 +172,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		unavailableOfferingsCache,
 		pricingProvider,
 	)
-	instanceProvider := instance.NewDefaultProvider(
-		ctx,
-		aws.StringValue(sess.Config.Region),
-		ec2api,
-		unavailableOfferingsCache,
-		subnetProvider,
-		launchTemplateProvider,
-	)
+
 	//v2
 	cfg, err := configV2.LoadDefaultConfig(ctx,
 		configV2.WithRetryMaxAttempts(5),
@@ -198,15 +191,16 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		}
 		cfg.Region = region.Region
 	}
-	ec2apiV2 := ec2V2.NewFromConfig(cfg)
-	iamapi := iamV2.NewFromConfig(cfg)
-	//check connnectivity
-	if err := CheckEC2ConnectivityV2(ctx, ec2apiV2); err != nil {
-		log.FromContext(ctx).Error(err, "ec2 api connectivity check failed")
-		os.Exit(1)
-	}
 
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(cfg.Region, iamapi, cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(cfg.Region, iamV2.NewFromConfig(cfg), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
+	instanceProvider := instance.NewDefaultProvider(
+		ctx,
+		aws.StringValue(sess.Config.Region),
+		ec2api,
+		unavailableOfferingsCache,
+		subnetProvider,
+		launchTemplateProvider,
+	)
 
 	return ctx, &Operator{
 		Operator:                  operator,
