@@ -214,6 +214,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
 			}})
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2)
 			env.ExpectCreated(nodeClass, nodePool, deployment)
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 			env.ExpectCreatedNodeCount("==", 1)
