@@ -25,9 +25,7 @@ import (
 	//v2
 	configV2 "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
-	ec2V2 "github.com/aws/aws-sdk-go-v2/service/ec2"
 	iamV2 "github.com/aws/aws-sdk-go-v2/service/iam"
-	"github.com/aws/smithy-go"
 	prometheusv2 "github.com/jonathan-innis/aws-sdk-go-prometheus/v2"
 
 	//v1
@@ -172,6 +170,14 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		unavailableOfferingsCache,
 		pricingProvider,
 	)
+	instanceProvider := instance.NewDefaultProvider(
+		ctx,
+		aws.StringValue(sess.Config.Region),
+		ec2api,
+		unavailableOfferingsCache,
+		subnetProvider,
+		launchTemplateProvider,
+	)
 
 	//v2
 	cfg, err := configV2.LoadDefaultConfig(ctx,
@@ -193,14 +199,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	}
 
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(cfg.Region, iamV2.NewFromConfig(cfg), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
-	instanceProvider := instance.NewDefaultProvider(
-		ctx,
-		aws.StringValue(sess.Config.Region),
-		ec2api,
-		unavailableOfferingsCache,
-		subnetProvider,
-		launchTemplateProvider,
-	)
 
 	return ctx, &Operator{
 		Operator:                  operator,
@@ -233,19 +231,6 @@ func CheckEC2Connectivity(ctx context.Context, api ec2iface.EC2API) error {
 	_, err := api.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
 	var aerr awserr.Error
 	if errors.As(err, &aerr) && aerr.Code() == "DryRunOperation" {
-		return nil
-	}
-	return err
-}
-
-// CheckEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
-// are having issues connecting to the EC2 API.
-func CheckEC2ConnectivityV2(ctx context.Context, api *ec2V2.Client) error {
-	_, err := api.DescribeInstanceTypes(ctx, &ec2V2.DescribeInstanceTypesInput{
-		DryRun: aws.Bool(true),
-	})
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) && apiErr.ErrorCode() == "DryRunOperation" {
 		return nil
 	}
 	return err
