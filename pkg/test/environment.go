@@ -73,6 +73,7 @@ type Environment struct {
 	SSMCache                      *cache.Cache
 
 	// Providers
+	InstanceTypesResolver   *instancetype.DefaultResolver
 	InstanceTypesProvider   *instancetype.DefaultProvider
 	InstanceProvider        *instance.DefaultProvider
 	SubnetProvider          *subnet.DefaultProvider
@@ -118,7 +119,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
 	amiResolver := amifamily.NewDefaultResolver()
-	instanceTypesProvider := instancetype.NewDefaultProvider(fake.DefaultRegion, instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion, pricingProvider, unavailableOfferingsCache)
+	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, ec2api, subnetProvider, instanceTypesResolver)
 	launchTemplateProvider :=
 		launchtemplate.NewDefaultProvider(
 			ctx,
@@ -163,6 +165,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		UnavailableOfferingsCache:     unavailableOfferingsCache,
 		SSMCache:                      ssmCache,
 
+		InstanceTypesResolver:   instanceTypesResolver,
 		InstanceTypesProvider:   instanceTypesProvider,
 		InstanceProvider:        instanceProvider,
 		SubnetProvider:          subnetProvider,

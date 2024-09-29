@@ -1010,7 +1010,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
-			amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				"",
@@ -1022,7 +1021,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Spec.Kubelet.SystemReserved,
 				nodeClass.Spec.Kubelet.EvictionHard,
 				nodeClass.Spec.Kubelet.EvictionSoft,
-				amiFamily,
+				nodeClass.AMIFamily(),
 				nil,
 			)
 
@@ -1064,7 +1063,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
-			amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				"",
@@ -1076,7 +1074,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Spec.Kubelet.SystemReserved,
 				nodeClass.Spec.Kubelet.EvictionHard,
 				nodeClass.Spec.Kubelet.EvictionSoft,
-				amiFamily,
+				nodeClass.AMIFamily(),
 				nil,
 			)
 
@@ -1090,7 +1088,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
-			amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				"",
@@ -1102,7 +1099,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Spec.Kubelet.SystemReserved,
 				nodeClass.Spec.Kubelet.EvictionHard,
 				nodeClass.Spec.Kubelet.EvictionSoft,
-				amiFamily,
+				nodeClass.AMIFamily(),
 				nil,
 			)
 			overhead := it.Overhead.Total()

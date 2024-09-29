@@ -61,7 +61,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
@@ -912,7 +911,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(err).To(BeNil())
 		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 		for _, info := range instanceInfo.InstanceTypes {
-			amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				fake.DefaultRegion,
@@ -924,7 +922,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodeClass.Spec.Kubelet.SystemReserved,
 				nodeClass.Spec.Kubelet.EvictionHard,
 				nodeClass.Spec.Kubelet.EvictionSoft,
-				amiFamily,
+				nodeClass.AMIFamily(),
 				nil,
 			)
 			Expect(it.Capacity.Pods().Value()).ToNot(BeNumerically("==", 110))
@@ -935,7 +933,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(err).To(BeNil())
 		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 		for _, info := range instanceInfo.InstanceTypes {
-			amiFamily := amifamily.GetAMIFamily(windowsNodeClass.AMIFamily(), &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				fake.DefaultRegion,
@@ -947,7 +944,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodeClass.Spec.Kubelet.SystemReserved,
 				nodeClass.Spec.Kubelet.EvictionHard,
 				nodeClass.Spec.Kubelet.EvictionSoft,
-				amiFamily,
+				windowsNodeClass.AMIFamily(),
 				nil,
 			)
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
@@ -955,7 +952,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 	})
 	Context("Metrics", func() {
 		It("should expose vcpu metrics for instance types", func() {
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
 			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
 			for _, it := range instanceTypes {
@@ -969,7 +966,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should expose memory metrics for instance types", func() {
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
 			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
 			for _, it := range instanceTypes {
@@ -983,7 +980,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should expose availability metrics for instance types", func() {
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
 			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
 			for _, it := range instanceTypes {
@@ -1001,7 +998,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should expose pricing metrics for instance types", func() {
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
 			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
 			for _, it := range instanceTypes {
@@ -1054,7 +1051,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		Context("System Reserved Resources", func() {
 			It("should use defaults when no kubelet is specified", func() {
-				amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1067,7 +1063,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.Kubelet.SystemReserved,
 					nodeClass.Spec.Kubelet.EvictionHard,
 					nodeClass.Spec.Kubelet.EvictionSoft,
-					amiFamily,
+					nodeClass.AMIFamily(),
 					nil,
 				)
 				Expect(it.Overhead.SystemReserved.Cpu().String()).To(Equal("0"))
@@ -1082,7 +1078,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 						string(corev1.ResourceEphemeralStorage): "10Gi",
 					},
 				}
-				amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1094,7 +1089,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.Kubelet.SystemReserved,
 					nodeClass.Spec.Kubelet.EvictionHard,
 					nodeClass.Spec.Kubelet.EvictionSoft,
-					amiFamily,
+					nodeClass.AMIFamily(),
 					nil,
 				)
 				Expect(it.Overhead.SystemReserved.Cpu().String()).To(Equal("2"))
@@ -1104,7 +1099,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		Context("Kube Reserved Resources", func() {
 			It("should use defaults when no kubelet is specified", func() {
-				amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1117,7 +1111,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.Kubelet.SystemReserved,
 					nodeClass.Spec.Kubelet.EvictionHard,
 					nodeClass.Spec.Kubelet.EvictionSoft,
-					amiFamily,
+					nodeClass.AMIFamily(),
 					nil,
 				)
 				Expect(it.Overhead.KubeReserved.Cpu().String()).To(Equal("80m"))
@@ -1137,7 +1131,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 						string(corev1.ResourceEphemeralStorage): "2Gi",
 					},
 				}
-				amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1149,7 +1142,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.Kubelet.SystemReserved,
 					nodeClass.Spec.Kubelet.EvictionHard,
 					nodeClass.Spec.Kubelet.EvictionSoft,
-					amiFamily,
+					nodeClass.AMIFamily(),
 					nil,
 				)
 				Expect(it.Overhead.KubeReserved.Cpu().String()).To(Equal("2"))
@@ -1176,7 +1169,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "500Mi",
 						},
 					}
-					amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1188,7 +1180,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.Kubelet.SystemReserved,
 						nodeClass.Spec.Kubelet.EvictionHard,
 						nodeClass.Spec.Kubelet.EvictionSoft,
-						amiFamily,
+						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
@@ -1205,7 +1197,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "10%",
 						},
 					}
-					amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1217,7 +1208,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.Kubelet.SystemReserved,
 						nodeClass.Spec.Kubelet.EvictionHard,
 						nodeClass.Spec.Kubelet.EvictionSoft,
-						amiFamily,
+						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
@@ -1234,7 +1225,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "100%",
 						},
 					}
-					amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1246,7 +1236,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.Kubelet.SystemReserved,
 						nodeClass.Spec.Kubelet.EvictionHard,
 						nodeClass.Spec.Kubelet.EvictionSoft,
-						amiFamily,
+						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
@@ -1263,7 +1253,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "50Mi",
 						},
 					}
-					amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1275,7 +1264,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.Kubelet.SystemReserved,
 						nodeClass.Spec.Kubelet.EvictionHard,
 						nodeClass.Spec.Kubelet.EvictionSoft,
-						amiFamily,
+						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("50Mi"))
@@ -1294,7 +1283,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "500Mi",
 						},
 					}
-					amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1306,7 +1294,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.Kubelet.SystemReserved,
 						nodeClass.Spec.Kubelet.EvictionHard,
 						nodeClass.Spec.Kubelet.EvictionSoft,
-						amiFamily,
+						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
@@ -1326,7 +1314,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "10%",
 						},
 					}
-					amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1338,7 +1325,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.Kubelet.SystemReserved,
 						nodeClass.Spec.Kubelet.EvictionHard,
 						nodeClass.Spec.Kubelet.EvictionSoft,
-						amiFamily,
+						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
@@ -1355,7 +1342,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "100%",
 						},
 					}
-					amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1367,7 +1353,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.Kubelet.SystemReserved,
 						nodeClass.Spec.Kubelet.EvictionHard,
 						nodeClass.Spec.Kubelet.EvictionSoft,
-						amiFamily,
+						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
@@ -1388,7 +1374,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "10Gi",
 						},
 					}
-					amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1400,14 +1385,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.Kubelet.SystemReserved,
 						nodeClass.Spec.Kubelet.EvictionHard,
 						nodeClass.Spec.Kubelet.EvictionSoft,
-						amiFamily,
+						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
 				})
 			})
 			It("should take the default eviction threshold when none is specified", func() {
-				amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1420,7 +1404,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.Kubelet.SystemReserved,
 					nodeClass.Spec.Kubelet.EvictionHard,
 					nodeClass.Spec.Kubelet.EvictionSoft,
-					amiFamily,
+					nodeClass.AMIFamily(),
 					nil,
 				)
 				Expect(it.Overhead.EvictionThreshold.Cpu().String()).To(Equal("0"))
@@ -1442,7 +1426,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 						instancetype.MemoryAvailable: "1Gi",
 					},
 				}
-				amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1454,7 +1437,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.Kubelet.SystemReserved,
 					nodeClass.Spec.Kubelet.EvictionHard,
 					nodeClass.Spec.Kubelet.EvictionSoft,
-					amiFamily,
+					nodeClass.AMIFamily(),
 					nil,
 				)
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("3Gi"))
@@ -1474,7 +1457,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 						instancetype.MemoryAvailable: "5%",
 					},
 				}
-				amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1486,7 +1468,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.Kubelet.SystemReserved,
 					nodeClass.Spec.Kubelet.EvictionHard,
 					nodeClass.Spec.Kubelet.EvictionSoft,
-					amiFamily,
+					nodeClass.AMIFamily(),
 					nil,
 				)
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.05, 10))
@@ -1506,7 +1488,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 						instancetype.MemoryAvailable: "1Gi",
 					},
 				}
-				amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1518,7 +1499,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.Kubelet.SystemReserved,
 					nodeClass.Spec.Kubelet.EvictionHard,
 					nodeClass.Spec.Kubelet.EvictionSoft,
-					amiFamily,
+					nodeClass.AMIFamily(),
 					nil,
 				)
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
@@ -1530,7 +1511,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			for _, info := range instanceInfo.InstanceTypes {
 				if *info.InstanceType == "t3.large" {
-					amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1542,13 +1522,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.Kubelet.SystemReserved,
 						nodeClass.Spec.Kubelet.EvictionHard,
 						nodeClass.Spec.Kubelet.EvictionSoft,
-						amiFamily,
+						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
 				}
 				if *info.InstanceType == "m6idn.32xlarge" {
-					amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1560,7 +1539,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.Kubelet.SystemReserved,
 						nodeClass.Spec.Kubelet.EvictionHard,
 						nodeClass.Spec.Kubelet.EvictionSoft,
-						amiFamily,
+						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 394))
@@ -1574,7 +1553,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				MaxPods: lo.ToPtr(int32(10)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
-				amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1586,7 +1564,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.Kubelet.SystemReserved,
 					nodeClass.Spec.Kubelet.EvictionHard,
 					nodeClass.Spec.Kubelet.EvictionSoft,
-					amiFamily,
+					nodeClass.AMIFamily(),
 					nil,
 				)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
@@ -1599,7 +1577,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				MaxPods: lo.ToPtr(int32(10)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
-				amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1611,7 +1588,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.Kubelet.SystemReserved,
 					nodeClass.Spec.Kubelet.EvictionHard,
 					nodeClass.Spec.Kubelet.EvictionSoft,
-					amiFamily,
+					nodeClass.AMIFamily(),
 					nil,
 				)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
@@ -1628,7 +1605,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				return *info.InstanceType == "t3.large"
 			})
 			Expect(ok).To(Equal(true))
-			amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			it := instancetype.NewInstanceType(ctx,
 				t3Large,
@@ -1641,7 +1617,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodeClass.Spec.Kubelet.SystemReserved,
 				nodeClass.Spec.Kubelet.EvictionHard,
 				nodeClass.Spec.Kubelet.EvictionSoft,
-				amiFamily,
+				nodeClass.AMIFamily(),
 				nil,
 			)
 			// t3.large
@@ -1663,7 +1639,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				return *info.InstanceType == "t3.large"
 			})
 			Expect(ok).To(Equal(true))
-			amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			it := instancetype.NewInstanceType(ctx,
 				t3Large,
@@ -1676,7 +1651,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodeClass.Spec.Kubelet.SystemReserved,
 				nodeClass.Spec.Kubelet.EvictionHard,
 				nodeClass.Spec.Kubelet.EvictionSoft,
-				amiFamily,
+				nodeClass.AMIFamily(),
 				nil,
 			)
 			// t3.large
@@ -1695,7 +1670,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				PodsPerCore: lo.ToPtr(int32(1)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
-				amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1707,7 +1681,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.Kubelet.SystemReserved,
 					nodeClass.Spec.Kubelet.EvictionHard,
 					nodeClass.Spec.Kubelet.EvictionSoft,
-					amiFamily,
+					nodeClass.AMIFamily(),
 					nil,
 				)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", lo.FromPtr(info.VCpuInfo.DefaultVCpus)))
@@ -1721,7 +1695,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				MaxPods:     lo.ToPtr(int32(20)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
-				amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1733,7 +1706,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.Kubelet.SystemReserved,
 					nodeClass.Spec.Kubelet.EvictionHard,
 					nodeClass.Spec.Kubelet.EvictionSoft,
-					amiFamily,
+					nodeClass.AMIFamily(),
 					nil,
 				)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", lo.Min([]int64{20, lo.FromPtr(info.VCpuInfo.DefaultVCpus) * 4})))
@@ -1747,7 +1720,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				PodsPerCore: lo.ToPtr(int32(1)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
-				amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1759,7 +1731,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.Kubelet.SystemReserved,
 					nodeClass.Spec.Kubelet.EvictionHard,
 					nodeClass.Spec.Kubelet.EvictionSoft,
-					amiFamily,
+					nodeClass.AMIFamily(),
 					nil,
 				)
 				limitedPods := instancetype.ENILimitedPods(ctx, info)
@@ -1774,7 +1746,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				if *info.InstanceType == "t3.large" {
-					amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1786,13 +1757,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.Kubelet.SystemReserved,
 						nodeClass.Spec.Kubelet.EvictionHard,
 						nodeClass.Spec.Kubelet.EvictionSoft,
-						amiFamily,
+						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
 				}
 				if *info.InstanceType == "m6idn.32xlarge" {
-					amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1804,7 +1774,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.Kubelet.SystemReserved,
 						nodeClass.Spec.Kubelet.EvictionHard,
 						nodeClass.Spec.Kubelet.EvictionSoft,
-						amiFamily,
+						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 394))
@@ -2339,10 +2309,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodePool = sorted.DeepCopy()
 				Expect(mergo.Merge(nodeClass.Spec.Kubelet, change, mergo.WithOverride, mergo.WithSliceDeepCopy)).To(BeNil())
 				// Calling the provider and storing the instance type list to the instancetype provider cache
-				_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
+				_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
 				// We are making sure to pull from the cache
-				instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
+				instancetypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
 				sort.Slice(instancetypes, func(x int, y int) bool {
 					return instancetypes[x].Name < instancetypes[y].Name
@@ -2414,10 +2384,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodeClass = sorted.DeepCopy()
 				Expect(mergo.Merge(nodeClass, change, mergo.WithOverride)).To(BeNil())
 				// Calling the provider and storing the instance type list to the instancetype provider cache
-				_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
+				_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
 				// We are making sure to pull from the cache
-				instanetypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
+				instanetypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
 				sort.Slice(instanetypes, func(x int, y int) bool {
 					return instanetypes[x].Name < instanetypes[y].Name
@@ -2438,7 +2408,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			go func() {
 				defer wg.Done()
 				defer GinkgoRecover()
-				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.KubeletConfiguration{}, nodeClass)
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).ToNot(HaveOccurred())
 
 				// Sort everything in parallel and ensure that we don't get data races
