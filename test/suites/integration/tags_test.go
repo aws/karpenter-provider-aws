@@ -86,6 +86,9 @@ var _ = Describe("Tags", func() {
 			Expect(spotInstanceRequest.Tags).To(ContainElement(&ec2.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
 		})
 		It("should tag managed instance profiles", func() {
+			if env.PrivateCluster {
+				Skip("skipping managed instance profiles test for private cluster")
+			}
 			nodeClass.Spec.Tags["TestTag"] = "TestVal"
 			env.ExpectCreated(nodeClass)
 
@@ -97,6 +100,9 @@ var _ = Describe("Tags", func() {
 			))
 		})
 		It("should tag managed instance profiles with the eks:eks-cluster-name tag key after restart", func() {
+			if env.PrivateCluster {
+				Skip("skipping managed instance profiles test for private cluster")
+			}
 			env.ExpectCreated(nodeClass)
 			env.EventuallyExpectInstanceProfileExists(env.GetInstanceProfileName(nodeClass))
 

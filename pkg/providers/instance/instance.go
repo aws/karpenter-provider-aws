@@ -40,7 +40,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -73,19 +72,17 @@ type DefaultProvider struct {
 	region                 string
 	ec2api                 ec2iface.EC2API
 	unavailableOfferings   *cache.UnavailableOfferings
-	instanceTypeProvider   instancetype.Provider
 	subnetProvider         subnet.Provider
 	launchTemplateProvider launchtemplate.Provider
 	ec2Batcher             *batcher.EC2API
 }
 
 func NewDefaultProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, unavailableOfferings *cache.UnavailableOfferings,
-	instanceTypeProvider instancetype.Provider, subnetProvider subnet.Provider, launchTemplateProvider launchtemplate.Provider) *DefaultProvider {
+	subnetProvider subnet.Provider, launchTemplateProvider launchtemplate.Provider) *DefaultProvider {
 	return &DefaultProvider{
 		region:                 region,
 		ec2api:                 ec2api,
 		unavailableOfferings:   unavailableOfferings,
-		instanceTypeProvider:   instanceTypeProvider,
 		subnetProvider:         subnetProvider,
 		launchTemplateProvider: launchTemplateProvider,
 		ec2Batcher:             batcher.EC2(ctx, ec2api),

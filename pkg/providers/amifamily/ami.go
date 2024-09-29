@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -26,6 +25,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -44,6 +44,8 @@ type Provider interface {
 
 type DefaultProvider struct {
 	sync.Mutex
+
+	clk             clock.Clock
 	cache           *cache.Cache
 	ec2api          ec2iface.EC2API
 	cm              *pretty.ChangeMonitor
@@ -51,8 +53,9 @@ type DefaultProvider struct {
 	ssmProvider     ssm.Provider
 }
 
-func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provider, ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(clk clock.Clock, versionProvider version.Provider, ssmProvider ssm.Provider, ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
+		clk:             clk,
 		cache:           cache,
 		ec2api:          ec2api,
 		cm:              pretty.NewChangeMonitor(),
@@ -166,24 +169,25 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 				// Each image may have multiple associated sets of requirements. For example, an image may be compatible with Neuron instances
 				// and GPU instances. In that case, we'll have a set of requirements for each, and will create one "image" for each.
 				for _, reqs := range query.RequirementsForImageWithArchitecture(lo.FromPtr(image.ImageId), arch) {
-					// If we already have an image with the same set of requirements, but this image is newer, replace the previous image.
+					// Checks and store for AMIs
+					// Following checks are needed in order to always priortize non deprecated AMIs
+					// If we already have an image with the same set of requirements, but this image (candidate) is newer, replace the previous (existing) image.
+					// If we already have an image with the same set of requirements which is deprecated, but this image (candidate) is newer or non deprecated, replace the previous (existing) image
 					reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-					if v, ok := images[reqsHash]; ok {
-						candidateCreationTime, _ := time.Parse(time.RFC3339, lo.FromPtr(image.CreationDate))
-						existingCreationTime, _ := time.Parse(time.RFC3339, v.CreationDate)
-						if existingCreationTime == candidateCreationTime && lo.FromPtr(image.Name) < v.Name {
-							continue
-						}
-						if candidateCreationTime.Unix() < existingCreationTime.Unix() {
-							continue
-						}
-					}
-					images[reqsHash] = AMI{
+					candidateDeprecated := parseTimeWithDefault(lo.FromPtr(image.DeprecationTime), maxTime).Unix() <= p.clk.Now().Unix()
+					ami := AMI{
 						Name:         lo.FromPtr(image.Name),
 						AmiID:        lo.FromPtr(image.ImageId),
 						CreationDate: lo.FromPtr(image.CreationDate),
+						Deprecated:   candidateDeprecated,
 						Requirements: reqs,
 					}
+					if v, ok := images[reqsHash]; ok {
+						if cmpResult := compareAMI(v, ami); cmpResult <= 0 {
+							continue
+						}
+					}
+					images[reqsHash] = ami
 				}
 			}
 			return true
@@ -210,4 +214,31 @@ func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1.A
 		}
 	}
 	return amiIDs
+}
+
+// Compare two AMI's based on their deprecation status, creation time or name
+// If both AMIs are deprecated, compare creation time and return the one with the newer creation time
+// If both AMIs are non-deprecated, compare creation time and return the one with the newer creation time
+// If one AMI is deprecated, return the non deprecated one
+// The result will be
+// 0 if AMI i == AMI j, where creation date, deprecation status and name are all equal
+// -1 if AMI i < AMI j, if AMI i is non-deprecated or newer than AMI j
+// +1 if AMI i > AMI j, if AMI j is non-deprecated or newer than AMI i
+func compareAMI(i, j AMI) int {
+	iCreationDate := parseTimeWithDefault(i.CreationDate, minTime)
+	jCreationDate := parseTimeWithDefault(j.CreationDate, minTime)
+	// Prioritize non-deprecated AMIs over deprecated ones
+	if i.Deprecated != j.Deprecated {
+		return lo.Ternary(i.Deprecated, 1, -1)
+	}
+	// If both are either non-deprecated or deprecated, compare by creation date
+	if iCreationDate.Unix() != jCreationDate.Unix() {
+		return lo.Ternary(iCreationDate.Unix() > jCreationDate.Unix(), -1, 1)
+	}
+	// If they have the same creation date, use the name as a tie-breaker
+	if i.Name != j.Name {
+		return lo.Ternary(i.Name > j.Name, -1, 1)
+	}
+	// If all attributes are are equal, both AMIs are exactly identical
+	return 0
 }

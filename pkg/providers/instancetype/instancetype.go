@@ -21,6 +21,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/awslabs/operatorpkg/option"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
@@ -54,7 +55,19 @@ type Provider interface {
 	UpdateInstanceTypeOfferings(ctx context.Context) error
 }
 
+type defaultProviderOptions struct {
+	instanceTypeFilterMap func(*cloudprovider.InstanceType, *v1.EC2NodeClass) (*cloudprovider.InstanceType, bool)
+}
+
+var WithInstanceTypeFilterMap = func(instanceTypeFilterMap func(*cloudprovider.InstanceType, *v1.EC2NodeClass) (*cloudprovider.InstanceType, bool)) func(*defaultProviderOptions) {
+	return func(opts *defaultProviderOptions) {
+		opts.instanceTypeFilterMap = instanceTypeFilterMap
+	}
+}
+
 type DefaultProvider struct {
+	defaultProviderOptions
+
 	region          string
 	ec2api          ec2iface.EC2API
 	subnetProvider  subnet.Provider
@@ -82,18 +95,26 @@ type DefaultProvider struct {
 }
 
 func NewDefaultProvider(region string, instanceTypesCache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider,
-	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider pricing.Provider) *DefaultProvider {
+	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider pricing.Provider, opts ...option.Function[defaultProviderOptions]) *DefaultProvider {
+	resolvedOpts := *option.Resolve(opts...)
+	if resolvedOpts.instanceTypeFilterMap == nil {
+		resolvedOpts.instanceTypeFilterMap = func(it *cloudprovider.InstanceType, _ *v1.EC2NodeClass) (*cloudprovider.InstanceType, bool) {
+			return it, true
+		}
+	}
 	return &DefaultProvider{
-		ec2api:                ec2api,
-		region:                region,
-		subnetProvider:        subnetProvider,
-		pricingProvider:       pricingProvider,
-		instanceTypesInfo:     []*ec2.InstanceTypeInfo{},
-		instanceTypeOfferings: map[string]sets.Set[string]{},
-		instanceTypesCache:    instanceTypesCache,
-		unavailableOfferings:  unavailableOfferingsCache,
-		cm:                    pretty.NewChangeMonitor(),
-		instanceTypesSeqNum:   0,
+
+		defaultProviderOptions: resolvedOpts,
+		ec2api:                 ec2api,
+		region:                 region,
+		subnetProvider:         subnetProvider,
+		pricingProvider:        pricingProvider,
+		instanceTypesInfo:      []*ec2.InstanceTypeInfo{},
+		instanceTypeOfferings:  map[string]sets.Set[string]{},
+		instanceTypesCache:     instanceTypesCache,
+		unavailableOfferings:   unavailableOfferingsCache,
+		cm:                     pretty.NewChangeMonitor(),
+		instanceTypesSeqNum:    0,
 	}
 }
 
@@ -152,7 +173,7 @@ func (p *DefaultProvider) List(ctx context.Context, kc *v1.KubeletConfiguration,
 		log.FromContext(ctx).WithValues("zones", allZones.UnsortedList()).V(1).Info("discovered zones")
 	}
 	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
-	result := lo.Map(p.instanceTypesInfo, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
+	result := lo.FilterMap(p.instanceTypesInfo, func(i *ec2.InstanceTypeInfo, _ int) (*cloudprovider.InstanceType, bool) {
 		instanceTypeVCPU.With(prometheus.Labels{
 			instanceTypeLabel: *i.InstanceType,
 		}).Set(float64(aws.Int64Value(i.VCpuInfo.DefaultVCpus)))
@@ -164,11 +185,11 @@ func (p *DefaultProvider) List(ctx context.Context, kc *v1.KubeletConfiguration,
 		// Any changes to the values passed into the NewInstanceType method will require making updates to the cache key
 		// so that Karpenter is able to cache the set of InstanceTypes based on values that alter the set of instance types
 		// !!! Important !!!
-		return NewInstanceType(ctx, i, p.region,
+		return p.instanceTypeFilterMap(NewInstanceType(ctx, i, p.region,
 			nodeClass.Spec.BlockDeviceMappings, nodeClass.Spec.InstanceStorePolicy,
 			kc.MaxPods, kc.PodsPerCore, kc.KubeReserved, kc.SystemReserved, kc.EvictionHard, kc.EvictionSoft,
 			amiFamily, p.createOfferings(ctx, i, allZones, p.instanceTypeOfferings[aws.StringValue(i.InstanceType)], nodeClass.Status.Subnets),
-		)
+		), nodeClass)
 	})
 	p.instanceTypesCache.SetDefault(key, result)
 	return result, nil

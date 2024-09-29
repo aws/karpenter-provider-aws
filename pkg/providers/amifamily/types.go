@@ -16,6 +16,7 @@ package amifamily
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -39,6 +40,7 @@ type AMI struct {
 	Name         string
 	AmiID        string
 	CreationDate string
+	Deprecated   bool
 	Requirements scheduling.Requirements
 }
 
@@ -48,8 +50,9 @@ type AMIs []AMI
 // If creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by ID, which is guaranteed to be unique, in ascending order.
 func (a AMIs) Sort() {
 	sort.Slice(a, func(i, j int) bool {
-		itime, _ := time.Parse(time.RFC3339, a[i].CreationDate)
-		jtime, _ := time.Parse(time.RFC3339, a[j].CreationDate)
+		itime := parseTimeWithDefault(a[i].CreationDate, minTime)
+		jtime := parseTimeWithDefault(a[j].CreationDate, minTime)
+
 		if itime.Unix() != jtime.Unix() {
 			return itime.Unix() > jtime.Unix()
 		}
@@ -57,12 +60,21 @@ func (a AMIs) Sort() {
 	})
 }
 
+func parseTimeWithDefault(dateStr string, defaultTime time.Time) time.Time {
+	if dateStr == "" {
+		return defaultTime
+	}
+	return lo.Must(time.Parse(time.RFC3339, dateStr))
+}
+
 type Variant string
 
 var (
-	VariantStandard Variant = "standard"
-	VariantNvidia   Variant = "nvidia"
-	VariantNeuron   Variant = "neuron"
+	VariantStandard Variant   = "standard"
+	VariantNvidia   Variant   = "nvidia"
+	VariantNeuron   Variant   = "neuron"
+	maxTime         time.Time = time.Unix(math.MaxInt64, 0)
+	minTime         time.Time = time.Unix(math.MinInt64, 0)
 )
 
 func NewVariant(v string) (Variant, error) {
@@ -82,9 +94,9 @@ func (v Variant) Requirements() scheduling.Requirements {
 			scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpDoesNotExist),
 		)
 	case VariantNvidia:
-		return scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpExists))
-	case VariantNeuron:
 		return scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpExists))
+	case VariantNeuron:
+		return scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpExists))
 	}
 	return nil
 }
@@ -102,9 +114,10 @@ type DescribeImageQuery struct {
 func (q DescribeImageQuery) DescribeImagesInput() *ec2.DescribeImagesInput {
 	return &ec2.DescribeImagesInput{
 		// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
-		Filters:    lo.Ternary(len(q.Filters) > 0, q.Filters, nil),
-		Owners:     lo.Ternary(len(q.Owners) > 0, lo.ToSlicePtr(q.Owners), nil),
-		MaxResults: aws.Int64(1000),
+		Filters:           lo.Ternary(len(q.Filters) > 0, q.Filters, nil),
+		Owners:            lo.Ternary(len(q.Owners) > 0, lo.ToSlicePtr(q.Owners), nil),
+		IncludeDeprecated: aws.Bool(true),
+		MaxResults:        aws.Int64(1000),
 	}
 }
 

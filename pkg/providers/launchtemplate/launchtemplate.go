@@ -70,7 +70,7 @@ type DefaultProvider struct {
 	sync.Mutex
 	ec2api                ec2iface.EC2API
 	eksapi                eksiface.EKSAPI
-	amiFamily             *amifamily.Resolver
+	amiFamily             amifamily.Resolver
 	securityGroupProvider securitygroup.Provider
 	subnetProvider        subnet.Provider
 	cache                 *cache.Cache
@@ -81,7 +81,7 @@ type DefaultProvider struct {
 	ClusterCIDR           atomic.Pointer[string]
 }
 
-func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily *amifamily.Resolver,
+func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily amifamily.Resolver,
 	securityGroupProvider securitygroup.Provider, subnetProvider subnet.Provider,
 	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *DefaultProvider {
 	l := &DefaultProvider{
@@ -250,6 +250,12 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 				HttpProtocolIpv6:        options.MetadataOptions.HTTPProtocolIPv6,
 				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
+				// We statically set the InstanceMetadataTags to "disabled" for all new instances since
+				// account-wide defaults can override instance defaults on metadata settings
+				// This can cause instance failure on accounts that default to instance tags since Karpenter
+				// can't support instance tags with its current tags (e.g. kubernetes.io/cluster/*, karpenter.k8s.aws/ec2nodeclass)
+				// See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-options.html#instance-metadata-options-order-of-precedence
+				InstanceMetadataTags: lo.ToPtr(ec2.InstanceMetadataTagsStateDisabled),
 			},
 			NetworkInterfaces: networkInterfaces,
 			TagSpecifications: launchTemplateDataTags,

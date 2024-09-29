@@ -78,7 +78,7 @@ type Operator struct {
 	SecurityGroupProvider     securitygroup.Provider
 	InstanceProfileProvider   instanceprofile.Provider
 	AMIProvider               amifamily.Provider
-	AMIResolver               *amifamily.Resolver
+	AMIResolver               amifamily.Resolver
 	LaunchTemplateProvider    launchtemplate.Provider
 	PricingProvider           pricing.Provider
 	VersionProvider           version.Provider
@@ -142,8 +142,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	)
 	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	ssmProvider := ssmp.NewDefaultProvider(ssm.New(sess), cache.New(awscache.SSMGetParametersByPathTTL, awscache.DefaultCleanupInterval))
-	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiResolver := amifamily.NewResolver(amiProvider)
+	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	amiResolver := amifamily.NewDefaultResolver()
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
@@ -170,7 +170,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		aws.StringValue(sess.Config.Region),
 		ec2api,
 		unavailableOfferingsCache,
-		instanceTypeProvider,
 		subnetProvider,
 		launchTemplateProvider,
 	)
