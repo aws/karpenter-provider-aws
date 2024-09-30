@@ -121,6 +121,7 @@ func getInstanceTypeInfo(info *ec2.InstanceTypeInfo) string {
 	fmt.Fprintf(src, "ProcessorInfo: &ec2.ProcessorInfo{\n")
 	fmt.Fprintf(src, "Manufacturer: aws.String(\"%s\"),\n", lo.FromPtr(info.ProcessorInfo.Manufacturer))
 	fmt.Fprintf(src, "SupportedArchitectures: aws.StringSlice([]string{%s}),\n", getStringSliceData(info.ProcessorInfo.SupportedArchitectures))
+	fmt.Fprintf(src, "SustainedClockSpeedInGhz: aws.Float64(%f),\n", lo.FromPtr(info.ProcessorInfo.SustainedClockSpeedInGhz))
 	fmt.Fprintf(src, "},\n")
 	fmt.Fprintf(src, "VCpuInfo: &ec2.VCpuInfo{\n")
 	fmt.Fprintf(src, "DefaultCores: aws.Int64(%d),\n", lo.FromPtr(info.VCpuInfo.DefaultCores))
