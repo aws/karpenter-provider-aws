@@ -27,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/samber/lo"
@@ -99,7 +98,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	}
 
 	subnetZones := sets.New(lo.Map(nodeClass.Status.Subnets, func(s v1.Subnet, _ int) string {
-		return aws.StringValue(&s.Zone)
+		return lo.FromPtr(&s.Zone)
 	})...)
 
 	// Compute fully initialized instance types hash key
@@ -131,16 +130,16 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	subnetZoneToID := lo.SliceToMap(nodeClass.Status.Subnets, func(s v1.Subnet) (string, string) {
 		return s.Zone, s.ZoneID
 	})
-	result := lo.FilterMap(p.instanceTypesInfo, func(i *ec2.InstanceTypeInfo, _ int) (*cloudprovider.InstanceType, bool) {
+	result := lo.Map(p.instanceTypesInfo, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
 		instanceTypeVCPU.With(prometheus.Labels{
 			instanceTypeLabel: *i.InstanceType,
-		}).Set(float64(aws.Int64Value(i.VCpuInfo.DefaultVCpus)))
+		}).Set(float64(lo.FromPtr(i.VCpuInfo.DefaultVCpus)))
 		instanceTypeMemory.With(prometheus.Labels{
 			instanceTypeLabel: *i.InstanceType,
-		}).Set(float64(aws.Int64Value(i.MemoryInfo.SizeInMiB) * 1024 * 1024))
+		}).Set(float64(lo.FromPtr(i.MemoryInfo.SizeInMiB) * 1024 * 1024))
 
 		zoneData := lo.Map(allZones.UnsortedList(), func(zoneName string, _ int) ZoneData {
-			if !p.instanceTypesOfferings[aws.StringValue(i.InstanceType)].Has(zoneName) || !subnetZones.Has(zoneName) {
+			if !p.instanceTypesOfferings[lo.FromPtr(i.InstanceType)].Has(zoneName) || !subnetZones.Has(zoneName) {
 				return ZoneData{
 					Name:      zoneName,
 					Available: false,
@@ -154,9 +153,6 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		})
 
 		it := p.instanceTypesResolver.Resolve(ctx, i, zoneData, nodeClass)
-		if it == nil {
-			return nil, false
-		}
 		for _, of := range it.Offerings {
 			instanceTypeOfferingAvailable.With(prometheus.Labels{
 				instanceTypeLabel: it.Name,
@@ -169,7 +165,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 				zoneLabel:         of.Requirements.Get(corev1.LabelTopologyZone).Any(),
 			}).Set(of.Price)
 		}
-		return it, true
+		return it
 	})
 	p.instanceTypesCache.SetDefault(key, result)
 	return result, nil
@@ -187,12 +183,12 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 	if err := p.ec2api.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
 		Filters: []*ec2.Filter{
 			{
-				Name:   aws.String("supported-virtualization-type"),
-				Values: []*string{aws.String("hvm")},
+				Name:   lo.ToPtr("supported-virtualization-type"),
+				Values: lo.ToSlicePtr([]string{"hvm"}),
 			},
 			{
-				Name:   aws.String("processor-info.supported-architecture"),
-				Values: aws.StringSlice([]string{"x86_64", "arm64"}),
+				Name:   lo.ToPtr("processor-info.supported-architecture"),
+				Values: lo.ToSlicePtr([]string{"x86_64", "arm64"}),
 			},
 		},
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
@@ -224,13 +220,13 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 
 	// Get offerings from EC2
 	instanceTypeOfferings := map[string]sets.Set[string]{}
-	if err := p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: aws.String("availability-zone")},
+	if err := p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: lo.ToPtr("availability-zone")},
 		func(output *ec2.DescribeInstanceTypeOfferingsOutput, lastPage bool) bool {
 			for _, offering := range output.InstanceTypeOfferings {
-				if _, ok := instanceTypeOfferings[aws.StringValue(offering.InstanceType)]; !ok {
-					instanceTypeOfferings[aws.StringValue(offering.InstanceType)] = sets.New[string]()
+				if _, ok := instanceTypeOfferings[lo.FromPtr(offering.InstanceType)]; !ok {
+					instanceTypeOfferings[lo.FromPtr(offering.InstanceType)] = sets.New[string]()
 				}
-				instanceTypeOfferings[aws.StringValue(offering.InstanceType)].Insert(aws.StringValue(offering.Location))
+				instanceTypeOfferings[lo.FromPtr(offering.InstanceType)].Insert(lo.FromPtr(offering.Location))
 			}
 			return true
 		}); err != nil {

@@ -59,8 +59,7 @@ type ZoneData struct {
 }
 
 type Resolver interface {
-	// CacheKey tells the InstanceType cache if something changes about the InstanceTypes or Offerings without it being known externally.
-	// You do not need to use anything in the input data to generate the key here since that will automatically refresh the cache
+	// CacheKey tells the InstanceType cache if something changes about the InstanceTypes or Offerings based on the NodeClass.
 	CacheKey(nodeClass *v1.EC2NodeClass) string
 	// Resolve generates an InstanceType based on raw InstanceTypeInfo and NodeClass setting data
 	Resolve(ctx context.Context, info *ec2.InstanceTypeInfo, zoneData []ZoneData, nodeClass *v1.EC2NodeClass) *cloudprovider.InstanceType
@@ -109,29 +108,6 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info *ec2.InstanceTypeInf
 		kc.SystemReserved, kc.EvictionHard, kc.EvictionSoft, nodeClass.AMIFamily(), d.createOfferings(ctx, info, zoneData))
 }
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region string,
-	blockDeviceMappings []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy, maxPods *int32, podsPerCore *int32,
-	kubeReserved map[string]string, systemReserved map[string]string, evictionHard map[string]string, evictionSoft map[string]string,
-	amiFamilyType string, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
-
-	amiFamily := amifamily.GetAMIFamily(amiFamilyType, &amifamily.Options{})
-	it := &cloudprovider.InstanceType{
-		Name:         aws.StringValue(info.InstanceType),
-		Requirements: computeRequirements(info, offerings, region, amiFamily),
-		Offerings:    offerings,
-		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
-		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, maxPods, podsPerCore), ENILimitedPods(ctx, info), amiFamily, kubeReserved),
-			SystemReserved:    systemReservedResources(systemReserved),
-			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
-		},
-	}
-	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)))) == nil {
-		it.Capacity[v1.ResourcePrivateIPv4Address] = *privateIPv4Address(aws.StringValue(info.InstanceType))
-	}
-	return it
-}
-
 // createOfferings creates a set of mutually exclusive offerings for a given instance type. This provider maintains an
 // invariant that each offering is mutually exclusive. Specifically, there is an offering for each permutation of zone
 // and capacity type. ZoneID is also injected into the offering requirements, when available, but there is a 1-1
@@ -178,6 +154,29 @@ func (d *DefaultResolver) createOfferings(ctx context.Context, instanceType *ec2
 		}
 	}
 	return offerings
+}
+
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region string,
+	blockDeviceMappings []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy, maxPods *int32, podsPerCore *int32,
+	kubeReserved map[string]string, systemReserved map[string]string, evictionHard map[string]string, evictionSoft map[string]string,
+	amiFamilyType string, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
+
+	amiFamily := amifamily.GetAMIFamily(amiFamilyType, &amifamily.Options{})
+	it := &cloudprovider.InstanceType{
+		Name:         aws.StringValue(info.InstanceType),
+		Requirements: computeRequirements(info, offerings, region, amiFamily),
+		Offerings:    offerings,
+		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
+		Overhead: &cloudprovider.InstanceTypeOverhead{
+			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, maxPods, podsPerCore), ENILimitedPods(ctx, info), amiFamily, kubeReserved),
+			SystemReserved:    systemReservedResources(systemReserved),
+			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
+		},
+	}
+	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)))) == nil {
+		it.Capacity[v1.ResourcePrivateIPv4Address] = *privateIPv4Address(aws.StringValue(info.InstanceType))
+	}
+	return it
 }
 
 //nolint:gocyclo
