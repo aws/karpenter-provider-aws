@@ -15,7 +15,6 @@ limitations under the License.
 package integration_test
 
 import (
-	"fmt"
 	"time"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -88,7 +87,6 @@ var _ = Describe("EC2NodeClass Migration Controller", func() {
 			crd := &apiextensionsv1.CustomResourceDefinition{}
 			Eventually(func(g Gomega) {
 				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(item), crd)).To(Succeed())
-				fmt.Println(crd.Status.StoredVersions)
 				g.Expect(crd.Status.StoredVersions).To(HaveExactElements("v1"))
 			}).WithTimeout(time.Second * 10).Should(Succeed())
 		}

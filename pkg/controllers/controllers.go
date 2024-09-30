@@ -38,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"sigs.k8s.io/karpenter/pkg/events"
+	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
@@ -68,7 +69,9 @@ func NewControllers(ctx context.Context, mgr manager.Manager, sess *session.Sess
 		controllerspricing.NewController(pricingProvider),
 		controllersinstancetype.NewController(instanceTypeProvider),
 		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter")),
-		migration.NewController[*v1.EC2NodeClass](kubeClient),
+	}
+	if !karpoptions.FromContext(ctx).DisableWebhook {
+		controllers = append(controllers, migration.NewController[*v1.EC2NodeClass](kubeClient))
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsapi := servicesqs.New(sess)
