@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2024-09-21T12:51:03Z for us-east-1
+// generated at 2024-09-30T13:12:07Z for us-east-1
 
 var InitialOnDemandPricesAWS = map[string]map[string]float64{
 	// us-east-1
@@ -99,6 +99,10 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		"c7i.12xlarge": 2.142000, "c7i.16xlarge": 2.856000, "c7i.24xlarge": 4.284000, "c7i.2xlarge": 0.357000,
 		"c7i.48xlarge": 8.568000, "c7i.4xlarge": 0.714000, "c7i.8xlarge": 1.428000, "c7i.large": 0.089250,
 		"c7i.metal-24xl": 4.712400, "c7i.metal-48xl": 8.568000, "c7i.xlarge": 0.178500,
+		// c8g family
+		"c8g.12xlarge": 1.914240, "c8g.16xlarge": 2.552320, "c8g.24xlarge": 3.828480, "c8g.2xlarge": 0.319040,
+		"c8g.48xlarge": 7.656960, "c8g.4xlarge": 0.638080, "c8g.8xlarge": 1.276160, "c8g.large": 0.079760,
+		"c8g.medium": 0.039880, "c8g.metal-24xl": 4.211330, "c8g.metal-48xl": 7.656960, "c8g.xlarge": 0.159520,
 		// cr1 family
 		"cr1.8xlarge": 3.500000,
 		// d2 family
@@ -248,6 +252,10 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		"m7i.12xlarge": 2.419200, "m7i.16xlarge": 3.225600, "m7i.24xlarge": 4.838400, "m7i.2xlarge": 0.403200,
 		"m7i.48xlarge": 9.676800, "m7i.4xlarge": 0.806400, "m7i.8xlarge": 1.612800, "m7i.large": 0.100800,
 		"m7i.metal-24xl": 5.322240, "m7i.metal-48xl": 9.676800, "m7i.xlarge": 0.201600,
+		// m8g family
+		"m8g.12xlarge": 2.154240, "m8g.16xlarge": 2.872320, "m8g.24xlarge": 4.308480, "m8g.2xlarge": 0.359040,
+		"m8g.48xlarge": 8.616960, "m8g.4xlarge": 0.718080, "m8g.8xlarge": 1.436160, "m8g.large": 0.089760,
+		"m8g.medium": 0.044880, "m8g.metal-24xl": 4.739330, "m8g.metal-48xl": 8.616960, "m8g.xlarge": 0.179520,
 		// p2 family
 		"p2.16xlarge": 14.400000, "p2.8xlarge": 7.200000, "p2.xlarge": 0.900000,
 		// p3 family
