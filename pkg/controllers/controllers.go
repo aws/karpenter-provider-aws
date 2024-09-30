@@ -20,9 +20,7 @@ import (
 	"github.com/awslabs/operatorpkg/controller"
 	"github.com/awslabs/operatorpkg/status"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
-	migrationcrd "sigs.k8s.io/karpenter/pkg/controllers/migration/crd"
 	migration "sigs.k8s.io/karpenter/pkg/controllers/migration/resource"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -73,10 +71,7 @@ func NewControllers(ctx context.Context, mgr manager.Manager, sess *session.Sess
 		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter")),
 	}
 	if !karpoptions.FromContext(ctx).DisableWebhook {
-		controllers = append(controllers, migration.NewController[*karpv1.NodeClaim](kubeClient))
-		controllers = append(controllers, migration.NewController[*karpv1.NodePool](kubeClient))
 		controllers = append(controllers, migration.NewController[*v1.EC2NodeClass](kubeClient))
-		controllers = append(controllers, migrationcrd.NewController(kubeClient, cloudProvider))
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsapi := servicesqs.New(sess)
