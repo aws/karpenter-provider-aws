@@ -136,9 +136,24 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
 	}
 
+	//v2
+	cfg := lo.Must(configV2.LoadDefaultConfig(ctx))
+	prometheusv2.WithPrometheusMetrics(cfg, crmetrics.Registry)
+	if cfg.Region == "" {
+		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
+		metaDataClient := imds.NewFromConfig(cfg)
+		region, err := metaDataClient.GetRegion(ctx, nil)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "failed to get region from metadata server")
+			os.Exit(1)
+		}
+		cfg.Region = region.Region
+	}
+
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(cfg.Region, iamV2.NewFromConfig(cfg), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
 	pricingProvider := pricing.NewDefaultProvider(
 		ctx,
 		pricing.NewAPI(sess, *sess.Config.Region),
@@ -178,27 +193,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 	)
-
-	//v2
-	cfg, err := configV2.LoadDefaultConfig(ctx,
-		configV2.WithRetryMaxAttempts(5),
-	)
-	if err != nil {
-		panic(err)
-	}
-	prometheusv2.WithPrometheusMetrics(cfg, crmetrics.Registry)
-	if cfg.Region == "" {
-		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
-		metaDataClient := imds.NewFromConfig(cfg)
-		region, err := metaDataClient.GetRegion(ctx, nil)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "failed to get region from metadata server")
-			os.Exit(1)
-		}
-		cfg.Region = region.Region
-	}
-
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(cfg.Region, iamV2.NewFromConfig(cfg), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
 
 	return ctx, &Operator{
 		Operator:                  operator,
