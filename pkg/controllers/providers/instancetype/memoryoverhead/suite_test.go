@@ -121,7 +121,7 @@ var _ = Describe("MemoryOverhead", func() {
 		}
 		ExpectApplied(ctx, env.Client, node)
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKey{})
-		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.KubeletConfiguration{}, nodeClass)
+		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
 		i, ok := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 			return i.Name == "t3.medium"

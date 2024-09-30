@@ -170,7 +170,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region str
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, maxPods, podsPerCore), ENILimitedPods(ctx, info), amiFamily, kubeReserved),
 			SystemReserved:    systemReservedResources(systemReserved),
-			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
+			EvictionThreshold: evictionThreshold(memory(ctx, info, vmMemoryOverhead), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
 		},
 	}
 	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)))) == nil {

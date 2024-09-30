@@ -111,7 +111,6 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 
 	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, nil)
 
-	nodeClass.Hash()
 	key := fmt.Sprintf("%d-%d-%016x-%s",
 		p.instanceTypesSeqNum,
 		p.instanceTypesOfferingsSeqNum,
