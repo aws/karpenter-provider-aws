@@ -44,6 +44,7 @@ func main() {
 
 	op.
 		WithControllers(ctx, corecontrollers.NewControllers(
+			ctx,
 			op.Manager,
 			op.Clock,
 			op.GetClient(),
