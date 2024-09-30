@@ -17,6 +17,9 @@ package instancetype
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/util/workqueue"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 	"sync/atomic"
 
@@ -60,15 +63,16 @@ type DefaultProvider struct {
 	muInstanceTypesOfferings sync.RWMutex
 	instanceTypesOfferings   map[string]sets.Set[string]
 
-	instanceTypesCache *cache.Cache
-	cm                 *pretty.ChangeMonitor
+	instanceTypesCache    *cache.Cache
+	vmMemoryOverheadCache *cache.Cache
+	cm                    *pretty.ChangeMonitor
 	// instanceTypesSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
 	instanceTypesSeqNum uint64
 	// instanceTypesOfferingsSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
 	instanceTypesOfferingsSeqNum uint64
 }
 
-func NewDefaultProvider(instanceTypesCache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider, instanceTypesResolver Resolver) *DefaultProvider {
+func NewDefaultProvider(instanceTypesCache *cache.Cache, vmMemoryOverheadCache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider, instanceTypesResolver Resolver) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api:                 ec2api,
 		subnetProvider:         subnetProvider,
@@ -76,6 +80,7 @@ func NewDefaultProvider(instanceTypesCache *cache.Cache, ec2api ec2iface.EC2API,
 		instanceTypesOfferings: map[string]sets.Set[string]{},
 		instanceTypesResolver:  instanceTypesResolver,
 		instanceTypesCache:     instanceTypesCache,
+		vmMemoryOverheadCache:  vmMemoryOverheadCache,
 		cm:                     pretty.NewChangeMonitor(),
 		instanceTypesSeqNum:    0,
 	}
@@ -104,11 +109,15 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// Compute fully initialized instance types hash key
 	subnetZonesHash, _ := hashstructure.Hash(subnetZones, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 
+	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, nil)
+
+	nodeClass.Hash()
 	key := fmt.Sprintf("%d-%d-%016x-%s",
 		p.instanceTypesSeqNum,
 		p.instanceTypesOfferingsSeqNum,
 		subnetZonesHash,
 		p.instanceTypesResolver.CacheKey(nodeClass),
+		amiHash,
 	)
 	if item, ok := p.instanceTypesCache.Get(key); ok {
 		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
@@ -152,7 +161,12 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			}
 		})
 
-		it := p.instanceTypesResolver.Resolve(ctx, i, zoneData, nodeClass)
+		var vmMemoryOverhead int64
+		if cached, ok := p.vmMemoryOverheadCache.Get(fmt.Sprintf("%s-%d", *i.InstanceType, amiHash)); ok {
+			vmMemoryOverhead = cached.(int64)
+		}
+
+		it := p.instanceTypesResolver.Resolve(ctx, i, vmMemoryOverhead, zoneData, nodeClass)
 		for _, of := range it.Offerings {
 			instanceTypeOfferingAvailable.With(prometheus.Labels{
 				instanceTypeLabel: it.Name,
@@ -239,6 +253,62 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 		log.FromContext(ctx).WithValues("instance-type-count", len(instanceTypeOfferings)).V(1).Info("discovered offerings for instance types")
 	}
 	p.instanceTypesOfferings = instanceTypeOfferings
+	return nil
+}
+
+func (p *DefaultProvider) UpdateInstanceTypeMemoryOverhead(ctx context.Context, kubeClient client.Client) error {
+	nodeClassList := &v1.EC2NodeClassList{}
+	if err := kubeClient.List(ctx, nodeClassList); err != nil {
+		return fmt.Errorf("failed to list nodeclasses: %w", err)
+	}
+
+	nodeClassMap := lo.Associate(nodeClassList.Items, func(nodeClass v1.EC2NodeClass) (string, v1.EC2NodeClass) {
+		return nodeClass.Hash(), nodeClass
+	})
+
+	nodeList := &corev1.NodeList{}
+	if err := kubeClient.List(ctx, nodeList, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{karpv1.NodeRegisteredLabelKey: "true"}),
+	}); err != nil {
+		return fmt.Errorf("failed to list nodes: %w", err)
+	}
+
+	instanceTypeInfoMap := lo.Associate(p.instanceTypesInfo, func(i *ec2.InstanceTypeInfo) (string, *ec2.InstanceTypeInfo) {
+		return *i.InstanceType, i
+	})
+
+	workqueue.ParallelizeUntil(ctx, 100, len(nodeList.Items), func(i int) {
+		node := nodeList.Items[i]
+
+		// Get the EC2NodeClass for the current node based on the hash annotation
+		nodeClass, ok := nodeClassMap[node.Annotations[v1.AnnotationEC2NodeClassHash]]
+		if !ok {
+			return
+		}
+
+		instanceType, ok := node.Labels[corev1.LabelInstanceTypeStable]
+		if !ok {
+			return
+		}
+
+		instanceTypeInfo, ok := instanceTypeInfoMap[instanceType]
+		if !ok || instanceTypeInfo == nil {
+			return
+		}
+
+		amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, nil)
+
+		// Calculate memory overhead and store to the map
+		reportedMiB := instanceTypeInfo.MemoryInfo.SizeInMiB
+		actualMib := node.Status.Capacity.Memory().Value() / 1024 / 1024
+		overhead := *reportedMiB - actualMib
+		key := fmt.Sprintf("%s-%d", instanceType, amiHash)
+		// Add calculated overhead if not found, refresh if equal, or update if higher value is found
+		if cachedOverhead, found := p.vmMemoryOverheadCache.Get(key); !found || overhead >= cachedOverhead.(int64) {
+			log.FromContext(ctx).WithValues("overhead", overhead).V(1).Info("updating cache with memory overhead for instance type: " + instanceType)
+			p.vmMemoryOverheadCache.SetDefault(key, overhead)
+		}
+	})
 	return nil
 }
 

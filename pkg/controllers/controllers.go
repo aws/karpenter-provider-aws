@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"context"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/memoryoverhead"
 
 	"github.com/awslabs/operatorpkg/controller"
 	"github.com/awslabs/operatorpkg/status"
@@ -67,6 +68,7 @@ func NewControllers(ctx context.Context, mgr manager.Manager, sess *session.Sess
 		controllerspricing.NewController(pricingProvider),
 		controllersinstancetype.NewController(instanceTypeProvider),
 		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter")),
+		memoryoverhead.NewController(kubeClient, instanceTypeProvider),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsapi := servicesqs.New(sess)

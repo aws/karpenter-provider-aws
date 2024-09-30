@@ -62,7 +62,7 @@ type Resolver interface {
 	// CacheKey tells the InstanceType cache if something changes about the InstanceTypes or Offerings based on the NodeClass.
 	CacheKey(nodeClass *v1.EC2NodeClass) string
 	// Resolve generates an InstanceType based on raw InstanceTypeInfo and NodeClass setting data
-	Resolve(ctx context.Context, info *ec2.InstanceTypeInfo, zoneData []ZoneData, nodeClass *v1.EC2NodeClass) *cloudprovider.InstanceType
+	Resolve(ctx context.Context, info *ec2.InstanceTypeInfo, vmMemoryOverhead int64, zoneData []ZoneData, nodeClass *v1.EC2NodeClass) *cloudprovider.InstanceType
 }
 
 type DefaultResolver struct {
@@ -95,7 +95,7 @@ func (d *DefaultResolver) CacheKey(nodeClass *v1.EC2NodeClass) string {
 	)
 }
 
-func (d *DefaultResolver) Resolve(ctx context.Context, info *ec2.InstanceTypeInfo, zoneData []ZoneData, nodeClass *v1.EC2NodeClass) *cloudprovider.InstanceType {
+func (d *DefaultResolver) Resolve(ctx context.Context, info *ec2.InstanceTypeInfo, vmMemoryOverhead int64, zoneData []ZoneData, nodeClass *v1.EC2NodeClass) *cloudprovider.InstanceType {
 	// !!! Important !!!
 	// Any changes to the values passed into the NewInstanceType method will require making updates to the cache key
 	// so that Karpenter is able to cache the set of InstanceTypes based on values that alter the set of instance types
@@ -104,7 +104,7 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info *ec2.InstanceTypeInf
 	if nodeClass.Spec.Kubelet != nil {
 		kc = nodeClass.Spec.Kubelet
 	}
-	return NewInstanceType(ctx, info, d.region, nodeClass.Spec.BlockDeviceMappings, nodeClass.Spec.InstanceStorePolicy, kc.MaxPods, kc.PodsPerCore, kc.KubeReserved,
+	return NewInstanceType(ctx, info, d.region, nodeClass.Spec.BlockDeviceMappings, nodeClass.Spec.InstanceStorePolicy, vmMemoryOverhead, kc.MaxPods, kc.PodsPerCore, kc.KubeReserved,
 		kc.SystemReserved, kc.EvictionHard, kc.EvictionSoft, nodeClass.AMIFamily(), d.createOfferings(ctx, info, zoneData))
 }
 
@@ -157,7 +157,7 @@ func (d *DefaultResolver) createOfferings(ctx context.Context, instanceType *ec2
 }
 
 func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region string,
-	blockDeviceMappings []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy, maxPods *int32, podsPerCore *int32,
+	blockDeviceMappings []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy, vmMemoryOverhead int64, maxPods *int32, podsPerCore *int32,
 	kubeReserved map[string]string, systemReserved map[string]string, evictionHard map[string]string, evictionSoft map[string]string,
 	amiFamilyType string, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
 
@@ -166,7 +166,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region str
 		Name:         aws.StringValue(info.InstanceType),
 		Requirements: computeRequirements(info, offerings, region, amiFamily),
 		Offerings:    offerings,
-		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
+		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore, vmMemoryOverhead),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, maxPods, podsPerCore), ENILimitedPods(ctx, info), amiFamily, kubeReserved),
 			SystemReserved:    systemReservedResources(systemReserved),
@@ -301,11 +301,11 @@ func getArchitecture(info *ec2.InstanceTypeInfo) string {
 
 func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 	blockDeviceMapping []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy,
-	maxPods *int32, podsPerCore *int32) corev1.ResourceList {
+	maxPods *int32, podsPerCore *int32, vmMemoryOverhead int64) corev1.ResourceList {
 
 	resourceList := corev1.ResourceList{
 		corev1.ResourceCPU:              *cpu(info),
-		corev1.ResourceMemory:           *memory(ctx, info),
+		corev1.ResourceMemory:           *memory(ctx, info, vmMemoryOverhead),
 		corev1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, blockDeviceMapping, instanceStorePolicy),
 		corev1.ResourcePods:             *pods(ctx, info, amiFamily, maxPods, podsPerCore),
 		v1.ResourceAWSPodENI:            *awsPodENI(aws.StringValue(info.InstanceType)),
@@ -322,7 +322,12 @@ func cpu(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(*info.VCpuInfo.DefaultVCpus))
 }
 
-func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity {
+func memory(ctx context.Context, info *ec2.InstanceTypeInfo, vmMemoryOverhead int64) *resource.Quantity {
+	// If provided, use cached vmMemoryOverhead value
+	if vmMemoryOverhead > 0 {
+		log.FromContext(ctx).WithValues("overhead", vmMemoryOverhead).V(1).Info("using cached memory overhead for instance type " + *info.InstanceType)
+		return resources.Quantity(fmt.Sprintf("%dMi", *info.MemoryInfo.SizeInMiB-vmMemoryOverhead))
+	}
 	sizeInMib := *info.MemoryInfo.SizeInMiB
 	// Gravitons have an extra 64 MiB of cma reserved memory that we can't use
 	if len(info.ProcessorInfo.SupportedArchitectures) > 0 && *info.ProcessorInfo.SupportedArchitectures[0] == "arm64" {
