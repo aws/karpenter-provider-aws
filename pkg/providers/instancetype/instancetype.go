@@ -256,15 +256,23 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 }
 
 func (p *DefaultProvider) UpdateInstanceTypeMemoryOverhead(ctx context.Context, kubeClient client.Client) error {
+	nodeClaimList := &karpv1.NodeClaimList{}
+	if err := kubeClient.List(ctx, nodeClaimList); err != nil {
+		return fmt.Errorf("failed to list nodeclaims: %w", err)
+	}
+	nodeToNodeClaims := lo.Associate(nodeClaimList.Items, func(nc karpv1.NodeClaim) (string, karpv1.NodeClaim) {
+		return nc.Status.NodeName, nc
+	})
+
 	nodeClassList := &v1.EC2NodeClassList{}
 	if err := kubeClient.List(ctx, nodeClassList); err != nil {
 		return fmt.Errorf("failed to list nodeclasses: %w", err)
 	}
-
-	nodeClassMap := lo.Associate(nodeClassList.Items, func(nodeClass v1.EC2NodeClass) (string, v1.EC2NodeClass) {
-		return nodeClass.Hash(), nodeClass
+	nodeClassMap := lo.Associate(nodeClassList.Items, func(nc v1.EC2NodeClass) (string, v1.EC2NodeClass) {
+		return nc.Name, nc
 	})
 
+	// List only Karpenter registered Nodes
 	nodeList := &corev1.NodeList{}
 	if err := kubeClient.List(ctx, nodeList, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{karpv1.NodeRegisteredLabelKey: "true"}),
@@ -278,10 +286,19 @@ func (p *DefaultProvider) UpdateInstanceTypeMemoryOverhead(ctx context.Context, 
 
 	workqueue.ParallelizeUntil(ctx, 100, len(nodeList.Items), func(i int) {
 		node := nodeList.Items[i]
-
-		// Get the EC2NodeClass for the current node based on the hash annotation
-		nodeClass, ok := nodeClassMap[node.Annotations[v1.AnnotationEC2NodeClassHash]]
+		nodeClaim, ok := nodeToNodeClaims[node.Name]
 		if !ok {
+			return
+		}
+		nodeClass, ok := nodeClassMap[nodeClaim.Spec.NodeClassRef.Name]
+		if !ok {
+			return
+		}
+
+		// Ensure AMI is current
+		if !lo.ContainsBy(nodeClass.Status.AMIs, func(ami v1.AMI) bool {
+			return ami.ID == nodeClaim.Status.ImageID
+		}) {
 			return
 		}
 
@@ -295,19 +312,20 @@ func (p *DefaultProvider) UpdateInstanceTypeMemoryOverhead(ctx context.Context, 
 			return
 		}
 
-		amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, nil)
-
-		// Calculate memory overhead and store to the map
+		// Calculate memory overhead
 		reportedMiB := instanceTypeInfo.MemoryInfo.SizeInMiB
-		actualMib := node.Status.Capacity.Memory().Value() / 1024 / 1024
-		overhead := *reportedMiB - actualMib
+		actualMiB := node.Status.Capacity.Memory().Value() / (1024 * 1024)
+		overhead := *reportedMiB - actualMiB
+
+		// Update cache if overhead is greater or equal to the cached value
+		amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, nil)
 		key := fmt.Sprintf("%s-%d", instanceType, amiHash)
-		// Add calculated overhead if not found, refresh if equal, or update if higher value is found
 		if cachedOverhead, found := p.vmMemoryOverheadCache.Get(key); !found || overhead >= cachedOverhead.(int64) {
 			log.FromContext(ctx).WithValues("overhead", overhead).V(1).Info("updating cache with memory overhead for instance type: " + instanceType)
 			p.vmMemoryOverheadCache.SetDefault(key, overhead)
 		}
 	})
+
 	return nil
 }
 
