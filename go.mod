@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
-	github.com/awslabs/operatorpkg v0.0.0-20240912183034-ab1e7d730cf3
+	github.com/awslabs/operatorpkg v0.0.0-20240920182301-771460b3160b
 	github.com/go-logr/zapr v1.3.0
 	github.com/imdario/mergo v0.3.16
 	github.com/jonathan-innis/aws-sdk-go-prometheus v0.1.1-0.20240804232425-54c8227e0bab
@@ -18,7 +18,7 @@ require (
 	github.com/onsi/gomega v1.34.2
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-toml/v2 v2.2.3
-	github.com/prometheus/client_golang v1.20.3
+	github.com/prometheus/client_golang v1.20.4
 	github.com/samber/lo v1.47.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
@@ -31,7 +31,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.19.0
-	sigs.k8s.io/karpenter v1.0.1-0.20240912184512-932d95819986
+	sigs.k8s.io/karpenter v1.0.1-0.20240930201724-8101424eeecb
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -93,9 +93,9 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/cloud-provider v0.31.0 // indirect
+	k8s.io/cloud-provider v0.31.1 // indirect
 	k8s.io/component-base v0.31.1 // indirect
-	k8s.io/csi-translation-lib v0.31.0 // indirect
+	k8s.io/csi-translation-lib v0.31.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
