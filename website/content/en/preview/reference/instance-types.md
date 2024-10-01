@@ -8608,7 +8608,6 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|1|
  |aws.amazon.com/neuroncore|4|
- |aws.amazon.com/neurondevice|1|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
  |memory|6804Mi|
@@ -8640,7 +8639,6 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|1|
  |aws.amazon.com/neuroncore|4|
- |aws.amazon.com/neurondevice|1|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
  |memory|14382Mi|
@@ -8672,7 +8670,6 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|4|
  |aws.amazon.com/neuroncore|16|
- |aws.amazon.com/neurondevice|4|
  |cpu|23870m|
  |ephemeral-storage|17Gi|
  |memory|42536Mi|
@@ -8704,7 +8701,6 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|16|
  |aws.amazon.com/neuroncore|64|
- |aws.amazon.com/neurondevice|16|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
  |memory|177976Mi|
@@ -8738,7 +8734,6 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|1|
  |aws.amazon.com/neuroncore|2|
- |aws.amazon.com/neurondevice|1|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
@@ -8770,7 +8765,6 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|1|
  |aws.amazon.com/neuroncore|2|
- |aws.amazon.com/neurondevice|1|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
@@ -8802,7 +8796,6 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|6|
  |aws.amazon.com/neuroncore|12|
- |aws.amazon.com/neurondevice|6|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
@@ -8834,7 +8827,6 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|12|
  |aws.amazon.com/neuroncore|24|
- |aws.amazon.com/neurondevice|12|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
@@ -14639,7 +14631,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-gpu-count|8|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|144384|
- |karpenter.k8s.aws/instance-gpu-name|h100|
+ |karpenter.k8s.aws/instance-gpu-name|h200|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|30400|
  |karpenter.k8s.aws/instance-memory|2097152|
@@ -20797,7 +20789,6 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|1|
  |aws.amazon.com/neuroncore|2|
- |aws.amazon.com/neurondevice|1|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
@@ -20830,7 +20821,6 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|16|
  |aws.amazon.com/neuroncore|32|
- |aws.amazon.com/neurondevice|16|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
  |memory|481894Mi|
@@ -20865,7 +20855,6 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |aws.amazon.com/neuron|16|
  |aws.amazon.com/neuroncore|32|
- |aws.amazon.com/neurondevice|16|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
  |memory|481894Mi|

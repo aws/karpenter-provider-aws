@@ -314,7 +314,6 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 		v1.ResourceAMDGPU:               *amdGPUs(info),
 		v1.ResourceAWSNeuron:            *awsNeuronDevices(info),
 		v1.ResourceAWSNeuronCore:        *awsNeuronCores(info),
-		v1.ResourceAWSNeuronDevice:      *awsNeuronDevices(info),
 		v1.ResourceHabanaGaudi:          *habanaGaudis(info),
 		v1.ResourceEFA:                  *efas(info),
 	}

@@ -106,7 +106,7 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectInitializedNodeCount("==", 1)
 	})
-	It("should provision nodes for a deployment that requests aws.amazon.com/neurondevice", func() {
+	It("should provision nodes for a deployment that requests aws.amazon.com/neuron", func() {
 		ExpectNeuronDevicePluginCreated()
 		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
@@ -119,10 +119,10 @@ var _ = Describe("Extended Resources", func() {
 				},
 				ResourceRequirements: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
-						"aws.amazon.com/neurondevice": resource.MustParse("1"),
+						"aws.amazon.com/neuron": resource.MustParse("1"),
 					},
 					Limits: corev1.ResourceList{
-						"aws.amazon.com/neurondevice": resource.MustParse("1"),
+						"aws.amazon.com/neuron": resource.MustParse("1"),
 					},
 				},
 			},

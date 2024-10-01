@@ -92,7 +92,6 @@ var (
 	ResourceAMDGPU             corev1.ResourceName = "amd.com/gpu"
 	ResourceAWSNeuron          corev1.ResourceName = "aws.amazon.com/neuron"
 	ResourceAWSNeuronCore      corev1.ResourceName = "aws.amazon.com/neuroncore"
-	ResourceAWSNeuronDevice    corev1.ResourceName = "aws.amazon.com/neurondevice"
 	ResourceHabanaGaudi        corev1.ResourceName = "habana.ai/gaudi"
 	ResourceAWSPodENI          corev1.ResourceName = "vpc.amazonaws.com/pod-eni"
 	ResourcePrivateIPv4Address corev1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
