@@ -8,6 +8,10 @@ description: >
 ---
 <!-- this document is generated from hack/docs/metrics_gen_docs.go -->
 Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)
+### `karpenter_ignored_pod_count`
+Number of pods ignored during scheduling by Karpenter
+- Stability Level: ALPHA
+
 ### `karpenter_build_info`
 A metric with a constant '1' value labeled by version from which karpenter was built.
 - Stability Level: STABLE
@@ -64,6 +68,22 @@ Number of nodes terminated in total by Karpenter. Labeled by owning nodepool.
 Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status.
 - Stability Level: BETA
 
+### `karpenter_nodes_lifetime_duration_seconds`
+The lifetime duration of the nodes since creation.
+- Stability Level: ALPHA
+
+### `karpenter_nodes_eviction_requests_total`
+The total number of eviction requests made by Karpenter
+- Stability Level: ALPHA
+
+### `karpenter_nodes_drained_total`
+The total number of nodes drained by Karpenter
+- Stability Level: ALPHA
+
+### `karpenter_nodes_current_lifetime_seconds`
+Node age in seconds
+- Stability Level: ALPHA
+
 ### `karpenter_nodes_created_total`
 Number of nodes created in total by Karpenter. Labeled by owning nodepool.
 - Stability Level: STABLE
@@ -81,6 +101,16 @@ Pod state is the current state of pods. This metric can be used several ways as 
 ### `karpenter_pods_startup_duration_seconds`
 The time from pod creation until the pod is running.
 - Stability Level: STABLE
+
+## Termination Metrics
+
+### `operator_termination_duration_seconds`
+The amount of time taken by an object to terminate completely.
+- Stability Level: ALPHA
+
+### `operator_termination_current_time_seconds`
+The current amount of time in seconds that an object has been in terminating state.
+- Stability Level: ALPHA
 
 ## Voluntary Disruption Metrics
 
@@ -142,7 +172,17 @@ Amount of time an interruption message is on the queue before it is processed by
 Count of messages deleted from the SQS queue.
 - Stability Level: STABLE
 
+## Cluster Metrics
+
+### `karpenter_cluster_utilization_percent`
+Utilization of allocatable resources by pod requests
+- Stability Level: ALPHA
+
 ## Cluster State Metrics
+
+### `karpenter_cluster_state_unsynced_time_seconds`
+The time for which cluster state is not synced
+- Stability Level: STABLE
 
 ### `karpenter_cluster_state_synced`
 Returns 1 if cluster state is synced and 0 otherwise. Synced checks that nodeclaims and nodes that are stored in the APIServer have the same representation as Karpenter's cluster state
@@ -200,6 +240,10 @@ Total number of reconciliations per controller
 
 ### `controller_runtime_reconcile_time_seconds`
 Length of time per reconciliation per controller
+- Stability Level: STABLE
+
+### `controller_runtime_reconcile_panics_total`
+Total number of reconciliation panics per controller
 - Stability Level: STABLE
 
 ### `controller_runtime_reconcile_errors_total`
