@@ -25,6 +25,8 @@ import (
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/smithy-go"
 	"github.com/samber/lo"
+
+	"github.com/aws/karpenter-provider-aws/pkg/aws/sdk"
 )
 
 const ()
@@ -38,13 +40,12 @@ type IAMAPIBehavior struct {
 	AddRoleToInstanceProfileBehavior      MockedFunction[iam.AddRoleToInstanceProfileInput, iam.AddRoleToInstanceProfileOutput]
 	TagInstanceProfileBehavior            MockedFunction[iam.TagInstanceProfileInput, iam.TagInstanceProfileOutput]
 	RemoveRoleFromInstanceProfileBehavior MockedFunction[iam.RemoveRoleFromInstanceProfileInput, iam.RemoveRoleFromInstanceProfileOutput]
-	UntagInstanceProfileBehavior          MockedFunction[iam.UntagInstanceProfileInput, iam.UntagInstanceProfileOutput]
 }
 
 type IAMAPI struct {
 	sync.Mutex
 
-	IAMClient *iam.Client
+	sdk.IAMAPI
 	IAMAPIBehavior
 
 	InstanceProfiles map[string]*iamtypes.InstanceProfile
@@ -52,14 +53,6 @@ type IAMAPI struct {
 
 func NewIAMAPI() *IAMAPI {
 	return &IAMAPI{InstanceProfiles: map[string]*iamtypes.InstanceProfile{}}
-}
-
-// Reset must be called between tests otherwise tests will pollute
-// each other.
-func toSliceOfValues[T any](value []T) []T {
-	values := make([]T, len(value))
-	copy(values, value)
-	return values
 }
 
 func (s *IAMAPI) Reset() {
@@ -71,7 +64,7 @@ func (s *IAMAPI) Reset() {
 	s.InstanceProfiles = map[string]*iamtypes.InstanceProfile{}
 }
 
-func (s *IAMAPI) GetInstanceProfile(ctx context.Context, input *iam.GetInstanceProfileInput, _ ...func(*iam.Options)) (*iam.GetInstanceProfileOutput, error) {
+func (s *IAMAPI) GetInstanceProfile(_ context.Context, input *iam.GetInstanceProfileInput, _ ...func(*iam.Options)) (*iam.GetInstanceProfileOutput, error) {
 	return s.GetInstanceProfileBehavior.Invoke(input, func(*iam.GetInstanceProfileInput) (*iam.GetInstanceProfileOutput, error) {
 		s.Lock()
 		defer s.Unlock()
@@ -87,7 +80,7 @@ func (s *IAMAPI) GetInstanceProfile(ctx context.Context, input *iam.GetInstanceP
 	})
 }
 
-func (s *IAMAPI) CreateInstanceProfile(ctx context.Context, input *iam.CreateInstanceProfileInput, _ ...func(*iam.Options)) (*iam.CreateInstanceProfileOutput, error) {
+func (s *IAMAPI) CreateInstanceProfile(_ context.Context, input *iam.CreateInstanceProfileInput, _ ...func(*iam.Options)) (*iam.CreateInstanceProfileOutput, error) {
 	return s.CreateInstanceProfileBehavior.Invoke(input, func(output *iam.CreateInstanceProfileInput) (*iam.CreateInstanceProfileOutput, error) {
 		s.Lock()
 		defer s.Unlock()
@@ -111,7 +104,7 @@ func (s *IAMAPI) CreateInstanceProfile(ctx context.Context, input *iam.CreateIns
 	})
 }
 
-func (s *IAMAPI) DeleteInstanceProfile(ctx context.Context, input *iam.DeleteInstanceProfileInput, _ ...func(*iam.Options)) (*iam.DeleteInstanceProfileOutput, error) {
+func (s *IAMAPI) DeleteInstanceProfile(_ context.Context, input *iam.DeleteInstanceProfileInput, _ ...func(*iam.Options)) (*iam.DeleteInstanceProfileOutput, error) {
 	return s.DeleteInstanceProfileBehavior.Invoke(input, func(output *iam.DeleteInstanceProfileInput) (*iam.DeleteInstanceProfileOutput, error) {
 		s.Lock()
 		defer s.Unlock()
@@ -135,13 +128,13 @@ func (s *IAMAPI) DeleteInstanceProfile(ctx context.Context, input *iam.DeleteIns
 	})
 }
 
-func (s *IAMAPI) TagInstanceProfile(ctx context.Context, input *iam.TagInstanceProfileInput, _ ...func(*iam.Options)) (*iam.TagInstanceProfileOutput, error) {
+func (s *IAMAPI) TagInstanceProfile(_ context.Context, input *iam.TagInstanceProfileInput, _ ...func(*iam.Options)) (*iam.TagInstanceProfileOutput, error) {
 	return s.TagInstanceProfileBehavior.Invoke(input, func(output *iam.TagInstanceProfileInput) (*iam.TagInstanceProfileOutput, error) {
 		s.Lock()
 		defer s.Unlock()
 
 		if profile, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
-			profile.Tags = lo.UniqBy(append(toSliceOfValues(input.Tags), toSliceOfValues(profile.Tags)...), func(t iamtypes.Tag) string {
+			profile.Tags = lo.UniqBy(append(input.Tags, profile.Tags...), func(t iamtypes.Tag) string {
 				return lo.FromPtr(t.Key)
 			})
 			return nil, nil
@@ -154,7 +147,7 @@ func (s *IAMAPI) TagInstanceProfile(ctx context.Context, input *iam.TagInstanceP
 	})
 }
 
-func (s *IAMAPI) AddRoleToInstanceProfile(ctx context.Context, input *iam.AddRoleToInstanceProfileInput, _ ...func(*iam.Options)) (*iam.AddRoleToInstanceProfileOutput, error) {
+func (s *IAMAPI) AddRoleToInstanceProfile(_ context.Context, input *iam.AddRoleToInstanceProfileInput, _ ...func(*iam.Options)) (*iam.AddRoleToInstanceProfileOutput, error) {
 	return s.AddRoleToInstanceProfileBehavior.Invoke(input, func(output *iam.AddRoleToInstanceProfileInput) (*iam.AddRoleToInstanceProfileOutput, error) {
 		s.Lock()
 		defer s.Unlock()
@@ -178,13 +171,13 @@ func (s *IAMAPI) AddRoleToInstanceProfile(ctx context.Context, input *iam.AddRol
 	})
 }
 
-func (s *IAMAPI) RemoveRoleFromInstanceProfile(ctx context.Context, input *iam.RemoveRoleFromInstanceProfileInput, _ ...func(*iam.Options)) (*iam.RemoveRoleFromInstanceProfileOutput, error) {
+func (s *IAMAPI) RemoveRoleFromInstanceProfile(_ context.Context, input *iam.RemoveRoleFromInstanceProfileInput, _ ...func(*iam.Options)) (*iam.RemoveRoleFromInstanceProfileOutput, error) {
 	return s.RemoveRoleFromInstanceProfileBehavior.Invoke(input, func(output *iam.RemoveRoleFromInstanceProfileInput) (*iam.RemoveRoleFromInstanceProfileOutput, error) {
 		s.Lock()
 		defer s.Unlock()
 
 		if i, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
-			newRoles := lo.Reject(toSliceOfValues(i.Roles), func(r iamtypes.Role, _ int) bool {
+			newRoles := lo.Reject(i.Roles, func(r iamtypes.Role, _ int) bool {
 				return aws.ToString(r.RoleName) == aws.ToString(input.RoleName)
 			})
 			if len(i.Roles) == len(newRoles) {
@@ -195,25 +188,6 @@ func (s *IAMAPI) RemoveRoleFromInstanceProfile(ctx context.Context, input *iam.R
 				}
 			}
 			i.Roles = newRoles
-			return nil, nil
-		}
-		return nil, &smithy.GenericAPIError{
-			Code: "NoSuchEntityException",
-			Message: fmt.Sprintf("Instance Profile %s cannot be found",
-				aws.ToString(input.InstanceProfileName)),
-		}
-	})
-}
-
-func (s *IAMAPI) UntagInstanceProfile(ctx context.Context, input *iam.UntagInstanceProfileInput, _ ...func(*iam.Options)) (*iam.UntagInstanceProfileOutput, error) {
-	return s.UntagInstanceProfileBehavior.Invoke(input, func(output *iam.UntagInstanceProfileInput) (*iam.UntagInstanceProfileOutput, error) {
-		s.Lock()
-		defer s.Unlock()
-
-		if profile, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
-			profile.Tags = lo.Reject(toSliceOfValues(profile.Tags), func(t iamtypes.Tag, _ int) bool {
-				return lo.Contains(toSliceOfValues(input.TagKeys), lo.FromPtr(t.Key))
-			})
 			return nil, nil
 		}
 		return nil, &smithy.GenericAPIError{
