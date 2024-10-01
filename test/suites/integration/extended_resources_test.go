@@ -139,6 +139,39 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectInitializedNodeCount("==", 1)
 	})
+	It("should provision nodes for a deployment that requests aws.amazon.com/neuroncore", func() {
+		ExpectNeuronDevicePluginCreated()
+		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
+		numPods := 1
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "large-app"},
+				},
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						"aws.amazon.com/neuroncore": resource.MustParse("2"),
+					},
+					Limits: corev1.ResourceList{
+						"aws.amazon.com/neuroncore": resource.MustParse("2"),
+					},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceCategory,
+				Operator: corev1.NodeSelectorOpExists,
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, dep)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+		env.EventuallyExpectInitializedNodeCount("==", 1)
+	})
 	It("should provision nodes for a deployment that requests vpc.amazonaws.com/pod-eni (security groups for pods)", func() {
 		env.ExpectPodENIEnabled()
 		DeferCleanup(func() {
