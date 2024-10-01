@@ -465,7 +465,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				{Taints: []corev1.Taint{{Key: "test-key", Value: "test-value"}}},
 				{Labels: map[string]string{"test-key": "test-value"}},
 				{CABundle: lo.ToPtr("test-bundle")},
-				{AWSENILimitedPodDensity: true},
 				{ContainerRuntime: lo.ToPtr("test-cri")},
 				{CustomUserData: lo.ToPtr("test-cidr")},
 			}
@@ -474,7 +473,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				lt := &amifamily.LaunchTemplate{UserData: bootstrap.EKS{Options: *option}}
 				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
 			}
-			Expect(len(launchtemplateResult)).To(BeNumerically("==", 10))
+			Expect(len(launchtemplateResult)).To(BeNumerically("==", 9))
 			Expect(lo.Uniq(launchtemplateResult)).To(Equal(launchtemplateResult))
 		})
 		It("should generate different launch template names based on launchtemplate option configuration", func() {

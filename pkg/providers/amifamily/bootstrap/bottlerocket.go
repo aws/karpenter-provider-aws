@@ -44,11 +44,8 @@ func (b Bottlerocket) Script() (string, error) {
 		return "", err
 	}
 
-	// Backwards compatibility for AWSENILimitedPodDensity flag
 	if b.KubeletConfig != nil && b.KubeletConfig.MaxPods != nil {
 		s.Settings.Kubernetes.MaxPods = aws.Int(int(lo.FromPtr(b.KubeletConfig.MaxPods)))
-	} else if !b.AWSENILimitedPodDensity {
-		s.Settings.Kubernetes.MaxPods = aws.Int(110)
 	}
 
 	if b.KubeletConfig != nil {
