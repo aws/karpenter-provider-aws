@@ -122,7 +122,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	amiResolver := amifamily.NewDefaultResolver()
 	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion, pricingProvider, unavailableOfferingsCache)
 	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, vmMemoryOverheadCache, ec2api, subnetProvider, instanceTypesResolver)
-
 	launchTemplateProvider :=
 		launchtemplate.NewDefaultProvider(
 			ctx,

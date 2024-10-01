@@ -47,7 +47,7 @@ func NewController(kubeClient client.Client, instancetypeProvider *instancetype.
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "instancetypes.memoryoverhead")
 	if err := c.instancetypeProvider.UpdateInstanceTypeMemoryOverhead(ctx, c.kubeClient); err != nil {
-		return reconcile.Result{}, fmt.Errorf("updating instancetype, %w", err)
+		return reconcile.Result{}, fmt.Errorf("updating instancetype memory overhead, %w", err)
 	}
 	return reconcile.Result{RequeueAfter: 12 * time.Hour}, nil
 }
