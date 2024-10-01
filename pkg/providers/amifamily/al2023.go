@@ -78,16 +78,15 @@ func (a AL2023) resolvePath(architecture, variant, k8sVersion, amiVersion string
 func (a AL2023) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Nodeadm{
 		Options: bootstrap.Options{
-			ClusterName:             a.Options.ClusterName,
-			ClusterEndpoint:         a.Options.ClusterEndpoint,
-			ClusterCIDR:             a.Options.ClusterCIDR,
-			KubeletConfig:           kubeletConfig,
-			Taints:                  taints,
-			Labels:                  labels,
-			CABundle:                caBundle,
-			AWSENILimitedPodDensity: false,
-			CustomUserData:          customUserData,
-			InstanceStorePolicy:     instanceStorePolicy,
+			ClusterName:         a.Options.ClusterName,
+			ClusterEndpoint:     a.Options.ClusterEndpoint,
+			ClusterCIDR:         a.Options.ClusterCIDR,
+			KubeletConfig:       kubeletConfig,
+			Taints:              taints,
+			Labels:              labels,
+			CABundle:            caBundle,
+			CustomUserData:      customUserData,
+			InstanceStorePolicy: instanceStorePolicy,
 		},
 	}
 }
