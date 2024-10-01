@@ -56,7 +56,7 @@ import (
 func NewControllers(ctx context.Context, mgr manager.Manager, sess *session.Session, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
 	unavailableOfferings *cache.UnavailableOfferings, cloudProvider cloudprovider.CloudProvider, subnetProvider subnet.Provider,
 	securityGroupProvider securitygroup.Provider, instanceProfileProvider instanceprofile.Provider, instanceProvider instance.Provider,
-	pricingProvider pricing.Provider, amiProvider amifamily.Provider, launchTemplateProvider launchtemplate.Provider, instanceTypeProvider instancetype.Provider) []controller.Controller {
+	pricingProvider pricing.Provider, amiProvider amifamily.Provider, launchTemplateProvider launchtemplate.Provider, instanceTypeProvider *instancetype.DefaultProvider) []controller.Controller {
 
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient),
