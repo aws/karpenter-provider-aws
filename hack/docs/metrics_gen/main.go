@@ -369,7 +369,6 @@ func getIdentMapping(identName string) (string, error) {
 		"cloudProviderSubsystem":       "cloudprovider",
 		"stateSubsystem":               "cluster_state",
 		"schedulerSubsystem":           "scheduler",
-		"TerminationSubsystem":         "termination",
 	}
 	if v, ok := identMapping[identName]; ok {
 		return v, nil
