@@ -18,7 +18,6 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -89,19 +88,6 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving node class, %w", err))
 	}
 
-	// TODO: Remove this once support for conversion webhooks is dropped
-	if nodeClass.UbuntuIncompatible() {
-		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("EC2NodeClass %q is incompatible with Karpenter v1, specify your Ubuntu AMIs in your AMISelectorTerms", nodeClass.Name))
-	}
-	// TODO: Remove this after v1
-	nodePool, err := utils.ResolveNodePoolFromNodeClaim(ctx, c.kubeClient, nodeClaim)
-	if err != nil {
-		return nil, err
-	}
-	kubeletHash, err := utils.GetHashKubelet(nodePool, nodeClass)
-	if err != nil {
-		return nil, err
-	}
 	nodeClassReady := nodeClass.StatusConditions().Get(status.ConditionReady)
 	if nodeClassReady.IsFalse() {
 		return nil, cloudprovider.NewNodeClassNotReadyError(stderrors.New(nodeClassReady.Message))
@@ -125,9 +111,8 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	})
 	nc := c.instanceToNodeClaim(instance, instanceType, nodeClass)
 	nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
-		v1.AnnotationKubeletCompatibilityHash: kubeletHash,
-		v1.AnnotationEC2NodeClassHash:         nodeClass.Hash(),
-		v1.AnnotationEC2NodeClassHashVersion:  v1.EC2NodeClassHashVersion,
+		v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
+		v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
 	})
 	return nc, nil
 }
@@ -173,10 +158,6 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*karpv1.Nod
 	return c.instanceToNodeClaim(instance, instanceType, nc), nil
 }
 
-func (c *CloudProvider) LivenessProbe(req *http.Request) error {
-	return c.instanceTypeProvider.LivenessProbe(req)
-}
-
 // GetInstanceTypes returns all available InstanceTypes
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.NodePool) ([]*cloudprovider.InstanceType, error) {
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
@@ -184,17 +165,13 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 		if errors.IsNotFound(err) {
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 		}
-		// We must return an error here in the event of the node class not being found. Otherwise users just get
+		// We must return an error here in the event of the node class not being found. Otherwise, users just get
 		// no instance types and a failure to schedule with no indicator pointing to a bad configuration
 		// as the cause.
 		return nil, fmt.Errorf("resolving node class, %w", err)
 	}
-	kubeletConfig, err := utils.GetKubletConfigurationWithNodePool(nodePool, nodeClass)
-	if err != nil {
-		return nil, fmt.Errorf("resolving kubelet configuration, %w", err)
-	}
 	// TODO, break this coupling
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, kubeletConfig, nodeClass)
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, err
 	}
@@ -278,11 +255,7 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 }
 
 func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	kubeletConfig, err := utils.GetKubeletConfigurationWithNodeClaim(nodeClaim, nodeClass)
-	if err != nil {
-		return nil, fmt.Errorf("resovling kubelet configuration, %w", err)
-	}
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, kubeletConfig, nodeClass)
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}

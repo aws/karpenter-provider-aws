@@ -341,7 +341,10 @@ This gives EC2 permission explicit permission to use the `KarpenterNodeRole-${Cl
   "Action": "iam:PassRole",
   "Condition": {
     "StringEquals": {
-      "iam:PassedToService": "ec2.amazonaws.com"
+      "iam:PassedToService": [
+        "ec2.amazonaws.com",
+        "ec2.amazonaws.com.cn"
+      ]
     }
   }
 }

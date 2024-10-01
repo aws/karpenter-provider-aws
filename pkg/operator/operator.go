@@ -47,7 +47,6 @@ import (
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	karpv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/operator"
 
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
@@ -65,7 +64,6 @@ import (
 )
 
 func init() {
-	karpv1beta1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 	karpv1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 }
 
@@ -80,11 +78,11 @@ type Operator struct {
 	SecurityGroupProvider     securitygroup.Provider
 	InstanceProfileProvider   instanceprofile.Provider
 	AMIProvider               amifamily.Provider
-	AMIResolver               *amifamily.Resolver
+	AMIResolver               amifamily.Resolver
 	LaunchTemplateProvider    launchtemplate.Provider
 	PricingProvider           pricing.Provider
 	VersionProvider           version.Provider
-	InstanceTypesProvider     instancetype.Provider
+	InstanceTypesProvider     *instancetype.DefaultProvider
 	InstanceProvider          instance.Provider
 	SSMProvider               ssmp.Provider
 }
@@ -144,8 +142,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	)
 	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	ssmProvider := ssmp.NewDefaultProvider(ssm.New(sess), cache.New(awscache.SSMGetParametersByPathTTL, awscache.DefaultCleanupInterval))
-	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiResolver := amifamily.NewResolver(amiProvider)
+	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	amiResolver := amifamily.NewDefaultResolver()
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
@@ -160,19 +158,16 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		clusterEndpoint,
 	)
 	instanceTypeProvider := instancetype.NewDefaultProvider(
-		*sess.Config.Region,
 		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		subnetProvider,
-		unavailableOfferingsCache,
-		pricingProvider,
+		instancetype.NewDefaultResolver(*sess.Config.Region, pricingProvider, unavailableOfferingsCache),
 	)
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		aws.StringValue(sess.Config.Region),
 		ec2api,
 		unavailableOfferingsCache,
-		instanceTypeProvider,
 		subnetProvider,
 		launchTemplateProvider,
 	)

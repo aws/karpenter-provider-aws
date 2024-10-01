@@ -15,17 +15,13 @@ limitations under the License.
 package main
 
 import (
-	"github.com/samber/lo"
-
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers"
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
-	"github.com/aws/karpenter-provider-aws/pkg/webhooks"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
 	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"
 	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
-	corewebhooks "sigs.k8s.io/karpenter/pkg/webhooks"
 )
 
 func main() {
@@ -39,7 +35,6 @@ func main() {
 		op.AMIProvider,
 		op.SecurityGroupProvider,
 	)
-	lo.Must0(op.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 
 	op.
@@ -50,7 +45,6 @@ func main() {
 			op.EventRecorder,
 			cloudProvider,
 		)...).
-		WithWebhooks(ctx, corewebhooks.NewWebhooks()...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,
 			op.Manager,
@@ -69,6 +63,5 @@ func main() {
 			op.LaunchTemplateProvider,
 			op.InstanceTypesProvider,
 		)...).
-		WithWebhooks(ctx, webhooks.NewWebhooks()...).
-		Start(ctx, cloudProvider)
+		Start(ctx)
 }

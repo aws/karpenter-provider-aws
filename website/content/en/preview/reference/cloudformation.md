@@ -298,7 +298,6 @@ This allows the Karpenter controller to do any of those read-only actions across
   "Effect": "Allow",
   "Resource": "*",
   "Action": [
-    "ec2:DescribeAvailabilityZones",
     "ec2:DescribeImages",
     "ec2:DescribeInstances",
     "ec2:DescribeInstanceTypeOfferings",
@@ -375,7 +374,10 @@ This gives EC2 permission explicit permission to use the `KarpenterNodeRole-${Cl
   "Action": "iam:PassRole",
   "Condition": {
     "StringEquals": {
-      "iam:PassedToService": "ec2.amazonaws.com"
+      "iam:PassedToService": [
+        "ec2.amazonaws.com",
+        "ec2.amazonaws.com.cn"
+      ]
     }
   }
 }

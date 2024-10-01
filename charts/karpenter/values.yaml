@@ -137,14 +137,6 @@ controller:
   healthProbe:
     # -- The container port to use for http health probe.
     port: 8081
-webhook:
-  # -- Whether to enable the webhooks and webhook permissions.
-  enabled: true
-  # -- The container port to use for the webhook.
-  port: 8443
-  metrics:
-    # -- The container port to use for webhook metrics.
-    port: 8001
 # -- Global log level, defaults to 'info'
 logLevel: info
 # -- Log outputPaths - defaults to stdout only
@@ -171,7 +163,7 @@ settings:
   # -- If true then assume we can't reach AWS services which don't have a VPC endpoint
   # This also has the effect of disabling look-ups to the AWS pricing endpoint
   isolatedVPC: false
-  # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types
+  # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types. The value of `0.075` equals to 7.5%.
   vmMemoryOverheadPercent: 0.075
   # -- Interruption queue is the name of the SQS queue used for processing interruption events from EC2
   # Interruption handling is disabled if not specified. Enabling interruption handling may

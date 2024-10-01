@@ -17,13 +17,14 @@ package test
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	clock "k8s.io/utils/clock/testing"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	karpv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
@@ -44,11 +45,13 @@ import (
 )
 
 func init() {
-	karpv1beta1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 	karpv1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 }
 
 type Environment struct {
+	// Mock
+	Clock *clock.FakeClock
+
 	// API
 	EC2API     *fake.EC2API
 	EKSAPI     *fake.EKSAPI
@@ -70,6 +73,7 @@ type Environment struct {
 	SSMCache                      *cache.Cache
 
 	// Providers
+	InstanceTypesResolver   *instancetype.DefaultResolver
 	InstanceTypesProvider   *instancetype.DefaultProvider
 	InstanceProvider        *instance.DefaultProvider
 	SubnetProvider          *subnet.DefaultProvider
@@ -77,12 +81,15 @@ type Environment struct {
 	InstanceProfileProvider *instanceprofile.DefaultProvider
 	PricingProvider         *pricing.DefaultProvider
 	AMIProvider             *amifamily.DefaultProvider
-	AMIResolver             *amifamily.Resolver
+	AMIResolver             *amifamily.DefaultResolver
 	VersionProvider         *version.DefaultProvider
 	LaunchTemplateProvider  *launchtemplate.DefaultProvider
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
+	// Mock
+	clock := &clock.FakeClock{}
+
 	// API
 	ec2api := fake.NewEC2API()
 	eksapi := fake.NewEKSAPI()
@@ -110,9 +117,10 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, kubernetesVersionCache)
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
-	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmProvider, ec2api, ec2Cache)
-	amiResolver := amifamily.NewResolver(amiProvider)
-	instanceTypesProvider := instancetype.NewDefaultProvider(fake.DefaultRegion, instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
+	amiResolver := amifamily.NewDefaultResolver()
+	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion, pricingProvider, unavailableOfferingsCache)
+	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, ec2api, subnetProvider, instanceTypesResolver)
 	launchTemplateProvider :=
 		launchtemplate.NewDefaultProvider(
 			ctx,
@@ -132,12 +140,13 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			"",
 			ec2api,
 			unavailableOfferingsCache,
-			instanceTypesProvider,
 			subnetProvider,
 			launchTemplateProvider,
 		)
 
 	return &Environment{
+		Clock: clock,
+
 		EC2API:     ec2api,
 		EKSAPI:     eksapi,
 		SSMAPI:     ssmapi,
@@ -146,6 +155,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 
 		EC2Cache:                      ec2Cache,
 		KubernetesVersionCache:        kubernetesVersionCache,
+		InstanceTypeCache:             instanceTypeCache,
 		LaunchTemplateCache:           launchTemplateCache,
 		SubnetCache:                   subnetCache,
 		AvailableIPAdressCache:        availableIPAdressCache,
@@ -155,6 +165,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		UnavailableOfferingsCache:     unavailableOfferingsCache,
 		SSMCache:                      ssmCache,
 
+		InstanceTypesResolver:   instanceTypesResolver,
 		InstanceTypesProvider:   instanceTypesProvider,
 		InstanceProvider:        instanceProvider,
 		SubnetProvider:          subnetProvider,
@@ -169,6 +180,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 }
 
 func (env *Environment) Reset() {
+	env.Clock.SetTime(time.Time{})
 	env.EC2API.Reset()
 	env.EKSAPI.Reset()
 	env.SSMAPI.Reset()

@@ -52,11 +52,11 @@ The upgrade guide will first require upgrading to your latest patch version prio
 
    The Karpenter version you are running must be between minor version `v0.33` and `v0.37`. To be able to roll back from Karpenter v1, you must rollback to on the following patch release versions for your minor version, which will include the conversion webhooks for a smooth rollback:
 
-   * v0.37.2
-   * v0.36.4
-   * v0.35.7
-   * v0.34.8
-   * v0.33.7
+   * v0.37.3
+   * v0.36.5
+   * v0.35.8
+   * v0.34.9
+   * v0.33.8
 
 3. Review for breaking changes between v0.33 and v0.37: If you are already running Karpenter v0.37.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the [Upgrade Guide]({{<ref "upgrade-guide#upgrading-to-0320" >}}) for each minor release.
 
@@ -76,20 +76,20 @@ The upgrade guide will first require upgrading to your latest patch version prio
     ```
 
 {{% alert title="Note" color="warning" %}}
-If you receive a `label validation error` or `annotation validation error` consult the [troubleshooting guide]({{<ref "../troubleshooting/#helm-error-when-installing-the-karpenter-crd-chart" >}}) for steps to resolve. 
+If you receive a `label validation error` or `annotation validation error` consult the [troubleshooting guide]({{<ref "../troubleshooting/#helm-error-when-installing-the-karpenter-crd-chart" >}}) for steps to resolve.
 {{% /alert %}}
 
 {{% alert title="Note" color="warning" %}}
 
-As an alternative approach to updating the Karpenter CRDs conversion webhook configuration, you can patch the CRDs as follows: 
+As an alternative approach to updating the Karpenter CRDs conversion webhook configuration, you can patch the CRDs as follows:
 
-```bash 
+```bash
 export SERVICE_NAME=<karpenter webhook service name>
 export SERVICE_NAMESPACE=<karpenter webhook service namespace>
 export SERVICE_PORT=<karpenter webhook service port>
 # NodePools
 kubectl patch customresourcedefinitions nodepools.karpenter.sh -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
-# NodeClaims 
+# NodeClaims
 kubectl patch customresourcedefinitions nodeclaims.karpenter.sh -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
 # EC2NodeClass
 kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
@@ -113,14 +113,14 @@ kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws -p "{\"
       --wait
     ```
 
-7. Set environment variables for first upgrading to v1.0.1
+7. Set environment variables for first upgrading to v1.0.3
 
     ```bash
-    export KARPENTER_VERSION=1.0.1
+    export KARPENTER_VERSION=1.0.3
     ```
 
 
-8. Update your existing policy using the following to the v1.0.1 controller policy:
+8. Update your existing policy using the following to the v1.0.3 controller policy:
    Notable Changes to the IAM Policy include additional tag-scoping for the `eks:eks-cluster-name` tag for instances and instance profiles.
 
     ```bash
@@ -133,7 +133,7 @@ kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws -p "{\"
         --parameter-overrides "ClusterName=${CLUSTER_NAME}"
     ```
 
-9. Apply the v1.0.1 Custom Resource Definitions (CRDs):
+9. Apply the v1.0.3 Custom Resource Definitions (CRDs):
 
     ```bash
     helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
@@ -143,20 +143,20 @@ kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws -p "{\"
     ```
 
 {{% alert title="Note" color="warning" %}}
-If you receive a `label validation error` or `annotation validation error` consult the [troubleshooting guide]({{<ref "../troubleshooting/#helm-error-when-installing-the-karpenter-crd-chart" >}}) for steps to resolve. 
+If you receive a `label validation error` or `annotation validation error` consult the [troubleshooting guide]({{<ref "../troubleshooting/#helm-error-when-installing-the-karpenter-crd-chart" >}}) for steps to resolve.
 {{% /alert %}}
 
 {{% alert title="Note" color="warning" %}}
 
-As an alternative approach to updating the Karpenter CRDs conversion webhook configuration, you can patch the CRDs as follows: 
+As an alternative approach to updating the Karpenter CRDs conversion webhook configuration, you can patch the CRDs as follows:
 
-```bash 
+```bash
 export SERVICE_NAME=<karpenter webhook service name>
 export SERVICE_NAMESPACE=<karpenter webhook service namespace>
 export SERVICE_PORT=<karpenter webhook service port>
 # NodePools
 kubectl patch customresourcedefinitions nodepools.karpenter.sh -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
-# NodeClaims 
+# NodeClaims
 kubectl patch customresourcedefinitions nodeclaims.karpenter.sh -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
 # EC2NodeClass
 kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
@@ -292,11 +292,11 @@ Keep in mind that rollback, without replacing the Karpenter nodes, will not be s
 
 Once the Karpenter CRDs are upgraded to v1, conversion webhooks are needed to help convert APIs that are stored in etcd from v1 to v1beta1. Also changes to the CRDs will need to at least include the latest version of the CRD in this case being v1. The patch versions of the v1beta1 Karpenter controller that include the conversion wehooks include:
 
-* v0.37.2
-* v0.36.4
-* v0.35.7
-* v0.34.8
-* v0.33.7
+* v0.37.3
+* v0.36.5
+* v0.35.8
+* v0.34.9
+* v0.33.8
 
 {{% alert title="Note" color="warning" %}}
 When rolling back from v1, Karpenter will not retain data that was only valid in v1 APIs. For instance, if you were upgrading from v0.33.5 to v1, updated the `NodePool.Spec.Disruption.Budgets` field and then rolled back to v0.33.6, Karpenter would not retain the `NodePool.Spec.Disruption.Budgets` field, as that was introduced in v0.34.x. If you are configuring the kubelet field, and have removed the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation, rollback is not supported without replacing your nodes between EC2NodeClass and NodePool.
@@ -320,7 +320,7 @@ export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/
 2. Set Karpenter Version
 
 ```bash
-# Note: v0.33.6 and v0.34.7 include the v prefix, omit it for versions v0.35+
+# Note: v0.33.8 and v0.34.9 include the v prefix, omit it for versions v0.35+
 export KARPENTER_VERSION="<rollback version of karpenter>"
 ```
 
@@ -369,15 +369,15 @@ helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-cr
 
 {{% alert title="Note" color="warning" %}}
 
-As an alternative approach to updating the Karpenter CRDs conversion webhook configuration, you can patch the CRDs as follows: 
+As an alternative approach to updating the Karpenter CRDs conversion webhook configuration, you can patch the CRDs as follows:
 
-```bash 
+```bash
 export SERVICE_NAME=<karpenter webhook service name>
 export SERVICE_NAMESPACE=<karpenter webhook service namespace>
 export SERVICE_PORT=<karpenter webhook service port>
 # NodePools
 kubectl patch customresourcedefinitions nodepools.karpenter.sh -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
-# NodeClaims 
+# NodeClaims
 kubectl patch customresourcedefinitions nodeclaims.karpenter.sh -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
 # EC2NodeClass
 kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"

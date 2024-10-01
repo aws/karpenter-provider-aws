@@ -56,7 +56,8 @@ spec:
     imageGCLowThresholdPercent: 80
     cpuCFSQuota: true
     clusterDNS: ["10.0.1.100"]
-  # Required, resolves a default ami and userdata
+  # Optional, dictates UserData generation and default block device mappings.
+  # May be ommited when using an `alias` amiSelectorTerm, otherwise required.
   amiFamily: AL2
 
   # Required, discovers subnets to attach to instances
@@ -399,7 +400,7 @@ AMIFamily does not impact which AMI is discovered, only the UserData generation 
 
 {{% alert title="Ubuntu Support Dropped at v1" color="warning" %}}
 
-Support for the Ubuntu AMIFamily has been dropped at Karpenter `v1.0.1`.
+Support for the Ubuntu AMIFamily has been dropped at Karpenter `v1.0.0`.
 This means Karpenter no longer supports automatic AMI discovery and UserData generation for Ubuntu.
 To continue using Ubuntu AMIs, you will need to select Ubuntu AMIs using `amiSelectorTerms`.
 
@@ -730,6 +731,36 @@ Bottlerocket uses a semantic version for their releases. You can pin bottlerocke
 alias: bottlerocket@v1.20.4
 ```
 The Windows family does not support pinning, so only `latest` is supported.
+
+The following commands can be used to determine the versions availble for an alias in your region:
+
+{{< tabpane text=true right=false >}}
+  {{% tab "AL2023" %}}
+  ```bash
+  export K8S_VERSION="{{< param "latest_k8s_version" >}}"
+  aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2023/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $10}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
+  ```
+  {{% /tab %}}
+  {{% tab "AL2" %}}
+  ```bash
+  export K8S_VERSION="{{< param "latest_k8s_version" >}}"
+  aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $8}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
+  ```
+  {{% /tab %}}
+  {{% tab "Bottlerocket" %}}
+  ```bash
+  export K8S_VERSION="{{< param "latest_k8s_version" >}}"
+  aws ssm get-parameters-by-path --path "/aws/service/bottlerocket/aws-k8s-$K8S_VERSION" --recursive | jq -cr '.Parameters[].Name' | grep -v "latest" | awk -F '/' '{print $7}' | sort | uniq
+  ```
+  {{% /tab %}}
+{{< /tabpane >}}
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter supports automatic AMI selection and upgrades using the `latest` version pin, but this is **not** recommended for production environments.
+When using `latest`, a new AMI release will cause Karpenter to drift all out-of-date nodes in the cluster, replacing them with nodes running the new AMI.
+We strongly recommend evaluating new AMIs in a lower environment before rolling them out into a production environment.
+More details on Karpenter's recommendations for managing AMIs can be found [here]({{< ref "../tasks/managing-amis" >}}).
+{{% /alert %}}
 
 To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To select AMIs that are not owned by `amazon` or the account that Karpenter is running in, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs.
 
