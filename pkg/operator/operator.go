@@ -87,7 +87,7 @@ type Operator struct {
 	LaunchTemplateProvider    launchtemplate.Provider
 	PricingProvider           pricing.Provider
 	VersionProvider           version.Provider
-	InstanceTypesProvider     instancetype.Provider
+	InstanceTypesProvider     *instancetype.DefaultProvider
 	InstanceProvider          instance.Provider
 	SSMProvider               ssmp.Provider
 }
@@ -178,12 +178,10 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		clusterEndpoint,
 	)
 	instanceTypeProvider := instancetype.NewDefaultProvider(
-		*sess.Config.Region,
 		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		subnetProvider,
-		unavailableOfferingsCache,
-		pricingProvider,
+		instancetype.NewDefaultResolver(*sess.Config.Region, pricingProvider, unavailableOfferingsCache),
 	)
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,

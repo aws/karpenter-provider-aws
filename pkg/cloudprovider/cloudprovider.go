@@ -18,7 +18,6 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -159,10 +158,6 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*karpv1.Nod
 	return c.instanceToNodeClaim(instance, instanceType, nc), nil
 }
 
-func (c *CloudProvider) LivenessProbe(req *http.Request) error {
-	return c.instanceTypeProvider.LivenessProbe(req)
-}
-
 // GetInstanceTypes returns all available InstanceTypes
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.NodePool) ([]*cloudprovider.InstanceType, error) {
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
@@ -176,7 +171,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 		return nil, fmt.Errorf("resolving node class, %w", err)
 	}
 	// TODO, break this coupling
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +255,7 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 }
 
 func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}
