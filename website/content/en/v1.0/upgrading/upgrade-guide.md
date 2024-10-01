@@ -57,7 +57,7 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
 * API Moves:
   * ExpireAfter has moved from the `NodePool.Spec.Disruption` block to `NodePool.Spec.Template.Spec`, and is now a drift-able field.
   * `Kubelet` was moved to the EC2NodeClass from the NodePool.
-* RBAC changes: added `delete pods` | added `get, patch crds` | added `update nodes` | removed `create nodes`
+* RBAC changes: added `delete pods` | added `get, patch crds` | added `get, patch crd status` | added `update nodes` | removed `create nodes`
 * Breaking API (Manual Migration Needed):
   * Ubuntu is dropped as a first class supported AMI Family
   * `karpenter.sh/do-not-consolidate` (annotation), `karpenter.sh/do-not-evict` (annotation), and `karpenter.sh/managed-by` (tag) are all removed. `karpenter.sh/managed-by`, which currently stores the cluster name in its value, will be replaced by eks:eks-cluster-name
