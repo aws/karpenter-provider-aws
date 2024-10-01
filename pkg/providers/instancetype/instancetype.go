@@ -109,7 +109,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// Compute fully initialized instance types hash key
 	subnetZonesHash, _ := hashstructure.Hash(subnetZones, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 
-	// Compute hash key against node class AMIs to force cache rebuild when AMIs change
+	// Compute hash key against node class AMIs (used to force cache rebuild when AMIs change)
 	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 
 	key := fmt.Sprintf("%d-%d-%016x-%s-%016x",
