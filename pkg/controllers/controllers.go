@@ -16,7 +16,6 @@ package controllers
 
 import (
 	"context"
-	"github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/memoryoverhead"
 
 	"github.com/awslabs/operatorpkg/controller"
 	"github.com/awslabs/operatorpkg/status"
@@ -28,6 +27,7 @@ import (
 	nodeclassstatus "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	nodeclasstermination "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/termination"
 	controllersinstancetype "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype"
+	controllersmemoryoverhead "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/memoryoverhead"
 	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
@@ -67,8 +67,8 @@ func NewControllers(ctx context.Context, mgr manager.Manager, sess *session.Sess
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
 		controllerspricing.NewController(pricingProvider),
 		controllersinstancetype.NewController(instanceTypeProvider),
+		controllersmemoryoverhead.NewController(kubeClient, instanceTypeProvider),
 		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter")),
-		memoryoverhead.NewController(kubeClient, instanceTypeProvider),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsapi := servicesqs.New(sess)

@@ -109,9 +109,10 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// Compute fully initialized instance types hash key
 	subnetZonesHash, _ := hashstructure.Hash(subnetZones, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 
-	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, nil)
+	// Compute hash key against node class AMIs to force cache rebuild when AMIs change
+	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 
-	key := fmt.Sprintf("%d-%d-%016x-%s",
+	key := fmt.Sprintf("%d-%d-%016x-%s-%016x",
 		p.instanceTypesSeqNum,
 		p.instanceTypesOfferingsSeqNum,
 		subnetZonesHash,
@@ -161,7 +162,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		})
 
 		var vmMemoryOverhead int64
-		if cached, ok := p.vmMemoryOverheadCache.Get(fmt.Sprintf("%s-%d", *i.InstanceType, amiHash)); ok {
+		if cached, ok := p.vmMemoryOverheadCache.Get(fmt.Sprintf("%s-%016x", *i.InstanceType, amiHash)); ok {
 			vmMemoryOverhead = cached.(int64)
 		}
 
@@ -318,8 +319,8 @@ func (p *DefaultProvider) UpdateInstanceTypeMemoryOverhead(ctx context.Context, 
 		overhead := *reportedMiB - actualMiB
 
 		// Update cache if overhead is greater or equal to the cached value
-		amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, nil)
-		key := fmt.Sprintf("%s-%d", instanceType, amiHash)
+		amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+		key := fmt.Sprintf("%s-%016x", instanceType, amiHash)
 		if cachedOverhead, found := p.vmMemoryOverheadCache.Get(key); !found || overhead >= cachedOverhead.(int64) {
 			log.FromContext(ctx).WithValues("overhead", overhead).V(1).Info("updating cache with memory overhead for instance type: " + instanceType)
 			p.vmMemoryOverheadCache.SetDefault(key, overhead)
