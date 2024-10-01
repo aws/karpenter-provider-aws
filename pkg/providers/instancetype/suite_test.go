@@ -759,28 +759,28 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(1))
 	})
-	It("should launch instances for aws.amazon.com/neurondevice resource requests", func() {
+	It("should launch instances for aws.amazon.com/neuron resource requests", func() {
 		nodeNames := sets.NewString()
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pods := []*corev1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("2")},
-					Limits:   corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("2")},
+					Requests: corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("2")},
+					Limits:   corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("2")},
 				},
 			}),
 			// Should pack onto same instance
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("2")},
-					Limits:   corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("2")},
+					Requests: corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("2")},
+					Limits:   corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("2")},
 				},
 			}),
 			// Should pack onto a separate instance
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("4")},
-					Limits:   corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("4")},
+					Requests: corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("4")},
+					Limits:   corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("4")},
 				},
 			}),
 		}
@@ -1909,15 +1909,15 @@ var _ = Describe("InstanceTypeProvider", func() {
 				coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"},
 					ResourceRequirements: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("1")},
-						Limits:   corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("1")},
+						Requests: corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("1")},
+						Limits:   corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("1")},
 					},
 				}),
 				coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"},
 					ResourceRequirements: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("1")},
-						Limits:   corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("1")},
+						Requests: corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("1")},
+						Limits:   corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("1")},
 					},
 				}),
 			}
@@ -2002,8 +2002,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
 				NodeSelector: map[string]string{corev1.LabelInstanceTypeStable: "inf2.24xlarge"},
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("2")},
-					Limits:   corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("2")},
+					Requests: corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("2")},
+					Limits:   corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("2")},
 				},
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
