@@ -51,6 +51,30 @@ Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line
 
 {{% alert title="Note" color="primary" %}}
 In v1, drift has been promoted to stable and the feature gate removed. Users can continue to control drift by using disruption budgets by reason.
+Example:
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+…
+  disruption:
+    budgets:
+    - nodes: 10%
+    # On Weekdays during business hours, don't do any deprovisioning regarding drift.
+    - nodes: "0"
+      schedule: "0 9 * * mon-fri"
+      duration: 8h
+      reasons:
+      -	Drifted
+    # during non-business hours do drift for up to 10% of nodes
+    - nodes: "10%"
+      reasons:
+      -	Drifted
+```
+![image](https://github.com/user-attachments/assets/60857a24-b116-4aaa-8f50-835962e060ca)
+
 {{% /alert %}}
 
 ### Batching Parameters
