@@ -81,6 +81,7 @@ func NewDefaultProvider(instanceTypesCache *cache.Cache, ec2api ec2iface.EC2API,
 	}
 }
 
+// nolint:gocyclo
 func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	p.muInstanceTypesInfo.RLock()
 	p.muInstanceTypesOfferings.RLock()
@@ -130,7 +131,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	subnetZoneToID := lo.SliceToMap(nodeClass.Status.Subnets, func(s v1.Subnet) (string, string) {
 		return s.Zone, s.ZoneID
 	})
-	result := lo.Map(p.instanceTypesInfo, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
+	result := lo.FilterMap(p.instanceTypesInfo, func(i *ec2.InstanceTypeInfo, _ int) (*cloudprovider.InstanceType, bool) {
 		instanceTypeVCPU.With(prometheus.Labels{
 			instanceTypeLabel: *i.InstanceType,
 		}).Set(float64(lo.FromPtr(i.VCpuInfo.DefaultVCpus)))
@@ -152,7 +153,11 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			}
 		})
 
+		// If the resolver returned nil, it means that the instance type shouldn't be considered
 		it := p.instanceTypesResolver.Resolve(ctx, i, zoneData, nodeClass)
+		if it == nil {
+			return nil, false
+		}
 		for _, of := range it.Offerings {
 			instanceTypeOfferingAvailable.With(prometheus.Labels{
 				instanceTypeLabel: it.Name,
@@ -165,7 +170,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 				zoneLabel:         of.Requirements.Get(corev1.LabelTopologyZone).Any(),
 			}).Set(of.Price)
 		}
-		return it
+		return it, true
 	})
 	p.instanceTypesCache.SetDefault(key, result)
 	return result, nil
