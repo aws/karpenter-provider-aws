@@ -154,7 +154,6 @@ func getInstanceTypeInfo(info *ec2.InstanceTypeInfo) string {
 			fmt.Fprintf(src, getNeuronDeviceInfo(elem))
 		}
 		fmt.Fprintf(src, "},\n")
-		fmt.Fprintf(src, "TotalNeuronDeviceMemoryInMiB: aws.Int64(%d),\n", lo.FromPtr(info.NeuronInfo.TotalNeuronDeviceMemoryInMiB))
 		fmt.Fprintf(src, "},\n")
 	}
 	if info.GpuInfo != nil {

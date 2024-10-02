@@ -262,7 +262,6 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		It("should support well-known labels for an accelerator (inferentia2)", func() {
 			nodeSelector := map[string]string{
 				v1.LabelInstanceAcceleratorName:         "inferentia",
-				v1.LabelInstanceAcceleratorMemory:       "32768",
 				v1.LabelInstanceAcceleratorManufacturer: "aws",
 				v1.LabelInstanceAcceleratorCount:        "1",
 			}
