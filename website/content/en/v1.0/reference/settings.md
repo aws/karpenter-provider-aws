@@ -73,8 +73,6 @@ spec:
       reasons:
       -	Drifted
 ```
-![image](https://github.com/user-attachments/assets/60857a24-b116-4aaa-8f50-835962e060ca)
-
 {{% /alert %}}
 
 ### Batching Parameters
