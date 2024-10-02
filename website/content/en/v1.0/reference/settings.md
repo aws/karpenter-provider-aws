@@ -50,7 +50,7 @@ Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line
 | SpotToSpotConsolidation | false   | Alpha  | v0.34.x |         |
 
 {{% alert title="Note" color="primary" %}}
-In v1 drift has been promoted to stable and the feature gate removed. Users can continue to control drift by using disruption budgets by reason.
+In v1, drift has been promoted to stable and the feature gate removed. Users can continue to control drift by using disruption budgets by reason.
 {{% /alert %}}
 
 ### Batching Parameters
