@@ -25,7 +25,6 @@ import (
 	configV2 "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	iamV2 "github.com/aws/aws-sdk-go-v2/service/iam"
-	prometheusv2 "github.com/jonathan-innis/aws-sdk-go-prometheus/v2"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -136,7 +135,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 
 	//v2
 	cfg := lo.Must(configV2.LoadDefaultConfig(ctx, configV2.WithRetryMaxAttempts(3)))
-	prometheusv2.WithPrometheusMetrics(cfg, crmetrics.Registry)
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
 		metaDataClient := imds.NewFromConfig(cfg)
