@@ -81,6 +81,7 @@ func NewDefaultProvider(instanceTypesCache *cache.Cache, ec2api ec2iface.EC2API,
 	}
 }
 
+// nolint:gocyclo
 func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	p.muInstanceTypesInfo.RLock()
 	p.muInstanceTypesOfferings.RLock()
