@@ -46,6 +46,8 @@ Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line
 | Drift                   | true    | Beta   | v0.33.x |         |
 | SpotToSpotConsolidation | false   | Alpha  | v0.34.x |         |
 
+{{% alert title="Note" color="primary" %}} In v1, drift has been promoted to stable and the feature gate removed. Users can continue to control drift by using disruption budgets by reason. {{% /alert %}}
+
 ### Batching Parameters
 
 The batching parameters control how Karpenter batches an incoming stream of pending pods.  Reducing these values may trade off a slightly faster time from pending pod to node launch, in exchange for launching smaller nodes.  Increasing the values can do the inverse.  Karpenter provides reasonable defaults for these values, but if you have specific knowledge about your workloads you can tweak these parameters to match the expected rate of incoming pods.
