@@ -311,7 +311,6 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						},
 					},
 				},
-				TotalNeuronDeviceMemoryInMiB: aws.Int64(196608),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
 				MaximumNetworkInterfaces:     aws.Int64(15),
@@ -371,7 +370,6 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						},
 					},
 				},
-				TotalNeuronDeviceMemoryInMiB: aws.Int64(32768),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
 				MaximumNetworkInterfaces:     aws.Int64(4),
@@ -849,7 +847,6 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						},
 					},
 				},
-				TotalNeuronDeviceMemoryInMiB: aws.Int64(32768),
 			},
 			InstanceStorageInfo: &ec2.InstanceStorageInfo{NvmeSupport: aws.String("required"),
 				TotalSizeInGB: aws.Int64(474),

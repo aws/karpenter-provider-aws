@@ -48,7 +48,6 @@ func init() {
 		LabelInstanceAcceleratorName,
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
-		LabelInstanceAcceleratorMemory,
 		LabelTopologyZoneID,
 		corev1.LabelWindowsBuild,
 	)
@@ -122,7 +121,6 @@ var (
 	LabelInstanceAcceleratorName              = apis.Group + "/instance-accelerator-name"
 	LabelInstanceAcceleratorManufacturer      = apis.Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
-	LabelInstanceAcceleratorMemory            = apis.Group + "/instance-accelerator-memory"
 	AnnotationEC2NodeClassHash                = apis.Group + "/ec2nodeclass-hash"
 	AnnotationClusterNameTaggedCompatability  = apis.CompatibilityGroup + "/cluster-name-tagged"
 	AnnotationEC2NodeClassHashVersion         = apis.Group + "/ec2nodeclass-hash-version"

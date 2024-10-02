@@ -256,7 +256,6 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		requirements.Get(v1.LabelInstanceAcceleratorName).Insert(lowerKabobCase(aws.StringValue(accelerator.Name)))
 		requirements.Get(v1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase(aws.StringValue(accelerator.Manufacturer)))
 		requirements.Get(v1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(accelerator.Count)))
-		requirements.Get(v1.LabelInstanceAcceleratorMemory).Insert(fmt.Sprint(aws.Int64Value(info.InferenceAcceleratorInfo.TotalInferenceMemoryInMiB)))
 	}
 	// Neuron
 	if info.NeuronInfo != nil && len(info.NeuronInfo.NeuronDevices) == 1 {
@@ -264,7 +263,6 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		requirements.Get(v1.LabelInstanceAcceleratorName).Insert(lowerKabobCase(aws.StringValue(device.Name)))
 		requirements.Get(v1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("aws"))
 		requirements.Get(v1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(device.Count)))
-		requirements.Get(v1.LabelInstanceAcceleratorMemory).Insert(fmt.Sprint(aws.Int64Value(info.NeuronInfo.TotalNeuronDeviceMemoryInMiB)))
 	}
 	// Windows Build Version Labels
 	if family, ok := amiFamily.(*amifamily.Windows); ok {

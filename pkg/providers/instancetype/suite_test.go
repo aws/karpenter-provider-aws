@@ -247,7 +247,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceAcceleratorName:         "inferentia2",
 			v1.LabelInstanceAcceleratorManufacturer: "aws",
 			v1.LabelInstanceAcceleratorCount:        "1",
-			v1.LabelInstanceAcceleratorMemory:       "32768",
 			v1.LabelTopologyZoneID:                  "tstz1-1a",
 			// Deprecated Labels
 			corev1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
@@ -317,7 +316,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 					v1.LabelInstanceAcceleratorCount,
 					v1.LabelInstanceAcceleratorName,
 					v1.LabelInstanceAcceleratorManufacturer,
-					v1.LabelInstanceAcceleratorMemory,
 					corev1.LabelWindowsBuild,
 				)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
@@ -352,7 +350,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceAcceleratorName:              "inferentia2",
 			v1.LabelInstanceAcceleratorManufacturer:      "aws",
 			v1.LabelInstanceAcceleratorCount:             "1",
-			v1.LabelInstanceAcceleratorMemory:            "32768",
 			v1.LabelTopologyZoneID:                       "tstz1-1a",
 			// Deprecated Labels
 			corev1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
