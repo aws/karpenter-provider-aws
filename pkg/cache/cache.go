@@ -40,7 +40,7 @@ const (
 	SSMGetParametersByPathTTL = 24 * time.Hour
 	// VMCapacityCacheTTL is the time to drop vm memory overhead data per-instance type
 	// if it is not updated by a node creation event or refreshed during controller reconciliation
-	VMCapacityCacheTTL = 30 * 24 * time.Hour
+	VMCapacityCacheTTL = 60 * 24 * time.Hour
 )
 
 const (
