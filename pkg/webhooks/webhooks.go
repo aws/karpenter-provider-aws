@@ -43,11 +43,11 @@ var (
 	}
 )
 
-func NewWebhooks() []knativeinjection.ControllerConstructor {
-	return []knativeinjection.ControllerConstructor{
-		NewCRDDefaultingWebhook,
-		NewCRDValidationWebhook,
-		NewCRDConversionWebhook,
+func NewWebhooks() []knativeinjection.NamedControllerConstructor {
+	return []knativeinjection.NamedControllerConstructor{
+		{Name: "defaulting.webhook.karpenter.k8s.aws", ControllerConstructor: NewCRDDefaultingWebhook},
+		{Name: "validation.webhook.karpenter.k8s.aws", ControllerConstructor: NewCRDValidationWebhook},
+		{Name: "conversion.webhook.karpenter.k8s.aws", ControllerConstructor: NewCRDConversionWebhook},
 	}
 }
 
