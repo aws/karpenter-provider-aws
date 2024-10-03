@@ -17,6 +17,7 @@ package instancetype
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -63,16 +64,18 @@ type DefaultProvider struct {
 	muInstanceTypesOfferings sync.RWMutex
 	instanceTypesOfferings   map[string]sets.Set[string]
 
-	instanceTypesCache    *cache.Cache
-	vmMemoryOverheadCache *cache.Cache
-	cm                    *pretty.ChangeMonitor
+	instanceTypesCache *cache.Cache
+	vmCapacityCache    *cache.Cache
+	cm                 *pretty.ChangeMonitor
 	// instanceTypesSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
 	instanceTypesSeqNum uint64
 	// instanceTypesOfferingsSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
 	instanceTypesOfferingsSeqNum uint64
+	// vmCapacityCacheSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on each item in vmCapacityCache
+	vmCapacityCacheSeqNum uint64
 }
 
-func NewDefaultProvider(instanceTypesCache *cache.Cache, vmMemoryOverheadCache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider, instanceTypesResolver Resolver) *DefaultProvider {
+func NewDefaultProvider(instanceTypesCache *cache.Cache, vmCapacityCache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider, instanceTypesResolver Resolver) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api:                 ec2api,
 		subnetProvider:         subnetProvider,
@@ -80,9 +83,10 @@ func NewDefaultProvider(instanceTypesCache *cache.Cache, vmMemoryOverheadCache *
 		instanceTypesOfferings: map[string]sets.Set[string]{},
 		instanceTypesResolver:  instanceTypesResolver,
 		instanceTypesCache:     instanceTypesCache,
-		vmMemoryOverheadCache:  vmMemoryOverheadCache,
+		vmCapacityCache:        vmCapacityCache,
 		cm:                     pretty.NewChangeMonitor(),
 		instanceTypesSeqNum:    0,
+		vmCapacityCacheSeqNum:  0,
 	}
 }
 
@@ -161,12 +165,10 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			}
 		})
 
-		var vmMemoryOverhead int64
-		if cached, ok := p.vmMemoryOverheadCache.Get(fmt.Sprintf("%s-%016x", *i.InstanceType, amiHash)); ok {
-			vmMemoryOverhead = cached.(int64)
+		it := p.instanceTypesResolver.Resolve(ctx, i, zoneData, nodeClass)
+		if cached, ok := p.vmCapacityCache.Get(fmt.Sprintf("%s-%016x", it.Name, amiHash)); ok {
+			it.Capacity[corev1.ResourceMemory] = cached.(resource.Quantity)
 		}
-
-		it := p.instanceTypesResolver.Resolve(ctx, i, vmMemoryOverhead, zoneData, nodeClass)
 		for _, of := range it.Offerings {
 			instanceTypeOfferingAvailable.With(prometheus.Labels{
 				instanceTypeLabel: it.Name,
@@ -256,7 +258,7 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 	return nil
 }
 
-func (p *DefaultProvider) UpdateInstanceTypeMemoryOverhead(ctx context.Context, kubeClient client.Client) error {
+func (p *DefaultProvider) UpdateInstanceTypeCapacityCache(ctx context.Context, kubeClient client.Client) error {
 	nodeClaimList := &karpv1.NodeClaimList{}
 	if err := kubeClient.List(ctx, nodeClaimList); err != nil {
 		return fmt.Errorf("failed to list nodeclaims: %w", err)
@@ -313,20 +315,18 @@ func (p *DefaultProvider) UpdateInstanceTypeMemoryOverhead(ctx context.Context, 
 			return
 		}
 
-		// Calculate memory overhead
-		reportedMiB := instanceTypeInfo.MemoryInfo.SizeInMiB
-		actualMiB := node.Status.Capacity.Memory().Value() / (1024 * 1024)
-		overhead := *reportedMiB - actualMiB
+		actualCapacity := node.Status.Capacity.Memory()
 
-		// Update cache if overhead is greater or equal to the cached value
 		amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 		key := fmt.Sprintf("%s-%016x", instanceType, amiHash)
-		if cachedOverhead, found := p.vmMemoryOverheadCache.Get(key); !found || overhead >= cachedOverhead.(int64) {
-			log.FromContext(ctx).WithValues("overhead", overhead).V(1).Info("updating cache with memory overhead for instance type: " + instanceType)
-			p.vmMemoryOverheadCache.SetDefault(key, overhead)
+
+		// Update cache if non-existent or actual capacity is less than or equal to cached value
+		if cachedCapacity, found := p.vmCapacityCache.Get(key); !found || actualCapacity.Cmp(cachedCapacity.(resource.Quantity)) < 1 {
+			log.FromContext(ctx).WithValues("memory-capacity", actualCapacity, "instance-type", instanceType).V(1).Info("updating vm capacity cache")
+			p.vmCapacityCache.SetDefault(key, *actualCapacity)
+			atomic.AddUint64(&p.vmCapacityCacheSeqNum, 1)
 		}
 	})
-
 	return nil
 }
 

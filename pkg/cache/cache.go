@@ -40,7 +40,7 @@ const (
 	SSMGetParametersByPathTTL = 24 * time.Hour
 	// VMMemoryOverheadMebibytesTTL is the time to drop vm memory overhead data per-instance type
 	// if it is not updated by a node creation event or refreshed during controller reconciliation
-	VMMemoryOverheadMebibytesTTL = 36 * time.Hour
+	VMMemoryOverheadMebibytesTTL = 30 * 24 * time.Hour
 )
 
 const (

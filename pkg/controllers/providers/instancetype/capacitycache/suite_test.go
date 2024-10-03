@@ -12,13 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package memoryoverhead_test
+package capacitycache_test
 
 import (
 	"context"
 	"fmt"
-	controllersinstancetype "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype"
-	controllersmemoryoverhead "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/memoryoverhead"
+	controllerscapacitycache "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/capacitycache"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -50,15 +49,14 @@ var ctx context.Context
 var stop context.CancelFunc
 var env *coretest.Environment
 var awsEnv *test.Environment
-var controller *controllersmemoryoverhead.Controller
-var instanceTypeController *controllersinstancetype.Controller
+var controller *controllerscapacitycache.Controller
 
 var nodeClass *v1.EC2NodeClass
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "MemoryOverhead")
+	RunSpecs(t, "CapacityCache")
 }
 
 var _ = BeforeSuite(func() {
@@ -68,8 +66,7 @@ var _ = BeforeSuite(func() {
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
 	nodeClass = test.EC2NodeClass()
-	controller = controllersmemoryoverhead.NewController(env.Client, awsEnv.InstanceTypesProvider)
-	instanceTypeController = controllersinstancetype.NewController(awsEnv.InstanceTypesProvider)
+	controller = controllerscapacitycache.NewController(env.Client, awsEnv.InstanceTypesProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -95,13 +92,13 @@ var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
 })
 
-var _ = Describe("MemoryOverhead", func() {
-	It("should update instance type memory overhead based on node capacities", func() {
+var _ = Describe("CapacityCache", func() {
+	It("should update instance type capacity cache based on node capacities", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
-		actualMemoryCapacity := int64(3840)
+		actualMemoryCapacity := resource.MustParse(fmt.Sprintf("%dMi", 3840))
 		node := &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-node",
@@ -109,17 +106,33 @@ var _ = Describe("MemoryOverhead", func() {
 					corev1.LabelInstanceTypeStable: "t3.medium",
 					karpv1.NodeRegisteredLabelKey:  "true",
 				},
-				Annotations: map[string]string{
-					v1.AnnotationEC2NodeClassHash: nodeClass.Hash(),
-				},
 			},
 			Status: corev1.NodeStatus{
 				Capacity: corev1.ResourceList{
-					corev1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi", actualMemoryCapacity)),
+					corev1.ResourceMemory: actualMemoryCapacity,
 				},
 			},
 		}
 		ExpectApplied(ctx, env.Client, node)
+
+		nodeClaim := &karpv1.NodeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-nodeclaim",
+			},
+			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
+					Name: nodeClass.Name,
+				},
+				Requirements: make([]karpv1.NodeSelectorRequirementWithMinValues, 0),
+			},
+			Status: karpv1.NodeClaimStatus{
+				NodeName: node.Name,
+				ImageID:  nodeClass.Status.AMIs[0].ID,
+			},
+		}
+
+		ExpectApplied(ctx, env.Client, nodeClaim)
+
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKey{})
 		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
@@ -127,6 +140,6 @@ var _ = Describe("MemoryOverhead", func() {
 			return i.Name == "t3.medium"
 		})
 		Expect(ok).To(BeTrue())
-		Expect(i.Capacity.Memory().Value() / 1024 / 1024).To(Equal(actualMemoryCapacity))
+		Expect(i.Capacity.Memory().Value()).To(Equal(actualMemoryCapacity.Value()))
 	})
 })
