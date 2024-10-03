@@ -12,17 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package capacitycache_test
+package vmcapacitycache_test
 
 import (
 	"context"
 	"fmt"
-	controllerscapacitycache "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/capacitycache"
+	controllersvmcapacitycache "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/vmcapacitycache"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"testing"
@@ -38,6 +37,7 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -49,7 +49,7 @@ var ctx context.Context
 var stop context.CancelFunc
 var env *coretest.Environment
 var awsEnv *test.Environment
-var controller *controllerscapacitycache.Controller
+var controller *controllersvmcapacitycache.Controller
 
 var nodeClass *v1.EC2NodeClass
 
@@ -66,7 +66,7 @@ var _ = BeforeSuite(func() {
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
 	nodeClass = test.EC2NodeClass()
-	controller = controllerscapacitycache.NewController(env.Client, awsEnv.InstanceTypesProvider)
+	controller = controllersvmcapacitycache.NewController(env.Client, awsEnv.InstanceTypesProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -132,8 +132,7 @@ var _ = Describe("CapacityCache", func() {
 		}
 
 		ExpectApplied(ctx, env.Client, nodeClaim)
-
-		ExpectReconcileSucceeded(ctx, controller, client.ObjectKey{})
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKey{Name: "initialize-capacity-cache-nodes"})
 		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
 		i, ok := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {

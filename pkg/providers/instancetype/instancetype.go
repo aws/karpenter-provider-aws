@@ -18,8 +18,6 @@ import (
 	"context"
 	"fmt"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 	"sync/atomic"
@@ -171,9 +169,9 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		if it == nil {
 			return nil, false
 		}
-    if cached, ok := p.vmCapacityCache.Get(fmt.Sprintf("%s-%016x", it.Name, amiHash)); ok {
+		if cached, ok := p.vmCapacityCache.Get(fmt.Sprintf("%s-%016x", it.Name, amiHash)); ok {
 			it.Capacity[corev1.ResourceMemory] = cached.(resource.Quantity)
-    }
+		}
 		for _, of := range it.Offerings {
 			instanceTypeOfferingAvailable.With(prometheus.Labels{
 				instanceTypeLabel: it.Name,
@@ -263,75 +261,49 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 	return nil
 }
 
-func (p *DefaultProvider) UpdateInstanceTypeCapacityCache(ctx context.Context, kubeClient client.Client) error {
+func (p *DefaultProvider) UpdateVMCapacityCache(ctx context.Context, kubeClient client.Client, nodeName string) error {
+
+	node := &corev1.Node{}
+	if err := kubeClient.Get(ctx, client.ObjectKey{Name: nodeName}, node); err != nil {
+		return fmt.Errorf("failed to get node: %w", err)
+	}
+
 	nodeClaimList := &karpv1.NodeClaimList{}
 	if err := kubeClient.List(ctx, nodeClaimList); err != nil {
 		return fmt.Errorf("failed to list nodeclaims: %w", err)
 	}
-	nodeToNodeClaims := lo.Associate(nodeClaimList.Items, func(nc karpv1.NodeClaim) (string, karpv1.NodeClaim) {
-		return nc.Status.NodeName, nc
+	nodeClaim, found := lo.Find(nodeClaimList.Items, func(nc karpv1.NodeClaim) bool {
+		return nc.Status.NodeName == node.Name
 	})
-
-	nodeClassList := &v1.EC2NodeClassList{}
-	if err := kubeClient.List(ctx, nodeClassList); err != nil {
-		return fmt.Errorf("failed to list nodeclasses: %w", err)
-	}
-	nodeClassMap := lo.Associate(nodeClassList.Items, func(nc v1.EC2NodeClass) (string, v1.EC2NodeClass) {
-		return nc.Name, nc
-	})
-
-	// List only Karpenter registered Nodes
-	nodeList := &corev1.NodeList{}
-	if err := kubeClient.List(ctx, nodeList, &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(map[string]string{karpv1.NodeRegisteredLabelKey: "true"}),
-	}); err != nil {
-		return fmt.Errorf("failed to list nodes: %w", err)
+	if !found {
+		return fmt.Errorf("failed to find nodeclaim")
 	}
 
-	instanceTypeInfoMap := lo.Associate(p.instanceTypesInfo, func(i *ec2.InstanceTypeInfo) (string, *ec2.InstanceTypeInfo) {
-		return *i.InstanceType, i
-	})
+	nodeClass := &v1.EC2NodeClass{}
+	if err := kubeClient.Get(ctx, client.ObjectKey{Name: nodeClaim.Spec.NodeClassRef.Name}, nodeClass); err != nil {
+		return fmt.Errorf("failed to get ec2nodeclass: %w", err)
+	}
 
-	workqueue.ParallelizeUntil(ctx, 100, len(nodeList.Items), func(i int) {
-		node := nodeList.Items[i]
-		nodeClaim, ok := nodeToNodeClaims[node.Name]
-		if !ok {
-			return
-		}
-		nodeClass, ok := nodeClassMap[nodeClaim.Spec.NodeClassRef.Name]
-		if !ok {
-			return
-		}
+	// Ensure AMI is current
+	if !lo.ContainsBy(nodeClass.Status.AMIs, func(ami v1.AMI) bool {
+		return ami.ID == nodeClaim.Status.ImageID
+	}) {
+		return nil
+	}
 
-		// Ensure AMI is current
-		if !lo.ContainsBy(nodeClass.Status.AMIs, func(ami v1.AMI) bool {
-			return ami.ID == nodeClaim.Status.ImageID
-		}) {
-			return
-		}
+	instanceType := node.Labels[corev1.LabelInstanceTypeStable]
 
-		instanceType, ok := node.Labels[corev1.LabelInstanceTypeStable]
-		if !ok {
-			return
-		}
+	actualCapacity := node.Status.Capacity.Memory()
 
-		instanceTypeInfo, ok := instanceTypeInfoMap[instanceType]
-		if !ok || instanceTypeInfo == nil {
-			return
-		}
+	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	key := fmt.Sprintf("%s-%016x", instanceType, amiHash)
 
-		actualCapacity := node.Status.Capacity.Memory()
-
-		amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-		key := fmt.Sprintf("%s-%016x", instanceType, amiHash)
-
-		// Update cache if non-existent or actual capacity is less than or equal to cached value
-		if cachedCapacity, found := p.vmCapacityCache.Get(key); !found || actualCapacity.Cmp(cachedCapacity.(resource.Quantity)) < 1 {
-			log.FromContext(ctx).WithValues("memory-capacity", actualCapacity, "instance-type", instanceType).V(1).Info("updating vm capacity cache")
-			p.vmCapacityCache.SetDefault(key, *actualCapacity)
-			atomic.AddUint64(&p.vmCapacityCacheSeqNum, 1)
-		}
-	})
+	// Update cache if non-existent or actual capacity is less than or equal to cached value
+	if cachedCapacity, ok := p.vmCapacityCache.Get(key); !ok || actualCapacity.Cmp(cachedCapacity.(resource.Quantity)) < 1 {
+		log.FromContext(ctx).WithValues("memory-capacity", actualCapacity, "instance-type", instanceType).V(1).Info("updating vm capacity cache")
+		p.vmCapacityCache.SetDefault(key, *actualCapacity)
+		atomic.AddUint64(&p.vmCapacityCacheSeqNum, 1)
+	}
 	return nil
 }
 
