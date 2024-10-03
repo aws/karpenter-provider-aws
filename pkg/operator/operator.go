@@ -134,12 +134,12 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	}
 
 	//v2
+	//Once everything is migrated we will need to update prometheus metrics to v2
 	cfg := lo.Must(configV2.LoadDefaultConfig(ctx, configV2.WithRetryMaxAttempts(3)))
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
 		metaDataClient := imds.NewFromConfig(cfg)
-		region := lo.Must(metaDataClient.GetRegion(ctx, nil))
-		cfg.Region = region.Region
+		cfg.Region = lo.Must(metaDataClient.GetRegion(ctx, nil)).Region
 	}
 
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
