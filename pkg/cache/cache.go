@@ -38,9 +38,9 @@ const (
 	// SSMGetParametersByPathTTL is the time to drop SSM Parameters by path data. This only queries EKS Optimized AMI
 	// releases, so we should expect this to be updated relatively infrequently.
 	SSMGetParametersByPathTTL = 24 * time.Hour
-	// VMMemoryOverheadMebibytesTTL is the time to drop vm memory overhead data per-instance type
+	// VMCapacityCacheTTL is the time to drop vm memory overhead data per-instance type
 	// if it is not updated by a node creation event or refreshed during controller reconciliation
-	VMMemoryOverheadMebibytesTTL = 30 * 24 * time.Hour
+	VMCapacityCacheTTL = 30 * 24 * time.Hour
 )
 
 const (
