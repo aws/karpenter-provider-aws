@@ -214,6 +214,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support well-known labels for a gpu (nvidia)", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2)
 			nodeSelector := map[string]string{
 				v1beta1.LabelInstanceGPUName:         "t4",
 				v1beta1.LabelInstanceGPUMemory:       "16384",
