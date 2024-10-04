@@ -620,7 +620,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				},
 			})
 			env.ExpectCreated(nodePool, nodeClass, pod)
-			node := env.EventuallyExpectNodeCount("==", 1)[0]
+			node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 			Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(subnetInfo[1].Zone))
 			Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(subnetInfo[1].ZoneID))
 		})
@@ -662,7 +662,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			for _, pod := range pods {
 				env.ExpectCreated(pod)
 			}
-			nodes := env.EventuallyExpectCreatedNodeCount("==", len(subnetInfo))
+			nodes := env.EventuallyExpectInitializedNodeCount("==", len(subnetInfo))
 			for _, node := range nodes {
 				expectedZone, ok := node.Labels[expectedZoneLabel]
 				Expect(ok).To(BeTrue())
