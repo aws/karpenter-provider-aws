@@ -26,7 +26,7 @@ import (
 	"github.com/aws/smithy-go"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-provider-aws/pkg/sdk"
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 )
 
 const ()

@@ -27,9 +27,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
-	"github.com/aws/karpenter-provider-aws/pkg/sdk"
 )
 
 // ResourceOwner is an object that manages an instance profile
