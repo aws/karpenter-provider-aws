@@ -20,7 +20,7 @@ Karpenter automatically discovers disruptable nodes and spins up replacements wh
 2. For each disruptable node:
    1. Check if disrupting it would violate its NodePool's disruption budget.
    2. Execute a scheduling simulation with the pods on the node to find if any replacement nodes are needed.
-3. Add the `karpenter.sh/disruption:NoSchedule` taint to the node(s) to prevent pods from scheduling to it.
+3. Add the `karpenter.sh/disrupted:NoSchedule` taint to the node(s) to prevent pods from scheduling to it.
 4. Pre-spin any replacement nodes needed as calculated in Step (2), and wait for them to become ready.
    * If a replacement node fails to initialize, un-taint the node(s), and restart from Step (1), starting at the first disruption method again.
 5. Delete the node(s) and wait for the Termination Controller to gracefully shutdown the node(s).
