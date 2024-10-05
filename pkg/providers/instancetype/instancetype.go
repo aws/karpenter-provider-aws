@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 	"sync"
 	"sync/atomic"
 
@@ -69,8 +70,6 @@ type DefaultProvider struct {
 	instanceTypesSeqNum uint64
 	// instanceTypesOfferingsSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
 	instanceTypesOfferingsSeqNum uint64
-	// vmCapacityCacheSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on each item in vmCapacityCache
-	vmCapacityCacheSeqNum uint64
 }
 
 func NewDefaultProvider(instanceTypesCache *cache.Cache, vmCapacityCache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider, instanceTypesResolver Resolver) *DefaultProvider {
@@ -84,7 +83,6 @@ func NewDefaultProvider(instanceTypesCache *cache.Cache, vmCapacityCache *cache.
 		vmCapacityCache:        vmCapacityCache,
 		cm:                     pretty.NewChangeMonitor(),
 		instanceTypesSeqNum:    0,
-		vmCapacityCacheSeqNum:  0,
 	}
 }
 
@@ -118,7 +116,6 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	key := fmt.Sprintf("%d-%d-%016x-%s-%016x",
 		p.instanceTypesSeqNum,
 		p.instanceTypesOfferingsSeqNum,
-		p.vmCapacityCacheSeqNum,
 		amiHash,
 		subnetZonesHash,
 		p.instanceTypesResolver.CacheKey(nodeClass),
@@ -262,27 +259,15 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 	return nil
 }
 
-func (p *DefaultProvider) UpdateVMCapacityCache(ctx context.Context, kubeClient client.Client, nodeName string) error {
-
-	node := &corev1.Node{}
-	if err := kubeClient.Get(ctx, client.ObjectKey{Name: nodeName}, node); err != nil {
-		return fmt.Errorf("failed to get node, %w", err)
-	}
-
-	nodeClaimList := &karpv1.NodeClaimList{}
-	if err := kubeClient.List(ctx, nodeClaimList); err != nil {
-		return fmt.Errorf("failed to list nodeclaims: %w", err)
-	}
-	nodeClaim, found := lo.Find(nodeClaimList.Items, func(nc karpv1.NodeClaim) bool {
-		return nc.Status.NodeName == node.Name
-	})
-	if !found {
-		return fmt.Errorf("failed to find nodeclaim")
+func (p *DefaultProvider) UpdateVMCapacityCache(ctx context.Context, kubeClient client.Client, node *corev1.Node) error {
+	nodeClaim, err := nodeutils.NodeClaimForNode(ctx, kubeClient, node)
+	if err != nil {
+		return fmt.Errorf("failed to get nodeclaim for node, %w", err)
 	}
 
 	nodeClass := &v1.EC2NodeClass{}
-	if err := kubeClient.Get(ctx, client.ObjectKey{Name: nodeClaim.Spec.NodeClassRef.Name}, nodeClass); err != nil {
-		return fmt.Errorf("failed to get ec2nodeclass: %w", err)
+	if err = kubeClient.Get(ctx, client.ObjectKey{Name: nodeClaim.Spec.NodeClassRef.Name}, nodeClass); err != nil {
+		return fmt.Errorf("failed to get ec2nodeclass, %w", err)
 	}
 
 	// Ensure AMI is current
@@ -303,7 +288,6 @@ func (p *DefaultProvider) UpdateVMCapacityCache(ctx context.Context, kubeClient 
 	if cachedCapacity, ok := p.vmCapacityCache.Get(key); !ok || actualCapacity.Cmp(cachedCapacity.(resource.Quantity)) < 1 {
 		log.FromContext(ctx).WithValues("memory-capacity", actualCapacity, "instance-type", instanceType).V(1).Info("updating vm capacity cache")
 		p.vmCapacityCache.SetDefault(key, *actualCapacity)
-		atomic.AddUint64(&p.vmCapacityCacheSeqNum, 1)
 	}
 	return nil
 }
