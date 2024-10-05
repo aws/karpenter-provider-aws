@@ -266,7 +266,7 @@ func (p *DefaultProvider) UpdateVMCapacityCache(ctx context.Context, kubeClient 
 
 	node := &corev1.Node{}
 	if err := kubeClient.Get(ctx, client.ObjectKey{Name: nodeName}, node); err != nil {
-		return fmt.Errorf("failed to get node: %w", err)
+		return fmt.Errorf("failed to get node, %w", err)
 	}
 
 	nodeClaimList := &karpv1.NodeClaimList{}

@@ -81,21 +81,20 @@ func (c *Controller) reconcileAllNodes(ctx context.Context) (reconcile.Result, e
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		Named("instancetypes.vmcapacitycache").
-		WatchesRawSource(singleton.Source()).
-		For(&corev1.Node{}).
-		WithEventFilter(predicate.Funcs{
-			// Only trigger reconciliation once a node becomes registered
-			UpdateFunc: func(e event.UpdateEvent) bool {
-				oldNode, okOld := e.ObjectOld.(*corev1.Node)
-				newNode, okNew := e.ObjectNew.(*corev1.Node)
-				if !okOld || !okNew {
-					return false
-				}
-				return oldNode.Labels[karpv1.NodeRegisteredLabelKey] == "" && newNode.Labels[karpv1.NodeRegisteredLabelKey] == "true"
+		For(&corev1.Node{}, builder.WithPredicates(predicate.TypedFuncs[client.Object]{
+			// Only trigger reconciliation once a node becomes registered. This is an optimization to omit no-op reconciliations and reduce lock contention on the cache.
+			UpdateFunc: func(e event.TypedUpdateEvent[client.Object]) bool {
+			    if e.ObjectOld.GetLabels()[karpv1.NodeRegisteredLabelKey] != "" {
+			        return false
+			    }
+			    return e.ObjectNew.GetLabels()[karpv1.NodeRegisteredLabelKey] == "true"
 			},
-			CreateFunc:  func(e event.CreateEvent) bool { return false },
-			DeleteFunc:  func(e event.DeleteEvent) bool { return false },
-			GenericFunc: func(e event.GenericEvent) bool { return false },
+			// Reconcile against all Nodes added to the cache in a registered state. This allows us to hydrate the cache on controller startup.
+			CreateFunc:  func(e event.TypedCreateEvent[client.Object]) bool { 
+			    return e.Object.GetLabels()[karpv1.NodeRegisteredLabelKey] == "true" 
+			},
+			DeleteFunc:  func(e event.TypedDeleteEvent[client.Object]) bool { return false },
+			GenericFunc: func(e event.TypedGenericEvent[client.Object]) bool { return false },
 		}).
 		WithOptions(controller.Options{
 			RateLimiter:             reasonable.RateLimiter(),
