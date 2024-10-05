@@ -118,9 +118,10 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	key := fmt.Sprintf("%d-%d-%016x-%s-%016x",
 		p.instanceTypesSeqNum,
 		p.instanceTypesOfferingsSeqNum,
+		p.vmCapacityCacheSeqNum,
+		amiHash,
 		subnetZonesHash,
 		p.instanceTypesResolver.CacheKey(nodeClass),
-		amiHash,
 	)
 	if item, ok := p.instanceTypesCache.Get(key); ok {
 		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
