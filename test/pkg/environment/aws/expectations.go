@@ -406,7 +406,7 @@ func (env *Environment) GetDeprecatedAMI(amiID string, amifamily string) string 
 		DeprecateAt: lo.ToPtr(time.Now()),
 	})
 	Expect(err).To(BeNil())
-	Expect(lo.ToPtr(deprecated.Return)).To(BeTrue())
+	Expect(lo.FromPtr(deprecated.Return)).To(BeTrue())
 
 	return lo.FromPtr(output.ImageId)
 }
