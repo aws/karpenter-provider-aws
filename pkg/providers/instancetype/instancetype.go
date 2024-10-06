@@ -279,9 +279,9 @@ func (p *DefaultProvider) UpdateDiscoveredCapacityCache(ctx context.Context, kub
 		Requirements: scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...),
 	}}, nodeClass.Status.AMIs)
 	// Ensure NodeClaim AMI is current
-	if _, found := lo.Find(amiMap[nodeClaim.Status.ImageID], func(i *cloudprovider.InstanceType) bool {
+	if !lo.ContainsBy(amiMap[nodeClaim.Status.ImageID], func(i *cloudprovider.InstanceType) bool {
 		return i.Name == instanceTypeName
-	}); !found {
+	}) {
 		return nil
 	}
 
