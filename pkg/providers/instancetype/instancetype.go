@@ -272,25 +272,26 @@ func (p *DefaultProvider) UpdateDiscoveredCapacityCache(ctx context.Context, kub
 		return fmt.Errorf("failed to get ec2nodeclass, %w", err)
 	}
 
-	// Ensure AMI is current
+	// Get mappings for most recent AMIs
+	instanceTypeName := node.Labels[corev1.LabelInstanceTypeStable]
 	amiMap := amifamily.MapToInstanceTypes([]*cloudprovider.InstanceType{{
-		Name:         node.Labels[corev1.LabelInstanceTypeStable],
+		Name:         instanceTypeName,
 		Requirements: scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...),
 	}}, nodeClass.Status.AMIs)
-	instanceType, found := lo.Find(amiMap[nodeClaim.Status.ImageID], func(i *cloudprovider.InstanceType) bool {
-		return i.Name == node.Labels[corev1.LabelInstanceTypeStable]
-	})
-	if !found {
+	// Ensure NodeClaim AMI is current
+	if _, found := lo.Find(amiMap[nodeClaim.Status.ImageID], func(i *cloudprovider.InstanceType) bool {
+		return i.Name == instanceTypeName
+	}); !found {
 		return nil
 	}
 
 	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	key := fmt.Sprintf("%s-%016x", instanceType.Name, amiHash)
+	key := fmt.Sprintf("%s-%016x", instanceTypeName, amiHash)
 
 	// Update cache if non-existent or actual capacity is less than or equal to cached value
 	actualCapacity := node.Status.Capacity.Memory()
 	if cachedCapacity, ok := p.discoveredCapacityCache.Get(key); !ok || actualCapacity.Cmp(cachedCapacity.(resource.Quantity)) < 1 {
-		log.FromContext(ctx).WithValues("memory-capacity", actualCapacity, "instance-type", instanceType.Name).V(1).Info("updating discovered capacity cache")
+		log.FromContext(ctx).WithValues("memory-capacity", actualCapacity, "instance-type", instanceTypeName).V(1).Info("updating discovered capacity cache")
 		p.discoveredCapacityCache.SetDefault(key, *actualCapacity)
 	}
 	return nil
