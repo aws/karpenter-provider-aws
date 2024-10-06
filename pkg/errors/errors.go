@@ -17,6 +17,10 @@ package errors
 import (
 	"errors"
 
+	//v2 imports
+	"github.com/aws/smithy-go"
+
+	//V1 imports
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -36,6 +40,9 @@ var (
 		"InvalidLaunchTemplateId.NotFound",
 		sqs.ErrCodeQueueDoesNotExist,
 		iam.ErrCodeNoSuchEntityException,
+
+		//v2 error codes
+		"NoSuchEntityException",
 	)
 	alreadyExistsErrorCodes = sets.New[string](
 		iam.ErrCodeEntityAlreadyExistsException,
@@ -106,4 +113,27 @@ func IsLaunchTemplateNotFound(err error) bool {
 		return awsError.Code() == launchTemplateNameNotFoundCode
 	}
 	return false
+}
+
+//V2 will become new full file when every provider is migrated
+
+// IsNotFound returns true if the err is an AWS error (even if it's
+// wrapped) and is a known to mean "not found" (as opposed to a more
+// serious or unexpected error)
+func IsNotFoundV2(err error) bool {
+	if err == nil {
+		return false
+	}
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return notFoundErrorCodes.Has(apiErr.ErrorCode())
+	}
+	return false
+}
+
+func IgnoreNotFoundV2(err error) error {
+	if IsNotFoundV2(err) {
+		return nil
+	}
+	return err
 }

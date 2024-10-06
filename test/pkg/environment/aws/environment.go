@@ -36,7 +36,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/timestreamwrite"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
 	. "github.com/onsi/ginkgo/v2"
-	corecache "github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/env"
@@ -44,9 +43,7 @@ import (
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	cache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 )
@@ -75,7 +72,6 @@ type Environment struct {
 
 	ClusterName       string
 	ClusterEndpoint   string
-	ClusterVersion    string
 	InterruptionQueue string
 	PrivateCluster    bool
 	ZoneInfo          []ZoneInfo
@@ -99,7 +95,6 @@ func NewEnvironment(t *testing.T) *Environment {
 		},
 	))
 
-	version := lo.Must(version.NewDefaultProvider(env.KubeClient, corecache.New(cache.DefaultTTL, cache.DefaultCleanupInterval)).Get(env.Context))
 	awsEnv := &Environment{
 		Region:      *session.Config.Region,
 		Environment: env,
@@ -114,7 +109,6 @@ func NewEnvironment(t *testing.T) *Environment {
 
 		ClusterName:     lo.Must(os.LookupEnv("CLUSTER_NAME")),
 		ClusterEndpoint: lo.Must(os.LookupEnv("CLUSTER_ENDPOINT")),
-		ClusterVersion:  version,
 	}
 
 	if _, awsEnv.PrivateCluster = os.LookupEnv("PRIVATE_CLUSTER"); awsEnv.PrivateCluster {

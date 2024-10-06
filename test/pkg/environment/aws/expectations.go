@@ -34,7 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"sigs.k8s.io/karpenter/pkg/test"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
@@ -366,8 +366,8 @@ func (env *Environment) GetDeprecatedAMI(amiID string, amifamily string) string 
 	out, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
 		Filters: []*ec2.Filter{
 			{
-				Name:   lo.ToPtr(fmt.Sprintf("tag:%s", test.DiscoveryLabel)),
-				Values: []*string{lo.ToPtr(env.ClusterVersion)},
+				Name:   lo.ToPtr(fmt.Sprintf("tag:%s", coretest.DiscoveryLabel)),
+				Values: []*string{lo.ToPtr(env.K8sVersion())},
 			},
 			{
 				Name:   lo.ToPtr("tag:amiFamily"),
@@ -383,13 +383,13 @@ func (env *Environment) GetDeprecatedAMI(amiID string, amifamily string) string 
 
 	input := &ec2.CopyImageInput{
 		SourceImageId: lo.ToPtr(amiID),
-		Name:          lo.ToPtr(fmt.Sprintf("depricated-%s-%s-%s", amiID, amifamily, env.ClusterVersion)),
+		Name:          lo.ToPtr(fmt.Sprintf("deprecated-%s-%s-%s", amiID, amifamily, env.K8sVersion())),
 		SourceRegion:  lo.ToPtr(env.Region),
 		TagSpecifications: []*ec2.TagSpecification{
 			{ResourceType: lo.ToPtr(ec2.ResourceTypeImage), Tags: []*ec2.Tag{
 				{
-					Key:   lo.ToPtr(test.DiscoveryLabel),
-					Value: lo.ToPtr(env.ClusterVersion),
+					Key:   lo.ToPtr(coretest.DiscoveryLabel),
+					Value: lo.ToPtr(env.K8sVersion()),
 				},
 				{
 					Key:   lo.ToPtr("amiFamily"),
@@ -406,7 +406,7 @@ func (env *Environment) GetDeprecatedAMI(amiID string, amifamily string) string 
 		DeprecateAt: lo.ToPtr(time.Now()),
 	})
 	Expect(err).To(BeNil())
-	Expect(lo.ToPtr(deprecated.Return)).To(BeTrue())
+	Expect(lo.FromPtr(deprecated.Return)).To(BeTrue())
 
 	return lo.FromPtr(output.ImageId)
 }
@@ -449,7 +449,7 @@ func (env *Environment) ExpectInstanceProfileCreated(instanceProfileName, roleNa
 		InstanceProfileName: aws.String(instanceProfileName),
 		Tags: []*iam.Tag{
 			{
-				Key:   aws.String(test.DiscoveryLabel),
+				Key:   aws.String(coretest.DiscoveryLabel),
 				Value: aws.String(env.ClusterName),
 			},
 		},
