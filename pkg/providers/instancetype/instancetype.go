@@ -301,4 +301,5 @@ func (p *DefaultProvider) Reset() {
 	p.instanceTypesInfo = []*ec2.InstanceTypeInfo{}
 	p.instanceTypesOfferings = map[string]sets.Set[string]{}
 	p.instanceTypesCache.Flush()
+	p.discoveredCapacityCache.Flush()
 }
