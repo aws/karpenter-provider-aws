@@ -63,26 +63,26 @@ type DefaultProvider struct {
 	muInstanceTypesOfferings sync.RWMutex
 	instanceTypesOfferings   map[string]sets.Set[string]
 
-	instanceTypesCache *cache.Cache
-	vmCapacityCache    *cache.Cache
-	cm                 *pretty.ChangeMonitor
+	instanceTypesCache      *cache.Cache
+	discoveredCapacityCache *cache.Cache
+	cm                      *pretty.ChangeMonitor
 	// instanceTypesSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
 	instanceTypesSeqNum uint64
 	// instanceTypesOfferingsSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
 	instanceTypesOfferingsSeqNum uint64
 }
 
-func NewDefaultProvider(instanceTypesCache *cache.Cache, vmCapacityCache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider, instanceTypesResolver Resolver) *DefaultProvider {
+func NewDefaultProvider(instanceTypesCache *cache.Cache, discoveredCapacityCache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider, instanceTypesResolver Resolver) *DefaultProvider {
 	return &DefaultProvider{
-		ec2api:                 ec2api,
-		subnetProvider:         subnetProvider,
-		instanceTypesInfo:      []*ec2.InstanceTypeInfo{},
-		instanceTypesOfferings: map[string]sets.Set[string]{},
-		instanceTypesResolver:  instanceTypesResolver,
-		instanceTypesCache:     instanceTypesCache,
-		vmCapacityCache:        vmCapacityCache,
-		cm:                     pretty.NewChangeMonitor(),
-		instanceTypesSeqNum:    0,
+		ec2api:                  ec2api,
+		subnetProvider:          subnetProvider,
+		instanceTypesInfo:       []*ec2.InstanceTypeInfo{},
+		instanceTypesOfferings:  map[string]sets.Set[string]{},
+		instanceTypesResolver:   instanceTypesResolver,
+		instanceTypesCache:      instanceTypesCache,
+		discoveredCapacityCache: discoveredCapacityCache,
+		cm:                      pretty.NewChangeMonitor(),
+		instanceTypesSeqNum:     0,
 	}
 }
 
@@ -167,7 +167,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		if it == nil {
 			return nil, false
 		}
-		if cached, ok := p.vmCapacityCache.Get(fmt.Sprintf("%s-%016x", it.Name, amiHash)); ok {
+		if cached, ok := p.discoveredCapacityCache.Get(fmt.Sprintf("%s-%016x", it.Name, amiHash)); ok {
 			it.Capacity[corev1.ResourceMemory] = cached.(resource.Quantity)
 		}
 		for _, of := range it.Offerings {
@@ -259,7 +259,7 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 	return nil
 }
 
-func (p *DefaultProvider) UpdateVMCapacityCache(ctx context.Context, kubeClient client.Client, node *corev1.Node) error {
+func (p *DefaultProvider) UpdateDiscoveredCapacityCache(ctx context.Context, kubeClient client.Client, node *corev1.Node) error {
 	nodeClaim, err := nodeutils.NodeClaimForNode(ctx, kubeClient, node)
 	if err != nil {
 		return fmt.Errorf("failed to get nodeclaim for node, %w", err)
@@ -285,9 +285,9 @@ func (p *DefaultProvider) UpdateVMCapacityCache(ctx context.Context, kubeClient 
 	key := fmt.Sprintf("%s-%016x", instanceType, amiHash)
 
 	// Update cache if non-existent or actual capacity is less than or equal to cached value
-	if cachedCapacity, ok := p.vmCapacityCache.Get(key); !ok || actualCapacity.Cmp(cachedCapacity.(resource.Quantity)) < 1 {
+	if cachedCapacity, ok := p.discoveredCapacityCache.Get(key); !ok || actualCapacity.Cmp(cachedCapacity.(resource.Quantity)) < 1 {
 		log.FromContext(ctx).WithValues("memory-capacity", actualCapacity, "instance-type", instanceType).V(1).Info("updating vm capacity cache")
-		p.vmCapacityCache.SetDefault(key, *actualCapacity)
+		p.discoveredCapacityCache.SetDefault(key, *actualCapacity)
 	}
 	return nil
 }

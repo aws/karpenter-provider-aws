@@ -12,12 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package vmcapacitycache_test
+package discoveredcapacitycache_test
 
 import (
 	"context"
 	"fmt"
-	controllersvmcapacitycache "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/vmcapacitycache"
+	controllersdiscoveredcapacitycache "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/discoveredcapacitycache"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -47,7 +47,7 @@ var ctx context.Context
 var stop context.CancelFunc
 var env *coretest.Environment
 var awsEnv *test.Environment
-var controller *controllersvmcapacitycache.Controller
+var controller *controllersdiscoveredcapacitycache.Controller
 
 var nodeClass *v1.EC2NodeClass
 
@@ -64,7 +64,7 @@ var _ = BeforeSuite(func() {
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
 	nodeClass = test.EC2NodeClass()
-	controller = controllersvmcapacitycache.NewController(env.Client, awsEnv.InstanceTypesProvider)
+	controller = controllersdiscoveredcapacitycache.NewController(env.Client, awsEnv.InstanceTypesProvider)
 })
 
 var _ = AfterSuite(func() {

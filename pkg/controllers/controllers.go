@@ -27,7 +27,7 @@ import (
 	nodeclassstatus "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	nodeclasstermination "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/termination"
 	controllersinstancetype "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype"
-	controllersvmcapacitycache "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/vmcapacitycache"
+	controllersdiscoveredcapacitycache "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/discoveredcapacitycache"
 	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
@@ -67,7 +67,7 @@ func NewControllers(ctx context.Context, mgr manager.Manager, sess *session.Sess
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
 		controllerspricing.NewController(pricingProvider),
 		controllersinstancetype.NewController(instanceTypeProvider),
-		controllersvmcapacitycache.NewController(kubeClient, instanceTypeProvider),
+		controllersdiscoveredcapacitycache.NewController(kubeClient, instanceTypeProvider),
 		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter")),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
