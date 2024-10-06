@@ -17,8 +17,10 @@ package instancetype
 import (
 	"context"
 	"fmt"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 	"sync"
 	"sync/atomic"
@@ -271,22 +273,24 @@ func (p *DefaultProvider) UpdateDiscoveredCapacityCache(ctx context.Context, kub
 	}
 
 	// Ensure AMI is current
-	if !lo.ContainsBy(nodeClass.Status.AMIs, func(ami v1.AMI) bool {
-		return ami.ID == nodeClaim.Status.ImageID
-	}) {
+	amiMap := amifamily.MapToInstanceTypes([]*cloudprovider.InstanceType{{
+		Name:         node.Labels[corev1.LabelInstanceTypeStable],
+		Requirements: scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...),
+	}}, nodeClass.Status.AMIs)
+	instanceType, found := lo.Find(amiMap[nodeClaim.Status.ImageID], func(i *cloudprovider.InstanceType) bool {
+		return i.Name == node.Labels[corev1.LabelInstanceTypeStable]
+	})
+	if !found {
 		return nil
 	}
 
-	instanceType := node.Labels[corev1.LabelInstanceTypeStable]
-
-	actualCapacity := node.Status.Capacity.Memory()
-
 	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	key := fmt.Sprintf("%s-%016x", instanceType, amiHash)
+	key := fmt.Sprintf("%s-%016x", instanceType.Name, amiHash)
 
 	// Update cache if non-existent or actual capacity is less than or equal to cached value
+	actualCapacity := node.Status.Capacity.Memory()
 	if cachedCapacity, ok := p.discoveredCapacityCache.Get(key); !ok || actualCapacity.Cmp(cachedCapacity.(resource.Quantity)) < 1 {
-		log.FromContext(ctx).WithValues("memory-capacity", actualCapacity, "instance-type", instanceType).V(1).Info("updating vm capacity cache")
+		log.FromContext(ctx).WithValues("memory-capacity", actualCapacity, "instance-type", instanceType.Name).V(1).Info("updating discovered capacity cache")
 		p.discoveredCapacityCache.SetDefault(key, *actualCapacity)
 	}
 	return nil
