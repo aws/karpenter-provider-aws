@@ -123,6 +123,10 @@ spec:
                                 - Underutilized
                                 - Empty
                                 - Drifted
+                                - AMIDrift
+                                - SubnetDrift
+                                - SecurityGroupDrift
+                                - NodeClassDrift
                               type: string
                             type: array
                           schedule:
