@@ -41,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	pscheduling "sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/test"
@@ -565,24 +566,59 @@ func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int
 	return lo.ToSlicePtr(nodeList.Items)
 }
 
-func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration time.Duration) (taintedNodes []*corev1.Node) {
+func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration time.Duration) {
 	GinkgoHelper()
-	return env.ConsistentlyExpectDisruptionsWithNodeCount(0, nodeCount, duration)
+	Consistently(func(g Gomega) {
+		nodeClaimList := &karpv1.NodeClaimList{}
+		g.Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+		g.Expect(len(nodeClaimList.Items)).To(HaveLen(nodeCount))
+		nodeList := &corev1.NodeList{}
+		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+		g.Expect(len(nodeList.Items)).To(HaveLen(nodeCount))
+		nodeList.Items = lo.Filter(nodeList.Items, func(n corev1.Node, _ int) bool {
+			_, ok := lo.Find(n.Spec.Taints, func(t corev1.Taint) bool {
+				return karpv1.IsDisruptingTaint(t)
+			})
+			return ok
+		})
+		g.Expect(len(nodeList.Items)).To(HaveLen(nodeCount))
+	}, duration).Should(Succeed())
 }
 
-// ConsistentlyExpectDisruptionsWithNodeCount will continually ensure that there are exactly disruptingNodes with totalNodes (including replacements and existing nodes)
-func (env *Environment) ConsistentlyExpectDisruptionsWithNodeCount(disruptingNodes, totalNodes int, duration time.Duration) (taintedNodes []*corev1.Node) {
+// ConsistentlyExpectDisruptionsWithNodeCount consistently ensures a max on number of concurrently disrupting and non-terminating nodes.
+// For example: if we have 5 nodes, with a budget of 2 nodes, we ensure that `disruptingNodes <= 2`
+// We use nonDisrupting to assert that we're not creating too many instances in replacement.
+func (env *Environment) ConsistentlyExpectDisruptionsUntilTarget(disruptingNodes, startingPoint, target int, timeout time.Duration) {
 	GinkgoHelper()
 	nodes := []corev1.Node{}
-	Consistently(func(g Gomega) {
+	nodesTerminated := []corev1.Node{}
+	Eventually(func(g Gomega) {
 		// Ensure we don't change our NodeClaims
 		nodeClaimList := &karpv1.NodeClaimList{}
 		g.Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(nodeClaimList.Items).To(HaveLen(totalNodes))
+		// We don't consider nodes that have the `terminating` status condition towards our budget, so we shouldn't consider these nodes in our budget.
+		removedProviderIDs := sets.Set[string]{}
+		nodeClaimList.Items = lo.Filter(nodeClaimList.Items, func(nc karpv1.NodeClaim, _ int) bool {
+			if !nc.StatusConditions().IsTrue(v1.ConditionTypeInstanceTerminating) {
+				return true
+			}
+			removedProviderIDs.Insert(nc.Status.ProviderID)
+			return false
+		})
+		if len(nodeClaimList.Items) > startingPoint+disruptingNodes {
+			StopTrying(fmt.Sprintf("Too many nodeclaims created. Expected no more than %d, got %d", startingPoint+disruptingNodes, len(nodeClaimList.Items)))
+		}
 
 		nodeList := &corev1.NodeList{}
 		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(nodeList.Items).To(HaveLen(totalNodes))
+		nodeList.Items = lo.Filter(nodeList.Items, func(n corev1.Node, _ int) bool {
+			nodesTerminated = append(nodesTerminated, n)
+			return !removedProviderIDs.Has(n.Spec.ProviderID)
+		})
+		g.Expect(len(nodeList.Items)).To(BeNumerically("<=", startingPoint+disruptingNodes))
+		if len(nodeList.Items) > startingPoint+disruptingNodes {
+			StopTrying(fmt.Sprintf("Too many nodes created. Expected no more than %d, got %d", startingPoint+disruptingNodes, len(nodeList.Items)))
+		}
 
 		nodes = lo.Filter(nodeList.Items, func(n corev1.Node, _ int) bool {
 			_, ok := lo.Find(n.Spec.Taints, func(t corev1.Taint) bool {
@@ -590,9 +626,12 @@ func (env *Environment) ConsistentlyExpectDisruptionsWithNodeCount(disruptingNod
 			})
 			return ok
 		})
-		g.Expect(nodes).To(HaveLen(disruptingNodes))
-	}, duration).Should(Succeed())
-	return lo.ToSlicePtr(nodes)
+		if len(nodes) > disruptingNodes {
+			StopTrying(fmt.Sprintf("Too many disruptions detected. Expected no more than %d, got %d", disruptingNodes, len(nodeList.Items)))
+		}
+
+		g.Expect(nodes).To(HaveLen(target))
+	}).WithTimeout(timeout).WithPolling(5 * time.Second).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectTaintedNodeCount(comparator string, count int) []*corev1.Node {
