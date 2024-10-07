@@ -95,7 +95,7 @@ var _ = Describe("Drift", func() {
 		selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 	})
 	Context("Budgets", func() {
-		FIt("should respect budgets for empty drift", func() {
+		It("should respect budgets for empty drift", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool,
 				karpv1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -157,7 +157,7 @@ var _ = Describe("Drift", func() {
 
 			env.ConsistentlyExpectDisruptionsUntilTarget(2, 3, 0, 5*time.Minute)
 		})
-		FIt("should respect budgets for non-empty delete drift", func() {
+		It("should respect budgets for non-empty delete drift", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool,
 				karpv1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -231,7 +231,7 @@ var _ = Describe("Drift", func() {
 
 			env.ConsistentlyExpectDisruptionsUntilTarget(2, 3, 0, 5*time.Minute)
 		})
-		FIt("should respect budgets for non-empty replace drift", func() {
+		It("should respect budgets for non-empty replace drift", func() {
 			appLabels := map[string]string{"app": "large-app"}
 			nodePool.Labels = appLabels
 			// We're expecting to create 5 nodes, so we'll expect to see at most 3 nodes deleting at one time.

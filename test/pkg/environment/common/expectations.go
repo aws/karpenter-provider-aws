@@ -566,6 +566,8 @@ func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int
 	return lo.ToSlicePtr(nodeList.Items)
 }
 
+// ConsistentlyExpectNoDisruptions asserts that the number of tainted nodes remains the same.
+// And that the number of nodeclaims remains the same.
 func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration time.Duration) {
 	GinkgoHelper()
 	Consistently(func(g Gomega) {
@@ -577,7 +579,7 @@ func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration 
 		g.Expect(len(nodeList.Items)).To(HaveLen(nodeCount))
 		nodeList.Items = lo.Filter(nodeList.Items, func(n corev1.Node, _ int) bool {
 			_, ok := lo.Find(n.Spec.Taints, func(t corev1.Taint) bool {
-				return karpv1.IsDisruptingTaint(t)
+				return karpv1.DisruptedNoScheduleTaint.MatchTaint(lo.ToPtr(t))
 			})
 			return ok
 		})
@@ -591,7 +593,7 @@ func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration 
 func (env *Environment) ConsistentlyExpectDisruptionsUntilTarget(disruptingNodes, startingPoint, target int, timeout time.Duration) {
 	GinkgoHelper()
 	nodes := []corev1.Node{}
-	nodesTerminated := []corev1.Node{}
+	// We use an eventually to exit when we detect the number of tainted/disrupted nodes matches our target.
 	Eventually(func(g Gomega) {
 		// Ensure we don't change our NodeClaims
 		nodeClaimList := &karpv1.NodeClaimList{}
@@ -612,7 +614,6 @@ func (env *Environment) ConsistentlyExpectDisruptionsUntilTarget(disruptingNodes
 		nodeList := &corev1.NodeList{}
 		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 		nodeList.Items = lo.Filter(nodeList.Items, func(n corev1.Node, _ int) bool {
-			nodesTerminated = append(nodesTerminated, n)
 			return !removedProviderIDs.Has(n.Spec.ProviderID)
 		})
 		g.Expect(len(nodeList.Items)).To(BeNumerically("<=", startingPoint+disruptingNodes))
