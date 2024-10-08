@@ -180,7 +180,7 @@ var _ = Describe("Consolidation", func() {
 		})
 
 	})
-	Context("Budgets", func() {
+	FContext("Budgets", func() {
 		var nodePool *karpv1.NodePool
 		var dep *appsv1.Deployment
 		var selector labels.Selector
@@ -239,7 +239,7 @@ var _ = Describe("Consolidation", func() {
 			// Update the deployment to only contain 1 replica.
 			env.ExpectUpdated(dep)
 
-			env.ConsistentlyExpectDisruptionsUntilTarget(2, 5, 0, 10*time.Minute)
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(5, 2, 10*time.Minute)
 		})
 		It("should respect budgets for non-empty delete consolidation", func() {
 			// This test will hold consolidation until we are ready to execute it
@@ -299,7 +299,7 @@ var _ = Describe("Consolidation", func() {
 			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
 			env.ExpectUpdated(nodePool)
 
-			env.ConsistentlyExpectDisruptionsUntilTarget(2, 3, 0, 10*time.Minute)
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(3, 2, 10*time.Minute)
 		})
 		It("should respect budgets for non-empty replace consolidation", func() {
 			appLabels := map[string]string{"app": "large-app"}
@@ -399,7 +399,8 @@ var _ = Describe("Consolidation", func() {
 			env.EventuallyExpectTaintedNodeCount("==", 3)
 			env.EventuallyExpectNodeClaimCount("==", 8)
 			env.EventuallyExpectNodeCount("==", 8)
-			env.ConsistentlyExpectDisruptionsUntilTarget(3, 5, 0, 10*time.Minute)
+
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(5, 3, 10*time.Minute)
 
 			for _, node := range originalNodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())

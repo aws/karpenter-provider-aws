@@ -155,7 +155,7 @@ var _ = Describe("Drift", func() {
 
 			env.EventuallyExpectDrifted(nodeClaims...)
 
-			env.ConsistentlyExpectDisruptionsUntilTarget(2, 3, 0, 5*time.Minute)
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(3, 2, 5*time.Minute)
 		})
 		It("should respect budgets for non-empty delete drift", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool,
@@ -229,7 +229,7 @@ var _ = Describe("Drift", func() {
 				env.ExpectUpdated(pod)
 			}
 
-			env.ConsistentlyExpectDisruptionsUntilTarget(2, 3, 0, 5*time.Minute)
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(3, 2, 5*time.Minute)
 		})
 		It("should respect budgets for non-empty replace drift", func() {
 			appLabels := map[string]string{"app": "large-app"}
@@ -276,7 +276,7 @@ var _ = Describe("Drift", func() {
 			By("drifting the nodepool")
 			nodePool.Spec.Template.Annotations = lo.Assign(nodePool.Spec.Template.Annotations, map[string]string{"test-annotation": "drift"})
 			env.ExpectUpdated(nodePool)
-			env.ConsistentlyExpectDisruptionsUntilTarget(3, 5, 0, 10*time.Minute)
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(5, 3, 10*time.Minute)
 
 			for _, node := range originalNodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
