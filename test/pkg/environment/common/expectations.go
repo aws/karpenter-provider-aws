@@ -572,17 +572,17 @@ func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration 
 	Consistently(func(g Gomega) {
 		nodeClaimList := &karpv1.NodeClaimList{}
 		g.Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(len(nodeClaimList.Items)).To(HaveLen(nodeCount))
+		g.Expect(nodeClaimList.Items).To(HaveLen(nodeCount))
 		nodeList := &corev1.NodeList{}
 		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(len(nodeList.Items)).To(HaveLen(nodeCount))
+		g.Expect(nodeList.Items).To(HaveLen(nodeCount))
 		nodeList.Items = lo.Filter(nodeList.Items, func(n corev1.Node, _ int) bool {
 			_, ok := lo.Find(n.Spec.Taints, func(t corev1.Taint) bool {
-				return karpv1.DisruptedNoScheduleTaint.MatchTaint(lo.ToPtr(t))
+				return t.MatchTaint(&karpv1.DisruptedNoScheduleTaint)
 			})
 			return ok
 		})
-		g.Expect(len(nodeList.Items)).To(HaveLen(nodeCount))
+		g.Expect(nodeList.Items).To(HaveLen(0))
 	}, duration).Should(Succeed())
 }
 
