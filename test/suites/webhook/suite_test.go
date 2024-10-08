@@ -37,7 +37,7 @@ var env *aws.Environment
 var nodeClass *v1beta1.EC2NodeClass
 var nodePool *karpv1beta1.NodePool
 
-func TestSmoke(t *testing.T) {
+func TestWebhook(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	ctx = TestContextWithLogger(t)
@@ -47,7 +47,7 @@ func TestSmoke(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Smoke")
+	RunSpecs(t, "Webhook")
 }
 
 var _ = BeforeEach(func() {
@@ -56,7 +56,7 @@ var _ = BeforeEach(func() {
 	nodePool = env.DefaultNodePool(nodeClass)
 })
 
-var _ = Describe("Smoke", func() {
+var _ = Describe("Webhook", func() {
 	It("should schedule pods when webhooks are disabled", func() {
 		nodeClass := test.EC2NodeClass()
 		env.ExpectCreated(nodeClass, nodePool)
