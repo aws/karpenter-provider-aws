@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package smoke_test
+package webhooks_test
 
 import (
 	"context"
