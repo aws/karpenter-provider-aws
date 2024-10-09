@@ -33,6 +33,11 @@ If you get the error `invalid ownership metadata; label validation error:` while
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+### Upgrading to `1.1.0`+
+
+* Bottlerocket AMIFamily now supports `instanceStorePolicy: RAID0`. This means that Karpenter will auto-generate userData to RAID0 your instance store volumes (similar to AL2 and AL2023) when specifying this value.
+  * Note: This userData configuration is _only_ valid on Bottlerocket v1.22.0+. If you are using an earlier version of a Bottlerocket image (< v1.22.0) with `amiFamily: Bottlerocket` and `instanceStorePolicy: RAID0`, nodes will fail to join the cluster.  
+
 ### Upgrading to `1.0.0`+
 
 {{% alert title="Warning" color="warning" %}}

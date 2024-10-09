@@ -235,7 +235,7 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		requirements.Get(v1.LabelInstanceFamily).Insert(instanceTypeParts[0])
 		requirements.Get(v1.LabelInstanceSize).Insert(instanceTypeParts[1])
 	}
-	if info.InstanceStorageInfo != nil && aws.StringValue(info.InstanceStorageInfo.NvmeSupport) != ec2.EphemeralNvmeSupportUnsupported {
+	if info.InstanceStorageInfo != nil && aws.StringValue(info.InstanceStorageInfo.NvmeSupport) != ec2.EphemeralNvmeSupportUnsupported && info.InstanceStorageInfo.TotalSizeInGB != nil {
 		requirements[v1.LabelInstanceLocalNVME].Insert(fmt.Sprint(aws.Int64Value(info.InstanceStorageInfo.TotalSizeInGB)))
 	}
 	// Network bandwidth
