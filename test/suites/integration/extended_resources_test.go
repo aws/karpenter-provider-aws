@@ -134,6 +134,13 @@ var _ = Describe("Extended Resources", func() {
 				Operator: corev1.NodeSelectorOpExists,
 			},
 		})
+		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceGeneration,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"1", "2"},
+			},
+		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -165,6 +172,13 @@ var _ = Describe("Extended Resources", func() {
 			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 				Key:      v1.LabelInstanceCategory,
 				Operator: corev1.NodeSelectorOpExists,
+			},
+		})
+		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceGeneration,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"1", "2"},
 			},
 		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
@@ -430,7 +444,7 @@ func ExpectNeuronDevicePluginCreated() {
 					Containers: []corev1.Container{
 						{
 							Name:  "neuron-device-plugin",
-							Image: "public.ecr.aws/neuron/neuron-device-plugin:2.19.16.0",
+							Image: "public.ecr.aws/neuron/neuron-device-plugin:2.22.4.0",
 							Env: []corev1.EnvVar{
 								{
 									Name:  "KUBECONFIG",
