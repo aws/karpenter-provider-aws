@@ -180,7 +180,7 @@ var _ = Describe("Consolidation", func() {
 		})
 
 	})
-	FContext("Budgets", func() {
+	Context("Budgets", func() {
 		var nodePool *karpv1.NodePool
 		var dep *appsv1.Deployment
 		var selector labels.Selector
