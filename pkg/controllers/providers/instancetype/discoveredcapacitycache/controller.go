@@ -45,7 +45,7 @@ func NewController(kubeClient client.Client, instancetypeProvider *instancetype.
 }
 
 func (c *Controller) Reconcile(ctx context.Context, node *corev1.Node) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "instancetypes.discoveredcapacitycache")
+	ctx = injection.WithControllerName(ctx, "providers.instancetype.capacity")
 	if err := c.instancetypeProvider.UpdateDiscoveredCapacityCache(ctx, c.kubeClient, node); err != nil {
 		return reconcile.Result{}, fmt.Errorf("updating discovered capacity cache, %w", err)
 	}
