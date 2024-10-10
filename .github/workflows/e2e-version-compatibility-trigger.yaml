@@ -43,6 +43,7 @@ jobs:
       workflow_trigger: "versionCompatibility"
       # Default to true unless using a workflow_dispatch
       cleanup: ${{ github.event_name != 'workflow_dispatch' && true || inputs.cleanup }}
+      enable_metrics: false
       parallelism: 1
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
