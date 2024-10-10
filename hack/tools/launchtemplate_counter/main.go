@@ -20,9 +20,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -53,8 +53,8 @@ func main() {
 	}))
 
 	region := "us-west-2"
-	sess := session.Must(session.NewSession(&aws.Config{Region: lo.ToPtr(region)}))
-	ec2api := ec2.New(sess)
+	cfg := lo.Must(config.LoadDefaultConfig(ctx, config.WithRetryMaxAttempts(3)))
+	ec2api := ec2.NewFromConfig(cfg)
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	instanceTypeProvider := instancetype.NewDefaultProvider(
 		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
@@ -64,9 +64,9 @@ func main() {
 			region,
 			pricing.NewDefaultProvider(
 				ctx,
-				pricing.NewAPI(sess, *sess.Config.Region),
+				pricing.NewAPI(ctx, cfg, cfg.Region),
 				ec2api,
-				*sess.Config.Region,
+				cfg.Region,
 			),
 			awscache.NewUnavailableOfferings(),
 		),
@@ -96,7 +96,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("listing subnets, %s", err)
 	}
-	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1.Subnet {
+	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2types.Subnet, _ int) v1.Subnet {
 		return v1.Subnet{
 			ID:   *ec2subnet.SubnetId,
 			Zone: *ec2subnet.AvailabilityZone,
