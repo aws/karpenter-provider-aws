@@ -15,11 +15,13 @@ limitations under the License.
 package integration_test
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/awslabs/operatorpkg/object"
 
 	"github.com/samber/lo"
@@ -94,9 +96,9 @@ var _ = Describe("Tags", func() {
 
 			profile := env.EventuallyExpectInstanceProfileExists(env.GetInstanceProfileName(nodeClass))
 			Expect(profile.Tags).To(ContainElements(
-				&iam.Tag{Key: lo.ToPtr(fmt.Sprintf("kubernetes.io/cluster/%s", env.ClusterName)), Value: lo.ToPtr("owned")},
-				&iam.Tag{Key: lo.ToPtr(v1.LabelNodeClass), Value: lo.ToPtr(nodeClass.Name)},
-				&iam.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)},
+				iamtypes.Tag{Key: lo.ToPtr(fmt.Sprintf("kubernetes.io/cluster/%s", env.ClusterName)), Value: lo.ToPtr("owned")},
+				iamtypes.Tag{Key: lo.ToPtr(v1.LabelNodeClass), Value: lo.ToPtr(nodeClass.Name)},
+				iamtypes.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)},
 			))
 		})
 		It("should tag managed instance profiles with the eks:eks-cluster-name tag key after restart", func() {
@@ -106,10 +108,10 @@ var _ = Describe("Tags", func() {
 			env.ExpectCreated(nodeClass)
 			env.EventuallyExpectInstanceProfileExists(env.GetInstanceProfileName(nodeClass))
 
-			_, err := env.IAMAPI.UntagInstanceProfile(&iam.UntagInstanceProfileInput{
+			_, err := env.IAMAPI.UntagInstanceProfile(context.Background(), &iam.UntagInstanceProfileInput{
 				InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
-				TagKeys: []*string{
-					lo.ToPtr(v1.EKSClusterNameTagKey),
+				TagKeys: []string{
+					v1.EKSClusterNameTagKey,
 				},
 			})
 			Expect(err).ToNot(HaveOccurred())
@@ -118,11 +120,11 @@ var _ = Describe("Tags", func() {
 			env.EventuallyExpectKarpenterRestarted()
 
 			Eventually(func(g Gomega) {
-				out, err := env.IAMAPI.GetInstanceProfile(&iam.GetInstanceProfileInput{
+				out, err := env.IAMAPI.GetInstanceProfile(context.Background(), &iam.GetInstanceProfileInput{
 					InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
 				})
 				g.Expect(err).ToNot(HaveOccurred())
-				g.Expect(out.InstanceProfile.Tags).To(ContainElement(&iam.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)}))
+				g.Expect(out.InstanceProfile.Tags).To(ContainElement(iamtypes.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)}))
 			}).WithTimeout(time.Second * 20).Should(Succeed())
 		})
 	})

@@ -17,7 +17,11 @@ package sdk
 import (
 	"context"
 
+	"github.com/aws/aws-sdk-go-v2/service/fis"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
 type IAMAPI interface {
@@ -29,4 +33,30 @@ type IAMAPI interface {
 	TagInstanceProfile(context.Context, *iam.TagInstanceProfileInput, ...func(*iam.Options)) (*iam.TagInstanceProfileOutput, error)
 	RemoveRoleFromInstanceProfile(context.Context, *iam.RemoveRoleFromInstanceProfileInput, ...func(*iam.Options)) (*iam.RemoveRoleFromInstanceProfileOutput, error)
 	UntagInstanceProfile(context.Context, *iam.UntagInstanceProfileInput, ...func(*iam.Options)) (*iam.UntagInstanceProfileOutput, error)
+	GetRole(context.Context, *iam.GetRoleInput, ...func(*iam.Options)) (*iam.GetRoleOutput, error)
+}
+
+type SSMAPI interface {
+	// SSM Methods
+	GetParameter(context.Context, *ssm.GetParameterInput, ...func(*ssm.Options)) (*ssm.GetParameterOutput, error)
+}
+
+type SQSAPI interface {
+	// SQS Methods
+	GetQueueUrl(context.Context, *sqs.GetQueueUrlInput, ...func(*sqs.Options)) (*sqs.GetQueueUrlOutput, error)
+	ReceiveMessage(context.Context, *sqs.ReceiveMessageInput, ...func(*sqs.Options)) (*sqs.ReceiveMessageOutput, error)
+	DeleteMessage(context.Context, *sqs.DeleteMessageInput, ...func(*sqs.Options)) (*sqs.DeleteMessageOutput, error)
+	SendMessage(context.Context, *sqs.SendMessageInput, ...func(*sqs.Options)) (*sqs.SendMessageOutput, error)
+}
+
+type STSAPI interface {
+	// STS Methods
+	GetCallerIdentity(context.Context, *sts.GetCallerIdentityInput, ...func(*sts.Options)) (*sts.GetCallerIdentityOutput, error)
+}
+
+type FISAPI interface {
+	// FIS Methods
+	CreateExperimentTemplate(context.Context, *fis.CreateExperimentTemplateInput, ...func(*fis.Options)) (*fis.CreateExperimentTemplateOutput, error)
+	StartExperiment(context.Context, *fis.StartExperimentInput, ...func(*fis.Options)) (*fis.StartExperimentOutput, error)
+	DeleteExperimentTemplate(context.Context, *fis.DeleteExperimentTemplateInput, ...func(*fis.Options)) (*fis.DeleteExperimentTemplateOutput, error)
 }

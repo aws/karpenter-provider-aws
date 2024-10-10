@@ -15,12 +15,18 @@ limitations under the License.
 package aws
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
+	"github.com/aws/aws-sdk-go-v2/service/fis"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
@@ -28,11 +34,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/fis"
-	"github.com/aws/aws-sdk-go/service/iam"
-	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
 	. "github.com/onsi/ginkgo/v2"
@@ -42,7 +43,10 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
+	config "github.com/aws/aws-sdk-go-v2/config"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
@@ -60,11 +64,11 @@ type Environment struct {
 	*common.Environment
 	Region string
 
-	STSAPI        *sts.STS
+	STSAPI        sdk.STSAPI
 	EC2API        *ec2.EC2
-	SSMAPI        *ssm.SSM
-	IAMAPI        *iam.IAM
-	FISAPI        *fis.FIS
+	SSMAPI        sdk.SSMAPI
+	IAMAPI        sdk.IAMAPI
+	FISAPI        sdk.FISAPI
 	EKSAPI        *eks.EKS
 	TimeStreamAPI timestreamwriteiface.TimestreamWriteAPI
 
@@ -85,6 +89,7 @@ type ZoneInfo struct {
 
 func NewEnvironment(t *testing.T) *Environment {
 	env := common.NewEnvironment(t)
+	cfg := lo.Must(config.LoadDefaultConfig(context.Background(), config.WithRetryMaxAttempts(3)))
 	session := session.Must(session.NewSessionWithOptions(
 		session.Options{
 			Config: *request.WithRetryer(
@@ -99,11 +104,11 @@ func NewEnvironment(t *testing.T) *Environment {
 		Region:      *session.Config.Region,
 		Environment: env,
 
-		STSAPI:        sts.New(session),
+		STSAPI:        sts.NewFromConfig(cfg),
 		EC2API:        ec2.New(session),
-		SSMAPI:        ssm.New(session),
-		IAMAPI:        iam.New(session),
-		FISAPI:        fis.New(session),
+		SSMAPI:        ssm.NewFromConfig(cfg),
+		IAMAPI:        iam.NewFromConfig(cfg),
+		FISAPI:        fis.NewFromConfig(cfg),
 		EKSAPI:        eks.New(session),
 		TimeStreamAPI: GetTimeStreamAPI(session),
 
@@ -118,8 +123,9 @@ func NewEnvironment(t *testing.T) *Environment {
 	}
 	// Initialize the provider only if the INTERRUPTION_QUEUE environment variable is defined
 	if v, ok := os.LookupEnv("INTERRUPTION_QUEUE"); ok {
-		sqsapi := servicesqs.New(session)
-		out := lo.Must(sqsapi.GetQueueUrlWithContext(env.Context, &servicesqs.GetQueueUrlInput{QueueName: aws.String(v)}))
+		cfg := lo.Must(config.LoadDefaultConfig(context.Background(), config.WithRetryMaxAttempts(3)))
+		sqsapi := servicesqs.NewFromConfig(cfg)
+		out := lo.Must(sqsapi.GetQueueUrl(env.Context, &servicesqs.GetQueueUrlInput{QueueName: aws.String(v)}))
 		awsEnv.SQSProvider = lo.Must(sqs.NewDefaultProvider(sqsapi, lo.FromPtr(out.QueueUrl)))
 	}
 	// Populate ZoneInfo for all AZs in the region
