@@ -23,9 +23,13 @@ import (
 	"sort"
 	"strings"
 
+	//v2 imports
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -125,8 +129,9 @@ below are the resources available with some assumptions and after the instance o
 
 	// Iterate through regions and take the union of instance types we discover across both
 	for _, region := range []string{"us-east-1", "us-west-2"} {
+		cfg := lo.Must(config.LoadDefaultConfig(ctx))
 		sess := session.Must(session.NewSession(&aws.Config{Region: lo.ToPtr(region)}))
-		ec2api := ec2.New(sess)
+		ec2api := ec2.NewFromConfig(cfg)
 		subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 		instanceTypeProvider := instancetype.NewDefaultProvider(
 			cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
@@ -136,7 +141,7 @@ below are the resources available with some assumptions and after the instance o
 				region,
 				pricing.NewDefaultProvider(
 					ctx,
-					pricing.NewAPI(sess, *sess.Config.Region),
+					pricing.NewAPI(ctx, cfg, cfg.Region),
 					ec2api,
 					*sess.Config.Region,
 				),
@@ -168,7 +173,7 @@ below are the resources available with some assumptions and after the instance o
 		if err != nil {
 			log.Fatalf("listing subnets, %s", err)
 		}
-		nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1.Subnet {
+		nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2types.Subnet, _ int) v1.Subnet {
 			return v1.Subnet{
 				ID:   *ec2subnet.SubnetId,
 				Zone: *ec2subnet.AvailabilityZone,

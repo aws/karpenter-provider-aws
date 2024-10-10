@@ -15,7 +15,6 @@ limitations under the License.
 package pricing
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -27,14 +26,14 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/pricing"
-	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/pricing"
+	pricingtypes "github.com/aws/aws-sdk-go-v2/service/pricing/types"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
@@ -58,8 +57,8 @@ type Provider interface {
 // fails, the previous pricing information is retained and used which may be the static initial pricing data if pricing
 // updates never succeed.
 type DefaultProvider struct {
-	ec2     ec2iface.EC2API
-	pricing pricingiface.PricingAPI
+	ec2     sdk.EC2API
+	pricing sdk.PricingAPI
 	region  string
 	cm      *pretty.ChangeMonitor
 
@@ -89,11 +88,11 @@ func newZonalPricing(defaultPrice float64) zonal {
 }
 
 // NewPricingAPI returns a pricing API configured based on a particular region
-func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
-	if sess == nil {
+func NewAPI(ctx context.Context, cfg aws.Config, region string) *pricing.Client {
+	// pricing API doesn't have an endpoint in all regions
+	if cfg.Region == "" {
 		return nil
 	}
-	// pricing API doesn't have an endpoint in all regions
 	pricingAPIRegion := "us-east-1"
 	if strings.HasPrefix(region, "ap-") {
 		pricingAPIRegion = "ap-south-1"
@@ -102,10 +101,17 @@ func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 	} else if strings.HasPrefix(region, "eu-") {
 		pricingAPIRegion = "eu-central-1"
 	}
-	return pricing.New(sess, &aws.Config{Region: aws.String(pricingAPIRegion)})
+	pricingCfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion(pricingAPIRegion),
+	)
+	// if we can't load the default config, we can't load the pricing config
+	if err != nil {
+		return nil
+	}
+	return pricing.NewFromConfig(pricingCfg)
 }
 
-func NewDefaultProvider(_ context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string) *DefaultProvider {
+func NewDefaultProvider(_ context.Context, pricing sdk.PricingAPI, ec2Api sdk.EC2API, region string) *DefaultProvider {
 	p := &DefaultProvider{
 		region:  region,
 		ec2:     ec2Api,
@@ -178,14 +184,14 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 	go func() {
 		defer wg.Done()
 		onDemandPrices, onDemandErr = p.fetchOnDemandPricing(ctx,
-			&pricing.Filter{
+			pricingtypes.Filter{
 				Field: aws.String("tenancy"),
-				Type:  aws.String("TERM_MATCH"),
+				Type:  "TERM_MATCH",
 				Value: aws.String("Shared"),
 			},
-			&pricing.Filter{
+			pricingtypes.Filter{
 				Field: aws.String("productFamily"),
-				Type:  aws.String("TERM_MATCH"),
+				Type:  "TERM_MATCH",
 				Value: aws.String("Compute Instance"),
 			})
 	}()
@@ -195,14 +201,14 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 	go func() {
 		defer wg.Done()
 		onDemandMetalPrices, onDemandMetalErr = p.fetchOnDemandPricing(ctx,
-			&pricing.Filter{
+			pricingtypes.Filter{
 				Field: aws.String("tenancy"),
-				Type:  aws.String("TERM_MATCH"),
+				Type:  "TERM_MATCH",
 				Value: aws.String("Dedicated"),
 			},
-			&pricing.Filter{
+			pricingtypes.Filter{
 				Field: aws.String("productFamily"),
-				Type:  aws.String("TERM_MATCH"),
+				Type:  "TERM_MATCH",
 				Value: aws.String("Compute Instance (bare metal)"),
 			})
 	}()
@@ -225,85 +231,97 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 	return nil
 }
 
-func (p *DefaultProvider) fetchOnDemandPricing(ctx context.Context, additionalFilters ...*pricing.Filter) (map[string]float64, error) {
+func (p *DefaultProvider) fetchOnDemandPricing(ctx context.Context, additionalFilters ...pricingtypes.Filter) (map[string]float64, error) {
 	prices := map[string]float64{}
-	filters := append([]*pricing.Filter{
-		{
-			Field: aws.String("regionCode"),
-			Type:  aws.String("TERM_MATCH"),
-			Value: aws.String(p.region),
-		},
-		{
-			Field: aws.String("serviceCode"),
-			Type:  aws.String("TERM_MATCH"),
-			Value: aws.String("AmazonEC2"),
-		},
-		{
-			Field: aws.String("preInstalledSw"),
-			Type:  aws.String("TERM_MATCH"),
-			Value: aws.String("NA"),
-		},
-		{
-			Field: aws.String("operatingSystem"),
-			Type:  aws.String("TERM_MATCH"),
-			Value: aws.String("Linux"),
-		},
-		{
-			Field: aws.String("capacitystatus"),
-			Type:  aws.String("TERM_MATCH"),
-			Value: aws.String("Used"),
-		},
-		{
-			Field: aws.String("marketoption"),
-			Type:  aws.String("TERM_MATCH"),
-			Value: aws.String("OnDemand"),
-		}},
-		additionalFilters...)
+	filters := make([]pricingtypes.Filter, 0, len(additionalFilters)+6)
+	filters = append(filters, pricingtypes.Filter{
+		Field: aws.String("regionCode"),
+		Type:  "TERM_MATCH",
+		Value: aws.String(p.region),
+	})
+	filters = append(filters, pricingtypes.Filter{
+		Field: aws.String("serviceCode"),
+		Type:  "TERM_MATCH",
+		Value: aws.String("AmazonEC2"),
+	})
+	filters = append(filters, pricingtypes.Filter{
+		Field: aws.String("preInstalledSw"),
+		Type:  "TERM_MATCH",
+		Value: aws.String("NA"),
+	})
+	filters = append(filters, pricingtypes.Filter{
+		Field: aws.String("operatingSystem"),
+		Type:  "TERM_MATCH",
+		Value: aws.String("Linux"),
+	})
+	filters = append(filters, pricingtypes.Filter{
+		Field: aws.String("capacitystatus"),
+		Type:  "TERM_MATCH",
+		Value: aws.String("Used"),
+	})
+	filters = append(filters, pricingtypes.Filter{
+		Field: aws.String("marketoption"),
+		Type:  "TERM_MATCH",
+		Value: aws.String("OnDemand"),
+	})
 
-	err := p.pricing.GetProductsPagesWithContext(
-		ctx,
-		&pricing.GetProductsInput{
-			Filters:     filters,
-			ServiceCode: aws.String("AmazonEC2"),
-		},
-		p.onDemandPage(ctx, prices),
-	)
-	if err != nil {
-		return nil, err
+	for _, filter := range additionalFilters {
+		filters = append(filters, pricingtypes.Filter{
+			Field: filter.Field,
+			Type:  filter.Type,
+			Value: filter.Value,
+		})
+	}
+
+	input := &pricing.GetProductsInput{
+		Filters:     filters,
+		ServiceCode: aws.String("AmazonEC2"),
+	}
+
+	paginator := pricing.NewGetProductsPaginator(p.pricing, input)
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(ctx)
+
+		if err != nil {
+			return nil, fmt.Errorf("getting pricing data, %w", err)
+		}
+		prices = lo.Assign(prices, p.onDemandPage(ctx, output))
 	}
 
 	return prices, nil
 }
 
-func (p *DefaultProvider) spotPage(ctx context.Context, prices map[string]map[string]float64) func(output *ec2.DescribeSpotPriceHistoryOutput, b bool) bool {
-	return func(output *ec2.DescribeSpotPriceHistoryOutput, b bool) bool {
-		for _, sph := range output.SpotPriceHistory {
-			spotPriceStr := aws.StringValue(sph.SpotPrice)
-			spotPrice, err := strconv.ParseFloat(spotPriceStr, 64)
-			// these errors shouldn't occur, but if pricing API does have an error, we ignore the record
-			if err != nil {
-				log.FromContext(ctx).V(1).Info(fmt.Sprintf("unable to parse price record %#v", sph))
-				continue
-			}
-			if sph.Timestamp == nil {
-				continue
-			}
-			instanceType := aws.StringValue(sph.InstanceType)
-			az := aws.StringValue(sph.AvailabilityZone)
-			_, ok := prices[instanceType]
-			if !ok {
-				prices[instanceType] = map[string]float64{}
-			}
-			prices[instanceType][az] = spotPrice
+func (p *DefaultProvider) spotPage(ctx context.Context, output *ec2.DescribeSpotPriceHistoryOutput, prices map[string]map[string]float64) map[string]map[string]float64 {
+	for _, sph := range output.SpotPriceHistory {
+		spotPriceStr := aws.ToString(sph.SpotPrice)
+		spotPrice, err := strconv.ParseFloat(spotPriceStr, 64)
+		// these errors shouldn't occur, but if pricing API does have an error, we ignore the record
+		if err != nil {
+			log.FromContext(ctx).V(1).Info(fmt.Sprintf("unable to parse price record %#v", sph))
+			continue
 		}
-		return true
+		if sph.Timestamp == nil {
+			continue
+		}
+		instanceType := string(sph.InstanceType)
+		az := aws.ToString(sph.AvailabilityZone)
+		if instanceType == "t3.micro" {
+			continue
+		}
+		_, ok := prices[instanceType]
+		if !ok {
+			prices[instanceType] = map[string]float64{}
+		}
+		prices[instanceType][az] = spotPrice
+
 	}
+	return prices
 }
 
 // turning off cyclo here, it measures as a 12 due to all of the type checks of the pricing data which returns a deeply
 // nested map[string]interface{}
 // nolint: gocyclo
-func (p *DefaultProvider) onDemandPage(ctx context.Context, prices map[string]float64) func(output *pricing.GetProductsOutput, b bool) bool {
+func (p *DefaultProvider) onDemandPage(ctx context.Context, output *pricing.GetProductsOutput) (result map[string]float64) {
 	// this isn't the full pricing struct, just the portions we care about
 	type priceItem struct {
 		Product struct {
@@ -320,37 +338,31 @@ func (p *DefaultProvider) onDemandPage(ctx context.Context, prices map[string]fl
 		}
 	}
 
-	return func(output *pricing.GetProductsOutput, b bool) bool {
-		currency := "USD"
-		if strings.HasPrefix(p.region, "cn-") {
-			currency = "CNY"
-		}
-		for _, outer := range output.PriceList {
-			var buf bytes.Buffer
-			enc := json.NewEncoder(&buf)
-			if err := enc.Encode(outer); err != nil {
-				log.FromContext(ctx).Error(err, "failed encoding pricing data")
-			}
-			dec := json.NewDecoder(&buf)
-			var pItem priceItem
-			if err := dec.Decode(&pItem); err != nil {
-				log.FromContext(ctx).Error(err, "failed decoding pricing data")
-			}
-			if pItem.Product.Attributes.InstanceType == "" {
-				continue
-			}
-			for _, term := range pItem.Terms.OnDemand {
-				for _, v := range term.PriceDimensions {
-					price, err := strconv.ParseFloat(v.PricePerUnit[currency], 64)
-					if err != nil || price == 0 {
-						continue
-					}
-					prices[pItem.Product.Attributes.InstanceType] = price
-				}
-			}
-		}
-		return true
+	result = map[string]float64{}
+	currency := "USD"
+	if strings.HasPrefix(p.region, "cn-") {
+		currency = "CNY"
 	}
+	for _, outer := range output.PriceList {
+		pItem := &priceItem{}
+		if err := json.Unmarshal([]byte(outer), pItem); err != nil {
+			log.FromContext(ctx).Error(err, "failed unmarshaling pricing data")
+		}
+		if pItem.Product.Attributes.InstanceType == "" {
+			continue
+		}
+		for _, term := range pItem.Terms.OnDemand {
+			for _, v := range term.PriceDimensions {
+				price, err := strconv.ParseFloat(v.PricePerUnit[currency], 64)
+				if err != nil || price == 0 {
+					continue
+				}
+				result[pItem.Product.Attributes.InstanceType] = price
+			}
+		}
+	}
+
+	return result
 }
 
 // nolint: gocyclo
@@ -359,21 +371,22 @@ func (p *DefaultProvider) UpdateSpotPricing(ctx context.Context) error {
 
 	p.muSpot.Lock()
 	defer p.muSpot.Unlock()
-	err := p.ec2.DescribeSpotPriceHistoryPagesWithContext(
-		ctx,
-		&ec2.DescribeSpotPriceHistoryInput{
-			ProductDescriptions: []*string{
-				aws.String("Linux/UNIX"),
-				aws.String("Linux/UNIX (Amazon VPC)"),
-			},
-			// get the latest spot price for each instance type
-			StartTime: aws.Time(time.Now()),
-		},
-		p.spotPage(ctx, prices),
-	)
 
-	if err != nil {
-		return fmt.Errorf("retrieving spot pricing data, %w", err)
+	input := &ec2.DescribeSpotPriceHistoryInput{
+		ProductDescriptions: []string{
+			"Linux/UNIX",
+			"Linux/UNIX (Amazon VPC)",
+		},
+		StartTime: aws.Time(time.Now()),
+	}
+
+	paginator := ec2.NewDescribeSpotPriceHistoryPaginator(p.ec2, input)
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(ctx)
+		if err != nil {
+			return fmt.Errorf("retrieving spot pricing data, %w", err)
+		}
+		prices = p.spotPage(ctx, output, prices)
 	}
 	if len(prices) == 0 {
 		return fmt.Errorf("no spot pricing found")

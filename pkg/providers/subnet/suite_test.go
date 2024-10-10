@@ -16,13 +16,14 @@ package subnet_test
 
 import (
 	"context"
+	"reflect"
 	"sort"
 	"sync"
 	"testing"
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -105,12 +106,12 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			ExpectConsistsOfSubnets([]*ec2.Subnet{
+			ExpectConsistsOfSubnets([]*ec2types.Subnet{
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
-					AvailableIpAddressCount: lo.ToPtr[int64](100),
+					AvailableIpAddressCount: lo.ToPtr[int32](100),
 				},
 			}, subnets)
 		})
@@ -125,18 +126,18 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			ExpectConsistsOfSubnets([]*ec2.Subnet{
+			ExpectConsistsOfSubnets([]*ec2types.Subnet{
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
-					AvailableIpAddressCount: lo.ToPtr[int64](100),
+					AvailableIpAddressCount: lo.ToPtr[int32](100),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
-					AvailableIpAddressCount: lo.ToPtr[int64](100),
+					AvailableIpAddressCount: lo.ToPtr[int32](100),
 				},
 			}, subnets)
 		})
@@ -153,18 +154,18 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			ExpectConsistsOfSubnets([]*ec2.Subnet{
+			ExpectConsistsOfSubnets([]*ec2types.Subnet{
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
-					AvailableIpAddressCount: lo.ToPtr[int64](100),
+					AvailableIpAddressCount: lo.ToPtr[int32](100),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
-					AvailableIpAddressCount: lo.ToPtr[int64](100),
+					AvailableIpAddressCount: lo.ToPtr[int32](100),
 				},
 			}, subnets)
 		})
@@ -176,12 +177,12 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			ExpectConsistsOfSubnets([]*ec2.Subnet{
+			ExpectConsistsOfSubnets([]*ec2types.Subnet{
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
-					AvailableIpAddressCount: lo.ToPtr[int64](100),
+					AvailableIpAddressCount: lo.ToPtr[int32](100),
 				},
 			}, subnets)
 		})
@@ -196,18 +197,18 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			ExpectConsistsOfSubnets([]*ec2.Subnet{
+			ExpectConsistsOfSubnets([]*ec2types.Subnet{
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
-					AvailableIpAddressCount: lo.ToPtr[int64](100),
+					AvailableIpAddressCount: lo.ToPtr[int32](100),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
-					AvailableIpAddressCount: lo.ToPtr[int64](100),
+					AvailableIpAddressCount: lo.ToPtr[int32](100),
 				},
 			}, subnets)
 		})
@@ -220,12 +221,12 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			ExpectConsistsOfSubnets([]*ec2.Subnet{
+			ExpectConsistsOfSubnets([]*ec2types.Subnet{
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
-					AvailableIpAddressCount: lo.ToPtr[int64](100),
+					AvailableIpAddressCount: lo.ToPtr[int32](100),
 				},
 			}, subnets)
 		})
@@ -245,15 +246,15 @@ var _ = Describe("SubnetProvider", func() {
 			}
 
 			for _, cachedObject := range awsEnv.SubnetCache.Items() {
-				cachedSubnet := cachedObject.Object.([]*ec2.Subnet)
+				cachedSubnet := cachedObject.Object.([]ec2types.Subnet)
 				Expect(cachedSubnet).To(HaveLen(1))
-				lo.Contains(expectedSubnets, cachedSubnet[0])
+				reflect.DeepEqual(expectedSubnets, cachedSubnet[0])
 			}
 		})
 		It("should resolve subnets from cache that are filtered by tags", func() {
 			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
-			tagSet := lo.Map(expectedSubnets, func(subnet *ec2.Subnet, _ int) map[string]string {
-				tag, _ := lo.Find(subnet.Tags, func(tag *ec2.Tag) bool {
+			tagSet := lo.Map(expectedSubnets, func(subnet ec2types.Subnet, _ int) map[string]string {
+				tag, _ := lo.Find(subnet.Tags, func(tag ec2types.Tag) bool {
 					return lo.FromPtr(tag.Key) == "Name"
 				})
 				return map[string]string{"Name": lo.FromPtr(tag.Value)}
@@ -270,9 +271,9 @@ var _ = Describe("SubnetProvider", func() {
 			}
 
 			for _, cachedObject := range awsEnv.SubnetCache.Items() {
-				cachedSubnet := cachedObject.Object.([]*ec2.Subnet)
+				cachedSubnet := cachedObject.Object.([]*ec2types.Subnet)
 				Expect(cachedSubnet).To(HaveLen(1))
-				lo.Contains(expectedSubnets, cachedSubnet[0])
+				reflect.DeepEqual(expectedSubnets, cachedSubnet[0])
 			}
 		})
 	})
@@ -294,14 +295,14 @@ var _ = Describe("SubnetProvider", func() {
 					}
 					return *subnets[i].SubnetId < *subnets[j].SubnetId
 				})
-				Expect(subnets).To(BeEquivalentTo([]*ec2.Subnet{
+				Expect(subnets).To(BeEquivalentTo([]*ec2types.Subnet{
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 						AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
-						AvailableIpAddressCount: lo.ToPtr[int64](100),
+						AvailableIpAddressCount: lo.ToPtr[int32](100),
 						SubnetId:                lo.ToPtr("subnet-test1"),
 						MapPublicIpOnLaunch:     lo.ToPtr(false),
-						Tags: []*ec2.Tag{
+						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
 								Value: lo.ToPtr("test-subnet-1"),
@@ -315,11 +316,11 @@ var _ = Describe("SubnetProvider", func() {
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1b"),
 						AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
-						AvailableIpAddressCount: lo.ToPtr[int64](100),
+						AvailableIpAddressCount: lo.ToPtr[int32](100),
 						MapPublicIpOnLaunch:     lo.ToPtr(true),
 						SubnetId:                lo.ToPtr("subnet-test2"),
 
-						Tags: []*ec2.Tag{
+						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
 								Value: lo.ToPtr("test-subnet-2"),
@@ -333,9 +334,9 @@ var _ = Describe("SubnetProvider", func() {
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1c"),
 						AvailabilityZoneId:      lo.ToPtr("tstz1-1c"),
-						AvailableIpAddressCount: lo.ToPtr[int64](100),
+						AvailableIpAddressCount: lo.ToPtr[int32](100),
 						SubnetId:                lo.ToPtr("subnet-test3"),
-						Tags: []*ec2.Tag{
+						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
 								Value: lo.ToPtr("test-subnet-3"),
@@ -352,10 +353,10 @@ var _ = Describe("SubnetProvider", func() {
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1a-local"),
 						AvailabilityZoneId:      lo.ToPtr("tstz1-1alocal"),
-						AvailableIpAddressCount: lo.ToPtr[int64](100),
+						AvailableIpAddressCount: lo.ToPtr[int32](100),
 						SubnetId:                lo.ToPtr("subnet-test4"),
 						MapPublicIpOnLaunch:     lo.ToPtr(true),
-						Tags: []*ec2.Tag{
+						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
 								Value: lo.ToPtr("test-subnet-4"),
@@ -369,11 +370,11 @@ var _ = Describe("SubnetProvider", func() {
 	})
 })
 
-func ExpectConsistsOfSubnets(expected, actual []*ec2.Subnet) {
+func ExpectConsistsOfSubnets(expected, actual []*ec2types.Subnet) {
 	GinkgoHelper()
 	Expect(actual).To(HaveLen(len(expected)))
 	for _, elem := range expected {
-		_, ok := lo.Find(actual, func(s *ec2.Subnet) bool {
+		_, ok := lo.Find(actual, func(s *ec2types.Subnet) bool {
 			return lo.FromPtr(s.SubnetId) == lo.FromPtr(elem.SubnetId) &&
 				lo.FromPtr(s.AvailabilityZoneId) == lo.FromPtr(elem.AvailabilityZoneId) &&
 				lo.FromPtr(s.AvailabilityZone) == lo.FromPtr(elem.AvailabilityZone) &&

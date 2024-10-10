@@ -24,7 +24,8 @@ import (
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -109,7 +110,7 @@ var _ = Describe("InstanceType", func() {
 		})
 		Expect(err).To(BeNil())
 		for i := range instanceTypes {
-			Expect(instanceTypes[i].Name).To(Equal(lo.FromPtr(ec2InstanceTypes[i].InstanceType)))
+			Expect(instanceTypes[i].Name).To(Equal(string(ec2InstanceTypes[i].InstanceType)))
 		}
 	})
 	It("should update instance type offering date with response from the DescribeInstanceTypesOfferings API", func() {
@@ -145,8 +146,8 @@ var _ = Describe("InstanceType", func() {
 
 		Expect(len(instanceTypes)).To(BeNumerically("==", len(ec2InstanceTypes)))
 		for x := range instanceTypes {
-			offering, found := lo.Find(ec2Offerings, func(off *ec2.InstanceTypeOffering) bool {
-				return instanceTypes[x].Name == lo.FromPtr(off.InstanceType)
+			offering, found := lo.Find(ec2Offerings, func(off ec2types.InstanceTypeOffering) bool {
+				return instanceTypes[x].Name == string(off.InstanceType)
 			})
 			Expect(found).To(BeTrue())
 			for y := range instanceTypes[x].Offerings {

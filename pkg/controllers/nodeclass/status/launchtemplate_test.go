@@ -15,7 +15,8 @@ limitations under the License.
 package status_test
 
 import (
-	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 
@@ -78,8 +79,8 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 	})
 	It("should resolve cluster CIDR for IPv6 clusters", func() {
 		awsEnv.EKSAPI.DescribeClusterBehavior.Output.Set(&eks.DescribeClusterOutput{
-			Cluster: &eks.Cluster{
-				KubernetesNetworkConfig: &eks.KubernetesNetworkConfigResponse{
+			Cluster: &ekstypes.Cluster{
+				KubernetesNetworkConfig: &ekstypes.KubernetesNetworkConfigResponse{
 					ServiceIpv6Cidr: lo.ToPtr("2001:db8::/64"),
 				},
 			},
