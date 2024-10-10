@@ -47,6 +47,9 @@ inputs:
     default: 'false'
   codebuild_role:
     description: "Codebuild Role that must be given an access entry in case of private cluster"
+  webhooks_enabled:
+    description: "Whether webhooks are enabled or not. Valid values are 'true' or 'false'"
+    default: 'true'
 runs:
   using: "composite"
   steps:
@@ -274,3 +277,4 @@ runs:
       k8s_version: ${{ inputs.k8s_version }}
       git_ref: ${{ inputs.git_ref }}
       private_cluster: ${{ inputs.private_cluster }}
+      webhooks_enabled: ${{ inputs.webhooks_enabled }}
