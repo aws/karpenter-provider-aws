@@ -155,22 +155,7 @@ var _ = Describe("Drift", func() {
 
 			env.EventuallyExpectDrifted(nodeClaims...)
 
-			// Ensure that we get two nodes tainted, and they have overlap during the drift
-			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 3, 5*time.Second)
-
-			// Remove the finalizer from each node so that we can terminate
-			for _, node := range nodes {
-				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
-			}
-
-			// After the deletion timestamp is set and all pods are drained
-			// the node should be gone
-			env.EventuallyExpectNotFound(nodes[0], nodes[1])
-
-			nodes = env.EventuallyExpectTaintedNodeCount("==", 1)
-			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
-			env.EventuallyExpectNotFound(nodes[0])
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(3, 2, 5*time.Minute)
 		})
 		It("should respect budgets for non-empty delete drift", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool,
@@ -244,17 +229,7 @@ var _ = Describe("Drift", func() {
 				env.ExpectUpdated(pod)
 			}
 
-			// Ensure that we get two nodes tainted, and they have overlap during the drift
-			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 3, 30*time.Second)
-
-			By("removing the finalizer from the nodes")
-			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
-			Expect(env.ExpectTestingFinalizerRemoved(nodes[1])).To(Succeed())
-
-			// After the deletion timestamp is set and all pods are drained
-			// the node should be gone
-			env.EventuallyExpectNotFound(nodes[0], nodes[1])
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(3, 2, 5*time.Minute)
 		})
 		It("should respect budgets for non-empty replace drift", func() {
 			appLabels := map[string]string{"app": "large-app"}
@@ -301,15 +276,13 @@ var _ = Describe("Drift", func() {
 			By("drifting the nodepool")
 			nodePool.Spec.Template.Annotations = lo.Assign(nodePool.Spec.Template.Annotations, map[string]string{"test-annotation": "drift"})
 			env.ExpectUpdated(nodePool)
-
-			// Ensure that we get three nodes tainted, and they have overlap during the drift
-			env.EventuallyExpectTaintedNodeCount("==", 3)
-			env.EventuallyExpectNodeClaimCount("==", 8)
-			env.EventuallyExpectNodeCount("==", 8)
-			env.ConsistentlyExpectDisruptionsWithNodeCount(3, 8, 5*time.Second)
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(5, 3, 10*time.Minute)
 
 			for _, node := range originalNodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
+			}
+			for _, nodeClaim := range originalNodeClaims {
+				Expect(env.ExpectTestingFinalizerRemoved(nodeClaim)).To(Succeed())
 			}
 
 			// Eventually expect all the nodes to be rolled and completely removed
