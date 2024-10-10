@@ -71,8 +71,10 @@ var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("AMI", func() {
 	var customAMI string
+	var deprecatedAMI string
 	BeforeEach(func() {
 		customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+		deprecatedAMI = env.GetDeprecatedAMI(customAMI, "AL2023")
 	})
 
 	It("should use the AMI defined by the AMI Selector Terms", func() {
@@ -144,6 +146,39 @@ var _ = Describe("AMI", func() {
 	It("should support ami selector ids", func() {
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+			{
+				ID: customAMI,
+			},
+		}
+		pod := coretest.Pod()
+
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
+	})
+	It("should support launching nodes with a deprecated ami", func() {
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+			{
+				ID: deprecatedAMI,
+			},
+		}
+		pod := coretest.Pod()
+
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(deprecatedAMI))))
+	})
+	It("should prioritize launch with non-deprecated AMIs", func() {
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+			{
+				ID: deprecatedAMI,
+			},
 			{
 				ID: customAMI,
 			},
