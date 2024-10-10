@@ -202,19 +202,25 @@ To enable interruption handling, configure the `--interruption-queue` CLI argume
 
 ### TerminationGracePeriod
 
-You can set a NodePool's `terminationGracePeriod` through the `spec.template.spec.terminationGracePeriod` field.
-This field defines  the duration of time that a node can be draining before it's forcibly deleted.
-A node begins draining when it's deleted.
-Pods will be deleted preemptively based on its TerminationGracePeriodSeconds before this terminationGracePeriod ends to give as much time to cleanup as possible.
-Note that if your pod's terminationGracePeriodSeconds is larger than this terminationGracePeriod, Karpenter may forcibly delete the pod before it has its full terminationGracePeriod to cleanup.
+You can set a NodePool's `terminationGracePeriod` through the [`spec.template.spec.terminationGracePeriod`]({{<ref "../concepts/nodepools/#spectemplatespecterminationgraceperiod" >}}) field.
+This is used to define the maximum drain duration for a given Node.
+A node begins draining once it has been deleted, and it will be forcibly terminated once the `terminationGracePeriod` has elapsed.
+A node may be terminated before the `terminationGracePeriod` has elapsed if all disruptable pods have been drained.
 
-This is especially useful in combination with `nodepool.spec.template.spec.expireAfter` to define an absolute maximum on the lifetime of a node, where a node is deleted at `expireAfter` and finishes draining within the `terminationGracePeriod` thereafter.
-Pods blocking eviction like PDBs and do-not-disrupt will block full draining until the `terminationGracePeriod` is reached.
+In conjunction with `expireAfter`, `terminationGracePeriod` can be used to enforce an absolute maximum node lifetime.
+The node will begin to drain once its `expireAfter` has elapsed, and it will be forcibly terminated once its `terminationGracePeriod` has elapsed, making the maximum node lifetime the sum of the two fields.
 
-For instance, a NodeClaim with `terminationGracePeriod` set to `1h` and an `expireAfter` set to `23h` will begin draining after it's lived for `23h`.
-Let's say a `do-not-disrupt` pod has `TerminationGracePeriodSeconds` set to `300` seconds.
-If the node hasn't been fully drained after `55m`, Karpenter will delete the pod to allow it's full `terminationGracePeriodSeconds` to cleanup.
-If no pods are blocking draining, Karpenter will cleanup the node as soon as the node is fully drained, rather than waiting for the NodeClaim's `terminationGracePeriod` to finish.
+{{% alert title="Warning" color="warning" %}}
+To ensure that the `terminationGracePeriodSeconds` value for draining pods is respected, pods will be preemptively deleted before the Node's `terminationGracePeriod` has elapsed.
+This includes pods with blocking [pod disruption budgets](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) or a [`do-not-disrupt` annotation]({{<ref "#pod-level-controls" >}}).
+
+Consider the following example: a Node with a 1 hour `terminationGracePeriod` has been disrupted and begins to drain.
+A pod with a `do-not-disrupt` annotation and a 300 second (5 minute) `terminationGracePeriodsSeconds` is scheduled to it.
+If the pod is still running 55 minutes after the Node begins to drain, the pod will be deleted to ensure its `terminationGracePeriodSeconds` value is respected.
+
+If a pod's `terminationGracePeriodSeconds` value exceeds that of the Node it is scheduled to, Karpenter will prioritize the Node's `terminationGracePeriod`.
+The pod will be deleted as soon as the Node begins to drain, and it will not receive it's full `terminationGracePeriodSeconds`.
+{{% /alert %}}
 
 ### NodePool Disruption Budgets
 
@@ -282,12 +288,15 @@ Duration and Schedule must be defined together. When omitted, the budget is alwa
 
 ### Pod-Level Controls
 
-You can block Karpenter from voluntarily choosing to disrupt certain pods by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the pod.
-You can treat this annotation as a single-node, permanently blocking PDB.
+You can block Karpenter from voluntarily disrupting pods by adding the `karpenter.sh/do-not-disrupt: "true"` annotation on the pod.
+You can treat this annotation as a single-pod, permanently blocking PDB.
 This has the following consequences:
 - Nodes with `do-not-disrupt` pods will be excluded from **voluntary** disruption, i.e. [Consolidation]({{<ref "#consolidation" >}}) and [Drift]({{<ref "#drift" >}}).
-- Like pods with a blocking PDB, pods with the `do-not-disrupt` annotation will **not** be gracefully evicted by the [Termination Controller]({{ref "#terminationcontroller"}}).
-  Karpenter will not be able to complete termination of the node until one of the following conditions is met: the `do-not-disrupt` pod is removed, it enters a [terminating](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) or [terminal](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) state, or the owning NodeClaim's [TerminationGracePeriod]({{<ref "#terminationgraceperiod" >}}) has been met.
+- Like pods with a fully-blocking PDB, pods with the `do-not-disrupt` annotation will **not** be gracefully evicted by the [Termination Controller]({{<ref "#termination-controller">}}).
+  Karpenter will not be able to complete termination of the node until one of the following conditions is met:
+  - All pods with `do-not-disrupt` annotations have been removed
+  - All pods with `do-not-disrupt` annotations have entered a [terminal phase](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) (`Succeeded` or `Failed`)
+  - The owning NodeClaim's [TerminationGracePeriod]({{<ref "#termination-grace-period" >}}) has elapsed
 
 This is useful for pods that you want to run from start to finish without disruption.
 Examples of pods that you might want to opt-out of disruption include an interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
