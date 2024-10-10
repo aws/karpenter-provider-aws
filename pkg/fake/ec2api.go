@@ -631,11 +631,11 @@ func (e *EC2API) DescribeInstanceTypeOfferingsWithContext(_ context.Context, _ *
 				Location:     aws.String("test-zone-1b"),
 			},
 			{
-				InstanceType: aws.String("inf1.2xlarge"),
+				InstanceType: aws.String("inf2.xlarge"),
 				Location:     aws.String("test-zone-1a"),
 			},
 			{
-				InstanceType: aws.String("inf1.6xlarge"),
+				InstanceType: aws.String("inf2.24xlarge"),
 				Location:     aws.String("test-zone-1a"),
 			},
 			{

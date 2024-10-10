@@ -5511,7 +5511,6 @@ below are the resources available with some assumptions and after the instance o
 #### Resources
  | Resource | Quantity |
  |--|--|
- |aws.amazon.com/neuron|8|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
@@ -7245,6 +7244,166 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|237794Mi|
  |pods|394|
+## hpc6a Family
+### `hpc6a.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|hpc|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|hpc6a|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|100000|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|hpc6a.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|362269Mi|
+ |pods|100|
+ |vpc.amazonaws.com/efa|1|
+## hpc6id Family
+### `hpc6id.32xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|hpc|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|hpc6id|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|15200|
+ |karpenter.k8s.aws/instance-memory|1048576|
+ |karpenter.k8s.aws/instance-network-bandwidth|200000|
+ |karpenter.k8s.aws/instance-size|32xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|hpc6id.32xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|969016Mi|
+ |pods|51|
+ |vpc.amazonaws.com/efa|2|
+## hpc7a Family
+### `hpc7a.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|hpc|
+ |karpenter.k8s.aws/instance-cpu|24|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|hpc7a|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|300000|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|hpc7a.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|23870m|
+ |ephemeral-storage|17Gi|
+ |memory|725994Mi|
+ |pods|100|
+ |vpc.amazonaws.com/efa|2|
+### `hpc7a.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|hpc|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|hpc7a|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|300000|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|hpc7a.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|725994Mi|
+ |pods|100|
+ |vpc.amazonaws.com/efa|2|
+### `hpc7a.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|hpc|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|hpc7a|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|300000|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|hpc7a.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|725994Mi|
+ |pods|100|
+ |vpc.amazonaws.com/efa|2|
+### `hpc7a.96xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|hpc|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|hpc7a|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|300000|
+ |karpenter.k8s.aws/instance-size|96xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|hpc7a.96xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|725994Mi|
+ |pods|100|
+ |vpc.amazonaws.com/efa|2|
 ## hpc7g Family
 ### `hpc7g.4xlarge`
 #### Labels
@@ -8448,6 +8607,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |aws.amazon.com/neuron|1|
+ |aws.amazon.com/neuroncore|4|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
  |memory|6804Mi|
@@ -8478,6 +8638,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |aws.amazon.com/neuron|1|
+ |aws.amazon.com/neuroncore|4|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
  |memory|14382Mi|
@@ -8508,6 +8669,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |aws.amazon.com/neuron|4|
+ |aws.amazon.com/neuroncore|16|
  |cpu|23870m|
  |ephemeral-storage|17Gi|
  |memory|42536Mi|
@@ -8538,6 +8700,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |aws.amazon.com/neuron|16|
+ |aws.amazon.com/neuroncore|64|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
  |memory|177976Mi|
@@ -8551,7 +8714,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |karpenter.k8s.aws/instance-accelerator-count|1|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
- |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia2|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -8570,6 +8733,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |aws.amazon.com/neuron|1|
+ |aws.amazon.com/neuroncore|2|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
@@ -8581,7 +8745,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |karpenter.k8s.aws/instance-accelerator-count|1|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
- |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia2|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -8600,6 +8764,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |aws.amazon.com/neuron|1|
+ |aws.amazon.com/neuroncore|2|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
@@ -8611,7 +8776,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |karpenter.k8s.aws/instance-accelerator-count|6|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
- |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia2|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -8630,6 +8795,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |aws.amazon.com/neuron|6|
+ |aws.amazon.com/neuroncore|12|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
@@ -8641,7 +8807,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |karpenter.k8s.aws/instance-accelerator-count|12|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
- |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-accelerator-name|inferentia2|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -8660,6 +8826,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |aws.amazon.com/neuron|12|
+ |aws.amazon.com/neuroncore|24|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
@@ -14449,6 +14616,39 @@ below are the resources available with some assumptions and after the instance o
  |pods|100|
  |vpc.amazonaws.com/efa|32|
  |vpc.amazonaws.com/pod-eni|120|
+## p5e Family
+### `p5e.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|p|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|80000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|p5e|
+ |karpenter.k8s.aws/instance-generation|5|
+ |karpenter.k8s.aws/instance-gpu-count|8|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|144384|
+ |karpenter.k8s.aws/instance-gpu-name|h200|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|30400|
+ |karpenter.k8s.aws/instance-memory|2097152|
+ |karpenter.k8s.aws/instance-network-bandwidth|3200000|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|p5e.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1938410Mi|
+ |nvidia.com/gpu|8|
+ |pods|100|
+ |vpc.amazonaws.com/efa|32|
 ## r3 Family
 ### `r3.large`
 #### Labels
@@ -20568,7 +20768,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |karpenter.k8s.aws/instance-accelerator-count|1|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
- |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-accelerator-name|trainium|
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20588,6 +20788,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |aws.amazon.com/neuron|1|
+ |aws.amazon.com/neuroncore|2|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
@@ -20599,7 +20800,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |karpenter.k8s.aws/instance-accelerator-count|16|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
- |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-accelerator-name|trainium|
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20619,6 +20820,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |aws.amazon.com/neuron|16|
+ |aws.amazon.com/neuroncore|32|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
  |memory|481894Mi|
@@ -20632,7 +20834,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |karpenter.k8s.aws/instance-accelerator-count|16|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
- |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-accelerator-name|trainium|
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20652,6 +20854,7 @@ below are the resources available with some assumptions and after the instance o
  | Resource | Quantity |
  |--|--|
  |aws.amazon.com/neuron|16|
+ |aws.amazon.com/neuroncore|32|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
  |memory|481894Mi|
