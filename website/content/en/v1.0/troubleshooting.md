@@ -10,26 +10,9 @@ description: >
 
 ### Enable debug logging
 
-To enable debug logging on Karpenter you should update the `config-logging` ConfigMap which can be found in the same namespace as the controller.
-If you installed the controller in the `karpenter` namespace you can see the current config with
+This can be done by updating the env variable `LOG_LEVEL` Karpenter deployment and then restarting the Karpenter deployment.
 
-```
-kubectl get configmap -n karpenter config-logging -o yaml
-apiVersion: v1
-data:
-  loglevel.webhook: error
-  zap-logger-config: |
-    {
-      "level": debug",
-      development": false,
-...
-```
-
-Update the zap-logger-config "level" and restart the Karpenter pod(s) to enable debug logging.
-
-#### Debug logging via Helm
-
-You can enable debug logging during installation with Helm by setting the option `logLevel`.
+You can also enable debug logging during installation with Helm by setting the option `logLevel`.
 
 ```
 helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
