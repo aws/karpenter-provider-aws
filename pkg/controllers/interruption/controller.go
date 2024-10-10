@@ -22,7 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/karpenter/pkg/metrics"
 
-	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
+	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/awslabs/operatorpkg/singleton"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
@@ -132,7 +132,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 }
 
 // parseMessage parses the passed SQS message into an internal Message interface
-func (c *Controller) parseMessage(raw *sqsapi.Message) (messages.Message, error) {
+func (c *Controller) parseMessage(raw *sqstypes.Message) (messages.Message, error) {
 	// No message to parse in this case
 	if raw == nil || raw.Body == nil {
 		return nil, fmt.Errorf("message or message body is nil")
@@ -172,7 +172,7 @@ func (c *Controller) handleMessage(ctx context.Context, nodeClaimInstanceIDMap m
 }
 
 // deleteMessage removes the passed SQS message from the queue and fires a metric for the deletion
-func (c *Controller) deleteMessage(ctx context.Context, msg *sqsapi.Message) error {
+func (c *Controller) deleteMessage(ctx context.Context, msg *sqstypes.Message) error {
 	if err := c.sqsProvider.DeleteSQSMessage(ctx, msg); err != nil {
 		return fmt.Errorf("deleting sqs message, %w", err)
 	}

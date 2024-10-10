@@ -21,10 +21,10 @@ import (
 	"github.com/aws/smithy-go"
 
 	//V1 imports
+
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/sqs"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -38,7 +38,7 @@ var (
 		"InvalidInstanceID.NotFound",
 		launchTemplateNameNotFoundCode,
 		"InvalidLaunchTemplateId.NotFound",
-		sqs.ErrCodeQueueDoesNotExist,
+		"QueueDoesNotExist",
 		iam.ErrCodeNoSuchEntityException,
 
 		//v2 error codes

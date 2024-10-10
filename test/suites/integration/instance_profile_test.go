@@ -23,8 +23,7 @@ import (
 	"github.com/awslabs/operatorpkg/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/samber/lo"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -64,8 +63,8 @@ var _ = Describe("InstanceProfile Generation", func() {
 
 		env.ExpectDeleted(nodePool, nodeClass)
 		Eventually(func(g Gomega) {
-			_, err := env.IAMAPI.GetInstanceProfileWithContext(env.Context, &iam.GetInstanceProfileInput{
-				InstanceProfileName: aws.String(env.GetInstanceProfileName(nodeClass)),
+			_, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
+				InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
 			})
 			g.Expect(awserrors.IsNotFound(err)).To(BeTrue())
 		}).Should(Succeed())
