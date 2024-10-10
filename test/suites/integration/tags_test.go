@@ -25,19 +25,17 @@ import (
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/awslabs/operatorpkg/object"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 )
 
 const createdAtTag = "node.k8s.amazonaws.com/createdAt"
@@ -47,7 +45,6 @@ var _ = Describe("Tags", func() {
 		It("should tag all associated resources", func() {
 			nodeClass.Spec.Tags["TestTag"] = "TestVal"
 			pod := coretest.Pod()
-
 			env.ExpectCreated(pod, nodeClass, nodePool)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
@@ -79,7 +76,6 @@ var _ = Describe("Tags", func() {
 				}})
 			nodeClass.Spec.Tags = map[string]string{"TestTag": "TestVal"}
 			pod := coretest.Pod()
-
 			env.ExpectCreated(pod, nodeClass, nodePool)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
@@ -109,19 +105,18 @@ var _ = Describe("Tags", func() {
 			env.ExpectCreated(nodeClass)
 			env.EventuallyExpectInstanceProfileExists(env.GetInstanceProfileName(nodeClass))
 
-			_, err := env.IAMAPI.UntagInstanceProfile(env.Context, &iam.UntagInstanceProfileInput{
+			_, err := env.IAMAPI.UntagInstanceProfile(context.Background(), &iam.UntagInstanceProfileInput{
 				InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
 				TagKeys: []string{
 					v1.EKSClusterNameTagKey,
 				},
 			})
 			Expect(err).ToNot(HaveOccurred())
-
 			// Restart Karpenter to flush the instance profile cache and to trigger re-tagging of the instance profile
 			env.EventuallyExpectKarpenterRestarted()
 
 			Eventually(func(g Gomega) {
-				out, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
+				out, err := env.IAMAPI.GetInstanceProfile(context.Background(), &iam.GetInstanceProfileInput{
 					InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
 				})
 				g.Expect(err).ToNot(HaveOccurred())
@@ -129,16 +124,13 @@ var _ = Describe("Tags", func() {
 			}).WithTimeout(time.Second * 20).Should(Succeed())
 		})
 	})
-
 	Context("Tagging Controller", func() {
 		It("should tag with karpenter.sh/nodeclaim and Name tag", func() {
 			pod := coretest.Pod()
-
 			env.ExpectCreated(nodePool, nodeClass, pod)
 			env.EventuallyExpectCreatedNodeCount("==", 1)
 			node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 			nodeClaim := env.ExpectNodeClaimCount("==", 1)[0]
-
 			Eventually(func(g Gomega) {
 				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
 				g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationInstanceTagged, "true"))
@@ -172,12 +164,10 @@ var _ = Describe("Tags", func() {
 				},
 			})
 			pod := coretest.Pod()
-
 			env.ExpectCreated(nodePool, nodeClass, pod)
 			env.EventuallyExpectCreatedNodeCount("==", 1)
 			node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 			nodeClaim := env.ExpectNodeClaimCount("==", 1)[0]
-
 			Eventually(func(g Gomega) {
 				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
 				g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationInstanceTagged, "true"))
@@ -191,12 +181,10 @@ var _ = Describe("Tags", func() {
 		})
 		It("should tag instance with eks:eks-cluster-name tag when the tag doesn't exist", func() {
 			pod := coretest.Pod()
-
 			env.ExpectCreated(nodePool, nodeClass, pod)
 			env.EventuallyExpectCreatedNodeCount("==", 1)
 			node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 			nodeClaim := env.ExpectNodeClaimCount("==", 1)[0]
-
 			Eventually(func(g Gomega) {
 				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
 				g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationInstanceTagged, "true"))
