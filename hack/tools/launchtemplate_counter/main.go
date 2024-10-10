@@ -126,7 +126,7 @@ func main() {
 			},
 		},
 	}
-	instanceTypes, err := instanceTypeProvider.List(ctx, nodeClass)
+	instanceTypes, _ := instanceTypeProvider.List(ctx, nodeClass)
 
 	// See how many launch templates we get by constraining our instance types to just be "c", "m", and "r"
 	reqs := scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelInstanceCategory, corev1.NodeSelectorOpIn, "c", "m", "r"))
