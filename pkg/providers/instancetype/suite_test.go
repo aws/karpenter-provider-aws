@@ -80,7 +80,7 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...), coretest.WithFieldIndexers(coretest.NodeClaimFieldIndexer(ctx)))
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
@@ -109,22 +109,12 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("InstanceTypeProvider", func() {
-	var node *corev1.Node
-	var nodeClaim *karpv1.NodeClaim
 	var nodeClass, windowsNodeClass *v1.EC2NodeClass
 	var nodePool, windowsNodePool *karpv1.NodePool
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass(
 			v1.EC2NodeClass{
 				Status: v1.EC2NodeClassStatus{
-					AMIs: []v1.AMI{{
-						ID:   "ami-test1",
-						Name: "ami-test-name",
-						Requirements: []corev1.NodeSelectorRequirement{
-							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
-							{Key: v1.LabelInstanceGPUCount, Operator: corev1.NodeSelectorOpExists},
-						},
-					}},
 					InstanceProfile: "test-profile",
 					SecurityGroups: []v1.SecurityGroup{
 						{
@@ -2407,110 +2397,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 			// Based on the nodeclass configuration, we expect to have 5 unique set of instance types
 			uniqueInstanceTypeList(instanceTypeResult)
-		})
-	})
-	Context("Capacity Cache", func() {
-		BeforeEach(func() {
-			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-				VMMemoryOverheadPercent: lo.ToPtr[float64](0.075),
-			}))
-			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-				InstanceTypes: []*ec2.InstanceTypeInfo{
-					{
-						InstanceType: aws.String("t3.medium"),
-						ProcessorInfo: &ec2.ProcessorInfo{
-							SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
-						},
-						VCpuInfo: &ec2.VCpuInfo{
-							DefaultCores: aws.Int64(1),
-							DefaultVCpus: aws.Int64(2),
-						},
-						MemoryInfo: &ec2.MemoryInfo{
-							SizeInMiB: aws.Int64(8192),
-						},
-						NetworkInfo: &ec2.NetworkInfo{
-							Ipv4AddressesPerInterface: aws.Int64(10),
-							DefaultNetworkCardIndex:   aws.Int64(0),
-							NetworkCards: []*ec2.NetworkCardInfo{{
-								NetworkCardIndex:         lo.ToPtr(int64(0)),
-								MaximumNetworkInterfaces: aws.Int64(3),
-							}},
-						},
-						SupportedUsageClasses: fake.DefaultSupportedUsageClasses,
-					},
-				},
-			})
-			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-				InstanceTypeOfferings: []*ec2.InstanceTypeOffering{
-					{
-						InstanceType: aws.String("t3.medium"),
-						Location:     aws.String("test-zone-1a"),
-					},
-				},
-			})
-			ExpectApplied(ctx, env.Client, nodeClass)
-			node = coretest.Node(coretest.NodeOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-node",
-					Labels: map[string]string{
-						corev1.LabelInstanceTypeStable: "t3.medium",
-						karpv1.NodeRegisteredLabelKey:  "true",
-					},
-				},
-				Capacity: corev1.ResourceList{
-					corev1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi", 3840)),
-				},
-			})
-			ExpectApplied(ctx, env.Client, node)
-			nodeClaim = &karpv1.NodeClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-nodeclaim",
-				},
-				Spec: karpv1.NodeClaimSpec{
-					NodeClassRef: &karpv1.NodeClassReference{
-						Name: nodeClass.Name,
-					},
-					Requirements: make([]karpv1.NodeSelectorRequirementWithMinValues, 0),
-				},
-				Status: karpv1.NodeClaimStatus{
-					NodeName: node.Name,
-					ImageID:  nodeClass.Status.AMIs[0].ID,
-				},
-			}
-			ExpectApplied(ctx, env.Client, nodeClaim)
-			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeCapacityFromNode(ctx, env.Client, node)).To(Succeed())
-			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
-			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
-		})
-		It("should use capacity cache for previously seen instance-type and AMI", func() {
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).To(BeNil())
-			i, ok := lo.Find(instanceTypes, func(i *corecloudprovider.InstanceType) bool {
-				return i.Name == "t3.medium"
-			})
-			Expect(ok).To(BeTrue())
-			Expect(i.Capacity.Memory().Value()).To(Equal(node.Status.Capacity.Memory().Value()))
-		})
-		It("should use VM_MEMORY_OVERHEAD_PERCENT calculation after AMI update", func() {
-			// Trigger building cache for instance-types based on current AMI
-			_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).To(BeNil())
-
-			// Update NodeClass AMI and re-list instance-types. Cached values from prior AMI should no longer be use.
-			nodeClass.Status.AMIs[0].ID = "ami-new-test-id"
-			ExpectApplied(ctx, env.Client, nodeClaim)
-			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeCapacityFromNode(ctx, env.Client, node)).To(Succeed())
-			instanceTypesNoCache, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).To(BeNil())
-			i, ok := lo.Find(instanceTypesNoCache, func(i *corecloudprovider.InstanceType) bool {
-				return i.Name == "t3.medium"
-			})
-			Expect(ok).To(BeTrue())
-
-			// Expect no cache hit and fallback to VM_MEMORY_OVERHEAD_PERCENT calculation
-			mem := resources.Quantity(fmt.Sprintf("%dMi", 8192))
-			mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(mem.Value())*options.FromContext(ctx).VMMemoryOverheadPercent/1024/1024)))))
-			Expect(i.Capacity.Memory().Value()).To(Equal(mem.Value()), "Expected capacity to match VMMemoryOverheadPercent calculation")
 		})
 	})
 	It("should not cause data races when calling List() simultaneously", func() {
