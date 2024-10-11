@@ -29,12 +29,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	awsv1 "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	awsclient "github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/smithy-go"
 	prometheusv1 "github.com/jonathan-innis/aws-sdk-go-prometheus/v1"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -200,10 +200,12 @@ func WithUserAgent(sess *session.Session) *session.Session {
 
 // CheckEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
 // are having issues connecting to the EC2 API.
-func CheckEC2Connectivity(ctx context.Context, api sdk.EC2API) error {
-	_, err := api.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
-	var aerr awserr.Error
-	if errors.As(err, &aerr) && aerr.Code() == "DryRunOperation" {
+func CheckEC2Connectivity(ctx context.Context, api *ec2.Client) error {
+	_, err := api.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{
+		DryRun: aws.Bool(true),
+	})
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) && apiErr.ErrorCode() == "DryRunOperation" {
 		return nil
 	}
 	return err
