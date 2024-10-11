@@ -1374,7 +1374,53 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
+
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 5))
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--local-disks raid0")
+		})
+		It("should specify RAID0 bootstrap-command when instance-store policy is set on Bottlerocket", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 5))
+			ExpectLaunchTemplatesCreatedWithUserDataContaining(`
+[settings.bootstrap-commands.000-mount-instance-storage]
+commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/containerd', '/var/lib/kubelet', '/var/log/pods']]
+mode = 'always'
+essential = true
+`)
+		})
+		It("should merge bootstrap-commands when instance-store policy is set on Bottlerocket", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
+			nodeClass.Spec.UserData = lo.ToPtr(`
+[settings.bootstrap-commands.111-say-hello]
+commands = [['echo', 'hello']]
+mode = 'always'
+essential = true
+`)
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 5))
+			ExpectLaunchTemplatesCreatedWithUserDataContaining(`
+[settings.bootstrap-commands]
+[settings.bootstrap-commands.000-mount-instance-storage]
+commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/containerd', '/var/lib/kubelet', '/var/log/pods']]
+mode = 'always'
+essential = true
+
+[settings.bootstrap-commands.111-say-hello]
+commands = [['echo', 'hello']]
+mode = 'always'
+essential = true
+`)
 		})
 		Context("Bottlerocket", func() {
 			BeforeEach(func() {
@@ -2240,7 +2286,7 @@ func ExpectUserDataCreatedWithNodeConfigs(userData string) []admv1alpha1.NodeCon
 	GinkgoHelper()
 	archive, err := mime.NewArchive(userData)
 	Expect(err).To(BeNil())
-	nodeConfigs := lo.FilterMap([]mime.Entry(archive), func(entry mime.Entry, _ int) (admv1alpha1.NodeConfig, bool) {
+	nodeConfigs := lo.FilterMap(archive, func(entry mime.Entry, _ int) (admv1alpha1.NodeConfig, bool) {
 		config := admv1alpha1.NodeConfig{}
 		if entry.ContentType != mime.ContentTypeNodeConfig {
 			return config, false

@@ -159,7 +159,7 @@ var _ = Describe("AMI", func() {
 
 	Context("AMIFamily", func() {
 		DescribeTable(
-			"should providion a node using an alias",
+			"should provision a node using an alias",
 			func(alias string) {
 				pod := coretest.Pod()
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
