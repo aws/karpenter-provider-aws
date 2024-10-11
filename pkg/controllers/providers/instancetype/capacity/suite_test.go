@@ -133,8 +133,7 @@ var _ = Describe("CapacityCache", func() {
 		}
 		ExpectApplied(ctx, env.Client, nodeClaim)
 	})
-	// should use capacity cache for previously seen instance-type and AMI
-	It("should update instance type capacity cache based on node capacities", func() {
+	It("should update discovered capacity based on existing nodes", func() {
 		ExpectObjectReconciled(ctx, env.Client, controller, node)
 		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
@@ -142,16 +141,12 @@ var _ = Describe("CapacityCache", func() {
 			return i.Name == "t3.medium"
 		})
 		Expect(ok).To(BeTrue())
-		Expect(i.Capacity.Memory().Value()).To(Equal(node.Status.Capacity.Memory().Value()))
+		Expect(i.Capacity.Memory().Value()).To(Equal(node.Status.Capacity.Memory().Value()), "Expected capacity to match discovered node capacity")
 	})
 	It("should use VM_MEMORY_OVERHEAD_PERCENT calculation after AMI update", func() {
 		ExpectObjectReconciled(ctx, env.Client, controller, node)
 
-		// Trigger building cache for instance-types based on current AMI
-		_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-		Expect(err).To(BeNil())
-
-		// Update NodeClass AMI and re-list instance-types. Cached values from prior AMI should no longer be use.
+		// Update NodeClass AMI and list instance-types. Cached values from prior AMI should no longer be used.
 		nodeClass.Status.AMIs[0].ID = "ami-new-test-id"
 		ExpectApplied(ctx, env.Client, nodeClaim)
 		ExpectObjectReconciled(ctx, env.Client, controller, node)
