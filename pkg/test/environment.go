@@ -71,6 +71,7 @@ type Environment struct {
 	SecurityGroupCache            *cache.Cache
 	InstanceProfileCache          *cache.Cache
 	SSMCache                      *cache.Cache
+	DiscoveredCapacityCache       *cache.Cache
 
 	// Providers
 	InstanceTypesResolver   *instancetype.DefaultResolver
@@ -165,6 +166,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		InstanceProfileCache:          instanceProfileCache,
 		UnavailableOfferingsCache:     unavailableOfferingsCache,
 		SSMCache:                      ssmCache,
+		DiscoveredCapacityCache:       discoveredCapacityCache,
 
 		InstanceTypesResolver:   instanceTypesResolver,
 		InstanceTypesProvider:   instanceTypesProvider,
@@ -200,6 +202,7 @@ func (env *Environment) Reset() {
 	env.SecurityGroupCache.Flush()
 	env.InstanceProfileCache.Flush()
 	env.SSMCache.Flush()
+	env.DiscoveredCapacityCache.Flush()
 	mfs, err := crmetrics.Registry.Gather()
 	if err != nil {
 		for _, mf := range mfs {

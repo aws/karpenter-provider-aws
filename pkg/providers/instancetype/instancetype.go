@@ -115,7 +115,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// Compute hash key against node class AMIs (used to force cache rebuild when AMIs change)
 	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 
-	key := fmt.Sprintf("%d-%d-%016x-%s-%016x",
+	key := fmt.Sprintf("%d-%d-%016x-%016x-%016x",
 		p.instanceTypesSeqNum,
 		p.instanceTypesOfferingsSeqNum,
 		amiHash,
@@ -261,7 +261,7 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 	return nil
 }
 
-func (p *DefaultProvider) UpdateDiscoveredCapacityCache(ctx context.Context, kubeClient client.Client, node *corev1.Node) error {
+func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context, kubeClient client.Client, node *corev1.Node) error {
 	nodeClaim, err := nodeutils.NodeClaimForNode(ctx, kubeClient, node)
 	if err != nil {
 		return fmt.Errorf("failed to get nodeclaim for node, %w", err)

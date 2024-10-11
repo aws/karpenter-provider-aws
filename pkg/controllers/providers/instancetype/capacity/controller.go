@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package discoveredcapacitycache
+package capacity
 
 import (
 	"context"
@@ -45,8 +45,8 @@ func NewController(kubeClient client.Client, instancetypeProvider *instancetype.
 }
 
 func (c *Controller) Reconcile(ctx context.Context, node *corev1.Node) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "instancetypes.discoveredcapacitycache")
-	if err := c.instancetypeProvider.UpdateDiscoveredCapacityCache(ctx, c.kubeClient, node); err != nil {
+	ctx = injection.WithControllerName(ctx, "providers.instancetype.capacity")
+	if err := c.instancetypeProvider.UpdateInstanceTypeCapacityFromNode(ctx, c.kubeClient, node); err != nil {
 		return reconcile.Result{}, fmt.Errorf("updating discovered capacity cache, %w", err)
 	}
 	return reconcile.Result{}, nil
@@ -54,7 +54,7 @@ func (c *Controller) Reconcile(ctx context.Context, node *corev1.Node) (reconcil
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("instancetypes.discoveredcapacitycache").
+		Named("providers.instancetype.capacity").
 		For(&corev1.Node{}, builder.WithPredicates(predicate.TypedFuncs[client.Object]{
 			// Only trigger reconciliation once a node becomes registered. This is an optimization to omit no-op reconciliations and reduce lock contention on the cache.
 			UpdateFunc: func(e event.TypedUpdateEvent[client.Object]) bool {
