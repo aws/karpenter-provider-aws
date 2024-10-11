@@ -56,6 +56,7 @@ func execCreateFleetBatch(ec2api sdk.EC2API) BatchExecutor[ec2.CreateFleetInput,
 	return func(ctx context.Context, inputs []*ec2.CreateFleetInput) []Result[ec2.CreateFleetOutput] {
 		results := make([]Result[ec2.CreateFleetOutput], 0, len(inputs))
 		firstInput := inputs[0]
+		//nolint:gosec
 		totalTargetCapacity := aws.Int32(int32(len(inputs)))
 		firstInput.TargetCapacitySpecification.TotalTargetCapacity = totalTargetCapacity
 		output, err := ec2api.CreateFleet(ctx, firstInput)

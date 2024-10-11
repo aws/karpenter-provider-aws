@@ -254,6 +254,7 @@ func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, r
 	pods, _ := lo.MinBy(filteredInstanceTypes, func(i *cloudprovider.InstanceType, j *cloudprovider.InstanceType) bool {
 		return i.Capacity.Pods().Cmp(*j.Capacity.Pods()) < 0
 	}).Capacity.Pods().AsInt64()
+	//nolint:gosec
 	return int32(pods)
 }
 

@@ -330,7 +330,7 @@ func (e *EC2API) DescribeImages(_ context.Context, input *ec2.DescribeImagesInpu
 		describeImagesOutput.Images = FilterDescribeImages(describeImagesOutput.Images, input.Filters)
 		return describeImagesOutput, nil
 	}
-	if string(input.Filters[0].Values[0]) == "invalid" {
+	if input.Filters[0].Values[0] == "invalid" {
 		return &ec2.DescribeImagesOutput{}, nil
 	}
 	return &ec2.DescribeImagesOutput{

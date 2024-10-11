@@ -88,5 +88,5 @@ func reservedENIsFor(instanceType string) int64 {
 		reservedENIs, err = strconv.Atoi(reservedENIsVar.Value)
 		Expect(err).ToNot(HaveOccurred())
 	}
-	return int64((*networkInfo.MaximumNetworkInterfaces-int32(reservedENIs))*(*networkInfo.Ipv4AddressesPerInterface-1) + 2)
+	return int64((int(*networkInfo.MaximumNetworkInterfaces)-reservedENIs)*(int(*networkInfo.Ipv4AddressesPerInterface-1)) + 2)
 }

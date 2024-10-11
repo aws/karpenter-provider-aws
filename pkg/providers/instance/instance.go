@@ -146,7 +146,6 @@ func (p *DefaultProvider) Get(ctx context.Context, id string) (*Instance, error)
 
 func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 	var out = &ec2.DescribeInstancesOutput{}
-	var err = error(nil)
 
 	paginator := ec2.NewDescribeInstancesPaginator(p.ec2api, lo.ToPtr(ec2.DescribeInstancesInput{
 		Filters: []ec2types.Filter{
@@ -167,10 +166,11 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 	}))
 
 	for paginator.HasMorePages() {
-		out, err = paginator.NextPage(ctx)
+		output, err := paginator.NextPage(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("describing ec2 instances, %w", err)
 		}
+		out = output
 	}
 	instances, _ := instancesFromOutput(out)
 	return instances, nil

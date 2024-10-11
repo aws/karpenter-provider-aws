@@ -451,12 +451,12 @@ func ENILimitedPods(ctx context.Context, info *ec2types.InstanceTypeInfo) *resou
 	// VPC CNI only uses the default network interface
 	// https://github.com/aws/amazon-vpc-cni-k8s/blob/3294231c0dce52cfe473bf6c62f47956a3b333b6/scripts/gen_vpc_ip_limits.go#L162
 	networkInterfaces := *info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces
-	usableNetworkInterfaces := lo.Max([]int32{networkInterfaces - int32(options.FromContext(ctx).ReservedENIs), 0})
+	usableNetworkInterfaces := lo.Max([]int64{int64(int(networkInterfaces) - options.FromContext(ctx).ReservedENIs), 0})
 	if usableNetworkInterfaces == 0 {
 		return resource.NewQuantity(0, resource.DecimalSI)
 	}
 	addressesPerInterface := *info.NetworkInfo.Ipv4AddressesPerInterface
-	return resources.Quantity(fmt.Sprint(usableNetworkInterfaces*(addressesPerInterface-1) + 2))
+	return resources.Quantity(fmt.Sprint(usableNetworkInterfaces*(int64(addressesPerInterface)-1) + 2))
 }
 
 func privateIPv4Address(instanceTypeName string) *resource.Quantity {
@@ -539,18 +539,18 @@ func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, am
 }
 
 func pods(ctx context.Context, info *ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, maxPods *int32, podsPerCore *int32) *resource.Quantity {
-	var count int32
+	var count int64
 	switch {
 	case maxPods != nil:
-		count = int32(lo.FromPtr(maxPods))
+		count = int64(lo.FromPtr(maxPods))
 	case amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
-		count = int32(ENILimitedPods(ctx, info).Value())
+		count = ENILimitedPods(ctx, info).Value()
 	default:
 		count = 110
 
 	}
 	if lo.FromPtr(podsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
-		count = lo.Min([]int32{int32(lo.FromPtr(podsPerCore)) * lo.FromPtr(info.VCpuInfo.DefaultVCpus), count})
+		count = lo.Min([]int64{int64(lo.FromPtr(podsPerCore)) * int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)), count})
 	}
 	return resources.Quantity(fmt.Sprint(count))
 }

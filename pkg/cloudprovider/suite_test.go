@@ -67,7 +67,6 @@ var ctx context.Context
 var stop context.CancelFunc
 var env *coretest.Environment
 var awsEnv *test.Environment
-var awsEnvV2 *test.Environment
 var prov *provisioning.Provisioner
 var cloudProvider *cloudprovider.CloudProvider
 var cluster *state.Cluster

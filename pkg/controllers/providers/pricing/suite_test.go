@@ -161,9 +161,10 @@ var _ = Describe("Pricing", func() {
 			},
 		})
 		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
+
 			PriceList: []string{
-				string(fake.NewOnDemandPrice("c98.large", 1.20)),
-				string(fake.NewOnDemandPrice("c99.large", 1.23)),
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
 		ExpectSingletonReconciled(ctx, controller)
