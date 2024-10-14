@@ -145,7 +145,7 @@ jobs:
           enable_local_zones: ${{ inputs.suite == 'LocalZone' }}
           cleanup: ${{ inputs.cleanup }}
           codebuild_role: ${{ vars[format('{0}_CODEBUILD_ROLE', inputs.codebuild_region)] }}
-          webhooks_enabled: ${{ !contains(inputs.suite, 'Webhooks') }}
+          webhooks_enabled: ${{ inputs.suite != 'Webhooks' && true }}
       - name: run tests for private cluster
         if: ${{ inputs.workflow_trigger == 'private_cluster' }}
         uses: ./.github/actions/e2e/run-tests-private-cluster
