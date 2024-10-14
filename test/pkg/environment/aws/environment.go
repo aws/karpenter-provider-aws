@@ -47,7 +47,6 @@ import (
 	config "github.com/aws/aws-sdk-go-v2/config"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
@@ -65,10 +64,10 @@ type Environment struct {
 	*common.Environment
 	Region string
 
-	STSAPI        sdk.STSAPI
+	STSAPI        *sts.Client
 	EC2API        *ec2.EC2
-	SSMAPI        sdk.SSMAPI
-	IAMAPI        sdk.IAMAPI
+	SSMAPI        *ssm.Client
+	IAMAPI        *iam.Client
 	FISAPI        *fis.Client
 	EKSAPI        *eks.EKS
 	TimeStreamAPI timestreamwriteiface.TimestreamWriteAPI
