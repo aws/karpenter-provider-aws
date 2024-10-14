@@ -48,6 +48,7 @@ import (
 
 var env *aws.Environment
 var amdAMI string
+var deprecatedAMI string
 var nodeClass *v1.EC2NodeClass
 var nodePool *karpv1.NodePool
 
@@ -76,6 +77,7 @@ var _ = Describe("Drift", func() {
 	var numPods int
 	BeforeEach(func() {
 		amdAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+		deprecatedAMI = env.GetDeprecatedAMI(amdAMI, "AL2023")
 		numPods = 1
 		// Add pods with a do-not-disrupt annotation so that we can check node metadata before we disrupt
 		dep = coretest.Deployment(coretest.DeploymentOptions{
@@ -363,6 +365,31 @@ var _ = Describe("Drift", func() {
 		env.EventuallyExpectNotFound(pod, nodeClaim, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
+	It("should disrupt nodes for deprecated AMIs to non-deprecated AMIs", func() {
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: deprecatedAMI}}
+
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
+		env.ExpectCreatedNodeCount("==", 1)
+
+		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		node := env.EventuallyExpectNodeCount("==", 1)[0]
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: amdAMI}, {ID: deprecatedAMI}}
+		env.ExpectCreatedOrUpdated(nodeClass)
+
+		env.EventuallyExpectDrifted(nodeClaim)
+
+		delete(pod.Annotations, karpv1.DoNotDisruptAnnotationKey)
+		env.ExpectUpdated(pod)
+		env.EventuallyExpectNotFound(pod, nodeClaim, node)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+
+		// validate the AMI id matches the non-deprecated AMI
+		pod = env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(amdAMI))))
+
+	})
 	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
 		armAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", env.K8sVersion()))
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
@@ -383,26 +410,6 @@ var _ = Describe("Drift", func() {
 		env.ExpectUpdated(pod)
 		env.EventuallyExpectNotFound(pod, nodeClaim, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
-	})
-	It("should not disrupt nodes that have drifted without the featureGate enabled", func() {
-		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
-
-		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)))
-		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: oldCustomAMI}}
-
-		env.ExpectCreated(dep, nodeClass, nodePool)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-		env.ExpectCreatedNodeCount("==", 1)
-
-		node := env.Monitor.CreatedNodes()[0]
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: amdAMI}}
-		env.ExpectUpdated(nodeClass)
-
-		// We should consistently get the same node existing for a minute
-		Consistently(func(g Gomega) {
-			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), &corev1.Node{})).To(Succeed())
-		}).WithTimeout(time.Minute).Should(Succeed())
 	})
 	It("should disrupt nodes that have drifted due to securitygroup", func() {
 		By("getting the cluster vpc id")

@@ -362,6 +362,55 @@ func (env *Environment) GetAMIBySSMPath(ssmPath string) string {
 	return *parameter.Parameter.Value
 }
 
+func (env *Environment) GetDeprecatedAMI(amiID string, amifamily string) string {
+	out, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   lo.ToPtr(fmt.Sprintf("tag:%s", coretest.DiscoveryLabel)),
+				Values: []*string{lo.ToPtr(env.K8sVersion())},
+			},
+			{
+				Name:   lo.ToPtr("tag:amiFamily"),
+				Values: []*string{lo.ToPtr(amifamily)},
+			},
+		},
+		IncludeDeprecated: lo.ToPtr(true),
+	})
+	Expect(err).To(BeNil())
+	if len(out.Images) == 1 {
+		return lo.FromPtr(out.Images[0].ImageId)
+	}
+
+	input := &ec2.CopyImageInput{
+		SourceImageId: lo.ToPtr(amiID),
+		Name:          lo.ToPtr(fmt.Sprintf("deprecated-%s-%s-%s", amiID, amifamily, env.K8sVersion())),
+		SourceRegion:  lo.ToPtr(env.Region),
+		TagSpecifications: []*ec2.TagSpecification{
+			{ResourceType: lo.ToPtr(ec2.ResourceTypeImage), Tags: []*ec2.Tag{
+				{
+					Key:   lo.ToPtr(coretest.DiscoveryLabel),
+					Value: lo.ToPtr(env.K8sVersion()),
+				},
+				{
+					Key:   lo.ToPtr("amiFamily"),
+					Value: lo.ToPtr(amifamily),
+				},
+			}},
+		},
+	}
+	output, err := env.EC2API.CopyImage(input)
+	Expect(err).To(BeNil())
+
+	deprecated, err := env.EC2API.EnableImageDeprecationWithContext(env.Context, &ec2.EnableImageDeprecationInput{
+		ImageId:     output.ImageId,
+		DeprecateAt: lo.ToPtr(time.Now()),
+	})
+	Expect(err).To(BeNil())
+	Expect(lo.FromPtr(deprecated.Return)).To(BeTrue())
+
+	return lo.FromPtr(output.ImageId)
+}
+
 func (env *Environment) EventuallyExpectRunInstances(instanceInput *ec2.RunInstancesInput) *ec2.Reservation {
 	GinkgoHelper()
 	// implement IMDSv2
