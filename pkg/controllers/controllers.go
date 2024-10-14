@@ -71,7 +71,7 @@ func NewControllers(ctx context.Context, mgr manager.Manager, sess *session.Sess
 		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter")),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
-		cfg := lo.Must(config.LoadDefaultConfig(context.Background(), config.WithRetryMaxAttempts(3)))
+		cfg := lo.Must(config.LoadDefaultConfig(ctx, config.WithRetryMaxAttempts(3)))
 		sqsapi := servicesqs.NewFromConfig(cfg)
 		out := lo.Must(sqsapi.GetQueueUrl(ctx, &servicesqs.GetQueueUrlInput{QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)}))
 		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, lo.Must(sqs.NewDefaultProvider(sqsapi, lo.FromPtr(out.QueueUrl))), unavailableOfferings))

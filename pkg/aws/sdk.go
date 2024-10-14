@@ -17,7 +17,6 @@ package sdk
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/service/fis"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
@@ -52,11 +51,4 @@ type SQSAPI interface {
 type STSAPI interface {
 	// STS Methods
 	GetCallerIdentity(context.Context, *sts.GetCallerIdentityInput, ...func(*sts.Options)) (*sts.GetCallerIdentityOutput, error)
-}
-
-type FISAPI interface {
-	// FIS Methods
-	CreateExperimentTemplate(context.Context, *fis.CreateExperimentTemplateInput, ...func(*fis.Options)) (*fis.CreateExperimentTemplateOutput, error)
-	StartExperiment(context.Context, *fis.StartExperimentInput, ...func(*fis.Options)) (*fis.StartExperimentOutput, error)
-	DeleteExperimentTemplate(context.Context, *fis.DeleteExperimentTemplateInput, ...func(*fis.Options)) (*fis.DeleteExperimentTemplateOutput, error)
 }

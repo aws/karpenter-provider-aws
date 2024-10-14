@@ -15,7 +15,6 @@ limitations under the License.
 package aws
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -358,7 +357,7 @@ func (env *Environment) K8sMinorVersion() int {
 func (env *Environment) GetAMIBySSMPath(ssmPath string) string {
 	GinkgoHelper()
 
-	parameter, err := env.SSMAPI.GetParameter(context.Background(), &ssm.GetParameterInput{
+	parameter, err := env.SSMAPI.GetParameter(env.Context, &ssm.GetParameterInput{
 		Name: aws.String(ssmPath),
 	})
 	Expect(err).To(BeNil())
@@ -409,13 +408,13 @@ func (env *Environment) ExpectInstanceProfileCreated(instanceProfileName, roleNa
 		},
 	}
 	By("adding the karpenter role to new instance profile")
-	_, err := env.IAMAPI.CreateInstanceProfile(context.Background(), createInstanceProfile)
+	_, err := env.IAMAPI.CreateInstanceProfile(env.Context, createInstanceProfile)
 	Expect(awserrors.IgnoreAlreadyExists(err)).ToNot(HaveOccurred())
 	addInstanceProfile := &iam.AddRoleToInstanceProfileInput{
 		InstanceProfileName: aws.String(instanceProfileName),
 		RoleName:            aws.String(roleName),
 	}
-	_, err = env.IAMAPI.AddRoleToInstanceProfile(context.Background(), addInstanceProfile)
+	_, err = env.IAMAPI.AddRoleToInstanceProfile(env.Context, addInstanceProfile)
 	Expect(ignoreAlreadyContainsRole(err)).ToNot(HaveOccurred())
 }
 
@@ -425,13 +424,13 @@ func (env *Environment) ExpectInstanceProfileDeleted(instanceProfileName, roleNa
 		InstanceProfileName: aws.String(instanceProfileName),
 		RoleName:            aws.String(roleName),
 	}
-	_, err := env.IAMAPI.RemoveRoleFromInstanceProfile(context.Background(), removeRoleFromInstanceProfile)
+	_, err := env.IAMAPI.RemoveRoleFromInstanceProfile(env.Context, removeRoleFromInstanceProfile)
 	Expect(awserrors.IgnoreNotFound(err)).To(BeNil())
 
 	deleteInstanceProfile := &iam.DeleteInstanceProfileInput{
 		InstanceProfileName: aws.String(instanceProfileName),
 	}
-	_, err = env.IAMAPI.DeleteInstanceProfile(context.Background(), deleteInstanceProfile)
+	_, err = env.IAMAPI.DeleteInstanceProfile(env.Context, deleteInstanceProfile)
 	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
 }
 

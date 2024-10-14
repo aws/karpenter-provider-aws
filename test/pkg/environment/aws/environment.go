@@ -22,6 +22,7 @@ import (
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
+	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/fis"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -68,7 +69,7 @@ type Environment struct {
 	EC2API        *ec2.EC2
 	SSMAPI        sdk.SSMAPI
 	IAMAPI        sdk.IAMAPI
-	FISAPI        sdk.FISAPI
+	FISAPI        *fis.Client
 	EKSAPI        *eks.EKS
 	TimeStreamAPI timestreamwriteiface.TimestreamWriteAPI
 
@@ -123,9 +124,8 @@ func NewEnvironment(t *testing.T) *Environment {
 	}
 	// Initialize the provider only if the INTERRUPTION_QUEUE environment variable is defined
 	if v, ok := os.LookupEnv("INTERRUPTION_QUEUE"); ok {
-		cfg := lo.Must(config.LoadDefaultConfig(context.Background(), config.WithRetryMaxAttempts(3)))
 		sqsapi := servicesqs.NewFromConfig(cfg)
-		out := lo.Must(sqsapi.GetQueueUrl(env.Context, &servicesqs.GetQueueUrlInput{QueueName: aws.String(v)}))
+		out := lo.Must(sqsapi.GetQueueUrl(env.Context, &servicesqs.GetQueueUrlInput{QueueName: awsv2.String(v)}))
 		awsEnv.SQSProvider = lo.Must(sqs.NewDefaultProvider(sqsapi, lo.FromPtr(out.QueueUrl)))
 	}
 	// Populate ZoneInfo for all AZs in the region
@@ -142,7 +142,7 @@ func NewEnvironment(t *testing.T) *Environment {
 func GetTimeStreamAPI(session *session.Session) timestreamwriteiface.TimestreamWriteAPI {
 	if lo.Must(env.GetBool("ENABLE_METRICS", false)) {
 		By("enabling metrics firing for this suite")
-		return timestreamwrite.New(session, &aws.Config{Region: aws.String(env.GetString("METRICS_REGION", metricsDefaultRegion))})
+		return timestreamwrite.New(session, &aws.Config{Region: awsv2.String(env.GetString("METRICS_REGION", metricsDefaultRegion))})
 	}
 	return &NoOpTimeStreamAPI{}
 }
