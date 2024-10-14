@@ -49,6 +49,8 @@ type EC2API interface {
 	RunInstances(context.Context, *ec2.RunInstancesInput, ...func(*ec2.Options)) (*ec2.RunInstancesOutput, error)
 	ModifySubnetAttribute(context.Context, *ec2.ModifySubnetAttributeInput, ...func(*ec2.Options)) (*ec2.ModifySubnetAttributeOutput, error)
 	DeleteTags(context.Context, *ec2.DeleteTagsInput, ...func(*ec2.Options)) (*ec2.DeleteTagsOutput, error)
+	EnableImageDeprecation(context.Context, *ec2.EnableImageDeprecationInput, ...func(*ec2.Options)) (*ec2.EnableImageDeprecationOutput, error)
+	CopyImage(context.Context, *ec2.CopyImageInput, ...func(*ec2.Options)) (*ec2.CopyImageOutput, error)
 }
 
 type IAMAPI interface {
