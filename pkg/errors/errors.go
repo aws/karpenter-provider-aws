@@ -24,7 +24,6 @@ import (
 	//V1 imports
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/sqs"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -38,7 +37,7 @@ var (
 		"InvalidInstanceID.NotFound",
 		launchTemplateNameNotFoundCode,
 		"InvalidLaunchTemplateId.NotFound",
-		sqs.ErrCodeQueueDoesNotExist,
+		"QueueDoesNotExist",
 
 		//v2 error codes
 		"NoSuchEntityException",

@@ -28,12 +28,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	awsv1 "github.com/aws/aws-sdk-go/aws"
 	awsclient "github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/smithy-go"
 	prometheusv1 "github.com/jonathan-innis/aws-sdk-go-prometheus/v1"
 	"github.com/patrickmn/go-cache"
@@ -142,7 +142,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cfg.Region,
 	)
 	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	ssmProvider := ssmp.NewDefaultProvider(ssm.New(sess), cache.New(awscache.SSMGetParametersByPathTTL, awscache.DefaultCleanupInterval))
+	ssmProvider := ssmp.NewDefaultProvider(ssm.NewFromConfig(cfg), cache.New(awscache.SSMGetParametersByPathTTL, awscache.DefaultCleanupInterval))
 	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.NewDefaultResolver()
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(

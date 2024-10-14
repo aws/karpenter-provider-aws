@@ -12,7 +12,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.15
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.181.0
 	github.com/aws/aws-sdk-go-v2/service/eks v1.50.2
+	github.com/aws/aws-sdk-go-v2/service/fis v1.30.2
 	github.com/aws/aws-sdk-go-v2/service/iam v1.37.0
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.36.2
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.55.2
+	github.com/aws/aws-sdk-go-v2/service/sts v1.32.0
 	github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.29.2
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
 	github.com/aws/smithy-go v1.22.0
@@ -52,7 +56,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.24.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.32.0 // indirect
 )
 
 require (

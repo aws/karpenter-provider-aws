@@ -27,17 +27,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+	"github.com/aws/aws-sdk-go-v2/service/fis"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
+	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
 	awsv1 "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/fis"
-	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/sts"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -64,12 +64,12 @@ type Environment struct {
 	*common.Environment
 	Region string
 
-	STSAPI        *sts.STS
-	EC2API        sdk.EC2API
-	SSMAPI        *ssm.SSM
-	IAMAPI        sdk.IAMAPI
-	FISAPI        *fis.FIS
-	EKSAPI        sdk.EKSAPI
+	STSAPI        *sts.Client
+	EC2API        *ec2.Client
+	SSMAPI        *ssm.Client
+	IAMAPI        *iam.Client
+	FISAPI        *fis.Client
+	EKSAPI        *eks.Client
 	TimeStreamAPI sdk.TimestreamWriteAPI
 
 	SQSProvider sqs.Provider
@@ -104,11 +104,11 @@ func NewEnvironment(t *testing.T) *Environment {
 		Region:      *session.Config.Region,
 		Environment: env,
 
-		STSAPI:        sts.New(session),
+		STSAPI:        sts.NewFromConfig(cfg),
 		EC2API:        ec2.NewFromConfig(cfg),
-		SSMAPI:        ssm.New(session),
+		SSMAPI:        ssm.NewFromConfig(cfg),
 		IAMAPI:        iam.NewFromConfig(cfg),
-		FISAPI:        fis.New(session),
+		FISAPI:        fis.NewFromConfig(cfg),
 		EKSAPI:        eks.NewFromConfig(cfg),
 		TimeStreamAPI: GetTimeStreamAPI(cfg),
 
@@ -123,12 +123,12 @@ func NewEnvironment(t *testing.T) *Environment {
 	}
 	// Initialize the provider only if the INTERRUPTION_QUEUE environment variable is defined
 	if v, ok := os.LookupEnv("INTERRUPTION_QUEUE"); ok {
-		sqsapi := servicesqs.New(session)
-		out := lo.Must(sqsapi.GetQueueUrlWithContext(env.Context, &servicesqs.GetQueueUrlInput{QueueName: aws.String(v)}))
+		sqsapi := servicesqs.NewFromConfig(cfg)
+		out := lo.Must(sqsapi.GetQueueUrl(env.Context, &servicesqs.GetQueueUrlInput{QueueName: aws.String(v)}))
 		awsEnv.SQSProvider = lo.Must(sqs.NewDefaultProvider(sqsapi, lo.FromPtr(out.QueueUrl)))
 	}
 	// Populate ZoneInfo for all AZs in the region
-	awsEnv.ZoneInfo = lo.Map(lo.Must(awsEnv.EC2API.DescribeAvailabilityZones(context.Background(), &ec2.DescribeAvailabilityZonesInput{})).AvailabilityZones, func(zone ec2types.AvailabilityZone, _ int) ZoneInfo {
+	awsEnv.ZoneInfo = lo.Map(lo.Must(awsEnv.EC2API.DescribeAvailabilityZones(env.Context, &ec2.DescribeAvailabilityZonesInput{})).AvailabilityZones, func(zone ec2types.AvailabilityZone, _ int) ZoneInfo {
 		return ZoneInfo{
 			Zone:     lo.FromPtr(zone.ZoneName),
 			ZoneID:   lo.FromPtr(zone.ZoneId),

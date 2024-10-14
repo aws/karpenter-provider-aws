@@ -23,15 +23,15 @@ import (
 	"sync"
 	"time"
 
-	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/fis"
+	fistypes "github.com/aws/aws-sdk-go-v2/service/fis/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/fis"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -81,43 +81,43 @@ func (env *Environment) ExpectIPv6ClusterDNS() string {
 	return kubeDNSIP.String()
 }
 
-func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) *fis.Experiment {
+func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) *fistypes.Experiment {
 	GinkgoHelper()
 	template := &fis.CreateExperimentTemplateInput{
-		Actions:        map[string]*fis.CreateExperimentTemplateActionInput{},
-		Targets:        map[string]*fis.CreateExperimentTemplateTargetInput{},
-		StopConditions: []*fis.CreateExperimentTemplateStopConditionInput{{Source: aws.String("none")}},
+		Actions:        map[string]fistypes.CreateExperimentTemplateActionInput{},
+		Targets:        map[string]fistypes.CreateExperimentTemplateTargetInput{},
+		StopConditions: []fistypes.CreateExperimentTemplateStopConditionInput{{Source: aws.String("none")}},
 		RoleArn:        env.ExpectSpotInterruptionRole().Arn,
 		Description:    aws.String(fmt.Sprintf("trigger spot ITN for instances %v", instanceIDs)),
 	}
 	for j, ids := range lo.Chunk(instanceIDs, fisTargetLimit) {
 		key := fmt.Sprintf("itn%d", j)
-		template.Actions[key] = &fis.CreateExperimentTemplateActionInput{
+		template.Actions[key] = fistypes.CreateExperimentTemplateActionInput{
 			ActionId: aws.String(spotITNAction),
-			Parameters: map[string]*string{
+			Parameters: map[string]string{
 				// durationBeforeInterruption is the time before the instance is terminated, so we add 2 minutes
-				"durationBeforeInterruption": aws.String("PT120S"),
+				"durationBeforeInterruption": "PT120S",
 			},
-			Targets: map[string]*string{"SpotInstances": aws.String(key)},
+			Targets: map[string]string{"SpotInstances": key},
 		}
-		template.Targets[key] = &fis.CreateExperimentTemplateTargetInput{
+		template.Targets[key] = fistypes.CreateExperimentTemplateTargetInput{
 			ResourceType:  aws.String("aws:ec2:spot-instance"),
 			SelectionMode: aws.String("ALL"),
-			ResourceArns: aws.StringSlice(lo.Map(ids, func(id string, _ int) string {
+			ResourceArns: lo.Map(ids, func(id string, _ int) string {
 				return fmt.Sprintf("arn:aws:ec2:%s:%s:instance/%s", env.Region, env.ExpectAccountID(), id)
-			})),
+			}),
 		}
 	}
-	experimentTemplate, err := env.FISAPI.CreateExperimentTemplateWithContext(env.Context, template)
+	experimentTemplate, err := env.FISAPI.CreateExperimentTemplate(env.Context, template)
 	Expect(err).ToNot(HaveOccurred())
-	experiment, err := env.FISAPI.StartExperimentWithContext(env.Context, &fis.StartExperimentInput{ExperimentTemplateId: experimentTemplate.ExperimentTemplate.Id})
+	experiment, err := env.FISAPI.StartExperiment(env.Context, &fis.StartExperimentInput{ExperimentTemplateId: experimentTemplate.ExperimentTemplate.Id})
 	Expect(err).ToNot(HaveOccurred())
 	return experiment.Experiment
 }
 
 func (env *Environment) ExpectExperimentTemplateDeleted(id string) {
 	GinkgoHelper()
-	_, err := env.FISAPI.DeleteExperimentTemplateWithContext(env.Context, &fis.DeleteExperimentTemplateInput{
+	_, err := env.FISAPI.DeleteExperimentTemplate(env.Context, &fis.DeleteExperimentTemplateInput{
 		Id: aws.String(id),
 	})
 	Expect(err).ToNot(HaveOccurred())
@@ -202,14 +202,14 @@ func (env *Environment) GetNetworkInterface(id *string) *ec2types.NetworkInterfa
 
 func (env *Environment) GetNetworkInterfaces(ids ...*string) []*ec2types.NetworkInterface {
 	GinkgoHelper()
-	dnio, err := env.EC2API.DescribeNetworkInterfaces(context.Background(), &ec2.DescribeNetworkInterfacesInput{NetworkInterfaceIds: lo.FromSlicePtr(ids)})
+	dnio, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{NetworkInterfaceIds: lo.FromSlicePtr(ids)})
 	Expect(err).ToNot(HaveOccurred())
 	return lo.ToSlicePtr(dnio.NetworkInterfaces)
 }
 
 func (env *Environment) GetSpotInstance(id *string) ec2types.SpotInstanceRequest {
 	GinkgoHelper()
-	siro, err := env.EC2API.DescribeSpotInstanceRequests(context.Background(), &ec2.DescribeSpotInstanceRequestsInput{
+	siro, err := env.EC2API.DescribeSpotInstanceRequests(env.Context, &ec2.DescribeSpotInstanceRequestsInput{
 		SpotInstanceRequestIds: []string{*id},
 	})
 	Expect(err).ToNot(HaveOccurred())
@@ -270,18 +270,18 @@ func (env *Environment) GetSubnetInfo(tags map[string]string) []SubnetInfo {
 
 	paginator := ec2.NewDescribeSubnetsPaginator(env.EC2API, input)
 	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(context.Background())
+		output, err := paginator.NextPage(env.Context)
 		if err != nil {
 			Expect(err).To(BeNil())
 		}
 
 		subnetInfo = append(subnetInfo, lo.Map(output.Subnets, func(s ec2types.Subnet, _ int) SubnetInfo {
-			elem := SubnetInfo{ID: awsv2.ToString(s.SubnetId)}
-			if tag, ok := lo.Find(s.Tags, func(t ec2types.Tag) bool { return awsv2.ToString(t.Key) == "Name" }); ok {
-				elem.Name = awsv2.ToString(tag.Value)
+			elem := SubnetInfo{ID: aws.ToString(s.SubnetId)}
+			if tag, ok := lo.Find(s.Tags, func(t ec2types.Tag) bool { return aws.ToString(t.Key) == "Name" }); ok {
+				elem.Name = aws.ToString(tag.Value)
 			}
 			if info, ok := lo.Find(env.ZoneInfo, func(info ZoneInfo) bool {
-				return awsv2.ToString(s.AvailabilityZone) == info.Zone
+				return aws.ToString(s.AvailabilityZone) == info.Zone
 			}); ok {
 				elem.ZoneInfo = info
 			}
@@ -313,7 +313,7 @@ func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGrou
 
 	paginator := ec2.NewDescribeSecurityGroupsPaginator(env.EC2API, input)
 	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(context.Background())
+		output, err := paginator.NextPage(env.Context)
 		if err != nil {
 			Expect(err).To(BeNil())
 		}
@@ -393,7 +393,7 @@ func (env *Environment) K8sMinorVersion() int {
 func (env *Environment) GetAMIBySSMPath(ssmPath string) string {
 	GinkgoHelper()
 
-	parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
+	parameter, err := env.SSMAPI.GetParameter(env.Context, &ssm.GetParameterInput{
 		Name: aws.String(ssmPath),
 	})
 	Expect(err).To(BeNil())
@@ -458,7 +458,7 @@ func (env *Environment) EventuallyExpectRunInstances(instanceInput *ec2.RunInsta
 	}
 	var reservation *ec2types.Reservation
 	Eventually(func(g Gomega) {
-		runInstancesOutput, err := env.EC2API.RunInstances(context.Background(), instanceInput)
+		runInstancesOutput, err := env.EC2API.RunInstances(env.Context, instanceInput)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(runInstancesOutput.Instances).ToNot(BeEmpty())
 		reservation = &ec2types.Reservation{
@@ -479,9 +479,9 @@ func (env *Environment) ExpectSpotInterruptionRole() *iamtypes.Role {
 
 func (env *Environment) ExpectAccountID() string {
 	GinkgoHelper()
-	identity, err := env.STSAPI.GetCallerIdentityWithContext(env.Context, &sts.GetCallerIdentityInput{})
+	identity, err := env.STSAPI.GetCallerIdentity(env.Context, &sts.GetCallerIdentityInput{})
 	Expect(err).ToNot(HaveOccurred())
-	return aws.StringValue(identity.Account)
+	return aws.ToString(identity.Account)
 }
 
 func (env *Environment) ExpectInstanceProfileCreated(instanceProfileName, roleName string) {
@@ -496,13 +496,13 @@ func (env *Environment) ExpectInstanceProfileCreated(instanceProfileName, roleNa
 		},
 	}
 	By("adding the karpenter role to new instance profile")
-	_, err := env.IAMAPI.CreateInstanceProfile(context.Background(), createInstanceProfile)
+	_, err := env.IAMAPI.CreateInstanceProfile(env.Context, createInstanceProfile)
 	Expect(awserrors.IgnoreAlreadyExists(err)).ToNot(HaveOccurred())
 	addInstanceProfile := &iam.AddRoleToInstanceProfileInput{
 		InstanceProfileName: aws.String(instanceProfileName),
 		RoleName:            aws.String(roleName),
 	}
-	_, err = env.IAMAPI.AddRoleToInstanceProfile(context.Background(), addInstanceProfile)
+	_, err = env.IAMAPI.AddRoleToInstanceProfile(env.Context, addInstanceProfile)
 	Expect(ignoreAlreadyContainsRole(err)).ToNot(HaveOccurred())
 }
 
@@ -512,13 +512,13 @@ func (env *Environment) ExpectInstanceProfileDeleted(instanceProfileName, roleNa
 		InstanceProfileName: aws.String(instanceProfileName),
 		RoleName:            aws.String(roleName),
 	}
-	_, err := env.IAMAPI.RemoveRoleFromInstanceProfile(context.Background(), removeRoleFromInstanceProfile)
+	_, err := env.IAMAPI.RemoveRoleFromInstanceProfile(env.Context, removeRoleFromInstanceProfile)
 	Expect(awserrors.IgnoreNotFound(err)).To(BeNil())
 
 	deleteInstanceProfile := &iam.DeleteInstanceProfileInput{
 		InstanceProfileName: aws.String(instanceProfileName),
 	}
-	_, err = env.IAMAPI.DeleteInstanceProfile(context.Background(), deleteInstanceProfile)
+	_, err = env.IAMAPI.DeleteInstanceProfile(env.Context, deleteInstanceProfile)
 	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
 }
 

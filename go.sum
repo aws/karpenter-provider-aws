@@ -28,6 +28,8 @@ github.com/aws/aws-sdk-go-v2/service/ec2 v1.181.0 h1:YzSOMQYRZQKuLz/bD6illIGwJfa
 github.com/aws/aws-sdk-go-v2/service/ec2 v1.181.0/go.mod h1:CudaKF0Yu5+ZfKMiiPdtJ/kOOBty7CIEJUhESP52e9M=
 github.com/aws/aws-sdk-go-v2/service/eks v1.50.2 h1:vL3RqZ4x6uqpKswp5gB0KyGcsrgkUdKmLTXCDHDUUZw=
 github.com/aws/aws-sdk-go-v2/service/eks v1.50.2/go.mod h1:oaPCqTzAe8C5RQZJGRD4RENcV7A4n99uGxbD4rULbNg=
+github.com/aws/aws-sdk-go-v2/service/fis v1.30.2 h1:qw7ZkSCy0akQJbJdIgRQaqXEHe7PrA3DHvE4VvemFJw=
+github.com/aws/aws-sdk-go-v2/service/fis v1.30.2/go.mod h1:CArS66NFuL1fBiSLVfWZV6oQjicsdViLm7Ic9Lte7x4=
 github.com/aws/aws-sdk-go-v2/service/iam v1.37.0 h1:FLdmwEJUDWdAflqxRNkIKNZki8dFmi5SUeTjAjxrdJU=
 github.com/aws/aws-sdk-go-v2/service/iam v1.37.0/go.mod h1:Xctz/06SeHDUc3ZheMxXekSZ2rx0RX9SVhV5JeQgoqY=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.0 h1:TToQNkvGguu209puTojY/ozlqy2d/SFNcoLIqTFi42g=
@@ -38,6 +40,10 @@ github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.0 h1:AdbiDUgQZ
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.0/go.mod h1:uV476Bd80tiDTX4X2redMtagQUg65aU/gzPojSJ4kSI=
 github.com/aws/aws-sdk-go-v2/service/pricing v1.32.2 h1:eBKzA9Te6JHD1TfVjuja7pa8iEdXVzW5z0QPcbrPhNs=
 github.com/aws/aws-sdk-go-v2/service/pricing v1.32.2/go.mod h1:2Sg8KGFKp9zzUbY+XdUUEn7xjCzuRt8Zx4PHMwGzRvs=
+github.com/aws/aws-sdk-go-v2/service/sqs v1.36.2 h1:kmbcoWgbzfh5a6rvfjOnfHSGEqD13qu1GfTPRZqg0FI=
+github.com/aws/aws-sdk-go-v2/service/sqs v1.36.2/go.mod h1:/UPx74a3M0WYeT2yLQYG/qHhkPlPXd6TsppfGgy2COk=
+github.com/aws/aws-sdk-go-v2/service/ssm v1.55.2 h1:z6Pq4+jtKlhK4wWJGHRGwMLGjC1HZwAO3KJr/Na0tSU=
+github.com/aws/aws-sdk-go-v2/service/ssm v1.55.2/go.mod h1:DSmu/VZzpQlAubWBbAvNpt+S4k/XweglJi4XaDGyvQk=
 github.com/aws/aws-sdk-go-v2/service/sso v1.24.0 h1:71FvP6XFj53NK+YiAEGVzeiccLVeFnHOCvMig0zOHsE=
 github.com/aws/aws-sdk-go-v2/service/sso v1.24.0/go.mod h1:UVJqtKXSd9YppRKgdBIkyv7qgbSGv5DchM3yX0BN2mU=
 github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.0 h1:Uco4o19bi3AmBapImNzuMk+rfzlui52BDyVK1UfJeRA=

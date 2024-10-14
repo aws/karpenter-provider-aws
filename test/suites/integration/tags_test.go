@@ -109,7 +109,7 @@ var _ = Describe("Tags", func() {
 			env.ExpectCreated(nodeClass)
 			env.EventuallyExpectInstanceProfileExists(env.GetInstanceProfileName(nodeClass))
 
-			_, err := env.IAMAPI.UntagInstanceProfile(context.Background(), &iam.UntagInstanceProfileInput{
+			_, err := env.IAMAPI.UntagInstanceProfile(env.Context, &iam.UntagInstanceProfileInput{
 				InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
 				TagKeys: []string{
 					v1.EKSClusterNameTagKey,
@@ -121,7 +121,7 @@ var _ = Describe("Tags", func() {
 			env.EventuallyExpectKarpenterRestarted()
 
 			Eventually(func(g Gomega) {
-				out, err := env.IAMAPI.GetInstanceProfile(context.Background(), &iam.GetInstanceProfileInput{
+				out, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
 					InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
 				})
 				g.Expect(err).ToNot(HaveOccurred())
