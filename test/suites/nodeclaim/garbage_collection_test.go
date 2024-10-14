@@ -115,7 +115,7 @@ var _ = Describe("GarbageCollection", func() {
 			_, err := env.EC2API.TerminateInstances(&ec2.TerminateInstancesInput{
 				InstanceIds: []*string{out.Instances[0].InstanceId},
 			})
-			if awserrors.IsNotFound(err) {
+			if awserrors.IsNotFoundV2(err) {
 				return
 			}
 			Expect(err).ToNot(HaveOccurred())
