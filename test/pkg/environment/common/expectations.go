@@ -296,13 +296,14 @@ func (env *Environment) EventuallyExpectTerminatingWithTimeout(timeout time.Dura
 
 func (env *Environment) EventuallyExpectNoLeakedKubeNodeLease() {
 	GinkgoHelper()
-	// expect no kube node lease to be leaked
-	leases := &coordinationv1.LeaseList{}
-	Expect(env.Client.List(env.Context, leases, client.InNamespace("kube-node-lease"))).To(Succeed())
-	leakedLeases := lo.Filter(leases.Items, func(l coordinationv1.Lease, _ int) bool {
-		return l.OwnerReferences == nil
-	})
-	Expect(leakedLeases).To(HaveLen(0))
+	Eventually(func(g Gomega) {
+		leases := &coordinationv1.LeaseList{}
+		Expect(env.Client.List(env.Context, leases, client.InNamespace("kube-node-lease"))).To(Succeed())
+		leakedLeases := lo.Filter(leases.Items, func(l coordinationv1.Lease, _ int) bool {
+			return l.OwnerReferences == nil
+		})
+		Expect(leakedLeases).To(HaveLen(0))
+	}).WithTimeout(-1).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectHealthyWithTimeout(timeout time.Duration, pods ...*corev1.Pod) {
