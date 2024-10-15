@@ -17,13 +17,15 @@ package instancetype
 import (
 	"context"
 	"fmt"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"sync"
+	"sync/atomic"
+
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
-	"sync"
-	"sync/atomic"
+
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
@@ -88,6 +90,7 @@ func NewDefaultProvider(instanceTypesCache *cache.Cache, discoveredCapacityCache
 	}
 }
 
+//nolint:gocyclo
 func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	p.muInstanceTypesInfo.RLock()
 	p.muInstanceTypesOfferings.RLock()

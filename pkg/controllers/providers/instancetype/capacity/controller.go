@@ -17,7 +17,7 @@ package capacity
 import (
 	"context"
 	"fmt"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+
 	"github.com/awslabs/operatorpkg/reasonable"
 	corev1 "k8s.io/api/core/v1"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -30,6 +30,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 )
 
 type Controller struct {
