@@ -23,8 +23,8 @@ inputs:
     description: 'Version of Kubernetes to use for the launched cluster'
     default: "1.29"
   webhooks_enabled:
-    description: "Whether webhooks are enabled or not. Valid values are true or false"
-    default: true
+    description: "Whether webhooks are enabled or not. Valid values are 'true' or 'false'"
+    default: 'true'
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
 runs:
