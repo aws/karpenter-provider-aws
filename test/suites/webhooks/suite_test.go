@@ -18,14 +18,12 @@ import (
 	"context"
 	"testing"
 
-	v1beta1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	v1beta1 "github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter/test/pkg/environment/aws"
 
 	karpv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	karptest "sigs.k8s.io/karpenter/pkg/test"
-
-	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -59,7 +57,6 @@ var _ = BeforeEach(func() {
 
 var _ = Describe("Webhook", func() {
 	It("should schedule pods when webhooks are disabled", func() {
-		nodeClass := test.EC2NodeClass()
 		env.ExpectCreated(nodeClass, nodePool)
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := karptest.UnschedulablePod()
