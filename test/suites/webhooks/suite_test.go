@@ -28,7 +28,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
-	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
 var ctx context.Context
