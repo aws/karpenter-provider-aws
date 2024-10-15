@@ -44,6 +44,7 @@ func ProviderID(id string) string {
 func ImageID() string {
 	return fmt.Sprintf("ami-%s", strings.ToLower(randomdata.Alphanumeric(17)))
 }
+
 func SecurityGroupID() string {
 	return fmt.Sprintf("sg-%s", randomdata.Alphanumeric(17))
 }

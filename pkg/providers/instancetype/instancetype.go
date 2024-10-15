@@ -153,11 +153,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			}
 		})
 
-		// If the resolver returned nil, it means that the instance type shouldn't be considered
 		it := p.instanceTypesResolver.Resolve(ctx, i, zoneData, nodeClass)
-		if it == nil {
-			return nil, false
-		}
 		for _, of := range it.Offerings {
 			instanceTypeOfferingAvailable.With(prometheus.Labels{
 				instanceTypeLabel: it.Name,
