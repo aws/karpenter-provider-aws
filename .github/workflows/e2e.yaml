@@ -137,6 +137,29 @@ jobs:
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
           enable_local_zones: ${{ inputs.suite == 'LocalZone' }}
+          cleanup: ${{ inputs.cleanup }}
+          codebuild_role: ${{ vars[format('{0}_CODEBUILD_ROLE', inputs.codebuild_region)] }}
+          webhooks_enabled: ${{ inputs.suite != 'Webhooks' && true }} # Set webhooks_enabled to false if running webhook smoke test suite
+      - name: run tests for private cluster
+        if: ${{ inputs.workflow_trigger == 'private_cluster' }}
+        uses: ./.github/actions/e2e/run-tests-private-cluster
+        with:
+          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          suite: ${{ inputs.suite }}
+          prometheus_region: ${{ vars.PROMETHEUS_REGION }}
+          prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
+          region: ${{ inputs.region }}
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          k8s_version: ${{ inputs.k8s_version }}
+          ecr_account_id: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
+          ecr_region: ${{ vars.SNAPSHOT_REGION }}
+          private_cluster: ${{ inputs.workflow_trigger == 'private_cluster' }}
+          enable_metrics: ${{ inputs.enable_metrics }}
+          metrics_region: ${{ vars.TIMESTREAM_REGION }}
+          node_role: ${{ env.NODE_ROLE }}
+          cleanup: ${{ inputs.cleanup }}
+          codebuild_sg: ${{ vars[format('{0}_CODEBUILD_SG', inputs.codebuild_region)] }}
+          codebuild_vpc: ${{ vars[format('{0}_CODEBUILD_VPC', inputs.codebuild_region)] }}
       - name: run the ${{ inputs.suite }} test suite
         env:
           SUITE: ${{ inputs.suite }}
