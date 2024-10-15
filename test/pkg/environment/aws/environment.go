@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
-  
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	config "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -44,8 +44,6 @@ import (
 	"k8s.io/utils/env"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-
-	config "github.com/aws/aws-sdk-go-v2/config"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
