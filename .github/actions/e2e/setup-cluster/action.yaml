@@ -37,6 +37,9 @@ inputs:
   private_cluster:
     description: "Whether to create a private cluster which does not add access to the public internet. Valid values are 'true' or 'false'"
     default: 'false'
+  webhooks_enabled:
+    description: "Whether webhooks are enabled or not. Valid values are 'true' or 'false'"
+    default: 'true'
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
     required: false
@@ -216,4 +219,5 @@ runs:
       ecr_region: ${{ inputs.ecr_region }}
       cluster_name: ${{ inputs.cluster_name }}
       k8s_version: ${{ inputs.k8s_version }}
+      webhooks_enabled: ${{ inputs.webhooks_enabled }}
       git_ref: ${{ inputs.git_ref }}
