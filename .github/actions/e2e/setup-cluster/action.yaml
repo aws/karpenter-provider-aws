@@ -284,3 +284,4 @@ runs:
       cluster_name: ${{ inputs.cluster_name }}
       k8s_version: ${{ inputs.k8s_version }}
       git_ref: ${{ inputs.git_ref }}
+      webhooks_enabled: ${{ inputs.webhooks_enabled }}
