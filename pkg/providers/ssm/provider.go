@@ -19,11 +19,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 )
 
 type Provider interface {
@@ -33,10 +34,10 @@ type Provider interface {
 type DefaultProvider struct {
 	sync.Mutex
 	cache  *cache.Cache
-	ssmapi ssmiface.SSMAPI
+	ssmapi sdk.SSMAPI
 }
 
-func NewDefaultProvider(ssmapi ssmiface.SSMAPI, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(ssmapi sdk.SSMAPI, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ssmapi: ssmapi,
 		cache:  cache,
@@ -49,7 +50,7 @@ func (p *DefaultProvider) Get(ctx context.Context, parameter string) (string, er
 	if result, ok := p.cache.Get(parameter); ok {
 		return result.(string), nil
 	}
-	result, err := p.ssmapi.GetParameterWithContext(ctx, &ssm.GetParameterInput{
+	result, err := p.ssmapi.GetParameter(ctx, &ssm.GetParameterInput{
 		Name: lo.ToPtr(parameter),
 	})
 	if err != nil {

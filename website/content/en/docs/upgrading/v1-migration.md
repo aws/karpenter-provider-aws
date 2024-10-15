@@ -219,7 +219,7 @@ Apply the following changes to your NodePools and EC2NodeClasses, as appropriate
 * **Deprecated annotations, labels and tags are removed for v1.0**: For v1, `karpenter.sh/do-not-consolidate` (annotation), `karpenter.sh/do-not-evict
 (annotation)`, and `karpenter.sh/managed-by` (tag) all have support removed.
 The `karpenter.sh/managed-by`, which currently stores the cluster name in its value, is replaced by `eks:eks-cluster-name`, to allow
-for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-abac.html).
+for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-abac.html). `karpenter.sh/do-not-consolidate` and `karpenter.sh/do-not-evict` are both replaced by `karpenter.sh/do-not-disrupt`.
 
 * **Zap logging config removed**: Support for setting the Zap logging config was deprecated in beta and is now removed for v1. View the [Logging Configuration Section of the v1beta1 Migration Guide]({{<ref "../../v0.32/upgrading/v1beta1-migration#logging-configuration-is-no-longer-dynamic" >}}) for more details.
 
@@ -423,7 +423,7 @@ Karpenter should now be pulling and operating against the v1beta1 APIVersion as 
 * RBAC changes: added `delete pods` | added `get, patch crds` | added `update nodes` | removed `create nodes`
 * Breaking API (Manual Migration Needed):
   * Ubuntu is dropped as a first class supported AMI Family
-  * `karpenter.sh/do-not-consolidate` (annotation), `karpenter.sh/do-not-evict` (annotation), and `karpenter.sh/managed-by` (tag) are all removed. `karpenter.sh/managed-by`, which currently stores the cluster name in its value, will be replaced by eks:eks-cluster-name
+  * `karpenter.sh/do-not-consolidate` (annotation), `karpenter.sh/do-not-evict` (annotation), and `karpenter.sh/managed-by` (tag) are all removed. `karpenter.sh/managed-by`, which currently stores the cluster name in its value, will be replaced by eks:eks-cluster-name. `karpenter.sh/do-not-consolidate` and `karpenter.sh/do-not-evict` are both replaced by `karpenter.sh/do-not-disrupt`.
   * The taint used to mark nodes for disruption and termination changed from `karpenter.sh/disruption=disrupting:NoSchedule` to `karpenter.sh/disrupted:NoSchedule`. It is not recommended to tolerate this taint, however, if you were tolerating it in your applications, you'll need to adjust your taints to reflect this.
 * Environment Variable Changes:
   * Environment Variable Changes
