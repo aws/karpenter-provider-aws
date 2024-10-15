@@ -25,11 +25,8 @@ import (
 
 	karptest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/test"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 )
 
@@ -38,7 +35,7 @@ var env *aws.Environment
 var nodeClass *v1beta1.EC2NodeClass
 var nodePool *karpv1beta1.NodePool
 
-func TestWebhook(t *testing.T) {
+func TestWebhooks(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	ctx = TestContextWithLogger(t)
@@ -48,7 +45,7 @@ func TestWebhook(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Webhook")
+	RunSpecs(t, "Webhooks")
 }
 
 var _ = BeforeEach(func() {
@@ -57,12 +54,11 @@ var _ = BeforeEach(func() {
 	nodePool = env.DefaultNodePool(nodeClass)
 })
 
-var _ = Describe("Webhook", func() {
+var _ = Describe("Webhooks", func() {
 	It("should schedule pods when webhooks are disabled", func() {
-		nodeClass := test.EC2NodeClass()
-		env.ExpectCreated(nodeClass, nodePool)
-		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-		pod := karptest.UnschedulablePod()
-		ExpectScheduled(ctx, env.Client, pod)
+		pod := karptest.Pod()
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
 	})
 })
