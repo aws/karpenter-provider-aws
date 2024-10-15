@@ -45,6 +45,9 @@ inputs:
   cleanup:
     description: "Whether to cleanup resources on failure"
     default: 'false'
+  webhooks_enabled:
+    description: "Whether webhooks are enabled or not. Valid values are 'true' or 'false'"
+    default: 'true'
 runs:
   using: "composite"
   steps:
