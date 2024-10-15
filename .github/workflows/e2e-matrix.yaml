@@ -67,6 +67,7 @@ jobs:
           - Expiration
           - Chaos
           - IPv6
+          - Webhooks
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite }}
