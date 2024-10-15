@@ -53,6 +53,8 @@ var _ = BeforeEach(func() {
 	nodeClass = env.DefaultEC2NodeClass()
 	nodePool = env.DefaultNodePool(nodeClass)
 })
+var _ = AfterEach(func() { env.Cleanup() })
+var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Webhooks", func() {
 	It("should schedule pods when webhooks are disabled", func() {
