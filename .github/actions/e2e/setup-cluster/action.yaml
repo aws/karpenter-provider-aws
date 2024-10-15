@@ -272,3 +272,4 @@ runs:
       k8s_version: ${{ inputs.k8s_version }}
       git_ref: ${{ inputs.git_ref }}
       private_cluster: ${{ inputs.private_cluster }}
+      webhooks_enabled: ${{ inputs.webhooks_enabled }}
