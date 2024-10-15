@@ -138,8 +138,6 @@ jobs:
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
           enable_local_zones: ${{ inputs.suite == 'LocalZone' }}
-          cleanup: ${{ inputs.cleanup }}
-          codebuild_role: ${{ vars[format('{0}_CODEBUILD_ROLE', inputs.codebuild_region)] }}
           webhooks_enabled: ${{ inputs.suite != 'Webhooks' && true }} # Set webhooks_enabled to false if running webhook smoke test suite
       - name: run the ${{ inputs.suite }} test suite
         env:
