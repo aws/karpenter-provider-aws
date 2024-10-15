@@ -77,9 +77,9 @@ spec:
               value: "{{ .Values.webhook.port }}"
             - name: WEBHOOK_METRICS_PORT
               value: "{{ .Values.webhook.metrics.port }}"
-            - name: DISABLE_WEBHOOK
-              value: "false"
           {{- end }}
+            - name: DISABLE_WEBHOOK
+              value: "{{ not .Values.webhook.enabled }}"
           {{- with .Values.logLevel }}
             - name: LOG_LEVEL
               value: "{{ . }}"
