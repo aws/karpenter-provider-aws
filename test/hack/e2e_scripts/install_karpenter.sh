@@ -2,7 +2,6 @@ aws eks update-kubeconfig --name "$CLUSTER_NAME"
 
 # Parse minor version to determine whether to enable the webhooks
 K8S_VERSION_MINOR="${K8S_VERSION#*.}"
-WEBHOOK_ENABLED=true
 
 CHART="oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter"
 ADDITIONAL_FLAGS=""
@@ -16,7 +15,7 @@ helm upgrade --install karpenter "${CHART}" \
   -n kube-system \
   --version "0-$(git rev-parse HEAD)" \
   --set logLevel=debug \
-  --set webhook.enabled=${WEBHOOK_ENABLED} \
+  --set webhook.enabled=${WEBHOOKS_ENABLED} \
   --set settings.isolatedVPC=${PRIVATE_CLUSTER} \
   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::$ACCOUNT_ID:role/karpenter-irsa-$CLUSTER_NAME" \
   $ADDITIONAL_FLAGS \
