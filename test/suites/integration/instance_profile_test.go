@@ -22,7 +22,7 @@ import (
 
 	"github.com/awslabs/operatorpkg/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+  
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/samber/lo"
@@ -67,7 +67,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 			_, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
 				InstanceProfileName: aws.String(env.GetInstanceProfileName(nodeClass)),
 			})
-			g.Expect(awserrors.IsNotFound(err)).To(BeTrue())
+			g.Expect(awserrors.IsNotFoundV2(err)).To(BeTrue())
 		}).Should(Succeed())
 	})
 	It("should use the unmanaged instance profile", func() {
