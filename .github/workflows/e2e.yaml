@@ -27,7 +27,6 @@ on:
           - Scale
           - PrivateCluster
           - LocalZone
-          - Webhooks
       k8s_version:
         type: choice
         options:

@@ -27,9 +27,6 @@ inputs:
   private_cluster:
     description: "Whether the cluster is private or not. Valid values are 'true' or 'false'"
     default: 'false'
-  webhooks_enabled:
-    description: "Whether webhooks are enabled or not. Valid values are 'true' or 'false'"
-    default: 'true'
 runs:
   using: "composite"
   steps:
@@ -60,7 +57,6 @@ runs:
       CLUSTER_NAME: ${{ inputs.cluster_name }}
       K8S_VERSION: ${{ inputs.k8s_version }}
       PRIVATE_CLUSTER: ${{ inputs.private_cluster }}
-      WEBHOOKS_ENABLED: ${{ inputs.webhooks_enabled }}
     run: |
       ./test/hack/e2e_scripts/install_karpenter.sh
   - name: diff-karpenter
