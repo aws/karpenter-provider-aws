@@ -78,6 +78,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.0.0 \
 | serviceAccount.annotations | object | `{}` | Additional annotations for the ServiceAccount. |
 | serviceAccount.create | bool | `true` | Specifies if a ServiceAccount should be created. |
 | serviceAccount.name | string | `""` | The name of the ServiceAccount to use. If not set and create is true, a name is generated using the fullname template. |
+| serviceAnnotations | object | `{}` | Additional annotations for the service. |
 | serviceMonitor.additionalLabels | object | `{}` | Additional labels for the ServiceMonitor. |
 | serviceMonitor.enabled | bool | `false` | Specifies whether a ServiceMonitor should be created. |
 | serviceMonitor.endpointConfig | object | `{}` | Configuration on `http-metrics` endpoint for the ServiceMonitor. Not to be used to add additional endpoints. See the Prometheus operator documentation for configurable fields https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint |
