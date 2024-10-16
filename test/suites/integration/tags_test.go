@@ -56,14 +56,14 @@ var _ = Describe("Tags", func() {
 				return ni.NetworkInterfaceId
 			})...)
 
-			Expect(instance.Tags).To(ContainElement(&ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
+			Expect(instance.Tags).To(ContainElement(ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
 			for _, volume := range volumes {
-				Expect(volume.Tags).To(ContainElement(&ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
+				Expect(volume.Tags).To(ContainElement(ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
 			}
 			for _, networkInterface := range networkInterfaces {
 				// Any ENI that contains this createdAt tag was created by the VPC CNI DaemonSet
 				if !lo.ContainsBy(networkInterface.TagSet, func(t ec2types.Tag) bool { return lo.FromPtr(t.Key) == createdAtTag }) {
-					Expect(networkInterface.TagSet).To(ContainElement(&ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
+					Expect(networkInterface.TagSet).To(ContainElement(ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
 				}
 			}
 		})
@@ -82,7 +82,7 @@ var _ = Describe("Tags", func() {
 			instance := env.GetInstance(pod.Spec.NodeName)
 			Expect(instance.SpotInstanceRequestId).ToNot(BeNil())
 			spotInstanceRequest := env.GetSpotInstance(instance.SpotInstanceRequestId)
-			Expect(spotInstanceRequest.Tags).To(ContainElement(&ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
+			Expect(spotInstanceRequest.Tags).To(ContainElement(ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
 		})
 		It("should tag managed instance profiles", func() {
 			if env.PrivateCluster {
@@ -210,7 +210,7 @@ var _ = Describe("Tags", func() {
 				g.Expect(err).ToNot(HaveOccurred())
 				g.Expect(out.Reservations).To(HaveLen(1))
 				g.Expect(out.Reservations[0].Instances).To(HaveLen(1))
-				g.Expect(out.Reservations[0].Instances[0].Tags).To(ContainElement(&ec2types.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)}))
+				g.Expect(out.Reservations[0].Instances[0].Tags).To(ContainElement(ec2types.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)}))
 			}).Should(Succeed())
 		})
 	})

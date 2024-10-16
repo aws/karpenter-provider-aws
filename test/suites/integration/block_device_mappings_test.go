@@ -16,6 +16,7 @@ package integration_test
 
 import (
 	"github.com/aws/aws-sdk-go-v2/aws"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"sigs.k8s.io/karpenter/pkg/test"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
@@ -51,8 +52,8 @@ var _ = Describe("BlockDeviceMappings", func() {
 		Expect(instance.BlockDeviceMappings[0].Ebs).To(HaveField("DeleteOnTermination", HaveValue(BeTrue())))
 		volume := env.GetVolume(instance.BlockDeviceMappings[0].Ebs.VolumeId)
 		Expect(volume).To(HaveField("Encrypted", HaveValue(BeTrue())))
-		Expect(volume).To(HaveField("Size", HaveValue(Equal(int64(20)))))
-		Expect(volume).To(HaveField("Iops", HaveValue(Equal(int64(1000)))))
-		Expect(volume).To(HaveField("VolumeType", HaveValue(Equal("io2"))))
+		Expect(volume).To(HaveField("Size", HaveValue(Equal(int32(20)))))
+		Expect(volume).To(HaveField("Iops", HaveValue(Equal(int32(1000)))))
+		Expect(volume).To(HaveField("VolumeType", HaveValue(Equal(ec2types.VolumeType("io2")))))
 	})
 })

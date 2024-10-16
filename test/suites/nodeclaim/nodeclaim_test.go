@@ -195,7 +195,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		env.EventuallyExpectNotFound(nodeClaim, node)
 
 		Eventually(func(g Gomega) {
-			g.Expect(env.GetInstanceByID(instanceID).State.Name).To(BeElementOf("terminated", "shutting-down"))
+			g.Expect(env.GetInstanceByID(instanceID).State.Name).To(BeElementOf(ec2types.InstanceStateName("terminated"), ec2types.InstanceStateName("shutting-down")))
 		}, time.Second*10).Should(Succeed())
 	})
 	It("should delete a NodeClaim from the node termination finalizer", func() {

@@ -17,7 +17,6 @@ package errors
 import (
 	"errors"
 
-	//v2 imports
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -34,9 +33,8 @@ var (
 		launchTemplateNameNotFoundCode,
 		"InvalidLaunchTemplateId.NotFound",
 		"QueueDoesNotExist",
-
-		//v2 error codes
 		"NoSuchEntity",
+		"context canceled",
 	)
 	alreadyExistsErrorCodes = sets.New[string](
 		"EntityAlreadyExistsException",
@@ -94,8 +92,6 @@ func IsLaunchTemplateNotFound(err error) bool {
 	}
 	return false
 }
-
-//V2 will become new full file when every provider is migrated
 
 // IsNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more

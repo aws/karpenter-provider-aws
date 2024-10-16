@@ -113,7 +113,7 @@ var _ = Describe("GarbageCollection", func() {
 		Expect(out.Instances).To(HaveLen(1))
 
 		// Always ensure that we cleanup the instance
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(env.Context)
 		defer cancel()
 
 		DeferCleanup(func() {

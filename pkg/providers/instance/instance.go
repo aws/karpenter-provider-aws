@@ -22,7 +22,6 @@ import (
 	"sort"
 	"strings"
 
-	//v2 imports
 	"github.com/aws/aws-sdk-go/aws/awserr"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"

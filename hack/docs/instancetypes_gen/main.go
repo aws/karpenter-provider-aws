@@ -23,13 +23,10 @@ import (
 	"sort"
 	"strings"
 
-	//v2 imports
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -130,7 +127,6 @@ below are the resources available with some assumptions and after the instance o
 	// Iterate through regions and take the union of instance types we discover across both
 	for _, region := range []string{"us-east-1", "us-west-2"} {
 		cfg := lo.Must(config.LoadDefaultConfig(ctx))
-		sess := session.Must(session.NewSession(&aws.Config{Region: lo.ToPtr(region)}))
 		ec2api := ec2.NewFromConfig(cfg)
 		subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 		instanceTypeProvider := instancetype.NewDefaultProvider(
@@ -143,7 +139,7 @@ below are the resources available with some assumptions and after the instance o
 					ctx,
 					pricing.NewAPI(ctx, cfg, cfg.Region),
 					ec2api,
-					*sess.Config.Region,
+					cfg.Region,
 				),
 				awscache.NewUnavailableOfferings(),
 			),
