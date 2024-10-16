@@ -20,10 +20,6 @@ import (
 	//v2 imports
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
-
-	//V1 imports
-
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -40,7 +36,7 @@ var (
 		"QueueDoesNotExist",
 
 		//v2 error codes
-		"NoSuchEntityException",
+		"NoSuchEntity",
 	)
 	alreadyExistsErrorCodes = sets.New[string](
 		"EntityAlreadyExistsException",
@@ -67,9 +63,9 @@ func IsAlreadyExists(err error) bool {
 	if err == nil {
 		return false
 	}
-	var awsError awserr.Error
-	if errors.As(err, &awsError) {
-		return alreadyExistsErrorCodes.Has(awsError.Code())
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return alreadyExistsErrorCodes.Has(apiErr.ErrorCode())
 	}
 	return false
 }
