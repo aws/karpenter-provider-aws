@@ -132,7 +132,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	subnetZoneToID := lo.SliceToMap(nodeClass.Status.Subnets, func(s v1.Subnet) (string, string) {
 		return s.Zone, s.ZoneID
 	})
-	result := lo.Map(p.instanceTypesInfo, func(i *ec2types.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
+	result := lo.Map(p.instanceTypesInfo, func(i *ec2types.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {n
 		instanceTypeVCPU.With(prometheus.Labels{
 			instanceTypeLabel: string(i.InstanceType),
 		}).Set(float64(lo.FromPtr(i.VCpuInfo.DefaultVCpus)))
