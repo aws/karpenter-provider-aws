@@ -766,6 +766,13 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(drifted).To(BeEmpty())
 		})
+		It("should return drifted if the instance type is not found", func() {
+			// Instance is a reference to what we return in the GetInstances call
+			nodeClaim.Labels = lo.Assign(nodeClaim.Labels, map[string]string{corev1.LabelInstanceTypeStable: coretest.RandomName()})
+			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(Equal(cloudprovider.StaleInstanceTypeDrift))
+		})
 		It("should return drifted if the AMI is not valid", func() {
 			// Instance is a reference to what we return in the GetInstances call
 			instance.ImageId = aws.String(fake.ImageID())

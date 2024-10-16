@@ -22,6 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
@@ -32,10 +33,11 @@ import (
 )
 
 const (
-	AMIDrift           cloudprovider.DriftReason = "AMIDrift"
-	SubnetDrift        cloudprovider.DriftReason = "SubnetDrift"
-	SecurityGroupDrift cloudprovider.DriftReason = "SecurityGroupDrift"
-	NodeClassDrift     cloudprovider.DriftReason = "NodeClassDrift"
+	AMIDrift               cloudprovider.DriftReason = "AMIDrift"
+	StaleInstanceTypeDrift cloudprovider.DriftReason = "StaleInstanceTypeDrift"
+	SubnetDrift            cloudprovider.DriftReason = "SubnetDrift"
+	SecurityGroupDrift     cloudprovider.DriftReason = "SecurityGroupDrift"
+	NodeClassDrift         cloudprovider.DriftReason = "NodeClassDrift"
 )
 
 func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
@@ -71,11 +73,19 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.Node
 	if err != nil {
 		return "", fmt.Errorf("getting instanceTypes, %w", err)
 	}
+
+	if _, ok := nodeClaim.Labels[corev1.LabelInstanceTypeStable]; !ok {
+		return "", fmt.Errorf("nodeclaim doesn't have instance type label")
+	}
 	nodeInstanceType, found := lo.Find(instanceTypes, func(instType *cloudprovider.InstanceType) bool {
 		return instType.Name == nodeClaim.Labels[corev1.LabelInstanceTypeStable]
 	})
+	// If we can't find the instance type, that means that we previously thought this was a valid instance type, but no longer is.
+	// This should only happen when the result of the DescribeInstanceTypes API changes over time, and an existing node has an instance type
+	// that should no longer be used.
 	if !found {
-		return "", fmt.Errorf(`finding node instance type "%s"`, nodeClaim.Labels[corev1.LabelInstanceTypeStable])
+		log.FromContext(ctx).V(1).Info(fmt.Sprintf("failed to find node instance type %q, continuing to drift", nodeClaim.Labels[corev1.LabelInstanceTypeStable]))
+		return StaleInstanceTypeDrift, nil
 	}
 	if len(nodeClass.Status.AMIs) == 0 {
 		return "", fmt.Errorf("no amis exist given constraints")
