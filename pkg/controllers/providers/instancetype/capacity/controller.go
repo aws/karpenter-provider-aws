@@ -65,7 +65,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 				}
 				return e.ObjectNew.GetLabels()[karpv1.NodeRegisteredLabelKey] == "true"
 			},
-			// Reconcile against all Nodes added to the cache in a registered state. This allows us to hydrate the cache on controller startup.
+			// Reconcile against all Nodes added to the informer cache in a registered state. This allows us to hydrate the discovered capacity cache on controller startup.
 			CreateFunc: func(e event.TypedCreateEvent[client.Object]) bool {
 				return e.Object.GetLabels()[karpv1.NodeRegisteredLabelKey] == "true"
 			},
