@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -484,7 +486,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreated(pod, nodeClass, nodePoolLowPri, nodePoolHighPri)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
-			Expect(lo.FromPtr(env.GetInstance(pod.Spec.NodeName).InstanceType)).To(Equal("c5.large"))
+			Expect(env.GetInstance(pod.Spec.NodeName).InstanceType).To(Equal(ec2types.InstanceType("c5.large")))
 			Expect(env.GetNode(pod.Spec.NodeName).Labels[karpv1.NodePoolLabelKey]).To(Equal(nodePoolHighPri.Name))
 		})
 

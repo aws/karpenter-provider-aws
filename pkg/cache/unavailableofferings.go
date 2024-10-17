@@ -19,8 +19,9 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -64,10 +65,10 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableR
 	atomic.AddUint64(&u.SeqNum, 1)
 }
 
-func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr *ec2.CreateFleetError, capacityType string) {
-	instanceType := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType)
-	zone := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
-	u.MarkUnavailable(ctx, aws.StringValue(fleetErr.ErrorCode), instanceType, zone, capacityType)
+func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr *ec2types.CreateFleetError, capacityType string) {
+	instanceType := fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType
+	zone := aws.ToString(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+	u.MarkUnavailable(ctx, aws.ToString(fleetErr.ErrorCode), string(instanceType), zone, capacityType)
 }
 
 func (u *UnavailableOfferings) Delete(instanceType string, zone string, capacityType string) {

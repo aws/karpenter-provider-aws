@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/status"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -349,7 +349,7 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	nodeClaim.Annotations = annotations
 	nodeClaim.CreationTimestamp = metav1.Time{Time: i.LaunchTime}
 	// Set the deletionTimestamp to be the current time if the instance is currently terminating
-	if i.State == ec2.InstanceStateNameShuttingDown || i.State == ec2.InstanceStateNameTerminated {
+	if i.State == string(ec2types.InstanceStateNameShuttingDown) || i.State == string(ec2types.InstanceStateNameTerminated) {
 		nodeClaim.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 	}
 	nodeClaim.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", i.Zone, i.ID)

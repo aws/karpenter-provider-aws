@@ -28,8 +28,9 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
@@ -430,7 +431,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 		Expect(call.LaunchTemplateConfigs[0].Overrides).To(HaveLen(60))
 		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
-			Expect(expected.Has(aws.StringValue(override.InstanceType))).To(BeTrue(), fmt.Sprintf("expected %s to exist in set", aws.StringValue(override.InstanceType)))
+			Expect(expected.Has(string(override.InstanceType))).To(BeTrue(), fmt.Sprintf("expected %s to exist in set", string(override.InstanceType)))
 		}
 	})
 	It("should order the instance types by price and only consider the spot types that are cheaper than the cheapest on-demand", func() {
@@ -492,7 +493,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		// find the cheapest OD price that works
 		cheapestODPrice := math.MaxFloat64
 		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
-			odPrice, ok := awsEnv.PricingProvider.OnDemandPrice(*override.InstanceType)
+			odPrice, ok := awsEnv.PricingProvider.OnDemandPrice(string(override.InstanceType))
 			Expect(ok).To(BeTrue())
 			if odPrice < cheapestODPrice {
 				cheapestODPrice = odPrice
@@ -500,7 +501,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 		// and our spot prices should be cheaper than the OD price
 		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
-			spotPrice, ok := awsEnv.PricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
+			spotPrice, ok := awsEnv.PricingProvider.SpotPrice(string(override.InstanceType), *override.AvailabilityZone)
 			Expect(ok).To(BeTrue())
 			Expect(spotPrice).To(BeNumerically("<", cheapestODPrice))
 		}
@@ -535,7 +536,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		var expensiveInstanceType bool
 		for _, ltc := range call.LaunchTemplateConfigs {
 			for _, ovr := range ltc.Overrides {
-				if strings.Contains(aws.StringValue(ovr.InstanceType), "metal") {
+				if strings.Contains(string(ovr.InstanceType), "metal") {
 					expensiveInstanceType = true
 				}
 			}
@@ -557,7 +558,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		for _, ltc := range call.LaunchTemplateConfigs {
 			for _, ovr := range ltc.Overrides {
-				Expect(strings.Contains(aws.StringValue(ovr.InstanceType), "metal")).To(BeFalse())
+				Expect(strings.Contains(string(ovr.InstanceType), "metal")).To(BeFalse())
 			}
 		}
 	})
@@ -576,7 +577,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		for _, ltc := range call.LaunchTemplateConfigs {
 			for _, ovr := range ltc.Overrides {
-				Expect(strings.HasPrefix(aws.StringValue(ovr.InstanceType), "g")).To(BeFalse())
+				Expect(strings.HasPrefix(string(ovr.InstanceType), "g")).To(BeFalse())
 			}
 		}
 	})
@@ -637,25 +638,25 @@ var _ = Describe("InstanceTypeProvider", func() {
 	It("should not launch instance type for vpc.amazonaws.com/PrivateIPv4Address if VPC resource controller doesn't advertise it", func() {
 		// Create a "test" instance type that has PrivateIPv4Addresses but isn't advertised in the VPC limits config
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-			InstanceTypes: []*ec2.InstanceTypeInfo{
+			InstanceTypes: []ec2types.InstanceTypeInfo{
 				{
-					InstanceType: aws.String("test"),
-					ProcessorInfo: &ec2.ProcessorInfo{
-						SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+					InstanceType: "test",
+					ProcessorInfo: &ec2types.ProcessorInfo{
+						SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
 					},
-					VCpuInfo: &ec2.VCpuInfo{
-						DefaultCores: aws.Int64(1),
-						DefaultVCpus: aws.Int64(2),
+					VCpuInfo: &ec2types.VCpuInfo{
+						DefaultCores: aws.Int32(1),
+						DefaultVCpus: aws.Int32(2),
 					},
-					MemoryInfo: &ec2.MemoryInfo{
+					MemoryInfo: &ec2types.MemoryInfo{
 						SizeInMiB: aws.Int64(8192),
 					},
-					NetworkInfo: &ec2.NetworkInfo{
-						Ipv4AddressesPerInterface: aws.Int64(10),
-						DefaultNetworkCardIndex:   aws.Int64(0),
-						NetworkCards: []*ec2.NetworkCardInfo{{
-							NetworkCardIndex:         lo.ToPtr(int64(0)),
-							MaximumNetworkInterfaces: aws.Int64(3),
+					NetworkInfo: &ec2types.NetworkInfo{
+						Ipv4AddressesPerInterface: aws.Int32(10),
+						DefaultNetworkCardIndex:   aws.Int32(0),
+						NetworkCards: []ec2types.NetworkCardInfo{{
+							NetworkCardIndex:         lo.ToPtr(int32(0)),
+							MaximumNetworkInterfaces: aws.Int32(3),
 						}},
 					},
 					SupportedUsageClasses: fake.DefaultSupportedUsageClasses,
@@ -663,9 +664,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			},
 		})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-			InstanceTypeOfferings: []*ec2.InstanceTypeOffering{
+			InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
 				{
-					InstanceType: aws.String("test"),
+					InstanceType: "test",
 					Location:     aws.String("test-zone-1a"),
 				},
 			},
@@ -907,12 +908,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("7600G")))
 	})
 	It("should not set pods to 110 if using ENI-based pod density", func() {
-		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 		Expect(err).To(BeNil())
 		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 		for _, info := range instanceInfo.InstanceTypes {
 			it := instancetype.NewInstanceType(ctx,
-				info,
+				&info,
 				fake.DefaultRegion,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
@@ -929,12 +930,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 	})
 	It("should set pods to 110 if AMI Family doesn't support", func() {
-		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 		Expect(err).To(BeNil())
 		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 		for _, info := range instanceInfo.InstanceTypes {
 			it := instancetype.NewInstanceType(ctx,
-				info,
+				&info,
 				fake.DefaultRegion,
 				windowsNodeClass.Spec.BlockDeviceMappings,
 				windowsNodeClass.Spec.InstanceStorePolicy,
@@ -962,7 +963,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(ok).To(BeTrue())
 				Expect(metric).To(Not(BeNil()))
 				value := metric.GetGauge().Value
-				Expect(aws.Float64Value(value)).To(BeNumerically(">", 0))
+				Expect(aws.ToFloat64(value)).To(BeNumerically(">", 0))
 			}
 		})
 		It("should expose memory metrics for instance types", func() {
@@ -976,7 +977,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(ok).To(BeTrue())
 				Expect(metric).To(Not(BeNil()))
 				value := metric.GetGauge().Value
-				Expect(aws.Float64Value(value)).To(BeNumerically(">", 0))
+				Expect(aws.ToFloat64(value)).To(BeNumerically(">", 0))
 			}
 		})
 		It("should expose availability metrics for instance types", func() {
@@ -993,7 +994,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					Expect(ok).To(BeTrue())
 					Expect(metric).To(Not(BeNil()))
 					value := metric.GetGauge().Value
-					Expect(aws.Float64Value(value)).To(BeNumerically("==", lo.Ternary(of.Available, 1, 0)))
+					Expect(aws.ToFloat64(value)).To(BeNumerically("==", lo.Ternary(of.Available, 1, 0)))
 				}
 			}
 		})
@@ -1011,7 +1012,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					Expect(ok).To(BeTrue())
 					Expect(metric).To(Not(BeNil()))
 					value := metric.GetGauge().Value
-					Expect(aws.Float64Value(value)).To(BeNumerically("==", of.Price))
+					Expect(aws.ToFloat64(value)).To(BeNumerically("==", of.Price))
 				}
 			}
 		})
@@ -1035,17 +1036,17 @@ var _ = Describe("InstanceTypeProvider", func() {
 		ExpectScheduled(ctx, env.Client, pod)
 	})
 	Context("Overhead", func() {
-		var info *ec2.InstanceTypeInfo
+		var info ec2types.InstanceTypeInfo
 		BeforeEach(func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				ClusterName: lo.ToPtr("karpenter-cluster"),
 			}))
 
 			var ok bool
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
-			info, ok = lo.Find(instanceInfo.InstanceTypes, func(i *ec2.InstanceTypeInfo) bool {
-				return aws.StringValue(i.InstanceType) == "m5.xlarge"
+			info, ok = lo.Find(instanceInfo.InstanceTypes, func(i ec2types.InstanceTypeInfo) bool {
+				return i.InstanceType == "m5.xlarge"
 			})
 			Expect(ok).To(BeTrue())
 		})
@@ -1053,7 +1054,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			It("should use defaults when no kubelet is specified", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 				it := instancetype.NewInstanceType(ctx,
-					info,
+					&info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1079,7 +1080,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					},
 				}
 				it := instancetype.NewInstanceType(ctx,
-					info,
+					&info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1101,7 +1102,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			It("should use defaults when no kubelet is specified", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 				it := instancetype.NewInstanceType(ctx,
-					info,
+					&info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1132,7 +1133,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					},
 				}
 				it := instancetype.NewInstanceType(ctx,
-					info,
+					&info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1170,7 +1171,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						info,
+						&info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1198,7 +1199,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						info,
+						&info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1226,7 +1227,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						info,
+						&info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1254,7 +1255,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						info,
+						&info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1284,7 +1285,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						info,
+						&info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1315,7 +1316,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						info,
+						&info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1343,7 +1344,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						info,
+						&info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1375,7 +1376,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						info,
+						&info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1394,7 +1395,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			It("should take the default eviction threshold when none is specified", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 				it := instancetype.NewInstanceType(ctx,
-					info,
+					&info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1427,7 +1428,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					},
 				}
 				it := instancetype.NewInstanceType(ctx,
-					info,
+					&info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1458,7 +1459,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					},
 				}
 				it := instancetype.NewInstanceType(ctx,
-					info,
+					&info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1489,7 +1490,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					},
 				}
 				it := instancetype.NewInstanceType(ctx,
-					info,
+					&info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1506,13 +1507,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 		})
 		It("should default max pods based off of network interfaces", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			for _, info := range instanceInfo.InstanceTypes {
-				if *info.InstanceType == "t3.large" {
+				if info.InstanceType == "t3.large" {
 					it := instancetype.NewInstanceType(ctx,
-						info,
+						&info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1527,9 +1528,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 					)
 					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
 				}
-				if *info.InstanceType == "m6idn.32xlarge" {
+				if info.InstanceType == "m6idn.32xlarge" {
 					it := instancetype.NewInstanceType(ctx,
-						info,
+						&info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1547,14 +1548,14 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should set max-pods to user-defined value if specified", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				MaxPods: lo.ToPtr(int32(10)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
-					info,
+					&info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1571,14 +1572,14 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should override max-pods value", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				MaxPods: lo.ToPtr(int32(10)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
-					info,
+					&info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1599,15 +1600,15 @@ var _ = Describe("InstanceTypeProvider", func() {
 				ReservedENIs: lo.ToPtr(1),
 			}))
 
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
-			t3Large, ok := lo.Find(instanceInfo.InstanceTypes, func(info *ec2.InstanceTypeInfo) bool {
-				return *info.InstanceType == "t3.large"
+			t3Large, ok := lo.Find(instanceInfo.InstanceTypes, func(info ec2types.InstanceTypeInfo) bool {
+				return info.InstanceType == "t3.large"
 			})
 			Expect(ok).To(Equal(true))
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			it := instancetype.NewInstanceType(ctx,
-				t3Large,
+				&t3Large,
 				fake.DefaultRegion,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
@@ -1633,15 +1634,15 @@ var _ = Describe("InstanceTypeProvider", func() {
 				ReservedENIs: lo.ToPtr(1_000_000),
 			}))
 
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
-			t3Large, ok := lo.Find(instanceInfo.InstanceTypes, func(info *ec2.InstanceTypeInfo) bool {
-				return *info.InstanceType == "t3.large"
+			t3Large, ok := lo.Find(instanceInfo.InstanceTypes, func(info ec2types.InstanceTypeInfo) bool {
+				return info.InstanceType == "t3.large"
 			})
 			Expect(ok).To(Equal(true))
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			it := instancetype.NewInstanceType(ctx,
-				t3Large,
+				&t3Large,
 				fake.DefaultRegion,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
@@ -1664,14 +1665,14 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", maxPods))
 		})
 		It("should override pods-per-core value", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				PodsPerCore: lo.ToPtr(int32(1)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
-					info,
+					&info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1688,7 +1689,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should take the minimum of pods-per-core and max-pods", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				PodsPerCore: lo.ToPtr(int32(4)),
@@ -1696,7 +1697,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
-					info,
+					&info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1709,11 +1710,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
-				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", lo.Min([]int64{20, lo.FromPtr(info.VCpuInfo.DefaultVCpus) * 4})))
+				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", lo.Min([]int32{20, lo.FromPtr(info.VCpuInfo.DefaultVCpus) * 4})))
 			}
 		})
 		It("should ignore pods-per-core when using Bottlerocket AMI", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
@@ -1721,7 +1722,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
-					info,
+					&info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1734,20 +1735,20 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
-				limitedPods := instancetype.ENILimitedPods(ctx, info)
+				limitedPods := instancetype.ENILimitedPods(ctx, &info)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})
 		It("should take limited pod density to be the default pods number when pods-per-core is 0", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				PodsPerCore: lo.ToPtr(int32(0)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
-				if *info.InstanceType == "t3.large" {
+				if info.InstanceType == "t3.large" {
 					it := instancetype.NewInstanceType(ctx,
-						info,
+						&info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1762,9 +1763,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 					)
 					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
 				}
-				if *info.InstanceType == "m6idn.32xlarge" {
+				if info.InstanceType == "m6idn.32xlarge" {
 					it := instancetype.NewInstanceType(ctx,
-						info,
+						&info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1783,7 +1784,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		It("shouldn't report more resources than are actually available on instances", func() {
 			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{
-				Subnets: []*ec2.Subnet{
+				Subnets: []ec2types.Subnet{
 					{
 						AvailabilityZone: aws.String("us-west-2a"),
 						SubnetId:         aws.String("subnet-12345"),
@@ -1791,31 +1792,31 @@ var _ = Describe("InstanceTypeProvider", func() {
 				},
 			})
 			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-				InstanceTypeOfferings: []*ec2.InstanceTypeOffering{
+				InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
 					{
-						InstanceType: aws.String("t4g.small"),
+						InstanceType: "t4g.small",
 						Location:     aws.String("us-west-2a"),
 					},
 					{
-						InstanceType: aws.String("t4g.medium"),
+						InstanceType: "t4g.medium",
 						Location:     aws.String("us-west-2a"),
 					},
 					{
-						InstanceType: aws.String("t4g.xlarge"),
+						InstanceType: "t4g.xlarge",
 						Location:     aws.String("us-west-2a"),
 					},
 					{
-						InstanceType: aws.String("m5.large"),
+						InstanceType: "m5.large",
 						Location:     aws.String("us-west-2a"),
 					},
 				},
 			})
 			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-				InstanceTypes: []*ec2.InstanceTypeInfo{
-					{InstanceType: aws.String("t4g.small")},
-					{InstanceType: aws.String("t4g.medium")},
-					{InstanceType: aws.String("t4g.xlarge")},
-					{InstanceType: aws.String("m5.large")},
+				InstanceTypes: []ec2types.InstanceTypeInfo{
+					{InstanceType: "t4g.small"},
+					{InstanceType: "t4g.medium"},
+					{InstanceType: "t4g.xlarge"},
+					{InstanceType: "m5.large"},
 				},
 			})
 
@@ -2011,9 +2012,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 				HaveKeyWithValue(corev1.LabelTopologyZone, "test-zone-1b")))
 		})
 		It("should launch on-demand capacity if flexible to both spot and on-demand, but spot is unavailable", func() {
-			Expect(awsEnv.EC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
+			Expect(awsEnv.EC2API.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
 				for _, it := range dito.InstanceTypes {
-					awsEnv.EC2API.InsufficientCapacityPools.Add(fake.CapacityPool{CapacityType: karpv1.CapacityTypeSpot, InstanceType: aws.StringValue(it.InstanceType), Zone: "test-zone-1a"})
+					awsEnv.EC2API.InsufficientCapacityPools.Add(fake.CapacityPool{CapacityType: karpv1.CapacityTypeSpot, InstanceType: string(it.InstanceType), Zone: "test-zone-1a"})
 				}
 				return true
 			})).To(Succeed())
@@ -2105,10 +2106,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 		It("should fail to launch capacity when there is no zonal availability for spot", func() {
 			now := time.Now()
 			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
-				SpotPriceHistory: []*ec2.SpotPrice{
+				SpotPriceHistory: []ec2types.SpotPrice{
 					{
 						AvailabilityZone: aws.String("test-zone-1a"),
-						InstanceType:     aws.String("m5.large"),
+						InstanceType:     "m5.large",
 						SpotPrice:        aws.String("0.004"),
 						Timestamp:        &now,
 					},
@@ -2131,10 +2132,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 		It("should succeed to launch spot instance when zonal availability exists", func() {
 			now := time.Now()
 			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
-				SpotPriceHistory: []*ec2.SpotPrice{
+				SpotPriceHistory: []ec2types.SpotPrice{
 					{
 						AvailabilityZone: aws.String("test-zone-1a"),
-						InstanceType:     aws.String("m5.large"),
+						InstanceType:     "m5.large",
 						SpotPrice:        aws.String("0.004"),
 						Timestamp:        &now,
 					},
@@ -2242,18 +2243,18 @@ var _ = Describe("InstanceTypeProvider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled))
-				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled))
-				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(1)))
-				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateRequired))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2types.LaunchTemplateInstanceMetadataEndpointStateEnabled))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2types.LaunchTemplateInstanceMetadataProtocolIpv6Disabled))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit)).To(Equal(int32(1)))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2types.LaunchTemplateHttpTokensStateRequired))
 			})
 		})
 		It("should set metadata options on generated launch template from nodePool configuration", func() {
 			nodeClass.Spec.MetadataOptions = &v1.MetadataOptions{
-				HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled),
-				HTTPProtocolIPv6:        aws.String(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled),
+				HTTPEndpoint:            aws.String(string(ec2types.LaunchTemplateInstanceMetadataEndpointStateDisabled)),
+				HTTPProtocolIPv6:        aws.String(string(ec2types.LaunchTemplateInstanceMetadataProtocolIpv6Enabled)),
 				HTTPPutResponseHopLimit: aws.Int64(1),
-				HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateOptional),
+				HTTPTokens:              aws.String(string(ec2types.LaunchTemplateHttpTokensStateOptional)),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -2261,10 +2262,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled))
-				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))
-				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(1)))
-				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateOptional))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2types.LaunchTemplateInstanceMetadataEndpointStateDisabled))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2types.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit)).To(Equal(int32(1)))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2types.LaunchTemplateHttpTokensStateOptional))
 			})
 		})
 	})
@@ -2470,11 +2471,11 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *karpv1.NodeP
 			}
 			zone := o.Requirements.Get(corev1.LabelTopologyZone).Any()
 			spotPrice := fmt.Sprintf("%0.3f", onDemandPrice*0.5)
-			rsp.SpotPriceHistory = append(rsp.SpotPriceHistory, &ec2.SpotPrice{
-				AvailabilityZone: &zone,
-				InstanceType:     &instanceType.Name,
-				SpotPrice:        &spotPrice,
-				Timestamp:        &t,
+			rsp.SpotPriceHistory = append(rsp.SpotPriceHistory, ec2types.SpotPrice{
+				AvailabilityZone: lo.ToPtr(zone),
+				InstanceType:     ec2types.InstanceType(instanceType.Name),
+				SpotPrice:        lo.ToPtr(spotPrice),
+				Timestamp:        lo.ToPtr(t),
 			})
 		}
 	}

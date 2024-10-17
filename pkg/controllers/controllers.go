@@ -31,7 +31,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
 	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/samber/lo"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -55,7 +54,7 @@ import (
 	config "github.com/aws/aws-sdk-go-v2/config"
 )
 
-func NewControllers(ctx context.Context, mgr manager.Manager, sess *session.Session, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
+func NewControllers(ctx context.Context, mgr manager.Manager, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
 	unavailableOfferings *cache.UnavailableOfferings, cloudProvider cloudprovider.CloudProvider, subnetProvider subnet.Provider,
 	securityGroupProvider securitygroup.Provider, instanceProfileProvider instanceprofile.Provider, instanceProvider instance.Provider,
 	pricingProvider pricing.Provider, amiProvider amifamily.Provider, launchTemplateProvider launchtemplate.Provider, instanceTypeProvider *instancetype.DefaultProvider) []controller.Controller {

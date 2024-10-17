@@ -48,7 +48,6 @@ func main() {
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,
 			op.Manager,
-			op.Session,
 			op.Clock,
 			op.GetClient(),
 			op.EventRecorder,
