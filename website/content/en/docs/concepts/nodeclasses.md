@@ -885,6 +885,12 @@ spec:
     httpTokens: required
 ```
 
+{{% alert title="Note" colwor="primary" %}}
+
+When using EBS CSI driver, `httpPutResponseHopLimit: 1` will prevent the driver from accessing IMDSv2 if run inside a container with the default IMDSv2 configuration. See [EBS CSI Driver documentation](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/install.md#imds-ec2-metadata) for more.
+
+{{% /alert %}}
+
 ## spec.blockDeviceMappings
 
 The `blockDeviceMappings` field in an `EC2NodeClass` can be used to control the [Elastic Block Storage (EBS) volumes](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/block-device-mapping-concepts.html#instance-block-device-mapping) that Karpenter attaches to provisioned nodes. Karpenter uses default block device mappings for the AMIFamily specified. For example, the `Bottlerocket` AMI Family defaults with two block device mappings, one for Bottlerocket's control volume and the other for container resources such as images and logs.
