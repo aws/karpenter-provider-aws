@@ -20,6 +20,7 @@ import (
 	"os"
 	"testing"
 
+	. "github.com/onsi/ginkgo/v2"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
@@ -37,7 +38,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
-	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/env"
