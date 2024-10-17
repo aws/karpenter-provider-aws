@@ -34,7 +34,6 @@ var (
 		"InvalidLaunchTemplateId.NotFound",
 		"QueueDoesNotExist",
 		"NoSuchEntity",
-		"context canceled",
 	)
 	alreadyExistsErrorCodes = sets.New[string](
 		"EntityAlreadyExistsException",

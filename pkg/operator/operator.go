@@ -29,14 +29,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	awsv1 "github.com/aws/aws-sdk-go/aws"
-	awsclient "github.com/aws/aws-sdk-go/aws/client"
-	"github.com/aws/aws-sdk-go/aws/endpoints"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/aws/session"
 
 	"github.com/aws/smithy-go"
-	prometheusv1 "github.com/jonathan-innis/aws-sdk-go-prometheus/v1"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -49,6 +43,8 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/operator"
+
+	prometheusv2 "github.com/jonathan-innis/aws-sdk-go-prometheus/v2"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
@@ -73,7 +69,6 @@ func init() {
 type Operator struct {
 	*operator.Operator
 
-	Session                   *session.Session
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
 	SubnetProvider            subnet.Provider
 	SecurityGroupProvider     securitygroup.Provider
@@ -89,22 +84,8 @@ type Operator struct {
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
-	// //v1
-	configv1 := &awsv1.Config{
-		STSRegionalEndpoint: endpoints.RegionalSTSEndpoint,
-	}
-
-	// // prometheusv1.WithPrometheusMetrics is used until the upstream aws-sdk-go or aws-sdk-go-v2 supports
-	// // Prometheus metrics for client-side metrics out-of-the-box
-	// // See: https://github.com/aws/aws-sdk-go-v2/issues/1744
-	sess := prometheusv1.WithPrometheusMetrics(WithUserAgent(session.Must(session.NewSession(
-		request.WithRetryer(
-			configv1,
-			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
-		),
-	))), crmetrics.Registry)
-
 	cfg := lo.Must(config.LoadDefaultConfig(ctx, config.WithRetryMaxAttempts(3)))
+	prometheusv2.WithPrometheusMetrics(cfg, crmetrics.Registry)
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
 		metaDataClient := imds.NewFromConfig(cfg)
@@ -163,11 +144,11 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		subnetProvider,
-		instancetype.NewDefaultResolver(*sess.Config.Region, pricingProvider, unavailableOfferingsCache),
+		instancetype.NewDefaultResolver(cfg.Region, pricingProvider, unavailableOfferingsCache),
 	)
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
-		aws.ToString(sess.Config.Region),
+		cfg.Region,
 		ec2api,
 		unavailableOfferingsCache,
 		subnetProvider,
@@ -176,7 +157,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 
 	return ctx, &Operator{
 		Operator:                  operator,
-		Session:                   sess,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,
@@ -193,11 +173,11 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 }
 
 // WithUserAgent adds a karpenter specific user-agent string to AWS session
-func WithUserAgent(sess *session.Session) *session.Session {
-	userAgent := fmt.Sprintf("karpenter.sh-%s", operator.Version)
-	sess.Handlers.Build.PushBack(request.MakeAddToUserAgentFreeFormHandler(userAgent))
-	return sess
-}
+// func WithUserAgent(sess *session.Session) *session.Session {
+// 	userAgent := fmt.Sprintf("karpenter.sh-%s", operator.Version)
+// 	sess.Handlers.Build.PushBack(request.MakeAddToUserAgentFreeFormHandler(userAgent))
+// 	return sess
+// }
 
 // CheckEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
 // are having issues connecting to the EC2 API.

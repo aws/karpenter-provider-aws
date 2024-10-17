@@ -125,3 +125,21 @@ require (
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )
+
+//Here until we can drop dependency on prometheus package
+replace (
+	github.com/aws/aws-sdk-go-v2 => github.com/aws/aws-sdk-go-v2 v1.30.5
+	github.com/aws/aws-sdk-go-v2/config => github.com/aws/aws-sdk-go-v2/config v1.27.34
+	github.com/aws/aws-sdk-go-v2/service/ec2 => github.com/aws/aws-sdk-go-v2/service/ec2 v1.177.0
+	github.com/aws/aws-sdk-go-v2/service/eks => github.com/aws/aws-sdk-go-v2/service/eks v1.48.0
+	github.com/aws/aws-sdk-go-v2/service/fis => github.com/aws/aws-sdk-go-v2/service/fis v1.27.0
+	github.com/aws/aws-sdk-go-v2/service/iam => github.com/aws/aws-sdk-go-v2/service/iam v1.35.0
+	github.com/aws/aws-sdk-go-v2/service/pricing => github.com/aws/aws-sdk-go-v2/service/pricing v1.28.0
+	github.com/aws/aws-sdk-go-v2/service/sqs => github.com/aws/aws-sdk-go-v2/service/sqs v1.34.6
+	github.com/aws/aws-sdk-go-v2/service/ssm => github.com/aws/aws-sdk-go-v2/service/ssm v1.52.4
+	github.com/aws/aws-sdk-go-v2/service/sso => github.com/aws/aws-sdk-go-v2/service/sso v1.15.0
+	github.com/aws/aws-sdk-go-v2/service/ssoadmin => github.com/aws/aws-sdk-go-v2/service/ssoadmin v1.22.0
+	github.com/aws/aws-sdk-go-v2/service/ssooidc => github.com/aws/aws-sdk-go-v2/service/ssooidc v1.20.0
+	github.com/aws/aws-sdk-go-v2/service/sts => github.com/aws/aws-sdk-go-v2/service/sts v1.28.2
+	github.com/aws/aws-sdk-go-v2/service/timestreamwrite => github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.23.2
+)
