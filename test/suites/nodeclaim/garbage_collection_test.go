@@ -112,12 +112,8 @@ var _ = Describe("GarbageCollection", func() {
 		out := env.EventuallyExpectRunInstances(instanceInput)
 		Expect(out.Instances).To(HaveLen(1))
 
-		// Always ensure that we cleanup the instance
-		ctx, cancel := context.WithCancel(env.Context)
-		defer cancel()
-
 		DeferCleanup(func() {
-			_, err := env.EC2API.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
+			_, err := env.EC2API.TerminateInstances(env.Context, &ec2.TerminateInstancesInput{
 				InstanceIds: []string{*out.Instances[0].InstanceId},
 			})
 			if err != nil {
