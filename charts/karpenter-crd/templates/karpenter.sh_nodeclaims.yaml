@@ -16,7 +16,7 @@ spec:
     singular: nodeclaim
   scope: Cluster
   versions:
-{{- if .Values.webhook.enabled }} 
+{{- if .Values.webhook.enabled }}
     - additionalPrinterColumns:
         - jsonPath: .metadata.labels.node\.kubernetes\.io/instance-type
           name: Type

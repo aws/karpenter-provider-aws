@@ -16,7 +16,7 @@ spec:
     singular: nodepool
   scope: Cluster
   versions:
-{{- if .Values.webhook.enabled }} 
+{{- if .Values.webhook.enabled }}
     - additionalPrinterColumns:
         - jsonPath: .spec.template.spec.nodeClassRef.name
           name: NodeClass
@@ -1027,3 +1027,4 @@ spec:
           namespace: {{ .Values.webhook.serviceNamespace | default .Release.Namespace }}
           port: {{ .Values.webhook.port }}
 {{- end }}
+
