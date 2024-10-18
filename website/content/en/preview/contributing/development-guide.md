@@ -72,7 +72,7 @@ You can test out changes made in https://github.com/kubernetes-sigs/karpenter by
 For local changes, replace `$PATH_TO_KUBERNETES_SIGS_KARPENTER` with the relative or absolute path and run:
 
 ```bash
-go mod edit -replace sign.k8s.io/karpenter=$PATH_TO_KUBERNETES_SIGS_KARPENTER
+go mod edit -replace sigs.k8s.io/karpenter=$PATH_TO_KUBERNETES_SIGS_KARPENTER
 ```
 
 *Note: you need to commit the go.mod changes before running `make image`
