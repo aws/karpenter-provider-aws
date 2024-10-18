@@ -64,7 +64,6 @@ If you are only interested in building the Karpenter images and not deploying th
 *Note: that this will produce a build with the version of https://github.com/kubernetes-sigs/karpenter in your local filesystem.
 
 ```bash
-export $
 make image # build and push the karpenter images
 ```
 
