@@ -61,11 +61,11 @@ make presubmit # run codegen, lint, and tests
 
 If you are only interested in building the Karpenter images and not deploying the updated release to your cluster immediately with Helm, you can run the following:
 
-*Note: that this will produce a build with the version of https://github.com/kubernetes-sigs/karpenter in your local filesystem.
-
 ```bash
 make image # build and push the karpenter images
 ```
+
+*Note: that this will produce a build with the version of https://github.com/kubernetes-sigs/karpenter in your local filesystem.
 
 You can test out changes made in https://github.com/kubernetes-sigs/karpenter by replacing the dependency of https://github.com/aws/karpenter-provider-aws/.
 For local changes, replace `$PATH_TO_KUBERNETES_SIGS_KARPENTER` with the relative or absolute path and run:
@@ -74,13 +74,25 @@ For local changes, replace `$PATH_TO_KUBERNETES_SIGS_KARPENTER` with the relativ
 go mod edit -replace sigs.k8s.io/karpenter=$PATH_TO_KUBERNETES_SIGS_KARPENTER
 ```
 
-*Note: you need to commit the go.mod changes before running `make image`
+Then you can build your image using the previous steps.
 
-Then you can build your image as before:
+### Publishing Images Only
+
+If you only need to build and publish an image to a container registry, run the following:
 
 ```bash
 make image # build and push the karpenter images
 ```
+You can test out changes made in https://github.com/kubernetes-sigs/karpenter by replacing the dependency of https://github.com/aws/karpenter-provider-aws/.
+For local changes, replace `$PATH_TO_KUBERNETES_SIGS_KARPENTER` with the relative or absolute path and run:
+
+```bash
+go mod edit -replace sigs.k8s.io/karpenter=$PATH_TO_KUBERNETES_SIGS_KARPENTER
+```
+
+Then you can build your image using the previous steps.
+
+*Note: you need to commit the go.mod changes before running `make image` for the changes to be picked up.
 
 ### Testing
 
