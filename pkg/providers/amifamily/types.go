@@ -99,12 +99,13 @@ type DescribeImageQuery struct {
 	KnownRequirements map[string][]scheduling.Requirements
 }
 
-func (q DescribeImageQuery) DescribeImagesInput() *ec2.DescribeImagesInput {
+func (q DescribeImageQuery) DescribeImagesInput(includeDeprecated bool) *ec2.DescribeImagesInput {
 	return &ec2.DescribeImagesInput{
 		// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
-		Filters:    lo.Ternary(len(q.Filters) > 0, q.Filters, nil),
-		Owners:     lo.Ternary(len(q.Owners) > 0, lo.ToSlicePtr(q.Owners), nil),
-		MaxResults: aws.Int64(1000),
+		Filters:           lo.Ternary(len(q.Filters) > 0, q.Filters, nil),
+		Owners:            lo.Ternary(len(q.Owners) > 0, lo.ToSlicePtr(q.Owners), nil),
+		IncludeDeprecated: lo.ToPtr(includeDeprecated),
+		MaxResults:        aws.Int64(1000),
 	}
 }
 
