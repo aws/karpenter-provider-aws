@@ -1011,4 +1011,5 @@ echo "  versions:
           name: {{ .Values.webhook.serviceName }}
           namespace: {{ .Values.webhook.serviceNamespace | default .Release.Namespace }}
           port: {{ .Values.webhook.port }}
-{{- end }}" >> charts/karpenter-crd/templates/karpenter.sh_nodepools.yaml
+{{- end }}
+" >> charts/karpenter-crd/templates/karpenter.sh_nodepools.yaml
