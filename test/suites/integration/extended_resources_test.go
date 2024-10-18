@@ -22,9 +22,11 @@ import (
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
@@ -412,15 +414,89 @@ func ExpectNvidiaDevicePluginCreated() {
 // https://github.com/aws-neuron/aws-neuron-sdk/blob/master/src/k8/k8s-neuron-device-plugin.yml
 func ExpectNeuronDevicePluginCreated() {
 	GinkgoHelper()
+
+	// When selecting more than 1 neuron/neuroncore but less than ALL of the neuron/neuroncores on the instance,
+	// you must use the Neuron scheduler to schedule neuron/neuroncores in a contiguous manner.
+	// https://awsdocs-neuron.readthedocs-hosted.com/en/latest/containers/kubernetes-getting-started.html#neuron-scheduler-extension
+	ExpectK8sNeuronSchedulerCreated()
+	ExpectNeuronSchedulerExtensionCreated()
+
+	neuronDevicePlugin := "neuron-device-plugin"
+
+	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: neuronDevicePlugin,
+		},
+		Rules: []rbacv1.PolicyRule{
+			// Device plugin
+			{
+				APIGroups: []string{""},
+				Resources: []string{"nodes"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"events"},
+				Verbs:     []string{"create", "patch"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods"},
+				Verbs:     []string{"update", "patch", "get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"nodes/status"},
+				Verbs:     []string{"update", "patch"},
+			},
+			// Scheduler
+			{
+				APIGroups: []string{""},
+				Resources: []string{"configmaps"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{"coordination.k8s.io"},
+				Resources: []string{"leases"},
+				Verbs:     []string{"create", "get", "list", "update"},
+			},
+		},
+	})
+
+	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: neuronDevicePlugin,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     neuronDevicePlugin,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      neuronDevicePlugin,
+				Namespace: "kube-system",
+			},
+		},
+	})
+
+	env.ExpectCreatedOrUpdated(&corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      neuronDevicePlugin,
+			Namespace: "kube-system",
+		},
+	})
+
 	env.ExpectCreated(&appsv1.DaemonSet{
 		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
-			Name:      "nvidia-device-plugin-daemonset",
+			Name:      neuronDevicePlugin,
 			Namespace: "kube-system",
 		}),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"name": "neuron-device-plugin-ds",
+					"name": neuronDevicePlugin,
 				},
 			},
 			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
@@ -429,10 +505,11 @@ func ExpectNeuronDevicePluginCreated() {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 					Labels: map[string]string{
-						"name": "neuron-device-plugin-ds",
+						"name": neuronDevicePlugin,
 					},
 				}),
 				Spec: corev1.PodSpec{
+					ServiceAccountName: neuronDevicePlugin,
 					Tolerations: []corev1.Toleration{
 						{
 							Key:      "aws.amazon.com/neuron",
@@ -443,7 +520,7 @@ func ExpectNeuronDevicePluginCreated() {
 					PriorityClassName: "system-node-critical",
 					Containers: []corev1.Container{
 						{
-							Name:  "neuron-device-plugin",
+							Name:  neuronDevicePlugin,
 							Image: "public.ecr.aws/neuron/neuron-device-plugin:2.22.4.0",
 							Env: []corev1.EnvVar{
 								{
@@ -491,6 +568,353 @@ func ExpectNeuronDevicePluginCreated() {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/run",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
+// https://github.com/aws-neuron/aws-neuron-sdk/blob/master/src/k8/k8s-neuron-scheduler-eks.yml
+func ExpectK8sNeuronSchedulerCreated() {
+	GinkgoHelper()
+
+	k8sNeuronScheduler := "k8s-neuron-scheduler"
+
+	env.ExpectCreatedOrUpdated(&corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      k8sNeuronScheduler,
+			Namespace: "kube-system",
+		},
+	})
+
+	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: k8sNeuronScheduler,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"nodes"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"node/status"},
+				Verbs:     []string{"update", "patch", "get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"events"},
+				Verbs:     []string{"create", "patch"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods"},
+				Verbs:     []string{"update", "patch", "get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"bindings", "pods/bindings"},
+				Verbs:     []string{"create"},
+			},
+		},
+	})
+
+	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: k8sNeuronScheduler,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     k8sNeuronScheduler,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      k8sNeuronScheduler,
+				Namespace: "kube-system",
+			},
+		},
+	})
+
+	env.ExpectCreatedOrUpdated(&corev1.Service{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
+			Name:      k8sNeuronScheduler,
+			Namespace: "kube-system",
+		}),
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{
+				"app": k8sNeuronScheduler,
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "http",
+					Port:       12345,
+					TargetPort: intstr.FromInt(12345),
+				},
+			},
+		},
+	})
+
+	replicas := int32(1)
+
+	env.ExpectCreatedOrUpdated(&appsv1.Deployment{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
+			Name:      k8sNeuronScheduler,
+			Namespace: "kube-system",
+		}),
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Strategy: appsv1.DeploymentStrategy{
+				Type: appsv1.RecreateDeploymentStrategyType,
+			},
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": k8sNeuronScheduler,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": k8sNeuronScheduler,
+					},
+					Annotations: map[string]string{
+						"scheduler.alpha.kubernetes.io/critical-pod": "",
+					},
+				}),
+				Spec: corev1.PodSpec{
+					ServiceAccountName: k8sNeuronScheduler,
+					PriorityClassName:  "system-node-critical",
+					SchedulerName:      k8sNeuronScheduler,
+					Tolerations: []corev1.Toleration{
+						{
+							Key:      "CriticalAddonsOnly",
+							Operator: corev1.TolerationOpExists,
+							Effect:   corev1.TaintEffectNoSchedule,
+						},
+					},
+					Containers: []corev1.Container{
+						{
+							Name:  k8sNeuronScheduler,
+							Image: "public.ecr.aws/neuron/neuron-scheduler:2.22.4.0",
+							Ports: []corev1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: 12345,
+								},
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name:  "PORT",
+									Value: "12345",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
+// https://github.com/aws-neuron/aws-neuron-sdk/blob/master/src/k8/my-scheduler.yml
+func ExpectNeuronSchedulerExtensionCreated() {
+	GinkgoHelper()
+
+	neuronSchedulerExtension := "neuron-scheduler-ext"
+
+	env.ExpectCreatedOrUpdated(&corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      neuronSchedulerExtension,
+			Namespace: "kube-system",
+		},
+	})
+
+	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: neuronSchedulerExtension,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"configmaps"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{"coordination.k8s.io"},
+				Resources: []string{"leases"},
+				Verbs:     []string{"create", "get", "list", "update"},
+			},
+		},
+	})
+
+	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-kube-scheduler", neuronSchedulerExtension),
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      neuronSchedulerExtension,
+				Namespace: "kube-system",
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     "system:kube-scheduler",
+		},
+	})
+	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-volume-scheduler", neuronSchedulerExtension),
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      neuronSchedulerExtension,
+				Namespace: "kube-system",
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     "system:volume-scheduler",
+		},
+	})
+	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: neuronSchedulerExtension,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      neuronSchedulerExtension,
+				Namespace: "kube-system",
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     neuronSchedulerExtension,
+		},
+	})
+
+	env.ExpectCreatedOrUpdated(&corev1.ConfigMap{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-config", neuronSchedulerExtension),
+			Namespace: "kube-system",
+		}),
+		Data: map[string]string{
+			fmt.Sprintf("%s-config.yaml", neuronSchedulerExtension): fmt.Sprintf(`apiVersion: kubescheduler.config.k8s.io/v1
+kind: KubeSchedulerConfiguration
+profiles:
+  - schedulerName: %[1]v
+extenders:
+  - urlPrefix: 'http://k8s-neuron-scheduler.kube-system.svc.cluster.local:12345'
+    filterVerb: filter
+    bindVerb: bind
+    enableHTTPS: false
+    nodeCacheCapable: true
+    managedResources:
+      - name: 'aws.amazon.com/neuron'
+        ignoredByScheduler: false
+      - name: 'aws.amazon.com/neuroncore'
+        ignoredByScheduler: false
+      - name: 'aws.amazon.com/neurondevice'
+        ignoredByScheduler: false
+    ignorable: false
+leaderElection:
+  leaderElect: true
+  resourceNamespace: kube-system
+  resourceName: %[1]v`, neuronSchedulerExtension),
+		},
+	})
+
+	replicas := int32(1)
+
+	env.ExpectCreatedOrUpdated(&appsv1.Deployment{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
+			Name:      neuronSchedulerExtension,
+			Namespace: "kube-system",
+			Labels: map[string]string{
+				"tier": "control-plane",
+			},
+		}),
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"tier": "control-plane",
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
+					Labels: map[string]string{
+						"tier": "control-plane",
+					},
+				}),
+				Spec: corev1.PodSpec{
+					ServiceAccountName: neuronSchedulerExtension,
+					Tolerations: []corev1.Toleration{
+						{
+							Key:      "CriticalAddonsOnly",
+							Operator: corev1.TolerationOpExists,
+							Effect:   corev1.TaintEffectNoSchedule,
+						},
+					},
+					Containers: []corev1.Container{
+						{
+							Name:    neuronSchedulerExtension,
+							Args:    []string{fmt.Sprintf("--config=/etc/kubernetes/%[1]v/%[1]v-config.yaml", neuronSchedulerExtension), "--leader-elect=true", "--v=2"},
+							Command: []string{"/usr/local/bin/kube-scheduler"},
+							Image:   fmt.Sprintf("public.ecr.aws/eks-distro/kubernetes/kube-scheduler:v1.%[1]v.0-eks-1-%[1]v-latest", env.K8sMinorVersion()),
+							LivenessProbe: &corev1.Probe{
+								InitialDelaySeconds: 15,
+								ProbeHandler: corev1.ProbeHandler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path:   "/healthz",
+										Port:   intstr.FromInt(10259),
+										Scheme: corev1.URISchemeHTTPS,
+									},
+								},
+							},
+							ReadinessProbe: &corev1.Probe{
+								ProbeHandler: corev1.ProbeHandler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path:   "/healthz",
+										Port:   intstr.FromInt(10259),
+										Scheme: corev1.URISchemeHTTPS,
+									},
+								},
+							},
+							SecurityContext: &corev1.SecurityContext{
+								Privileged: lo.ToPtr(false),
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "config-volume",
+									MountPath: fmt.Sprintf("/etc/kubernetes/%s", neuronSchedulerExtension),
+									ReadOnly:  true,
+								},
+							},
+						},
+					},
+					HostNetwork: false,
+					HostPID:     false,
+					Volumes: []corev1.Volume{
+						{
+							Name: "config-volume",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: fmt.Sprintf("%s-config", neuronSchedulerExtension),
+									},
 								},
 							},
 						},
