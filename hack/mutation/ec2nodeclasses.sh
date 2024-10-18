@@ -3,11 +3,12 @@
 VERSION_START="$(cat charts/karpenter-crd/templates/karpenter.k8s.aws_ec2nodeclasses.yaml | yq '.spec.versions.[0] | line')"
 VERSION_END="$(cat charts/karpenter-crd/templates/karpenter.k8s.aws_ec2nodeclasses.yaml | yq '.spec.versions.[1] | line')"
 VERSION_END=$(($VERSION_END+1))
+TEMP=$(mktemp)
 
 cat charts/karpenter-crd/templates/karpenter.k8s.aws_ec2nodeclasses.yaml | awk -v n=$VERSION_START 'NR==n {sub(/$/,"\n{{- if .Values.webhook.enabled }}")} 1' \
-| awk -v n=$VERSION_END 'NR==n {sub(/$/,"\n{{- end }}")} 1' > ec2nc.yaml
+| awk -v n=$VERSION_END 'NR==n {sub(/$/,"\n{{- end }}")} 1' > $TEMP
 
-cat ec2nc.yaml > charts/karpenter-crd/templates/karpenter.k8s.aws_ec2nodeclasses.yaml && rm ec2nc.yaml
+cat $TEMP > charts/karpenter-crd/templates/karpenter.k8s.aws_ec2nodeclasses.yaml
 
 echo "{{- if .Values.webhook.enabled }} 
   conversion:
