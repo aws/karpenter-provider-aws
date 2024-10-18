@@ -153,8 +153,9 @@ func (p *Provider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2Nod
 	}
 	// Resolve Name and CreationDate information into the DefaultAMIs
 	if err = p.ec2api.DescribeImagesPagesWithContext(ctx, &ec2.DescribeImagesInput{
-		Filters:    []*ec2.Filter{{Name: aws.String("image-id"), Values: aws.StringSlice(lo.Map(res, func(a AMI, _ int) string { return a.AmiID }))}},
-		MaxResults: aws.Int64(500),
+		Filters:           []*ec2.Filter{{Name: aws.String("image-id"), Values: aws.StringSlice(lo.Map(res, func(a AMI, _ int) string { return a.AmiID }))}},
+		MaxResults:        aws.Int64(500),
+		IncludeDeprecated: lo.ToPtr(true),
 	}, func(page *ec2.DescribeImagesOutput, _ bool) bool {
 		for i := range page.Images {
 			for j := range res {
