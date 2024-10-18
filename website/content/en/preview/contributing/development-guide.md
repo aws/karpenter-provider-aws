@@ -59,7 +59,7 @@ make apply # quickly deploy changes to your cluster
 make presubmit # run codegen, lint, and tests
 ```
 
-If you are only interested in building the Karpenter images and not deploying the updated release to your cluster immediately with Helm, you can run
+If you are only interested in building the Karpenter images and not deploying the updated release to your cluster immediately with Helm, you can run the following:
 
 *Note: that this will produce a build with the latest version of https://github.com/kubernetes-sigs/karpenter.
 
