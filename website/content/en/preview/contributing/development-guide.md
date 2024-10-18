@@ -61,7 +61,7 @@ make presubmit # run codegen, lint, and tests
 
 If you are only interested in building the Karpenter images and not deploying the updated release to your cluster immediately with Helm, you can run the following:
 
-*Note: that this will produce a build with the latest version of https://github.com/kubernetes-sigs/karpenter.
+*Note: that this will produce a build with the version of https://github.com/kubernetes-sigs/karpenter in your local filesystem.
 
 ```bash
 export $
