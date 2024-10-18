@@ -71,6 +71,7 @@ type Environment struct {
 	SecurityGroupCache            *cache.Cache
 	InstanceProfileCache          *cache.Cache
 	SSMCache                      *cache.Cache
+	DiscoveredCapacityCache       *cache.Cache
 
 	// Providers
 	InstanceTypesResolver   *instancetype.DefaultResolver
@@ -100,6 +101,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	kubernetesVersionCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceTypeCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	discoveredCapacityCache := cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval)
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	launchTemplateCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	subnetCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -120,7 +122,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
 	amiResolver := amifamily.NewDefaultResolver()
 	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion, pricingProvider, unavailableOfferingsCache)
-	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, ec2api, subnetProvider, instanceTypesResolver)
+	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, discoveredCapacityCache, ec2api, subnetProvider, instanceTypesResolver)
 	launchTemplateProvider :=
 		launchtemplate.NewDefaultProvider(
 			ctx,
@@ -164,6 +166,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		InstanceProfileCache:          instanceProfileCache,
 		UnavailableOfferingsCache:     unavailableOfferingsCache,
 		SSMCache:                      ssmCache,
+		DiscoveredCapacityCache:       discoveredCapacityCache,
 
 		InstanceTypesResolver:   instanceTypesResolver,
 		InstanceTypesProvider:   instanceTypesProvider,
@@ -199,6 +202,7 @@ func (env *Environment) Reset() {
 	env.SecurityGroupCache.Flush()
 	env.InstanceProfileCache.Flush()
 	env.SSMCache.Flush()
+	env.DiscoveredCapacityCache.Flush()
 	mfs, err := crmetrics.Registry.Gather()
 	if err != nil {
 		for _, mf := range mfs {

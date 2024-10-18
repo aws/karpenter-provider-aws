@@ -58,6 +58,7 @@ func main() {
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	instanceTypeProvider := instancetype.NewDefaultProvider(
 		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		subnetProvider,
 		instancetype.NewDefaultResolver(
