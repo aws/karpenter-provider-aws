@@ -121,6 +121,8 @@ var _ = Describe("Extended Resources", func() {
 				},
 				ResourceRequirements: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
+						// Only 1 is requested to avoid the use of the Neuron scheduler
+						// TODO: bryantbiggs@ add the ability to specify the scheduler name to test.PodOptions in order to use the Neuron scheduler
 						"aws.amazon.com/neuron": resource.MustParse("1"),
 					},
 					Limits: corev1.ResourceList{
@@ -161,10 +163,12 @@ var _ = Describe("Extended Resources", func() {
 				},
 				ResourceRequirements: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
-						"aws.amazon.com/neuroncore": resource.MustParse("2"),
+						// Only 1 is requested to avoid the use of the Neuron scheduler
+						// TODO: bryantbiggs@ add the ability to specify the scheduler name to test.PodOptions in order to use the Neuron scheduler
+						"aws.amazon.com/neuroncore": resource.MustParse("1"),
 					},
 					Limits: corev1.ResourceList{
-						"aws.amazon.com/neuroncore": resource.MustParse("2"),
+						"aws.amazon.com/neuroncore": resource.MustParse("1"),
 					},
 				},
 			},
