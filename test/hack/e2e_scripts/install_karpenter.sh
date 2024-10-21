@@ -1,10 +1,10 @@
 aws eks update-kubeconfig --name "$CLUSTER_NAME"
 
 # First, conditionally install the webhook stanza and CRDs
-if (( "$WEBHOOKS_ENABLED" == 'false' )); then
+if (( "$WEBHOOKS_ENABLED" == false )); then
 helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd \
   --namespace kube-system \
-  --version $(git describe --tags --abbrev=0 | cut -c 2-) \
+  --version "0-$(git rev-parse HEAD)" \
   --set webhook.enabled=${WEBHOOKS_ENABLED} \
   --wait
 fi
