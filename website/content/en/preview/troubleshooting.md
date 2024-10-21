@@ -310,25 +310,34 @@ then the following solution(s) may resolve your issue.
 
 ### Karpenter incorrectly computes available resources for a node
 
-When creating nodes, the allocatable resources Karpenter computed (as seen in logs and `nodeClaim.status.allocatable`) do not always match the allocatable resources on the created node (`node.status.allocatable`).
-Karpenter uses the results from `ec2:DescribeInstanceTypes` to determine the resources available on a node launched with a given instance type.
+When creating nodes, the allocatable resources Karpenter computed (as seen in logs and `nodeClaim.status.allocatable`) do not always match the allocatable resources on the created node (`node.status.allocatable`) due to some amount of memory being reserved for the hypervisor and underlying OS.
+Karpenter uses the results from `ec2:DescribeInstanceTypes` along with a cache for tracking observed memory capacity to determine the resources available on a node launched with a given instance type.
 The following computation is used to determine allocatable CPU, memory, and ephemeral storage based on the results returned from `ec2:DescribeInstanceTypes`.
 
 ```
+### cpu
 nodeClaim.allocatable.cpu = instance.cpu - kubeReserved.cpu - systemReserved.cpu
-nodeClaim.allocatable.memory = (instance.memory * (1.0 - VM_MEMORY_OVERHEAD_PERCENT)) - kubeReserved.memory - systemReserved.memory - max(evictionSoft.memory.available, evictionHard.memory.available)
+
+### memory
+# If first time launching this instance-type + AMI pair
+nodeClaim.allocatable.memory = (instance.memory  * (1.0 - VM_MEMORY_OVERHEAD_PERCENT)) - kubeReserved.memory - systemReserved.memory - max(evictionSoft.memory.available, evictionHard.memory.available)
+# For subsequent nodes where cached instance-type capacity is available
+nodeClaim.allocatable.memory = ( cached.instance.memory - kubeReserved.memory - systemReserved.memory - max(evictionSoft.memory.available, evictionHard.memory.available)
+
+### ephemeral-storage
 nodeClaim.allocatable.ephemeralStorage = instance.storage - kubeReserved.ephemeralStorage - systemReserved.ephemeralStorage - max(evictionSoft.nodefs.available, evictionHard.nodefs.available)
 ```
 
 Most of these factors directly model user configuration (i.e. the KubeletConfiguration options).
 On the other hand, `VM_MEMORY_OVERHEAD_PERCENT` models an implicit reduction of available memory that varies by instance type and AMI.
-Karpenter can't compute the exact value being modeled, so `VM_MEMORY_OVERHEAD_PERCENT` is a [global setting]({{< ref "./reference/settings.md" >}}) used across all instance type and AMI combinations.
+However, once a node is created, the actual memory capacity on that node (node.status.capacity.memory) is checked by the controller. The controller caches the observed memory for any subsequent nodes launched with the same AMI and instance type pair, improving accuracy for future nodes.
+For new combinations of AMI and instance type (i.e., when this pair is launched for the first time), Karpenter will still use the VM_MEMORY_OVERHEAD_PERCENT value as a fallback for estimating allocatable memory.
+This fallback is necessary because Karpenter can't compute the exact value being modeled ahead of time, so `VM_MEMORY_OVERHEAD_PERCENT` is a [global setting]({{< ref "./reference/settings.md" >}}) used across all instance type and AMI combinations.
 The default value (`7.5%`) has been tuned to closely match reality for the majority of instance types while not overestimating.
-As a result, Karpenter will typically underestimate the memory availble on a node for a given instance type.
+As a result, Karpenter will typically underestimate the memory available on a node for a given instance type.
 If you know the real `VM_MEMORY_OVERHEAD_PERCENT` for the specific instances you're provisioning in your cluster, you can tune this value to tighten the bound.
 However, this should be done with caution.
 A `VM_MEMORY_OVERHEAD_PERCENT` which results in Karpenter overestimating the memory available on a node can result in Karpenter launching nodes which are too small for your workload.
-In the worst case, this can result in an instance launch loop and your workload remaining unschedulable indefinitely.
 
 To detect instances of Karpenter overestimating resource availability, the following status condition can be monitored:
 
