@@ -20,7 +20,7 @@ Karpenter automatically discovers disruptable nodes and spins up replacements wh
 2. For each disruptable node:
    1. Check if disrupting it would violate its NodePool's disruption budget.
    2. Execute a scheduling simulation with the pods on the node to find if any replacement nodes are needed.
-3. Add the `karpenter.sh/disruption:NoSchedule` taint to the node(s) to prevent pods from scheduling to it.
+3. Add the `karpenter.sh/disrupted:NoSchedule` taint to the node(s) to prevent pods from scheduling to it.
 4. Pre-spin any replacement nodes needed as calculated in Step (2), and wait for them to become ready.
    * If a replacement node fails to initialize, un-taint the node(s), and restart from Step (1), starting at the first disruption method again.
 5. Delete the node(s) and wait for the Termination Controller to gracefully shutdown the node(s).
@@ -29,8 +29,8 @@ Karpenter automatically discovers disruptable nodes and spins up replacements wh
 ### Termination Controller
 
 When a Karpenter node is deleted, the Karpenter finalizer will block deletion and the APIServer will set the `DeletionTimestamp` on the node, allowing Karpenter to gracefully shutdown the node, modeled after [Kubernetes Graceful Node Shutdown](https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown). Karpenter's graceful shutdown process will:
-1. Add the `karpenter.sh/disruption=disrupting:NoSchedule` taint to the node to prevent pods from scheduling to it.
-2. Begin evicting the pods on the node with the [Kubernetes Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/) to respect PDBs, while ignoring all [static pods](https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/), pods tolerating the `karpenter.sh/disruption=disrupting:NoSchedule` taint, and succeeded/failed pods. Wait for the node to be fully drained before proceeding to Step (3).
+1. Add the `karpenter.sh/disrupted:NoSchedule` taint to the node to prevent pods from scheduling to it.
+2. Begin evicting the pods on the node with the [Kubernetes Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/) to respect PDBs, while ignoring all [static pods](https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/), pods tolerating the `karpenter.sh/disrupted:NoSchedule` taint, and succeeded/failed pods. Wait for the node to be fully drained before proceeding to Step (3).
    * While waiting, if the underlying NodeClaim for the node no longer exists, remove the finalizer to allow the APIServer to delete the node, completing termination.
 3. Terminate the NodeClaim in the Cloud Provider.
 4. Remove the finalizer from the node to allow the APIServer to delete the node, completing termination.
@@ -87,7 +87,7 @@ spec:
 
 ### Consolidation
 
-Consolidation is configured by `consolidationPolicy` and `consolidateAfter`. `consolidationPolicy` determines the pre-conditions for nodes to be considered consolidatable, and are `whenEmpty` or `whenEmptyOrUnderutilized`. If a node has no running non-daemon pods, it is considered empty.  `consolidateAfter` can be set to indicate how long Karpenter should wait after a pod schedules or is removed from the node before considering the node consolidatable. With `whenEmptyOrUnderutilized`, Karpenter will consider a node consolidatable when its `consolidateAfter` has been reached, empty or not.
+Consolidation is configured by `consolidationPolicy` and `consolidateAfter`. `consolidationPolicy` determines the pre-conditions for nodes to be considered consolidatable, and are `WhenEmpty` or `WhenEmptyOrUnderutilized`. If a node has no running non-daemon pods, it is considered empty.  `consolidateAfter` can be set to indicate how long Karpenter should wait after a pod schedules or is removed from the node before considering the node consolidatable. With `WhenEmptyOrUnderutilized`, Karpenter will consider a node consolidatable when its `consolidateAfter` has been reached, empty or not.
 
 Karpenter has two mechanisms for cluster consolidation:
 1. **Deletion** - A node is eligible for deletion if all of its pods can run on free capacity of other nodes in the cluster.

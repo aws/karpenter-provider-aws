@@ -22,6 +22,11 @@ import (
 	"net"
 	"os"
 
+	configV2 "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	iamV2 "github.com/aws/aws-sdk-go-v2/service/iam"
+
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	awsclient "github.com/aws/aws-sdk-go/aws/client"
@@ -33,8 +38,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/ssm"
 	prometheusv1 "github.com/jonathan-innis/aws-sdk-go-prometheus/v1"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -73,21 +76,21 @@ type Operator struct {
 
 	Session                   *session.Session
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
-	EC2API                    ec2iface.EC2API
 	SubnetProvider            subnet.Provider
 	SecurityGroupProvider     securitygroup.Provider
 	InstanceProfileProvider   instanceprofile.Provider
 	AMIProvider               amifamily.Provider
-	AMIResolver               *amifamily.Resolver
+	AMIResolver               amifamily.Resolver
 	LaunchTemplateProvider    launchtemplate.Provider
 	PricingProvider           pricing.Provider
 	VersionProvider           version.Provider
-	InstanceTypesProvider     instancetype.Provider
+	InstanceTypesProvider     *instancetype.DefaultProvider
 	InstanceProvider          instance.Provider
 	SSMProvider               ssmp.Provider
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
+	//v1
 	config := &aws.Config{
 		STSRegionalEndpoint: endpoints.RegionalSTSEndpoint,
 	}
@@ -130,10 +133,19 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
 	}
 
+	//v2
+	//Once everything is migrated we will need to update prometheus metrics to v2
+	cfg := lo.Must(configV2.LoadDefaultConfig(ctx, configV2.WithRetryMaxAttempts(3)))
+	if cfg.Region == "" {
+		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
+		metaDataClient := imds.NewFromConfig(cfg)
+		cfg.Region = lo.Must(metaDataClient.GetRegion(ctx, nil)).Region
+	}
+
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(*sess.Config.Region, iam.New(sess), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(cfg.Region, iamV2.NewFromConfig(cfg), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
 	pricingProvider := pricing.NewDefaultProvider(
 		ctx,
 		pricing.NewAPI(sess, *sess.Config.Region),
@@ -141,9 +153,9 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		*sess.Config.Region,
 	)
 	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	ssmProvider := ssmp.NewDefaultProvider(ssm.New(sess), cache.New(awscache.SSMGetParametersByPathTTL, awscache.DefaultCleanupInterval))
-	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiResolver := amifamily.NewResolver(amiProvider)
+	ssmProvider := ssmp.NewDefaultProvider(ssm.NewFromConfig(cfg), cache.New(awscache.SSMGetParametersByPathTTL, awscache.DefaultCleanupInterval))
+	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	amiResolver := amifamily.NewDefaultResolver()
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
@@ -158,19 +170,17 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		clusterEndpoint,
 	)
 	instanceTypeProvider := instancetype.NewDefaultProvider(
-		*sess.Config.Region,
 		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		subnetProvider,
-		unavailableOfferingsCache,
-		pricingProvider,
+		instancetype.NewDefaultResolver(*sess.Config.Region, pricingProvider, unavailableOfferingsCache),
 	)
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		aws.StringValue(sess.Config.Region),
 		ec2api,
 		unavailableOfferingsCache,
-		instanceTypeProvider,
 		subnetProvider,
 		launchTemplateProvider,
 	)
@@ -179,7 +189,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		Operator:                  operator,
 		Session:                   sess,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
-		EC2API:                    ec2api,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,
 		InstanceProfileProvider:   instanceProfileProvider,

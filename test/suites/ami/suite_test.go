@@ -71,8 +71,10 @@ var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("AMI", func() {
 	var customAMI string
+	var deprecatedAMI string
 	BeforeEach(func() {
 		customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+		deprecatedAMI = env.GetDeprecatedAMI(customAMI, "AL2023")
 	})
 
 	It("should use the AMI defined by the AMI Selector Terms", func() {
@@ -87,7 +89,7 @@ var _ = Describe("AMI", func() {
 	})
 	It("should use the most recent AMI when discovering multiple", func() {
 		// choose an old static image that will definitely have an older creation date
-		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%[1]s/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-%[1]s-v20240514/image_id", env.K8sVersion()))
+		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%[1]s/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-%[1]s-v20240514/image_id", env.K8sVersionWithOffset(1)))
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{ID: customAMI},
@@ -156,10 +158,43 @@ var _ = Describe("AMI", func() {
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
+	It("should support launching nodes with a deprecated ami", func() {
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+			{
+				ID: deprecatedAMI,
+			},
+		}
+		pod := coretest.Pod()
+
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(deprecatedAMI))))
+	})
+	It("should prioritize launch with non-deprecated AMIs", func() {
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+			{
+				ID: deprecatedAMI,
+			},
+			{
+				ID: customAMI,
+			},
+		}
+		pod := coretest.Pod()
+
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
+	})
 
 	Context("AMIFamily", func() {
 		DescribeTable(
-			"should providion a node using an alias",
+			"should provision a node using an alias",
 			func(alias string) {
 				pod := coretest.Pod()
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
@@ -168,12 +203,12 @@ var _ = Describe("AMI", func() {
 				env.ExpectCreatedNodeCount("==", 1)
 			},
 			Entry("AL2023 (latest)", "al2023@latest"),
-			Entry("AL2023 (pinned)", "al2023@v20240807"),
+			Entry("AL2023 (pinned)", "al2023@v20240928"),
 			Entry("AL2 (latest)", "al2@latest"),
-			Entry("AL2 (pinned)", "al2@v20240807"),
+			Entry("AL2 (pinned)", "al2@v20240928"),
 			Entry("Bottlerocket (latest)", "bottlerocket@latest"),
-			Entry("Bottlerocket (pinned with v prefix)", "bottlerocket@v1.21.0"),
-			Entry("Bottlerocket (pinned without v prefix)", "bottlerocket@1.21.0"),
+			Entry("Bottlerocket (pinned with v prefix)", "bottlerocket@v1.24.0"),
+			Entry("Bottlerocket (pinned without v prefix)", "bottlerocket@1.24.0"),
 		)
 		It("should support Custom AMIFamily with AMI Selectors", func() {
 			al2023AMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))

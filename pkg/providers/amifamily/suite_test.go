@@ -303,6 +303,182 @@ var _ = Describe("AMIProvider", func() {
 			}))
 		})
 	})
+	Context("AMI List requirements", func() {
+		BeforeEach(func() {
+			// Set time using the injectable/fake clock to now
+			awsEnv.Clock.SetTime(time.Now())
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					Tags: map[string]string{"*": "*"},
+				},
+			}
+		})
+		It("should priortize the older non-deprecated ami without deprecation time", func() {
+			// Here we have two AMIs one which is deprecated and newer and one which is older and non-deprecated without a deprecation time
+			// List operation will priortize the non-deprecated AMI without the deprecation time
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []*ec2.Image{
+					{
+						Name:            aws.String(amd64AMI),
+						ImageId:         aws.String("ami-5678"),
+						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(-1 * time.Hour).Format(time.RFC3339)),
+						Architecture:    aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+					{
+						Name:         aws.String(amd64AMI),
+						ImageId:      aws.String("ami-1234"),
+						CreationDate: aws.String("2020-08-31T00:08:42.000Z"),
+						Architecture: aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+				},
+			})
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis).To(ConsistOf(amifamily.AMI{
+				Name:         amd64AMI,
+				AmiID:        "ami-1234",
+				CreationDate: "2020-08-31T00:08:42.000Z",
+				Requirements: scheduling.NewRequirements(
+					scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
+				),
+			}))
+		})
+		It("should priortize the non-deprecated ami with deprecation time when both have same creation time", func() {
+			// Here we have two AMIs one which is deprecated and one which is non-deprecated both with the same creation time
+			// List operation will priortize the non-deprecated AMI
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []*ec2.Image{
+					{
+						Name:            aws.String(amd64AMI),
+						ImageId:         aws.String("ami-5678"),
+						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(-10 * time.Minute).Format(time.RFC3339)),
+						Architecture:    aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+					{
+						Name:            aws.String(amd64AMI),
+						ImageId:         aws.String("ami-1234"),
+						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(10 * time.Minute).Format(time.RFC3339)),
+						Architecture:    aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+				},
+			})
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis).To(ConsistOf(amifamily.AMI{
+				Name:         amd64AMI,
+				AmiID:        "ami-1234",
+				CreationDate: "2021-08-31T00:12:42.000Z",
+				Deprecated:   false,
+				Requirements: scheduling.NewRequirements(
+					scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
+				),
+			}))
+		})
+		It("should priortize the non-deprecated ami with deprecation time when both have same creation time and different name", func() {
+			// Here we have two AMIs one which is deprecated and one which is non-deprecated both with the same creation time but with different names
+			// List operation will priortize the non-deprecated AMI
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []*ec2.Image{
+					{
+						Name:            aws.String("test-ami-2"),
+						ImageId:         aws.String("ami-5678"),
+						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(-10 * time.Minute).Format(time.RFC3339)),
+						Architecture:    aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+					{
+						Name:            aws.String("test-ami-1"),
+						ImageId:         aws.String("ami-1234"),
+						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(10 * time.Minute).Format(time.RFC3339)),
+						Architecture:    aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+				},
+			})
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis).To(ConsistOf(amifamily.AMI{
+				Name:         "test-ami-1",
+				AmiID:        "ami-1234",
+				CreationDate: "2021-08-31T00:12:42.000Z",
+				Deprecated:   false,
+				Requirements: scheduling.NewRequirements(
+					scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
+				),
+			}))
+		})
+		It("should priortize the newer ami if both are deprecated", func() {
+			//Both amis are deprecated and have the same deprecation time
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []*ec2.Image{
+					{
+						Name:            aws.String(amd64AMI),
+						ImageId:         aws.String("ami-5678"),
+						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(-1 * time.Hour).Format(time.RFC3339)),
+						Architecture:    aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+					{
+						Name:            aws.String(amd64AMI),
+						ImageId:         aws.String("ami-1234"),
+						CreationDate:    aws.String("2020-08-31T00:08:42.000Z"),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(-1 * time.Hour).Format(time.RFC3339)),
+						Architecture:    aws.String("x86_64"),
+						Tags: []*ec2.Tag{
+							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+				},
+			})
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis).To(ConsistOf(amifamily.AMI{
+				Name:         amd64AMI,
+				AmiID:        "ami-5678",
+				CreationDate: "2021-08-31T00:12:42.000Z",
+				Deprecated:   true,
+				Requirements: scheduling.NewRequirements(
+					scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
+				),
+			}))
+		})
+	})
 	Context("AMI Selectors", func() {
 		// When you tag public or shared resources, the tags you assign are available only to your AWS account; no other AWS account will have access to those tags
 		// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions
@@ -548,6 +724,72 @@ var _ = Describe("AMIProvider", func() {
 						Name:         "test-ami-1",
 						AmiID:        "test-ami-4-id",
 						CreationDate: "2021-08-31T00:10:42.000Z",
+						Requirements: scheduling.NewRequirements(),
+					},
+				},
+			))
+		})
+		It("should sort deprecated amis with the same name and deprecation time consistently", func() {
+			amis := amifamily.AMIs{
+				{
+					Name:         "test-ami-1",
+					AmiID:        "test-ami-4-id",
+					CreationDate: "2021-08-31T00:10:42.000Z",
+					Deprecated:   true,
+					Requirements: scheduling.NewRequirements(),
+				},
+				{
+					Name:         "test-ami-1",
+					AmiID:        "test-ami-3-id",
+					CreationDate: "2021-08-31T00:10:42.000Z",
+					Deprecated:   true,
+					Requirements: scheduling.NewRequirements(),
+				},
+				{
+					Name:         "test-ami-1",
+					AmiID:        "test-ami-2-id",
+					CreationDate: "2021-08-31T00:10:42.000Z",
+					Deprecated:   true,
+					Requirements: scheduling.NewRequirements(),
+				},
+				{
+					Name:         "test-ami-1",
+					AmiID:        "test-ami-1-id",
+					CreationDate: "2021-08-31T00:10:42.000Z",
+					Deprecated:   true,
+					Requirements: scheduling.NewRequirements(),
+				},
+			}
+
+			amis.Sort()
+			Expect(amis).To(Equal(
+				amifamily.AMIs{
+					{
+						Name:         "test-ami-1",
+						AmiID:        "test-ami-1-id",
+						CreationDate: "2021-08-31T00:10:42.000Z",
+						Deprecated:   true,
+						Requirements: scheduling.NewRequirements(),
+					},
+					{
+						Name:         "test-ami-1",
+						AmiID:        "test-ami-2-id",
+						CreationDate: "2021-08-31T00:10:42.000Z",
+						Deprecated:   true,
+						Requirements: scheduling.NewRequirements(),
+					},
+					{
+						Name:         "test-ami-1",
+						AmiID:        "test-ami-3-id",
+						CreationDate: "2021-08-31T00:10:42.000Z",
+						Deprecated:   true,
+						Requirements: scheduling.NewRequirements(),
+					},
+					{
+						Name:         "test-ami-1",
+						AmiID:        "test-ami-4-id",
+						CreationDate: "2021-08-31T00:10:42.000Z",
+						Deprecated:   true,
 						Requirements: scheduling.NewRequirements(),
 					},
 				},

@@ -71,7 +71,7 @@ func (e EKS) eksBootstrapScript() string {
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
 	}
-	if (e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil) || !e.AWSENILimitedPodDensity {
+	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
 		userData.WriteString(" \\\n--use-max-pods false")
 	}
 	if args := e.kubeletExtraArgs(); len(args) > 0 {
@@ -81,17 +81,6 @@ func (e EKS) eksBootstrapScript() string {
 		userData.WriteString(" \\\n--local-disks raid0")
 	}
 	return userData.String()
-}
-
-// kubeletExtraArgs for the EKS bootstrap.sh script uses the concept of ENI-limited pod density to set pods
-// If this argument is explicitly disabled, then set the max-pods value on the kubelet to the static value of 110
-func (e EKS) kubeletExtraArgs() []string {
-	args := e.Options.kubeletExtraArgs()
-	// Set the static value for --max-pods to 110 when AWSENILimitedPodDensity is explicitly disabled and the value isn't set
-	if !e.AWSENILimitedPodDensity && (e.KubeletConfig == nil || e.KubeletConfig.MaxPods == nil) {
-		args = append(args, "--max-pods=110")
-	}
-	return args
 }
 
 func (e EKS) mergeCustomUserData(userDatas ...string) (string, error) {

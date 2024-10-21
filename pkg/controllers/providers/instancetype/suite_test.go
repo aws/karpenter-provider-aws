@@ -89,7 +89,7 @@ var _ = Describe("InstanceType", func() {
 		})
 
 		ExpectSingletonReconciled(ctx, controller)
-		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.KubeletConfiguration{}, &v1.EC2NodeClass{
+		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.EC2NodeClass{
 			Status: v1.EC2NodeClassStatus{
 				Subnets: []v1.Subnet{
 					{
@@ -123,7 +123,7 @@ var _ = Describe("InstanceType", func() {
 		})
 
 		ExpectSingletonReconciled(ctx, controller)
-		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.KubeletConfiguration{}, &v1.EC2NodeClass{
+		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.EC2NodeClass{
 			Status: v1.EC2NodeClassStatus{
 				Subnets: []v1.Subnet{
 					{
@@ -158,14 +158,14 @@ var _ = Describe("InstanceType", func() {
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{})
 		ExpectSingletonReconciled(ctx, controller)
-		_, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.KubeletConfiguration{}, &v1.EC2NodeClass{})
+		_, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.EC2NodeClass{})
 		Expect(err).ToNot(BeNil())
 	})
 	It("should not update instance type offering date with response from the DescribeInstanceTypesOfferings API", func() {
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{})
 		ExpectSingletonReconciled(ctx, controller)
-		_, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.KubeletConfiguration{}, &v1.EC2NodeClass{})
+		_, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.EC2NodeClass{})
 		Expect(err).ToNot(BeNil())
 	})
 })
