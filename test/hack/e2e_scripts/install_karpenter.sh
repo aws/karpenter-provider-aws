@@ -1,8 +1,10 @@
 aws eks update-kubeconfig --name "$CLUSTER_NAME"
 
 # First, conditionally install the webhook stanza and CRDs
+SKIP_CRDS=false
 if (( "$WEBHOOKS_ENABLED" == false )); then
-helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd \
+SKIP_CRDS=true
+helm upgrade --install karpenter-crd oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter-crd \
   --namespace kube-system \
   --version "0-$(git rev-parse HEAD)" \
   --set webhook.enabled=${WEBHOOKS_ENABLED} \
@@ -42,4 +44,5 @@ helm upgrade --install karpenter "${CHART}" \
   --set "serviceMonitor.endpointConfig.relabelings[2].replacement=$(git describe --abbrev=0 --tags)" \
   --set "serviceMonitor.endpointConfig.relabelings[3].targetLabel=commitsAfterTag" \
   --set "serviceMonitor.endpointConfig.relabelings[3].replacement=\"$(git describe --tags | cut -d '-' -f 2)\"" \
+  --skip-crds $SKIP_CRDS \
   --wait
