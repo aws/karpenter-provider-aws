@@ -80,15 +80,15 @@ type DefaultProvider struct {
 
 func NewDefaultProvider(instanceTypesCache *cache.Cache, discoveredCapacityCache *cache.Cache, ec2api sdk.EC2API, subnetProvider subnet.Provider, instanceTypesResolver Resolver) *DefaultProvider {
 	return &DefaultProvider{
-		ec2api:                 ec2api,
-		subnetProvider:         subnetProvider,
-		instanceTypesInfo:      []*ec2types.InstanceTypeInfo{},
-		instanceTypesOfferings: map[string]sets.Set[string]{},
-		instanceTypesResolver:  instanceTypesResolver,
-		instanceTypesCache:     instanceTypesCache,
-    discoveredCapacityCache: discoveredCapacityCache,
-		cm:                     pretty.NewChangeMonitor(),
-		instanceTypesSeqNum:    0,
+		ec2api:                  ec2api,
+		subnetProvider:          subnetProvider,
+		instanceTypesInfo:       []*ec2types.InstanceTypeInfo{},
+		instanceTypesOfferings:  map[string]sets.Set[string]{},
+		instanceTypesResolver:   instanceTypesResolver,
+		instanceTypesCache:      instanceTypesCache,
+		discoveredCapacityCache: discoveredCapacityCache,
+		cm:                      pretty.NewChangeMonitor(),
+		instanceTypesSeqNum:     0,
 	}
 }
 
