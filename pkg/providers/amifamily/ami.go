@@ -69,7 +69,12 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	if err != nil {
 		return nil, fmt.Errorf("getting AMI queries, %w", err)
 	}
-	amis, err := p.amis(ctx, queries)
+	// Discover deprecated AMIs if automatic AMI discovery and upgrade is enabled. This ensures we'll be able to
+	// provision in the event of an EKS optimized AMI being deprecated.
+	includeDeprecated := lo.ContainsBy(nodeClass.Spec.AMISelectorTerms, func(term v1.AMISelectorTerm) bool {
+		return term.Alias == "latest"
+	})
+	amis, err := p.amis(ctx, queries, includeDeprecated)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +150,7 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 }
 
 //nolint:gocyclo
-func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery) (AMIs, error) {
+func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery, includeDeprecated bool) (AMIs, error) {
 	hash, err := hashstructure.Hash(queries, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
@@ -157,7 +162,7 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 	}
 	images := map[uint64]AMI{}
 	for _, query := range queries {
-		if err = p.ec2api.DescribeImagesPagesWithContext(ctx, query.DescribeImagesInput(), func(page *ec2.DescribeImagesOutput, _ bool) bool {
+		if err = p.ec2api.DescribeImagesPagesWithContext(ctx, query.DescribeImagesInput(includeDeprecated), func(page *ec2.DescribeImagesOutput, _ bool) bool {
 			for _, image := range page.Images {
 				arch, ok := v1.AWSToKubeArchitectures[lo.FromPtr(image.Architecture)]
 				if !ok {
