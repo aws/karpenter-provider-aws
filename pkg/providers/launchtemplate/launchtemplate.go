@@ -11,7 +11,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-//nolint:gosec // disable G115
+
 package launchtemplate
 
 import (
@@ -180,14 +180,14 @@ func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1.EC
 	}, nil
 }
 
-func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2types.LaunchTemplate, error) {
-	var launchTemplate *ec2types.LaunchTemplate
+func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (ec2types.LaunchTemplate, error) {
+	var launchTemplate ec2types.LaunchTemplate
 	name := LaunchTemplateName(options)
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("launch-template-name", name))
 	// Read from cache
 	if launchTemplate, ok := p.cache.Get(name); ok {
 		p.cache.SetDefault(name, launchTemplate)
-		return launchTemplate.(*ec2types.LaunchTemplate), nil
+		return launchTemplate.(ec2types.LaunchTemplate), nil
 	}
 	// Attempt to find an existing LT.
 	output, err := p.ec2api.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
@@ -197,26 +197,26 @@ func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *ami
 	if awserrors.IsNotFound(err) {
 		launchTemplate, err = p.createLaunchTemplate(ctx, options)
 		if err != nil {
-			return nil, fmt.Errorf("creating launch template, %w", err)
+			return ec2types.LaunchTemplate{}, fmt.Errorf("creating launch template, %w", err)
 		}
 	} else if err != nil {
-		return nil, fmt.Errorf("describing launch templates, %w", err)
+		return ec2types.LaunchTemplate{}, fmt.Errorf("describing launch templates, %w", err)
 	} else if len(output.LaunchTemplates) != 1 {
-		return nil, fmt.Errorf("expected to find one launch template, but found %d", len(output.LaunchTemplates))
+		return ec2types.LaunchTemplate{}, fmt.Errorf("expected to find one launch template, but found %d", len(output.LaunchTemplates))
 	} else {
 		if p.cm.HasChanged("launchtemplate-"+name, name) {
 			log.FromContext(ctx).V(1).Info("discovered launch template")
 		}
-		launchTemplate = &output.LaunchTemplates[0]
+		launchTemplate = output.LaunchTemplates[0]
 	}
 	p.cache.SetDefault(name, launchTemplate)
 	return launchTemplate, nil
 }
 
-func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2types.LaunchTemplate, error) {
+func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (ec2types.LaunchTemplate, error) {
 	userData, err := options.UserData.Script()
 	if err != nil {
-		return nil, err
+		return ec2types.LaunchTemplate{}, err
 	}
 	launchTemplateDataTags := []ec2types.LaunchTemplateTagSpecificationRequest{
 		{ResourceType: ec2types.ResourceTypeNetworkInterface, Tags: utils.MergeTags(options.Tags)},
@@ -228,7 +228,7 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 	output, err := p.ec2api.CreateLaunchTemplate(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(LaunchTemplateName(options)),
 		LaunchTemplateData: &ec2types.RequestLaunchTemplateData{
-			BlockDeviceMappings: lo.FromSlicePtr(p.blockDeviceMappings(options.BlockDeviceMappings)),
+			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),
 			IamInstanceProfile: &ec2types.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: aws.String(options.InstanceProfile),
 			},
@@ -240,8 +240,10 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),
 			MetadataOptions: &ec2types.LaunchTemplateInstanceMetadataOptionsRequest{
-				HttpEndpoint:            ec2types.LaunchTemplateInstanceMetadataEndpointState(lo.FromPtr(options.MetadataOptions.HTTPEndpoint)),
-				HttpProtocolIpv6:        ec2types.LaunchTemplateInstanceMetadataProtocolIpv6(lo.FromPtr(options.MetadataOptions.HTTPProtocolIPv6)),
+				HttpEndpoint:     ec2types.LaunchTemplateInstanceMetadataEndpointState(lo.FromPtr(options.MetadataOptions.HTTPEndpoint)),
+				HttpProtocolIpv6: ec2types.LaunchTemplateInstanceMetadataProtocolIpv6(lo.FromPtr(options.MetadataOptions.HTTPProtocolIPv6)),
+				//Will be removed when we update options.MetadataOptions.HTTPPutResponseHopLimit type to be int32
+				//nolint: gosec
 				HttpPutResponseHopLimit: lo.ToPtr(int32(lo.FromPtr(options.MetadataOptions.HTTPPutResponseHopLimit))),
 				HttpTokens:              ec2types.LaunchTemplateHttpTokensState(lo.FromPtr(options.MetadataOptions.HTTPTokens)),
 				// We statically set the InstanceMetadataTags to "disabled" for all new instances since
@@ -262,10 +264,10 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 		},
 	})
 	if err != nil {
-		return nil, err
+		return ec2types.LaunchTemplate{}, err
 	}
 	log.FromContext(ctx).WithValues("id", aws.ToString(output.LaunchTemplate.LaunchTemplateId)).V(1).Info("created launch template")
-	return output.LaunchTemplate, nil
+	return lo.FromPtr(output.LaunchTemplate), nil
 }
 
 // generateNetworkInterfaces generates network interfaces for the launch template.
@@ -273,10 +275,14 @@ func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTem
 	if options.EFACount != 0 {
 		return lo.Times(options.EFACount, func(i int) ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 			return ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
-				NetworkCardIndex:         lo.ToPtr(int32(i)),
-				DeviceIndex:              lo.ToPtr(lo.Ternary[int32](i == 0, 0, 1)),
-				InterfaceType:            lo.ToPtr(string(ec2types.NetworkInterfaceTypeEfa)),
-				Groups:                   lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
+				//nolint: gosec
+				NetworkCardIndex: lo.ToPtr(int32(i)),
+				// Some networking magic to ensure that one network card has higher priority than all the others (important if an instance needs a public IP w/o adding an EIP to every network card)
+				DeviceIndex:   lo.ToPtr(lo.Ternary[int32](i == 0, 0, 1)),
+				InterfaceType: lo.ToPtr(string(ec2types.NetworkInterfaceTypeEfa)),
+				Groups:        lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
+				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
+				// with a single EFA network interface, and we should support those use cases. Launch failures with multiple enis should be considered user misconfiguration.
 				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
 			}
 		})
@@ -296,14 +302,14 @@ func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTem
 	return nil
 }
 
-func (p *DefaultProvider) blockDeviceMappings(blockDeviceMappings []*v1.BlockDeviceMapping) []*ec2types.LaunchTemplateBlockDeviceMappingRequest {
+func (p *DefaultProvider) blockDeviceMappings(blockDeviceMappings []*v1.BlockDeviceMapping) []ec2types.LaunchTemplateBlockDeviceMappingRequest {
 	if len(blockDeviceMappings) == 0 {
 		// The EC2 API fails with empty slices and expects nil.
 		return nil
 	}
-	var blockDeviceMappingsRequest []*ec2types.LaunchTemplateBlockDeviceMappingRequest
+	var blockDeviceMappingsRequest []ec2types.LaunchTemplateBlockDeviceMappingRequest
 	for _, blockDeviceMapping := range blockDeviceMappings {
-		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, &ec2types.LaunchTemplateBlockDeviceMappingRequest{
+		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, ec2types.LaunchTemplateBlockDeviceMappingRequest{
 			DeviceName: blockDeviceMapping.DeviceName,
 			Ebs: &ec2types.LaunchTemplateEbsBlockDeviceRequest{
 				DeleteOnTermination: blockDeviceMapping.EBS.DeleteOnTermination,
@@ -324,6 +330,7 @@ func convertToNil(number *int64) *int32 {
 	if number == nil {
 		return nil
 	}
+	//nolint: gosec
 	return lo.ToPtr(int32(*number))
 }
 
@@ -373,7 +380,7 @@ func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, in
 		if _, expiration, _ := p.cache.GetWithExpiration(key); expiration.After(time.Now()) {
 			return
 		}
-		launchTemplate := lt.(*ec2types.LaunchTemplate)
+		launchTemplate := lt.(ec2types.LaunchTemplate)
 		if _, err := p.ec2api.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); awserrors.IgnoreNotFound(err) != nil {
 			log.FromContext(ctx).WithValues("launch-template", launchTemplate.LaunchTemplateName).Error(err, "failed to delete launch template")
 			return

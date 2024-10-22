@@ -293,7 +293,7 @@ var _ = Describe("CreateFleet Batching", func() {
 			FleetId: aws.String("some-id"),
 			Instances: []ec2types.CreateFleetInstance{
 				{
-					InstanceIds:                []string{*aws.String("id-1"), *aws.String("id-2"), *aws.String("id-3")},
+					InstanceIds:                []string{"id-1", "id-2", "id-3"},
 					InstanceType:               "",
 					LaunchTemplateAndOverrides: nil,
 					Lifecycle:                  "",

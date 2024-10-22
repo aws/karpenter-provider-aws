@@ -28,6 +28,7 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -61,7 +62,7 @@ type Resolver interface {
 	// CacheKey tells the InstanceType cache if something changes about the InstanceTypes or Offerings based on the NodeClass.
 	CacheKey(nodeClass *v1.EC2NodeClass) string
 	// Resolve generates an InstanceType based on raw InstanceTypeInfo and NodeClass setting data
-	Resolve(ctx context.Context, info *ec2types.InstanceTypeInfo, zoneData []ZoneData, nodeClass *v1.EC2NodeClass) *cloudprovider.InstanceType
+	Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zoneData []ZoneData, nodeClass *v1.EC2NodeClass) *cloudprovider.InstanceType
 }
 
 type DefaultResolver struct {
@@ -94,7 +95,7 @@ func (d *DefaultResolver) CacheKey(nodeClass *v1.EC2NodeClass) string {
 	)
 }
 
-func (d *DefaultResolver) Resolve(ctx context.Context, info *ec2types.InstanceTypeInfo, zoneData []ZoneData, nodeClass *v1.EC2NodeClass) *cloudprovider.InstanceType {
+func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zoneData []ZoneData, nodeClass *v1.EC2NodeClass) *cloudprovider.InstanceType {
 	// !!! Important !!!
 	// Any changes to the values passed into the NewInstanceType method will require making updates to the cache key
 	// so that Karpenter is able to cache the set of InstanceTypes based on values that alter the set of instance types
@@ -116,11 +117,11 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info *ec2types.InstanceTy
 // offering, you can do the following thanks to this invariant:
 //
 //	offering.Requirements.Get(v1.TopologyLabelZone).Any()
-func (d *DefaultResolver) createOfferings(ctx context.Context, instanceType *ec2types.InstanceTypeInfo, zoneData []ZoneData) []cloudprovider.Offering {
+func (d *DefaultResolver) createOfferings(ctx context.Context, instanceType ec2types.InstanceTypeInfo, zoneData []ZoneData) []cloudprovider.Offering {
 	var offerings []cloudprovider.Offering
 	for _, zone := range zoneData {
 		// while usage classes should be a distinct set, there's no guarantee of that
-		for _, capacityType := range instanceType.SupportedUsageClasses {
+		for capacityType := range sets.New((instanceType.SupportedUsageClasses)...) {
 			// exclude any offerings that have recently seen an insufficient capacity error from EC2
 			isUnavailable := d.unavailableOfferings.IsUnavailable(string(instanceType.InstanceType), zone.Name, string(capacityType))
 			var price float64
@@ -155,7 +156,7 @@ func (d *DefaultResolver) createOfferings(ctx context.Context, instanceType *ec2
 	return offerings
 }
 
-func NewInstanceType(ctx context.Context, info *ec2types.InstanceTypeInfo, region string,
+func NewInstanceType(ctx context.Context, info ec2types.InstanceTypeInfo, region string,
 	blockDeviceMappings []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy, maxPods *int32, podsPerCore *int32,
 	kubeReserved map[string]string, systemReserved map[string]string, evictionHard map[string]string, evictionSoft map[string]string,
 	amiFamilyType string, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
@@ -179,7 +180,7 @@ func NewInstanceType(ctx context.Context, info *ec2types.InstanceTypeInfo, regio
 }
 
 //nolint:gocyclo
-func computeRequirements(info *ec2types.InstanceTypeInfo, offerings cloudprovider.Offerings, region string, amiFamily amifamily.AMIFamily) scheduling.Requirements {
+func computeRequirements(info ec2types.InstanceTypeInfo, offerings cloudprovider.Offerings, region string, amiFamily amifamily.AMIFamily) scheduling.Requirements {
 	requirements := scheduling.NewRequirements(
 		// Well Known Upstream
 		scheduling.NewRequirement(corev1.LabelInstanceTypeStable, corev1.NodeSelectorOpIn, string(info.InstanceType)),
@@ -279,7 +280,7 @@ func computeRequirements(info *ec2types.InstanceTypeInfo, offerings cloudprovide
 	return requirements
 }
 
-func getOS(info *ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily) []string {
+func getOS(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily) []string {
 	if _, ok := amiFamily.(*amifamily.Windows); ok {
 		if getArchitecture(info) == karpv1.ArchitectureAmd64 {
 			return []string{string(corev1.Windows)}
@@ -289,7 +290,7 @@ func getOS(info *ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily) []str
 	return []string{string(corev1.Linux)}
 }
 
-func getArchitecture(info *ec2types.InstanceTypeInfo) string {
+func getArchitecture(info ec2types.InstanceTypeInfo) string {
 	for _, architecture := range info.ProcessorInfo.SupportedArchitectures {
 		if value, ok := v1.AWSToKubeArchitectures[string(architecture)]; ok {
 			return value
@@ -298,7 +299,7 @@ func getArchitecture(info *ec2types.InstanceTypeInfo) string {
 	return fmt.Sprint(info.ProcessorInfo.SupportedArchitectures) // Unrecognized, but used for error printing
 }
 
-func computeCapacity(ctx context.Context, info *ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
+func computeCapacity(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 	blockDeviceMapping []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy,
 	maxPods *int32, podsPerCore *int32) corev1.ResourceList {
 
@@ -317,11 +318,11 @@ func computeCapacity(ctx context.Context, info *ec2types.InstanceTypeInfo, amiFa
 	return resourceList
 }
 
-func cpu(info *ec2types.InstanceTypeInfo) *resource.Quantity {
+func cpu(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(*info.VCpuInfo.DefaultVCpus))
 }
 
-func memory(ctx context.Context, info *ec2types.InstanceTypeInfo) *resource.Quantity {
+func memory(ctx context.Context, info ec2types.InstanceTypeInfo) *resource.Quantity {
 	sizeInMib := *info.MemoryInfo.SizeInMiB
 	// Gravitons have an extra 64 MiB of cma reserved memory that we can't use
 	if len(info.ProcessorInfo.SupportedArchitectures) > 0 && info.ProcessorInfo.SupportedArchitectures[0] == "arm64" {
@@ -334,7 +335,7 @@ func memory(ctx context.Context, info *ec2types.InstanceTypeInfo) *resource.Quan
 }
 
 // Setting ephemeral-storage to be either the default value, what is defined in blockDeviceMappings, or the combined size of local store volumes.
-func ephemeralStorage(info *ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy) *resource.Quantity {
+func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy) *resource.Quantity {
 	// If local store disks have been configured for node ephemeral-storage, use the total size of the disks.
 	if lo.FromPtr(instanceStorePolicy) == v1.InstanceStorePolicyRAID0 {
 		if info.InstanceStorageInfo != nil && info.InstanceStorageInfo.TotalSizeInGB != nil {
@@ -381,7 +382,7 @@ func awsPodENI(instanceTypeName string) *resource.Quantity {
 	return resources.Quantity("0")
 }
 
-func nvidiaGPUs(info *ec2types.InstanceTypeInfo) *resource.Quantity {
+func nvidiaGPUs(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	count := int32(0)
 	if info.GpuInfo != nil {
 		for _, gpu := range info.GpuInfo.Gpus {
@@ -393,7 +394,7 @@ func nvidiaGPUs(info *ec2types.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func amdGPUs(info *ec2types.InstanceTypeInfo) *resource.Quantity {
+func amdGPUs(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	count := int32(0)
 	if info.GpuInfo != nil {
 		for _, gpu := range info.GpuInfo.Gpus {
@@ -407,7 +408,7 @@ func amdGPUs(info *ec2types.InstanceTypeInfo) *resource.Quantity {
 
 // TODO: remove trn1 hardcode values once DescribeInstanceTypes contains the accelerator data
 // Values found from: https://aws.amazon.com/ec2/instance-types/trn1/
-func awsNeurons(info *ec2types.InstanceTypeInfo) *resource.Quantity {
+func awsNeurons(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	count := int32(0)
 	if info.InstanceType == "trn1.2xlarge" {
 		count = int32(1)
@@ -423,7 +424,7 @@ func awsNeurons(info *ec2types.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func habanaGaudis(info *ec2types.InstanceTypeInfo) *resource.Quantity {
+func habanaGaudis(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	count := int32(0)
 	if info.GpuInfo != nil {
 		for _, gpu := range info.GpuInfo.Gpus {
@@ -435,7 +436,7 @@ func habanaGaudis(info *ec2types.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func efas(info *ec2types.InstanceTypeInfo) *resource.Quantity {
+func efas(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	count := int32(0)
 	if info.NetworkInfo != nil && info.NetworkInfo.EfaInfo != nil {
 		count = *info.NetworkInfo.EfaInfo.MaximumEfaInterfaces
@@ -443,7 +444,7 @@ func efas(info *ec2types.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func ENILimitedPods(ctx context.Context, info *ec2types.InstanceTypeInfo) *resource.Quantity {
+func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo) *resource.Quantity {
 	// The number of pods per node is calculated using the formula:
 	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 	// https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/eni-max-pods.txt
@@ -538,7 +539,7 @@ func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, am
 	return lo.Assign(overhead, override)
 }
 
-func pods(ctx context.Context, info *ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, maxPods *int32, podsPerCore *int32) *resource.Quantity {
+func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, maxPods *int32, podsPerCore *int32) *resource.Quantity {
 	var count int64
 	switch {
 	case maxPods != nil:

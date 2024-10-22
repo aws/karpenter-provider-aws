@@ -49,6 +49,20 @@ var (
 	)
 )
 
+// IsNotFound returns true if the err is an AWS error (even if it's
+// wrapped) and is a known to mean "not found" (as opposed to a more
+// serious or unexpected error)
+func IsNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return notFoundErrorCodes.Has(apiErr.ErrorCode())
+	}
+	return false
+}
+
 func IgnoreNotFound(err error) error {
 	if IsNotFound(err) {
 		return nil
@@ -77,7 +91,7 @@ func IgnoreAlreadyExists(err error) error {
 // IsUnfulfillableCapacity returns true if the Fleet err means
 // capacity is temporarily unavailable for launching.
 // This could be due to account limits, insufficient ec2 capacity, etc.
-func IsUnfulfillableCapacity(err *ec2types.CreateFleetError) bool {
+func IsUnfulfillableCapacity(err ec2types.CreateFleetError) bool {
 	return unfulfillableCapacityErrorCodes.Has(*err.ErrorCode)
 }
 
@@ -88,20 +102,6 @@ func IsLaunchTemplateNotFound(err error) bool {
 	var apiErr smithy.APIError
 	if errors.As(err, &apiErr) {
 		return apiErr.ErrorCode() == launchTemplateNameNotFoundCode
-	}
-	return false
-}
-
-// IsNotFound returns true if the err is an AWS error (even if it's
-// wrapped) and is a known to mean "not found" (as opposed to a more
-// serious or unexpected error)
-func IsNotFound(err error) bool {
-	if err == nil {
-		return false
-	}
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
-		return notFoundErrorCodes.Has(apiErr.ErrorCode())
 	}
 	return false
 }

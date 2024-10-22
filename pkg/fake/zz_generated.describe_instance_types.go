@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package fake
 
 import (
@@ -29,14 +30,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 	InstanceTypes: []ec2types.InstanceTypeInfo{
 		{
 			InstanceType:                  "c6g.large",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(false),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("AWS"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeArm64},
+				SupportedArchitectures: []ec2types.ArchitectureType{"arm64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(2),
@@ -73,14 +74,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "dl1.24xlarge",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(false),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("Intel"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+				SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(48),
@@ -147,14 +148,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "g4ad.16xlarge",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(false),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("AMD"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+				SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(32),
@@ -206,14 +207,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "g4dn.8xlarge",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(false),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("Intel"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+				SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(16),
@@ -268,14 +269,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "inf1.2xlarge",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(false),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("Intel"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+				SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(4),
@@ -321,14 +322,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "inf1.6xlarge",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(false),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("Intel"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+				SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(12),
@@ -374,14 +375,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "m5.large",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(false),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("Intel"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+				SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(1),
@@ -418,14 +419,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "m5.metal",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(false),
 			BareMetal:                     aws.Bool(true),
 			Hypervisor:                    "",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("Intel"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+				SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(48),
@@ -462,14 +463,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "m5.xlarge",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(false),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("Intel"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+				SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(2),
@@ -506,14 +507,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "m6idn.32xlarge",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(false),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("Intel"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+				SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(64),
@@ -560,14 +561,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "p3.8xlarge",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(false),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "xen",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("Intel"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+				SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(16),
@@ -616,14 +617,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "t3.large",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(true),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("Intel"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+				SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(1),
@@ -660,14 +661,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "t4g.medium",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(true),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("AWS"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeArm64},
+				SupportedArchitectures: []ec2types.ArchitectureType{"arm64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(2),
@@ -704,14 +705,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "t4g.small",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(true),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("AWS"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeArm64},
+				SupportedArchitectures: []ec2types.ArchitectureType{"arm64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(2),
@@ -748,14 +749,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "t4g.xlarge",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(true),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("AWS"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeArm64},
+				SupportedArchitectures: []ec2types.ArchitectureType{"arm64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(4),
@@ -792,14 +793,14 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 		},
 		{
 			InstanceType:                  "trn1.2xlarge",
-			SupportedUsageClasses:         []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand, ec2types.UsageClassTypeSpot},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{ec2types.VirtualizationTypeHvm},
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
 			BurstablePerformanceSupported: aws.Bool(false),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    "nitro",
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				Manufacturer:           aws.String("Intel"),
-				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+				SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(4),

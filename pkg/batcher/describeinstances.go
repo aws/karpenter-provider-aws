@@ -75,13 +75,6 @@ func execDescribeInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.DescribeIns
 
 		for paginator.HasMorePages() {
 			output, err := paginator.NextPage(ctx)
-			// if err != nil {
-			// 	for i := range results {
-			// 		if inputs[i].InstanceIds[0] == *instance.InstanceId {
-			// 			results[i] = Result[ec2.DescribeInstancesOutput]{Err: err}
-			// 		}
-			// 	}
-			// }
 			if err != nil {
 				break
 			}

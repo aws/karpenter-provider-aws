@@ -60,10 +60,10 @@ var _ = Describe("SecurityGroups", func() {
 
 		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 			{
-				Tags: map[string]string{"Name": lo.FromPtr(lo.FindOrElse(first.Tags, &ec2types.Tag{}, func(tag *ec2types.Tag) bool { return lo.FromPtr(tag.Key) == "Name" }).Value)},
+				Tags: map[string]string{"Name": lo.FromPtr(lo.FindOrElse(first.Tags, ec2types.Tag{}, func(tag ec2types.Tag) bool { return lo.FromPtr(tag.Key) == "Name" }).Value)},
 			},
 			{
-				Tags: map[string]string{"Name": lo.FromPtr(lo.FindOrElse(last.Tags, &ec2types.Tag{}, func(tag *ec2types.Tag) bool { return lo.FromPtr(tag.Key) == "Name" }).Value)},
+				Tags: map[string]string{"Name": lo.FromPtr(lo.FindOrElse(last.Tags, ec2types.Tag{}, func(tag ec2types.Tag) bool { return lo.FromPtr(tag.Key) == "Name" }).Value)},
 			},
 		}
 		pod := test.Pod()

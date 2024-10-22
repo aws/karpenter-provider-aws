@@ -65,7 +65,7 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableR
 	atomic.AddUint64(&u.SeqNum, 1)
 }
 
-func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr *ec2types.CreateFleetError, capacityType string) {
+func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr ec2types.CreateFleetError, capacityType string) {
 	instanceType := fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType
 	zone := aws.ToString(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
 	u.MarkUnavailable(ctx, aws.ToString(fleetErr.ErrorCode), string(instanceType), zone, capacityType)

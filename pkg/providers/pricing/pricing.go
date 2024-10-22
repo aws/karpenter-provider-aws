@@ -30,7 +30,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/pricing"
 	pricingtypes "github.com/aws/aws-sdk-go-v2/service/pricing/types"
@@ -88,11 +87,12 @@ func newZonalPricing(defaultPrice float64) zonal {
 }
 
 // NewPricingAPI returns a pricing API configured based on a particular region
-func NewAPI(ctx context.Context, cfg aws.Config, region string) *pricing.Client {
+func NewAPI(cfg aws.Config) *pricing.Client {
 	// pricing API doesn't have an endpoint in all regions
 	if cfg.Region == "" {
 		return nil
 	}
+	region := cfg.Region
 	pricingAPIRegion := "us-east-1"
 	if strings.HasPrefix(region, "ap-") {
 		pricingAPIRegion = "ap-south-1"
@@ -101,14 +101,10 @@ func NewAPI(ctx context.Context, cfg aws.Config, region string) *pricing.Client 
 	} else if strings.HasPrefix(region, "eu-") {
 		pricingAPIRegion = "eu-central-1"
 	}
-	pricingCfg, err := config.LoadDefaultConfig(ctx,
-		config.WithRegion(pricingAPIRegion),
-	)
-	// if we can't load the default config, we can't load the pricing config
-	if err != nil {
-		return nil
-	}
-	return pricing.NewFromConfig(pricingCfg)
+	cfg.Region = pricingAPIRegion
+	pricingClient := pricing.NewFromConfig(cfg)
+	cfg.Region = region
+	return pricingClient
 }
 
 func NewDefaultProvider(_ context.Context, pricing sdk.PricingAPI, ec2Api sdk.EC2API, region string) *DefaultProvider {
@@ -233,45 +229,38 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 
 func (p *DefaultProvider) fetchOnDemandPricing(ctx context.Context, additionalFilters ...pricingtypes.Filter) (map[string]float64, error) {
 	prices := map[string]float64{}
-	filters := make([]pricingtypes.Filter, 0, len(additionalFilters)+6)
-	filters = append(filters, pricingtypes.Filter{
-		Field: aws.String("regionCode"),
-		Type:  "TERM_MATCH",
-		Value: aws.String(p.region),
-	})
-	filters = append(filters, pricingtypes.Filter{
-		Field: aws.String("serviceCode"),
-		Type:  "TERM_MATCH",
-		Value: aws.String("AmazonEC2"),
-	})
-	filters = append(filters, pricingtypes.Filter{
-		Field: aws.String("preInstalledSw"),
-		Type:  "TERM_MATCH",
-		Value: aws.String("NA"),
-	})
-	filters = append(filters, pricingtypes.Filter{
-		Field: aws.String("operatingSystem"),
-		Type:  "TERM_MATCH",
-		Value: aws.String("Linux"),
-	})
-	filters = append(filters, pricingtypes.Filter{
-		Field: aws.String("capacitystatus"),
-		Type:  "TERM_MATCH",
-		Value: aws.String("Used"),
-	})
-	filters = append(filters, pricingtypes.Filter{
-		Field: aws.String("marketoption"),
-		Type:  "TERM_MATCH",
-		Value: aws.String("OnDemand"),
-	})
-
-	for _, filter := range additionalFilters {
-		filters = append(filters, pricingtypes.Filter{
-			Field: filter.Field,
-			Type:  filter.Type,
-			Value: filter.Value,
-		})
-	}
+	filters := append([]pricingtypes.Filter{
+		{
+			Field: aws.String("regionCode"),
+			Type:  "TERM_MATCH",
+			Value: aws.String(p.region),
+		},
+		{
+			Field: aws.String("serviceCode"),
+			Type:  "TERM_MATCH",
+			Value: aws.String("AmazonEC2"),
+		},
+		{
+			Field: aws.String("preInstalledSw"),
+			Type:  "TERM_MATCH",
+			Value: aws.String("NA"),
+		},
+		{
+			Field: aws.String("operatingSystem"),
+			Type:  "TERM_MATCH",
+			Value: aws.String("Linux"),
+		},
+		{
+			Field: aws.String("capacitystatus"),
+			Type:  "TERM_MATCH",
+			Value: aws.String("Used"),
+		},
+		{
+			Field: aws.String("marketoption"),
+			Type:  "TERM_MATCH",
+			Value: aws.String("OnDemand"),
+		}},
+		additionalFilters...)
 
 	input := &pricing.GetProductsInput{
 		Filters:     filters,

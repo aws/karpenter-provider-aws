@@ -217,7 +217,7 @@ var _ = Describe("GarbageCollection", func() {
 		}
 		wg.Wait()
 	})
-	It("should not delete all instances if they all have NodeClaim owners", func() { //this one
+	It("should not delete all instances if they all have NodeClaim owners", func() {
 		// Generate 100 instances that have different instanceIDs
 		var ids []string
 		var nodeClaims []*karpv1.NodeClaim

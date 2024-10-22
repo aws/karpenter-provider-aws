@@ -23,6 +23,7 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/middleware"
 	config "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -68,7 +69,7 @@ func init() {
 // Operator is injected into the AWS CloudProvider's factories
 type Operator struct {
 	*operator.Operator
-
+	Config                    aws.Config
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
 	SubnetProvider            subnet.Provider
 	SecurityGroupProvider     securitygroup.Provider
@@ -84,8 +85,9 @@ type Operator struct {
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
-	cfg := lo.Must(config.LoadDefaultConfig(ctx, config.WithRetryMaxAttempts(3)))
-	prometheusv2.WithPrometheusMetrics(cfg, crmetrics.Registry)
+	cfg := lo.Must(config.LoadDefaultConfig(ctx))
+	cfg = prometheusv2.WithPrometheusMetrics(cfg, crmetrics.Registry)
+	cfg = lo.Must(WithUserAgent(cfg))
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
 		metaDataClient := imds.NewFromConfig(cfg)
@@ -93,9 +95,17 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cfg.Region = region.Region
 	}
 	ec2api := ec2.NewFromConfig(cfg)
+	log.FromContext(ctx).WithValues("region", cfg.Region).V(1).Info("discovered region")
 	if err := CheckEC2Connectivity(ctx, ec2api); err != nil {
 		log.FromContext(ctx).Error(err, "ec2 api connectivity check failed")
 		os.Exit(1)
+	}
+	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eks.NewFromConfig(cfg))
+	if err != nil {
+		log.FromContext(ctx).Error(err, "failed detecting cluster endpoint")
+		os.Exit(1)
+	} else {
+		log.FromContext(ctx).WithValues("cluster-endpoint", clusterEndpoint).V(1).Info("discovered cluster endpoint")
 	}
 	kubeDNSIP, err := KubeDNSIP(ctx, operator.KubernetesInterface)
 	if err != nil {
@@ -105,21 +115,13 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	} else {
 		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
 	}
-	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eks.NewFromConfig(cfg))
-	if err != nil {
-		log.FromContext(ctx).Error(err, "failed detecting cluster endpoint")
-		os.Exit(1)
-	} else {
-		log.FromContext(ctx).WithValues("cluster-endpoint", clusterEndpoint).V(1).Info("discovered cluster endpoint")
-	}
-
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(cfg.Region, iam.NewFromConfig(cfg), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
 	pricingProvider := pricing.NewDefaultProvider(
 		ctx,
-		pricing.NewAPI(ctx, cfg, cfg.Region),
+		pricing.NewAPI(cfg),
 		ec2api,
 		cfg.Region,
 	)
@@ -158,6 +160,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 
 	return ctx, &Operator{
 		Operator:                  operator,
+		Config:                    cfg,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,
@@ -174,11 +177,13 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 }
 
 // WithUserAgent adds a karpenter specific user-agent string to AWS session
-// func WithUserAgent(sess *session.Session) *session.Session {
-// 	userAgent := fmt.Sprintf("karpenter.sh-%s", operator.Version)
-// 	sess.Handlers.Build.PushBack(request.MakeAddToUserAgentFreeFormHandler(userAgent))
-// 	return sess
-// }
+func WithUserAgent(cfg aws.Config) (aws.Config, error) {
+	userAgent := fmt.Sprintf("karpenter.sh-%s", operator.Version)
+	cfg.APIOptions = append(cfg.APIOptions,
+		middleware.AddUserAgentKey(userAgent),
+	)
+	return cfg, nil
+}
 
 // CheckEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
 // are having issues connecting to the EC2 API.

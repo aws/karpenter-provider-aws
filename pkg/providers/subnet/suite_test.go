@@ -16,7 +16,6 @@ package subnet_test
 
 import (
 	"context"
-	"reflect"
 	"sort"
 	"sync"
 	"testing"
@@ -106,7 +105,7 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			ExpectConsistsOfSubnets([]*ec2types.Subnet{
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
@@ -126,7 +125,7 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			ExpectConsistsOfSubnets([]*ec2types.Subnet{
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
@@ -154,7 +153,7 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			ExpectConsistsOfSubnets([]*ec2types.Subnet{
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
@@ -177,7 +176,7 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			ExpectConsistsOfSubnets([]*ec2types.Subnet{
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
@@ -197,7 +196,7 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			ExpectConsistsOfSubnets([]*ec2types.Subnet{
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
@@ -221,7 +220,7 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			ExpectConsistsOfSubnets([]*ec2types.Subnet{
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
@@ -248,7 +247,7 @@ var _ = Describe("SubnetProvider", func() {
 			for _, cachedObject := range awsEnv.SubnetCache.Items() {
 				cachedSubnet := cachedObject.Object.([]ec2types.Subnet)
 				Expect(cachedSubnet).To(HaveLen(1))
-				reflect.DeepEqual(expectedSubnets, cachedSubnet[0])
+				lo.Contains(lo.ToSlicePtr(expectedSubnets), lo.ToPtr(cachedSubnet[0]))
 			}
 		})
 		It("should resolve subnets from cache that are filtered by tags", func() {
@@ -271,9 +270,9 @@ var _ = Describe("SubnetProvider", func() {
 			}
 
 			for _, cachedObject := range awsEnv.SubnetCache.Items() {
-				cachedSubnet := cachedObject.Object.([]*ec2types.Subnet)
+				cachedSubnet := cachedObject.Object.([]ec2types.Subnet)
 				Expect(cachedSubnet).To(HaveLen(1))
-				reflect.DeepEqual(expectedSubnets, cachedSubnet[0])
+				lo.Contains(lo.ToSlicePtr(expectedSubnets), lo.ToPtr(cachedSubnet[0]))
 			}
 		})
 	})
@@ -295,7 +294,7 @@ var _ = Describe("SubnetProvider", func() {
 					}
 					return *subnets[i].SubnetId < *subnets[j].SubnetId
 				})
-				Expect(subnets).To(BeEquivalentTo([]*ec2types.Subnet{
+				Expect(subnets).To(BeEquivalentTo([]ec2types.Subnet{
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 						AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
@@ -370,11 +369,11 @@ var _ = Describe("SubnetProvider", func() {
 	})
 })
 
-func ExpectConsistsOfSubnets(expected, actual []*ec2types.Subnet) {
+func ExpectConsistsOfSubnets(expected, actual []ec2types.Subnet) {
 	GinkgoHelper()
 	Expect(actual).To(HaveLen(len(expected)))
 	for _, elem := range expected {
-		_, ok := lo.Find(actual, func(s *ec2types.Subnet) bool {
+		_, ok := lo.Find(actual, func(s ec2types.Subnet) bool {
 			return lo.FromPtr(s.SubnetId) == lo.FromPtr(elem.SubnetId) &&
 				lo.FromPtr(s.AvailabilityZoneId) == lo.FromPtr(elem.AvailabilityZoneId) &&
 				lo.FromPtr(s.AvailabilityZone) == lo.FromPtr(elem.AvailabilityZone) &&

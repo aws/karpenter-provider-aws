@@ -45,7 +45,7 @@ func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeCla
 	sort.Slice(securityGroups, func(i, j int) bool {
 		return *securityGroups[i].GroupId < *securityGroups[j].GroupId
 	})
-	nodeClass.Status.SecurityGroups = lo.Map(securityGroups, func(securityGroup *ec2types.SecurityGroup, _ int) v1.SecurityGroup {
+	nodeClass.Status.SecurityGroups = lo.Map(securityGroups, func(securityGroup ec2types.SecurityGroup, _ int) v1.SecurityGroup {
 		return v1.SecurityGroup{
 			ID:   *securityGroup.GroupId,
 			Name: *securityGroup.GroupName,

@@ -42,7 +42,7 @@ import (
 
 type Provider interface {
 	LivenessProbe(*http.Request) error
-	List(context.Context, *v1.EC2NodeClass) ([]*ec2types.Subnet, error)
+	List(context.Context, *v1.EC2NodeClass) ([]ec2types.Subnet, error)
 	ZonalSubnetsForLaunch(context.Context, *v1.EC2NodeClass, []*cloudprovider.InstanceType, string) (map[string]*Subnet, error)
 	UpdateInflightIPs(*ec2.CreateFleetInput, *ec2.CreateFleetOutput, []*cloudprovider.InstanceType, []*Subnet, string)
 }
@@ -78,12 +78,12 @@ func NewDefaultProvider(ec2api sdk.EC2API, cache *cache.Cache, availableIPAddres
 	}
 }
 
-func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*ec2types.Subnet, error) {
+func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]ec2types.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
 	filterSets := getFilterSets(nodeClass.Spec.SubnetSelectorTerms)
 	if len(filterSets) == 0 {
-		return []*ec2types.Subnet{}, nil
+		return []ec2types.Subnet{}, nil
 	}
 	hash, err := hashstructure.Hash(filterSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
@@ -92,17 +92,17 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
 		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
 		// so that modifications to the ordering of the data don't affect the original
-		return append([]*ec2types.Subnet{}, subnets.([]*ec2types.Subnet)...), nil
+		return append([]ec2types.Subnet{}, subnets.([]ec2types.Subnet)...), nil
 	}
 	// Ensure that all the subnets that are returned here are unique
-	subnets := map[string]*ec2types.Subnet{}
+	subnets := map[string]ec2types.Subnet{}
 	for _, filters := range filterSets {
-		output, err := p.ec2api.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{Filters: lo.FromSlicePtr(filters)})
+		output, err := p.ec2api.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
 		if err != nil {
 			return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
 		}
 		for i := range output.Subnets {
-			subnets[lo.FromPtr(output.Subnets[i].SubnetId)] = &output.Subnets[i]
+			subnets[lo.FromPtr(output.Subnets[i].SubnetId)] = output.Subnets[i]
 			p.availableIPAddressCache.SetDefault(lo.FromPtr(output.Subnets[i].SubnetId), lo.FromPtr(output.Subnets[i].AvailableIpAddressCount))
 			p.associatePublicIPAddressCache.SetDefault(lo.FromPtr(output.Subnets[i].SubnetId), lo.FromPtr(output.Subnets[i].MapPublicIpOnLaunch))
 			// subnets can be leaked here, if a subnets is never called received from ec2
@@ -113,7 +113,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(subnets))
 	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), lo.Keys(subnets)) {
 		log.FromContext(ctx).
-			WithValues("subnets", lo.Map(lo.Values(subnets), func(s *ec2types.Subnet, _ int) v1.Subnet {
+			WithValues("subnets", lo.Map(lo.Values(subnets), func(s ec2types.Subnet, _ int) v1.Subnet {
 				return v1.Subnet{
 					ID:     lo.FromPtr(s.SubnetId),
 					Zone:   lo.FromPtr(s.AvailabilityZone),
@@ -193,7 +193,7 @@ func (p *DefaultProvider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInp
 	var fleetOutputSubnets []string
 	if createFleetOutput != nil {
 		fleetOutputSubnets = lo.Compact(lo.Uniq(lo.Map(createFleetOutput.Instances, func(fleetInstance ec2types.CreateFleetInstance, _ int) string {
-			if fleetInstance.InstanceIds == nil || fleetInstance.LaunchTemplateAndOverrides == nil || fleetInstance.LaunchTemplateAndOverrides.Overrides == nil {
+			if fleetInstance.LaunchTemplateAndOverrides == nil || fleetInstance.LaunchTemplateAndOverrides.Overrides == nil {
 				return ""
 			}
 			return lo.FromPtr(fleetInstance.LaunchTemplateAndOverrides.Overrides.SubnetId)
@@ -258,24 +258,24 @@ func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, r
 	return int32(pods)
 }
 
-func getFilterSets(terms []v1.SubnetSelectorTerm) (res [][]*ec2types.Filter) {
-	idFilter := &ec2types.Filter{Name: aws.String("subnet-id")}
+func getFilterSets(terms []v1.SubnetSelectorTerm) (res [][]ec2types.Filter) {
+	idFilter := ec2types.Filter{Name: aws.String("subnet-id")}
 	for _, term := range terms {
 		switch {
 		case term.ID != "":
 			idFilter.Values = append(idFilter.Values, term.ID)
 		default:
-			var filters []*ec2types.Filter
+			var filters []ec2types.Filter
 			for k, v := range term.Tags {
 				if v == "*" {
-					filters = append(filters, &ec2types.Filter{
+					filters = append(filters, ec2types.Filter{
 						Name:   aws.String("tag-key"),
-						Values: []string{*aws.String(k)},
+						Values: []string{k},
 					})
 				} else {
-					filters = append(filters, &ec2types.Filter{
+					filters = append(filters, ec2types.Filter{
 						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-						Values: []string{*aws.String(v)},
+						Values: []string{v},
 					})
 				}
 			}
@@ -283,7 +283,7 @@ func getFilterSets(terms []v1.SubnetSelectorTerm) (res [][]*ec2types.Filter) {
 		}
 	}
 	if len(idFilter.Values) > 0 {
-		res = append(res, []*ec2types.Filter{idFilter})
+		res = append(res, []ec2types.Filter{idFilter})
 	}
 	return res
 }

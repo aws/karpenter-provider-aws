@@ -116,7 +116,7 @@ func (q DescribeImageQuery) DescribeImagesInput() *ec2.DescribeImagesInput {
 	return &ec2.DescribeImagesInput{
 		// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
 		Filters:           lo.Ternary(len(q.Filters) > 0, q.Filters, nil),
-		Owners:            lo.Ternary(len(q.Owners) > 0, q.Owners, []string{}),
+		Owners:            lo.Ternary(len(q.Owners) > 0, q.Owners, nil),
 		IncludeDeprecated: aws.Bool(true),
 		MaxResults:        aws.Int32(1000),
 	}

@@ -163,7 +163,7 @@ func (env *Environment) ExpectInstanceStopped(nodeName string) {
 func (env *Environment) ExpectInstanceTerminated(nodeName string) {
 	GinkgoHelper()
 	node := env.Environment.GetNode(nodeName)
-	_, err := env.EC2API.TerminateInstances(context.Background(), &ec2.TerminateInstancesInput{
+	_, err := env.EC2API.TerminateInstances(env.Context, &ec2.TerminateInstancesInput{
 		InstanceIds: []string{env.ExpectParsedProviderID(node.Spec.ProviderID)},
 	})
 	Expect(err).To(Succeed())
@@ -180,31 +180,31 @@ func (env *Environment) GetInstanceByID(instanceID string) ec2types.Instance {
 	return instance.Reservations[0].Instances[0]
 }
 
-func (env *Environment) GetVolume(id *string) *ec2types.Volume {
+func (env *Environment) GetVolume(id *string) ec2types.Volume {
 	volumes := env.GetVolumes(id)
 	Expect(volumes).To(HaveLen(1))
 	return volumes[0]
 }
 
-func (env *Environment) GetVolumes(ids ...*string) []*ec2types.Volume {
+func (env *Environment) GetVolumes(ids ...*string) []ec2types.Volume {
 	GinkgoHelper()
 	dvo, err := env.EC2API.DescribeVolumes(context.Background(), &ec2.DescribeVolumesInput{VolumeIds: lo.FromSlicePtr(ids)})
 	Expect(err).ToNot(HaveOccurred())
 
-	return lo.ToSlicePtr(dvo.Volumes)
+	return dvo.Volumes
 }
 
-func (env *Environment) GetNetworkInterface(id *string) *ec2types.NetworkInterface {
+func (env *Environment) GetNetworkInterface(id *string) ec2types.NetworkInterface {
 	networkInterfaces := env.GetNetworkInterfaces(id)
 	Expect(networkInterfaces).To(HaveLen(1))
 	return networkInterfaces[0]
 }
 
-func (env *Environment) GetNetworkInterfaces(ids ...*string) []*ec2types.NetworkInterface {
+func (env *Environment) GetNetworkInterfaces(ids ...*string) []ec2types.NetworkInterface {
 	GinkgoHelper()
 	dnio, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{NetworkInterfaceIds: lo.FromSlicePtr(ids)})
 	Expect(err).ToNot(HaveOccurred())
-	return lo.ToSlicePtr(dnio.NetworkInterfaces)
+	return dnio.NetworkInterfaces
 }
 
 func (env *Environment) GetSpotInstance(id *string) ec2types.SpotInstanceRequest {
@@ -294,7 +294,7 @@ func (env *Environment) GetSubnetInfo(tags map[string]string) []SubnetInfo {
 
 type SecurityGroup struct {
 	ec2types.GroupIdentifier
-	Tags []*ec2types.Tag
+	Tags []ec2types.Tag
 }
 
 // GetSecurityGroups returns all getSecurityGroups matching the label selector
@@ -319,10 +319,8 @@ func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGrou
 		}
 
 		for _, sg := range output.SecurityGroups {
-			var tags []*ec2types.Tag
-			for _, tag := range sg.Tags {
-				tags = append(tags, &tag)
-			}
+			var tags []ec2types.Tag
+			tags = append(tags, sg.Tags...)
 			securityGroups = append(securityGroups, SecurityGroup{
 				Tags:            tags,
 				GroupIdentifier: ec2types.GroupIdentifier{GroupId: sg.GroupId, GroupName: sg.GroupName},
@@ -449,19 +447,19 @@ func (env *Environment) GetDeprecatedAMI(amiID string, amifamily string) string 
 	return lo.FromPtr(output.ImageId)
 }
 
-func (env *Environment) EventuallyExpectRunInstances(instanceInput *ec2.RunInstancesInput) *ec2types.Reservation {
+func (env *Environment) EventuallyExpectRunInstances(instanceInput *ec2.RunInstancesInput) ec2types.Reservation {
 	GinkgoHelper()
 	// implement IMDSv2
 	instanceInput.MetadataOptions = &ec2types.InstanceMetadataOptionsRequest{
 		HttpEndpoint: "enabled",
 		HttpTokens:   "required",
 	}
-	var reservation *ec2types.Reservation
+	var reservation ec2types.Reservation
 	Eventually(func(g Gomega) {
 		runInstancesOutput, err := env.EC2API.RunInstances(env.Context, instanceInput)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(runInstancesOutput.Instances).ToNot(BeEmpty())
-		reservation = &ec2types.Reservation{
+		reservation = ec2types.Reservation{
 			Instances: runInstancesOutput.Instances,
 		}
 	}).WithTimeout(30 * time.Second).WithPolling(5 * time.Second).Should(Succeed())

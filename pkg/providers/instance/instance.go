@@ -22,8 +22,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -119,7 +117,7 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 		return nil, err
 	}
 	efaEnabled := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA)
-	return NewInstanceFromFleet(*fleetInstance, tags, efaEnabled), nil
+	return NewInstanceFromFleet(fleetInstance, tags, efaEnabled), nil
 }
 
 func (p *DefaultProvider) Get(ctx context.Context, id string) (*Instance, error) {
@@ -166,10 +164,10 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 
 	for paginator.HasMorePages() {
 		output, err := paginator.NextPage(ctx)
+		out.Reservations = append(out.Reservations, output.Reservations...)
 		if err != nil {
 			return nil, fmt.Errorf("describing ec2 instances, %w", err)
 		}
-		out = output
 	}
 	instances, _ := instancesFromOutput(out)
 	return instances, nil
@@ -209,17 +207,17 @@ func (p *DefaultProvider) CreateTags(ctx context.Context, id string, tags map[st
 	return nil
 }
 
-func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, tags map[string]string) (*ec2types.CreateFleetInstance, error) {
+func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, tags map[string]string) (ec2types.CreateFleetInstance, error) {
 	capacityType := p.getCapacityType(nodeClaim, instanceTypes)
 	zonalSubnets, err := p.subnetProvider.ZonalSubnetsForLaunch(ctx, nodeClass, instanceTypes, capacityType)
 	if err != nil {
-		return nil, fmt.Errorf("getting subnets, %w", err)
+		return ec2types.CreateFleetInstance{}, fmt.Errorf("getting subnets, %w", err)
 	}
 
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
 	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, nodeClass, nodeClaim, instanceTypes, zonalSubnets, capacityType, tags)
 	if err != nil {
-		return nil, fmt.Errorf("getting launch template configs, %w", err)
+		return ec2types.CreateFleetInstance{}, fmt.Errorf("getting launch template configs, %w", err)
 	}
 	if err := p.checkODFallback(nodeClaim, instanceTypes, launchTemplateConfigs); err != nil {
 		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
@@ -228,7 +226,7 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  ec2types.FleetTypeInstant,
 		Context:               nodeClass.Spec.Context,
-		LaunchTemplateConfigs: lo.FromSlicePtr(launchTemplateConfigs),
+		LaunchTemplateConfigs: launchTemplateConfigs,
 		TargetCapacitySpecification: &ec2types.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: ec2types.DefaultTargetCapacityType(capacityType),
 			TotalTargetCapacity:       aws.Int32(1),
@@ -252,19 +250,19 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 			for _, lt := range launchTemplateConfigs {
 				p.launchTemplateProvider.InvalidateCache(ctx, aws.ToString(lt.LaunchTemplateSpecification.LaunchTemplateName), aws.ToString(lt.LaunchTemplateSpecification.LaunchTemplateId))
 			}
-			return nil, fmt.Errorf("creating fleet %w", err)
+			return ec2types.CreateFleetInstance{}, fmt.Errorf("creating fleet %w", err)
 		}
-		var reqFailure awserr.RequestFailure
-		if errors.As(err, &reqFailure) {
-			return nil, fmt.Errorf("creating fleet %w (%s)", err, reqFailure.RequestID())
+		var apiErr interface{}
+		if errors.As(err, &apiErr) {
+			return ec2types.CreateFleetInstance{}, fmt.Errorf("creating fleet %w (%v)", err, apiErr)
 		}
-		return nil, fmt.Errorf("creating fleet %w", err)
+		return ec2types.CreateFleetInstance{}, fmt.Errorf("creating fleet %w", err)
 	}
-	p.updateUnavailableOfferingsCache(ctx, lo.ToSlicePtr(createFleetOutput.Errors), capacityType)
+	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType)
 	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
-		return nil, combineFleetErrors(lo.ToSlicePtr(createFleetOutput.Errors))
+		return ec2types.CreateFleetInstance{}, combineFleetErrors(createFleetOutput.Errors)
 	}
-	return &createFleetOutput.Instances[0], nil
+	return createFleetOutput.Instances[0], nil
 }
 
 func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) map[string]string {
@@ -277,7 +275,7 @@ func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.
 	return lo.Assign(nodeClass.Spec.Tags, staticTags)
 }
 
-func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []*ec2types.FleetLaunchTemplateConfigRequest) error {
+func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
 	if p.getCapacityType(nodeClaim, instanceTypes) != karpv1.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
 		return nil
@@ -287,7 +285,7 @@ func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceT
 	instanceTypeZones := map[string]struct{}{}
 	for _, ltc := range launchTemplateConfigs {
 		for _, override := range ltc.Overrides {
-			if override.InstanceType != "" {
+			if string(override.InstanceType) != "" {
 				instanceTypeZones[string(override.InstanceType)] = struct{}{}
 			}
 		}
@@ -300,8 +298,8 @@ func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceT
 }
 
 func (p *DefaultProvider) getLaunchTemplateConfigs(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim,
-	instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*subnet.Subnet, capacityType string, tags map[string]string) ([]*ec2types.FleetLaunchTemplateConfigRequest, error) {
-	var launchTemplateConfigs []*ec2types.FleetLaunchTemplateConfigRequest
+	instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*subnet.Subnet, capacityType string, tags map[string]string) ([]ec2types.FleetLaunchTemplateConfigRequest, error) {
+	var launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest
 	launchTemplates, err := p.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, capacityType, tags)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
@@ -309,7 +307,7 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(ctx context.Context, nodeClas
 	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	requirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType)
 	for _, launchTemplate := range launchTemplates {
-		launchTemplateConfig := &ec2types.FleetLaunchTemplateConfigRequest{
+		launchTemplateConfig := ec2types.FleetLaunchTemplateConfigRequest{
 			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, requirements, launchTemplate.ImageID),
 			LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplate.Name),
@@ -333,14 +331,14 @@ func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceTy
 	// to the parent instance type name
 	type offeringWithParentName struct {
 		cloudprovider.Offering
-		parentInstanceTypeName string
+		parentInstanceTypeName ec2types.InstanceType
 	}
 	var unwrappedOfferings []offeringWithParentName
 	for _, it := range instanceTypes {
 		ofs := lo.Map(it.Offerings.Available(), func(of cloudprovider.Offering, _ int) offeringWithParentName {
 			return offeringWithParentName{
 				Offering:               of,
-				parentInstanceTypeName: it.Name,
+				parentInstanceTypeName: ec2types.InstanceType(it.Name),
 			}
 		})
 		unwrappedOfferings = append(unwrappedOfferings, ofs...)
@@ -355,7 +353,7 @@ func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceTy
 			continue
 		}
 		overrides = append(overrides, ec2types.FleetLaunchTemplateOverridesRequest{
-			InstanceType: ec2types.InstanceType(offering.parentInstanceTypeName),
+			InstanceType: offering.parentInstanceTypeName,
 			SubnetId:     lo.ToPtr(subnet.ID),
 			ImageId:      aws.String(image),
 			// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
@@ -366,7 +364,7 @@ func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceTy
 	return overrides
 }
 
-func (p *DefaultProvider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2types.CreateFleetError, capacityType string) {
+func (p *DefaultProvider) updateUnavailableOfferingsCache(ctx context.Context, errors []ec2types.CreateFleetError, capacityType string) {
 	for _, err := range errors {
 		if awserrors.IsUnfulfillableCapacity(err) {
 			p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, err, capacityType)
@@ -501,7 +499,7 @@ func instancesFromOutput(out *ec2.DescribeInstancesOutput) ([]*Instance, error) 
 	return lo.Map(instances, func(i ec2types.Instance, _ int) *Instance { return NewInstance(i) }), nil
 }
 
-func combineFleetErrors(fleetErrs []*ec2types.CreateFleetError) (errs error) {
+func combineFleetErrors(fleetErrs []ec2types.CreateFleetError) (errs error) {
 	unique := sets.NewString()
 	for _, err := range fleetErrs {
 		unique.Insert(fmt.Sprintf("%s: %s", aws.ToString(err.ErrorCode), aws.ToString(err.ErrorMessage)))
@@ -510,7 +508,7 @@ func combineFleetErrors(fleetErrs []*ec2types.CreateFleetError) (errs error) {
 		errs = multierr.Append(errs, errors.New(errorCode))
 	}
 	// If all the Fleet errors are ICE errors then we should wrap the combined error in the generic ICE error
-	iceErrorCount := lo.CountBy(fleetErrs, func(err *ec2types.CreateFleetError) bool { return awserrors.IsUnfulfillableCapacity(err) })
+	iceErrorCount := lo.CountBy(fleetErrs, func(err ec2types.CreateFleetError) bool { return awserrors.IsUnfulfillableCapacity(err) })
 	if iceErrorCount == len(fleetErrs) {
 		return cloudprovider.NewInsufficientCapacityError(fmt.Errorf("with fleet error(s), %w", errs))
 	}

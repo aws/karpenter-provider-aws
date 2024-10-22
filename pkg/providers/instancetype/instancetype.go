@@ -64,7 +64,7 @@ type DefaultProvider struct {
 
 	muInstanceTypesInfo sync.RWMutex
 	// TODO @engedaam: Look into only storing the needed EC2InstanceTypeInfo
-	instanceTypesInfo []*ec2types.InstanceTypeInfo
+	instanceTypesInfo []ec2types.InstanceTypeInfo
 
 	muInstanceTypesOfferings sync.RWMutex
 	instanceTypesOfferings   map[string]sets.Set[string]
@@ -82,7 +82,7 @@ func NewDefaultProvider(instanceTypesCache *cache.Cache, discoveredCapacityCache
 	return &DefaultProvider{
 		ec2api:                  ec2api,
 		subnetProvider:          subnetProvider,
-		instanceTypesInfo:       []*ec2types.InstanceTypeInfo{},
+		instanceTypesInfo:       []ec2types.InstanceTypeInfo{},
 		instanceTypesOfferings:  map[string]sets.Set[string]{},
 		instanceTypesResolver:   instanceTypesResolver,
 		instanceTypesCache:      instanceTypesCache,
@@ -146,7 +146,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	subnetZoneToID := lo.SliceToMap(nodeClass.Status.Subnets, func(s v1.Subnet) (string, string) {
 		return s.Zone, s.ZoneID
 	})
-	result := lo.Map(p.instanceTypesInfo, func(i *ec2types.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
+	result := lo.Map(p.instanceTypesInfo, func(i ec2types.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
 		instanceTypeVCPU.With(prometheus.Labels{
 			instanceTypeLabel: string(i.InstanceType),
 		}).Set(float64(lo.FromPtr(i.VCpuInfo.DefaultVCpus)))
@@ -198,7 +198,7 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 	p.muInstanceTypesInfo.Lock()
 	defer p.muInstanceTypesInfo.Unlock()
 
-	var instanceTypes []*ec2types.InstanceTypeInfo
+	var instanceTypes []ec2types.InstanceTypeInfo
 
 	paginator := ec2.NewDescribeInstanceTypesPaginator(p.ec2api, &ec2.DescribeInstanceTypesInput{
 		Filters: []ec2types.Filter{
@@ -219,7 +219,7 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 			return fmt.Errorf("describing instance types, %w", err)
 		}
 
-		instanceTypes = append(instanceTypes, lo.ToSlicePtr(page.InstanceTypes)...)
+		instanceTypes = append(instanceTypes, page.InstanceTypes...)
 	}
 
 	if p.cm.HasChanged("instance-types", instanceTypes) {
@@ -310,7 +310,7 @@ func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context
 }
 
 func (p *DefaultProvider) Reset() {
-	p.instanceTypesInfo = []*ec2types.InstanceTypeInfo{}
+	p.instanceTypesInfo = []ec2types.InstanceTypeInfo{}
 	p.instanceTypesOfferings = map[string]sets.Set[string]{}
 	p.instanceTypesCache.Flush()
 	p.discoveredCapacityCache.Flush()

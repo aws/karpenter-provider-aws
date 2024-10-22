@@ -147,7 +147,7 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 				}
 				instanceState := ec2types.InstanceStateNameRunning
 				for ; fulfilled < int(*input.TargetCapacitySpecification.TotalTargetCapacity); fulfilled++ {
-					instance := &ec2types.Instance{
+					instance := ec2types.Instance{
 						ImageId:               aws.String(*amiID),
 						InstanceId:            aws.String(test.RandomName()),
 						Placement:             &ec2types.Placement{AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone},

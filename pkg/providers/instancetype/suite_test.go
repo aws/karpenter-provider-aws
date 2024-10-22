@@ -422,7 +422,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			return iPrice < jPrice
 		})
 		// Expect that the launch template overrides gives the 100 cheapest instance types
-		expected := sets.NewString(lo.Map(its[:100], func(i *corecloudprovider.InstanceType, _ int) string {
+		expected := sets.New(lo.Map(its[:100], func(i *corecloudprovider.InstanceType, _ int) string {
 			return i.Name
 		})...)
 		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
@@ -913,7 +913,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 		for _, info := range instanceInfo.InstanceTypes {
 			it := instancetype.NewInstanceType(ctx,
-				&info,
+				info,
 				fake.DefaultRegion,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
@@ -935,7 +935,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 		for _, info := range instanceInfo.InstanceTypes {
 			it := instancetype.NewInstanceType(ctx,
-				&info,
+				info,
 				fake.DefaultRegion,
 				windowsNodeClass.Spec.BlockDeviceMappings,
 				windowsNodeClass.Spec.InstanceStorePolicy,
@@ -1054,7 +1054,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			It("should use defaults when no kubelet is specified", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 				it := instancetype.NewInstanceType(ctx,
-					&info,
+					info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1080,7 +1080,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					},
 				}
 				it := instancetype.NewInstanceType(ctx,
-					&info,
+					info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1102,7 +1102,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			It("should use defaults when no kubelet is specified", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 				it := instancetype.NewInstanceType(ctx,
-					&info,
+					info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1133,7 +1133,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					},
 				}
 				it := instancetype.NewInstanceType(ctx,
-					&info,
+					info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1171,7 +1171,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						&info,
+						info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1199,7 +1199,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						&info,
+						info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1227,7 +1227,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						&info,
+						info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1255,7 +1255,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						&info,
+						info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1285,7 +1285,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						&info,
+						info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1316,7 +1316,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						&info,
+						info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1344,7 +1344,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						&info,
+						info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1376,7 +1376,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 					}
 					it := instancetype.NewInstanceType(ctx,
-						&info,
+						info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1395,7 +1395,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			It("should take the default eviction threshold when none is specified", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 				it := instancetype.NewInstanceType(ctx,
-					&info,
+					info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1428,7 +1428,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					},
 				}
 				it := instancetype.NewInstanceType(ctx,
-					&info,
+					info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1459,7 +1459,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					},
 				}
 				it := instancetype.NewInstanceType(ctx,
-					&info,
+					info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1490,7 +1490,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					},
 				}
 				it := instancetype.NewInstanceType(ctx,
-					&info,
+					info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1513,7 +1513,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			for _, info := range instanceInfo.InstanceTypes {
 				if info.InstanceType == "t3.large" {
 					it := instancetype.NewInstanceType(ctx,
-						&info,
+						info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1530,7 +1530,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				}
 				if info.InstanceType == "m6idn.32xlarge" {
 					it := instancetype.NewInstanceType(ctx,
-						&info,
+						info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1555,7 +1555,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
-					&info,
+					info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1579,7 +1579,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
-					&info,
+					info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1608,7 +1608,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(ok).To(Equal(true))
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			it := instancetype.NewInstanceType(ctx,
-				&t3Large,
+				t3Large,
 				fake.DefaultRegion,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
@@ -1642,7 +1642,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(ok).To(Equal(true))
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			it := instancetype.NewInstanceType(ctx,
-				&t3Large,
+				t3Large,
 				fake.DefaultRegion,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
@@ -1672,7 +1672,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
-					&info,
+					info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1697,7 +1697,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
-					&info,
+					info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1722,7 +1722,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
-					&info,
+					info,
 					fake.DefaultRegion,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
@@ -1735,7 +1735,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
-				limitedPods := instancetype.ENILimitedPods(ctx, &info)
+				limitedPods := instancetype.ENILimitedPods(ctx, info)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})
@@ -1748,7 +1748,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			for _, info := range instanceInfo.InstanceTypes {
 				if info.InstanceType == "t3.large" {
 					it := instancetype.NewInstanceType(ctx,
-						&info,
+						info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
@@ -1765,7 +1765,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				}
 				if info.InstanceType == "m6idn.32xlarge" {
 					it := instancetype.NewInstanceType(ctx,
-						&info,
+						info,
 						fake.DefaultRegion,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,

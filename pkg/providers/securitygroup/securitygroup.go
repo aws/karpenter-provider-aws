@@ -34,7 +34,7 @@ import (
 )
 
 type Provider interface {
-	List(context.Context, *v1.EC2NodeClass) ([]*ec2types.SecurityGroup, error)
+	List(context.Context, *v1.EC2NodeClass) ([]ec2types.SecurityGroup, error)
 }
 
 type DefaultProvider struct {
@@ -53,7 +53,7 @@ func NewDefaultProvider(ec2api sdk.EC2API, cache *cache.Cache) *DefaultProvider 
 	}
 }
 
-func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*ec2types.SecurityGroup, error) {
+func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]ec2types.SecurityGroup, error) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -63,7 +63,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	if err != nil {
 		return nil, err
 	}
-	securityGroupIDs := lo.Map(securityGroups, func(s *ec2types.SecurityGroup, _ int) string { return aws.ToString(s.GroupId) })
+	securityGroupIDs := lo.Map(securityGroups, func(s ec2types.SecurityGroup, _ int) string { return aws.ToString(s.GroupId) })
 	if p.cm.HasChanged(fmt.Sprintf("security-groups/%s", nodeClass.Name), securityGroupIDs) {
 		log.FromContext(ctx).
 			WithValues("security-groups", securityGroupIDs).
@@ -72,7 +72,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	return securityGroups, nil
 }
 
-func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]ec2types.Filter) ([]*ec2types.SecurityGroup, error) {
+func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]ec2types.Filter) ([]ec2types.SecurityGroup, error) {
 	hash, err := hashstructure.Hash(filterSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
@@ -80,16 +80,16 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]
 	if sg, ok := p.cache.Get(fmt.Sprint(hash)); ok {
 		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
 		// so that modifications to the ordering of the data don't affect the original
-		return append([]*ec2types.SecurityGroup{}, sg.([]*ec2types.SecurityGroup)...), nil
+		return append([]ec2types.SecurityGroup{}, sg.([]ec2types.SecurityGroup)...), nil
 	}
-	securityGroups := map[string]*ec2types.SecurityGroup{}
+	securityGroups := map[string]ec2types.SecurityGroup{}
 	for _, filters := range filterSets {
 		output, err := p.ec2api.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
 		if err != nil {
 			return nil, fmt.Errorf("describing security groups %+v, %w", filterSets, err)
 		}
 		for i := range output.SecurityGroups {
-			securityGroups[lo.FromPtr(output.SecurityGroups[i].GroupId)] = &output.SecurityGroups[i]
+			securityGroups[lo.FromPtr(output.SecurityGroups[i].GroupId)] = output.SecurityGroups[i]
 		}
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(securityGroups))

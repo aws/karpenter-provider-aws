@@ -37,6 +37,7 @@ package fake
 import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
 // GENERATED FILE. DO NOT EDIT DIRECTLY.
@@ -102,7 +103,7 @@ func getDescribeInstanceTypesOutput(ctx context.Context, ec2api *ec2.Client, ins
 
 	src := &bytes.Buffer{}
 	fmt.Fprintln(src, "var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{")
-	fmt.Fprintln(src, "InstanceTypes: []*ec2.InstanceTypeInfo{")
+	fmt.Fprintln(src, "InstanceTypes: []ec2types.InstanceTypeInfo{")
 	for _, elem := range out.InstanceTypes {
 		fmt.Fprintln(src, "{")
 		data := getInstanceTypeInfo(elem)
@@ -116,132 +117,117 @@ func getDescribeInstanceTypesOutput(ctx context.Context, ec2api *ec2.Client, ins
 
 func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 	src := &bytes.Buffer{}
-	var supportedUsageClasses []*string
-	for _, usageClass := range info.SupportedUsageClasses {
-		s := fmt.Sprintf("%s", usageClass)
-		supportedUsageClasses = append(supportedUsageClasses, &s)
-	}
-	var supportedVirtualizationTypes []*string
-	for _, virtualizationType := range info.SupportedVirtualizationTypes {
-		s := fmt.Sprintf("%s", virtualizationType)
-		supportedVirtualizationTypes = append(supportedVirtualizationTypes, &s)
-	}
-	fmt.Fprintf(src, "InstanceType: aws.String(\"%s\"),\n", string(info.InstanceType))
-	fmt.Fprintf(src, "SupportedUsageClasses: aws.StringSlice([]string{%s}),\n", getStringSliceData(supportedUsageClasses))
-	fmt.Fprintf(src, "SupportedVirtualizationTypes: aws.StringSlice([]string{%s}),\n", getStringSliceData(supportedVirtualizationTypes))
+
+	fmt.Fprintf(src, "InstanceType: \"%s\",\n", info.InstanceType)
+	fmt.Fprintf(src, "SupportedUsageClasses:[]ec2types.UsageClassType{%s},\n", getStringSliceData(info.SupportedUsageClasses))
+	fmt.Fprintf(src, "SupportedVirtualizationTypes: []ec2types.VirtualizationType{%s},\n", getStringSliceData(info.SupportedVirtualizationTypes))
 	fmt.Fprintf(src, "BurstablePerformanceSupported: aws.Bool(%t),\n", lo.FromPtr(info.BurstablePerformanceSupported))
 	fmt.Fprintf(src, "BareMetal: aws.Bool(%t),\n", lo.FromPtr(info.BareMetal))
-	fmt.Fprintf(src, "Hypervisor: aws.String(\"%s\"),\n", lo.FromPtr(&info.Hypervisor))
+	fmt.Fprintf(src, "Hypervisor: \"%s\",\n", info.Hypervisor)
 
-	var supportedArchitectures []*string
-	for _, architecture := range info.ProcessorInfo.SupportedArchitectures {
-		s := fmt.Sprintf("%s", architecture)
-		supportedArchitectures = append(supportedArchitectures, &s)
-	}
-
-	fmt.Fprintf(src, "ProcessorInfo: &ec2.ProcessorInfo{\n")
+	fmt.Fprintf(src, "ProcessorInfo: &ec2types.ProcessorInfo{\n")
 	fmt.Fprintf(src, "Manufacturer: aws.String(\"%s\"),\n", lo.FromPtr(info.ProcessorInfo.Manufacturer))
-	fmt.Fprintf(src, "SupportedArchitectures: aws.StringSlice([]string{%s}),\n", getStringSliceData(supportedArchitectures))
+	fmt.Fprintf(src, "SupportedArchitectures: []ec2types.ArchitectureType{%s},\n", getStringSliceData(info.ProcessorInfo.SupportedArchitectures))
 	fmt.Fprintf(src, "},\n")
-	fmt.Fprintf(src, "VCpuInfo: &ec2.VCpuInfo{\n")
-	fmt.Fprintf(src, "DefaultCores: aws.Int64(%d),\n", lo.FromPtr(info.VCpuInfo.DefaultCores))
-	fmt.Fprintf(src, "DefaultVCpus: aws.Int64(%d),\n", lo.FromPtr(info.VCpuInfo.DefaultVCpus))
+	fmt.Fprintf(src, "VCpuInfo: &ec2types.VCpuInfo{\n")
+	fmt.Fprintf(src, "DefaultCores: aws.Int32(%d),\n", lo.FromPtr(info.VCpuInfo.DefaultCores))
+	fmt.Fprintf(src, "DefaultVCpus: aws.Int32(%d),\n", lo.FromPtr(info.VCpuInfo.DefaultVCpus))
 	fmt.Fprintf(src, "},\n")
-	fmt.Fprintf(src, "MemoryInfo: &ec2.MemoryInfo{\n")
+	fmt.Fprintf(src, "MemoryInfo: &ec2types.MemoryInfo{\n")
 	fmt.Fprintf(src, "SizeInMiB: aws.Int64(%d),\n", lo.FromPtr(info.MemoryInfo.SizeInMiB))
 	fmt.Fprintf(src, "},\n")
 	if info.EbsInfo != nil {
-		fmt.Fprintf(src, "EbsInfo: &ec2.EbsInfo{\n")
+		fmt.Fprintf(src, "EbsInfo: &ec2types.EbsInfo{\n")
 		if info.EbsInfo.EbsOptimizedInfo != nil {
-			fmt.Fprintf(src, "EbsOptimizedInfo: &ec2.EbsOptimizedInfo{\n")
-			fmt.Fprintf(src, "BaselineBandwidthInMbps: aws.Int64(%d),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.BaselineBandwidthInMbps))
-			fmt.Fprintf(src, "BaselineIops: aws.Int64(%d),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.BaselineIops))
+			fmt.Fprintf(src, "EbsOptimizedInfo: &ec2types.EbsOptimizedInfo{\n")
+			fmt.Fprintf(src, "BaselineBandwidthInMbps: aws.Int32(%d),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.BaselineBandwidthInMbps))
+			fmt.Fprintf(src, "BaselineIops: aws.Int32(%d),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.BaselineIops))
 			fmt.Fprintf(src, "BaselineThroughputInMBps: aws.Float64(%.2f),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.BaselineThroughputInMBps))
-			fmt.Fprintf(src, "MaximumBandwidthInMbps: aws.Int64(%d),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.MaximumBandwidthInMbps))
-			fmt.Fprintf(src, "MaximumIops: aws.Int64(%d),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.MaximumIops))
+			fmt.Fprintf(src, "MaximumBandwidthInMbps: aws.Int32(%d),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.MaximumBandwidthInMbps))
+			fmt.Fprintf(src, "MaximumIops: aws.Int32(%d),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.MaximumIops))
 			fmt.Fprintf(src, "MaximumThroughputInMBps: aws.Float64(%.2f),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.MaximumThroughputInMBps))
 			fmt.Fprintf(src, "},\n")
 		}
-		fmt.Fprintf(src, "EbsOptimizedSupport: aws.String(\"%s\"),\n", string(info.EbsInfo.EbsOptimizedSupport))
-		fmt.Fprintf(src, "EncryptionSupport: aws.String(\"%s\"),\n", string(info.EbsInfo.EncryptionSupport))
-		fmt.Fprintf(src, "NvmeSupport: aws.String(\"%s\"),\n", string(info.EbsInfo.NvmeSupport))
+		fmt.Fprintf(src, "EbsOptimizedSupport: \"%s\",\n", info.EbsInfo.EbsOptimizedSupport)
+		fmt.Fprintf(src, "EncryptionSupport: \"%s\",\n", info.EbsInfo.EncryptionSupport)
+		fmt.Fprintf(src, "NvmeSupport: \"%s\",\n", info.EbsInfo.NvmeSupport)
 		fmt.Fprintf(src, "},\n")
 	}
 	if info.InferenceAcceleratorInfo != nil {
-		fmt.Fprintf(src, "InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{\n")
-		fmt.Fprintf(src, "Accelerators: []*ec2.InferenceDeviceInfo{\n")
+		fmt.Fprintf(src, "InferenceAcceleratorInfo: &ec2types.InferenceAcceleratorInfo{\n")
+		fmt.Fprintf(src, "Accelerators: []ec2types.InferenceDeviceInfo{\n")
 		for _, elem := range info.InferenceAcceleratorInfo.Accelerators {
-			fmt.Fprintf(src, getInferenceAcceleratorDeviceInfo(&elem))
+			fmt.Fprintf(src, getInferenceAcceleratorDeviceInfo(elem))
 		}
 		fmt.Fprintf(src, "},\n")
 		fmt.Fprintf(src, "},\n")
 	}
 	if info.GpuInfo != nil {
-		fmt.Fprintf(src, "GpuInfo: &ec2.GpuInfo{\n")
-		fmt.Fprintf(src, "Gpus: []*ec2.GpuDeviceInfo{\n")
+		fmt.Fprintf(src, "GpuInfo: &ec2types.GpuInfo{\n")
+		fmt.Fprintf(src, "Gpus: []ec2types.GpuDeviceInfo{\n")
 		for _, elem := range info.GpuInfo.Gpus {
-			fmt.Fprintf(src, getGPUDeviceInfo(&elem))
+			fmt.Fprintf(src, getGPUDeviceInfo(elem))
 		}
 		fmt.Fprintf(src, "},\n")
 		fmt.Fprintf(src, "},\n")
 	}
 	if info.InstanceStorageInfo != nil {
-		fmt.Fprintf(src, "InstanceStorageInfo: &ec2.InstanceStorageInfo{")
-		fmt.Fprintf(src, "NvmeSupport: aws.String(\"%s\"),\n", string(info.InstanceStorageInfo.NvmeSupport))
+		fmt.Fprintf(src, "InstanceStorageInfo: &ec2types.InstanceStorageInfo{")
+		fmt.Fprintf(src, "NvmeSupport: \"%s\",\n", string(info.InstanceStorageInfo.NvmeSupport))
 		fmt.Fprintf(src, "TotalSizeInGB: aws.Int64(%d),\n", lo.FromPtr(info.InstanceStorageInfo.TotalSizeInGB))
 		fmt.Fprintf(src, "},\n")
 	}
-	fmt.Fprintf(src, "NetworkInfo: &ec2.NetworkInfo{\n")
+	fmt.Fprintf(src, "NetworkInfo: &ec2types.NetworkInfo{\n")
 	if info.NetworkInfo.EfaInfo != nil {
-		fmt.Fprintf(src, "EfaInfo: &ec2.EfaInfo{\n")
-		fmt.Fprintf(src, "MaximumEfaInterfaces: aws.Int64(%d),\n", lo.FromPtr(info.NetworkInfo.EfaInfo.MaximumEfaInterfaces))
+		fmt.Fprintf(src, "EfaInfo: &ec2types.EfaInfo{\n")
+		fmt.Fprintf(src, "MaximumEfaInterfaces: aws.Int32(%d),\n", lo.FromPtr(info.NetworkInfo.EfaInfo.MaximumEfaInterfaces))
 		fmt.Fprintf(src, "},\n")
 	}
-	fmt.Fprintf(src, "MaximumNetworkInterfaces: aws.Int64(%d),\n", lo.FromPtr(info.NetworkInfo.MaximumNetworkInterfaces))
-	fmt.Fprintf(src, "Ipv4AddressesPerInterface: aws.Int64(%d),\n", lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface))
+	fmt.Fprintf(src, "MaximumNetworkInterfaces: aws.Int32(%d),\n", lo.FromPtr(info.NetworkInfo.MaximumNetworkInterfaces))
+	fmt.Fprintf(src, "Ipv4AddressesPerInterface: aws.Int32(%d),\n", lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface))
 	fmt.Fprintf(src, "EncryptionInTransitSupported: aws.Bool(%t),\n", lo.FromPtr(info.NetworkInfo.EncryptionInTransitSupported))
-	fmt.Fprintf(src, "DefaultNetworkCardIndex: aws.Int64(%d),\n", lo.FromPtr(info.NetworkInfo.DefaultNetworkCardIndex))
-	fmt.Fprintf(src, "NetworkCards: []*ec2.NetworkCardInfo{\n")
+	fmt.Fprintf(src, "DefaultNetworkCardIndex: aws.Int32(%d),\n", lo.FromPtr(info.NetworkInfo.DefaultNetworkCardIndex))
+	fmt.Fprintf(src, "NetworkCards: []ec2types.NetworkCardInfo{\n")
 	for _, networkCard := range info.NetworkInfo.NetworkCards {
-		fmt.Fprintf(src, getNetworkCardInfo(&networkCard))
+		fmt.Fprintf(src, getNetworkCardInfo(networkCard))
 	}
 	fmt.Fprintf(src, "},\n")
 	fmt.Fprintf(src, "},\n")
 	return src.String()
 }
 
-func getNetworkCardInfo(info *ec2types.NetworkCardInfo) string {
+func getNetworkCardInfo(info ec2types.NetworkCardInfo) string {
 	src := &bytes.Buffer{}
 	fmt.Fprintf(src, "{\n")
-	fmt.Fprintf(src, "NetworkCardIndex: aws.Int64(%d),\n", lo.FromPtr(info.NetworkCardIndex))
-	fmt.Fprintf(src, "MaximumNetworkInterfaces: aws.Int64(%d),\n", lo.FromPtr(info.MaximumNetworkInterfaces))
+	fmt.Fprintf(src, "NetworkCardIndex: aws.Int32(%d),\n", lo.FromPtr(info.NetworkCardIndex))
+	fmt.Fprintf(src, "MaximumNetworkInterfaces: aws.Int32(%d),\n", lo.FromPtr(info.MaximumNetworkInterfaces))
 	fmt.Fprintf(src, "},\n")
 	return src.String()
 }
 
-func getInferenceAcceleratorDeviceInfo(info *ec2types.InferenceDeviceInfo) string {
-	src := &bytes.Buffer{}
-	fmt.Fprintf(src, "{\n")
-	fmt.Fprintf(src, "Name: aws.String(\"%s\"),\n", lo.FromPtr(info.Name))
-	fmt.Fprintf(src, "Manufacturer: aws.String(\"%s\"),\n", lo.FromPtr(info.Manufacturer))
-	fmt.Fprintf(src, "Count: aws.Int64(%d),\n", lo.FromPtr(info.Count))
-	fmt.Fprintf(src, "},\n")
-	return src.String()
-}
-
-func getGPUDeviceInfo(info *ec2types.GpuDeviceInfo) string {
+func getInferenceAcceleratorDeviceInfo(info ec2types.InferenceDeviceInfo) string {
 	src := &bytes.Buffer{}
 	fmt.Fprintf(src, "{\n")
 	fmt.Fprintf(src, "Name: aws.String(\"%s\"),\n", lo.FromPtr(info.Name))
 	fmt.Fprintf(src, "Manufacturer: aws.String(\"%s\"),\n", lo.FromPtr(info.Manufacturer))
-	fmt.Fprintf(src, "Count: aws.Int64(%d),\n", lo.FromPtr(info.Count))
-	fmt.Fprintf(src, "MemoryInfo: &ec2.GpuDeviceMemoryInfo{\n")
-	fmt.Fprintf(src, "SizeInMiB: aws.Int64(%d),\n", lo.FromPtr(info.MemoryInfo.SizeInMiB))
+	fmt.Fprintf(src, "Count: aws.Int32(%d),\n", lo.FromPtr(info.Count))
+	fmt.Fprintf(src, "},\n")
+	return src.String()
+}
+
+func getGPUDeviceInfo(info ec2types.GpuDeviceInfo) string {
+	src := &bytes.Buffer{}
+	fmt.Fprintf(src, "{\n")
+	fmt.Fprintf(src, "Name: aws.String(\"%s\"),\n", lo.FromPtr(info.Name))
+	fmt.Fprintf(src, "Manufacturer: aws.String(\"%s\"),\n", lo.FromPtr(info.Manufacturer))
+	fmt.Fprintf(src, "Count: aws.Int32(%d),\n", lo.FromPtr(info.Count))
+	fmt.Fprintf(src, "MemoryInfo: &ec2types.GpuDeviceMemoryInfo{\n")
+	fmt.Fprintf(src, "SizeInMiB: aws.Int32(%d),\n", lo.FromPtr(info.MemoryInfo.SizeInMiB))
 	fmt.Fprintf(src, "},\n")
 	fmt.Fprintf(src, "},\n")
 	return src.String()
 }
 
-func getStringSliceData(slice []*string) string {
-	return strings.Join(lo.Map(slice, func(s *string, _ int) string { return fmt.Sprintf(`"%s"`, lo.FromPtr(s)) }), ",")
+func getStringSliceData[T ec2types.UsageClassType | ec2types.VirtualizationType | ec2types.ArchitectureType](slice []T) string {
+	return strings.Join(lo.Map(slice, func(s T, _ int) string { return fmt.Sprintf(`"%s"`, s) }), ",")
 }

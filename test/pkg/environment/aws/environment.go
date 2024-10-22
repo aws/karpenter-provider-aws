@@ -33,11 +33,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
-	awsv1 "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/client"
-	"github.com/aws/aws-sdk-go/aws/endpoints"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/aws/session"
+
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -46,7 +42,6 @@ import (
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
@@ -70,7 +65,7 @@ type Environment struct {
 	IAMAPI        *iam.Client
 	FISAPI        *fis.Client
 	EKSAPI        *eks.Client
-	TimeStreamAPI sdk.TimestreamWriteAPI
+	TimeStreamAPI *timestreamwrite.Client
 
 	SQSProvider sqs.Provider
 
@@ -89,19 +84,10 @@ type ZoneInfo struct {
 
 func NewEnvironment(t *testing.T) *Environment {
 	env := common.NewEnvironment(t)
-	cfg := lo.Must(config.LoadDefaultConfig(context.Background(), config.WithRetryMaxAttempts(3)))
-	session := session.Must(session.NewSessionWithOptions(
-		session.Options{
-			Config: *request.WithRetryer(
-				&awsv1.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
-				client.DefaultRetryer{NumMaxRetries: 10},
-			),
-			SharedConfigState: session.SharedConfigEnable,
-		},
-	))
+	cfg := lo.Must(config.LoadDefaultConfig(context.Background()))
 
 	awsEnv := &Environment{
-		Region:      *session.Config.Region,
+		Region:      cfg.Region,
 		Environment: env,
 
 		STSAPI:        sts.NewFromConfig(cfg),
@@ -138,12 +124,13 @@ func NewEnvironment(t *testing.T) *Environment {
 	return awsEnv
 }
 
-func GetTimeStreamAPI(cfg aws.Config) sdk.TimestreamWriteAPI {
+func GetTimeStreamAPI(cfg aws.Config) *timestreamwrite.Client {
 	if lo.Must(env.GetBool("ENABLE_METRICS", false)) {
 		By("enabling metrics firing for this suite")
-		return timestreamwrite.NewFromConfig(cfg)
+		timecfg := lo.Must(config.LoadDefaultConfig(context.Background(), config.WithRegion(env.GetString("METRICS_REGION", metricsDefaultRegion))))
+		return timestreamwrite.NewFromConfig(timecfg)
 	}
-	return &NoOpTimeStreamAPI{}
+	return nil
 }
 
 func (env *Environment) DefaultEC2NodeClass() *v1.EC2NodeClass {

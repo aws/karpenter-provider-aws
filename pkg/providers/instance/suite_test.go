@@ -172,7 +172,7 @@ var _ = Describe("InstanceProvider", func() {
 					},
 					// Launch time was 1m ago
 					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
-					InstanceId:   aws.String(instanceID),
+					InstanceId:   lo.ToPtr(instanceID),
 					InstanceType: "m5.large",
 				},
 			)
@@ -193,7 +193,7 @@ var _ = Describe("InstanceProvider", func() {
 					},
 					// Launch time was 1m ago
 					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
-					InstanceId:   aws.String(instanceID),
+					InstanceId:   lo.ToPtr(instanceID),
 					InstanceType: "m5.large",
 				},
 			)

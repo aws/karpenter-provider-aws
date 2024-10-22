@@ -224,8 +224,8 @@ var _ = Describe("Pricing", func() {
 		})
 		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
 			PriceList: []string{
-				fmt.Sprintf("%v", fake.NewOnDemandPrice("c98.large", 1.20)),
-				fmt.Sprintf("%v", fake.NewOnDemandPrice("c99.large", 1.23)),
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
 		ExpectSingletonReconciled(ctx, controller)
@@ -251,8 +251,8 @@ var _ = Describe("Pricing", func() {
 		})
 		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
 			PriceList: []string{
-				fmt.Sprintf("%v", fake.NewOnDemandPrice("c98.large", 1.20)),
-				fmt.Sprintf("%v", fake.NewOnDemandPrice("c99.large", 1.23)),
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
 		ExpectSingletonReconciled(ctx, controller)
@@ -286,8 +286,8 @@ var _ = Describe("Pricing", func() {
 			// these are incorrect prices which are here to ensure that
 			// results from only static pricing are used
 			PriceList: []string{
-				fmt.Sprintf("%v", fake.NewOnDemandPrice("c98.large", 1.20)),
-				fmt.Sprintf("%v", fake.NewOnDemandPrice("c99.large", 1.23)),
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
 		ExpectSingletonReconciled(ctx, controller)

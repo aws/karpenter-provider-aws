@@ -138,7 +138,7 @@ below are the resources available with some assumptions and after the instance o
 				region,
 				pricing.NewDefaultProvider(
 					ctx,
-					pricing.NewAPI(ctx, cfg, cfg.Region),
+					pricing.NewAPI(cfg),
 					ec2api,
 					cfg.Region,
 				),
@@ -170,7 +170,7 @@ below are the resources available with some assumptions and after the instance o
 		if err != nil {
 			log.Fatalf("listing subnets, %s", err)
 		}
-		nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2types.Subnet, _ int) v1.Subnet {
+		nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet ec2types.Subnet, _ int) v1.Subnet {
 			return v1.Subnet{
 				ID:   *ec2subnet.SubnetId,
 				Zone: *ec2subnet.AvailabilityZone,
@@ -181,11 +181,11 @@ below are the resources available with some assumptions and after the instance o
 			log.Fatalf("listing instance types, %s", err)
 		}
 		for _, it := range instanceTypes {
-			familyName := strings.Split(it.Name, ".")[0]
+			familyName := strings.Split(string(it.Name), ".")[0]
 			if _, ok := families[familyName]; !ok {
 				families[familyName] = map[string]*cloudprovider.InstanceType{}
 			}
-			families[familyName][it.Name] = it
+			families[familyName][string(it.Name)] = it
 			for labelName := range it.Requirements {
 				labelNameMap.Insert(labelName)
 			}

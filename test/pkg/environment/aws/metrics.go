@@ -24,7 +24,6 @@ import (
 	timestreamwritetypes "github.com/aws/aws-sdk-go-v2/service/timestreamwrite/types"
 	"github.com/samber/lo"
 
-	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -37,10 +36,8 @@ const (
 	tableName            = "scaleTestDurations"
 )
 
-var _ sdk.TimestreamWriteAPI = (*NoOpTimeStreamAPI)(nil)
-
 type NoOpTimeStreamAPI struct {
-	sdk.TimestreamWriteAPI
+	timestreamwrite.Client
 }
 
 func (o NoOpTimeStreamAPI) WriteRecords(_ context.Context, _ *timestreamwrite.WriteRecordsInput, _ ...func(*timestreamwrite.Options)) (*timestreamwrite.WriteRecordsOutput, error) {

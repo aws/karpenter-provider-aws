@@ -16,7 +16,6 @@ package securitygroup_test
 
 import (
 	"context"
-	"reflect"
 	"sort"
 	"sync"
 	"testing"
@@ -102,7 +101,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 	It("should default to the clusters security groups", func() {
 		securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
-		ExpectConsistsOfSecurityGroups([]*ec2types.SecurityGroup{
+		ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{
 			{
 				GroupId:   aws.String("sg-test1"),
 				GroupName: aws.String("securityGroup-test1"),
@@ -124,7 +123,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}})
 		securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
-		ExpectConsistsOfSecurityGroups([]*ec2types.SecurityGroup{
+		ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{
 			{
 				GroupId:   aws.String("test-sg-1"),
 				GroupName: aws.String("test-sgName-1"),
@@ -146,7 +145,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}
 		securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
-		ExpectConsistsOfSecurityGroups([]*ec2types.SecurityGroup{
+		ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{
 			{
 				GroupId:   aws.String("sg-test1"),
 				GroupName: aws.String("securityGroup-test1"),
@@ -165,7 +164,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}
 		securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
-		ExpectConsistsOfSecurityGroups([]*ec2types.SecurityGroup{
+		ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{
 			{
 				GroupId:   aws.String("sg-test1"),
 				GroupName: aws.String("securityGroup-test1"),
@@ -183,7 +182,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}
 		securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
-		ExpectConsistsOfSecurityGroups([]*ec2types.SecurityGroup{
+		ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{
 			{
 				GroupId:   aws.String("sg-test1"),
 				GroupName: aws.String("securityGroup-test1"),
@@ -207,7 +206,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}
 		securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
-		ExpectConsistsOfSecurityGroups([]*ec2types.SecurityGroup{
+		ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{
 			{
 				GroupId:   aws.String("sg-test1"),
 				GroupName: aws.String("securityGroup-test1"),
@@ -227,7 +226,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}
 		securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
-		ExpectConsistsOfSecurityGroups([]*ec2types.SecurityGroup{
+		ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{
 			{
 				GroupId:   aws.String("sg-test2"),
 				GroupName: aws.String("securityGroup-test2"),
@@ -245,7 +244,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}
 		securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
-		ExpectConsistsOfSecurityGroups([]*ec2types.SecurityGroup{
+		ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{
 			{
 				GroupId:   aws.String("sg-test2"),
 				GroupName: aws.String("securityGroup-test2"),
@@ -265,7 +264,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}
 		securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
-		ExpectConsistsOfSecurityGroups([]*ec2types.SecurityGroup{
+		ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{
 			{
 				GroupId:   aws.String("sg-test3"),
 				GroupName: aws.String("securityGroup-test3"),
@@ -289,7 +288,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 			for _, cachedObject := range awsEnv.SecurityGroupCache.Items() {
 				cachedSecurityGroup := cachedObject.Object.([]ec2types.SecurityGroup)
 				Expect(cachedSecurityGroup).To(HaveLen(1))
-				reflect.DeepEqual(expectedSecurityGroups, cachedSecurityGroup[0])
+				lo.Contains(lo.ToSlicePtr(expectedSecurityGroups), lo.ToPtr(cachedSecurityGroup[0]))
 			}
 		})
 		It("should resolve security groups from cache that are filtered by Name", func() {
@@ -308,7 +307,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 			for _, cachedObject := range awsEnv.SecurityGroupCache.Items() {
 				cachedSecurityGroup := cachedObject.Object.([]ec2types.SecurityGroup)
 				Expect(cachedSecurityGroup).To(HaveLen(1))
-				reflect.DeepEqual(expectedSecurityGroups, cachedSecurityGroup[0])
+				lo.Contains(lo.ToSlicePtr(expectedSecurityGroups), lo.ToPtr(cachedSecurityGroup[0]))
 			}
 		})
 		It("should resolve security groups from cache that are filtered by tags", func() {
@@ -333,7 +332,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 			for _, cachedObject := range awsEnv.SubnetCache.Items() {
 				cachedSecurityGroup := cachedObject.Object.([]ec2types.SecurityGroup)
 				Expect(cachedSecurityGroup).To(HaveLen(1))
-				reflect.DeepEqual(expectedSecurityGroups, cachedSecurityGroup[0])
+				lo.Contains(lo.ToSlicePtr(expectedSecurityGroups), lo.ToPtr(cachedSecurityGroup[0]))
 			}
 		})
 	})
@@ -352,7 +351,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 				sort.Slice(securityGroups, func(i, j int) bool {
 					return *securityGroups[i].GroupId < *securityGroups[j].GroupId
 				})
-				Expect(securityGroups).To(BeEquivalentTo([]*ec2types.SecurityGroup{
+				Expect(securityGroups).To(BeEquivalentTo([]ec2types.SecurityGroup{
 					{
 						GroupId:   lo.ToPtr("sg-test1"),
 						GroupName: lo.ToPtr("securityGroup-test1"),
@@ -405,11 +404,11 @@ var _ = Describe("SecurityGroupProvider", func() {
 	})
 })
 
-func ExpectConsistsOfSecurityGroups(expected, actual []*ec2types.SecurityGroup) {
+func ExpectConsistsOfSecurityGroups(expected, actual []ec2types.SecurityGroup) {
 	GinkgoHelper()
 	Expect(actual).To(HaveLen(len(expected)))
 	for _, elem := range expected {
-		_, ok := lo.Find(actual, func(s *ec2types.SecurityGroup) bool {
+		_, ok := lo.Find(actual, func(s ec2types.SecurityGroup) bool {
 			return lo.FromPtr(s.GroupId) == lo.FromPtr(elem.GroupId) &&
 				lo.FromPtr(s.GroupName) == lo.FromPtr(elem.GroupName)
 		})

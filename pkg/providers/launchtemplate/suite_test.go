@@ -536,13 +536,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 			// tags should be included in instance, volume, and fleet tag specification
 			Expect(createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2types.ResourceTypeInstance))
-			ExpectTags(lo.ToSlicePtr(createFleetInput.TagSpecifications[0].Tags), nodeClass.Spec.Tags)
+			ExpectTags(createFleetInput.TagSpecifications[0].Tags, nodeClass.Spec.Tags)
 
 			Expect(createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2types.ResourceTypeVolume))
-			ExpectTags(lo.ToSlicePtr(createFleetInput.TagSpecifications[1].Tags), nodeClass.Spec.Tags)
+			ExpectTags(createFleetInput.TagSpecifications[1].Tags, nodeClass.Spec.Tags)
 
 			Expect(createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2types.ResourceTypeFleet))
-			ExpectTags(lo.ToSlicePtr(createFleetInput.TagSpecifications[2].Tags), nodeClass.Spec.Tags)
+			ExpectTags(createFleetInput.TagSpecifications[2].Tags, nodeClass.Spec.Tags)
 		})
 		It("should request that tags be applied to both network interfaces and spot instance requests", func() {
 			nodeClass.Spec.Tags = map[string]string{
@@ -567,10 +567,10 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 				// tags should be included in instance, volume, and fleet tag specification
 				Expect(i.LaunchTemplateData.TagSpecifications[0].ResourceType).To(Equal(ec2types.ResourceTypeNetworkInterface))
-				ExpectTags(lo.ToSlicePtr(i.LaunchTemplateData.TagSpecifications[0].Tags), nodeClass.Spec.Tags)
+				ExpectTags(i.LaunchTemplateData.TagSpecifications[0].Tags, nodeClass.Spec.Tags)
 
 				Expect(i.LaunchTemplateData.TagSpecifications[1].ResourceType).To(Equal(ec2types.ResourceTypeSpotInstancesRequest))
-				ExpectTags(lo.ToSlicePtr(i.LaunchTemplateData.TagSpecifications[1].Tags), nodeClass.Spec.Tags)
+				ExpectTags(i.LaunchTemplateData.TagSpecifications[1].Tags, nodeClass.Spec.Tags)
 			})
 		})
 		It("should override default tag names", func() {
@@ -588,13 +588,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 			// tags should be included in instance, volume, and fleet tag specification
 			Expect(createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2types.ResourceTypeInstance))
-			ExpectTags(lo.ToSlicePtr(createFleetInput.TagSpecifications[0].Tags), nodeClass.Spec.Tags)
+			ExpectTags(createFleetInput.TagSpecifications[0].Tags, nodeClass.Spec.Tags)
 
 			Expect(createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2types.ResourceTypeVolume))
-			ExpectTags(lo.ToSlicePtr(createFleetInput.TagSpecifications[1].Tags), nodeClass.Spec.Tags)
+			ExpectTags(createFleetInput.TagSpecifications[1].Tags, nodeClass.Spec.Tags)
 
 			Expect(createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2types.ResourceTypeFleet))
-			ExpectTags(lo.ToSlicePtr(createFleetInput.TagSpecifications[2].Tags), nodeClass.Spec.Tags)
+			ExpectTags(createFleetInput.TagSpecifications[2].Tags, nodeClass.Spec.Tags)
 		})
 	})
 	Context("Block Device Mappings", func() {
@@ -980,10 +980,10 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 	})
 	Context("AL2", func() {
-		var info *ec2types.InstanceTypeInfo
+		var info ec2types.InstanceTypeInfo
 		BeforeEach(func() {
 			var ok bool
-			var instanceInfo []*ec2types.InstanceTypeInfo
+			var instanceInfo []ec2types.InstanceTypeInfo
 			err := awsEnv.EC2API.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{
 				Filters: []ec2types.Filter{
 					{
@@ -996,11 +996,11 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					},
 				},
 			}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
-				instanceInfo = append(instanceInfo, lo.ToSlicePtr(page.InstanceTypes)...)
+				instanceInfo = append(instanceInfo, page.InstanceTypes...)
 				return true
 			})
 			Expect(err).To(BeNil())
-			info, ok = lo.Find(instanceInfo, func(i *ec2types.InstanceTypeInfo) bool {
+			info, ok = lo.Find(instanceInfo, func(i ec2types.InstanceTypeInfo) bool {
 				return i.InstanceType == "m5.xlarge"
 			})
 			Expect(ok).To(BeTrue())
@@ -1033,10 +1033,10 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 	})
 	Context("Bottlerocket", func() {
-		var info *ec2types.InstanceTypeInfo
+		var info ec2types.InstanceTypeInfo
 		BeforeEach(func() {
 			var ok bool
-			var instanceInfo []*ec2types.InstanceTypeInfo
+			var instanceInfo []ec2types.InstanceTypeInfo
 			err := awsEnv.EC2API.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{
 				Filters: []ec2types.Filter{
 					{
@@ -1049,11 +1049,11 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					},
 				},
 			}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
-				instanceInfo = append(instanceInfo, lo.ToSlicePtr(page.InstanceTypes)...)
+				instanceInfo = append(instanceInfo, page.InstanceTypes...)
 				return true
 			})
 			Expect(err).To(BeNil())
-			info, ok = lo.Find(instanceInfo, func(i *ec2types.InstanceTypeInfo) bool {
+			info, ok = lo.Find(instanceInfo, func(i ec2types.InstanceTypeInfo) bool {
 				return i.InstanceType == "m5.xlarge"
 			})
 			Expect(ok).To(BeTrue())
@@ -2227,9 +2227,9 @@ essential = true
 })
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
-func ExpectTags(tags []*ec2types.Tag, expected map[string]string) {
+func ExpectTags(tags []ec2types.Tag, expected map[string]string) {
 	GinkgoHelper()
-	existingTags := lo.SliceToMap(tags, func(t *ec2types.Tag) (string, string) { return *t.Key, *t.Value })
+	existingTags := lo.SliceToMap(tags, func(t ec2types.Tag) (string, string) { return *t.Key, *t.Value })
 	for expKey, expValue := range expected {
 		foundValue, ok := existingTags[expKey]
 		Expect(ok).To(BeTrue(), fmt.Sprintf("expected to find tag %s in %s", expKey, existingTags))

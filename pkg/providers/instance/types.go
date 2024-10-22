@@ -28,10 +28,10 @@ import (
 // It contains all the common data that is needed to inject into the Machine from either of these responses
 type Instance struct {
 	LaunchTime       time.Time
-	State            string
+	State            ec2types.InstanceStateName
 	ID               string
 	ImageID          string
-	Type             string
+	Type             ec2types.InstanceType
 	Zone             string
 	CapacityType     string
 	SecurityGroupIDs []string
@@ -43,10 +43,10 @@ type Instance struct {
 func NewInstance(out ec2types.Instance) *Instance {
 	return &Instance{
 		LaunchTime:   aws.ToTime(out.LaunchTime),
-		State:        string(out.State.Name),
+		State:        out.State.Name,
 		ID:           aws.ToString(out.InstanceId),
 		ImageID:      aws.ToString(out.ImageId),
-		Type:         string(out.InstanceType),
+		Type:         out.InstanceType,
 		Zone:         aws.ToString(out.Placement.AvailabilityZone),
 		CapacityType: lo.Ternary(out.SpotInstanceRequestId != nil, karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand),
 		SecurityGroupIDs: lo.Map(out.SecurityGroups, func(securitygroup ec2types.GroupIdentifier, _ int) string {
@@ -64,10 +64,10 @@ func NewInstance(out ec2types.Instance) *Instance {
 func NewInstanceFromFleet(out ec2types.CreateFleetInstance, tags map[string]string, efaEnabled bool) *Instance {
 	return &Instance{
 		LaunchTime:   time.Now(), // estimate the launch time since we just launched
-		State:        string(ec2types.InstanceStateNamePending),
+		State:        ec2types.InstanceStateNamePending,
 		ID:           out.InstanceIds[0],
 		ImageID:      aws.ToString(out.LaunchTemplateAndOverrides.Overrides.ImageId),
-		Type:         string(out.InstanceType),
+		Type:         out.InstanceType,
 		Zone:         aws.ToString(out.LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
 		CapacityType: string(out.Lifecycle),
 		SubnetID:     aws.ToString(out.LaunchTemplateAndOverrides.Overrides.SubnetId),

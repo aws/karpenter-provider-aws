@@ -52,7 +52,7 @@ var _ = Describe("TerminateInstances Batcher", func() {
 				defer GinkgoRecover()
 				defer wg.Done()
 				rsp, err := cfb.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
-					InstanceIds: []string{*aws.String(instanceID)},
+					InstanceIds: []string{instanceID},
 				})
 				Expect(err).To(BeNil())
 				atomic.AddInt64(&receivedInstance, 1)
