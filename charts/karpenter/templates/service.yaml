@@ -5,9 +5,14 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
-  {{- with .Values.additionalAnnotations }}
+  {{- if or .Values.additionalAnnotations .Values.service.annotations }}
   annotations:
+  {{- with .Values.additionalAnnotations }}
     {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   {{- end }}
 spec:
   type: ClusterIP
