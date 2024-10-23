@@ -46,7 +46,7 @@ instanceTypeTestData() {
   GENERATED_FILE="pkg/fake/zz_generated.describe_instance_types.go"
 
   go run hack/code/instancetype_testdata_gen/main.go --out-file ${GENERATED_FILE} \
-    --instance-types t3.large,m5.large,m5.xlarge,p3.8xlarge,g4dn.8xlarge,c6g.large,inf1.2xlarge,inf1.6xlarge,trn1.2xlarge,m5.metal,dl1.24xlarge,m6idn.32xlarge,t4g.small,t4g.xlarge,t4g.medium,g4ad.16xlarge
+    --instance-types t3.large,m5.large,m5.xlarge,p3.8xlarge,g4dn.8xlarge,c6g.large,inf2.xlarge,inf2.24xlarge,trn1.2xlarge,m5.metal,dl1.24xlarge,m6idn.32xlarge,t4g.small,t4g.xlarge,t4g.medium,g4ad.16xlarge
 
   checkForUpdates "${GENERATED_FILE}"
 }
