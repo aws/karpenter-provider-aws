@@ -20,6 +20,13 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
+	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
+
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
@@ -60,27 +67,30 @@ type DefaultProvider struct {
 	muInstanceTypesOfferings sync.RWMutex
 	instanceTypesOfferings   map[string]sets.Set[string]
 
-	instanceTypesCache *cache.Cache
-	cm                 *pretty.ChangeMonitor
+	instanceTypesCache      *cache.Cache
+	discoveredCapacityCache *cache.Cache
+	cm                      *pretty.ChangeMonitor
 	// instanceTypesSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
 	instanceTypesSeqNum uint64
 	// instanceTypesOfferingsSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
 	instanceTypesOfferingsSeqNum uint64
 }
 
-func NewDefaultProvider(instanceTypesCache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider, instanceTypesResolver Resolver) *DefaultProvider {
+func NewDefaultProvider(instanceTypesCache *cache.Cache, discoveredCapacityCache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider, instanceTypesResolver Resolver) *DefaultProvider {
 	return &DefaultProvider{
-		ec2api:                 ec2api,
-		subnetProvider:         subnetProvider,
-		instanceTypesInfo:      []*ec2.InstanceTypeInfo{},
-		instanceTypesOfferings: map[string]sets.Set[string]{},
-		instanceTypesResolver:  instanceTypesResolver,
-		instanceTypesCache:     instanceTypesCache,
-		cm:                     pretty.NewChangeMonitor(),
-		instanceTypesSeqNum:    0,
+		ec2api:                  ec2api,
+		subnetProvider:          subnetProvider,
+		instanceTypesInfo:       []*ec2.InstanceTypeInfo{},
+		instanceTypesOfferings:  map[string]sets.Set[string]{},
+		instanceTypesResolver:   instanceTypesResolver,
+		instanceTypesCache:      instanceTypesCache,
+		discoveredCapacityCache: discoveredCapacityCache,
+		cm:                      pretty.NewChangeMonitor(),
+		instanceTypesSeqNum:     0,
 	}
 }
 
+//nolint:gocyclo
 func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	p.muInstanceTypesInfo.RLock()
 	p.muInstanceTypesOfferings.RLock()
@@ -104,9 +114,13 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// Compute fully initialized instance types hash key
 	subnetZonesHash, _ := hashstructure.Hash(subnetZones, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 
-	key := fmt.Sprintf("%d-%d-%016x-%s",
+	// Compute hash key against node class AMIs (used to force cache rebuild when AMIs change)
+	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+
+	key := fmt.Sprintf("%d-%d-%016x-%016x-%016x",
 		p.instanceTypesSeqNum,
 		p.instanceTypesOfferingsSeqNum,
+		amiHash,
 		subnetZonesHash,
 		p.instanceTypesResolver.CacheKey(nodeClass),
 	)
@@ -153,6 +167,9 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		})
 
 		it := p.instanceTypesResolver.Resolve(ctx, i, zoneData, nodeClass)
+		if cached, ok := p.discoveredCapacityCache.Get(fmt.Sprintf("%s-%016x", it.Name, amiHash)); ok {
+			it.Capacity[corev1.ResourceMemory] = cached.(resource.Quantity)
+		}
 		for _, of := range it.Offerings {
 			instanceTypeOfferingAvailable.With(prometheus.Labels{
 				instanceTypeLabel: it.Name,
@@ -242,8 +259,45 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 	return nil
 }
 
+func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context, kubeClient client.Client, node *corev1.Node) error {
+	nodeClaim, err := nodeutils.NodeClaimForNode(ctx, kubeClient, node)
+	if err != nil {
+		return fmt.Errorf("failed to get nodeclaim for node, %w", err)
+	}
+
+	nodeClass := &v1.EC2NodeClass{}
+	if err = kubeClient.Get(ctx, client.ObjectKey{Name: nodeClaim.Spec.NodeClassRef.Name}, nodeClass); err != nil {
+		return fmt.Errorf("failed to get ec2nodeclass, %w", err)
+	}
+
+	// Get mappings for most recent AMIs
+	instanceTypeName := node.Labels[corev1.LabelInstanceTypeStable]
+	amiMap := amifamily.MapToInstanceTypes([]*cloudprovider.InstanceType{{
+		Name:         instanceTypeName,
+		Requirements: scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...),
+	}}, nodeClass.Status.AMIs)
+	// Ensure NodeClaim AMI is current
+	if !lo.ContainsBy(amiMap[nodeClaim.Status.ImageID], func(i *cloudprovider.InstanceType) bool {
+		return i.Name == instanceTypeName
+	}) {
+		return nil
+	}
+
+	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	key := fmt.Sprintf("%s-%016x", instanceTypeName, amiHash)
+
+	// Update cache if non-existent or actual capacity is less than or equal to cached value
+	actualCapacity := node.Status.Capacity.Memory()
+	if cachedCapacity, ok := p.discoveredCapacityCache.Get(key); !ok || actualCapacity.Cmp(cachedCapacity.(resource.Quantity)) < 1 {
+		log.FromContext(ctx).WithValues("memory-capacity", actualCapacity, "instance-type", instanceTypeName).V(1).Info("updating discovered capacity cache")
+		p.discoveredCapacityCache.SetDefault(key, *actualCapacity)
+	}
+	return nil
+}
+
 func (p *DefaultProvider) Reset() {
 	p.instanceTypesInfo = []*ec2.InstanceTypeInfo{}
 	p.instanceTypesOfferings = map[string]sets.Set[string]{}
 	p.instanceTypesCache.Flush()
+	p.discoveredCapacityCache.Flush()
 }
