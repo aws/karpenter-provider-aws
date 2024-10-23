@@ -202,7 +202,7 @@ Karpenter does not support [in-tree storage plugins](https://kubernetes.io/blog/
 
 #### Pods were scheduled due to a race condition in Kubernetes
 
-Due to [this race condition in Kubernetes](https://github.com/kubernetes/kubernetes/issues/95911), it's possible that the scheduler and the CSINode can race during node registration such that the scheduler assumes that a node can mount more volumes than the node attachments support. There is currently no universal solve for this problem other than enforcing `toplogySpreadConstraints` and `podAntiAffinity` on your workloads that use PVCs such that you attempt to reduce the number of PVCs that schedule to a given node.
+Due to [this race condition in Kubernetes](https://github.com/kubernetes/kubernetes/issues/95911), it's possible that the scheduler and the CSINode can race during node registration such that the scheduler assumes that a node can mount more volumes than the node attachments support. There is currently no universal solve for this problem other than enforcing `topologySpreadConstraints` and `podAntiAffinity` on your workloads that use PVCs such that you attempt to reduce the number of PVCs that schedule to a given node.
 
 The following is a list of known CSI drivers which support a startupTaint to eliminate this issue:
 - [aws-ebs-csi-driver](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/install.md#configure-node-startup-taint)
