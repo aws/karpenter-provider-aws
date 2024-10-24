@@ -49,6 +49,7 @@ run: ## Run Karpenter controller binary against your local cluster
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
 		FEATURE_GATES="SpotToSpotConsolidation=true" \
+		LOG_LEVEL="debug" \
 		go run ./cmd/controller/main.go
 
 test: ## Run tests
