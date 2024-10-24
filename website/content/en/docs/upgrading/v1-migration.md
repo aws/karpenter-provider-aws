@@ -121,6 +121,8 @@ spec:
               effect: NoExecute
 ```
 
+If you are using one of Karpenter's managed AMI families, this will be handled for you by Karpenter's [generated UserData]({{<ref "../concepts/nodeclasses.md#specuserdata">}}).
+
 ## Upgrading
 
 Before proceeding with the upgrade, be sure to review the [changelog]({{<ref "#changelog">}}) and review the [upgrade procedure]({{<ref "#upgrade-procedure">}}) in its entirety.
@@ -134,7 +136,7 @@ Upgrading directly may leave you unable to rollback.
 For more information on the rollback procedure, refer to the [downgrading section]({{<ref "#downgrading">}}).
 
 {{% alert title="Note" color="primary" %}}
-The examples provided in the [upgrade procedure]({{<ref "#upgrade-procedure">}}) demonstrate how to perform the migration by manually updating the helm charts and IAM roles.
+The examples provided in the [upgrade procedure]({{<ref "#upgrade-procedure">}}) assume you've installed Karpenter following the [getting started guide]({{<ref "../getting-started/getting-started-with-karpenter/_index.md">}}).
 If you are using IaC / GitOps, you may need to adapt the procedure to fit your specific infrastructure solution.
 You should still review the upgrade procedure; the sequence of operations remains the same regardless of the solution used to roll out the changes.
 {{% /alert %}}
@@ -155,7 +157,7 @@ You should still review the upgrade procedure; the sequence of operations remain
 
 2. Determine your current Karpenter version:
    ```bash
-   kubectl get pod -A -l app.kubernetes.io/name=karpenter -ojsonpath='{.items[0].spec.containers[0].image}' | sed -e 's/^[^:]*:\([^@]*\).*$/\1/'
+   kubectl get deployment -A -l app.kubernetes.io/name=karpenter -ojsonpath="{.items[0].metadata.labels['app\.kubernetes\.io/version']}{'\n'}"
    ```
 
    To upgrade to v1, you must be running a Karpenter version between `v0.33` and `v0.37`.
@@ -196,7 +198,7 @@ You should still review the upgrade procedure; the sequence of operations remain
 
 5. Apply the latest patch version of your current minor version's Custom Resource Definitions (CRDs).
    Applying this version of the CRDs will enable the use of both the `v1` and `v1beta1` APIs on this version via the conversion webhooks.
-   Note that this is only for rollback purposes, and new features available with the `v1` APIs may not work on your minor version.
+   Note that this is only for rollback purposes, and new features available with the `v1` APIs will not work on your minor version.
 
    ```bash
    helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
@@ -205,7 +207,7 @@ You should still review the upgrade procedure; the sequence of operations remain
        --set webhook.port=8443
    ```
    {{% alert title="Note" color="primary" %}}
-   To properly template the `conversion` stanza in the CRD, the `karpenter-crd` chart must be used.
+   To properly template the `conversion` field in the CRD, the `karpenter-crd` chart must be used.
    If you're using a GitOps solution to manage your Karpenter installation, you should use this chart to manage your CRDs.
    You should set `skipCrds` to true for the main `karpenter` chart (e.g. [Argo CD](https://argo-cd.readthedocs.io/en/latest/user-guide/helm/#helm-skip-crds)).
 
@@ -238,7 +240,7 @@ You should still review the upgrade procedure; the sequence of operations remain
    {{% /alert %}}
 
 
-6. Validate that Karpenter is operating as expected on this latest patch release.
+6. Validate that Karpenter is operating as expected on this patch release.
    If you need to rollback after upgrading to `v1`, this is the version you will need to rollback to.
 
    {{% alert title="Note" color="primary" %}}
@@ -254,17 +256,17 @@ You should still review the upgrade procedure; the sequence of operations remain
 
 8. Attach the v1 policy to your existing NodeRole.
    Notable Changes to the IAM Policy include additional tag-scoping for the `eks:eks-cluster-name` tag for instances and instance profiles.
+   We will remove this additional policy later once the controller has been migrated to v1 and we've updated the Karpenter cloudformation stack.
 
    <!-- TODO: Pin ref to a specific commit once this commit has been merged -->
-    ```bash
-    TEMPOUT=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/website/content/en/docs/upgrading/v1-controller-policy.json > ${TEMPOUT}
-    POLICY_DOCUMENT=$(envsubst < ${TEMPOUT})
-    POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-v1"
-    ROLE_NAME="${CLUSTER_NAME}-karpenter"
-    POLICY_ARN="$(aws iam create-policy --policy-name "${POLICY_NAME}" --policy-document "${POLICY_DOCUMENT}" | jq -r .Policy.Arn)"
-    aws iam attach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
-    ```
+   ```bash
+   POLICY_DOCUMENT=$(mktemp)
+   curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/website/content/en/docs/v1.0/upgrading/get-controller-policy.sh | sh | envsubst > ${POLICY_DOCUMENT}
+   POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-v1"
+   ROLE_NAME="${CLUSTER_NAME}-karpenter"
+   POLICY_ARN="$(aws iam create-policy --policy-name "${POLICY_NAME}" --policy-document "file://${POLICY_DOCUMENT}" | jq -r .Policy.Arn)"
+   aws iam attach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
+   ```
 
 9. Apply the `v1` Custom Resource Definitions (CRDs):
 
@@ -294,13 +296,22 @@ You should still review the upgrade procedure; the sequence of operations remain
 Karpenter has deprecated and moved a number of Helm values as part of the v1 release. Ensure that you upgrade to the newer version of these helm values during your migration to v1. You can find detail for all the settings that were moved in the [v1 Upgrade Reference]({{<ref "#helm-values" >}}).
     {{% /alert %}}
 
-11. Remove the `v1beta1` IAM policy from your NodeRole.
+11. Upgrade your cloudformation stack and remove the temporary `v1` controller policy.
 
     ```bash
+    TEMPOUT=$(mktemp)
+    curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > "${TEMPOUT}"
+    aws cloudformation deploy \
+      --stack-name "Karpenter-${CLUSTER_NAME}" \
+      --template-file "${TEMPOUT}" \
+      --capabilities CAPABILITY_NAMED_IAM \
+      --parameter-overrides "ClusterName=${CLUSTER_NAME}"
+
     ROLE_NAME="${CLUSTER_NAME}-karpenter"
-    POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}"
+    POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-v1"
     POLICY_ARN=$(aws iam list-policies --query "Policies[?PolicyName=='${POLICY_NAME}'].Arn" --output text)
     aws iam detach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
+    aws iam delete-policy --policy-arn "${POLICY_ARN}"
     ```
 
 ## Downgrading
@@ -354,50 +365,20 @@ For example: `kubectl get nodepoll.v1beta1.karpenter.sh`.
    export KARPENTER_VERSION="0.37.5" # Replace with your minor version
    ```
 
-   {{% alert title="Warning" color="warning" %}}
-   If you open a new shell to run steps in this procedure, you need to set some or all of the environment variables again.
-   To remind yourself of these values, type:
-
-   ```bash
-   echo "${KARPENTER_NAMESPACE}" "${KARPENTER_VERSION}" "${CLUSTER_NAME}" "${TEMPOUT}"
-   ```
-
-   {{% /alert %}}
-
 3. Attach the `v1beta1` policy from your target version to your existing NodeRole.
-   If you didn't remove the `v1beta1` policy after upgrading to v1, you may skip this step.
 
    ```bash
-   TEMPOUT=$(mktemp)
-   VERSION_TAG=$([[ ${KARPENTER_VERSION} == v* ]] && echo "${KARPENTER_VERSION}" || echo "v${KARPENTER_VERSION}")
-   curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/${VERSION_TAG}/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > ${TEMPOUT}
-   sed -e 's/!Sub//g' -i "" "${TEMPOUT}"
-   sed -e 's/${AWS::Partition}/${AWS_PARTITION}/g' -i "" "${TEMPOUT}"
-   sed -e 's/${AWS::Region}/${AWS_REGION}/g' -i "" "${TEMPOUT}"
-   sed -e 's/${AWS::AccountId}/${AWS_ACCOUNT_ID}/g' -i "" "${TEMPOUT}"
-   sed -e 's/${ClusterName}/${CLUSTER_NAME}/g' -i "" "${TEMPOUT}"
-   sed -e 's/${KarpenterInterruptionQueue.Arn}/arn:${AWS_PARTITION}:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:${CLUSTER_NAME}/g' -i "" "${TEMPOUT}"
-   sed -e 's/${KarpenterNodeRole.Arn}/arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role\/KarpenterNodeRole-${CLUSTER_NAME}/g' -i "" "${TEMPOUT}"
-
-   POLICY_DOCUMENT=$(yq '.Resources.KarpenterControllerPolicy.Properties.PolicyDocument' ${TEMPOUT} | envsubst)
-   POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-${VERSION_TAG}"
+   POLICY_DOCUMENT=$(mktemp)
+   curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/website/docs/v1.0/upgrading/get-controller-policy.sh | sh | envsubst > ${POLICY_DOCUMENT}
+   POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-${KARPENTER_VERSION}"
    ROLE_NAME="${CLUSTER_NAME}-karpenter"
-   POLICY_ARN="$(aws iam create-policy --policy-name "${POLICY_NAME}" --policy-document "${POLICY_DOCUMENT}" | jq -r .Policy.Arn)"
+   POLICY_ARN="$(aws iam create-policy --policy-name "${POLICY_NAME}" --policy-document "file://${POLICY_DOCUMENT}" | jq -r .Policy.Arn)"
    aws iam attach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
    ```
 
-4. Rollback the CRDs.
+4. Rollback the Karpenter Controller:
    Note that webhooks must be **enabled** to rollback.
    Without enabling the webhooks, Karpenter will be unable to correctly operate on `v1` versions of the resources already stored in ETCD.
-
-   ```bash
-   helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
-     --set webhook.enabled=true \
-     --set webhook.serviceName=karpenter \
-     --set webhook.port=8443
-   ```
-
-5. Rollback the Karpenter Controller:
 
    ```bash
    # Service account annotation can be dropped when using pod identity
@@ -412,6 +393,34 @@ For example: `kubectl get nodepoll.v1beta1.karpenter.sh`.
      --set webhook.enabled=true \
      --set webhook.port=8443 \
      --wait
+   ```
+
+5. Rollback the CRDs.
+
+   ```bash
+   helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
+     --set webhook.enabled=true \
+     --set webhook.serviceName=karpenter \
+     --set webhook.port=8443
+   ```
+
+6. Rollback your cloudformation stack and remove the temporary `v1beta1` controller policy.
+
+   ```bash
+   TEMPOUT=$(mktemp)
+   VERSION_TAG=$([[ ${KARPENTER_VERSION} == v* ]] && echo "${KARPENTER_VERSION}" || echo "v${KARPENTER_VERSION}")
+   curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/${VERSION_TAG}/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > "${TEMPOUT}"
+   aws cloudformation deploy \
+     --stack-name "Karpenter-${CLUSTER_NAME}" \
+     --template-file "${TEMPOUT}" \
+     --capabilities CAPABILITY_NAMED_IAM \
+     --parameter-overrides "ClusterName=${CLUSTER_NAME}"
+
+   ROLE_NAME="${CLUSTER_NAME}-karpenter"
+   POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-${KARPENTER_VERSION}"
+   POLICY_ARN=$(aws iam list-policies --query "Policies[?PolicyName=='${POLICY_NAME}'].Arn" --output text)
+   aws iam detach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
+   aws iam delete-policy --policy-arn "${POLICY_ARN}"
    ```
 
 ## Before Upgrading to `v1.1.0`
@@ -466,24 +475,25 @@ kubectl get nodepools default -o yaml > v1-nodepool.yaml
 ```
 
 {{% alert title="Note" color="primary" %}}
-Due to the many-to-one relation between `NodePools` and `EC2NodeClasses`, the `kubelet` stanza is **not** automtatically migrated by the conversion webhooks.
-When updating your manifests, make sure you are migrating the `kubelet` stanza from your `NodePools` to your `EC2NodeClasses`.
+Due to the many-to-one relation between `NodePools` and `EC2NodeClasses`, the `kubelet` field is **not** automtatically migrated by the conversion webhooks.
+When updating your manifests, make sure you are migrating the `kubelet` field from your `NodePools` to your `EC2NodeClasses`.
 For more information, refer to [kubelet configuration migration]({{<ref "#kubelet-configuration-migration">}}).
 {{% /alert %}}
 
 #### Kubelet Configuration Migration
 
-One of the changes made to the `NodePool` and `EC2NodeClass` schemas for `v1` was the migration of the `kubelet` stanza from the `NodePool` to the `EC2NodeClass`.
+One of the changes made to the `NodePool` and `EC2NodeClass` schemas for `v1` was the migration of the `kubelet` field from the `NodePool` to the `EC2NodeClass`.
 This change is difficult to properly handle with conversion webhooks due to the many-to-one relation between `NodePools` and `EC2NodeClasses`.
 To facilitate this, Karpenter adds the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation to converted `NodePools`.
-If this annotation is present, it will take precedence over the `kubelet` stanza in the `EC2NodeClass`.
+If this annotation is present, it will take precedence over the `kubelet` field in the `EC2NodeClass`.
 
 This annotation is only meant to support migration, and support will be dropped in `v1.1`.
 Before upgrading to `v1.1+`, you must migrate your kubelet configuration to your `EC2NodeClasses`, and remove the compatibility annotation from your `NodePools`.
 
 {{% alert title="Warning" color="warning" %}}
-Do not remove the compatibility annotation until you have updated your `EC2NodeClass` with the matching `kubelet` stanza.
-Prematurely removing the compatibility annotation will result in Node drift.
+Do not remove the compatibility annotation until you have updated your `EC2NodeClass` with the matching `kubelet` field.
+Once the annotations is removed, the `EC2NodeClass` will be used as the source of truth for your kubelet configuration.
+If the field doesn't match, this will result in Nodes drifting.
 
 If you need to rollback to a pre-`v1.0` version after removing the compatibility annotation, you must re-add it before rolling back.
 {{% /alert %}}
@@ -527,8 +537,46 @@ metadata:
 ```
 
 In this example, we have two `NodePools` with different `kubelet` values, but they refer to the same `EC2NodeClass`.
-When handling conversion, Karpenter will annotate the `NodePools` with the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation.
+The conversion webhook will annotate the `NodePools` with the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation.
+This is the result of that conversion:
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: nodepool-a
+  annotations:
+    compatibility.karpenter.sh/v1beta1-kubelet-conversion: "{\"maxPods\": 10}"
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: nodeclass
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: nodepool-b
+  annotations:
+    compatibility.karpenter.sh/v1beta1-kubelet-conversion: "{\"maxPods\": 20}"
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: nodeclass
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: nodeclass
+```
+
 Before upgrading to `v1.1`, you must update your `NodePools` to refer to separate `EC2NodeClasses` to retain this behavior.
+Note that this will drift the Nodes associated with these NodePools due to the updated `nodeClassRef`.
 
 ```yaml
 apiVersion: karpenter.sh/v1
@@ -543,7 +591,7 @@ spec:
         kind: EC2NodeClass
         name: nodeclass-a
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: nodepool-b
@@ -555,7 +603,7 @@ spec:
         kind: EC2NodeClass
         name: nodeclass-b
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
   name: nodeclass-a
@@ -563,7 +611,7 @@ spec:
   kubelet:
     maxPods: 10
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
   name: nodeclass-b
@@ -571,10 +619,6 @@ spec:
   kubelet:
     maxPods: 20
 ```
-
-{{% alert title="Note" color="primary" %}}
-Updating the `nodeClassRef` for your `NodePools` will cause those `NodePools`' nodes to drift.
-{{% /alert %}}
 
 <!-- TODO (jmdeal@): Add a section on storage version migration -->
 
