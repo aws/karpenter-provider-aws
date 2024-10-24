@@ -17,7 +17,7 @@ package integration_test
 import (
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +49,7 @@ var _ = Describe("SecurityGroups", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(&securityGroups[0].GroupIdentifier, &securityGroups[1].GroupIdentifier)))
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(securityGroups[0].GroupIdentifier, securityGroups[1].GroupIdentifier)))
 	})
 
 	It("should use the security group selector with multiple tag values", func() {
@@ -60,10 +60,10 @@ var _ = Describe("SecurityGroups", func() {
 
 		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 			{
-				Tags: map[string]string{"Name": lo.FromPtr(lo.FindOrElse(first.Tags, &ec2.Tag{}, func(tag *ec2.Tag) bool { return lo.FromPtr(tag.Key) == "Name" }).Value)},
+				Tags: map[string]string{"Name": lo.FromPtr(lo.FindOrElse(first.Tags, ec2types.Tag{}, func(tag ec2types.Tag) bool { return lo.FromPtr(tag.Key) == "Name" }).Value)},
 			},
 			{
-				Tags: map[string]string{"Name": lo.FromPtr(lo.FindOrElse(last.Tags, &ec2.Tag{}, func(tag *ec2.Tag) bool { return lo.FromPtr(tag.Key) == "Name" }).Value)},
+				Tags: map[string]string{"Name": lo.FromPtr(lo.FindOrElse(last.Tags, ec2types.Tag{}, func(tag ec2types.Tag) bool { return lo.FromPtr(tag.Key) == "Name" }).Value)},
 			},
 		}
 		pod := test.Pod()
@@ -72,7 +72,7 @@ var _ = Describe("SecurityGroups", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(&first.GroupIdentifier, &last.GroupIdentifier)))
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(first.GroupIdentifier, last.GroupIdentifier)))
 	})
 
 	It("should update the EC2NodeClass status security groups", func() {
