@@ -52,6 +52,7 @@ func (s *EKSAPI) DescribeClusterWithContext(_ context.Context, input *eks.Descri
 			Cluster: &eks.Cluster{
 				KubernetesNetworkConfig: &eks.KubernetesNetworkConfigResponse{
 					ServiceIpv4Cidr: lo.ToPtr("10.100.0.0/16"),
+					IpFamily:        lo.ToPtr("ipv4"),
 				},
 			},
 		}, nil

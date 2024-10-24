@@ -29,6 +29,7 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
 
@@ -44,7 +45,7 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
-	awsEnv = test.NewEnvironment(ctx, env)
+	awsEnv = test.NewEnvironment(options.ToContext(ctx, &options.Options{ClusterName: "test-cluster"}), env)
 })
 
 var _ = AfterEach(func() {

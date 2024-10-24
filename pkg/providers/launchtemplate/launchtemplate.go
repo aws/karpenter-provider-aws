@@ -79,6 +79,7 @@ type DefaultProvider struct {
 	CABundle              *string
 	ClusterEndpoint       string
 	ClusterCIDR           atomic.Pointer[string]
+	ClusterIPFamily       corev1.IPFamily
 }
 
 func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily amifamily.Resolver,
@@ -95,6 +96,9 @@ func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface
 		cm:                    pretty.NewChangeMonitor(),
 		KubeDNSIP:             kubeDNSIP,
 		ClusterEndpoint:       clusterEndpoint,
+		ClusterIPFamily: convertIPFamily(*lo.Must(eksapi.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
+			Name: aws.String(options.FromContext(ctx).ClusterName),
+		})).Cluster.KubernetesNetworkConfig.IpFamily),
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -287,6 +291,8 @@ func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTem
 				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
 				// with a single EFA network interface, and we should support those use cases. Launch failures with multiple enis should be considered user misconfiguration.
 				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
+				PrimaryIpv6:              lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
+				Ipv6PrefixCount:          lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int64(1)), nil),
 			}
 		})
 	}
@@ -297,6 +303,8 @@ func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTem
 				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
 				DeviceIndex:              aws.Int64(0),
 				Groups:                   lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+				PrimaryIpv6:              lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
+				Ipv6PrefixCount:          lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int64(1)), nil),
 			},
 		}
 	}
@@ -426,4 +434,14 @@ func (p *DefaultProvider) ResolveClusterCIDR(ctx context.Context) error {
 		return nil
 	}
 	return fmt.Errorf("no CIDR found in DescribeCluster response")
+}
+
+func convertIPFamily(ipFamily string) corev1.IPFamily {
+	if strings.ToLower(ipFamily) == "ipv4" {
+		return corev1.IPv4Protocol
+	} else if strings.ToLower(ipFamily) == "ipv6" {
+		return corev1.IPv6Protocol
+	} else {
+		return corev1.IPFamilyUnknown
+	}
 }
