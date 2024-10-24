@@ -258,6 +258,9 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 				InstanceMetadataTags: lo.ToPtr(ec2.InstanceMetadataTagsStateDisabled),
 			},
 			NetworkInterfaces: networkInterfaces,
+			PrivateDnsNameOptions: &ec2.LaunchTemplatePrivateDnsNameOptions{
+				HostnameType: lo.ToPtr(ec2.HostnameTypeResourceName),
+			},
 			TagSpecifications: launchTemplateDataTags,
 		},
 		TagSpecifications: []*ec2.TagSpecification{
