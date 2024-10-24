@@ -50,7 +50,7 @@ Refer to the `v1` Migration Guide for the [full changelog]({{<ref "./v1-migratio
 
 {{% alert title="Note" color="primary" %}}
 Webhooks have been re-enabled by default starting in `0.37.3` to faciliate migration to `v1.0`.
-If your cluster has network policies that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
+If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
 
@@ -72,7 +72,7 @@ v0.36.x introduces update to drift that restricts rollback. When rolling back fr
 
 {{% alert title="Note" color="primary" %}}
 Webhooks have been re-enabled by default starting in `0.36.5` to faciliate migration to `v1.0`.
-If your cluster has network policies that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
+If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
 
@@ -86,7 +86,7 @@ You may still choose to disable webhooks through the helm chart.
 
 {{% alert title="Note" color="primary" %}}
 Webhooks have been re-enabled by default starting in `0.35.8` to faciliate migration to `v1.0`.
-If your cluster has network policies that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
+If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
 
@@ -104,7 +104,7 @@ The Ubuntu EKS optimized AMI has moved from 20.04 to 22.04 for Kubernetes 1.29+.
 
 {{% alert title="Note" color="primary" %}}
 Webhooks have been re-enabled by default starting in `0.34.9` to faciliate migration to `v1.0`.
-If your cluster has network policies that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
+If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
 
@@ -126,14 +126,14 @@ You may still choose to disable webhooks through the helm chart.
 
 {{% alert title="Note" color="primary" %}}
 Webhooks have been re-enabled by default starting in `0.33.8` to faciliate migration to `v1.0`.
-If your cluster has network policies that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
+If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
 
 * Karpenter no longer supports using the `karpenter.sh/provisioner-name` label in NodePool labels and requirements or in application node selectors, affinities, or topologySpreadConstraints. If you were previously using this label to target applications to specific Provisioners, you should update your applications to use the `karpenter.sh/nodepool` label instead before upgrading. If you upgrade without changing these labels, you may begin to see pod scheduling failures for these applications.
 * Karpenter now tags `spot-instances-request` with the same tags that it tags instances, volumes, and primary ENIs. This means that you will now need to add `ec2:CreateTags` permission for `spot-instances-request`. You can also further scope your controller policy for the `ec2:RunInstances` action to require that it launches the `spot-instances-request` with these specific tags. You can view an example of scoping these actions in the [Getting Started Guide's default CloudFormation controller policy](https://github.com/aws/karpenter/blob/v0.33.0/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml#L61).
 * We now recommend that you set the installation namespace for your Karpenter controllers to `kube-system` to denote Karpenter as a critical cluster component. This ensures that requests from the Karpenter controllers are treated with higher priority by assigning them to a different [PriorityLevelConfiguration](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#prioritylevelconfiguration) than generic requests from other namespaces. For more details on API Priority and Fairness, read the [Kubernetes API Priority and Fairness Conceptual Docs](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/). Note: Changing the namespace for your Karpenter release will cause the service account namespace to change. If you are using IRSA for authentication with AWS, you will need to change scoping set in the controller's trust policy from `karpenter:karpenter` to `kube-system:karpenter`.
-* `0.33.0` disables mutating and validating webhooks by default in favor of using [Common Expression Language for CRD validation](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation). The Common Expression Language Validation Feature [is enabled by default on EKS 1.25](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation-rules). If you are using Kubernetes version >= 1.25, no further action is required. If you are using a Kubernetes version below 1.25, you now need to set `DISABLE_WEBHOOK=false` in your container environment variables or `--set webhook.enabled=true` if using Helm. View the [Webhook Support Deprecated in Favor of CEL Section of the v1beta1 Migration Guide]({{<ref "../../v0.32/upgrading/v1beta1-migration#webhook-support-deprecated-in-favor-of-cel" >}}).
+* ~~`0.33.0` disables mutating and validating webhooks by default in favor of using [Common Expression Language for CRD validation](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation). The Common Expression Language Validation Feature [is enabled by default on EKS 1.25](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation-rules). If you are using Kubernetes version >= 1.25, no further action is required. If you are using a Kubernetes version below 1.25, you now need to set `DISABLE_WEBHOOK=false` in your container environment variables or `--set webhook.enabled=true` if using Helm. View the [Webhook Support Deprecated in Favor of CEL Section of the v1beta1 Migration Guide]({{<ref "../../v0.32/upgrading/v1beta1-migration#webhook-support-deprecated-in-favor-of-cel" >}}).~~
 * `0.33.0` drops support for passing settings through the `karpenter-global-settings` ConfigMap. You should pass settings through the container environment variables in the Karpenter deployment manifest. View the [Global Settings Section of the v1beta1 Migration Guide]({{<ref "../../v0.32/upgrading/v1beta1-migration#global-settings" >}}) for more details.
 * `0.33.0` enables `Drift=true` by default in the `FEATURE_GATES`. If you previously didn't enable the feature gate, Karpenter will now check if there is a difference between the desired state of your nodes declared in your NodePool and the actual state of your nodes. View the [Drift Section of Disruption Conceptual Docs]({{<ref "../concepts/disruption#drift" >}}) for more details.
 * `0.33.0` drops looking up the `zap-logger-config` through ConfigMap discovery. Instead, Karpenter now expects the logging config to be mounted on the filesystem if you are using this to configure Zap logging. This is not enabled by default, but can be enabled through `--set logConfig.enabled=true` in the Helm values. If you are setting any values in the `logConfig` from the `0.32.x` upgrade, such as `logConfig.logEncoding`, note that you will have to explicitly set `logConfig.enabled=true` alongside it. Also, note that setting the Zap logging config is a deprecated feature in beta and is planned to be dropped at v1. View the [Logging Configuration Section of the v1beta1 Migration Guide]({{<ref "../../v0.32/upgrading/v1beta1-migration#logging-configuration-is-no-longer-dynamic" >}}) for more details.
