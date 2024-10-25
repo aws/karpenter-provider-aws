@@ -25,7 +25,7 @@ require (
 	github.com/onsi/gomega v1.34.2
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-toml/v2 v2.2.3
-	github.com/prometheus/client_golang v1.20.4
+	github.com/prometheus/client_golang v1.20.5
 	github.com/samber/lo v1.47.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
@@ -38,7 +38,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.19.0
-	sigs.k8s.io/karpenter v1.0.1-0.20241007233822-633135958bc4
+	sigs.k8s.io/karpenter v1.0.1-0.20241023214052-1c22eda55698
 	sigs.k8s.io/yaml v1.4.0
 )
 
