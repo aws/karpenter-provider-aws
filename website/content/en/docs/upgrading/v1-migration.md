@@ -112,14 +112,14 @@ kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws -p "{\"
       --wait
     ```
 
-7. Set environment variables for first upgrading to v1.0.3
+7. Set environment variables for first upgrading to v1.0.6
 
     ```bash
-    export KARPENTER_VERSION=1.0.3
+    export KARPENTER_VERSION=1.0.6
     ```
 
 
-8. Update your existing policy using the following to the v1.0.3 controller policy:
+8. Update your existing policy using the following to the v1.0.6 controller policy:
    Notable Changes to the IAM Policy include additional tag-scoping for the `eks:eks-cluster-name` tag for instances and instance profiles.
 
     ```bash
@@ -132,7 +132,7 @@ kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws -p "{\"
         --parameter-overrides "ClusterName=${CLUSTER_NAME}"
     ```
 
-9. Apply the v1.0.3 Custom Resource Definitions (CRDs):
+9. Apply the v1.0.6 Custom Resource Definitions (CRDs):
 
     ```bash
     helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
