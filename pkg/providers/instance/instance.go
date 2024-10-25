@@ -97,6 +97,7 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 	}
 	instanceTypes, err := cloudprovider.InstanceTypes(instanceTypes).Truncate(schedulingRequirements, maxInstanceTypes)
 	if err != nil {
+		log.FromContext(ctx).Error(err, "truncating instance types")
 		return nil, fmt.Errorf("truncating instance types, %w", err)
 	}
 	tags := getTags(ctx, nodeClass, nodeClaim)
@@ -107,6 +108,7 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 		fleetInstance, err = p.launchInstance(ctx, nodeClass, nodeClaim, instanceTypes, tags)
 	}
 	if err != nil {
+		log.FromContext(ctx).Error(err, "launching instance")
 		return nil, err
 	}
 	efaEnabled := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA)
