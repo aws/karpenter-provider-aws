@@ -89,14 +89,22 @@ spec:
             nvidia.com/gpu: "1"
 ```
 {{% alert title="Note" color="primary" %}}
-If you are provisioning GPU nodes, you need to deploy an appropriate GPU device plugin daemonset for those nodes.
-Without the daemonset running, Karpenter will not see those nodes as initialized.
+If you are provisioning nodes that will utilize accelerators/GPUs, you need to deploy the appropriate device plugin daemonset.
+Without the respective device plugin daemonset, Karpenter will not see those nodes as initialized.
 Refer to general [Kubernetes GPU](https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/#deploying-amd-gpu-device-plugin) docs and the following specific GPU docs:
 * `nvidia.com/gpu`: [NVIDIA device plugin for Kubernetes](https://github.com/NVIDIA/k8s-device-plugin)
 * `amd.com/gpu`: [AMD GPU device plugin for Kubernetes](https://github.com/RadeonOpenCompute/k8s-device-plugin)
-* `aws.amazon.com/neuron`: [Kubernetes environment setup for Neuron](https://github.com/aws-neuron/aws-neuron-sdk/tree/master/src/k8)
+* `aws.amazon.com/neuron`/`aws.amazon.com/neuroncore`: [AWS Neuron device plugin for Kubernetes](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/containers/kubernetes-getting-started.html#neuron-device-plugin)
 * `habana.ai/gaudi`: [Habana device plugin for Kubernetes](https://docs.habana.ai/en/latest/Orchestration/Gaudi_Kubernetes/Habana_Device_Plugin_for_Kubernetes.html)
   {{% /alert %}}
+
+#### AWS Neuron Resources
+
+The [Neuron scheduler extension](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/containers/kubernetes-getting-started.html#neuron-scheduler-extension) is required for pods that require more than one Neuron core (`aws.amazon.com/neuroncore`) or device (`aws.amazon.com/neuron`) resource, but less than all available Neuron cores or devices on a node. From the AWS Neuron documentation:
+
+> The Neuron scheduler extension finds sets of directly connected devices with minimal communication latency when scheduling containers. On Inf1 and Inf2 instance types where Neuron devices are connected through a ring topology, the scheduler finds sets of contiguous devices. For example, for a container requesting 3 Neuron devices the scheduler might assign Neuron devices 0,1,2 to the container if they are available but never devices 0,2,4 because those devices are not directly connected. On Trn1.32xlarge and Trn1n.32xlarge instance types where devices are connected through a 2D torus topology, the Neuron scheduler enforces additional constraints that containers request 1, 4, 8, or all 16 devices. If your container requires a different number of devices, such as 2 or 5, we recommend that you use an Inf2 instance instead of Trn1 to benefit from more advanced topology.
+
+However, Karpenter is not aware of the decisions made by the Neuron scheduler extension which precludes it from making any optimizations to consolidate and bin pack pods requiring Neuron resources.
 
 ### Pod ENI Resources (Security Groups for Pods)
 [Pod ENI](https://github.com/aws/amazon-vpc-cni-k8s#enable_pod_eni-v170) is a feature of the AWS VPC CNI Plugin which allows an Elastic Network Interface (ENI) to be allocated directly to a Pod. When enabled, the `vpc.amazonaws.com/pod-eni` extended resource is added to supported nodes. The Pod ENI feature can be used independently, but is most often used in conjunction with Security Groups for Pods.  Follow the below instructions to enable support for Pod ENI and/or Security Groups for Pods in Karpenter.
