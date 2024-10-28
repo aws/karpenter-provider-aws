@@ -49,6 +49,13 @@ runs:
       logout: true
   - name: install-karpenter
     shell: bash
+    env:
+      ECR_ACCOUNT_ID: ${{ inputs.ecr_account_id }}
+      ECR_REGION: ${{ inputs.ecr_region }}
+      ACCOUNT_ID: ${{ inputs.account_id }}
+      CLUSTER_NAME: ${{ inputs.cluster_name }}
+      K8S_VERSION: ${{ inputs.k8s_version }}
+      WEBHOOKS_ENABLED: ${{ inputs.webhooks_enabled }}
     run: |
       ./test/hack/e2e_scripts/install_karpenter.sh
   - name: diff-karpenter
