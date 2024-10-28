@@ -4,7 +4,7 @@ aws eks update-kubeconfig --name "$CLUSTER_NAME"
 if (( "$WEBHOOKS_ENABLED" == false )); then
 helm upgrade --install karpenter-crd oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter-crd \
   --namespace kube-system \
-  --version $(git describe --tags --abbrev=0 | cut -c 2-) \
+  --version "0-$(git rev-parse HEAD)" \
   --set webhook.enabled=${WEBHOOKS_ENABLED} \
   --wait
 fi
