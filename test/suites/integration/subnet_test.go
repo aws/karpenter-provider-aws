@@ -15,7 +15,6 @@ limitations under the License.
 package integration_test
 
 import (
-	"context"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -144,14 +143,14 @@ var _ = Describe("Subnets", func() {
 
 func ExpectResourceBasedNamingEnabled(subnetIDs ...string) {
 	for subnetID := range subnetIDs {
-		_, err := env.EC2API.ModifySubnetAttribute(context.Background(), &ec2.ModifySubnetAttributeInput{
+		_, err := env.EC2API.ModifySubnetAttribute(env.Context, &ec2.ModifySubnetAttributeInput{
 			EnableResourceNameDnsARecordOnLaunch: &ec2types.AttributeBooleanValue{
 				Value: lo.ToPtr(true),
 			},
 			SubnetId: lo.ToPtr(subnetIDs[subnetID]),
 		})
 		Expect(err).To(BeNil())
-		_, err = env.EC2API.ModifySubnetAttribute(context.Background(), &ec2.ModifySubnetAttributeInput{
+		_, err = env.EC2API.ModifySubnetAttribute(env.Context, &ec2.ModifySubnetAttributeInput{
 			PrivateDnsHostnameTypeOnLaunch: "resource-name",
 			SubnetId:                       lo.ToPtr(subnetIDs[subnetID]),
 		})
@@ -161,14 +160,14 @@ func ExpectResourceBasedNamingEnabled(subnetIDs ...string) {
 
 func ExpectResourceBasedNamingDisabled(subnetIDs ...string) {
 	for subnetID := range subnetIDs {
-		_, err := env.EC2API.ModifySubnetAttribute(context.Background(), &ec2.ModifySubnetAttributeInput{
+		_, err := env.EC2API.ModifySubnetAttribute(env.Context, &ec2.ModifySubnetAttributeInput{
 			EnableResourceNameDnsARecordOnLaunch: &ec2types.AttributeBooleanValue{
 				Value: lo.ToPtr(false),
 			},
 			SubnetId: lo.ToPtr(subnetIDs[subnetID]),
 		})
 		Expect(err).To(BeNil())
-		_, err = env.EC2API.ModifySubnetAttribute(context.Background(), &ec2.ModifySubnetAttributeInput{
+		_, err = env.EC2API.ModifySubnetAttribute(env.Context, &ec2.ModifySubnetAttributeInput{
 			PrivateDnsHostnameTypeOnLaunch: "ip-name",
 			SubnetId:                       lo.ToPtr(subnetIDs[subnetID]),
 		})

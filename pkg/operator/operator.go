@@ -86,21 +86,22 @@ type Operator struct {
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
 	cfg := lo.Must(config.LoadDefaultConfig(ctx))
-	cfg = prometheusv2.WithPrometheusMetrics(cfg, crmetrics.Registry)
-	cfg = lo.Must(WithUserAgent(cfg))
+	cfg = prometheusv2.WithPrometheusMetrics(WithUserAgent(cfg), crmetrics.Registry)
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
 		metaDataClient := imds.NewFromConfig(cfg)
-		region := lo.Must(metaDataClient.GetRegion(ctx, nil))
+		region, err := metaDataClient.GetRegion(ctx, nil)
+		region = lo.Must(region, err, "failed to get region from metadata server")
 		cfg.Region = region.Region
 	}
 	ec2api := ec2.NewFromConfig(cfg)
+	eksapi := eks.NewFromConfig(cfg)
 	log.FromContext(ctx).WithValues("region", cfg.Region).V(1).Info("discovered region")
 	if err := CheckEC2Connectivity(ctx, ec2api); err != nil {
 		log.FromContext(ctx).Error(err, "ec2 api connectivity check failed")
 		os.Exit(1)
 	}
-	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eks.NewFromConfig(cfg))
+	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eksapi)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "failed detecting cluster endpoint")
 		os.Exit(1)
@@ -133,7 +134,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		ec2api,
-		eks.NewFromConfig(cfg),
+		eksapi,
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
@@ -177,17 +178,17 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 }
 
 // WithUserAgent adds a karpenter specific user-agent string to AWS session
-func WithUserAgent(cfg aws.Config) (aws.Config, error) {
+func WithUserAgent(cfg aws.Config) aws.Config {
 	userAgent := fmt.Sprintf("karpenter.sh-%s", operator.Version)
 	cfg.APIOptions = append(cfg.APIOptions,
 		middleware.AddUserAgentKey(userAgent),
 	)
-	return cfg, nil
+	return cfg
 }
 
 // CheckEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
 // are having issues connecting to the EC2 API.
-func CheckEC2Connectivity(ctx context.Context, api *ec2.Client) error {
+func CheckEC2Connectivity(ctx context.Context, api sdk.EC2API) error {
 	_, err := api.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{
 		DryRun: aws.Bool(true),
 	})

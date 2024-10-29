@@ -670,15 +670,6 @@ func (e *EC2API) DescribeInstanceTypeOfferings(_ context.Context, _ *ec2.Describ
 	}, nil
 }
 
-func (e *EC2API) DescribeInstanceTypeOfferingsPages(ctx context.Context, input *ec2.DescribeInstanceTypeOfferingsInput, fn func(*ec2.DescribeInstanceTypeOfferingsOutput, bool) bool, _ ...func(*ec2.Options)) error {
-	out, err := e.DescribeInstanceTypeOfferings(ctx, input)
-	if err != nil {
-		return err
-	}
-	fn(out, false)
-	return nil
-}
-
 func (e *EC2API) DescribeSpotPriceHistory(_ context.Context, input *ec2.DescribeSpotPriceHistoryInput, _ ...func(*ec2.Options)) (*ec2.DescribeSpotPriceHistoryOutput, error) {
 	e.DescribeSpotPriceHistoryInput.Set(input)
 	if !e.NextError.IsNil() {
@@ -690,13 +681,4 @@ func (e *EC2API) DescribeSpotPriceHistory(_ context.Context, input *ec2.Describe
 	}
 	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
 	return nil, errors.New("no pricing data provided")
-}
-
-func (e *EC2API) DescribeSpotPriceHistoryPages(ctx context.Context, input *ec2.DescribeSpotPriceHistoryInput, fn func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool, _ ...func(*ec2.Options)) error {
-	out, err := e.DescribeSpotPriceHistory(ctx, input)
-	if err != nil {
-		return err
-	}
-	fn(out, false)
-	return nil
 }

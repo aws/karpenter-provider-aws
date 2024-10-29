@@ -15,7 +15,6 @@ limitations under the License.
 package integration_test
 
 import (
-	"context"
 	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -68,7 +67,7 @@ var _ = Describe("CNITests", func() {
 })
 
 func eniLimitedPodsFor(instanceType string) int64 {
-	instance, err := env.EC2API.DescribeInstanceTypes(context.Background(), &ec2.DescribeInstanceTypesInput{
+	instance, err := env.EC2API.DescribeInstanceTypes(env.Context, &ec2.DescribeInstanceTypesInput{
 		InstanceTypes: []ec2types.InstanceType{ec2types.InstanceType(instanceType)},
 	})
 	Expect(err).ToNot(HaveOccurred())
@@ -77,7 +76,7 @@ func eniLimitedPodsFor(instanceType string) int64 {
 }
 
 func reservedENIsFor(instanceType string) int64 {
-	instance, err := env.EC2API.DescribeInstanceTypes(context.Background(), &ec2.DescribeInstanceTypesInput{
+	instance, err := env.EC2API.DescribeInstanceTypes(env.Context, &ec2.DescribeInstanceTypesInput{
 		InstanceTypes: []ec2types.InstanceType{ec2types.InstanceType(instanceType)},
 	})
 	Expect(err).ToNot(HaveOccurred())

@@ -15,7 +15,6 @@ limitations under the License.
 package integration_test
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -49,11 +48,11 @@ var _ = Describe("Tags", func() {
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 			instance := env.GetInstance(pod.Spec.NodeName)
-			volumes := env.GetVolumes(lo.Map(instance.BlockDeviceMappings, func(bdm ec2types.InstanceBlockDeviceMapping, _ int) *string {
-				return bdm.Ebs.VolumeId
+			volumes := env.GetVolumes(lo.Map(instance.BlockDeviceMappings, func(bdm ec2types.InstanceBlockDeviceMapping, _ int) string {
+				return lo.FromPtr(bdm.Ebs.VolumeId)
 			})...)
-			networkInterfaces := env.GetNetworkInterfaces(lo.Map(instance.NetworkInterfaces, func(ni ec2types.InstanceNetworkInterface, _ int) *string {
-				return ni.NetworkInterfaceId
+			networkInterfaces := env.GetNetworkInterfaces(lo.Map(instance.NetworkInterfaces, func(ni ec2types.InstanceNetworkInterface, _ int) string {
+				return lo.FromPtr(ni.NetworkInterfaceId)
 			})...)
 
 			Expect(instance.Tags).To(ContainElement(ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
@@ -81,7 +80,7 @@ var _ = Describe("Tags", func() {
 			env.ExpectCreatedNodeCount("==", 1)
 			instance := env.GetInstance(pod.Spec.NodeName)
 			Expect(instance.SpotInstanceRequestId).ToNot(BeNil())
-			spotInstanceRequest := env.GetSpotInstance(instance.SpotInstanceRequestId)
+			spotInstanceRequest := env.GetSpotInstance(lo.FromPtr(instance.SpotInstanceRequestId))
 			Expect(spotInstanceRequest.Tags).To(ContainElement(ec2types.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
 		})
 		It("should tag managed instance profiles", func() {
@@ -105,7 +104,7 @@ var _ = Describe("Tags", func() {
 			env.ExpectCreated(nodeClass)
 			env.EventuallyExpectInstanceProfileExists(env.GetInstanceProfileName(nodeClass))
 
-			_, err := env.IAMAPI.UntagInstanceProfile(context.Background(), &iam.UntagInstanceProfileInput{
+			_, err := env.IAMAPI.UntagInstanceProfile(env.Context, &iam.UntagInstanceProfileInput{
 				InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
 				TagKeys: []string{
 					v1.EKSClusterNameTagKey,
@@ -116,7 +115,7 @@ var _ = Describe("Tags", func() {
 			env.EventuallyExpectKarpenterRestarted()
 
 			Eventually(func(g Gomega) {
-				out, err := env.IAMAPI.GetInstanceProfile(context.Background(), &iam.GetInstanceProfileInput{
+				out, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
 					InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
 				})
 				g.Expect(err).ToNot(HaveOccurred())
@@ -191,7 +190,7 @@ var _ = Describe("Tags", func() {
 				g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationClusterNameTaggedCompatability, "true"))
 			}, time.Minute).Should(Succeed())
 
-			_, err := env.EC2API.DeleteTags(context.Background(), &ec2.DeleteTagsInput{
+			_, err := env.EC2API.DeleteTags(env.Context, &ec2.DeleteTagsInput{
 				Resources: []string{env.ExpectParsedProviderID(node.Spec.ProviderID)},
 				Tags:      []ec2types.Tag{{Key: lo.ToPtr(v1.EKSClusterNameTagKey)}},
 			})
@@ -204,7 +203,7 @@ var _ = Describe("Tags", func() {
 
 			By(fmt.Sprintf("Polling for the %s tag update", v1.EKSClusterNameTagKey))
 			Eventually(func(g Gomega) {
-				out, err := env.EC2API.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{
+				out, err := env.EC2API.DescribeInstances(env.Context, &ec2.DescribeInstancesInput{
 					InstanceIds: []string{env.ExpectParsedProviderID(node.Spec.ProviderID)},
 				})
 				g.Expect(err).ToNot(HaveOccurred())

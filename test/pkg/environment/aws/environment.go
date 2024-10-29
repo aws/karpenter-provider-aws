@@ -84,7 +84,7 @@ type ZoneInfo struct {
 
 func NewEnvironment(t *testing.T) *Environment {
 	env := common.NewEnvironment(t)
-	cfg := lo.Must(config.LoadDefaultConfig(context.Background()))
+	cfg := lo.Must(config.LoadDefaultConfig(env.Context))
 
 	awsEnv := &Environment{
 		Region:      cfg.Region,
@@ -96,7 +96,7 @@ func NewEnvironment(t *testing.T) *Environment {
 		IAMAPI:        iam.NewFromConfig(cfg),
 		FISAPI:        fis.NewFromConfig(cfg),
 		EKSAPI:        eks.NewFromConfig(cfg),
-		TimeStreamAPI: GetTimeStreamAPI(cfg),
+		TimeStreamAPI: GetTimeStreamAPI(env.Context),
 
 		ClusterName:     lo.Must(os.LookupEnv("CLUSTER_NAME")),
 		ClusterEndpoint: lo.Must(os.LookupEnv("CLUSTER_ENDPOINT")),
@@ -124,10 +124,10 @@ func NewEnvironment(t *testing.T) *Environment {
 	return awsEnv
 }
 
-func GetTimeStreamAPI(cfg aws.Config) *timestreamwrite.Client {
+func GetTimeStreamAPI(ctx context.Context) *timestreamwrite.Client {
 	if lo.Must(env.GetBool("ENABLE_METRICS", false)) {
 		By("enabling metrics firing for this suite")
-		timecfg := lo.Must(config.LoadDefaultConfig(context.Background(), config.WithRegion(env.GetString("METRICS_REGION", metricsDefaultRegion))))
+		timecfg := lo.Must(config.LoadDefaultConfig(ctx, config.WithRegion(env.GetString("METRICS_REGION", metricsDefaultRegion))))
 		return timestreamwrite.NewFromConfig(timecfg)
 	}
 	return nil

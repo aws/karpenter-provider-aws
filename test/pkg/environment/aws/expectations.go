@@ -15,7 +15,6 @@ limitations under the License.
 package aws
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -153,7 +152,7 @@ func (env *Environment) GetInstance(nodeName string) ec2types.Instance {
 func (env *Environment) ExpectInstanceStopped(nodeName string) {
 	GinkgoHelper()
 	node := env.Environment.GetNode(nodeName)
-	_, err := env.EC2API.StopInstances(context.Background(), &ec2.StopInstancesInput{
+	_, err := env.EC2API.StopInstances(env.Context, &ec2.StopInstancesInput{
 		Force:       aws.Bool(true),
 		InstanceIds: []string{env.ExpectParsedProviderID(node.Spec.ProviderID)},
 	})
@@ -171,7 +170,7 @@ func (env *Environment) ExpectInstanceTerminated(nodeName string) {
 
 func (env *Environment) GetInstanceByID(instanceID string) ec2types.Instance {
 	GinkgoHelper()
-	instance, err := env.EC2API.DescribeInstances(context.Background(), &ec2.DescribeInstancesInput{
+	instance, err := env.EC2API.DescribeInstances(env.Context, &ec2.DescribeInstancesInput{
 		InstanceIds: []string{instanceID},
 	})
 	Expect(err).ToNot(HaveOccurred())
@@ -180,37 +179,37 @@ func (env *Environment) GetInstanceByID(instanceID string) ec2types.Instance {
 	return instance.Reservations[0].Instances[0]
 }
 
-func (env *Environment) GetVolume(id *string) ec2types.Volume {
+func (env *Environment) GetVolume(id string) ec2types.Volume {
 	volumes := env.GetVolumes(id)
 	Expect(volumes).To(HaveLen(1))
 	return volumes[0]
 }
 
-func (env *Environment) GetVolumes(ids ...*string) []ec2types.Volume {
+func (env *Environment) GetVolumes(ids ...string) []ec2types.Volume {
 	GinkgoHelper()
-	dvo, err := env.EC2API.DescribeVolumes(context.Background(), &ec2.DescribeVolumesInput{VolumeIds: lo.FromSlicePtr(ids)})
+	dvo, err := env.EC2API.DescribeVolumes(env.Context, &ec2.DescribeVolumesInput{VolumeIds: ids})
 	Expect(err).ToNot(HaveOccurred())
 
 	return dvo.Volumes
 }
 
-func (env *Environment) GetNetworkInterface(id *string) ec2types.NetworkInterface {
+func (env *Environment) GetNetworkInterface(id string) ec2types.NetworkInterface {
 	networkInterfaces := env.GetNetworkInterfaces(id)
 	Expect(networkInterfaces).To(HaveLen(1))
 	return networkInterfaces[0]
 }
 
-func (env *Environment) GetNetworkInterfaces(ids ...*string) []ec2types.NetworkInterface {
+func (env *Environment) GetNetworkInterfaces(ids ...string) []ec2types.NetworkInterface {
 	GinkgoHelper()
-	dnio, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{NetworkInterfaceIds: lo.FromSlicePtr(ids)})
+	dnio, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{NetworkInterfaceIds: ids})
 	Expect(err).ToNot(HaveOccurred())
 	return dnio.NetworkInterfaces
 }
 
-func (env *Environment) GetSpotInstance(id *string) ec2types.SpotInstanceRequest {
+func (env *Environment) GetSpotInstance(id string) ec2types.SpotInstanceRequest {
 	GinkgoHelper()
 	siro, err := env.EC2API.DescribeSpotInstanceRequests(env.Context, &ec2.DescribeSpotInstanceRequestsInput{
-		SpotInstanceRequestIds: []string{*id},
+		SpotInstanceRequestIds: []string{id},
 	})
 	Expect(err).ToNot(HaveOccurred())
 	Expect(siro.SpotInstanceRequests).To(HaveLen(1))
@@ -234,7 +233,7 @@ func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
 
 	paginator := ec2.NewDescribeSubnetsPaginator(env.EC2API, input)
 	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(context.Background())
+		output, err := paginator.NextPage(env.Context)
 		if err != nil {
 			Expect(err).To(BeNil())
 		}
@@ -319,10 +318,8 @@ func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGrou
 		}
 
 		for _, sg := range output.SecurityGroups {
-			var tags []ec2types.Tag
-			tags = append(tags, sg.Tags...)
 			securityGroups = append(securityGroups, SecurityGroup{
-				Tags:            tags,
+				Tags:            sg.Tags,
 				GroupIdentifier: ec2types.GroupIdentifier{GroupId: sg.GroupId, GroupName: sg.GroupName},
 			})
 		}

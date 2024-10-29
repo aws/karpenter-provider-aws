@@ -15,7 +15,6 @@ limitations under the License.
 package drift_test
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"testing"
@@ -415,7 +414,7 @@ var _ = Describe("Drift", func() {
 	})
 	It("should disrupt nodes that have drifted due to securitygroup", func() {
 		By("getting the cluster vpc id")
-		output, err := env.EKSAPI.DescribeCluster(context.Background(), &eks.DescribeClusterInput{Name: awssdk.String(env.ClusterName)})
+		output, err := env.EKSAPI.DescribeCluster(env.Context, &eks.DescribeClusterInput{Name: awssdk.String(env.ClusterName)})
 		Expect(err).To(BeNil())
 
 		By("creating new security group")
@@ -443,7 +442,7 @@ var _ = Describe("Drift", func() {
 				},
 			},
 		}
-		_, _ = env.EC2API.CreateSecurityGroup(context.Background(), createSecurityGroup)
+		_, _ = env.EC2API.CreateSecurityGroup(env.Context, createSecurityGroup)
 
 		By("looking for security groups")
 		var securitygroups []aws.SecurityGroup

@@ -171,8 +171,8 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 			return nil, fmt.Errorf("describing ec2 instances, %w", err)
 		}
 	}
-	instances, _ := instancesFromOutput(out)
-	return instances, nil
+	instances, err := instancesFromOutput(out)
+	return instances, cloudprovider.IgnoreNodeClaimNotFoundError(err)
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
@@ -287,7 +287,7 @@ func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceT
 	instanceTypeZones := map[string]struct{}{}
 	for _, ltc := range launchTemplateConfigs {
 		for _, override := range ltc.Overrides {
-			if string(override.InstanceType) != "" {
+			if override.InstanceType != ec2types.InstanceType("") {
 				instanceTypeZones[string(override.InstanceType)] = struct{}{}
 			}
 		}

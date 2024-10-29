@@ -15,7 +15,6 @@ limitations under the License.
 package ami_test
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
@@ -106,7 +105,7 @@ var _ = Describe("AMI", func() {
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
 	It("should support AMI Selector Terms for Name but fail with incorrect owners", func() {
-		output, err := env.EC2API.DescribeImages(context.Background(), &ec2.DescribeImagesInput{
+		output, err := env.EC2API.DescribeImages(env.Context, &ec2.DescribeImagesInput{
 			ImageIds: []string{customAMI},
 		})
 		Expect(err).To(BeNil())
@@ -125,7 +124,7 @@ var _ = Describe("AMI", func() {
 		Expect(pod.Spec.NodeName).To(Equal(""))
 	})
 	It("should support ami selector Name with default owners", func() {
-		output, err := env.EC2API.DescribeImages(context.Background(), &ec2.DescribeImagesInput{
+		output, err := env.EC2API.DescribeImages(env.Context, &ec2.DescribeImagesInput{
 			ImageIds: []string{customAMI},
 		})
 		Expect(err).To(BeNil())
@@ -376,7 +375,7 @@ func getInstanceAttribute(nodeName string, attribute string) *ec2.DescribeInstan
 	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
 	instanceID := providerIDSplit[len(providerIDSplit)-1]
-	instanceAttribute, err := env.EC2API.DescribeInstanceAttribute(context.Background(), &ec2.DescribeInstanceAttributeInput{
+	instanceAttribute, err := env.EC2API.DescribeInstanceAttribute(env.Context, &ec2.DescribeInstanceAttributeInput{
 		InstanceId: awssdk.String(instanceID),
 		Attribute:  ec2types.InstanceAttributeName(attribute),
 	})

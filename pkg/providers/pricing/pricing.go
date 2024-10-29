@@ -88,22 +88,22 @@ func newZonalPricing(defaultPrice float64) zonal {
 
 // NewPricingAPI returns a pricing API configured based on a particular region
 func NewAPI(cfg aws.Config) *pricing.Client {
-	// pricing API doesn't have an endpoint in all regions
 	if cfg.Region == "" {
 		return nil
 	}
-	region := cfg.Region
+	// pricing API doesn't have an endpoint in all regions
 	pricingAPIRegion := "us-east-1"
-	if strings.HasPrefix(region, "ap-") {
+	if strings.HasPrefix(cfg.Region, "ap-") {
 		pricingAPIRegion = "ap-south-1"
-	} else if strings.HasPrefix(region, "cn-") {
+	} else if strings.HasPrefix(cfg.Region, "cn-") {
 		pricingAPIRegion = "cn-northwest-1"
-	} else if strings.HasPrefix(region, "eu-") {
+	} else if strings.HasPrefix(cfg.Region, "eu-") {
 		pricingAPIRegion = "eu-central-1"
 	}
-	cfg.Region = pricingAPIRegion
-	pricingClient := pricing.NewFromConfig(cfg)
-	cfg.Region = region
+	//create pricing config using pricing endpoint
+	pricingCfg := cfg.Copy()
+	pricingCfg.Region = pricingAPIRegion
+	pricingClient := pricing.NewFromConfig(pricingCfg)
 	return pricingClient
 }
 
@@ -294,9 +294,6 @@ func (p *DefaultProvider) spotPage(ctx context.Context, output *ec2.DescribeSpot
 		}
 		instanceType := string(sph.InstanceType)
 		az := aws.ToString(sph.AvailabilityZone)
-		if instanceType == "t3.micro" {
-			continue
-		}
 		_, ok := prices[instanceType]
 		if !ok {
 			prices[instanceType] = map[string]float64{}
@@ -366,6 +363,7 @@ func (p *DefaultProvider) UpdateSpotPricing(ctx context.Context) error {
 			"Linux/UNIX",
 			"Linux/UNIX (Amazon VPC)",
 		},
+		// get the latest spot price for each instance type
 		StartTime: aws.Time(time.Now()),
 	}
 

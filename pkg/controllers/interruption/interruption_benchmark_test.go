@@ -159,7 +159,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 type providerSet struct {
 	kubeClient  client.Client
-	sqsAPI      sdk.SQSAPI
+	sqsAPI      sqs.Client
 	sqsProvider sqs.Provider
 }
 
