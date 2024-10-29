@@ -1,7 +1,13 @@
 aws eks update-kubeconfig --name "$CLUSTER_NAME"
 
-# Parse minor version to determine whether to enable the webhooks
-K8S_VERSION_MINOR="${K8S_VERSION#*.}"
+# First, conditionally install the webhook stanza and CRDs
+if (( "$WEBHOOKS_ENABLED" == false )); then
+helm upgrade --install karpenter-crd oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter-crd \
+  --namespace kube-system \
+  --version "0-$(git rev-parse HEAD)" \
+  --set webhook.enabled=${WEBHOOKS_ENABLED} \
+  --wait
+fi
 
 CHART="oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter"
 ADDITIONAL_FLAGS=""
