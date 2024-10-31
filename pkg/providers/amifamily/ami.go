@@ -72,7 +72,10 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// Discover deprecated AMIs if automatic AMI discovery and upgrade is enabled. This ensures we'll be able to
 	// provision in the event of an EKS optimized AMI being deprecated.
 	includeDeprecated := lo.ContainsBy(nodeClass.Spec.AMISelectorTerms, func(term v1.AMISelectorTerm) bool {
-		return term.Alias == "latest"
+		if term.Alias == "" {
+			return false
+		}
+		return v1.AMIVersionFromAlias(term.Alias) == "latest"
 	})
 	amis, err := p.amis(ctx, queries, includeDeprecated)
 	if err != nil {
