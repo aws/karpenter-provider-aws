@@ -260,9 +260,9 @@ func computeRequirements(info ec2types.InstanceTypeInfo, offerings cloudprovider
 	// Neuron
 	if info.NeuronInfo != nil && len(info.NeuronInfo.NeuronDevices) == 1 {
 		device := info.NeuronInfo.NeuronDevices[0]
-		requirements.Get(v1.LabelInstanceAcceleratorName).Insert(lowerKabobCase(aws.StringValue(device.Name)))
+		requirements.Get(v1.LabelInstanceAcceleratorName).Insert(lowerKabobCase(lo.FromPtr(device.Name)))
 		requirements.Get(v1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("aws"))
-		requirements.Get(v1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(device.Count)))
+		requirements.Get(v1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(lo.FromPtr(device.Count)))
 	}
 	// Windows Build Version Labels
 	if family, ok := amiFamily.(*amifamily.Windows); ok {
@@ -407,7 +407,7 @@ func amdGPUs(info ec2types.InstanceTypeInfo) *resource.Quantity {
 }
 
 func awsNeuronCores(info ec2types.InstanceTypeInfo) *resource.Quantity {
-	count := int64(0)
+	count := int32(0)
 	if info.NeuronInfo != nil {
 		neuronDevice := info.NeuronInfo.NeuronDevices[0]
 		neuronCorePerDevice := neuronDevice.CoreInfo.Count
@@ -417,7 +417,7 @@ func awsNeuronCores(info ec2types.InstanceTypeInfo) *resource.Quantity {
 }
 
 func awsNeuronDevices(info ec2types.InstanceTypeInfo) *resource.Quantity {
-	count := int64(0)
+	count := int32(0)
 	if info.NeuronInfo != nil {
 		for _, device := range info.NeuronInfo.NeuronDevices {
 			count += *device.Count
