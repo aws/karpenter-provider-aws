@@ -98,7 +98,7 @@ var _ = Describe("SSM Invalidation Controller", func() {
 			Expect(updatedAMIID).To(Equal(amiID))
 		}
 	})
-	It("should't invalidate cache entries for deprecated AMIs when the SSM parameter is immutable", func() {
+	It("shouldn't invalidate cache entries for deprecated AMIs when the SSM parameter is immutable", func() {
 		nodeClass.Spec.AMISelectorTerms[0].Alias = "al2023@v20241024"
 		_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
