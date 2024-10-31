@@ -169,7 +169,7 @@ func MakeInstances() []ec2types.InstanceTypeInfo {
 	// Create uniform instance data so all of them schedule for a given pod
 	for _, it := range pricing.NewDefaultProvider(ctx, nil, nil, "us-east-1").InstanceTypes() {
 		instanceTypes = append(instanceTypes, ec2types.InstanceTypeInfo{
-			InstanceType: ec2types.InstanceType(it),
+			InstanceType: it,
 			ProcessorInfo: &ec2types.ProcessorInfo{
 				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
 			},

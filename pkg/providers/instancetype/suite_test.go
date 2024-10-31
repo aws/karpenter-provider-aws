@@ -493,7 +493,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		// find the cheapest OD price that works
 		cheapestODPrice := math.MaxFloat64
 		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
-			odPrice, ok := awsEnv.PricingProvider.OnDemandPrice(string(override.InstanceType))
+			odPrice, ok := awsEnv.PricingProvider.OnDemandPrice(override.InstanceType)
 			Expect(ok).To(BeTrue())
 			if odPrice < cheapestODPrice {
 				cheapestODPrice = odPrice
@@ -501,7 +501,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 		// and our spot prices should be cheaper than the OD price
 		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
-			spotPrice, ok := awsEnv.PricingProvider.SpotPrice(string(override.InstanceType), *override.AvailabilityZone)
+			spotPrice, ok := awsEnv.PricingProvider.SpotPrice(override.InstanceType, *override.AvailabilityZone)
 			Expect(ok).To(BeTrue())
 			Expect(spotPrice).To(BeNumerically("<", cheapestODPrice))
 		}
@@ -2012,12 +2012,26 @@ var _ = Describe("InstanceTypeProvider", func() {
 				HaveKeyWithValue(corev1.LabelTopologyZone, "test-zone-1b")))
 		})
 		It("should launch on-demand capacity if flexible to both spot and on-demand, but spot is unavailable", func() {
-			Expect(awsEnv.EC2API.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
-				for _, it := range dito.InstanceTypes {
-					awsEnv.EC2API.InsufficientCapacityPools.Add(fake.CapacityPool{CapacityType: karpv1.CapacityTypeSpot, InstanceType: string(it.InstanceType), Zone: "test-zone-1a"})
+			Expect(func() error {
+				output, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
+				if err != nil {
+					return err
 				}
-				return true
-			})).To(Succeed())
+
+				// Call the function with the output and false (indicating it's not the last page)
+				_ = func(dito *ec2.DescribeInstanceTypesOutput) bool {
+					for _, it := range dito.InstanceTypes {
+						awsEnv.EC2API.InsufficientCapacityPools.Add(fake.CapacityPool{
+							CapacityType: karpv1.CapacityTypeSpot,
+							InstanceType: string(it.InstanceType),
+							Zone:         "test-zone-1a",
+						})
+					}
+					return true
+				}(output)
+
+				return nil
+			}()).To(Succeed())
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand}}},
 				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}}},

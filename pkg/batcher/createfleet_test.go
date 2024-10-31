@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/batcher"
 
@@ -64,11 +65,9 @@ var _ = Describe("CreateFleet Batching", func() {
 				defer wg.Done()
 				rsp, err := cfb.CreateFleet(ctx, input)
 				Expect(err).To(BeNil())
-
-				var instanceIds []string
-				for _, rsv := range rsp.Instances {
-					instanceIds = append(instanceIds, rsv.InstanceIds...)
-				}
+				instanceIds := lo.Flatten(lo.Map(rsp.Instances, func(rsv ec2types.CreateFleetInstance, _ int) []string {
+					return rsv.InstanceIds
+				}))
 				atomic.AddInt64(&receivedInstance, 1)
 				Expect(instanceIds).To(HaveLen(1))
 			}()
@@ -130,10 +129,9 @@ var _ = Describe("CreateFleet Batching", func() {
 				rsp, err := cfb.CreateFleet(ctx, input)
 				Expect(err).To(BeNil())
 
-				var instanceIds []string
-				for _, rsv := range rsp.Instances {
-					instanceIds = append(instanceIds, rsv.InstanceIds...)
-				}
+				instanceIds := lo.Flatten(lo.Map(rsp.Instances, func(rsv ec2types.CreateFleetInstance, _ int) []string {
+					return rsv.InstanceIds
+				}))
 				atomic.AddInt64(&receivedInstance, 1)
 				Expect(instanceIds).To(HaveLen(1))
 				time.Sleep(100 * time.Millisecond)
@@ -226,10 +224,9 @@ var _ = Describe("CreateFleet Batching", func() {
 					atomic.AddInt64(&numErrors, 1)
 				}
 
-				var instanceIds []string
-				for _, rsv := range rsp.Instances {
-					instanceIds = append(instanceIds, rsv.InstanceIds...)
-				}
+				instanceIds := lo.Flatten(lo.Map(rsp.Instances, func(rsv ec2types.CreateFleetInstance, _ int) []string {
+					return rsv.InstanceIds
+				}))
 				atomic.AddInt64(&receivedInstance, 1)
 				Expect(instanceIds).To(HaveLen(1))
 			}()
@@ -317,10 +314,9 @@ var _ = Describe("CreateFleet Batching", func() {
 					atomic.AddInt64(&numErrors, 1)
 				}
 
-				var instanceIds []string
-				for _, rsv := range rsp.Instances {
-					instanceIds = append(instanceIds, rsv.InstanceIds...)
-				}
+				instanceIds := lo.Flatten(lo.Map(rsp.Instances, func(rsv ec2types.CreateFleetInstance, _ int) []string {
+					return rsv.InstanceIds
+				}))
 				Expect(instanceIds).To(Or(HaveLen(0), HaveLen(1)))
 				if len(instanceIds) == 1 {
 					atomic.AddInt64(&receivedInstance, 1)

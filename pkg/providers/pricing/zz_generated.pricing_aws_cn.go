@@ -16,9 +16,11 @@ limitations under the License.
 
 package pricing
 
+import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 // generated at 2023-09-18T13:06:44Z for cn-north-1
 
-var InitialOnDemandPricesCN = map[string]map[string]float64{
+var InitialOnDemandPricesCN = map[string]map[ec2types.InstanceType]float64{
 	"cn-north-1": {
 		// c3 family
 		"c3.2xlarge": 4.217000, "c3.4xlarge": 8.434000, "c3.8xlarge": 16.869000, "c3.large": 1.054000,

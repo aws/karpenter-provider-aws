@@ -200,12 +200,11 @@ func (e *EC2API) TerminateInstances(_ context.Context, input *ec2.TerminateInsta
 	return e.TerminateInstancesBehavior.Invoke(input, func(input *ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
 		var instanceStateChanges []ec2types.InstanceStateChange
 		for _, id := range input.InstanceIds {
-			instanceID := id
-			if _, ok := e.Instances.LoadAndDelete(instanceID); ok {
+			if _, ok := e.Instances.LoadAndDelete(id); ok {
 				instanceStateChanges = append(instanceStateChanges, ec2types.InstanceStateChange{
 					PreviousState: &ec2types.InstanceState{Name: ec2types.InstanceStateNameRunning, Code: aws.Int32(16)},
 					CurrentState:  &ec2types.InstanceState{Name: ec2types.InstanceStateNameShuttingDown, Code: aws.Int32(32)},
-					InstanceId:    aws.String(instanceID),
+					InstanceId:    aws.String(id),
 				})
 			}
 		}
@@ -264,8 +263,7 @@ func (e *EC2API) DescribeInstances(_ context.Context, input *ec2.DescribeInstanc
 			if instance == nil {
 				continue
 			}
-			instanceValue := instance.(ec2types.Instance)
-			instances = append(instances, instanceValue)
+			instances = append(instances, instance.(ec2types.Instance))
 		}
 		return &ec2.DescribeInstancesOutput{
 			Reservations: []ec2types.Reservation{{Instances: filterInstances(instances, input.Filters)}},
@@ -345,15 +343,6 @@ func (e *EC2API) DescribeImages(_ context.Context, input *ec2.DescribeImagesInpu
 	}, nil
 }
 
-func (e *EC2API) DescribeImagesPages(ctx context.Context, input *ec2.DescribeImagesInput, fn func(*ec2.DescribeImagesOutput, bool) bool, _ ...func(*ec2.Options)) error {
-	out, err := e.DescribeImages(ctx, input)
-	if err != nil {
-		return err
-	}
-	fn(out, false)
-	return nil
-}
-
 func (e *EC2API) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeLaunchTemplatesInput, _ ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplatesOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
@@ -380,15 +369,6 @@ func (e *EC2API) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 		}
 	}
 	return output, nil
-}
-
-func (e *EC2API) DescribeLaunchTemplatesPages(ctx context.Context, input *ec2.DescribeLaunchTemplatesInput, fn func(*ec2.DescribeLaunchTemplatesOutput, bool) bool, _ ...func(*ec2.Options)) error {
-	out, err := e.DescribeLaunchTemplates(ctx, input)
-	if err != nil {
-		return err
-	}
-	fn(out, false)
-	return nil
 }
 
 func (e *EC2API) DeleteLaunchTemplate(_ context.Context, input *ec2.DeleteLaunchTemplateInput, _ ...func(*ec2.Options)) (*ec2.DeleteLaunchTemplateOutput, error) {
@@ -529,15 +509,6 @@ func (e *EC2API) DescribeInstanceTypes(_ context.Context, _ *ec2.DescribeInstanc
 		return e.DescribeInstanceTypesOutput.Clone(), nil
 	}
 	return defaultDescribeInstanceTypesOutput, nil
-}
-
-func (e *EC2API) DescribeInstanceTypesPages(ctx context.Context, input *ec2.DescribeInstanceTypesInput, fn func(*ec2.DescribeInstanceTypesOutput, bool) bool, _ ...func(*ec2.Options)) error {
-	out, err := e.DescribeInstanceTypes(ctx, input)
-	if err != nil {
-		return err
-	}
-	fn(out, false)
-	return nil
 }
 
 func (e *EC2API) DescribeInstanceTypeOfferings(_ context.Context, _ *ec2.DescribeInstanceTypeOfferingsInput, _ ...func(*ec2.Options)) (*ec2.DescribeInstanceTypeOfferingsOutput, error) {

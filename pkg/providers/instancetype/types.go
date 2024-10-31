@@ -123,14 +123,14 @@ func (d *DefaultResolver) createOfferings(ctx context.Context, instanceType ec2t
 		// while usage classes should be a distinct set, there's no guarantee of that
 		for capacityType := range sets.New((instanceType.SupportedUsageClasses)...) {
 			// exclude any offerings that have recently seen an insufficient capacity error from EC2
-			isUnavailable := d.unavailableOfferings.IsUnavailable(string(instanceType.InstanceType), zone.Name, string(capacityType))
+			isUnavailable := d.unavailableOfferings.IsUnavailable(instanceType.InstanceType, zone.Name, string(capacityType))
 			var price float64
 			var ok bool
 			switch capacityType {
 			case ec2types.UsageClassTypeSpot:
-				price, ok = d.pricingProvider.SpotPrice(string(instanceType.InstanceType), zone.Name)
+				price, ok = d.pricingProvider.SpotPrice(instanceType.InstanceType, zone.Name)
 			case ec2types.UsageClassTypeOnDemand:
-				price, ok = d.pricingProvider.OnDemandPrice(string(instanceType.InstanceType))
+				price, ok = d.pricingProvider.OnDemandPrice(instanceType.InstanceType)
 			case "capacity-block":
 				// ignore since karpenter doesn't support it yet, but do not log an unknown capacity type error
 				continue

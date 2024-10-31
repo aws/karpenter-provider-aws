@@ -31,6 +31,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/pricing"
 	pricingtypes "github.com/aws/aws-sdk-go-v2/service/pricing/types"
 	"github.com/samber/lo"
@@ -42,9 +43,9 @@ var initialOnDemandPrices = lo.Assign(InitialOnDemandPricesAWS, InitialOnDemandP
 
 type Provider interface {
 	LivenessProbe(*http.Request) error
-	InstanceTypes() []string
-	OnDemandPrice(string) (float64, bool)
-	SpotPrice(string, string) (float64, bool)
+	InstanceTypes() []ec2types.InstanceType
+	OnDemandPrice(ec2types.InstanceType) (float64, bool)
+	SpotPrice(ec2types.InstanceType, string) (float64, bool)
 	UpdateOnDemandPricing(context.Context) error
 	UpdateSpotPricing(context.Context) error
 }
@@ -62,10 +63,10 @@ type DefaultProvider struct {
 	cm      *pretty.ChangeMonitor
 
 	muOnDemand     sync.RWMutex
-	onDemandPrices map[string]float64
+	onDemandPrices map[ec2types.InstanceType]float64
 
 	muSpot             sync.RWMutex
-	spotPrices         map[string]zonal
+	spotPrices         map[ec2types.InstanceType]zonal
 	spotPricingUpdated bool
 }
 
@@ -103,8 +104,7 @@ func NewAPI(cfg aws.Config) *pricing.Client {
 	//create pricing config using pricing endpoint
 	pricingCfg := cfg.Copy()
 	pricingCfg.Region = pricingAPIRegion
-	pricingClient := pricing.NewFromConfig(pricingCfg)
-	return pricingClient
+	return pricing.NewFromConfig(pricingCfg)
 }
 
 func NewDefaultProvider(_ context.Context, pricing sdk.PricingAPI, ec2Api sdk.EC2API, region string) *DefaultProvider {
@@ -121,7 +121,7 @@ func NewDefaultProvider(_ context.Context, pricing sdk.PricingAPI, ec2Api sdk.EC
 }
 
 // InstanceTypes returns the list of all instance types for which either a spot or on-demand price is known.
-func (p *DefaultProvider) InstanceTypes() []string {
+func (p *DefaultProvider) InstanceTypes() []ec2types.InstanceType {
 	p.muOnDemand.RLock()
 	p.muSpot.RLock()
 	defer p.muOnDemand.RUnlock()
@@ -131,7 +131,7 @@ func (p *DefaultProvider) InstanceTypes() []string {
 
 // OnDemandPrice returns the last known on-demand price for a given instance type, returning an error if there is no
 // known on-demand pricing for the instance type.
-func (p *DefaultProvider) OnDemandPrice(instanceType string) (float64, bool) {
+func (p *DefaultProvider) OnDemandPrice(instanceType ec2types.InstanceType) (float64, bool) {
 	p.muOnDemand.RLock()
 	defer p.muOnDemand.RUnlock()
 	price, ok := p.onDemandPrices[instanceType]
@@ -143,7 +143,7 @@ func (p *DefaultProvider) OnDemandPrice(instanceType string) (float64, bool) {
 
 // SpotPrice returns the last known spot price for a given instance type and zone, returning an error
 // if there is no known spot pricing for that instance type or zone
-func (p *DefaultProvider) SpotPrice(instanceType string, zone string) (float64, bool) {
+func (p *DefaultProvider) SpotPrice(instanceType ec2types.InstanceType, zone string) (float64, bool) {
 	p.muSpot.RLock()
 	defer p.muSpot.RUnlock()
 	if val, ok := p.spotPrices[instanceType]; ok {
@@ -161,7 +161,7 @@ func (p *DefaultProvider) SpotPrice(instanceType string, zone string) (float64, 
 func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 	// standard on-demand instances
 	var wg sync.WaitGroup
-	var onDemandPrices, onDemandMetalPrices map[string]float64
+	var onDemandPrices, onDemandMetalPrices map[ec2types.InstanceType]float64
 	var onDemandErr, onDemandMetalErr error
 
 	// if we are in isolated vpc, skip updating on demand pricing
@@ -227,8 +227,8 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 	return nil
 }
 
-func (p *DefaultProvider) fetchOnDemandPricing(ctx context.Context, additionalFilters ...pricingtypes.Filter) (map[string]float64, error) {
-	prices := map[string]float64{}
+func (p *DefaultProvider) fetchOnDemandPricing(ctx context.Context, additionalFilters ...pricingtypes.Filter) (map[ec2types.InstanceType]float64, error) {
+	prices := map[ec2types.InstanceType]float64{}
 	filters := append([]pricingtypes.Filter{
 		{
 			Field: aws.String("regionCode"),
@@ -280,7 +280,8 @@ func (p *DefaultProvider) fetchOnDemandPricing(ctx context.Context, additionalFi
 	return prices, nil
 }
 
-func (p *DefaultProvider) spotPage(ctx context.Context, output *ec2.DescribeSpotPriceHistoryOutput, prices map[string]map[string]float64) map[string]map[string]float64 {
+func (p *DefaultProvider) spotPage(ctx context.Context, output *ec2.DescribeSpotPriceHistoryOutput) map[ec2types.InstanceType]zonal {
+	result := map[ec2types.InstanceType]zonal{}
 	for _, sph := range output.SpotPriceHistory {
 		spotPriceStr := aws.ToString(sph.SpotPrice)
 		spotPrice, err := strconv.ParseFloat(spotPriceStr, 64)
@@ -292,22 +293,24 @@ func (p *DefaultProvider) spotPage(ctx context.Context, output *ec2.DescribeSpot
 		if sph.Timestamp == nil {
 			continue
 		}
-		instanceType := string(sph.InstanceType)
+		instanceType := sph.InstanceType
 		az := aws.ToString(sph.AvailabilityZone)
-		_, ok := prices[instanceType]
+		_, ok := result[instanceType]
 		if !ok {
-			prices[instanceType] = map[string]float64{}
+			result[instanceType] = zonal{
+				prices: map[string]float64{},
+			}
 		}
-		prices[instanceType][az] = spotPrice
+		result[instanceType].prices[az] = spotPrice
 
 	}
-	return prices
+	return result
 }
 
 // turning off cyclo here, it measures as a 12 due to all of the type checks of the pricing data which returns a deeply
 // nested map[string]interface{}
 // nolint: gocyclo
-func (p *DefaultProvider) onDemandPage(ctx context.Context, output *pricing.GetProductsOutput) (result map[string]float64) {
+func (p *DefaultProvider) onDemandPage(ctx context.Context, output *pricing.GetProductsOutput) map[ec2types.InstanceType]float64 {
 	// this isn't the full pricing struct, just the portions we care about
 	type priceItem struct {
 		Product struct {
@@ -324,7 +327,7 @@ func (p *DefaultProvider) onDemandPage(ctx context.Context, output *pricing.GetP
 		}
 	}
 
-	result = map[string]float64{}
+	result := map[ec2types.InstanceType]float64{}
 	currency := "USD"
 	if strings.HasPrefix(p.region, "cn-") {
 		currency = "CNY"
@@ -343,7 +346,7 @@ func (p *DefaultProvider) onDemandPage(ctx context.Context, output *pricing.GetP
 				if err != nil || price == 0 {
 					continue
 				}
-				result[pItem.Product.Attributes.InstanceType] = price
+				result[ec2types.InstanceType(pItem.Product.Attributes.InstanceType)] = price
 			}
 		}
 	}
@@ -353,7 +356,7 @@ func (p *DefaultProvider) onDemandPage(ctx context.Context, output *pricing.GetP
 
 // nolint: gocyclo
 func (p *DefaultProvider) UpdateSpotPricing(ctx context.Context) error {
-	prices := map[string]map[string]float64{}
+	prices := map[ec2types.InstanceType]zonal{}
 
 	p.muSpot.Lock()
 	defer p.muSpot.Unlock()
@@ -373,7 +376,7 @@ func (p *DefaultProvider) UpdateSpotPricing(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("retrieving spot pricing data, %w", err)
 		}
-		prices = p.spotPage(ctx, output, prices)
+		prices = lo.Assign(prices, p.spotPage(ctx, output))
 	}
 	if len(prices) == 0 {
 		return fmt.Errorf("no spot pricing found")
@@ -384,10 +387,10 @@ func (p *DefaultProvider) UpdateSpotPricing(ctx context.Context) error {
 		if _, ok := p.spotPrices[it]; !ok {
 			p.spotPrices[it] = newZonalPricing(0)
 		}
-		for zone, price := range zoneData {
+		for zone, price := range zoneData.prices {
 			p.spotPrices[it].prices[zone] = price
 		}
-		totalOfferings += len(zoneData)
+		totalOfferings += len(zoneData.prices)
 	}
 
 	p.spotPricingUpdated = true
@@ -409,8 +412,8 @@ func (p *DefaultProvider) LivenessProbe(_ *http.Request) error {
 	return nil
 }
 
-func populateInitialSpotPricing(pricing map[string]float64) map[string]zonal {
-	m := map[string]zonal{}
+func populateInitialSpotPricing(pricing map[ec2types.InstanceType]float64) map[ec2types.InstanceType]zonal {
+	m := map[ec2types.InstanceType]zonal{}
 	for it, price := range pricing {
 		m[it] = newZonalPricing(price)
 	}

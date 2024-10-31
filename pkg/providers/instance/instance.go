@@ -25,6 +25,7 @@ import (
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
@@ -146,7 +147,7 @@ func (p *DefaultProvider) Get(ctx context.Context, id string) (*Instance, error)
 func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 	var out = &ec2.DescribeInstancesOutput{}
 
-	paginator := ec2.NewDescribeInstancesPaginator(p.ec2api, lo.ToPtr(ec2.DescribeInstancesInput{
+	paginator := ec2.NewDescribeInstancesPaginator(p.ec2api, &ec2.DescribeInstancesInput{
 		Filters: []ec2types.Filter{
 			{
 				Name:   aws.String("tag-key"),
@@ -162,11 +163,11 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 			},
 			instanceStateFilter,
 		},
-	}))
+	})
 
 	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(ctx)
-		out.Reservations = append(out.Reservations, output.Reservations...)
+		page, err := paginator.NextPage(ctx)
+		out.Reservations = append(out.Reservations, page.Reservations...)
 		if err != nil {
 			return nil, fmt.Errorf("describing ec2 instances, %w", err)
 		}
@@ -254,9 +255,9 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 			}
 			return ec2types.CreateFleetInstance{}, fmt.Errorf("creating fleet %w", err)
 		}
-		var apiErr interface{}
-		if errors.As(err, &apiErr) {
-			return ec2types.CreateFleetInstance{}, fmt.Errorf("creating fleet %w (%v)", err, apiErr)
+		var reqErr *awshttp.ResponseError
+		if errors.As(err, &reqErr) {
+			return ec2types.CreateFleetInstance{}, fmt.Errorf("creating fleet %w (%v)", err, reqErr.ServiceRequestID())
 		}
 		return ec2types.CreateFleetInstance{}, fmt.Errorf("creating fleet %w", err)
 	}

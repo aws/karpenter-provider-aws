@@ -984,7 +984,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		BeforeEach(func() {
 			var ok bool
 			var instanceInfo []ec2types.InstanceTypeInfo
-			err := awsEnv.EC2API.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{
+			out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{
 				Filters: []ec2types.Filter{
 					{
 						Name:   aws.String("supported-virtualization-type"),
@@ -995,10 +995,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						Values: []string{"x86_64", "arm64"},
 					},
 				},
-			}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
-				instanceInfo = append(instanceInfo, page.InstanceTypes...)
-				return true
 			})
+			instanceInfo = out.InstanceTypes
 			Expect(err).To(BeNil())
 			info, ok = lo.Find(instanceInfo, func(i ec2types.InstanceTypeInfo) bool {
 				return i.InstanceType == "m5.xlarge"
@@ -1037,7 +1035,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		BeforeEach(func() {
 			var ok bool
 			var instanceInfo []ec2types.InstanceTypeInfo
-			err := awsEnv.EC2API.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{
+			out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{
 				Filters: []ec2types.Filter{
 					{
 						Name:   aws.String("supported-virtualization-type"),
@@ -1048,10 +1046,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						Values: []string{"x86_64", "arm64"},
 					},
 				},
-			}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
-				instanceInfo = append(instanceInfo, page.InstanceTypes...)
-				return true
 			})
+			instanceInfo = out.InstanceTypes
 			Expect(err).To(BeNil())
 			info, ok = lo.Find(instanceInfo, func(i ec2types.InstanceTypeInfo) bool {
 				return i.InstanceType == "m5.xlarge"

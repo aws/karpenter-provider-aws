@@ -28,6 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/samber/lo"
 )
 
@@ -84,7 +85,7 @@ func main() {
 	}
 }
 
-func getDescribeInstanceTypesOutput(ctx context.Context, ec2api *ec2.Client, instanceTypes []string) string {
+func getDescribeInstanceTypesOutput(ctx context.Context, ec2api sdk.EC2API, instanceTypes []string) string {
 	instanceTypeValues := lo.Map(instanceTypes, func(it string, _ int) ec2types.InstanceType {
 		return ec2types.InstanceType(it)
 	})

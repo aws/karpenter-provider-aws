@@ -213,9 +213,9 @@ var _ = Describe("TaggingController", func() {
 				v1.TagNodeClaim:         nodeClaim.Name,
 				v1.EKSClusterNameTagKey: options.FromContext(ctx).ClusterName,
 			}
-			raw, _ := awsEnv.EC2API.Instances.Load(*ec2Instance.InstanceId)
-			ec2Instance = raw.(ec2types.Instance)
+			ec2Instance := lo.Must(awsEnv.EC2API.Instances.Load(*ec2Instance.InstanceId)).(ec2types.Instance)
 			instanceTags := instance.NewInstance(ec2Instance).Tags
+
 			for tag, value := range expectedTags {
 				if lo.Contains(customTags, tag) {
 					value = "custom-tag"

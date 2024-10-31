@@ -85,8 +85,7 @@ type Operator struct {
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
-	cfg := lo.Must(config.LoadDefaultConfig(ctx))
-	cfg = prometheusv2.WithPrometheusMetrics(WithUserAgent(cfg), crmetrics.Registry)
+	cfg := prometheusv2.WithPrometheusMetrics(WithUserAgent(lo.Must(config.LoadDefaultConfig(ctx))), crmetrics.Registry)
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
 		metaDataClient := imds.NewFromConfig(cfg)

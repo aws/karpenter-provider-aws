@@ -29,7 +29,9 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 
 	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
@@ -100,9 +102,10 @@ func main() {
 	license := lo.Must(os.ReadFile("hack/boilerplate.go.txt"))
 	fmt.Fprintln(src, string(license))
 	fmt.Fprintln(src, "package pricing")
+	fmt.Fprintln(src, "import ec2types \"github.com/aws/aws-sdk-go-v2/service/ec2/types\"")
 	now := time.Now().UTC().Format(time.RFC3339)
 	fmt.Fprintf(src, "// generated at %s for %s\n\n\n", now, region)
-	fmt.Fprintf(src, "var InitialOnDemandPrices%s = map[string]map[string]float64{\n", getPartitionSuffix(opts.partition))
+	fmt.Fprintf(src, "var InitialOnDemandPrices%s = map[string]map[ec2types.InstanceType]float64{\n", getPartitionSuffix(opts.partition))
 	// record prices for each region we are interested in
 	for _, region := range getAWSRegions(opts.partition) {
 		log.Println("fetching for", region)
@@ -113,7 +116,9 @@ func main() {
 			log.Fatalf("failed to initialize pricing provider %s", err)
 		}
 		instanceTypes := pricingProvider.InstanceTypes()
-		sort.Strings(instanceTypes)
+		sort.SliceStable(instanceTypes, func(i, j int) bool {
+			return instanceTypes[i] < instanceTypes[j]
+		})
 
 		writePricing(src, instanceTypes, region, pricingProvider.OnDemandPrice)
 	}
@@ -135,14 +140,16 @@ func main() {
 	}
 }
 
-func writePricing(src *bytes.Buffer, instanceNames []string, region string, getPrice func(instanceType string) (float64, bool)) {
+func writePricing(src *bytes.Buffer, instanceNames []ec2types.InstanceType, region string, getPrice func(instanceType ec2types.InstanceType) (float64, bool)) {
 	fmt.Fprintf(src, "// %s\n", region)
 	fmt.Fprintf(src, "%q: {\n", region)
 	lineLen := 0
-	sort.Strings(instanceNames)
+	sort.SliceStable(instanceNames, func(i, j int) bool {
+		return instanceNames[i] < instanceNames[j]
+	})
 	previousFamily := ""
 	for _, instanceName := range instanceNames {
-		segs := strings.Split(instanceName, ".")
+		segs := strings.Split(string(instanceName), ".")
 		if len(segs) != 2 {
 			log.Fatalf("parsing instance family %s, got %v", instanceName, segs)
 		}

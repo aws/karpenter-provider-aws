@@ -315,23 +315,18 @@ func (p *DefaultProvider) blockDeviceMappings(blockDeviceMappings []*v1.BlockDev
 				DeleteOnTermination: blockDeviceMapping.EBS.DeleteOnTermination,
 				Encrypted:           blockDeviceMapping.EBS.Encrypted,
 				VolumeType:          ec2types.VolumeType(aws.ToString(blockDeviceMapping.EBS.VolumeType)),
-				Iops:                convertToNil(blockDeviceMapping.EBS.IOPS),
-				Throughput:          convertToNil(blockDeviceMapping.EBS.Throughput),
-				KmsKeyId:            blockDeviceMapping.EBS.KMSKeyID,
-				SnapshotId:          blockDeviceMapping.EBS.SnapshotID,
-				VolumeSize:          p.volumeSize(blockDeviceMapping.EBS.VolumeSize),
+				//Lints here can be removed when we update options.EBS.IOPS and Throughput type to be int32
+				//nolint: gosec
+				Iops: lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.IOPS))),
+				//nolint: gosec
+				Throughput: lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.Throughput))),
+				KmsKeyId:   blockDeviceMapping.EBS.KMSKeyID,
+				SnapshotId: blockDeviceMapping.EBS.SnapshotID,
+				VolumeSize: p.volumeSize(blockDeviceMapping.EBS.VolumeSize),
 			},
 		})
 	}
 	return blockDeviceMappingsRequest
-}
-
-func convertToNil(number *int64) *int32 {
-	if number == nil {
-		return nil
-	}
-	//nolint: gosec
-	return lo.ToPtr(int32(*number))
 }
 
 // volumeSize returns a GiB scaled value from a resource quantity or nil if the resource quantity passed in is nil
