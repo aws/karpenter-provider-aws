@@ -60,6 +60,7 @@ func main() {
 			op.GetClient(),
 			op.EventRecorder,
 			op.UnavailableOfferingsCache,
+			op.SSMCache,
 			cloudProvider,
 			op.SubnetProvider,
 			op.SecurityGroupProvider,

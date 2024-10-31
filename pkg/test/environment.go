@@ -17,10 +17,12 @@ package test
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	testclock "k8s.io/utils/clock/testing"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	karpv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
@@ -80,9 +82,13 @@ type Environment struct {
 	AMIResolver             *amifamily.Resolver
 	VersionProvider         *version.DefaultProvider
 	LaunchTemplateProvider  *launchtemplate.DefaultProvider
+
+	Clock *testclock.FakeClock
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
+	clock := &testclock.FakeClock{}
+
 	// API
 	ec2api := fake.NewEC2API()
 	eksapi := fake.NewEKSAPI()
@@ -110,7 +116,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, kubernetesVersionCache)
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
-	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmProvider, ec2api, ec2Cache)
+	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
 	amiResolver := amifamily.NewResolver(amiProvider)
 	instanceTypesProvider := instancetype.NewDefaultProvider(fake.DefaultRegion, instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider :=
@@ -165,10 +171,14 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		AMIProvider:             amiProvider,
 		AMIResolver:             amiResolver,
 		VersionProvider:         versionProvider,
+
+		Clock: clock,
 	}
 }
 
 func (env *Environment) Reset() {
+	env.Clock.SetTime(time.Now())
+
 	env.EC2API.Reset()
 	env.EKSAPI.Reset()
 	env.SSMAPI.Reset()
