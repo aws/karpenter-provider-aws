@@ -44,18 +44,18 @@ func NewDefaultProvider(ssmapi sdk.SSMAPI, cache *cache.Cache) *DefaultProvider 
 }
 
 func (p *DefaultProvider) Get(ctx context.Context, parameter Parameter) (string, error) {
-	if entry, ok := p.cache.Get(parameter.CacheKey()); ok {
-		return entry.(CacheEntry).AMIID, nil
-	}
 	p.Lock()
 	defer p.Unlock()
+	if entry, ok := p.cache.Get(parameter.CacheKey()); ok {
+		return entry.(CacheEntry).Value, nil
+	}
 	result, err := p.ssmapi.GetParameter(ctx, parameter.GetParameterInput())
 	if err != nil {
 		return "", fmt.Errorf("getting ssm parameter %q, %w", parameter.Name, err)
 	}
 	p.cache.SetDefault(parameter.CacheKey(), CacheEntry{
 		Parameter: parameter,
-		AMIID:     lo.FromPtr(result.Parameter.Value),
+		Value:     lo.FromPtr(result.Parameter.Value),
 	})
 	log.FromContext(ctx).WithValues("parameter", parameter.Name, "value", result.Parameter.Value).Info("discovered ssm parameter")
 	return lo.FromPtr(result.Parameter.Value), nil

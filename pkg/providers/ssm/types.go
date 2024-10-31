@@ -20,7 +20,10 @@ import (
 )
 
 type Parameter struct {
-	Name      string
+	Name string
+	// IsMutable indicates if the value associated with an SSM parameter is expected to change. An example of a mutable
+	// parameter would be any of the "latest" or "recommended" AMI parameters which are updated each time a new AMI is
+	// released. On the otherhand, we would consider a parameter parameter for a specific AMI version to be immutable.
 	IsMutable bool
 }
 
@@ -36,5 +39,5 @@ func (p *Parameter) CacheKey() string {
 
 type CacheEntry struct {
 	Parameter Parameter
-	AMIID     string
+	Value     string
 }

@@ -31,13 +31,11 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
 
-const reconcilePeriod = 30 * time.Minute
-
 // The SSM Invalidation controller is responsible for invalidating "latest" SSM parameters when they point to deprecated
 // AMIs. This can occur when an EKS-optimized AMI with a regression is released, and the AMI team chooses to deprecate
-// the AMI rather than roll forward. Normally, SSM parameter cache entries expire after 24 hours to prevent a thundering
-// herd upon a new AMI release, however Karpenter should react faster when an AMI is deprecated. This controller will
-// ensure Karpenter reacts to AMI deprecations within it's polling period (30m).
+// the AMI. Normally, SSM parameter cache entries expire after 24 hours to prevent a thundering herd upon a new AMI
+// release, however Karpenter should react faster when an AMI is deprecated. This controller will ensure Karpenter
+// reacts to AMI deprecations within it's polling period (30m).
 type Controller struct {
 	cache       *cache.Cache
 	amiProvider amifamily.Provider
@@ -57,16 +55,16 @@ func (c *Controller) Name() string {
 func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
 
-	entries := map[string]ssm.Parameter{}
+	amiIDsToParameters := map[string]ssm.Parameter{}
 	for _, item := range c.cache.Items() {
 		entry := item.Object.(ssm.CacheEntry)
 		if !entry.Parameter.IsMutable {
 			continue
 		}
-		entries[entry.AMIID] = entry.Parameter
+		amiIDsToParameters[entry.Value] = entry.Parameter
 	}
 	amis := []amifamily.AMI{}
-	for _, nodeClass := range lo.Map(lo.Keys(entries), func(amiID string, _ int) *v1.EC2NodeClass {
+	for _, nodeClass := range lo.Map(lo.Keys(amiIDsToParameters), func(amiID string, _ int) *v1.EC2NodeClass {
 		return &v1.EC2NodeClass{
 			Spec: v1.EC2NodeClassSpec{
 				AMISelectorTerms: []v1.AMISelectorTerm{{ID: amiID}},
@@ -83,10 +81,10 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 		if !ami.Deprecated {
 			continue
 		}
-		parameter := entries[ami.AmiID]
+		parameter := amiIDsToParameters[ami.AmiID]
 		c.cache.Delete(parameter.CacheKey())
 	}
-	return reconcile.Result{RequeueAfter: reconcilePeriod}, nil
+	return reconcile.Result{RequeueAfter: 30 * time.Minute}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

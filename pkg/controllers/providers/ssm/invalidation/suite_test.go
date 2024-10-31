@@ -143,7 +143,7 @@ func getSSMCacheEntries() map[string]string {
 	entries := map[string]string{}
 	for _, item := range awsEnv.SSMCache.Items() {
 		entry := item.Object.(ssm.CacheEntry)
-		entries[entry.Parameter.Name] = entry.AMIID
+		entries[entry.Parameter.Name] = entry.Value
 	}
 	return entries
 }
