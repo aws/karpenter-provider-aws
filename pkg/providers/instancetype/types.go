@@ -250,24 +250,23 @@ func computeRequirements(info ec2types.InstanceTypeInfo, offerings cloudprovider
 		requirements.Get(v1.LabelInstanceGPUCount).Insert(fmt.Sprint(lo.FromPtr(gpu.Count)))
 		requirements.Get(v1.LabelInstanceGPUMemory).Insert(fmt.Sprint(lo.FromPtr(gpu.MemoryInfo.SizeInMiB)))
 	}
-	// Accelerators
-	if info.InferenceAcceleratorInfo != nil && len(info.InferenceAcceleratorInfo.Accelerators) == 1 {
+	// Accelerators - excluding Neuron
+	if info.InferenceAcceleratorInfo != nil && len(info.InferenceAcceleratorInfo.Accelerators) == 1 && info.NeuronInfo == nil {
 		accelerator := info.InferenceAcceleratorInfo.Accelerators[0]
 		requirements.Get(v1.LabelInstanceAcceleratorName).Insert(lowerKabobCase(aws.ToString(accelerator.Name)))
 		requirements.Get(v1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase(aws.ToString(accelerator.Manufacturer)))
 		requirements.Get(v1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(lo.FromPtr(accelerator.Count)))
 	}
+	// Neuron
+	if info.NeuronInfo != nil && len(info.NeuronInfo.NeuronDevices) == 1 {
+		device := info.NeuronInfo.NeuronDevices[0]
+		requirements.Get(v1.LabelInstanceAcceleratorName).Insert(lowerKabobCase(aws.StringValue(device.Name)))
+		requirements.Get(v1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("aws"))
+		requirements.Get(v1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(device.Count)))
+	}
 	// Windows Build Version Labels
 	if family, ok := amiFamily.(*amifamily.Windows); ok {
 		requirements.Get(corev1.LabelWindowsBuild).Insert(family.Build)
-	}
-	// Trn1 Accelerators
-	// TODO: remove function once DescribeInstanceTypes contains the accelerator data
-	// Values found from: https://aws.amazon.com/ec2/instance-types/trn1/
-	if strings.HasPrefix(string(info.InstanceType), "trn1") {
-		requirements.Get(v1.LabelInstanceAcceleratorName).Insert(lowerKabobCase("Inferentia"))
-		requirements.Get(v1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("AWS"))
-		requirements.Get(v1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(awsNeurons(info)))
 	}
 	// CPU Manufacturer, valid options: aws, intel, amd
 	if info.ProcessorInfo != nil {
@@ -311,7 +310,8 @@ func computeCapacity(ctx context.Context, info ec2types.InstanceTypeInfo, amiFam
 		v1.ResourceAWSPodENI:            *awsPodENI(string(info.InstanceType)),
 		v1.ResourceNVIDIAGPU:            *nvidiaGPUs(info),
 		v1.ResourceAMDGPU:               *amdGPUs(info),
-		v1.ResourceAWSNeuron:            *awsNeurons(info),
+		v1.ResourceAWSNeuron:            *awsNeuronDevices(info),
+		v1.ResourceAWSNeuronCore:        *awsNeuronCores(info),
 		v1.ResourceHabanaGaudi:          *habanaGaudis(info),
 		v1.ResourceEFA:                  *efas(info),
 	}
@@ -406,19 +406,21 @@ func amdGPUs(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-// TODO: remove trn1 hardcode values once DescribeInstanceTypes contains the accelerator data
-// Values found from: https://aws.amazon.com/ec2/instance-types/trn1/
-func awsNeurons(info ec2types.InstanceTypeInfo) *resource.Quantity {
-	count := int32(0)
-	if info.InstanceType == "trn1.2xlarge" {
-		count = int32(1)
-	} else if info.InstanceType == "trn1.32xlarge" {
-		count = int32(16)
-	} else if info.InstanceType == "trn1n.32xlarge" {
-		count = int32(16)
-	} else if info.InferenceAcceleratorInfo != nil {
-		for _, accelerator := range info.InferenceAcceleratorInfo.Accelerators {
-			count += *accelerator.Count
+func awsNeuronCores(info ec2types.InstanceTypeInfo) *resource.Quantity {
+	count := int64(0)
+	if info.NeuronInfo != nil {
+		neuronDevice := info.NeuronInfo.NeuronDevices[0]
+		neuronCorePerDevice := neuronDevice.CoreInfo.Count
+		count = *neuronDevice.Count * *neuronCorePerDevice
+	}
+	return resources.Quantity(fmt.Sprint(count))
+}
+
+func awsNeuronDevices(info ec2types.InstanceTypeInfo) *resource.Quantity {
+	count := int64(0)
+	if info.NeuronInfo != nil {
+		for _, device := range info.NeuronInfo.NeuronDevices {
+			count += *device.Count
 		}
 	}
 	return resources.Quantity(fmt.Sprint(count))

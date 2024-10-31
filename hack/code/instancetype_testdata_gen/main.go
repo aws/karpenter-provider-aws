@@ -154,11 +154,11 @@ func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 		fmt.Fprintf(src, "NvmeSupport: \"%s\",\n", info.EbsInfo.NvmeSupport)
 		fmt.Fprintf(src, "},\n")
 	}
-	if info.InferenceAcceleratorInfo != nil {
-		fmt.Fprintf(src, "InferenceAcceleratorInfo: &ec2types.InferenceAcceleratorInfo{\n")
-		fmt.Fprintf(src, "Accelerators: []ec2types.InferenceDeviceInfo{\n")
-		for _, elem := range info.InferenceAcceleratorInfo.Accelerators {
-			fmt.Fprintf(src, getInferenceAcceleratorDeviceInfo(elem))
+	if info.NeuronInfo != nil {
+		fmt.Fprintf(src, "NeuronInfo: &ec2types.NeuronInfo{\n")
+		fmt.Fprintf(src, "NeuronDevices: []ec2types.NeuronDeviceInfo{\n")
+		for _, elem := range info.NeuronInfo.NeuronDevices {
+			fmt.Fprintf(src, getNeuronDeviceInfo(elem))
 		}
 		fmt.Fprintf(src, "},\n")
 		fmt.Fprintf(src, "},\n")
@@ -206,12 +206,19 @@ func getNetworkCardInfo(info ec2types.NetworkCardInfo) string {
 	return src.String()
 }
 
-func getInferenceAcceleratorDeviceInfo(info ec2types.InferenceDeviceInfo) string {
+func getNeuronDeviceInfo(info ec2types.NeuronDeviceInfo) string {
+
 	src := &bytes.Buffer{}
 	fmt.Fprintf(src, "{\n")
+	fmt.Fprintf(src, "Count: aws.Int64(%d),\n", lo.FromPtr(info.Count))
 	fmt.Fprintf(src, "Name: aws.String(\"%s\"),\n", lo.FromPtr(info.Name))
-	fmt.Fprintf(src, "Manufacturer: aws.String(\"%s\"),\n", lo.FromPtr(info.Manufacturer))
-	fmt.Fprintf(src, "Count: aws.Int32(%d),\n", lo.FromPtr(info.Count))
+	fmt.Fprintf(src, "CoreInfo: &ec2.NeuronDeviceCoreInfo{\n")
+	fmt.Fprintf(src, "Count: aws.Int64(%d),\n", lo.FromPtr(info.CoreInfo.Count))
+	fmt.Fprintf(src, "Version: aws.Int64(%d),\n", lo.FromPtr(info.CoreInfo.Version))
+	fmt.Fprintf(src, "},\n")
+	fmt.Fprintf(src, "MemoryInfo: &ec2.NeuronDeviceMemoryInfo{\n")
+	fmt.Fprintf(src, "SizeInMiB: aws.Int64(%d),\n", lo.FromPtr(info.MemoryInfo.SizeInMiB))
+	fmt.Fprintf(src, "},\n")
 	fmt.Fprintf(src, "},\n")
 	return src.String()
 }

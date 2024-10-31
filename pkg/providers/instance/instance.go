@@ -471,6 +471,7 @@ func filterExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*c
 			continue
 		}
 		if !resources.IsZero(it.Capacity[v1.ResourceAWSNeuron]) ||
+			!resources.IsZero(it.Capacity[v1.ResourceAWSNeuronCore]) ||
 			!resources.IsZero(it.Capacity[v1.ResourceAMDGPU]) ||
 			!resources.IsZero(it.Capacity[v1.ResourceNVIDIAGPU]) ||
 			!resources.IsZero(it.Capacity[v1.ResourceHabanaGaudi]) {
