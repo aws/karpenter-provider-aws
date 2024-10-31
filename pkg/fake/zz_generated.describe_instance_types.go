@@ -267,107 +267,119 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			},
 		},
 		{
-			InstanceType:                  aws.String("inf1.2xlarge"),
+			InstanceType:                  aws.String("inf2.24xlarge"),
 			SupportedUsageClasses:         aws.StringSlice([]string{"on-demand", "spot"}),
 			SupportedVirtualizationTypes:  aws.StringSlice([]string{"hvm"}),
 			BurstablePerformanceSupported: aws.Bool(false),
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
-				Manufacturer:           aws.String("Intel"),
+				Manufacturer:           aws.String("AMD"),
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
-				DefaultCores: aws.Int64(4),
-				DefaultVCpus: aws.Int64(8),
+				DefaultCores: aws.Int64(48),
+				DefaultVCpus: aws.Int64(96),
+			},
+			MemoryInfo: &ec2.MemoryInfo{
+				SizeInMiB: aws.Int64(393216),
+			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(30000),
+					BaselineIops:             aws.Int64(120000),
+					BaselineThroughputInMBps: aws.Float64(3750.00),
+					MaximumBandwidthInMbps:   aws.Int64(30000),
+					MaximumIops:              aws.Int64(120000),
+					MaximumThroughputInMBps:  aws.Float64(3750.00),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
+			},
+			NeuronInfo: &ec2.NeuronInfo{
+				NeuronDevices: []*ec2.NeuronDeviceInfo{
+					{
+						Count: aws.Int64(6),
+						Name:  aws.String("Inferentia2"),
+						CoreInfo: &ec2.NeuronDeviceCoreInfo{
+							Count:   aws.Int64(2),
+							Version: aws.Int64(2),
+						},
+						MemoryInfo: &ec2.NeuronDeviceMemoryInfo{
+							SizeInMiB: aws.Int64(32768),
+						},
+					},
+				},
+			},
+			NetworkInfo: &ec2.NetworkInfo{
+				MaximumNetworkInterfaces:     aws.Int64(15),
+				Ipv4AddressesPerInterface:    aws.Int64(50),
+				EncryptionInTransitSupported: aws.Bool(true),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(15),
+					},
+				},
+			},
+		},
+		{
+			InstanceType:                  aws.String("inf2.xlarge"),
+			SupportedUsageClasses:         aws.StringSlice([]string{"on-demand", "spot"}),
+			SupportedVirtualizationTypes:  aws.StringSlice([]string{"hvm"}),
+			BurstablePerformanceSupported: aws.Bool(false),
+			BareMetal:                     aws.Bool(false),
+			Hypervisor:                    aws.String("nitro"),
+			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("AMD"),
+				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+			},
+			VCpuInfo: &ec2.VCpuInfo{
+				DefaultCores: aws.Int64(2),
+				DefaultVCpus: aws.Int64(4),
 			},
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(16384),
 			},
 			EbsInfo: &ec2.EbsInfo{
 				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
-					BaselineBandwidthInMbps:  aws.Int64(1190),
+					BaselineBandwidthInMbps:  aws.Int64(1250),
 					BaselineIops:             aws.Int64(6000),
-					BaselineThroughputInMBps: aws.Float64(148.75),
-					MaximumBandwidthInMbps:   aws.Int64(4750),
-					MaximumIops:              aws.Int64(20000),
-					MaximumThroughputInMBps:  aws.Float64(593.75),
+					BaselineThroughputInMBps: aws.Float64(156.25),
+					MaximumBandwidthInMbps:   aws.Int64(10000),
+					MaximumIops:              aws.Int64(40000),
+					MaximumThroughputInMBps:  aws.Float64(1250.00),
 				},
 				EbsOptimizedSupport: aws.String("default"),
 				EncryptionSupport:   aws.String("supported"),
 				NvmeSupport:         aws.String("required"),
 			},
-			InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{
-				Accelerators: []*ec2.InferenceDeviceInfo{
+			NeuronInfo: &ec2.NeuronInfo{
+				NeuronDevices: []*ec2.NeuronDeviceInfo{
 					{
-						Name:         aws.String("Inferentia"),
-						Manufacturer: aws.String("AWS"),
-						Count:        aws.Int64(1),
+						Count: aws.Int64(1),
+						Name:  aws.String("Inferentia2"),
+						CoreInfo: &ec2.NeuronDeviceCoreInfo{
+							Count:   aws.Int64(2),
+							Version: aws.Int64(2),
+						},
+						MemoryInfo: &ec2.NeuronDeviceMemoryInfo{
+							SizeInMiB: aws.Int64(32768),
+						},
 					},
 				},
 			},
 			NetworkInfo: &ec2.NetworkInfo{
 				MaximumNetworkInterfaces:     aws.Int64(4),
-				Ipv4AddressesPerInterface:    aws.Int64(10),
+				Ipv4AddressesPerInterface:    aws.Int64(15),
 				EncryptionInTransitSupported: aws.Bool(true),
 				DefaultNetworkCardIndex:      aws.Int64(0),
 				NetworkCards: []*ec2.NetworkCardInfo{
 					{
 						NetworkCardIndex:         aws.Int64(0),
 						MaximumNetworkInterfaces: aws.Int64(4),
-					},
-				},
-			},
-		},
-		{
-			InstanceType:                  aws.String("inf1.6xlarge"),
-			SupportedUsageClasses:         aws.StringSlice([]string{"on-demand", "spot"}),
-			SupportedVirtualizationTypes:  aws.StringSlice([]string{"hvm"}),
-			BurstablePerformanceSupported: aws.Bool(false),
-			BareMetal:                     aws.Bool(false),
-			Hypervisor:                    aws.String("nitro"),
-			ProcessorInfo: &ec2.ProcessorInfo{
-				Manufacturer:           aws.String("Intel"),
-				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
-			},
-			VCpuInfo: &ec2.VCpuInfo{
-				DefaultCores: aws.Int64(12),
-				DefaultVCpus: aws.Int64(24),
-			},
-			MemoryInfo: &ec2.MemoryInfo{
-				SizeInMiB: aws.Int64(49152),
-			},
-			EbsInfo: &ec2.EbsInfo{
-				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
-					BaselineBandwidthInMbps:  aws.Int64(4750),
-					BaselineIops:             aws.Int64(20000),
-					BaselineThroughputInMBps: aws.Float64(593.75),
-					MaximumBandwidthInMbps:   aws.Int64(4750),
-					MaximumIops:              aws.Int64(20000),
-					MaximumThroughputInMBps:  aws.Float64(593.75),
-				},
-				EbsOptimizedSupport: aws.String("default"),
-				EncryptionSupport:   aws.String("supported"),
-				NvmeSupport:         aws.String("required"),
-			},
-			InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{
-				Accelerators: []*ec2.InferenceDeviceInfo{
-					{
-						Name:         aws.String("Inferentia"),
-						Manufacturer: aws.String("AWS"),
-						Count:        aws.Int64(4),
-					},
-				},
-			},
-			NetworkInfo: &ec2.NetworkInfo{
-				MaximumNetworkInterfaces:     aws.Int64(8),
-				Ipv4AddressesPerInterface:    aws.Int64(30),
-				EncryptionInTransitSupported: aws.Bool(true),
-				DefaultNetworkCardIndex:      aws.Int64(0),
-				NetworkCards: []*ec2.NetworkCardInfo{
-					{
-						NetworkCardIndex:         aws.Int64(0),
-						MaximumNetworkInterfaces: aws.Int64(8),
 					},
 				},
 			},
@@ -820,6 +832,21 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				EbsOptimizedSupport: aws.String("default"),
 				EncryptionSupport:   aws.String("supported"),
 				NvmeSupport:         aws.String("required"),
+			},
+			NeuronInfo: &ec2.NeuronInfo{
+				NeuronDevices: []*ec2.NeuronDeviceInfo{
+					{
+						Count: aws.Int64(1),
+						Name:  aws.String("Trainium"),
+						CoreInfo: &ec2.NeuronDeviceCoreInfo{
+							Count:   aws.Int64(2),
+							Version: aws.Int64(2),
+						},
+						MemoryInfo: &ec2.NeuronDeviceMemoryInfo{
+							SizeInMiB: aws.Int64(32768),
+						},
+					},
+				},
 			},
 			InstanceStorageInfo: &ec2.InstanceStorageInfo{NvmeSupport: aws.String("required"),
 				TotalSizeInGB: aws.Int64(474),
