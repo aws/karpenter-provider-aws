@@ -30,12 +30,6 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
-const (
-	// AMIVersionLatest is the version used in EKS aliases to represent the latest version. This maps to different
-	// values in the SSM path, depending on the AMI type (e.g. "recommended" for AL2/AL2023)).
-	AMIVersionLatest = "latest"
-)
-
 type AMI struct {
 	Name         string
 	AmiID        string

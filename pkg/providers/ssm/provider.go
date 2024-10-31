@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -28,7 +27,7 @@ import (
 )
 
 type Provider interface {
-	Get(context.Context, string) (string, error)
+	Get(context.Context, Parameter) (string, error)
 }
 
 type DefaultProvider struct {
@@ -44,19 +43,20 @@ func NewDefaultProvider(ssmapi sdk.SSMAPI, cache *cache.Cache) *DefaultProvider 
 	}
 }
 
-func (p *DefaultProvider) Get(ctx context.Context, parameter string) (string, error) {
+func (p *DefaultProvider) Get(ctx context.Context, parameter Parameter) (string, error) {
+	if entry, ok := p.cache.Get(parameter.CacheKey()); ok {
+		return entry.(CacheEntry).AMIID, nil
+	}
 	p.Lock()
 	defer p.Unlock()
-	if result, ok := p.cache.Get(parameter); ok {
-		return result.(string), nil
-	}
-	result, err := p.ssmapi.GetParameter(ctx, &ssm.GetParameterInput{
-		Name: lo.ToPtr(parameter),
-	})
+	result, err := p.ssmapi.GetParameter(ctx, parameter.GetParameterInput())
 	if err != nil {
-		return "", fmt.Errorf("getting ssm parameter %q, %w", parameter, err)
+		return "", fmt.Errorf("getting ssm parameter %q, %w", parameter.Name, err)
 	}
-	p.cache.SetDefault(parameter, lo.FromPtr(result.Parameter.Value))
-	log.FromContext(ctx).WithValues("parameter", parameter, "value", result.Parameter.Value).Info("discovered ssm parameter")
+	p.cache.SetDefault(parameter.CacheKey(), CacheEntry{
+		Parameter: parameter,
+		AMIID:     lo.FromPtr(result.Parameter.Value),
+	})
+	log.FromContext(ctx).WithValues("parameter", parameter.Name, "value", result.Parameter.Value).Info("discovered ssm parameter")
 	return lo.FromPtr(result.Parameter.Value), nil
 }
