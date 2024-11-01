@@ -58,24 +58,23 @@ import (
 )
 
 func NewControllers(
-  ctx context.Context, 
-  mgr manager.Manager, 
-  cfg aws.Config, 
-  clk clock.Clock, 
-  kubeClient client.Client, 
-  recorder events.Recorder,
-	unavailableOfferings *cache.UnavailableOfferings, 
-  ssmCache *cache.Cache,
-  cloudProvider cloudprovider.CloudProvider, 
-  subnetProvider subnet.Provider,
-	securityGroupProvider securitygroup.Provider, 
-  instanceProfileProvider instanceprofile.Provider, 
-  instanceProvider instance.Provider,
-	pricingProvider pricing.Provider, 
-  amiProvider amifamily.Provider, 
-  launchTemplateProvider launchtemplate.Provider, 
-  instanceTypeProvider *instancetype.DefaultProvider) 
-[]controller.Controller {
+	ctx context.Context,
+	mgr manager.Manager,
+	cfg aws.Config,
+	clk clock.Clock,
+	kubeClient client.Client,
+	recorder events.Recorder,
+	unavailableOfferings *awscache.UnavailableOfferings,
+	ssmCache *cache.Cache,
+	cloudProvider cloudprovider.CloudProvider,
+	subnetProvider subnet.Provider,
+	securityGroupProvider securitygroup.Provider,
+	instanceProfileProvider instanceprofile.Provider,
+	instanceProvider instance.Provider,
+	pricingProvider pricing.Provider,
+	amiProvider amifamily.Provider,
+	launchTemplateProvider launchtemplate.Provider,
+	instanceTypeProvider *instancetype.DefaultProvider) []controller.Controller {
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient),
 		nodeclassstatus.NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider),
