@@ -26,6 +26,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
@@ -48,25 +53,35 @@ type DefaultProvider struct {
 	cache               *cache.Cache
 	cm                  *pretty.ChangeMonitor
 	kubernetesInterface kubernetes.Interface
+	eksapi              eksiface.EKSAPI
 }
 
-func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache, eksapi eksiface.EKSAPI) *DefaultProvider {
 	return &DefaultProvider{
 		cm:                  pretty.NewChangeMonitor(),
 		cache:               cache,
 		kubernetesInterface: kubernetesInterface,
+		eksapi:              eksapi,
 	}
 }
 
 func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
+	var version string
 	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
 		return version.(string), nil
 	}
-	serverVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
-	if err != nil {
-		return "", err
+	serverVersion, err := p.eksapi.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
+		Name: lo.ToPtr(options.FromContext(ctx).ClusterName),
+	})
+	if err == nil && lo.FromPtr(serverVersion.Cluster.Version) != "" {
+		version = *serverVersion.Cluster.Version
+	} else {
+		fallbackVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
+		if err != nil {
+			return "", err
+		}
+		version = fmt.Sprintf("%s.%s", fallbackVersion.Major, strings.TrimSuffix(fallbackVersion.Minor, "+"))
 	}
-	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernetes-version", version) {
 		log.FromContext(ctx).WithValues("version", version).V(1).Info("discovered kubernetes version")

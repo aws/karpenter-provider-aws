@@ -116,7 +116,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	pricingProvider := pricing.NewDefaultProvider(ctx, fakePricingAPI, ec2api, fake.DefaultRegion)
 	subnetProvider := subnet.NewDefaultProvider(ec2api, subnetCache, availableIPAdressCache, associatePublicIPAddressCache)
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, securityGroupCache)
-	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, kubernetesVersionCache)
+	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, kubernetesVersionCache, eksapi)
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
