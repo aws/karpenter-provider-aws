@@ -125,6 +125,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 }
 
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count
+// nolint:gocyclo
 func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *v1.EC2NodeClass, instanceTypes []*cloudprovider.InstanceType, capacityType string) (map[string]*Subnet, error) {
 	if len(nodeClass.Status.Subnets) == 0 {
 		return nil, fmt.Errorf("no subnets matched selector %v", nodeClass.Spec.SubnetSelectorTerms)
@@ -167,6 +168,13 @@ func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *
 		prevIPs := subnet.AvailableIPAddressCount
 		if trackedIPs, ok := p.inflightIPs[subnet.ID]; ok {
 			prevIPs = trackedIPs
+		}
+
+		// Check if the remaining IP count is insufficient to meet the predicted IP usage;
+		// if so, remove this subnet zone record from inflightIPs and continue to the next item in the loop。
+		if prevIPs-predictedIPsUsed <= 0 {
+			delete(zonalSubnets, subnet.Zone)
+			continue
 		}
 		p.inflightIPs[subnet.ID] = prevIPs - predictedIPsUsed
 	}
