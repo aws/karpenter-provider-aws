@@ -47,7 +47,10 @@ type Windows struct {
 }
 
 func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
-	imageID, err := ssmProvider.Get(ctx, fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1.WindowsCore, k8sVersion))
+	imageID, err := ssmProvider.Get(ctx, ssm.Parameter{
+		Name:      fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1.WindowsCore, k8sVersion),
+		IsMutable: true,
+	})
 	if err != nil {
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "windows%s@%s"`, w.Version, amiVersion)
 	}

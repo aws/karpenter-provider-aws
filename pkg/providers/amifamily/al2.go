@@ -43,22 +43,25 @@ func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k
 	ids := map[string][]Variant{}
 	for path, variants := range map[string][]Variant{
 		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/%s/image_id", k8sVersion, lo.Ternary(
-			amiVersion == AMIVersionLatest,
+			amiVersion == v1.AliasVersionLatest,
 			"recommended",
 			fmt.Sprintf("amazon-eks-node-%s-%s", k8sVersion, amiVersion),
 		)): {VariantStandard},
 		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/%s/image_id", k8sVersion, lo.Ternary(
-			amiVersion == AMIVersionLatest,
+			amiVersion == v1.AliasVersionLatest,
 			"recommended",
 			fmt.Sprintf("amazon-eks-arm64-node-%s-%s", k8sVersion, amiVersion),
 		)): {VariantStandard},
 		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/%s/image_id", k8sVersion, lo.Ternary(
-			amiVersion == AMIVersionLatest,
+			amiVersion == v1.AliasVersionLatest,
 			"recommended",
 			fmt.Sprintf("amazon-eks-gpu-node-%s-%s", k8sVersion, amiVersion),
 		)): {VariantNeuron, VariantNvidia},
 	} {
-		imageID, err := ssmProvider.Get(ctx, path)
+		imageID, err := ssmProvider.Get(ctx, ssm.Parameter{
+			Name:      path,
+			IsMutable: amiVersion == v1.AliasVersionLatest,
+		})
 		if err != nil {
 			continue
 		}

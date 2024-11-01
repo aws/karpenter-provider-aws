@@ -484,16 +484,40 @@ func (in *EC2NodeClass) AMIFamily() string {
 	if in.Spec.AMIFamily != nil {
 		return *in.Spec.AMIFamily
 	}
-	if term, ok := lo.Find(in.Spec.AMISelectorTerms, func(t AMISelectorTerm) bool {
-		return t.Alias != ""
-	}); ok {
-		return AMIFamilyFromAlias(term.Alias)
+	if alias := in.Alias(); alias != nil {
+		return alias.Family
 	}
 	// Unreachable: validation enforces that one of the above conditions must be met
 	return AMIFamilyCustom
 }
 
-func AMIFamilyFromAlias(alias string) string {
+type Alias struct {
+	Family  string
+	Version string
+}
+
+const (
+	AliasVersionLatest = "latest"
+)
+
+func (a *Alias) String() string {
+	return fmt.Sprintf("%s@%s", a.Family, a.Version)
+}
+
+func (in *EC2NodeClass) Alias() *Alias {
+	term, ok := lo.Find(in.Spec.AMISelectorTerms, func(term AMISelectorTerm) bool {
+		return term.Alias != ""
+	})
+	if !ok {
+		return nil
+	}
+	return &Alias{
+		Family:  amiFamilyFromAlias(term.Alias),
+		Version: amiVersionFromAlias(term.Alias),
+	}
+}
+
+func amiFamilyFromAlias(alias string) string {
 	components := strings.Split(alias, "@")
 	if len(components) != 2 {
 		log.Fatalf("failed to parse AMI alias %q, invalid format", alias)
@@ -513,7 +537,7 @@ func AMIFamilyFromAlias(alias string) string {
 	return family
 }
 
-func AMIVersionFromAlias(alias string) string {
+func amiVersionFromAlias(alias string) string {
 	components := strings.Split(alias, "@")
 	if len(components) != 2 {
 		log.Fatalf("failed to parse AMI alias %q, invalid format", alias)

@@ -49,7 +49,10 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion): {VariantNvidia},
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):  {VariantNvidia},
 	} {
-		imageID, err := ssmProvider.Get(ctx, path)
+		imageID, err := ssmProvider.Get(ctx, ssm.Parameter{
+			Name:      path,
+			IsMutable: amiVersion == v1.AliasVersionLatest,
+		})
 		if err != nil {
 			continue
 		}

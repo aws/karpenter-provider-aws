@@ -43,7 +43,10 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 	} {
 		for _, variant := range variants {
 			path := a.resolvePath(arch, string(variant), k8sVersion, amiVersion)
-			imageID, err := ssmProvider.Get(ctx, path)
+			imageID, err := ssmProvider.Get(ctx, ssm.Parameter{
+				Name:      path,
+				IsMutable: amiVersion == v1.AliasVersionLatest,
+			})
 			if err != nil {
 				continue
 			}
@@ -68,7 +71,7 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 
 func (a AL2023) resolvePath(architecture, variant, k8sVersion, amiVersion string) string {
 	name := lo.Ternary(
-		amiVersion == AMIVersionLatest,
+		amiVersion == v1.AliasVersionLatest,
 		"recommended",
 		fmt.Sprintf("amazon-eks-node-al2023-%s-%s-%s-%s", architecture, variant, k8sVersion, amiVersion),
 	)
