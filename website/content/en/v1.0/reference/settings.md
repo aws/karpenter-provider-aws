@@ -39,6 +39,10 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 
 [comment]: <> (end docs generated content from hack/docs/configuration_gen_docs.go)
 
+{{% alert title="Warning" color="warning" %}}
+If you've enabled [Security Groups per Pod](https://aws.github.io/aws-eks-best-practices/networking/sgpp/), one of the instance's ENIs is reserved. To avoid discrepancies between the `maxPods` value and the node's supported pod density, you need to set `RESERVED_ENIS=1`.
+{{% /alert %}}
+
 ### Feature Gates
 
 Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features) You can enable the feature gates through the `--feature-gates` CLI environment variable or the `FEATURE_GATES` environment variable in the Karpenter deployment. For example, you can configure drift, spotToSpotConsolidation by setting the CLI argument: `--feature-gates Drift=true,SpotToSpotConsolidation=true`.
