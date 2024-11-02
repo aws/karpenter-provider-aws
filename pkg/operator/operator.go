@@ -112,12 +112,13 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		*sess.Config.Region = lo.Must(region, err, "failed to get region from metadata server")
 	}
 	ec2api := ec2.New(sess)
+	eksapi := eks.New(sess)
 	if err := CheckEC2Connectivity(ctx, ec2api); err != nil {
 		log.FromContext(ctx).Error(err, "ec2 api connectivity check failed")
 		os.Exit(1)
 	}
 	log.FromContext(ctx).WithValues("region", *sess.Config.Region).V(1).Info("discovered region")
-	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eks.New(sess))
+	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eksapi)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "failed detecting cluster endpoint")
 		os.Exit(1)
@@ -155,7 +156,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		ec2api,
 		*sess.Config.Region,
 	)
-	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), eks.New(sess))
+	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), eksapi)
 	ssmProvider := ssmp.NewDefaultProvider(ssm.NewFromConfig(cfg), ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.NewDefaultResolver()
@@ -163,7 +164,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		ec2api,
-		eks.New(sess),
+		eksapi,
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
