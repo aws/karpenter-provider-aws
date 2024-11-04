@@ -182,9 +182,6 @@ func (p *DefaultProvider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInp
 	// Process the CreateFleetInput to pull out all the requested subnetIDs
 	fleetInputSubnets := lo.Compact(lo.Uniq(lo.FlatMap(createFleetInput.LaunchTemplateConfigs, func(req ec2types.FleetLaunchTemplateConfigRequest, _ int) []string {
 		return lo.Map(req.Overrides, func(override ec2types.FleetLaunchTemplateOverridesRequest, _ int) string {
-			if override == (ec2types.FleetLaunchTemplateOverridesRequest{}) {
-				return ""
-			}
 			return lo.FromPtr(override.SubnetId)
 		})
 	})))

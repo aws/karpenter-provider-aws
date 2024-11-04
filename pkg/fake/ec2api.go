@@ -365,7 +365,7 @@ func (e *EC2API) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 	if len(output.LaunchTemplates) == 0 {
 		return nil, &smithy.GenericAPIError{
 			Code:    "InvalidLaunchTemplateName.NotFoundException",
-			Message: "Invalid launch template ID or name",
+			Message: "At least one of the launch templates specified in the request does not exist.",
 		}
 	}
 	return output, nil

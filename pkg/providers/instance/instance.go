@@ -288,9 +288,7 @@ func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceT
 	instanceTypeZones := map[string]struct{}{}
 	for _, ltc := range launchTemplateConfigs {
 		for _, override := range ltc.Overrides {
-			if override.InstanceType != ec2types.InstanceType("") {
-				instanceTypeZones[string(override.InstanceType)] = struct{}{}
-			}
+			instanceTypeZones[string(override.InstanceType)] = struct{}{}
 		}
 	}
 	if len(instanceTypes) < instanceTypeFlexibilityThreshold {

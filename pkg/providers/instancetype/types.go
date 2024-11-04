@@ -440,7 +440,7 @@ func habanaGaudis(info ec2types.InstanceTypeInfo) *resource.Quantity {
 
 func efas(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	count := int32(0)
-	if info.NetworkInfo != nil && info.NetworkInfo.EfaInfo != nil {
+	if info.NetworkInfo != nil && info.NetworkInfo.EfaInfo != nil && info.NetworkInfo.EfaInfo.MaximumEfaInterfaces != nil {
 		count = *info.NetworkInfo.EfaInfo.MaximumEfaInterfaces
 	}
 	return resources.Quantity(fmt.Sprint(count))
