@@ -70,6 +70,7 @@ Accelerator (e.g., GPU) values include
 - `nvidia.com/gpu`
 - `amd.com/gpu`
 - `aws.amazon.com/neuron`
+- `aws.amazon.com/neuroncore`
 - `habana.ai/gaudi`
 
 Karpenter supports accelerators, such as GPUs.
@@ -88,20 +89,31 @@ spec:
             nvidia.com/gpu: "1"
 ```
 {{% alert title="Note" color="primary" %}}
-If you are provisioning GPU nodes, you need to deploy an appropriate GPU device plugin daemonset for those nodes.
-Without the daemonset running, Karpenter will not see those nodes as initialized.
+If you are provisioning nodes that will utilize accelerators/GPUs, you need to deploy the appropriate device plugin daemonset.
+Without the respective device plugin daemonset, Karpenter will not see those nodes as initialized.
 Refer to general [Kubernetes GPU](https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/#deploying-amd-gpu-device-plugin) docs and the following specific GPU docs:
 * `nvidia.com/gpu`: [NVIDIA device plugin for Kubernetes](https://github.com/NVIDIA/k8s-device-plugin)
 * `amd.com/gpu`: [AMD GPU device plugin for Kubernetes](https://github.com/RadeonOpenCompute/k8s-device-plugin)
-* `aws.amazon.com/neuron`: [Kubernetes environment setup for Neuron](https://github.com/aws-neuron/aws-neuron-sdk/tree/master/src/k8)
+* `aws.amazon.com/neuron`/`aws.amazon.com/neuroncore`: [AWS Neuron device plugin for Kubernetes](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/containers/kubernetes-getting-started.html#neuron-device-plugin)
 * `habana.ai/gaudi`: [Habana device plugin for Kubernetes](https://docs.habana.ai/en/latest/Orchestration/Gaudi_Kubernetes/Habana_Device_Plugin_for_Kubernetes.html)
   {{% /alert %}}
+
+#### AWS Neuron Resources
+
+The [Neuron scheduler extension](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/containers/kubernetes-getting-started.html#neuron-scheduler-extension) is required for pods that require more than one Neuron core (`aws.amazon.com/neuroncore`) or device (`aws.amazon.com/neuron`) resource, but less than all available Neuron cores or devices on a node. From the AWS Neuron documentation:
+
+> The Neuron scheduler extension finds sets of directly connected devices with minimal communication latency when scheduling containers. On Inf1 and Inf2 instance types where Neuron devices are connected through a ring topology, the scheduler finds sets of contiguous devices. For example, for a container requesting 3 Neuron devices the scheduler might assign Neuron devices 0,1,2 to the container if they are available but never devices 0,2,4 because those devices are not directly connected. On Trn1.32xlarge and Trn1n.32xlarge instance types where devices are connected through a 2D torus topology, the Neuron scheduler enforces additional constraints that containers request 1, 4, 8, or all 16 devices. If your container requires a different number of devices, such as 2 or 5, we recommend that you use an Inf2 instance instead of Trn1 to benefit from more advanced topology.
+
+However, Karpenter is not aware of the decisions made by the Neuron scheduler extension which precludes it from making any optimizations to consolidate and bin pack pods requiring Neuron resources. To ensure Karpenter's bin-packing is consistent with the decisions made by the scheduler extension, containers must have like-sized, power of 2 requests (e.g. 1, 2, 4, etc). Failing to do so may result in permanently pending pods.
 
 ### Pod ENI Resources (Security Groups for Pods)
 [Pod ENI](https://github.com/aws/amazon-vpc-cni-k8s#enable_pod_eni-v170) is a feature of the AWS VPC CNI Plugin which allows an Elastic Network Interface (ENI) to be allocated directly to a Pod. When enabled, the `vpc.amazonaws.com/pod-eni` extended resource is added to supported nodes. The Pod ENI feature can be used independently, but is most often used in conjunction with Security Groups for Pods.  Follow the below instructions to enable support for Pod ENI and/or Security Groups for Pods in Karpenter.
 
 {{% alert title="Note" color="primary" %}}
 You must enable Pod ENI support in the AWS VPC CNI Plugin before enabling Pod ENI support in Karpenter.  Please refer to the [Security Groups for Pods documentation](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html) for instructions.
+{{% /alert %}}
+{{% alert title="Note" color="primary" %}}
+If you've enabled [Security Groups per Pod](https://aws.github.io/aws-eks-best-practices/networking/sgpp/), one of the instance's ENIs is reserved. To avoid discrepancies between the `maxPods` value and the node's supported pod density, you need to set [RESERVED_ENIS]({{<ref "../reference/settings" >}})=1.
 {{% /alert %}}
 
 Here is an example of a pod-eni resource defined in a deployment manifest:
@@ -365,7 +377,7 @@ Adding this to your podspec would result in:
 * The `dev` `labelSelector` will include all pods with the label of `dev=jjones` in topology calculations. It is recommended to use a selector to match all pods in a deployment.
 * No more than one pod difference in the number of pods on each host (`maxSkew`).
 For example, if there were three nodes and five pods the pods could be spread 1, 2, 2 or 2, 1, 2 and so on.
-If instead the spread were 5, pods could be 5, 0, 0 or 3, 2, 0, or 2, 1, 2 and so on.
+If instead the maxSkew were 5, pods could be spread 5, 0, 0 or 3, 2, 0, or 2, 1, 2 and so on.
 
 The three supported `topologyKey` values that Karpenter supports are:
 - `topology.kubernetes.io/zone`
