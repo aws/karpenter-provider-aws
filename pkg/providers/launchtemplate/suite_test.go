@@ -1426,6 +1426,8 @@ essential = true
 			BeforeEach(func() {
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+
+				awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(nil)
 			})
 			It("should merge in custom user data", func() {
 				content, err := os.ReadFile("testdata/br_userdata_input.golden")

@@ -17,6 +17,7 @@ package bootstrap
 import (
 	"encoding/base64"
 	"fmt"
+	"net"
 	"strconv"
 
 	"github.com/imdario/mergo"
@@ -42,6 +43,9 @@ func (b Bottlerocket) Script() (string, error) {
 	s.Settings.Kubernetes.ClusterName = &b.ClusterName
 	s.Settings.Kubernetes.APIServer = &b.ClusterEndpoint
 	s.Settings.Kubernetes.ClusterCertificate = b.CABundle
+	if b.ClusterCIDR != nil {
+		s.Settings.Kubernetes.ClusterDNSIP = lo.Must(GetDNSIPFromCIDR(b.ClusterCIDR))
+	}
 	if err := mergo.MergeWithOverwrite(&s.Settings.Kubernetes.NodeLabels, b.Labels); err != nil {
 		return "", err
 	}
@@ -51,7 +55,7 @@ func (b Bottlerocket) Script() (string, error) {
 	}
 
 	if b.KubeletConfig != nil {
-		if len(b.KubeletConfig.ClusterDNS) > 0 {
+		if len(b.KubeletConfig.ClusterDNS) > 0 && b.ClusterCIDR == nil {
 			s.Settings.Kubernetes.ClusterDNSIP = &b.KubeletConfig.ClusterDNS[0]
 		}
 		if b.KubeletConfig.SystemReserved != nil {
@@ -94,4 +98,12 @@ func (b Bottlerocket) Script() (string, error) {
 		return "", fmt.Errorf("constructing toml UserData %w", err)
 	}
 	return base64.StdEncoding.EncodeToString(script), nil
+}
+
+func GetDNSIPFromCIDR(cidr *string) (*string, error) {
+	ip, _, err := net.ParseCIDR(lo.FromPtr(cidr))
+	if err != nil {
+		return nil, err
+	}
+	return lo.ToPtr(ip.String()), nil
 }
