@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/version"
