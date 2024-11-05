@@ -75,12 +75,14 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 	})
 	if err == nil && lo.FromPtr(serverVersion.Cluster.Version) != "" {
 		version = *serverVersion.Cluster.Version
+		log.FromContext(ctx).Info("Successfully retrieved Kubernetes version from EKS DescribeCluster", "version", version)
 	} else {
 		fallbackVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
 		if err != nil {
 			return "", err
 		}
 		version = fmt.Sprintf("%s.%s", fallbackVersion.Major, strings.TrimSuffix(fallbackVersion.Minor, "+"))
+		log.FromContext(ctx).Info("Successfully retrieved Kubernetes version from Kubernetes API", "version", version)
 	}
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernetes-version", version) {
