@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/version"
@@ -77,12 +78,18 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 		version = *serverVersion.Cluster.Version
 		log.FromContext(ctx).Info("Successfully retrieved Kubernetes version from EKS DescribeCluster", "version", version)
 	} else {
-		fallbackVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
-		if err != nil {
-			return "", err
+		if awserrors.HasNoAccess(err) {
+			fallbackVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
+			if err != nil {
+				return "", err
+			}
+			version = fmt.Sprintf("%s.%s", fallbackVersion.Major, strings.TrimSuffix(fallbackVersion.Minor, "+"))
+			log.FromContext(ctx).Info("Successfully retrieved Kubernetes version from Kubernetes API", "version", version)
+		} else {
+			if err != nil {
+				return "", err
+			}
 		}
-		version = fmt.Sprintf("%s.%s", fallbackVersion.Major, strings.TrimSuffix(fallbackVersion.Minor, "+"))
-		log.FromContext(ctx).Info("Successfully retrieved Kubernetes version from Kubernetes API", "version", version)
 	}
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernetes-version", version) {

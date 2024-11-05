@@ -47,6 +47,9 @@ var (
 	alreadyExistsErrorCodes = sets.New[string](
 		iam.ErrCodeEntityAlreadyExistsException,
 	)
+	hasAccessErrorCodes = sets.New[string](
+		"AccessDeniedException",
+	)
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
 	unfulfillableCapacityErrorCodes = sets.New[string](
 		"InsufficientInstanceCapacity",
@@ -57,6 +60,17 @@ var (
 		"InsufficientFreeAddressesInSubnet",
 	)
 )
+
+func HasNoAccess(err error) bool {
+	if err == nil {
+		return false
+	}
+	var awsError awserr.Error
+	if errors.As(err, &awsError) {
+		return notFoundErrorCodes.Has(awsError.Code())
+	}
+	return false
+}
 
 // IsNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more
