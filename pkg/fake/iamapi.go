@@ -87,7 +87,7 @@ func (s *IAMAPI) CreateInstanceProfile(_ context.Context, input *iam.CreateInsta
 
 		if _, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
 			return nil, &smithy.GenericAPIError{
-				Code: "EntityAlreadyExistsException",
+				Code: "EntityAlreadyExists",
 				Message: fmt.Sprintf("Instance Profile %s already exists",
 					aws.ToString(input.InstanceProfileName)),
 			}
