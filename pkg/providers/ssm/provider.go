@@ -28,6 +28,7 @@ import (
 
 type Provider interface {
 	Get(context.Context, Parameter) (string, error)
+	GetCustomParameter(context.Context, Parameter) (string, error)
 }
 
 type DefaultProvider struct {
@@ -58,5 +59,13 @@ func (p *DefaultProvider) Get(ctx context.Context, parameter Parameter) (string,
 		Value:     lo.FromPtr(result.Parameter.Value),
 	})
 	log.FromContext(ctx).WithValues("parameter", parameter.Name, "value", result.Parameter.Value).Info("discovered ssm parameter")
+	return lo.FromPtr(result.Parameter.Value), nil
+}
+
+func (p *DefaultProvider) GetCustomParameter(ctx context.Context, parameter Parameter) (string, error) {
+	result, err := p.ssmapi.GetParameter(ctx, parameter.GetParameterInput())
+	if err != nil {
+		return "", fmt.Errorf("getting ssm parameter %q, %w", parameter.Name, err)
+	}
 	return lo.FromPtr(result.Parameter.Value), nil
 }

@@ -55,7 +55,7 @@ type EC2NodeClassSpec struct {
 	// +optional
 	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
 	// AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
-	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name', 'alias']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias))"
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name', 'alias', 'ssmParameterName']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias) || has(x.ssmParameterName))"
 	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.exists(x, has(x.id) && (has(x.alias) || has(x.tags) || has(x.name) || has(x.owner)))"
 	// +kubebuilder:validation:XValidation:message="'alias' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.exists(x, has(x.alias) && (has(x.id) || has(x.tags) || has(x.name) || has(x.owner)))"
 	// +kubebuilder:validation:XValidation:message="'alias' is mutually exclusive, cannot be set with a combination of other amiSelectorTerms",rule="!(self.exists(x, has(x.alias)) && self.size() != 1)"
@@ -227,6 +227,9 @@ type AMISelectorTerm struct {
 	// You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
 	// +optional
 	Owner string `json:"owner,omitempty"`
+	//SSMParameterName is the name (or ARN) or the SSM parameter containing the Image ID. The parameter data type should be aws:ec2:image
+	// +optional
+	SSMParameterName string `json:"ssmParameterName,omitempty"`
 }
 
 // KubeletConfiguration defines args to be used when configuring kubelet on provisioned nodes.
