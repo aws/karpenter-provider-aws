@@ -47,7 +47,7 @@ var (
 	alreadyExistsErrorCodes = sets.New[string](
 		iam.ErrCodeEntityAlreadyExistsException,
 	)
-	hasAccessErrorCodes = sets.New[string](
+	accessDeniedErrorCodes = sets.New[string](
 		"AccessDeniedException",
 	)
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
@@ -61,13 +61,13 @@ var (
 	)
 )
 
-func HasNoAccess(err error) bool {
+func IsAccessDenied(err error) bool {
 	if err == nil {
 		return false
 	}
 	var awsError awserr.Error
 	if errors.As(err, &awsError) {
-		return hasAccessErrorCodes.Has(awsError.Code())
+		return accessDeniedErrorCodes.Has(awsError.Code())
 	}
 	return false
 }

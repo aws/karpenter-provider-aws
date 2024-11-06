@@ -76,20 +76,19 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 		Name: lo.ToPtr(options.FromContext(ctx).ClusterName),
 	})
 	if err != nil {
-		if !awserrors.HasNoAccess(err) {
+		if !awserrors.IsAccessDenied(err) {
 			return "", err
-		} else {
-			output, err := p.kubernetesInterface.Discovery().ServerVersion()
-			if err != nil {
-				return "", err
-			} else if output != nil {
-				version = fmt.Sprintf("%s.%s", output.Major, strings.TrimSuffix(output.Minor, "+"))
-				log.FromContext(ctx).Info("Successfully retrieved Kubernetes version from Kubernetes API", "version", version)
-			}
+		}
+		output, err := p.kubernetesInterface.Discovery().ServerVersion()
+		if err != nil {
+			return "", err
+		} else if output != nil {
+			version = fmt.Sprintf("%s.%s", output.Major, strings.TrimSuffix(output.Minor, "+"))
+			log.FromContext(ctx).Info("retrieved Kubernetes version from Kubernetes API", "version", version)
 		}
 	} else if lo.FromPtr(output.Cluster.Version) != "" {
 		version = *output.Cluster.Version
-		log.FromContext(ctx).Info("Successfully retrieved Kubernetes version from EKS DescribeCluster", "version", version)
+		log.FromContext(ctx).Info("retrieved Kubernetes version from EKS DescribeCluster", "version", version)
 	} else {
 		return "", fmt.Errorf("unable to retrieve Kubernetes version from EKS DescribeCluster")
 	}
