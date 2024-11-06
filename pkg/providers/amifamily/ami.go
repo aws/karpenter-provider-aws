@@ -29,6 +29,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
@@ -51,6 +52,7 @@ type DefaultProvider struct {
 	cm              *pretty.ChangeMonitor
 	ssmProvider     ssm.Provider
 	versionProvider version.Provider
+	clk             clock.Clock
 }
 
 type AMI struct {
@@ -58,6 +60,7 @@ type AMI struct {
 	AmiID        string
 	CreationDate string
 	Requirements scheduling.Requirements
+	Deprecated   bool
 }
 
 type AMIs []AMI
@@ -101,13 +104,14 @@ func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType) ma
 	return amiIDs
 }
 
-func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provider, ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(clock clock.Clock, versionProvider version.Provider, ssmProvider ssm.Provider, ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		cache:           cache,
 		ec2api:          ec2api,
 		cm:              pretty.NewChangeMonitor(),
 		ssmProvider:     ssmProvider,
 		versionProvider: versionProvider,
+		clk:             clock,
 	}
 }
 
@@ -166,6 +170,7 @@ func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1
 				if res[j].AmiID == aws.StringValue(page.Images[i].ImageId) {
 					res[j].Name = aws.StringValue(page.Images[i].Name)
 					res[j].CreationDate = aws.StringValue(page.Images[i].CreationDate)
+					res[j].Deprecated = p.IsDeprecated(page.Images[i])
 				}
 			}
 		}
@@ -177,8 +182,11 @@ func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1
 	return res, nil
 }
 
-func (p *DefaultProvider) resolveSSMParameter(ctx context.Context, ssmQuery string) (string, error) {
-	imageID, err := p.ssmProvider.Get(ctx, ssmQuery)
+func (p *DefaultProvider) resolveSSMParameter(ctx context.Context, name string) (string, error) {
+	imageID, err := p.ssmProvider.Get(ctx, ssm.Parameter{
+		Name:      name,
+		IsMutable: true,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -226,6 +234,7 @@ func (p *DefaultProvider) getAMIs(ctx context.Context, terms []v1beta1.AMISelect
 					AmiID:        lo.FromPtr(page.Images[i].ImageId),
 					CreationDate: lo.FromPtr(page.Images[i].CreationDate),
 					Requirements: reqs,
+					Deprecated:   p.IsDeprecated(page.Images[i]),
 				}
 			}
 			return true
@@ -295,4 +304,14 @@ func (p *DefaultProvider) getRequirementsFromImage(ec2Image *ec2.Image) scheduli
 	}
 	requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, architecture))
 	return requirements
+}
+
+func (p *DefaultProvider) IsDeprecated(image *ec2.Image) bool {
+	if image.DeprecationTime == nil {
+		return false
+	}
+	if deprecationTime := lo.Must(time.Parse(time.RFC3339, *image.DeprecationTime)); deprecationTime.After(p.clk.Now()) {
+		return false
+	}
+	return true
 }
