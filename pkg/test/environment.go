@@ -22,7 +22,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
-	testclock "k8s.io/utils/clock/testing"
+	clock "k8s.io/utils/clock/testing"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	karpv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
@@ -83,11 +83,11 @@ type Environment struct {
 	VersionProvider         *version.DefaultProvider
 	LaunchTemplateProvider  *launchtemplate.DefaultProvider
 
-	Clock *testclock.FakeClock
+	Clock *clock.FakeClock
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
-	clock := &testclock.FakeClock{}
+	clock := &clock.FakeClock{}
 
 	// API
 	ec2api := fake.NewEC2API()

@@ -52,12 +52,10 @@ func (in *EC2NodeClass) ConvertTo(ctx context.Context, to apis.Convertible) erro
 		v1beta1enc.Spec.AMIFamily = lo.ToPtr(in.AMIFamily())
 	}
 
-	if alias := in.Alias(); alias != nil {
-		if alias.Version != AliasVersionLatest {
-			v1beta1enc.Annotations = lo.Assign(v1beta1enc.Annotations, map[string]string{
-				AnnotationAliasVersionCompatibilityKey: alias.Version,
-			})
-		}
+	if alias := in.Alias(); alias != nil && alias.Version != AliasVersionLatest {
+		v1beta1enc.Annotations = lo.Assign(v1beta1enc.Annotations, map[string]string{
+			AnnotationAliasVersionCompatibilityKey: alias.Version,
+		})
 	}
 
 	in.Spec.convertTo(&v1beta1enc.Spec)
