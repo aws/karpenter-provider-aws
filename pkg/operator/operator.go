@@ -77,6 +77,7 @@ type Operator struct {
 
 	Session                   *session.Session
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
+	SSMCache                  *cache.Cache
 	EC2API                    ec2iface.EC2API
 	SubnetProvider            *subnet.Provider
 	SecurityGroupProvider     *securitygroup.Provider
@@ -135,6 +136,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	}
 
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
+	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
+
 	subnetProvider := subnet.NewProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	instanceProfileProvider := instanceprofile.NewProvider(*sess.Config.Region, iam.New(sess), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
@@ -145,8 +148,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		*sess.Config.Region,
 	)
 	versionProvider := version.NewProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	ssmProvider := ssmp.NewDefaultProvider(ssm.New(sess), cache.New(awscache.SSMProviderTTL, awscache.DefaultCleanupInterval))
-	amiProvider := amifamily.NewProvider(versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	ssmProvider := ssmp.NewDefaultProvider(ssm.New(sess), ssmCache)
+	amiProvider := amifamily.NewProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.New(amiProvider)
 	launchTemplateProvider := launchtemplate.NewProvider(
 		ctx,
@@ -191,6 +194,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		Operator:                  operator,
 		Session:                   sess,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
+		SSMCache:                  ssmCache,
 		EC2API:                    ec2api,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,
