@@ -20,12 +20,13 @@ import (
 	"strconv"
 	"strings"
 
-	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
@@ -71,25 +72,26 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
 		return version.(string), nil
 	}
-	serverVersion, err := p.eksapi.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
+	output, err := p.eksapi.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
 		Name: lo.ToPtr(options.FromContext(ctx).ClusterName),
 	})
-	if err == nil && lo.FromPtr(serverVersion.Cluster.Version) != "" {
-		version = *serverVersion.Cluster.Version
-		log.FromContext(ctx).Info("Successfully retrieved Kubernetes version from EKS DescribeCluster", "version", version)
-	} else {
-		if awserrors.HasNoAccess(err) {
-			fallbackVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
-			if err != nil {
-				return "", err
-			}
-			version = fmt.Sprintf("%s.%s", fallbackVersion.Major, strings.TrimSuffix(fallbackVersion.Minor, "+"))
-			log.FromContext(ctx).Info("Successfully retrieved Kubernetes version from Kubernetes API", "version", version)
+	if err != nil {
+		if !awserrors.HasNoAccess(err) {
+			return "", err
 		} else {
+			output, err := p.kubernetesInterface.Discovery().ServerVersion()
 			if err != nil {
 				return "", err
+			} else if output != nil {
+				version = fmt.Sprintf("%s.%s", output.Major, strings.TrimSuffix(output.Minor, "+"))
+				log.FromContext(ctx).Info("Successfully retrieved Kubernetes version from Kubernetes API", "version", version)
 			}
 		}
+	} else if lo.FromPtr(output.Cluster.Version) != "" {
+		version = *output.Cluster.Version
+		log.FromContext(ctx).Info("Successfully retrieved Kubernetes version from EKS DescribeCluster", "version", version)
+	} else {
+		return "", fmt.Errorf("unable to retrieve Kubernetes version from EKS DescribeCluster")
 	}
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernetes-version", version) {

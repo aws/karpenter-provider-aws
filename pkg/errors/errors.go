@@ -67,7 +67,7 @@ func HasNoAccess(err error) bool {
 	}
 	var awsError awserr.Error
 	if errors.As(err, &awsError) {
-		return notFoundErrorCodes.Has(awsError.Code())
+		return hasAccessErrorCodes.Has(awsError.Code())
 	}
 	return false
 }
