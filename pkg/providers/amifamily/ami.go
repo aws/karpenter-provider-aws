@@ -96,7 +96,7 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		case term.ID != "":
 			idFilter.Values = append(idFilter.Values, term.ID)
 		case term.SSMParameterName != "":
-			p.updateFilterFromCustomParameter(ctx, term.SSMParameterName, idFilter)
+			p.updateFilterFromCustomParameter(ctx, term.SSMParameterName, &idFilter)
 		default:
 			query := DescribeImageQuery{
 				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{}),
@@ -135,14 +135,14 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 	return queries, nil
 }
 
-func (p *DefaultProvider) updateFilterFromCustomParameter(ctx context.Context, ssmParameterName string, idFilter *ec2.Filter) {
+func (p *DefaultProvider) updateFilterFromCustomParameter(ctx context.Context, ssmParameterName string, idFilter *ec2types.Filter) {
 	imageID, err := p.ssmProvider.GetCustomParameter(ctx, ssm.Parameter{
 		Name: ssmParameterName,
 	})
 	if err != nil {
 		log.FromContext(ctx).WithValues("ssmParameterName", ssmParameterName).V(1).Error(err, "parameter not found")
 	} else {
-		idFilter.Values = append(idFilter.Values, aws.String(imageID))
+		idFilter.Values = append(idFilter.Values, imageID)
 	}
 }
 
