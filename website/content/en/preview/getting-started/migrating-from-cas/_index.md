@@ -16,21 +16,26 @@ We will make the following assumptions in this guide
 * Your workloads have pod disruption budgets that adhere to [EKS best practices](https://aws.github.io/aws-eks-best-practices/karpenter/)
 * Your cluster has an [OIDC provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) for service accounts
 
-This guide will also assume you have the `aws` CLI installed.
+This guide will also assume you have the `aws` CLI and Helm client installed.
 You can also perform many of these steps in the console, but we will use the command line for simplicity.
 
 ## Set environment variables
+Set the Karpenter and Kubernetes version. Check the [Compatibility Matrix](https://karpenter.sh/docs/upgrading/compatibility/) to find the Karpenter version compatible with your current Amazon EKS version.
 
 ```bash
-KARPENTER_NAMESPACE=kube-system
+KARPENTER_NAMESPACE="kube-system"
+KARPENTER_VERSION="{{< param "latest_release_version" >}}"
+K8S_VERSION="{{< param "latest_k8s_version" >}}"
 CLUSTER_NAME=<your cluster name>
-K8S_VERSION=1.28
 ```
 
 Set other variables from your cluster configuration.
 
-{{% script file="./content/en/preview/getting-started/migrating-from-cas/scripts/step01-env.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step01-env.sh" language="bash" %}}
 
+{{% alert title="Warning" color="warning" %}}
+If you open a new shell to run steps in this procedure, you need to set the environment variables again.
+{{% /alert %}}
 
 ## Create IAM roles
 
@@ -40,7 +45,7 @@ Use CloudFormation to set up the infrastructure needed by the existing EKS clust
   - **Instance Profiles**: Attaches necessary permissions to EC2 instances, allowing them to join the cluster and participate in automated scaling as managed by Karpenter.
   - **Interruption Queue and Policies**: Setup Amazon SQS queue and Event Rules for handling interruption notifications from AWS services related to EC2 Spot instances and AWS Health events.
 
-{{% script file="./content/en/preview/getting-started/migrating-from-cas/scripts/step02-cloudformation-setup.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step02-cloudformation-setup.sh" language="bash" %}}
 
 Now we need to create an IAM role that the Karpenter controller will use to provision new instances.
 The controller will be using [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) which requires an OIDC endpoint.
@@ -48,26 +53,48 @@ The controller will be using [IAM Roles for Service Accounts (IRSA)](https://doc
 If you have another option for using IAM credentials with workloads (e.g. [Amazon EKS Pod Identity Agent](https://github.com/aws/eks-pod-identity-agent)) your steps will be different.
 
 
-{{% script file="./content/en/preview/getting-started/migrating-from-cas/scripts/step03-controller-iam.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step03-controller-iam.sh" language="bash" %}}
 
 ## Add tags to subnets and security groups
 
-We need to add tags to our nodegroup subnets so Karpenter will know which subnets to use.
+In order for Karpenter to know which [subnets](https://karpenter.sh/docs/concepts/nodeclasses/#specsecuritygroupselectorterms) and [security groups](https://karpenter.sh/docs/concepts/nodeclasses/#specsecuritygroupselectorterms) to use, we need to add appropriate tags to the nodegroup subnets and security groups.
 
-{{% script file="./content/en/preview/getting-started/migrating-from-cas/scripts/step04-tag-subnets.sh" language="bash" %}}
+### Tag nodegroup subnets
 
-Add tags to our security groups.
-This command only tags the security groups for the first nodegroup in the cluster.
-If you have multiple nodegroups or multiple security groups you will need to decide which one Karpenter should use.
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step04-tag-subnets.sh" language="bash" %}}
 
-{{% script file="./content/en/preview/getting-started/migrating-from-cas/scripts/step05-tag-security-groups.sh" language="bash" %}}
+This loop ensures that Karpenter will be aware of which subnets are associated with each nodegroup by tagging them with karpenter.sh/discovery.
+
+### Tag security groups
+
+If your EKS setup is configured to use cluster security group and additional security groups, execute the following commands to tag them for Karpenter discovery:
+
+```bash
+SECURITY_GROUPS=$(aws eks describe-cluster \
+    --name "${CLUSTER_NAME}" \
+    --query "cluster.resourcesVpcConfig" \
+    --output json | jq -r '[.clusterSecurityGroupId] + .securityGroupIds | join(" ")')
+
+aws ec2 create-tags \
+    --tags "Key=karpenter.sh/discovery,Value=${CLUSTER_NAME}" \
+    --resources ${SECURITY_GROUPS}
+```
+
+If your setup uses security groups from the Launch template of a managed nodegroup, execute the following:
+
+Note that this command will only tag the security groups for the first nodegroup in the cluster. If you have multiple nodegroups groups, you will need to decide which ones Karpenter should use.
+
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step05-tag-security-groups.sh" language="bash" %}}
+
+Alternatively, the subnets and security groups can also be defined in the [NodeClasses](https://karpenter.sh/docs/concepts/nodeclasses/) definition by specifying the [subnets](https://karpenter.sh/docs/concepts/nodeclasses/#specsubnets) and [security groups](https://karpenter.sh/docs/concepts/nodeclasses/#specsecuritygroupselectorterms) to be used.
+
 
 ## Update aws-auth ConfigMap
 
 We need to allow nodes that are using the node IAM role we just created to join the cluster.
 To do that we have to modify the `aws-auth` ConfigMap in the cluster.
 
-{{% script file="./content/en/preview/getting-started/migrating-from-cas/scripts/step06-edit-aws-auth.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step06-edit-aws-auth.sh" language="bash" %}}
 
 You will need to add a section to the mapRoles that looks something like this.
 Replace the `${AWS_PARTITION}` variable with the account partition, `${AWS_ACCOUNT_ID}` variable with your account ID, and `${CLUSTER_NAME}` variable with the cluster name, but do not replace the `{{EC2PrivateDNSName}}`.
@@ -87,12 +114,7 @@ The full aws-auth configmap should have two groups.
 One for your Karpenter node role and one for your existing node group.
 
 ## Deploy Karpenter
-
-First, set the Karpenter release you want to deploy. Check the [Compatibility Matrix](https://karpenter.sh/docs/upgrading/compatibility/) to find the Karpenter version compatible with your current Amazon EKS version.
-
-```bash
-export KARPENTER_VERSION="{{< param "latest_release_version" >}}"
-```
+To deploy Karpenter, you can use Helm, which simplifies the installation process by handling Karpenter’s dependencies and configuration files automatically. The Helm command provided below will also incorporate any customized settings, such as node affinity, to align with your specific deployment needs.
 
 ### Set Node Affinity for Karpenter
 
@@ -120,13 +142,26 @@ EOF
 
 Now that you have prepared the node affinity configuration, you can proceed to install Karpenter using Helm. This command includes the affinity settings along with other necessary configurations:
 
-{{% script file="./content/en/preview/getting-started/migrating-from-cas/scripts/step07-deploy.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step07-deploy.sh" language="bash" %}}
+
+Expected output:
+```bash
+Release "karpenter" does not exist. Installing it now.
+Pulled: public.ecr.aws/karpenter/karpenter:1.0.5
+Digest: sha256:98382d6406a3c85711269112fbb337c056d4debabaefb936db2d10137b58bd1b
+NAME: karpenter
+LAST DEPLOYED: Wed Nov  6 16:51:41 2024
+NAMESPACE: kube-system
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
 
 ## Create default NodePool
 
 We need to create a default NodePool so Karpenter knows what types of nodes we want for unscheduled workloads. You can refer to some of the [example NodePool](https://github.com/aws/karpenter/tree{{< githubRelRef >}}examples/v1) for specific needs.
 
-{{% script file="./content/en/preview/getting-started/migrating-from-cas/scripts/step08-create-nodepool.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step08-create-nodepool.sh" language="bash" %}}
 
 ## Set nodeAffinity for critical workloads (optional)
 
@@ -175,15 +210,16 @@ Or, if you have multiple single-AZ node groups, we suggest a minimum of 1 instan
 If you have a lot of nodes or workloads you may want to slowly scale down your node groups by a few instances at a time. It is recommended to watch the transition carefully for workloads that may not have enough replicas running or disruption budgets configured.
 {{% /alert %}}
 
+
 ## Verify Karpenter
 
 As nodegroup nodes are drained you can verify that Karpenter is creating nodes for your workloads.
 
 ```bash
-kubectl logs -f -n karpenter -c controller -l app.kubernetes.io/name=karpenter
+kubectl logs -f -n $KARPENTER_NAMESPACE -c controller -l app.kubernetes.io/name=karpenter
 ```
 
-You should also see new nodes created in your cluster as the old nodes are removed
+You should also see new nodes created in your cluster as the old nodes are removed.
 
 ```bash
 kubectl get nodes
