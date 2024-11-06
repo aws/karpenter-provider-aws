@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -381,12 +382,8 @@ func (p *DefaultProvider) UpdateSpotPricing(ctx context.Context) error {
 
 	totalOfferings := 0
 	for it, zoneData := range prices {
-		if _, ok := p.spotPrices[it]; !ok {
-			p.spotPrices[it] = newZonalPricing(0)
-		}
-		for zone, price := range zoneData.prices {
-			p.spotPrices[it].prices[zone] = price
-		}
+		p.spotPrices[it] = newZonalPricing(0)
+		maps.Copy(p.spotPrices[it].prices, zoneData.prices)
 		totalOfferings += len(zoneData.prices)
 	}
 

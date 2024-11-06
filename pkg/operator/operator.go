@@ -90,8 +90,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
 		metaDataClient := imds.NewFromConfig(cfg)
-		region, err := metaDataClient.GetRegion(ctx, nil)
-		region = lo.Must(region, err, "failed to get region from metadata server")
+		region := lo.Must(metaDataClient.GetRegion(ctx, nil))
 		cfg.Region = region.Region
 	}
 	ec2api := ec2.NewFromConfig(cfg)

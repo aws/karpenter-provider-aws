@@ -16,9 +16,9 @@ limitations under the License.
 
 package pricing
 
-import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+// generated at 2024-11-05T04:33:46Z for us-east-1
 
-// generated at 2024-10-31T17:54:41Z for us-east-1
+import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 	// us-gov-east-1

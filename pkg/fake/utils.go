@@ -153,7 +153,7 @@ func matchTags(tags []ec2types.Tag, filter ec2types.Filter) bool {
 				return true
 			}
 			for _, t := range tags {
-				if t.Key == aws.String(v) {
+				if lo.FromPtr(t.Key) == v {
 					return true
 				}
 			}

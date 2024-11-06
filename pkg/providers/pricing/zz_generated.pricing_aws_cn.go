@@ -16,9 +16,9 @@ limitations under the License.
 
 package pricing
 
-import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-
 // generated at 2023-09-18T13:06:44Z for cn-north-1
+
+import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 var InitialOnDemandPricesCN = map[string]map[ec2types.InstanceType]float64{
 	"cn-north-1": {
