@@ -227,7 +227,7 @@ type AMISelectorTerm struct {
 	// You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
 	// +optional
 	Owner string `json:"owner,omitempty"`
-	//SSMParameterName is the name (or ARN) or the SSM parameter containing the Image ID. The parameter data type should be aws:ec2:image
+	//SSMParameterName is the name (or ARN) of the SSM parameter containing the Image ID. The parameter data type should be aws:ec2:image
 	// +optional
 	SSMParameterName string `json:"ssmParameterName,omitempty"`
 }
