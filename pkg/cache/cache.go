@@ -35,9 +35,9 @@ const (
 	AvailableIPAddressTTL = 5 * time.Minute
 	// AvailableIPAddressTTL is time to drop AssociatePublicIPAddressTTL data if it is not updated within the TTL
 	AssociatePublicIPAddressTTL = 5 * time.Minute
-	// SSMProviderTTL is the time to drop SSM Provider data. This only queries EKS Optimized AMI
+	// SSMCacheTTL is the time to drop SSM Parameters by path data. This only queries EKS Optimized AMI
 	// releases, so we should expect this to be updated relatively infrequently.
-	SSMProviderTTL = 24 * time.Hour
+	SSMCacheTTL = 24 * time.Hour
 )
 
 const (
