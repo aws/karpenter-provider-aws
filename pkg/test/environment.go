@@ -17,11 +17,12 @@ package test
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
-	"knative.dev/pkg/ptr"
+	clock "k8s.io/utils/clock/testing"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
@@ -36,7 +37,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
+	ssmp "github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
@@ -67,7 +68,7 @@ type Environment struct {
 	SubnetCache               *cache.Cache
 	SecurityGroupCache        *cache.Cache
 	InstanceProfileCache      *cache.Cache
-	SSMProviderCache          *cache.Cache
+	SSMCache                  *cache.Cache
 
 	// Providers
 	InstanceTypesProvider   *instancetype.Provider
@@ -80,9 +81,13 @@ type Environment struct {
 	AMIResolver             *amifamily.Resolver
 	VersionProvider         *version.Provider
 	LaunchTemplateProvider  *launchtemplate.Provider
+
+	Clock *clock.FakeClock
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
+	clock := &clock.FakeClock{}
+
 	// API
 	ec2api := fake.NewEC2API()
 	eksapi := fake.NewEKSAPI()
@@ -98,7 +103,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	subnetCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	securityGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceProfileCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	ssmProviderCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
 
 	// Providers
@@ -107,8 +112,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	securityGroupProvider := securitygroup.NewProvider(ec2api, securityGroupCache)
 	versionProvider := version.NewProvider(env.KubernetesInterface, kubernetesVersionCache)
 	instanceProfileProvider := instanceprofile.NewProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
-	ssmProvider := ssm.NewDefaultProvider(ssmapi, ssmProviderCache)
-	amiProvider := amifamily.NewProvider(versionProvider, ssmProvider, ec2api, ec2Cache)
+	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
+	amiProvider := amifamily.NewProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
 	amiResolver := amifamily.New(amiProvider)
 	instanceTypesProvider := instancetype.NewProvider(fake.DefaultRegion, instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider :=
@@ -121,7 +126,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			securityGroupProvider,
 			subnetProvider,
 			instanceProfileProvider,
-			ptr.String("ca-bundle"),
+			lo.ToPtr("ca-bundle"),
 			make(chan struct{}),
 			net.ParseIP("10.0.100.10"),
 			"https://test-cluster",
@@ -151,7 +156,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		SecurityGroupCache:        securityGroupCache,
 		InstanceProfileCache:      instanceProfileCache,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
-		SSMProviderCache:          ssmProviderCache,
+		SSMCache:                  ssmCache,
 
 		InstanceTypesProvider:   instanceTypesProvider,
 		InstanceProvider:        instanceProvider,
@@ -163,10 +168,14 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		AMIProvider:             amiProvider,
 		AMIResolver:             amiResolver,
 		VersionProvider:         versionProvider,
+
+		Clock: clock,
 	}
 }
 
 func (env *Environment) Reset() {
+	env.Clock.SetTime(time.Now())
+
 	env.EC2API.Reset()
 	env.EKSAPI.Reset()
 	env.SSMAPI.Reset()
@@ -182,7 +191,7 @@ func (env *Environment) Reset() {
 	env.SubnetCache.Flush()
 	env.SecurityGroupCache.Flush()
 	env.InstanceProfileCache.Flush()
-	env.SSMProviderCache.Flush()
+	env.SSMCache.Flush()
 
 	mfs, err := crmetrics.Registry.Gather()
 	if err != nil {
