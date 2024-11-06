@@ -17,22 +17,24 @@ package controllers
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
+	cache "github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/operator/controller"
 
-	"github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/aws-sdk-go/aws/session"
+	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
+
+	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	nodeclaimgarbagecollection "github.com/aws/karpenter/pkg/controllers/nodeclaim/garbagecollection"
 	nodeclaimtagging "github.com/aws/karpenter/pkg/controllers/nodeclaim/tagging"
 	"github.com/aws/karpenter/pkg/controllers/nodeclass"
+	ssminvalidation "github.com/aws/karpenter/pkg/controllers/providers/ssm/invalidation"
 	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
@@ -43,15 +45,27 @@ import (
 	"github.com/aws/karpenter/pkg/providers/subnet"
 )
 
-func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
-	unavailableOfferings *cache.UnavailableOfferings, cloudProvider *cloudprovider.CloudProvider, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, instanceProfileProvider *instanceprofile.Provider, instanceProvider *instance.Provider,
-	pricingProvider *pricing.Provider, amiProvider *amifamily.Provider) []controller.Controller {
-
+func NewControllers(
+	ctx context.Context,
+	sess *session.Session,
+	clk clock.Clock,
+	kubeClient client.Client,
+	recorder events.Recorder,
+	unavailableOfferings *awscache.UnavailableOfferings,
+	ssmCache *cache.Cache,
+	cloudProvider *cloudprovider.CloudProvider,
+	subnetProvider *subnet.Provider,
+	securityGroupProvider *securitygroup.Provider,
+	instanceProfileProvider *instanceprofile.Provider,
+	instanceProvider *instance.Provider,
+	pricingProvider *pricing.Provider,
+	amiProvider *amifamily.Provider,
+) []controller.Controller {
 	controllers := []controller.Controller{
 		nodeclass.NewNodeClassController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
+		ssminvalidation.NewController(ssmCache, amiProvider),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, lo.Must(sqs.NewProvider(ctx, servicesqs.New(sess), options.FromContext(ctx).InterruptionQueue)), unavailableOfferings))
