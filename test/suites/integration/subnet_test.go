@@ -17,7 +17,8 @@ package integration_test
 import (
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/onsi/gomega/types"
 	"github.com/samber/lo"
@@ -142,15 +143,15 @@ var _ = Describe("Subnets", func() {
 
 func ExpectResourceBasedNamingEnabled(subnetIDs ...string) {
 	for subnetID := range subnetIDs {
-		_, err := env.EC2API.ModifySubnetAttribute(&ec2.ModifySubnetAttributeInput{
-			EnableResourceNameDnsARecordOnLaunch: &ec2.AttributeBooleanValue{
+		_, err := env.EC2API.ModifySubnetAttribute(env.Context, &ec2.ModifySubnetAttributeInput{
+			EnableResourceNameDnsARecordOnLaunch: &ec2types.AttributeBooleanValue{
 				Value: lo.ToPtr(true),
 			},
 			SubnetId: lo.ToPtr(subnetIDs[subnetID]),
 		})
 		Expect(err).To(BeNil())
-		_, err = env.EC2API.ModifySubnetAttribute(&ec2.ModifySubnetAttributeInput{
-			PrivateDnsHostnameTypeOnLaunch: lo.ToPtr("resource-name"),
+		_, err = env.EC2API.ModifySubnetAttribute(env.Context, &ec2.ModifySubnetAttributeInput{
+			PrivateDnsHostnameTypeOnLaunch: "resource-name",
 			SubnetId:                       lo.ToPtr(subnetIDs[subnetID]),
 		})
 		Expect(err).To(BeNil())
@@ -159,15 +160,15 @@ func ExpectResourceBasedNamingEnabled(subnetIDs ...string) {
 
 func ExpectResourceBasedNamingDisabled(subnetIDs ...string) {
 	for subnetID := range subnetIDs {
-		_, err := env.EC2API.ModifySubnetAttribute(&ec2.ModifySubnetAttributeInput{
-			EnableResourceNameDnsARecordOnLaunch: &ec2.AttributeBooleanValue{
+		_, err := env.EC2API.ModifySubnetAttribute(env.Context, &ec2.ModifySubnetAttributeInput{
+			EnableResourceNameDnsARecordOnLaunch: &ec2types.AttributeBooleanValue{
 				Value: lo.ToPtr(false),
 			},
 			SubnetId: lo.ToPtr(subnetIDs[subnetID]),
 		})
 		Expect(err).To(BeNil())
-		_, err = env.EC2API.ModifySubnetAttribute(&ec2.ModifySubnetAttributeInput{
-			PrivateDnsHostnameTypeOnLaunch: lo.ToPtr("ip-name"),
+		_, err = env.EC2API.ModifySubnetAttribute(env.Context, &ec2.ModifySubnetAttributeInput{
+			PrivateDnsHostnameTypeOnLaunch: "ip-name",
 			SubnetId:                       lo.ToPtr(subnetIDs[subnetID]),
 		})
 		Expect(err).To(BeNil())

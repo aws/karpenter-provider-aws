@@ -73,7 +73,7 @@ func (s *IAMAPI) GetInstanceProfile(_ context.Context, input *iam.GetInstancePro
 			return &iam.GetInstanceProfileOutput{InstanceProfile: i}, nil
 		}
 		return nil, &smithy.GenericAPIError{
-			Code: "NoSuchEntityException",
+			Code: "NoSuchEntity",
 			Message: fmt.Sprintf("Instance Profile %s cannot be found",
 				aws.ToString(input.InstanceProfileName)),
 		}
@@ -87,7 +87,7 @@ func (s *IAMAPI) CreateInstanceProfile(_ context.Context, input *iam.CreateInsta
 
 		if _, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
 			return nil, &smithy.GenericAPIError{
-				Code: "EntityAlreadyExistsException",
+				Code: "EntityAlreadyExists",
 				Message: fmt.Sprintf("Instance Profile %s already exists",
 					aws.ToString(input.InstanceProfileName)),
 			}
@@ -121,7 +121,7 @@ func (s *IAMAPI) DeleteInstanceProfile(_ context.Context, input *iam.DeleteInsta
 			return &iam.DeleteInstanceProfileOutput{}, nil
 		}
 		return nil, &smithy.GenericAPIError{
-			Code: "NoSuchEntityException",
+			Code: "NoSuchEntity",
 			Message: fmt.Sprintf("Instance Profile %s cannot be found",
 				aws.ToString(input.InstanceProfileName)),
 		}
@@ -140,7 +140,7 @@ func (s *IAMAPI) TagInstanceProfile(_ context.Context, input *iam.TagInstancePro
 			return nil, nil
 		}
 		return nil, &smithy.GenericAPIError{
-			Code: "NoSuchEntityException",
+			Code: "NoSuchEntity",
 			Message: fmt.Sprintf("Instance Profile %s cannot be found",
 				aws.ToString(input.InstanceProfileName)),
 		}
@@ -164,7 +164,7 @@ func (s *IAMAPI) AddRoleToInstanceProfile(_ context.Context, input *iam.AddRoleT
 			return nil, nil
 		}
 		return nil, &smithy.GenericAPIError{
-			Code: "NoSuchEntityException",
+			Code: "NoSuchEntity",
 			Message: fmt.Sprintf("Instance Profile %s cannot be found",
 				aws.ToString(input.InstanceProfileName)),
 		}
@@ -182,7 +182,7 @@ func (s *IAMAPI) RemoveRoleFromInstanceProfile(_ context.Context, input *iam.Rem
 			})
 			if len(i.Roles) == len(newRoles) {
 				return nil, &smithy.GenericAPIError{
-					Code: "NoSuchEntityException",
+					Code: "NoSuchEntity",
 					Message: fmt.Sprintf("Instance Profile %s does not have role %s",
 						aws.ToString(input.InstanceProfileName), aws.ToString(input.RoleName)),
 				}
@@ -191,7 +191,7 @@ func (s *IAMAPI) RemoveRoleFromInstanceProfile(_ context.Context, input *iam.Rem
 			return nil, nil
 		}
 		return nil, &smithy.GenericAPIError{
-			Code: "NoSuchEntityException",
+			Code: "NoSuchEntity",
 			Message: fmt.Sprintf("Instance Profile %s cannot be found",
 				aws.ToString(input.InstanceProfileName)),
 		}

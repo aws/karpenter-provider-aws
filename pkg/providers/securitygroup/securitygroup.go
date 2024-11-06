@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -30,20 +30,21 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 )
 
 type Provider interface {
-	List(context.Context, *v1.EC2NodeClass) ([]*ec2.SecurityGroup, error)
+	List(context.Context, *v1.EC2NodeClass) ([]ec2types.SecurityGroup, error)
 }
 
 type DefaultProvider struct {
 	sync.Mutex
-	ec2api ec2iface.EC2API
+	ec2api sdk.EC2API
 	cache  *cache.Cache
 	cm     *pretty.ChangeMonitor
 }
 
-func NewDefaultProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(ec2api sdk.EC2API, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
@@ -52,7 +53,7 @@ func NewDefaultProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProv
 	}
 }
 
-func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*ec2.SecurityGroup, error) {
+func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]ec2types.SecurityGroup, error) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -62,7 +63,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	if err != nil {
 		return nil, err
 	}
-	securityGroupIDs := lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) string { return aws.StringValue(s.GroupId) })
+	securityGroupIDs := lo.Map(securityGroups, func(s ec2types.SecurityGroup, _ int) string { return aws.ToString(s.GroupId) })
 	if p.cm.HasChanged(fmt.Sprintf("security-groups/%s", nodeClass.Name), securityGroupIDs) {
 		log.FromContext(ctx).
 			WithValues("security-groups", securityGroupIDs).
@@ -71,7 +72,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	return securityGroups, nil
 }
 
-func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]*ec2.Filter) ([]*ec2.SecurityGroup, error) {
+func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]ec2types.Filter) ([]ec2types.SecurityGroup, error) {
 	hash, err := hashstructure.Hash(filterSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
@@ -79,11 +80,11 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]
 	if sg, ok := p.cache.Get(fmt.Sprint(hash)); ok {
 		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
 		// so that modifications to the ordering of the data don't affect the original
-		return append([]*ec2.SecurityGroup{}, sg.([]*ec2.SecurityGroup)...), nil
+		return append([]ec2types.SecurityGroup{}, sg.([]ec2types.SecurityGroup)...), nil
 	}
-	securityGroups := map[string]*ec2.SecurityGroup{}
+	securityGroups := map[string]ec2types.SecurityGroup{}
 	for _, filters := range filterSets {
-		output, err := p.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
+		output, err := p.ec2api.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
 		if err != nil {
 			return nil, fmt.Errorf("describing security groups %+v, %w", filterSets, err)
 		}
@@ -95,27 +96,27 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]
 	return lo.Values(securityGroups), nil
 }
 
-func getFilterSets(terms []v1.SecurityGroupSelectorTerm) (res [][]*ec2.Filter) {
-	idFilter := &ec2.Filter{Name: aws.String("group-id")}
-	nameFilter := &ec2.Filter{Name: aws.String("group-name")}
+func getFilterSets(terms []v1.SecurityGroupSelectorTerm) (res [][]ec2types.Filter) {
+	idFilter := ec2types.Filter{Name: aws.String("group-id")}
+	nameFilter := ec2types.Filter{Name: aws.String("group-name")}
 	for _, term := range terms {
 		switch {
 		case term.ID != "":
-			idFilter.Values = append(idFilter.Values, aws.String(term.ID))
+			idFilter.Values = append(idFilter.Values, term.ID)
 		case term.Name != "":
-			nameFilter.Values = append(nameFilter.Values, aws.String(term.Name))
+			nameFilter.Values = append(nameFilter.Values, term.Name)
 		default:
-			var filters []*ec2.Filter
+			var filters []ec2types.Filter
 			for k, v := range term.Tags {
 				if v == "*" {
-					filters = append(filters, &ec2.Filter{
+					filters = append(filters, ec2types.Filter{
 						Name:   aws.String("tag-key"),
-						Values: []*string{aws.String(k)},
+						Values: []string{k},
 					})
 				} else {
-					filters = append(filters, &ec2.Filter{
+					filters = append(filters, ec2types.Filter{
 						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-						Values: []*string{aws.String(v)},
+						Values: []string{v},
 					})
 				}
 			}
@@ -123,10 +124,10 @@ func getFilterSets(terms []v1.SecurityGroupSelectorTerm) (res [][]*ec2.Filter) {
 		}
 	}
 	if len(idFilter.Values) > 0 {
-		res = append(res, []*ec2.Filter{idFilter})
+		res = append(res, []ec2types.Filter{idFilter})
 	}
 	if len(nameFilter.Values) > 0 {
-		res = append(res, []*ec2.Filter{nameFilter})
+		res = append(res, []ec2types.Filter{nameFilter})
 	}
 	return res
 }

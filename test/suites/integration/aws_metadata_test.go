@@ -15,8 +15,8 @@ limitations under the License.
 package integration_test
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -38,13 +38,13 @@ var _ = Describe("MetadataOptions", func() {
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
-		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("MetadataOptions", HaveValue(Equal(ec2.InstanceMetadataOptionsResponse{
-			State:                   aws.String(ec2.InstanceMetadataOptionsStateApplied),
-			HttpEndpoint:            aws.String("enabled"),
-			HttpProtocolIpv6:        aws.String("enabled"),
-			HttpPutResponseHopLimit: aws.Int64(1),
-			HttpTokens:              aws.String("required"),
-			InstanceMetadataTags:    aws.String("disabled"),
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("MetadataOptions", HaveValue(Equal(ec2types.InstanceMetadataOptionsResponse{
+			State:                   ec2types.InstanceMetadataOptionsStateApplied,
+			HttpEndpoint:            ec2types.InstanceMetadataEndpointStateEnabled,
+			HttpProtocolIpv6:        ec2types.InstanceMetadataProtocolStateEnabled,
+			HttpPutResponseHopLimit: aws.Int32(1),
+			HttpTokens:              ec2types.HttpTokensStateRequired,
+			InstanceMetadataTags:    ec2types.InstanceMetadataTagsStateDisabled,
 		}))))
 	})
 })

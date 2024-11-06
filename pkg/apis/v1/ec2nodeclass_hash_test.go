@@ -15,12 +15,13 @@ limitations under the License.
 package v1_test
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 

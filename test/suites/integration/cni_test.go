@@ -17,8 +17,8 @@ package integration_test
 import (
 	"strconv"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -67,17 +67,17 @@ var _ = Describe("CNITests", func() {
 })
 
 func eniLimitedPodsFor(instanceType string) int64 {
-	instance, err := env.EC2API.DescribeInstanceTypes(&ec2.DescribeInstanceTypesInput{
-		InstanceTypes: aws.StringSlice([]string{instanceType}),
+	instance, err := env.EC2API.DescribeInstanceTypes(env.Context, &ec2.DescribeInstanceTypesInput{
+		InstanceTypes: []ec2types.InstanceType{ec2types.InstanceType(instanceType)},
 	})
 	Expect(err).ToNot(HaveOccurred())
 	networkInfo := *instance.InstanceTypes[0].NetworkInfo
-	return *networkInfo.MaximumNetworkInterfaces*(*networkInfo.Ipv4AddressesPerInterface-1) + 2
+	return int64(*networkInfo.MaximumNetworkInterfaces*(*networkInfo.Ipv4AddressesPerInterface-1) + 2)
 }
 
 func reservedENIsFor(instanceType string) int64 {
-	instance, err := env.EC2API.DescribeInstanceTypes(&ec2.DescribeInstanceTypesInput{
-		InstanceTypes: aws.StringSlice([]string{instanceType}),
+	instance, err := env.EC2API.DescribeInstanceTypes(env.Context, &ec2.DescribeInstanceTypesInput{
+		InstanceTypes: []ec2types.InstanceType{ec2types.InstanceType(instanceType)},
 	})
 	Expect(err).ToNot(HaveOccurred())
 	networkInfo := *instance.InstanceTypes[0].NetworkInfo
@@ -87,5 +87,5 @@ func reservedENIsFor(instanceType string) int64 {
 		reservedENIs, err = strconv.Atoi(reservedENIsVar.Value)
 		Expect(err).ToNot(HaveOccurred())
 	}
-	return (*networkInfo.MaximumNetworkInterfaces-int64(reservedENIs))*(*networkInfo.Ipv4AddressesPerInterface-1) + 2
+	return int64((int(*networkInfo.MaximumNetworkInterfaces)-reservedENIs)*(int(*networkInfo.Ipv4AddressesPerInterface-1)) + 2)
 }

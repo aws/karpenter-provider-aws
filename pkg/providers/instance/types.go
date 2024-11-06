@@ -17,8 +17,8 @@ package instance
 import (
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -28,10 +28,10 @@ import (
 // It contains all the common data that is needed to inject into the Machine from either of these responses
 type Instance struct {
 	LaunchTime       time.Time
-	State            string
+	State            ec2types.InstanceStateName
 	ID               string
 	ImageID          string
-	Type             string
+	Type             ec2types.InstanceType
 	Zone             string
 	CapacityType     string
 	SecurityGroupIDs []string
@@ -40,37 +40,37 @@ type Instance struct {
 	EFAEnabled       bool
 }
 
-func NewInstance(out *ec2.Instance) *Instance {
+func NewInstance(out ec2types.Instance) *Instance {
 	return &Instance{
-		LaunchTime:   aws.TimeValue(out.LaunchTime),
-		State:        aws.StringValue(out.State.Name),
-		ID:           aws.StringValue(out.InstanceId),
-		ImageID:      aws.StringValue(out.ImageId),
-		Type:         aws.StringValue(out.InstanceType),
-		Zone:         aws.StringValue(out.Placement.AvailabilityZone),
+		LaunchTime:   aws.ToTime(out.LaunchTime),
+		State:        out.State.Name,
+		ID:           aws.ToString(out.InstanceId),
+		ImageID:      aws.ToString(out.ImageId),
+		Type:         out.InstanceType,
+		Zone:         aws.ToString(out.Placement.AvailabilityZone),
 		CapacityType: lo.Ternary(out.SpotInstanceRequestId != nil, karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand),
-		SecurityGroupIDs: lo.Map(out.SecurityGroups, func(securitygroup *ec2.GroupIdentifier, _ int) string {
-			return aws.StringValue(securitygroup.GroupId)
+		SecurityGroupIDs: lo.Map(out.SecurityGroups, func(securitygroup ec2types.GroupIdentifier, _ int) string {
+			return aws.ToString(securitygroup.GroupId)
 		}),
-		SubnetID: aws.StringValue(out.SubnetId),
-		Tags:     lo.SliceToMap(out.Tags, func(t *ec2.Tag) (string, string) { return aws.StringValue(t.Key), aws.StringValue(t.Value) }),
-		EFAEnabled: lo.ContainsBy(out.NetworkInterfaces, func(ni *ec2.InstanceNetworkInterface) bool {
-			return ni != nil && lo.FromPtr(ni.InterfaceType) == ec2.NetworkInterfaceTypeEfa
+		SubnetID: aws.ToString(out.SubnetId),
+		Tags:     lo.SliceToMap(out.Tags, func(t ec2types.Tag) (string, string) { return aws.ToString(t.Key), aws.ToString(t.Value) }),
+		EFAEnabled: lo.ContainsBy(out.NetworkInterfaces, func(item ec2types.InstanceNetworkInterface) bool {
+			return item.InterfaceType != nil && *item.InterfaceType == string(ec2types.NetworkInterfaceTypeEfa)
 		}),
 	}
 
 }
 
-func NewInstanceFromFleet(out *ec2.CreateFleetInstance, tags map[string]string, efaEnabled bool) *Instance {
+func NewInstanceFromFleet(out ec2types.CreateFleetInstance, tags map[string]string, efaEnabled bool) *Instance {
 	return &Instance{
 		LaunchTime:   time.Now(), // estimate the launch time since we just launched
-		State:        ec2.StatePending,
-		ID:           aws.StringValue(out.InstanceIds[0]),
-		ImageID:      aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.ImageId),
-		Type:         aws.StringValue(out.InstanceType),
-		Zone:         aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
-		CapacityType: aws.StringValue(out.Lifecycle),
-		SubnetID:     aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.SubnetId),
+		State:        ec2types.InstanceStateNamePending,
+		ID:           out.InstanceIds[0],
+		ImageID:      aws.ToString(out.LaunchTemplateAndOverrides.Overrides.ImageId),
+		Type:         out.InstanceType,
+		Zone:         aws.ToString(out.LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
+		CapacityType: string(out.Lifecycle),
+		SubnetID:     aws.ToString(out.LaunchTemplateAndOverrides.Overrides.SubnetId),
 		Tags:         tags,
 		EFAEnabled:   efaEnabled,
 	}

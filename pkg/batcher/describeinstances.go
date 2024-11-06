@@ -20,20 +20,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 )
 
 type DescribeInstancesBatcher struct {
 	batcher *Batcher[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
 }
 
-func NewDescribeInstancesBatcher(ctx context.Context, ec2api ec2iface.EC2API) *DescribeInstancesBatcher {
+func NewDescribeInstancesBatcher(ctx context.Context, ec2api sdk.EC2API) *DescribeInstancesBatcher {
 	options := Options[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]{
 		Name:          "describe_instances",
 		IdleTimeout:   100 * time.Millisecond,
@@ -61,7 +62,7 @@ func FilterHasher(ctx context.Context, input *ec2.DescribeInstancesInput) uint64
 	return hash
 }
 
-func execDescribeInstancesBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput] {
+func execDescribeInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput] {
 	return func(ctx context.Context, inputs []*ec2.DescribeInstancesInput) []Result[ec2.DescribeInstancesOutput] {
 		results := make([]Result[ec2.DescribeInstancesOutput], len(inputs))
 		firstInput := inputs[0]
@@ -69,33 +70,37 @@ func execDescribeInstancesBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.Descri
 		for _, input := range inputs[1:] {
 			firstInput.InstanceIds = append(firstInput.InstanceIds, input.InstanceIds...)
 		}
-		missingInstanceIDs := sets.NewString(lo.Map(firstInput.InstanceIds, func(i *string, _ int) string { return *i })...)
+		missingInstanceIDs := sets.NewString(lo.Map(firstInput.InstanceIds, func(i string, _ int) string { return i })...)
+		paginator := ec2.NewDescribeInstancesPaginator(ec2api, firstInput)
 
-		// Execute fully aggregated request
-		// We don't care about the error here since we'll break up the batch upon any sort of failure
-		_ = ec2api.DescribeInstancesPagesWithContext(ctx, firstInput, func(dio *ec2.DescribeInstancesOutput, b bool) bool {
-			for _, r := range dio.Reservations {
+		for paginator.HasMorePages() {
+			output, err := paginator.NextPage(ctx)
+			if err != nil {
+				break
+			}
+
+			for _, r := range output.Reservations {
 				for _, instance := range r.Instances {
 					missingInstanceIDs.Delete(*instance.InstanceId)
-
 					// Find all indexes where we are requesting this instance and populate with the result
 					for reqID := range inputs {
-						if *inputs[reqID].InstanceIds[0] == *instance.InstanceId {
-							inst := instance // locally scoped to avoid pointer pollution in a range loop
+						if inputs[reqID].InstanceIds[0] == *instance.InstanceId {
+							inst := instance
 							results[reqID] = Result[ec2.DescribeInstancesOutput]{Output: &ec2.DescribeInstancesOutput{
-								Reservations: []*ec2.Reservation{{
+								Reservations: []ec2types.Reservation{{
 									OwnerId:       r.OwnerId,
 									RequesterId:   r.RequesterId,
 									ReservationId: r.ReservationId,
-									Instances:     []*ec2.Instance{inst},
+									Instances:     []ec2types.Instance{inst},
 								}},
 							}}
 						}
 					}
 				}
 			}
-			return true
-		})
+		}
+
+		// If we have any missing instanceIDs, we need to describe them individually
 
 		// Some or all instances may have failed to be described due to eventual consistency or transient zonal issue.
 		// A single instance lookup failure can result in all of an availability zone's instances failing to describe.
@@ -106,13 +111,14 @@ func execDescribeInstancesBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.Descri
 			go func(instanceID string) {
 				defer wg.Done()
 				// try to execute separately
-				out, err := ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
+				out, err := ec2api.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 					Filters:     firstInput.Filters,
-					InstanceIds: []*string{aws.String(instanceID)}})
+					InstanceIds: []string{instanceID},
+				})
 
 				// Find all indexes where we are requesting this instance and populate with the result
 				for reqID := range inputs {
-					if *inputs[reqID].InstanceIds[0] == instanceID {
+					if inputs[reqID].InstanceIds[0] == instanceID {
 						results[reqID] = Result[ec2.DescribeInstancesOutput]{Output: out, Err: err}
 					}
 				}

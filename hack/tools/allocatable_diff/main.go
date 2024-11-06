@@ -102,7 +102,7 @@ func main() {
 
 		// Write the details of the expected instance and the actual instance into a CSV line format
 		lo.Must0(w.Write([]string{
-			instanceType.Name,
+			string(instanceType.Name),
 			fmt.Sprintf("%d", instanceType.Capacity.Memory().Value()/1024/1024),
 			fmt.Sprintf("%d", instanceType.Capacity.Cpu().MilliValue()),
 			fmt.Sprintf("%d", instanceType.Capacity.StorageEphemeral().Value()/1024/1024),

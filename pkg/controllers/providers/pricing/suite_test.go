@@ -22,9 +22,10 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	awspricing "github.com/aws/aws-sdk-go/service/pricing"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	awspricing "github.com/aws/aws-sdk-go-v2/service/pricing"
 	"github.com/samber/lo"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -82,7 +83,7 @@ var _ = AfterEach(func() {
 var _ = Describe("Pricing", func() {
 	DescribeTable(
 		"should return correct static data for all partitions",
-		func(staticPricing map[string]map[string]float64) {
+		func(staticPricing map[string]map[ec2types.InstanceType]float64) {
 			for region, prices := range staticPricing {
 				provider := pricing.NewDefaultProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, region)
 				for instance, price := range prices {
@@ -114,7 +115,7 @@ var _ = Describe("Pricing", func() {
 		// modify our API before creating the pricing provider as it performs an initial update on creation. The pricing
 		// API provides on-demand prices, the ec2 API provides spot prices
 		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
-			PriceList: []aws.JSONValue{
+			PriceList: []string{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
@@ -132,35 +133,36 @@ var _ = Describe("Pricing", func() {
 	It("should update spot pricing with response from the pricing API", func() {
 		now := time.Now()
 		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
-			SpotPriceHistory: []*ec2.SpotPrice{
+			SpotPriceHistory: []ec2types.SpotPrice{
 				{
 					AvailabilityZone: aws.String("test-zone-1a"),
-					InstanceType:     aws.String("c99.large"),
+					InstanceType:     "c99.large",
 					SpotPrice:        aws.String("1.23"),
 					Timestamp:        &now,
 				},
 				{
 					AvailabilityZone: aws.String("test-zone-1a"),
-					InstanceType:     aws.String("c98.large"),
+					InstanceType:     "c98.large",
 					SpotPrice:        aws.String("1.20"),
 					Timestamp:        &now,
 				},
 				{
 					AvailabilityZone: aws.String("test-zone-1b"),
-					InstanceType:     aws.String("c99.large"),
+					InstanceType:     "c99.large",
 					SpotPrice:        aws.String("1.50"),
 					Timestamp:        &now,
 				},
 				{
 					AvailabilityZone: aws.String("test-zone-1b"),
-					InstanceType:     aws.String("c98.large"),
+					InstanceType:     "c98.large",
 					SpotPrice:        aws.String("1.10"),
 					Timestamp:        &now,
 				},
 			},
 		})
 		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
-			PriceList: []aws.JSONValue{
+
+			PriceList: []string{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
@@ -178,23 +180,23 @@ var _ = Describe("Pricing", func() {
 	It("should update zonal pricing with data from the spot pricing API", func() {
 		now := time.Now()
 		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
-			SpotPriceHistory: []*ec2.SpotPrice{
+			SpotPriceHistory: []ec2types.SpotPrice{
 				{
 					AvailabilityZone: aws.String("test-zone-1a"),
-					InstanceType:     aws.String("c99.large"),
+					InstanceType:     "c99.large",
 					SpotPrice:        aws.String("1.23"),
 					Timestamp:        &now,
 				},
 				{
 					AvailabilityZone: aws.String("test-zone-1a"),
-					InstanceType:     aws.String("c98.large"),
+					InstanceType:     "c98.large",
 					SpotPrice:        aws.String("1.20"),
 					Timestamp:        &now,
 				},
 			},
 		})
 		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
-			PriceList: []aws.JSONValue{
+			PriceList: []string{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
@@ -211,17 +213,17 @@ var _ = Describe("Pricing", func() {
 	It("should respond with false if price doesn't exist in zone", func() {
 		now := time.Now()
 		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
-			SpotPriceHistory: []*ec2.SpotPrice{
+			SpotPriceHistory: []ec2types.SpotPrice{
 				{
 					AvailabilityZone: aws.String("test-zone-1a"),
-					InstanceType:     aws.String("c99.large"),
+					InstanceType:     "c99.large",
 					SpotPrice:        aws.String("1.23"),
 					Timestamp:        &now,
 				},
 			},
 		})
 		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
-			PriceList: []aws.JSONValue{
+			PriceList: []string{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
@@ -238,24 +240,24 @@ var _ = Describe("Pricing", func() {
 		// need to search for both values.
 		updateStart := time.Now()
 		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
-			SpotPriceHistory: []*ec2.SpotPrice{
+			SpotPriceHistory: []ec2types.SpotPrice{
 				{
 					AvailabilityZone: aws.String("test-zone-1a"),
-					InstanceType:     aws.String("c99.large"),
+					InstanceType:     "c99.large",
 					SpotPrice:        aws.String("1.23"),
 					Timestamp:        &updateStart,
 				},
 			},
 		})
 		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
-			PriceList: []aws.JSONValue{
+			PriceList: []string{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
 		ExpectSingletonReconciled(ctx, controller)
 		inp := awsEnv.EC2API.DescribeSpotPriceHistoryInput.Clone()
-		Expect(lo.Map(inp.ProductDescriptions, func(x *string, _ int) string { return *x })).
+		Expect(lo.Map(inp.ProductDescriptions, func(x string, _ int) string { return x })).
 			To(ContainElements("Linux/UNIX", "Linux/UNIX (Amazon VPC)"))
 	})
 	It("should return static on-demand data when in isolated-vpc", func() {
@@ -264,16 +266,16 @@ var _ = Describe("Pricing", func() {
 		}))
 		now := time.Now()
 		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
-			SpotPriceHistory: []*ec2.SpotPrice{
+			SpotPriceHistory: []ec2types.SpotPrice{
 				{
 					AvailabilityZone: aws.String("test-zone-1b"),
-					InstanceType:     aws.String("c99.large"),
+					InstanceType:     "c99.large",
 					SpotPrice:        aws.String("1.50"),
 					Timestamp:        &now,
 				},
 				{
 					AvailabilityZone: aws.String("test-zone-1b"),
-					InstanceType:     aws.String("c98.large"),
+					InstanceType:     "c98.large",
 					SpotPrice:        aws.String("1.10"),
 					Timestamp:        &now,
 				},
@@ -283,9 +285,9 @@ var _ = Describe("Pricing", func() {
 		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
 			// these are incorrect prices which are here to ensure that
 			// results from only static pricing are used
-			PriceList: []aws.JSONValue{
-				fake.NewOnDemandPrice("c3.2xlarge", 1.20),
-				fake.NewOnDemandPrice("c5.xlarge", 1.23),
+			PriceList: []string{
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
 		ExpectSingletonReconciled(ctx, controller)
@@ -303,17 +305,17 @@ var _ = Describe("Pricing", func() {
 
 		now := time.Now()
 		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
-			SpotPriceHistory: []*ec2.SpotPrice{
+			SpotPriceHistory: []ec2types.SpotPrice{
 				{
 					AvailabilityZone: aws.String("test-zone-1a"),
-					InstanceType:     aws.String("c99.large"),
+					InstanceType:     "c99.large",
 					SpotPrice:        aws.String("1.23"),
 					Timestamp:        &now,
 				},
 			},
 		})
 		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
-			PriceList: []aws.JSONValue{
+			PriceList: []string{
 				fake.NewOnDemandPriceWithCurrency("c98.large", 1.20, "CNY"),
 				fake.NewOnDemandPriceWithCurrency("c99.large", 1.23, "CNY"),
 			},

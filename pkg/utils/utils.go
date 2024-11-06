@@ -21,8 +21,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/samber/lo"
 )
 
@@ -47,9 +48,9 @@ func ParseInstanceID(providerID string) (string, error) {
 
 // MergeTags takes a variadic list of maps and merges them together into a list of
 // EC2 tags to be passed into EC2 API calls
-func MergeTags(tags ...map[string]string) []*ec2.Tag {
-	return lo.MapToSlice(lo.Assign(tags...), func(k, v string) *ec2.Tag {
-		return &ec2.Tag{Key: aws.String(k), Value: aws.String(v)}
+func MergeTags(tags ...map[string]string) []ec2types.Tag {
+	return lo.MapToSlice(lo.Assign(tags...), func(k, v string) ec2types.Tag {
+		return ec2types.Tag{Key: aws.String(k), Value: aws.String(v)}
 	})
 }
 

@@ -19,11 +19,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/timestreamwrite"
-	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
+	timestreamwritetypes "github.com/aws/aws-sdk-go-v2/service/timestreamwrite/types"
 	"github.com/samber/lo"
+
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 
@@ -37,13 +38,11 @@ const (
 	tableName            = "scaleTestDurations"
 )
 
-var _ timestreamwriteiface.TimestreamWriteAPI = (*NoOpTimeStreamAPI)(nil)
-
 type NoOpTimeStreamAPI struct {
-	timestreamwriteiface.TimestreamWriteAPI
+	sdk.TimestreamWriteAPI
 }
 
-func (o NoOpTimeStreamAPI) WriteRecordsWithContext(_ context.Context, _ *timestreamwrite.WriteRecordsInput, _ ...request.Option) (*timestreamwrite.WriteRecordsOutput, error) {
+func (o NoOpTimeStreamAPI) WriteRecords(_ context.Context, _ *timestreamwrite.WriteRecordsInput, _ ...func(*timestreamwrite.Options)) (*timestreamwrite.WriteRecordsOutput, error) {
 	return nil, nil
 }
 
@@ -98,15 +97,15 @@ func (env *Environment) MeasureDurationFor(f func(), eventType EventType, dimens
 
 func (env *Environment) ExpectMetric(name string, value float64, labels map[string]string) {
 	GinkgoHelper()
-	_, err := env.TimeStreamAPI.WriteRecordsWithContext(env.Context, &timestreamwrite.WriteRecordsInput{
+	_, err := env.TimeStreamAPI.WriteRecords(env.Context, &timestreamwrite.WriteRecordsInput{
 		DatabaseName: aws.String(databaseName),
 		TableName:    aws.String(tableName),
-		Records: []*timestreamwrite.Record{
+		Records: []timestreamwritetypes.Record{
 			{
 				MeasureName:  aws.String(name),
 				MeasureValue: aws.String(fmt.Sprintf("%f", value)),
-				Dimensions: lo.MapToSlice(labels, func(k, v string) *timestreamwrite.Dimension {
-					return &timestreamwrite.Dimension{
+				Dimensions: lo.MapToSlice(labels, func(k, v string) timestreamwritetypes.Dimension {
+					return timestreamwritetypes.Dimension{
 						Name:  aws.String(k),
 						Value: aws.String(v),
 					}

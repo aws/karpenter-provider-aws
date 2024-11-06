@@ -22,21 +22,18 @@ import (
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	config "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/fis"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/client"
-	"github.com/aws/aws-sdk-go/aws/endpoints"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/timestreamwrite"
-	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
+	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
+
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -44,9 +41,8 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	config "github.com/aws/aws-sdk-go-v2/config"
-
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
@@ -65,12 +61,12 @@ type Environment struct {
 	Region string
 
 	STSAPI        *sts.Client
-	EC2API        *ec2.EC2
+	EC2API        *ec2.Client
 	SSMAPI        *ssm.Client
 	IAMAPI        *iam.Client
 	FISAPI        *fis.Client
-	EKSAPI        *eks.EKS
-	TimeStreamAPI timestreamwriteiface.TimestreamWriteAPI
+	EKSAPI        *eks.Client
+	TimeStreamAPI sdk.TimestreamWriteAPI
 
 	SQSProvider sqs.Provider
 
@@ -89,28 +85,19 @@ type ZoneInfo struct {
 
 func NewEnvironment(t *testing.T) *Environment {
 	env := common.NewEnvironment(t)
-	cfg := lo.Must(config.LoadDefaultConfig(context.Background(), config.WithRetryMaxAttempts(3)))
-	session := session.Must(session.NewSessionWithOptions(
-		session.Options{
-			Config: *request.WithRetryer(
-				&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
-				client.DefaultRetryer{NumMaxRetries: 10},
-			),
-			SharedConfigState: session.SharedConfigEnable,
-		},
-	))
+	cfg := lo.Must(config.LoadDefaultConfig(env.Context))
 
 	awsEnv := &Environment{
-		Region:      *session.Config.Region,
+		Region:      cfg.Region,
 		Environment: env,
 
 		STSAPI:        sts.NewFromConfig(cfg),
-		EC2API:        ec2.New(session),
+		EC2API:        ec2.NewFromConfig(cfg),
 		SSMAPI:        ssm.NewFromConfig(cfg),
 		IAMAPI:        iam.NewFromConfig(cfg),
 		FISAPI:        fis.NewFromConfig(cfg),
-		EKSAPI:        eks.New(session),
-		TimeStreamAPI: GetTimeStreamAPI(session),
+		EKSAPI:        eks.NewFromConfig(cfg),
+		TimeStreamAPI: GetTimeStreamAPI(env.Context, cfg),
 
 		ClusterName:     lo.Must(os.LookupEnv("CLUSTER_NAME")),
 		ClusterEndpoint: lo.Must(os.LookupEnv("CLUSTER_ENDPOINT")),
@@ -124,11 +111,11 @@ func NewEnvironment(t *testing.T) *Environment {
 	// Initialize the provider only if the INTERRUPTION_QUEUE environment variable is defined
 	if v, ok := os.LookupEnv("INTERRUPTION_QUEUE"); ok {
 		sqsapi := servicesqs.NewFromConfig(cfg)
-		out := lo.Must(sqsapi.GetQueueUrl(env.Context, &servicesqs.GetQueueUrlInput{QueueName: awsv2.String(v)}))
+		out := lo.Must(sqsapi.GetQueueUrl(env.Context, &servicesqs.GetQueueUrlInput{QueueName: aws.String(v)}))
 		awsEnv.SQSProvider = lo.Must(sqs.NewDefaultProvider(sqsapi, lo.FromPtr(out.QueueUrl)))
 	}
 	// Populate ZoneInfo for all AZs in the region
-	awsEnv.ZoneInfo = lo.Map(lo.Must(awsEnv.EC2API.DescribeAvailabilityZones(&ec2.DescribeAvailabilityZonesInput{})).AvailabilityZones, func(zone *ec2.AvailabilityZone, _ int) ZoneInfo {
+	awsEnv.ZoneInfo = lo.Map(lo.Must(awsEnv.EC2API.DescribeAvailabilityZones(env.Context, &ec2.DescribeAvailabilityZonesInput{})).AvailabilityZones, func(zone ec2types.AvailabilityZone, _ int) ZoneInfo {
 		return ZoneInfo{
 			Zone:     lo.FromPtr(zone.ZoneName),
 			ZoneID:   lo.FromPtr(zone.ZoneId),
@@ -138,10 +125,12 @@ func NewEnvironment(t *testing.T) *Environment {
 	return awsEnv
 }
 
-func GetTimeStreamAPI(session *session.Session) timestreamwriteiface.TimestreamWriteAPI {
+func GetTimeStreamAPI(ctx context.Context, cfg aws.Config) sdk.TimestreamWriteAPI {
 	if lo.Must(env.GetBool("ENABLE_METRICS", false)) {
 		By("enabling metrics firing for this suite")
-		return timestreamwrite.New(session, &aws.Config{Region: awsv2.String(env.GetString("METRICS_REGION", metricsDefaultRegion))})
+		timeCfg := cfg.Copy()
+		timeCfg.Region = env.GetString("METRICS_REGION", metricsDefaultRegion)
+		return timestreamwrite.NewFromConfig(timeCfg)
 	}
 	return &NoOpTimeStreamAPI{}
 }

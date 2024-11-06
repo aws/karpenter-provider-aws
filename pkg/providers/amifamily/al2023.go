@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
@@ -38,8 +38,8 @@ type AL2023 struct {
 func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
 	ids := map[string]Variant{}
 	for arch, variants := range map[string][]Variant{
-		"x86_64": []Variant{VariantStandard, VariantNvidia, VariantNeuron},
-		"arm64":  []Variant{VariantStandard},
+		"x86_64": {VariantStandard, VariantNvidia, VariantNeuron},
+		"arm64":  {VariantStandard},
 	} {
 		for _, variant := range variants {
 			path := a.resolvePath(arch, string(variant), k8sVersion, amiVersion)
@@ -59,9 +59,9 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 	}
 
 	return DescribeImageQuery{
-		Filters: []*ec2.Filter{{
+		Filters: []ec2types.Filter{{
 			Name:   lo.ToPtr("image-id"),
-			Values: lo.ToSlicePtr(lo.Keys(ids)),
+			Values: lo.Keys(ids),
 		}},
 		KnownRequirements: lo.MapValues(ids, func(v Variant, _ string) []scheduling.Requirements {
 			return []scheduling.Requirements{v.Requirements()}

@@ -20,7 +20,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -48,7 +48,7 @@ func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (rec
 		}
 		return *subnets[i].SubnetId < *subnets[j].SubnetId
 	})
-	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1.Subnet {
+	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet ec2types.Subnet, _ int) v1.Subnet {
 		return v1.Subnet{
 			ID:     *ec2subnet.SubnetId,
 			Zone:   *ec2subnet.AvailabilityZone,

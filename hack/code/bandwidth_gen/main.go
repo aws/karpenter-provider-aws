@@ -15,6 +15,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"go/format"
@@ -26,8 +27,9 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 )
 
@@ -62,8 +64,8 @@ func main() {
 		log.Fatalf("Usage: `bandwidth_gen.go pkg/providers/instancetype/zz_generated.bandwidth.go`")
 	}
 
-	bandwidth := map[string]int64{}
-	vagueBandwidth := map[string]string{}
+	bandwidth := map[ec2types.InstanceType]int64{}
+	vagueBandwidth := map[ec2types.InstanceType]string{}
 
 	for uri, selector := range uriSelectors {
 		func() {
@@ -76,24 +78,24 @@ func main() {
 			// description for bandwidth such as "Very Low", "Low", "Low to Moderate", etc. These instance types
 			// will be ignored since we don't know the exact bandwidth for these instance types
 			for _, row := range doc.Find(selector).NextAllFiltered(".table-container").Eq(0).Find("tbody").Find("tr").Nodes {
-				instanceTypeData := strings.TrimSpace(row.FirstChild.NextSibling.FirstChild.Data)
-				if !strings.ContainsAny(instanceTypeData, ".") {
+				instanceTypeName := strings.TrimSpace(row.FirstChild.NextSibling.FirstChild.Data)
+				if !strings.ContainsAny(instanceTypeName, ".") {
 					continue
 				}
 				bandwidthData := row.FirstChild.NextSibling.NextSibling.NextSibling.FirstChild.Data
 				// exclude all rows that contain any of the following strings
 				if containsAny(bandwidthData, "Low", "Moderate", "High", "Up to") {
-					vagueBandwidth[instanceTypeData] = bandwidthData
+					vagueBandwidth[ec2types.InstanceType(instanceTypeName)] = bandwidthData
 					continue
 				}
 				bandwidthSlice := strings.Split(bandwidthData, " ")
 				// if the first value contains a multiplier i.e. (4x 100 Gigabit)
 				if strings.HasSuffix(bandwidthSlice[0], "x") {
 					multiplier := lo.Must(strconv.ParseFloat(bandwidthSlice[0][:len(bandwidthSlice[0])-1], 64))
-					bandwidth[instanceTypeData] = int64(lo.Must(strconv.ParseFloat(bandwidthSlice[1], 64)) * 1000 * multiplier)
+					bandwidth[ec2types.InstanceType(instanceTypeName)] = int64(lo.Must(strconv.ParseFloat(bandwidthSlice[1], 64)) * 1000 * multiplier)
 					// Check row for instancetype for described network performance value i.e (2 Gigabit)
 				} else {
-					bandwidth[instanceTypeData] = int64(lo.Must(strconv.ParseFloat(bandwidthSlice[0], 64)) * 1000)
+					bandwidth[ec2types.InstanceType(instanceTypeName)] = int64(lo.Must(strconv.ParseFloat(bandwidthSlice[0], 64)) * 1000)
 				}
 			}
 		}()
@@ -101,8 +103,12 @@ func main() {
 	allInstanceTypes := getAllInstanceTypes()
 	instanceTypes := lo.Keys(bandwidth)
 	// 2d sort for readability
-	sort.Strings(allInstanceTypes)
-	sort.Strings(instanceTypes)
+	sort.SliceStable(allInstanceTypes, func(i, j int) bool {
+		return allInstanceTypes[i] < allInstanceTypes[j]
+	})
+	sort.SliceStable(instanceTypes, func(i, j int) bool {
+		return instanceTypes[i] < instanceTypes[j]
+	})
 	sort.SliceStable(instanceTypes, func(i, j int) bool {
 		return bandwidth[instanceTypes[i]] < bandwidth[instanceTypes[j]]
 	})
@@ -138,22 +144,23 @@ func containsAny(value string, excludedSubstrings ...string) bool {
 	return false
 }
 
-func getAllInstanceTypes() []string {
+func getAllInstanceTypes() []ec2types.InstanceType {
 	if err := os.Setenv("AWS_SDK_LOAD_CONFIG", "true"); err != nil {
 		log.Fatalf("setting AWS_SDK_LOAD_CONFIG, %s", err)
 	}
 	if err := os.Setenv("AWS_REGION", "us-east-1"); err != nil {
 		log.Fatalf("setting AWS_REGION, %s", err)
 	}
-	sess := session.Must(session.NewSession())
-	ec2api := ec2.New(sess)
-	var allInstanceTypes []string
+	ctx := context.Background()
+	cfg := lo.Must(config.LoadDefaultConfig(ctx))
+	ec2api := ec2.NewFromConfig(cfg)
+	var allInstanceTypes []ec2types.InstanceType
 
 	params := &ec2.DescribeInstanceTypesInput{}
 	// Retrieve the instance types in a loop using NextToken
 	for {
-		result := lo.Must(ec2api.DescribeInstanceTypes(params))
-		allInstanceTypes = append(allInstanceTypes, lo.Map(result.InstanceTypes, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })...)
+		result := lo.Must(ec2api.DescribeInstanceTypes(ctx, params))
+		allInstanceTypes = append(allInstanceTypes, lo.Map(result.InstanceTypes, func(info ec2types.InstanceTypeInfo, _ int) ec2types.InstanceType { return info.InstanceType })...)
 		// Check if they are any instances left
 		if result.NextToken != nil {
 			params.NextToken = result.NextToken
