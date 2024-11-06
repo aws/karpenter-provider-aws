@@ -41,7 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
@@ -160,7 +159,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 type providerSet struct {
 	kubeClient  client.Client
-	sqsAPI      sdk.SQSAPI
+	sqsAPI      sqs.Client
 	sqsProvider sqs.Provider
 }
 

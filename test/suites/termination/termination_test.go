@@ -50,7 +50,7 @@ var _ = Describe("Termination", func() {
 		env.ExpectDeleted(nodes[0])
 		env.EventuallyExpectNotFound(nodes[0])
 		Eventually(func(g Gomega) {
-			g.Expect(env.GetInstanceByID(instanceID).State.Name).To(BeElementOf(ec2types.InstanceStateName("terminated"), ec2types.InstanceStateName("shutting-down")))
+			g.Expect(env.GetInstanceByID(instanceID).State.Name).To(BeElementOf(ec2types.InstanceStateNameTerminated, ec2types.InstanceStateNameShuttingDown))
 		}, time.Second*10).Should(Succeed())
 	})
 	// Pods from Karpenter nodes are expected to drain in the following order:

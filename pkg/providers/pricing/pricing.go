@@ -382,7 +382,9 @@ func (p *DefaultProvider) UpdateSpotPricing(ctx context.Context) error {
 
 	totalOfferings := 0
 	for it, zoneData := range prices {
-		p.spotPrices[it] = newZonalPricing(0)
+		if _, ok := p.spotPrices[it]; !ok {
+			p.spotPrices[it] = newZonalPricing(0)
+		}
 		maps.Copy(p.spotPrices[it].prices, zoneData.prices)
 		totalOfferings += len(zoneData.prices)
 	}

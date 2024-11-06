@@ -15,7 +15,6 @@ limitations under the License.
 package nodeclaim_test
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
@@ -116,12 +115,7 @@ var _ = Describe("GarbageCollection", func() {
 			_, err := env.EC2API.TerminateInstances(env.Context, &ec2.TerminateInstancesInput{
 				InstanceIds: []string{*out.Instances[0].InstanceId},
 			})
-			if err != nil {
-				if awserrors.IsNotFound(err) {
-					return
-				}
-				Expect(err).ToNot(HaveOccurred())
-			}
+			Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
 		})
 
 		// Wait for the node to register with the cluster
@@ -152,7 +146,7 @@ var _ = Describe("GarbageCollection", func() {
 		env.EventuallyExpectHealthy(pod)
 		node := env.ExpectCreatedNodeCount("==", 1)[0]
 
-		_, err := env.EC2API.TerminateInstances(context.Background(), &ec2.TerminateInstancesInput{
+		_, err := env.EC2API.TerminateInstances(env.Context, &ec2.TerminateInstancesInput{
 			InstanceIds: []string{lo.Must(utils.ParseInstanceID(node.Spec.ProviderID))},
 		})
 		Expect(err).ToNot(HaveOccurred())

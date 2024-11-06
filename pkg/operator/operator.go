@@ -89,8 +89,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	cfg := prometheusv2.WithPrometheusMetrics(WithUserAgent(lo.Must(config.LoadDefaultConfig(ctx))), crmetrics.Registry)
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
-		metaDataClient := imds.NewFromConfig(cfg)
-		region := lo.Must(metaDataClient.GetRegion(ctx, nil))
+		region := lo.Must(imds.NewFromConfig(cfg).GetRegion(ctx, nil))
 		cfg.Region = region.Region
 	}
 	ec2api := ec2.NewFromConfig(cfg)
@@ -100,6 +99,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		log.FromContext(ctx).Error(err, "ec2 api connectivity check failed")
 		os.Exit(1)
 	}
+	log.FromContext(ctx).WithValues("region", cfg.Region).V(1).Info("discovered region")
 	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eksapi)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "failed detecting cluster endpoint")

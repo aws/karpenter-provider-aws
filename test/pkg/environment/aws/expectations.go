@@ -453,11 +453,11 @@ func (env *Environment) EventuallyExpectRunInstances(instanceInput *ec2.RunInsta
 	}
 	var reservation ec2types.Reservation
 	Eventually(func(g Gomega) {
-		runInstancesOutput, err := env.EC2API.RunInstances(env.Context, instanceInput)
+		out, err := env.EC2API.RunInstances(env.Context, instanceInput)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(runInstancesOutput.Instances).ToNot(BeEmpty())
+		g.Expect(out.Instances).ToNot(BeEmpty())
 		reservation = ec2types.Reservation{
-			Instances: runInstancesOutput.Instances,
+			Instances: out.Instances,
 		}
 	}).WithTimeout(30 * time.Second).WithPolling(5 * time.Second).Should(Succeed())
 	return reservation

@@ -40,11 +40,11 @@ var _ = Describe("MetadataOptions", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("MetadataOptions", HaveValue(Equal(ec2types.InstanceMetadataOptionsResponse{
 			State:                   ec2types.InstanceMetadataOptionsStateApplied,
-			HttpEndpoint:            "enabled",
-			HttpProtocolIpv6:        "enabled",
+			HttpEndpoint:            ec2types.InstanceMetadataEndpointStateEnabled,
+			HttpProtocolIpv6:        ec2types.InstanceMetadataProtocolStateEnabled,
 			HttpPutResponseHopLimit: aws.Int32(1),
-			HttpTokens:              "required",
-			InstanceMetadataTags:    "disabled",
+			HttpTokens:              ec2types.HttpTokensStateRequired,
+			InstanceMetadataTags:    ec2types.InstanceMetadataTagsStateDisabled,
 		}))))
 	})
 })
