@@ -26,6 +26,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -49,15 +50,17 @@ type DefaultProvider struct {
 	cm              *pretty.ChangeMonitor
 	versionProvider version.Provider
 	ssmProvider     ssm.Provider
+	clk             clock.Clock
 }
 
-func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provider, ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(clock clock.Clock, versionProvider version.Provider, ssmProvider ssm.Provider, ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		cache:           cache,
 		ec2api:          ec2api,
 		cm:              pretty.NewChangeMonitor(),
 		versionProvider: versionProvider,
 		ssmProvider:     ssmProvider,
+		clk:             clock,
 	}
 }
 
@@ -71,12 +74,10 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	}
 	// Discover deprecated AMIs if automatic AMI discovery and upgrade is enabled. This ensures we'll be able to
 	// provision in the event of an EKS optimized AMI being deprecated.
-	includeDeprecated := lo.ContainsBy(nodeClass.Spec.AMISelectorTerms, func(term v1.AMISelectorTerm) bool {
-		if term.Alias == "" {
-			return false
-		}
-		return v1.AMIVersionFromAlias(term.Alias) == "latest"
-	})
+	includeDeprecated := false
+	if alias := nodeClass.Alias(); alias != nil {
+		includeDeprecated = alias.Version == v1.AliasVersionLatest
+	}
 	amis, err := p.amis(ctx, queries, includeDeprecated)
 	if err != nil {
 		return nil, err
@@ -93,15 +94,12 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]DescribeImageQuery, error) {
 	// Aliases are mutually exclusive, both on the term level and field level within a term.
 	// This is enforced by a CEL validation, we will treat this as an invariant.
-	if term, ok := lo.Find(nodeClass.Spec.AMISelectorTerms, func(term v1.AMISelectorTerm) bool {
-		return term.Alias != ""
-	}); ok {
+	if alias := nodeClass.Alias(); alias != nil {
 		kubernetesVersion, err := p.versionProvider.Get(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("getting kubernetes version, %w", err)
 		}
-		amiFamily := GetAMIFamily(v1.AMIFamilyFromAlias(term.Alias), nil)
-		query, err := amiFamily.DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, v1.AMIVersionFromAlias(term.Alias))
+		query, err := GetAMIFamily(alias.Family, nil).DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, alias.Version)
 		if err != nil {
 			return []DescribeImageQuery{}, err
 		}
@@ -191,6 +189,7 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 						AmiID:        lo.FromPtr(image.ImageId),
 						CreationDate: lo.FromPtr(image.CreationDate),
 						Requirements: reqs,
+						Deprecated:   p.IsDeprecated(image),
 					}
 				}
 			}
@@ -218,4 +217,14 @@ func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1.A
 		}
 	}
 	return amiIDs
+}
+
+func (p *DefaultProvider) IsDeprecated(image *ec2.Image) bool {
+	if image.DeprecationTime == nil {
+		return false
+	}
+	if deprecationTime := lo.Must(time.Parse(time.RFC3339, *image.DeprecationTime)); deprecationTime.After(p.clk.Now()) {
+		return false
+	}
+	return true
 }
