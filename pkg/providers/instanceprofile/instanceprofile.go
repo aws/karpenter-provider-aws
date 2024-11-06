@@ -71,7 +71,7 @@ func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, 
 	var instanceProfile *iamtypes.InstanceProfile
 	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{InstanceProfileName: aws.String(profileName)})
 	if err != nil {
-		if !awserrors.IsNotFoundV2(err) {
+		if !awserrors.IsNotFound(err) {
 			return "", fmt.Errorf("getting instance profile %q, %w", profileName, err)
 		}
 		o, err := p.iamapi.CreateInstanceProfile(ctx, &iam.CreateInstanceProfileInput{
@@ -124,7 +124,7 @@ func (p *DefaultProvider) Delete(ctx context.Context, m ResourceOwner) error {
 		InstanceProfileName: aws.String(profileName),
 	})
 	if err != nil {
-		return awserrors.IgnoreNotFoundV2(fmt.Errorf("getting instance profile %q, %w", profileName, err))
+		return awserrors.IgnoreNotFound(fmt.Errorf("getting instance profile %q, %w", profileName, err))
 	}
 	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
 	// https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html
@@ -139,7 +139,7 @@ func (p *DefaultProvider) Delete(ctx context.Context, m ResourceOwner) error {
 	if _, err = p.iamapi.DeleteInstanceProfile(ctx, &iam.DeleteInstanceProfileInput{
 		InstanceProfileName: aws.String(profileName),
 	}); err != nil {
-		return awserrors.IgnoreNotFoundV2(fmt.Errorf("deleting instance profile %q, %w", profileName, err))
+		return awserrors.IgnoreNotFound(fmt.Errorf("deleting instance profile %q, %w", profileName, err))
 	}
 	return nil
 }

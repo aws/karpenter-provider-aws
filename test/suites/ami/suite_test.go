@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	awssdk "github.com/aws/aws-sdk-go/aws"
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -31,7 +31,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/status"
 	. "github.com/awslabs/operatorpkg/test/expectations"
 	"github.com/samber/lo"
@@ -104,8 +105,8 @@ var _ = Describe("AMI", func() {
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
 	It("should support AMI Selector Terms for Name but fail with incorrect owners", func() {
-		output, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
-			ImageIds: []*string{awssdk.String(customAMI)},
+		output, err := env.EC2API.DescribeImages(env.Context, &ec2.DescribeImagesInput{
+			ImageIds: []string{customAMI},
 		})
 		Expect(err).To(BeNil())
 		Expect(output.Images).To(HaveLen(1))
@@ -123,8 +124,8 @@ var _ = Describe("AMI", func() {
 		Expect(pod.Spec.NodeName).To(Equal(""))
 	})
 	It("should support ami selector Name with default owners", func() {
-		output, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
-			ImageIds: []*string{awssdk.String(customAMI)},
+		output, err := env.EC2API.DescribeImages(env.Context, &ec2.DescribeImagesInput{
+			ImageIds: []string{customAMI},
 		})
 		Expect(err).To(BeNil())
 		Expect(output.Images).To(HaveLen(1))
@@ -374,9 +375,9 @@ func getInstanceAttribute(nodeName string, attribute string) *ec2.DescribeInstan
 	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
 	instanceID := providerIDSplit[len(providerIDSplit)-1]
-	instanceAttribute, err := env.EC2API.DescribeInstanceAttribute(&ec2.DescribeInstanceAttributeInput{
+	instanceAttribute, err := env.EC2API.DescribeInstanceAttribute(env.Context, &ec2.DescribeInstanceAttributeInput{
 		InstanceId: awssdk.String(instanceID),
-		Attribute:  awssdk.String(attribute),
+		Attribute:  ec2types.InstanceAttributeName(attribute),
 	})
 	Expect(err).ToNot(HaveOccurred())
 	return instanceAttribute

@@ -16,9 +16,11 @@ limitations under the License.
 
 package pricing
 
-// generated at 2024-09-30T13:12:07Z for us-east-1
+// generated at 2024-11-05T04:33:42Z for us-east-1
 
-var InitialOnDemandPricesAWS = map[string]map[string]float64{
+import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
+var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 	// us-east-1
 	"us-east-1": {
 		// a1 family

@@ -19,7 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -150,12 +151,12 @@ func getSSMCacheEntries() map[string]string {
 
 func deprecateAMIs(amiIDs ...string) {
 	awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-		Images: lo.Map(amiIDs, func(amiID string, _ int) *ec2.Image {
-			return &ec2.Image{
+		Images: lo.Map(amiIDs, func(amiID string, _ int) ec2types.Image {
+			return ec2types.Image{
 				Name:            lo.ToPtr(coretest.RandomName()),
 				ImageId:         lo.ToPtr(amiID),
 				CreationDate:    lo.ToPtr(awsEnv.Clock.Now().Add(-24 * time.Hour).Format(time.RFC3339)),
-				Architecture:    lo.ToPtr("x86_64"),
+				Architecture:    "x86_64",
 				DeprecationTime: lo.ToPtr(awsEnv.Clock.Now().Add(-12 * time.Hour).Format(time.RFC3339)),
 			}
 		}),

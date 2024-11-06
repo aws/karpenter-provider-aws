@@ -23,13 +23,14 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/fis"
 	fistypes "github.com/aws/aws-sdk-go-v2/service/fis/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -143,7 +144,7 @@ func (env *Environment) GetInstanceProfileName(nodeClass *v1.EC2NodeClass) strin
 	return fmt.Sprintf("%s_%d", env.ClusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", env.Region, nodeClass.Name), hashstructure.FormatV2, nil)))
 }
 
-func (env *Environment) GetInstance(nodeName string) ec2.Instance {
+func (env *Environment) GetInstance(nodeName string) ec2types.Instance {
 	node := env.Environment.GetNode(nodeName)
 	return env.GetInstanceByID(env.ExpectParsedProviderID(node.Spec.ProviderID))
 }
@@ -151,9 +152,9 @@ func (env *Environment) GetInstance(nodeName string) ec2.Instance {
 func (env *Environment) ExpectInstanceStopped(nodeName string) {
 	GinkgoHelper()
 	node := env.Environment.GetNode(nodeName)
-	_, err := env.EC2API.StopInstances(&ec2.StopInstancesInput{
+	_, err := env.EC2API.StopInstances(env.Context, &ec2.StopInstancesInput{
 		Force:       aws.Bool(true),
-		InstanceIds: aws.StringSlice([]string{env.ExpectParsedProviderID(node.Spec.ProviderID)}),
+		InstanceIds: []string{env.ExpectParsedProviderID(node.Spec.ProviderID)},
 	})
 	Expect(err).To(Succeed())
 }
@@ -161,52 +162,55 @@ func (env *Environment) ExpectInstanceStopped(nodeName string) {
 func (env *Environment) ExpectInstanceTerminated(nodeName string) {
 	GinkgoHelper()
 	node := env.Environment.GetNode(nodeName)
-	_, err := env.EC2API.TerminateInstances(&ec2.TerminateInstancesInput{
-		InstanceIds: aws.StringSlice([]string{env.ExpectParsedProviderID(node.Spec.ProviderID)}),
+	_, err := env.EC2API.TerminateInstances(env.Context, &ec2.TerminateInstancesInput{
+		InstanceIds: []string{env.ExpectParsedProviderID(node.Spec.ProviderID)},
 	})
 	Expect(err).To(Succeed())
 }
 
-func (env *Environment) GetInstanceByID(instanceID string) ec2.Instance {
+func (env *Environment) GetInstanceByID(instanceID string) ec2types.Instance {
 	GinkgoHelper()
-	instance, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
-		InstanceIds: aws.StringSlice([]string{instanceID}),
+	instance, err := env.EC2API.DescribeInstances(env.Context, &ec2.DescribeInstancesInput{
+		InstanceIds: []string{instanceID},
 	})
 	Expect(err).ToNot(HaveOccurred())
 	Expect(instance.Reservations).To(HaveLen(1))
 	Expect(instance.Reservations[0].Instances).To(HaveLen(1))
-	return *instance.Reservations[0].Instances[0]
+	return instance.Reservations[0].Instances[0]
 }
 
-func (env *Environment) GetVolume(id *string) *ec2.Volume {
+func (env *Environment) GetVolume(id string) ec2types.Volume {
 	volumes := env.GetVolumes(id)
 	Expect(volumes).To(HaveLen(1))
 	return volumes[0]
 }
 
-func (env *Environment) GetVolumes(ids ...*string) []*ec2.Volume {
+func (env *Environment) GetVolumes(ids ...string) []ec2types.Volume {
 	GinkgoHelper()
-	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: ids})
+	dvo, err := env.EC2API.DescribeVolumes(env.Context, &ec2.DescribeVolumesInput{VolumeIds: ids})
 	Expect(err).ToNot(HaveOccurred())
+
 	return dvo.Volumes
 }
 
-func (env *Environment) GetNetworkInterface(id *string) *ec2.NetworkInterface {
+func (env *Environment) GetNetworkInterface(id string) ec2types.NetworkInterface {
 	networkInterfaces := env.GetNetworkInterfaces(id)
 	Expect(networkInterfaces).To(HaveLen(1))
 	return networkInterfaces[0]
 }
 
-func (env *Environment) GetNetworkInterfaces(ids ...*string) []*ec2.NetworkInterface {
+func (env *Environment) GetNetworkInterfaces(ids ...string) []ec2types.NetworkInterface {
 	GinkgoHelper()
-	dnio, err := env.EC2API.DescribeNetworkInterfaces(&ec2.DescribeNetworkInterfacesInput{NetworkInterfaceIds: ids})
+	dnio, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{NetworkInterfaceIds: ids})
 	Expect(err).ToNot(HaveOccurred())
 	return dnio.NetworkInterfaces
 }
 
-func (env *Environment) GetSpotInstanceRequest(id *string) *ec2.SpotInstanceRequest {
+func (env *Environment) GetSpotInstance(id string) ec2types.SpotInstanceRequest {
 	GinkgoHelper()
-	siro, err := env.EC2API.DescribeSpotInstanceRequests(&ec2.DescribeSpotInstanceRequestsInput{SpotInstanceRequestIds: []*string{id}})
+	siro, err := env.EC2API.DescribeSpotInstanceRequests(env.Context, &ec2.DescribeSpotInstanceRequestsInput{
+		SpotInstanceRequestIds: []string{id},
+	})
 	Expect(err).ToNot(HaveOccurred())
 	Expect(siro.SpotInstanceRequests).To(HaveLen(1))
 	return siro.SpotInstanceRequests[0]
@@ -215,21 +219,30 @@ func (env *Environment) GetSpotInstanceRequest(id *string) *ec2.SpotInstanceRequ
 // GetSubnets returns all subnets matching the label selector
 // mapped from AZ -> {subnet-ids...}
 func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
-	var filters []*ec2.Filter
+	var filters []ec2types.Filter
 	for key, val := range tags {
-		filters = append(filters, &ec2.Filter{
+		filters = append(filters, ec2types.Filter{
 			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-			Values: []*string{aws.String(val)},
+			Values: []string{val},
 		})
 	}
 	subnets := map[string][]string{}
-	err := env.EC2API.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{Filters: filters}, func(dso *ec2.DescribeSubnetsOutput, _ bool) bool {
-		for _, subnet := range dso.Subnets {
+	input := &ec2.DescribeSubnetsInput{
+		Filters: filters,
+	}
+
+	paginator := ec2.NewDescribeSubnetsPaginator(env.EC2API, input)
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(env.Context)
+		if err != nil {
+			Expect(err).To(BeNil())
+		}
+
+		for _, subnet := range output.Subnets {
 			subnets[*subnet.AvailabilityZone] = append(subnets[*subnet.AvailabilityZone], *subnet.SubnetId)
 		}
-		return true
-	})
-	Expect(err).To(BeNil())
+	}
+
 	return subnets
 }
 
@@ -242,18 +255,28 @@ type SubnetInfo struct {
 
 // GetSubnetInfo returns all subnets matching the label selector
 func (env *Environment) GetSubnetInfo(tags map[string]string) []SubnetInfo {
-	var filters []*ec2.Filter
+	var filters []ec2types.Filter
 	for key, val := range tags {
-		filters = append(filters, &ec2.Filter{
+		filters = append(filters, ec2types.Filter{
 			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-			Values: []*string{aws.String(val)},
+			Values: []string{val},
 		})
 	}
 	var subnetInfo []SubnetInfo
-	err := env.EC2API.DescribeSubnetsPages(&ec2.DescribeSubnetsInput{Filters: filters}, func(dso *ec2.DescribeSubnetsOutput, _ bool) bool {
-		subnetInfo = lo.Map(dso.Subnets, func(s *ec2.Subnet, _ int) SubnetInfo {
+	input := &ec2.DescribeSubnetsInput{
+		Filters: filters,
+	}
+
+	paginator := ec2.NewDescribeSubnetsPaginator(env.EC2API, input)
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(env.Context)
+		if err != nil {
+			Expect(err).To(BeNil())
+		}
+
+		subnetInfo = append(subnetInfo, lo.Map(output.Subnets, func(s ec2types.Subnet, _ int) SubnetInfo {
 			elem := SubnetInfo{ID: aws.ToString(s.SubnetId)}
-			if tag, ok := lo.Find(s.Tags, func(t *ec2.Tag) bool { return aws.ToString(t.Key) == "Name" }); ok {
+			if tag, ok := lo.Find(s.Tags, func(t ec2types.Tag) bool { return aws.ToString(t.Key) == "Name" }); ok {
 				elem.Name = aws.ToString(tag.Value)
 			}
 			if info, ok := lo.Find(env.ZoneInfo, func(info ZoneInfo) bool {
@@ -262,38 +285,46 @@ func (env *Environment) GetSubnetInfo(tags map[string]string) []SubnetInfo {
 				elem.ZoneInfo = info
 			}
 			return elem
-		})
-		return true
-	})
-	Expect(err).To(BeNil())
+		})...)
+	}
+
 	return subnetInfo
 }
 
 type SecurityGroup struct {
-	ec2.GroupIdentifier
-	Tags []*ec2.Tag
+	ec2types.GroupIdentifier
+	Tags []ec2types.Tag
 }
 
 // GetSecurityGroups returns all getSecurityGroups matching the label selector
 func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGroup {
-	var filters []*ec2.Filter
+	var filters []ec2types.Filter
 	for key, val := range tags {
-		filters = append(filters, &ec2.Filter{
+		filters = append(filters, ec2types.Filter{
 			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-			Values: []*string{aws.String(val)},
+			Values: []string{val},
 		})
 	}
 	var securityGroups []SecurityGroup
-	err := env.EC2API.DescribeSecurityGroupsPages(&ec2.DescribeSecurityGroupsInput{Filters: filters}, func(dso *ec2.DescribeSecurityGroupsOutput, _ bool) bool {
-		for _, sg := range dso.SecurityGroups {
+	input := &ec2.DescribeSecurityGroupsInput{
+		Filters: filters,
+	}
+
+	paginator := ec2.NewDescribeSecurityGroupsPaginator(env.EC2API, input)
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(env.Context)
+		if err != nil {
+			Expect(err).To(BeNil())
+		}
+
+		for _, sg := range output.SecurityGroups {
 			securityGroups = append(securityGroups, SecurityGroup{
 				Tags:            sg.Tags,
-				GroupIdentifier: ec2.GroupIdentifier{GroupId: sg.GroupId, GroupName: sg.GroupName},
+				GroupIdentifier: ec2types.GroupIdentifier{GroupId: sg.GroupId, GroupName: sg.GroupName},
 			})
 		}
-		return true
-	})
-	Expect(err).To(BeNil())
+	}
+
 	return securityGroups
 }
 
@@ -365,15 +396,15 @@ func (env *Environment) GetAMIBySSMPath(ssmPath string) string {
 }
 
 func (env *Environment) GetDeprecatedAMI(amiID string, amifamily string) string {
-	out, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
-		Filters: []*ec2.Filter{
+	out, err := env.EC2API.DescribeImages(env.Context, &ec2.DescribeImagesInput{
+		Filters: []ec2types.Filter{
 			{
 				Name:   lo.ToPtr(fmt.Sprintf("tag:%s", coretest.DiscoveryLabel)),
-				Values: []*string{lo.ToPtr(env.K8sVersion())},
+				Values: []string{env.K8sVersion()},
 			},
 			{
 				Name:   lo.ToPtr("tag:amiFamily"),
-				Values: []*string{lo.ToPtr(amifamily)},
+				Values: []string{amifamily},
 			},
 		},
 		IncludeDeprecated: lo.ToPtr(true),
@@ -387,8 +418,8 @@ func (env *Environment) GetDeprecatedAMI(amiID string, amifamily string) string 
 		SourceImageId: lo.ToPtr(amiID),
 		Name:          lo.ToPtr(fmt.Sprintf("deprecated-%s-%s-%s", amiID, amifamily, env.K8sVersion())),
 		SourceRegion:  lo.ToPtr(env.Region),
-		TagSpecifications: []*ec2.TagSpecification{
-			{ResourceType: lo.ToPtr(ec2.ResourceTypeImage), Tags: []*ec2.Tag{
+		TagSpecifications: []ec2types.TagSpecification{
+			{ResourceType: ec2types.ResourceTypeImage, Tags: []ec2types.Tag{
 				{
 					Key:   lo.ToPtr(coretest.DiscoveryLabel),
 					Value: lo.ToPtr(env.K8sVersion()),
@@ -400,10 +431,10 @@ func (env *Environment) GetDeprecatedAMI(amiID string, amifamily string) string 
 			}},
 		},
 	}
-	output, err := env.EC2API.CopyImage(input)
+	output, err := env.EC2API.CopyImage(env.Context, input)
 	Expect(err).To(BeNil())
 
-	deprecated, err := env.EC2API.EnableImageDeprecationWithContext(env.Context, &ec2.EnableImageDeprecationInput{
+	deprecated, err := env.EC2API.EnableImageDeprecation(env.Context, &ec2.EnableImageDeprecationInput{
 		ImageId:     output.ImageId,
 		DeprecateAt: lo.ToPtr(time.Now()),
 	})
@@ -413,20 +444,23 @@ func (env *Environment) GetDeprecatedAMI(amiID string, amifamily string) string 
 	return lo.FromPtr(output.ImageId)
 }
 
-func (env *Environment) EventuallyExpectRunInstances(instanceInput *ec2.RunInstancesInput) *ec2.Reservation {
+func (env *Environment) EventuallyExpectRunInstances(instanceInput *ec2.RunInstancesInput) ec2types.Reservation {
 	GinkgoHelper()
 	// implement IMDSv2
-	instanceInput.MetadataOptions = &ec2.InstanceMetadataOptionsRequest{
-		HttpEndpoint: aws.String("enabled"),
-		HttpTokens:   aws.String("required"),
+	instanceInput.MetadataOptions = &ec2types.InstanceMetadataOptionsRequest{
+		HttpEndpoint: "enabled",
+		HttpTokens:   "required",
 	}
-	var out *ec2.Reservation
-	var err error
+	var reservation ec2types.Reservation
 	Eventually(func(g Gomega) {
-		out, err = env.EC2API.RunInstances(instanceInput)
+		out, err := env.EC2API.RunInstances(env.Context, instanceInput)
 		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(out.Instances).ToNot(BeEmpty())
+		reservation = ec2types.Reservation{
+			Instances: out.Instances,
+		}
 	}).WithTimeout(30 * time.Second).WithPolling(5 * time.Second).Should(Succeed())
-	return out
+	return reservation
 }
 
 func (env *Environment) ExpectSpotInterruptionRole() *iamtypes.Role {

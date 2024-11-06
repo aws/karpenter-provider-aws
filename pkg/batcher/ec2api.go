@@ -17,7 +17,7 @@ package batcher
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 )
 
 type EC2API struct {
@@ -26,7 +26,7 @@ type EC2API struct {
 	*TerminateInstancesBatcher
 }
 
-func EC2(ctx context.Context, ec2api ec2iface.EC2API) *EC2API {
+func EC2(ctx context.Context, ec2api sdk.EC2API) *EC2API {
 	return &EC2API{
 		CreateFleetBatcher:        NewCreateFleetBatcher(ctx, ec2api),
 		DescribeInstancesBatcher:  NewDescribeInstancesBatcher(ctx, ec2api),
