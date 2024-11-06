@@ -23,4 +23,4 @@ aws iam create-role --role-name "KarpenterControllerRole-${CLUSTER_NAME}" \
     --assume-role-policy-document file://controller-trust-policy.json
 
 aws iam attach-role-policy --role-name "KarpenterControllerRole-${CLUSTER_NAME}" \
-    --policy-arn "arn:aws:iam::${ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}"
+    --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}"
