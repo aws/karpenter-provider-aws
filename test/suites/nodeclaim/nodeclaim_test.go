@@ -236,7 +236,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		env.EventuallyExpectNotFound(nodeClaim, node)
 
 		Eventually(func(g Gomega) {
-			g.Expect(env.GetInstanceByID(instanceID).State.Name).To(BeElementOf(ec2types.InstanceStateName("terminated"), ec2types.InstanceStateName("shutting-down")))
+			g.Expect(env.GetInstanceByID(instanceID).State.Name).To(BeElementOf(ec2types.InstanceStateNameTerminated, ec2types.InstanceStateNameShuttingDown))
 		}, time.Second*10).Should(Succeed())
 	})
 	It("should create a NodeClaim with custom labels passed through the userData", func() {
