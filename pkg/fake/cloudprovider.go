@@ -22,7 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/test"
 
@@ -91,6 +90,6 @@ func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
 	return []status.Object{&v1.EC2NodeClass{}}
 }
 
-func (c *CloudProvider) RepairPolicy() []cloudprovider.RepairStatements {
-	return []cloudprovider.RepairStatements{}
+func (c *CloudProvider) RepairPolicies() []corecloudprovider.RepairPolicy {
+	return []corecloudprovider.RepairPolicy{}
 }

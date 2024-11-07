@@ -250,18 +250,18 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 	return []cloudprovider.RepairPolicy{
 		// Supported Kubelet fields
 		{
-			ConditionType:      "Ready",
+			ConditionType:      corev1.NodeReady,
 			ConditionStatus:    corev1.ConditionFalse,
 			TolerationDuration: 30 * time.Minute,
 		},
 		{
-			ConditionType:      "DiskPressure",
-			ConditionStatus:    corev1.ConditionFalse,
+			ConditionType:      corev1.NodeDiskPressure,
+			ConditionStatus:    corev1.ConditionTrue,
 			TolerationDuration: 30 * time.Minute,
 		},
 		{
-			ConditionType:      "MemoryPressure",
-			ConditionStatus:    corev1.ConditionFalse,
+			ConditionType:      corev1.NodeMemoryPressure,
+			ConditionStatus:    corev1.ConditionTrue,
 			TolerationDuration: 30 * time.Minute,
 		},
 	}
