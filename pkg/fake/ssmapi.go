@@ -18,10 +18,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/mitchellh/hashstructure/v2"
+	"github.com/Pallinder/go-randomdata"
+	"github.com/samber/lo"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
@@ -32,36 +31,54 @@ type SSMAPI struct {
 	Parameters         map[string]string
 	GetParameterOutput *ssm.GetParameterOutput
 	WantErr            error
+
+	defaultParameters map[string]string
 }
 
 func NewSSMAPI() *SSMAPI {
-	return &SSMAPI{}
+	return &SSMAPI{
+		defaultParameters: map[string]string{},
+	}
 }
 
 func (a SSMAPI) GetParameterWithContext(_ context.Context, input *ssm.GetParameterInput, _ ...request.Option) (*ssm.GetParameterOutput, error) {
+	parameter := lo.FromPtr(input.Name)
 	if a.WantErr != nil {
-		return nil, a.WantErr
+		return &ssm.GetParameterOutput{}, a.WantErr
 	}
-	if len(a.Parameters) > 0 {
-		if amiID, ok := a.Parameters[*input.Name]; ok {
-			return &ssm.GetParameterOutput{
-				Parameter: &ssm.Parameter{Value: aws.String(amiID)},
-			}, nil
-		}
-		return nil, awserr.New(ssm.ErrCodeParameterNotFound, fmt.Sprintf("%s couldn't be found", *input.Name), nil)
-	}
-	hc, _ := hashstructure.Hash(input.Name, hashstructure.FormatV2, nil)
 	if a.GetParameterOutput != nil {
 		return a.GetParameterOutput, nil
 	}
+	if len(a.Parameters) != 0 {
+		value, ok := a.Parameters[parameter]
+		if !ok {
+			return &ssm.GetParameterOutput{}, fmt.Errorf("parameter %q not found", lo.FromPtr(input.Name))
+		}
+		return &ssm.GetParameterOutput{
+			Parameter: &ssm.Parameter{
+				Name:  lo.ToPtr(parameter),
+				Value: lo.ToPtr(value),
+			},
+		}, nil
+	}
 
+	// Cache default parameters that was successive calls for the same parameter return the same result
+	value, ok := a.defaultParameters[parameter]
+	if !ok {
+		value = fmt.Sprintf("ami-%s", randomdata.Alphanumeric(16))
+		a.defaultParameters[parameter] = value
+	}
 	return &ssm.GetParameterOutput{
-		Parameter: &ssm.Parameter{Value: aws.String(fmt.Sprintf("test-ami-id-%x", hc))},
+		Parameter: &ssm.Parameter{
+			Name:  lo.ToPtr(parameter),
+			Value: lo.ToPtr(value),
+		},
 	}, nil
 }
 
 func (a *SSMAPI) Reset() {
-	a.GetParameterOutput = nil
 	a.Parameters = nil
+	a.GetParameterOutput = nil
 	a.WantErr = nil
+	a.defaultParameters = map[string]string{}
 }
