@@ -29,7 +29,6 @@ import (
 
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
-	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -147,12 +146,12 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return s.Zone, s.ZoneID
 	})
 	result := lo.Map(p.instanceTypesInfo, func(i ec2types.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
-		instanceTypeVCPU.With(prometheus.Labels{
+		InstanceTypeVCPU.Set(float64(lo.FromPtr(i.VCpuInfo.DefaultVCpus)), map[string]string{
 			instanceTypeLabel: string(i.InstanceType),
-		}).Set(float64(lo.FromPtr(i.VCpuInfo.DefaultVCpus)))
-		instanceTypeMemory.With(prometheus.Labels{
+		})
+		InstanceTypeMemory.Set(float64(lo.FromPtr(i.MemoryInfo.SizeInMiB)*1024*1024), map[string]string{
 			instanceTypeLabel: string(i.InstanceType),
-		}).Set(float64(lo.FromPtr(i.MemoryInfo.SizeInMiB) * 1024 * 1024))
+		})
 
 		zoneData := lo.Map(allZones.UnsortedList(), func(zoneName string, _ int) ZoneData {
 			if !p.instanceTypesOfferings[string(i.InstanceType)].Has(zoneName) || !subnetZones.Has(zoneName) {
@@ -173,16 +172,16 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			it.Capacity[corev1.ResourceMemory] = cached.(resource.Quantity)
 		}
 		for _, of := range it.Offerings {
-			instanceTypeOfferingAvailable.With(prometheus.Labels{
+			InstanceTypeOfferingAvailable.Set(float64(lo.Ternary(of.Available, 1, 0)), map[string]string{
 				instanceTypeLabel: it.Name,
 				capacityTypeLabel: of.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(),
 				zoneLabel:         of.Requirements.Get(corev1.LabelTopologyZone).Any(),
-			}).Set(float64(lo.Ternary(of.Available, 1, 0)))
-			instanceTypeOfferingPriceEstimate.With(prometheus.Labels{
+			})
+			InstanceTypeOfferingPriceEstimate.Set(of.Price, map[string]string{
 				instanceTypeLabel: it.Name,
 				capacityTypeLabel: of.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(),
 				zoneLabel:         of.Requirements.Get(corev1.LabelTopologyZone).Any(),
-			}).Set(of.Price)
+			})
 		}
 		return it
 	})

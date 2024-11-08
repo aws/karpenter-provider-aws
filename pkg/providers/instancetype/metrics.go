@@ -15,6 +15,7 @@ limitations under the License.
 package instancetype
 
 import (
+	opmetrics "github.com/awslabs/operatorpkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
@@ -29,7 +30,8 @@ const (
 )
 
 var (
-	instanceTypeVCPU = prometheus.NewGaugeVec(
+	InstanceTypeVCPU = opmetrics.NewPrometheusGauge(
+		crmetrics.Registry,
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: cloudProviderSubsystem,
@@ -40,7 +42,8 @@ var (
 			instanceTypeLabel,
 		},
 	)
-	instanceTypeMemory = prometheus.NewGaugeVec(
+	InstanceTypeMemory = opmetrics.NewPrometheusGauge(
+		crmetrics.Registry,
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: cloudProviderSubsystem,
@@ -51,7 +54,8 @@ var (
 			instanceTypeLabel,
 		},
 	)
-	instanceTypeOfferingAvailable = prometheus.NewGaugeVec(
+	InstanceTypeOfferingAvailable = opmetrics.NewPrometheusGauge(
+		crmetrics.Registry,
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: cloudProviderSubsystem,
@@ -64,7 +68,8 @@ var (
 			zoneLabel,
 		},
 	)
-	instanceTypeOfferingPriceEstimate = prometheus.NewGaugeVec(
+	InstanceTypeOfferingPriceEstimate = opmetrics.NewPrometheusGauge(
+		crmetrics.Registry,
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: cloudProviderSubsystem,
@@ -77,7 +82,3 @@ var (
 			zoneLabel,
 		})
 )
-
-func init() {
-	crmetrics.Registry.MustRegister(instanceTypeVCPU, instanceTypeMemory, instanceTypeOfferingAvailable, instanceTypeOfferingPriceEstimate)
-}
