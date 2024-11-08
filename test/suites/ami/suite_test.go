@@ -33,6 +33,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	ssmtypes "github.com/aws/aws-sdk-go-v2/service/ssm/types"
 	"github.com/awslabs/operatorpkg/status"
 	. "github.com/awslabs/operatorpkg/test/expectations"
 	"github.com/samber/lo"
@@ -71,13 +73,19 @@ var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("AMI", func() {
+	var ssmPath string
 	var customAMI string
 	var deprecatedAMI string
-	var ssmParameter string
+	var customParameter string
+
 	BeforeEach(func() {
-		customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+		ssmPath = fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion())
+		customAMI = env.GetAMIBySSMPath(ssmPath)
 		deprecatedAMI = env.GetDeprecatedAMI(customAMI, "AL2023")
-		ssmParameter = fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion())
+		customParameter = createCustomSSMParameter(&customAMI)
+	})
+	AfterEach(func() {
+		deleteCustomSSMParameter(customParameter)
 	})
 
 	It("should use the AMI defined by the AMI Selector Terms", func() {
@@ -161,11 +169,26 @@ var _ = Describe("AMI", func() {
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
-	It("should support ssm parameters", func() {
+	It("should support custom ssm parameters", func() {
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
-				SSMParameterName: ssmParameter,
+				SSMParameterName: customParameter,
+			},
+		}
+		pod := coretest.Pod()
+
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
+	})
+	It("should support shared ssm parameters by ARN", func() {
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+			{
+				SSMParameterName: ssmPath,
 			},
 		}
 		pod := coretest.Pod()
@@ -270,9 +293,19 @@ var _ = Describe("AMI", func() {
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeAMIsReady, Status: metav1.ConditionTrue})
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 		})
-		It("should have the EC2NodeClass status for AMIs using ssm parameters", func() {
+		It("should have the EC2NodeClass status for AMIs using custom ssm parameters", func() {
 			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{SSMParameterName: ssmParameter}}
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{SSMParameterName: customParameter}}
+			env.ExpectCreated(nodeClass)
+			nc := EventuallyExpectAMIsToExist(nodeClass)
+			Expect(len(nc.Status.AMIs)).To(BeNumerically("==", 1))
+			Expect(nc.Status.AMIs[0].ID).To(Equal(customAMI))
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeAMIsReady, Status: metav1.ConditionTrue})
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
+		})
+		It("should have the EC2NodeClass status for AMIs using public ssm parameter ARN", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{SSMParameterName: ssmPath}}
 			env.ExpectCreated(nodeClass)
 			nc := EventuallyExpectAMIsToExist(nodeClass)
 			Expect(len(nc.Status.AMIs)).To(BeNumerically("==", 1))
@@ -421,6 +454,27 @@ func getInstanceAttribute(nodeName string, attribute string) *ec2.DescribeInstan
 	})
 	Expect(err).ToNot(HaveOccurred())
 	return instanceAttribute
+}
+
+func createCustomSSMParameter(imageID *string) string {
+	parameterName := coretest.RandomName()
+	dataType := "aws:ec2:image"
+	_, err := env.SSMAPI.PutParameter(env.Context, &ssm.PutParameterInput{
+		Name:     awssdk.String(parameterName),
+		Value:    imageID,
+		DataType: &dataType,
+		Tier:     ssmtypes.ParameterTierAdvanced,
+		Type:     ssmtypes.ParameterTypeString,
+	})
+	Expect(err).ToNot(HaveOccurred())
+	return parameterName
+}
+
+func deleteCustomSSMParameter(parameterName string) {
+	_, err := env.SSMAPI.DeleteParameter(env.Context, &ssm.DeleteParameterInput{
+		Name: awssdk.String(parameterName),
+	})
+	Expect(err).ToNot(HaveOccurred())
 }
 
 func EventuallyExpectAMIsToExist(nodeClass *v1.EC2NodeClass) *v1.EC2NodeClass {
