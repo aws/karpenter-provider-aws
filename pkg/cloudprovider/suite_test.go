@@ -90,7 +90,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
 	cluster = state.NewCluster(fakeClock, env.Client)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster)
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock)
 })
 
 var _ = AfterSuite(func() {
