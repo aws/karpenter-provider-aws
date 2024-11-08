@@ -463,7 +463,6 @@ func createCustomSSMParameter(imageID *string) string {
 		Name:     awssdk.String(parameterName),
 		Value:    imageID,
 		DataType: &dataType,
-		Tier:     ssmtypes.ParameterTierAdvanced,
 		Type:     ssmtypes.ParameterTypeString,
 	})
 	Expect(err).ToNot(HaveOccurred())
