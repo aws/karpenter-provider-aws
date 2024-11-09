@@ -27,7 +27,6 @@ import (
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -111,15 +110,11 @@ var _ = Describe("IPv6", func() {
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
-		output, err := env.EC2API.DescribeInstances(env.Context, &ec2.DescribeInstancesInput{
-			InstanceIds: []string{coretest.Pod().Spec.NodeName},
-		})
-		Expect(err).ShouldNot(HaveOccurred())
-		Expect(output.Reservations).To(HaveLen(1))
-		Expect(output.Reservations[0].Instances).To(HaveLen(1))
-		Expect(output.Reservations[0].Instances[0].NetworkInterfaces).To(HaveLen(1))
-		Expect(output.Reservations[0].Instances[0].NetworkInterfaces[0].Ipv6Prefixes).To(HaveLen(1))
-		_, hasIPv6Primary := lo.Find(output.Reservations[0].Instances[0].NetworkInterfaces[0].Ipv6Addresses, func(ip types.InstanceIpv6Address) bool {
+		node := env.GetNode(pod.Spec.NodeName)
+		instance := env.GetInstanceByID(env.ExpectParsedProviderID(node.Spec.ProviderID))
+		Expect(instance.NetworkInterfaces).To(HaveLen(1))
+		Expect(instance.NetworkInterfaces[0].Ipv6Prefixes).To(HaveLen(1))
+		_, hasIPv6Primary := lo.Find(instance.NetworkInterfaces[0].Ipv6Addresses, func(ip types.InstanceIpv6Address) bool {
 			return lo.FromPtr(ip.IsPrimaryIpv6)
 		})
 		Expect(hasIPv6Primary).To(BeTrue())
