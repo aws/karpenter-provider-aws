@@ -79,6 +79,7 @@ type DefaultProvider struct {
 	CABundle              *string
 	ClusterEndpoint       string
 	ClusterCIDR           atomic.Pointer[string]
+	ClusterIPFamily       corev1.IPFamily
 }
 
 func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api sdk.EC2API, eksapi sdk.EKSAPI, amiFamily amifamily.Resolver,
@@ -95,6 +96,7 @@ func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api sdk.EC2A
 		cm:                    pretty.NewChangeMonitor(),
 		KubeDNSIP:             kubeDNSIP,
 		ClusterEndpoint:       clusterEndpoint,
+		ClusterIPFamily:       lo.Ternary(kubeDNSIP != nil && kubeDNSIP.To4() == nil, corev1.IPv6Protocol, corev1.IPv4Protocol),
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -284,6 +286,8 @@ func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTem
 				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
 				// with a single EFA network interface, and we should support those use cases. Launch failures with multiple enis should be considered user misconfiguration.
 				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
+				PrimaryIpv6:              lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
+				Ipv6PrefixCount:          lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
 			}
 		})
 	}
@@ -296,6 +300,8 @@ func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTem
 				Groups: lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string {
 					return s.ID
 				}),
+				PrimaryIpv6:     lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
+				Ipv6PrefixCount: lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
 			},
 		}
 	}
