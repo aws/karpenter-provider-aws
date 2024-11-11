@@ -20,14 +20,16 @@ import (
 	"strconv"
 	"strings"
 
-	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
