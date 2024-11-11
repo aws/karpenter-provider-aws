@@ -27,10 +27,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
-
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
@@ -56,10 +54,10 @@ type DefaultProvider struct {
 	cache               *cache.Cache
 	cm                  *pretty.ChangeMonitor
 	kubernetesInterface kubernetes.Interface
-	eksapi              eksiface.EKSAPI
+	eksapi              sdk.EKSAPI
 }
 
-func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache, eksapi eksiface.EKSAPI) *DefaultProvider {
+func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache, eksapi sdk.EKSAPI) *DefaultProvider {
 	return &DefaultProvider{
 		cm:                  pretty.NewChangeMonitor(),
 		cache:               cache,
@@ -73,7 +71,7 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
 		return version.(string), nil
 	}
-	output, err := p.eksapi.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
+	output, err := p.eksapi.DescribeCluster(ctx, &eks.DescribeClusterInput{
 		Name: lo.ToPtr(options.FromContext(ctx).ClusterName),
 	})
 	if err != nil {

@@ -18,7 +18,6 @@ import (
 	"errors"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/smithy-go"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -57,9 +56,9 @@ func IsAccessDenied(err error) bool {
 	if err == nil {
 		return false
 	}
-	var awsError awserr.Error
+	var awsError smithy.APIError
 	if errors.As(err, &awsError) {
-		return accessDeniedErrorCodes.Has(awsError.Code())
+		return accessDeniedErrorCodes.Has(awsError.ErrorCode())
 	}
 	return false
 }
