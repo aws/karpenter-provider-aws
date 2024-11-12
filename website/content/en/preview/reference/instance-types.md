@@ -3874,151 +3874,6 @@ below are the resources available with some assumptions and after the instance o
  |pods|737|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
-## c7g-flex Family
-### `c7g-flex.medium`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|c|
- |karpenter.k8s.aws/instance-cpu|1|
- |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|c7g-flex|
- |karpenter.k8s.aws/instance-generation|7|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|2048|
- |karpenter.k8s.aws/instance-size|medium|
- |kubernetes.io/arch|arm64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|c7g-flex.medium|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|940m|
- |ephemeral-storage|17Gi|
- |memory|1392Mi|
- |pods|8|
-### `c7g-flex.large`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|c|
- |karpenter.k8s.aws/instance-cpu|2|
- |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|c7g-flex|
- |karpenter.k8s.aws/instance-generation|7|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|4096|
- |karpenter.k8s.aws/instance-size|large|
- |kubernetes.io/arch|arm64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|c7g-flex.large|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|1930m|
- |ephemeral-storage|17Gi|
- |memory|3055Mi|
- |pods|29|
-### `c7g-flex.xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|c|
- |karpenter.k8s.aws/instance-cpu|4|
- |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|c7g-flex|
- |karpenter.k8s.aws/instance-generation|7|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|8192|
- |karpenter.k8s.aws/instance-size|xlarge|
- |kubernetes.io/arch|arm64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|c7g-flex.xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|3920m|
- |ephemeral-storage|17Gi|
- |memory|6525Mi|
- |pods|58|
-### `c7g-flex.2xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|c|
- |karpenter.k8s.aws/instance-cpu|8|
- |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|c7g-flex|
- |karpenter.k8s.aws/instance-generation|7|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|16384|
- |karpenter.k8s.aws/instance-size|2xlarge|
- |kubernetes.io/arch|arm64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|c7g-flex.2xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|7910m|
- |ephemeral-storage|17Gi|
- |memory|14103Mi|
- |pods|58|
-### `c7g-flex.4xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|c|
- |karpenter.k8s.aws/instance-cpu|16|
- |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|c7g-flex|
- |karpenter.k8s.aws/instance-generation|7|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|32768|
- |karpenter.k8s.aws/instance-size|4xlarge|
- |kubernetes.io/arch|arm64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|c7g-flex.4xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|15890m|
- |ephemeral-storage|17Gi|
- |memory|27322Mi|
- |pods|234|
-### `c7g-flex.8xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|c|
- |karpenter.k8s.aws/instance-cpu|32|
- |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|c7g-flex|
- |karpenter.k8s.aws/instance-generation|7|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|65536|
- |karpenter.k8s.aws/instance-size|8xlarge|
- |kubernetes.io/arch|arm64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|c7g-flex.8xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|31850m|
- |ephemeral-storage|17Gi|
- |memory|57632Mi|
- |pods|234|
 ## c7gd Family
 ### `c7gd.medium`
 #### Labels
@@ -4917,6 +4772,299 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
+## c8g Family
+### `c8g.medium`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|1|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|2048|
+ |karpenter.k8s.aws/instance-size|medium|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8g.medium|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|940m|
+ |ephemeral-storage|17Gi|
+ |memory|1392Mi|
+ |pods|8|
+### `c8g.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|4096|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8g.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|3055Mi|
+ |pods|29|
+### `c8g.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8g.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|6525Mi|
+ |pods|58|
+### `c8g.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8g.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|14103Mi|
+ |pods|58|
+### `c8g.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8g.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|27322Mi|
+ |pods|234|
+### `c8g.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8g.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|57632Mi|
+ |pods|234|
+### `c8g.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|98304|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8g.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|87943Mi|
+ |pods|234|
+### `c8g.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8g.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|112720Mi|
+ |pods|737|
+### `c8g.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8g.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|173341Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+### `c8g.metal-24xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-size|metal-24xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8g.metal-24xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|173341Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+### `c8g.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8g.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|355203Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+### `c8g.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8g.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|355203Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ## d2 Family
 ### `d2.xlarge`
 #### Labels
@@ -7054,7 +7202,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|hpc7g.4xlarge|
- |topology.k8s.aws/zone-id|5483024649323339010|
+ |topology.k8s.aws/zone-id|2783097156809893144|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7081,7 +7229,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|hpc7g.8xlarge|
- |topology.k8s.aws/zone-id|6607448979322663448|
+ |topology.k8s.aws/zone-id|4037264315820689338|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -7108,7 +7256,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|hpc7g.16xlarge|
- |topology.k8s.aws/zone-id|2246174450142796750|
+ |topology.k8s.aws/zone-id|2022206888298521447|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12989,151 +13137,6 @@ below are the resources available with some assumptions and after the instance o
  |pods|737|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
-## m7g-flex Family
-### `m7g-flex.medium`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|m|
- |karpenter.k8s.aws/instance-cpu|1|
- |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|m7g-flex|
- |karpenter.k8s.aws/instance-generation|7|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|4096|
- |karpenter.k8s.aws/instance-size|medium|
- |kubernetes.io/arch|arm64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|m7g-flex.medium|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|940m|
- |ephemeral-storage|17Gi|
- |memory|3286Mi|
- |pods|8|
-### `m7g-flex.large`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|m|
- |karpenter.k8s.aws/instance-cpu|2|
- |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|m7g-flex|
- |karpenter.k8s.aws/instance-generation|7|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|8192|
- |karpenter.k8s.aws/instance-size|large|
- |kubernetes.io/arch|arm64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|m7g-flex.large|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|1930m|
- |ephemeral-storage|17Gi|
- |memory|6844Mi|
- |pods|29|
-### `m7g-flex.xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|m|
- |karpenter.k8s.aws/instance-cpu|4|
- |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|m7g-flex|
- |karpenter.k8s.aws/instance-generation|7|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|16384|
- |karpenter.k8s.aws/instance-size|xlarge|
- |kubernetes.io/arch|arm64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|m7g-flex.xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|3920m|
- |ephemeral-storage|17Gi|
- |memory|14103Mi|
- |pods|58|
-### `m7g-flex.2xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|m|
- |karpenter.k8s.aws/instance-cpu|8|
- |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|m7g-flex|
- |karpenter.k8s.aws/instance-generation|7|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|32768|
- |karpenter.k8s.aws/instance-size|2xlarge|
- |kubernetes.io/arch|arm64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|m7g-flex.2xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|7910m|
- |ephemeral-storage|17Gi|
- |memory|29258Mi|
- |pods|58|
-### `m7g-flex.4xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|m|
- |karpenter.k8s.aws/instance-cpu|16|
- |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|m7g-flex|
- |karpenter.k8s.aws/instance-generation|7|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|65536|
- |karpenter.k8s.aws/instance-size|4xlarge|
- |kubernetes.io/arch|arm64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|m7g-flex.4xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|15890m|
- |ephemeral-storage|17Gi|
- |memory|57632Mi|
- |pods|234|
-### `m7g-flex.8xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|m|
- |karpenter.k8s.aws/instance-cpu|32|
- |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|m7g-flex|
- |karpenter.k8s.aws/instance-generation|7|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|131072|
- |karpenter.k8s.aws/instance-size|8xlarge|
- |kubernetes.io/arch|arm64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|m7g-flex.8xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|31850m|
- |ephemeral-storage|17Gi|
- |memory|118253Mi|
- |pods|234|
 ## m7gd Family
 ### `m7gd.medium`
 #### Labels
@@ -13800,6 +13803,299 @@ below are the resources available with some assumptions and after the instance o
  |memory|118312Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
+## m8g Family
+### `m8g.medium`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|1|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|4096|
+ |karpenter.k8s.aws/instance-size|medium|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8g.medium|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|940m|
+ |ephemeral-storage|17Gi|
+ |memory|3286Mi|
+ |pods|8|
+### `m8g.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8g.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|6844Mi|
+ |pods|29|
+### `m8g.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8g.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|14103Mi|
+ |pods|58|
+### `m8g.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8g.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|29258Mi|
+ |pods|58|
+### `m8g.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8g.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|57632Mi|
+ |pods|234|
+### `m8g.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8g.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|118253Mi|
+ |pods|234|
+### `m8g.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8g.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|178874Mi|
+ |pods|234|
+### `m8g.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8g.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|233962Mi|
+ |pods|737|
+### `m8g.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8g.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|355203Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+### `m8g.metal-24xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-size|metal-24xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8g.metal-24xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|355203Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+### `m8g.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8g.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|718928Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+### `m8g.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8g.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|718928Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ## p2 Family
 ### `p2.xlarge`
 #### Labels
@@ -21568,6 +21864,299 @@ below are the resources available with some assumptions and after the instance o
  |pods|737|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
+## x8g Family
+### `x8g.medium`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|x|
+ |karpenter.k8s.aws/instance-cpu|1|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|x8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-size|medium|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|x8g.medium|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|940m|
+ |ephemeral-storage|17Gi|
+ |memory|14653Mi|
+ |pods|8|
+### `x8g.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|x|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|x8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|x8g.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|29577Mi|
+ |pods|29|
+### `x8g.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|x|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|x8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|x8g.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|59568Mi|
+ |pods|58|
+### `x8g.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|x|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|x8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|x8g.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|120189Mi|
+ |pods|58|
+### `x8g.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|x|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|x8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|x8g.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|239495Mi|
+ |pods|234|
+### `x8g.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|x|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|x8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|x8g.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|481978Mi|
+ |pods|234|
+### `x8g.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|x|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|x8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|x8g.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|724461Mi|
+ |pods|234|
+### `x8g.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|x|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|x8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|1048576|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|x8g.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|961411Mi|
+ |pods|737|
+### `x8g.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|x|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|x8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|x8g.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|1446378Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+### `x8g.metal-24xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|x|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|x8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-size|metal-24xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|x8g.metal-24xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|1446378Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+### `x8g.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|x|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|x8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|3145728|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|x8g.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|2901277Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+### `x8g.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|x|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|x8g|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|3145728|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|x8g.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|2901277Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ## z1d Family
 ### `z1d.large`
 #### Labels

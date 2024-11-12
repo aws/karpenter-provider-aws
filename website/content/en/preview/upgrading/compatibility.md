@@ -15,9 +15,9 @@ Before you begin upgrading Karpenter, consider Karpenter compatibility issues re
 
 [comment]: <> (the content below is generated from hack/docs/compatibilitymatrix/main.go)
 
-| KUBERNETES |   1.23   |   1.24   |   1.25   |   1.26   |   1.27   |   1.28   |   1.29   |
-|------------|----------|----------|----------|----------|----------|----------|----------|
-| karpenter  | \>= 0.21 | \>= 0.21 | \>= 0.25 | \>= 0.28 | \>= 0.28 | \>= 0.31 | \>= 0.34 |
+| KUBERNETES |   1.24   |   1.25   |   1.26   |   1.27   |   1.28   |   1.29   |  1.30  |
+|------------|----------|----------|----------|----------|----------|----------|--------|
+| karpenter  | \>= 0.21 | \>= 0.25 | \>= 0.28 | \>= 0.28 | \>= 0.31 | \>= 0.34 | 0.37.6 |
 
 [comment]: <> (end docs generated content from hack/docs/compatibilitymatrix/main.go)
 
