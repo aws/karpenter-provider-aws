@@ -82,7 +82,7 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 		}
 		output, err := p.kubernetesInterface.Discovery().ServerVersion()
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("getting kubernetes version from the kubernetes API")
 		} else if output != nil {
 			version = fmt.Sprintf("%s.%s", output.Major, strings.TrimSuffix(output.Minor, "+"))
 			log.FromContext(ctx).Info("retrieved Kubernetes version from Kubernetes API", "version", version)
