@@ -52,11 +52,11 @@ The upgrade guide will first require upgrading to your latest patch version prio
 
    The Karpenter version you are running must be between minor version `v0.33` and `v0.37`. To be able to roll back from Karpenter v1, you must rollback to on the following patch release versions for your minor version, which will include the conversion webhooks for a smooth rollback:
 
-   * v0.37.5
-   * v0.36.7
-   * v0.35.10
-   * v0.34.11
-   * v0.33.10
+   * v0.37.6
+   * v0.36.8
+   * v0.35.11
+   * v0.34.12
+   * v0.33.11
 
 3. Review for breaking changes between v0.33 and v0.37: If you are already running Karpenter v0.37.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the [Upgrade Guide]({{<ref "upgrade-guide#upgrading-to-0320" >}}) for each minor release.
 
@@ -112,14 +112,14 @@ kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws -p "{\"
       --wait
     ```
 
-7. Set environment variables for first upgrading to v1.0.7
+7. Set environment variables for first upgrading to v1.0.8
 
     ```bash
-    export KARPENTER_VERSION=1.0.7
+    export KARPENTER_VERSION=1.0.8
     ```
 
 
-8. Update your existing policy using the following to the v1.0.7 controller policy:
+8. Update your existing policy using the following to the v1.0.8 controller policy:
    Notable Changes to the IAM Policy include additional tag-scoping for the `eks:eks-cluster-name` tag for instances and instance profiles.
 
     ```bash
@@ -132,7 +132,7 @@ kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws -p "{\"
         --parameter-overrides "ClusterName=${CLUSTER_NAME}"
     ```
 
-9. Apply the v1.0.7 Custom Resource Definitions (CRDs):
+9. Apply the v1.0.8 Custom Resource Definitions (CRDs):
 
     ```bash
     helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
@@ -291,11 +291,11 @@ Keep in mind that rollback, without replacing the Karpenter nodes, will not be s
 
 Once the Karpenter CRDs are upgraded to v1, conversion webhooks are needed to help convert APIs that are stored in etcd from v1 to v1beta1. Also changes to the CRDs will need to at least include the latest version of the CRD in this case being v1. The patch versions of the v1beta1 Karpenter controller that include the conversion wehooks include:
 
-* v0.37.5
-* v0.36.7
-* v0.35.10
-* v0.34.11
-* v0.33.10
+* v0.37.6
+* v0.36.8
+* v0.35.11
+* v0.34.12
+* v0.33.11
 
 {{% alert title="Note" color="warning" %}}
 When rolling back from v1, Karpenter will not retain data that was only valid in v1 APIs. For instance, if you were upgrading from v0.33.5 to v1, updated the `NodePool.Spec.Disruption.Budgets` field and then rolled back to v0.33.6, Karpenter would not retain the `NodePool.Spec.Disruption.Budgets` field, as that was introduced in v0.34.x. If you are configuring the kubelet field, and have removed the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation, rollback is not supported without replacing your nodes between EC2NodeClass and NodePool.
