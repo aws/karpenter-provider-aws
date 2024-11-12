@@ -22,8 +22,8 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -144,11 +144,11 @@ var _ = Describe("InstanceProvider", func() {
 			instanceID := fake.InstanceID()
 			awsEnv.EC2API.Instances.Store(
 				instanceID,
-				&ec2.Instance{
-					State: &ec2.InstanceState{
-						Name: aws.String(ec2.InstanceStateNameRunning),
+				ec2types.Instance{
+					State: &ec2types.InstanceState{
+						Name: ec2types.InstanceStateNameRunning,
 					},
-					Tags: []*ec2.Tag{
+					Tags: []ec2types.Tag{
 						{
 							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
 							Value: aws.String("owned"),
@@ -167,13 +167,13 @@ var _ = Describe("InstanceProvider", func() {
 						},
 					},
 					PrivateDnsName: aws.String(fake.PrivateDNSName()),
-					Placement: &ec2.Placement{
+					Placement: &ec2types.Placement{
 						AvailabilityZone: aws.String(fake.DefaultRegion),
 					},
 					// Launch time was 1m ago
 					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
-					InstanceId:   aws.String(instanceID),
-					InstanceType: aws.String("m5.large"),
+					InstanceId:   lo.ToPtr(instanceID),
+					InstanceType: "m5.large",
 				},
 			)
 			ids.Insert(instanceID)
@@ -183,18 +183,18 @@ var _ = Describe("InstanceProvider", func() {
 			instanceID := fake.InstanceID()
 			awsEnv.EC2API.Instances.Store(
 				instanceID,
-				&ec2.Instance{
-					State: &ec2.InstanceState{
-						Name: aws.String(ec2.InstanceStateNameRunning),
+				ec2types.Instance{
+					State: &ec2types.InstanceState{
+						Name: ec2types.InstanceStateNameRunning,
 					},
 					PrivateDnsName: aws.String(fake.PrivateDNSName()),
-					Placement: &ec2.Placement{
+					Placement: &ec2types.Placement{
 						AvailabilityZone: aws.String(fake.DefaultRegion),
 					},
 					// Launch time was 1m ago
 					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
-					InstanceId:   aws.String(instanceID),
-					InstanceType: aws.String("m5.large"),
+					InstanceId:   lo.ToPtr(instanceID),
+					InstanceType: "m5.large",
 				},
 			)
 		}

@@ -21,7 +21,8 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
-	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/samber/lo"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -84,7 +85,7 @@ var _ = Describe("Operator", func() {
 		}))
 		fakeEKSAPI.DescribeClusterBehavior.Output.Set(
 			&eks.DescribeClusterOutput{
-				Cluster: &eks.Cluster{
+				Cluster: &ekstypes.Cluster{
 					Endpoint: lo.ToPtr("https://cluster-endpoint.test-cluster.k8s.local"),
 				},
 			},

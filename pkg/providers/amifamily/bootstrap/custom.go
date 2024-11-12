@@ -17,7 +17,7 @@ package bootstrap
 import (
 	"encoding/base64"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 type Custom struct {
@@ -25,5 +25,5 @@ type Custom struct {
 }
 
 func (e Custom) Script() (string, error) {
-	return base64.StdEncoding.EncodeToString([]byte(aws.StringValue(e.Options.CustomUserData))), nil
+	return base64.StdEncoding.EncodeToString([]byte(aws.ToString(e.Options.CustomUserData))), nil
 }

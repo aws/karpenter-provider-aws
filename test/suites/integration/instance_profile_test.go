@@ -66,7 +66,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 			_, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
 				InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
 			})
-			g.Expect(awserrors.IsNotFoundV2(err)).To(BeTrue())
+			g.Expect(awserrors.IsNotFound(err)).To(BeTrue())
 		}).Should(Succeed())
 	})
 	It("should use the unmanaged instance profile", func() {

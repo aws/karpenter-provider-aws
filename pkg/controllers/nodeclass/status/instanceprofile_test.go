@@ -99,39 +99,6 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
 	})
-	It("should add the eks:eks-cluster-name tag when the tag doesn't exist", func() {
-		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
-			profileName: {
-				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
-				InstanceProfileName: aws.String(profileName),
-				Roles: []iamtypes.Role{
-					{
-						RoleName: aws.String("other-role"),
-					},
-				},
-				Tags: []iamtypes.Tag{
-					{
-						Key:   lo.ToPtr(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
-						Value: lo.ToPtr("owned"),
-					},
-					{
-						Key:   lo.ToPtr(v1.LabelNodeClass),
-						Value: lo.ToPtr(nodeClass.Name),
-					},
-				},
-			},
-		}
-
-		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
-
-		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
-		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Tags).To(ContainElements(
-			iamtypes.Tag{Key: lo.ToPtr(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)), Value: lo.ToPtr("owned")},
-			iamtypes.Tag{Key: lo.ToPtr(v1.LabelNodeClass), Value: lo.ToPtr(nodeClass.Name)},
-			iamtypes.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(options.FromContext(ctx).ClusterName)},
-		))
-	})
 	It("should not call CreateInstanceProfile or AddRoleToInstanceProfile when instance profile exists with correct role", func() {
 		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
 			profileName: {

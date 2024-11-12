@@ -32,8 +32,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	opstatus "github.com/awslabs/operatorpkg/status"
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
@@ -88,7 +90,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
 	cluster = state.NewCluster(fakeClock, env.Client)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster)
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock)
 })
 
 var _ = AfterSuite(func() {
@@ -284,7 +286,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(aws.StringValue(createFleetInput.Context)).To(Equal(contextID))
+			Expect(aws.ToString(createFleetInput.Context)).To(Equal(contextID))
 		})
 		It("should default to no EC2 Context", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -304,13 +306,13 @@ var _ = Describe("CloudProvider", func() {
 			// instances to meet the minimum requirement.
 			instances := fake.MakeInstances()
 			instances, _ = fake.MakeUniqueInstancesAndFamilies(instances, 2)
-			instances[0].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(1)}
-			instances[1].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(8)}
+			instances[0].VCpuInfo = &ec2types.VCpuInfo{DefaultVCpus: aws.Int32(1)}
+			instances[1].VCpuInfo = &ec2types.VCpuInfo{DefaultVCpus: aws.Int32(8)}
 			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{InstanceTypes: instances})
 			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeInstanceOfferings(instances)})
 			now := time.Now()
 			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
-				SpotPriceHistory: []*ec2.SpotPrice{
+				SpotPriceHistory: []ec2types.SpotPrice{
 					{
 						AvailabilityZone: aws.String("test-zone-1a"),
 						InstanceType:     instances[0].InstanceType,
@@ -328,7 +330,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
-			instanceNames := lo.Map(instances, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
+			instanceNames := lo.Map(instances, func(info ec2types.InstanceTypeInfo, _ int) string { return string(info.InstanceType) })
 
 			// Define NodePool that has minValues on instance-type requirement.
 			nodePool = coretest.NodePool(karpv1.NodePool{
@@ -392,7 +394,7 @@ var _ = Describe("CloudProvider", func() {
 			uniqueInstanceTypes := sets.Set[string]{}
 			for _, launchTemplateConfig := range createFleetInput.LaunchTemplateConfigs {
 				for _, override := range launchTemplateConfig.Overrides {
-					uniqueInstanceTypes.Insert(*override.InstanceType)
+					uniqueInstanceTypes.Insert(string(override.InstanceType))
 				}
 			}
 			// This ensures that we have sent the minimum number of requirements defined in the NodePool.
@@ -402,13 +404,13 @@ var _ = Describe("CloudProvider", func() {
 			// Create fake InstanceTypes where one instances can fit 2 pods and another one can fit only 1 pod.
 			instances := fake.MakeInstances()
 			instances, _ = fake.MakeUniqueInstancesAndFamilies(instances, 2)
-			instances[0].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(1)}
-			instances[1].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(8)}
+			instances[0].VCpuInfo = &ec2types.VCpuInfo{DefaultVCpus: aws.Int32(1)}
+			instances[1].VCpuInfo = &ec2types.VCpuInfo{DefaultVCpus: aws.Int32(8)}
 			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{InstanceTypes: instances})
 			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeInstanceOfferings(instances)})
 			now := time.Now()
 			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
-				SpotPriceHistory: []*ec2.SpotPrice{
+				SpotPriceHistory: []ec2types.SpotPrice{
 					{
 						AvailabilityZone: aws.String("test-zone-1a"),
 						InstanceType:     instances[0].InstanceType,
@@ -426,7 +428,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
-			instanceNames := lo.Map(instances, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
+			instanceNames := lo.Map(instances, func(info ec2types.InstanceTypeInfo, _ int) string { return string(info.InstanceType) })
 
 			// Define NodePool that has minValues on instance-type requirement.
 			nodePool = coretest.NodePool(karpv1.NodePool{
@@ -490,7 +492,7 @@ var _ = Describe("CloudProvider", func() {
 			uniqueInstanceTypes := sets.Set[string]{}
 			for _, launchTemplateConfig := range createFleetInput.LaunchTemplateConfigs {
 				for _, override := range launchTemplateConfig.Overrides {
-					uniqueInstanceTypes.Insert(*override.InstanceType)
+					uniqueInstanceTypes.Insert(string(override.InstanceType))
 				}
 			}
 			// This ensures that we have sent the minimum number of requirements defined in the NodePool.
@@ -500,14 +502,14 @@ var _ = Describe("CloudProvider", func() {
 			// Create fake InstanceTypes where 2 instances can fit 2 pods individually and one can fit only 1 pod.
 			instances := fake.MakeInstances()
 			uniqInstanceTypes, instanceFamilies := fake.MakeUniqueInstancesAndFamilies(instances, 3)
-			uniqInstanceTypes[0].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(1)}
-			uniqInstanceTypes[1].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(4)}
-			uniqInstanceTypes[2].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(8)}
+			uniqInstanceTypes[0].VCpuInfo = &ec2types.VCpuInfo{DefaultVCpus: aws.Int32(1)}
+			uniqInstanceTypes[1].VCpuInfo = &ec2types.VCpuInfo{DefaultVCpus: aws.Int32(4)}
+			uniqInstanceTypes[2].VCpuInfo = &ec2types.VCpuInfo{DefaultVCpus: aws.Int32(8)}
 			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{InstanceTypes: uniqInstanceTypes})
 			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeInstanceOfferings(uniqInstanceTypes)})
 			now := time.Now()
 			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
-				SpotPriceHistory: []*ec2.SpotPrice{
+				SpotPriceHistory: []ec2types.SpotPrice{
 					{
 						AvailabilityZone: aws.String("test-zone-1a"),
 						InstanceType:     uniqInstanceTypes[0].InstanceType,
@@ -531,7 +533,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
-			instanceNames := lo.Map(uniqInstanceTypes, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
+			instanceNames := lo.Map(uniqInstanceTypes, func(info ec2types.InstanceTypeInfo, _ int) string { return string(info.InstanceType) })
 
 			// Define NodePool that has minValues in multiple requirements.
 			nodePool = coretest.NodePool(karpv1.NodePool{
@@ -594,8 +596,8 @@ var _ = Describe("CloudProvider", func() {
 			uniqueInstanceTypes, uniqueInstanceFamilies := sets.Set[string]{}, sets.Set[string]{}
 			for _, launchTemplateConfig := range createFleetInput.LaunchTemplateConfigs {
 				for _, override := range launchTemplateConfig.Overrides {
-					uniqueInstanceTypes.Insert(*override.InstanceType)
-					uniqueInstanceFamilies.Insert(strings.Split(*override.InstanceType, ".")[0])
+					uniqueInstanceTypes.Insert(string(override.InstanceType))
+					uniqueInstanceFamilies.Insert(strings.Split(string(override.InstanceType), ".")[0])
 				}
 			}
 			// Ensure that there are at least minimum number of unique instance types as per the requirement in the CreateFleet request.
@@ -608,7 +610,7 @@ var _ = Describe("CloudProvider", func() {
 		var armAMIID, amdAMIID string
 		var validSecurityGroup string
 		var selectedInstanceType *corecloudprovider.InstanceType
-		var instance *ec2.Instance
+		var instance ec2types.Instance
 		var validSubnet1 string
 		var validSubnet2 string
 		BeforeEach(func() {
@@ -617,13 +619,13 @@ var _ = Describe("CloudProvider", func() {
 			validSubnet1 = fake.SubnetID()
 			validSubnet2 = fake.SubnetID()
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-				Images: []*ec2.Image{
+				Images: []ec2types.Image{
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String(armAMIID),
-						Architecture: aws.String("arm64"),
+						Architecture: "arm64",
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
-						Tags: []*ec2.Tag{
+						Tags: []ec2types.Tag{
 							{
 								Key:   aws.String("ami-key-1"),
 								Value: aws.String("ami-value-1"),
@@ -633,9 +635,9 @@ var _ = Describe("CloudProvider", func() {
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String(amdAMIID),
-						Architecture: aws.String("x86_64"),
+						Architecture: "x86_64",
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
-						Tags: []*ec2.Tag{
+						Tags: []ec2types.Tag{
 							{
 								Key:   aws.String("ami-key-2"),
 								Value: aws.String("ami-value-2"),
@@ -645,11 +647,11 @@ var _ = Describe("CloudProvider", func() {
 				},
 			})
 			awsEnv.EC2API.DescribeSecurityGroupsOutput.Set(&ec2.DescribeSecurityGroupsOutput{
-				SecurityGroups: []*ec2.SecurityGroup{
+				SecurityGroups: []ec2types.SecurityGroup{
 					{
 						GroupId:   aws.String(validSecurityGroup),
 						GroupName: aws.String("test-securitygroup"),
-						Tags: []*ec2.Tag{
+						Tags: []ec2types.Tag{
 							{
 								Key:   aws.String("sg-key"),
 								Value: aws.String("sg-value"),
@@ -659,11 +661,11 @@ var _ = Describe("CloudProvider", func() {
 				},
 			})
 			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{
-				Subnets: []*ec2.Subnet{
+				Subnets: []ec2types.Subnet{
 					{
 						SubnetId:         aws.String(validSubnet1),
 						AvailabilityZone: aws.String("zone-1"),
-						Tags: []*ec2.Tag{
+						Tags: []ec2types.Tag{
 							{
 								Key:   aws.String("sn-key-1"),
 								Value: aws.String("sn-value-1"),
@@ -673,7 +675,7 @@ var _ = Describe("CloudProvider", func() {
 					{
 						SubnetId:         aws.String(validSubnet2),
 						AvailabilityZone: aws.String("zone-2"),
-						Tags: []*ec2.Tag{
+						Tags: []ec2types.Tag{
 							{
 								Key:   aws.String("sn-key-2"),
 								Value: aws.String("sn-value-2"),
@@ -726,22 +728,22 @@ var _ = Describe("CloudProvider", func() {
 			Expect(ok).To(BeTrue())
 
 			// Create the instance we want returned from the EC2 API
-			instance = &ec2.Instance{
+			instance = ec2types.Instance{
 				ImageId:               aws.String(amdAMIID),
-				InstanceType:          aws.String(selectedInstanceType.Name),
+				InstanceType:          ec2types.InstanceType(selectedInstanceType.Name),
 				SubnetId:              aws.String(validSubnet1),
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
-				State: &ec2.InstanceState{
-					Name: aws.String(ec2.InstanceStateNameRunning),
+				State: &ec2types.InstanceState{
+					Name: ec2types.InstanceStateNameRunning,
 				},
 				InstanceId: aws.String(fake.InstanceID()),
-				Placement: &ec2.Placement{
+				Placement: &ec2types.Placement{
 					AvailabilityZone: aws.String("test-zone-1a"),
 				},
-				SecurityGroups: []*ec2.GroupIdentifier{{GroupId: aws.String(validSecurityGroup)}},
+				SecurityGroups: []ec2types.GroupIdentifier{{GroupId: aws.String(validSecurityGroup)}},
 			}
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
+				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
 			})
 			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
 				v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
@@ -769,6 +771,9 @@ var _ = Describe("CloudProvider", func() {
 		It("should return drifted if the AMI is not valid", func() {
 			// Instance is a reference to what we return in the GetInstances call
 			instance.ImageId = aws.String(fake.ImageID())
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
+			})
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
@@ -777,7 +782,10 @@ var _ = Describe("CloudProvider", func() {
 			// Instance is a reference to what we return in the GetInstances call
 			instance.ImageId = aws.String(fake.ImageID())
 			instance.SubnetId = aws.String(fake.SubnetID())
-			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
+			instance.SecurityGroups = []ec2types.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
+			})
 			// Assign a fake hash
 			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
 				v1.AnnotationEC2NodeClassHash: "abcdefghijkl",
@@ -789,6 +797,9 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should return drifted if the subnet is not valid", func() {
 			instance.SubnetId = aws.String(fake.SubnetID())
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
+			})
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.SubnetDrift))
@@ -809,20 +820,26 @@ var _ = Describe("CloudProvider", func() {
 			nodeClass.Status.SecurityGroups = []v1.SecurityGroup{}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			// Instance is a reference to what we return in the GetInstances call
-			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
+			instance.SecurityGroups = []ec2types.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should return drifted if the instance security groups doesn't match the discovered values", func() {
 			// Instance is a reference to what we return in the GetInstances call
-			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
+			instance.SecurityGroups = []ec2types.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
+			})
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
 		})
 		It("should return drifted if there are more instance security groups present than in the discovered values", func() {
 			// Instance is a reference to what we return in the GetInstances call
-			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}, {GroupId: aws.String(validSecurityGroup)}}
+			instance.SecurityGroups = []ec2types.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}, {GroupId: aws.String(validSecurityGroup)}}
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
+			})
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
@@ -861,7 +878,7 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should error if the underlying NodeClaim doesn't exist", func() {
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{}}},
+				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{}}},
 			})
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
@@ -878,6 +895,9 @@ var _ = Describe("CloudProvider", func() {
 				},
 			}
 			instance.ImageId = aws.String(armAMIID)
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
+			})
 			ExpectApplied(ctx, env.Client, nodeClass)
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
@@ -1108,12 +1128,12 @@ var _ = Describe("CloudProvider", func() {
 			foundNonGPULT := false
 			for _, v := range input.LaunchTemplateConfigs {
 				for _, ov := range v.Overrides {
-					if *ov.InstanceType == "m5.large" {
+					if ov.InstanceType == "m5.large" {
 						foundNonGPULT = true
 						Expect(v.Overrides).To(ContainElements(
-							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test1"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
-							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test2"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
-							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test3"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
+							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test1"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1a")},
+							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test2"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1b")},
+							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test3"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1c")},
 						))
 					}
 				}
@@ -1122,11 +1142,11 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should launch instances into subnet with the most available IP addresses", func() {
 			awsEnv.SubnetCache.Flush()
-			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(10),
-					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
-				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(100),
-					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
+			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
+				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(100),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1139,11 +1159,11 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should launch instances into subnet with the most available IP addresses in-between cache refreshes", func() {
 			awsEnv.SubnetCache.Flush()
-			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(10),
-					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
-				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(11),
-					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
+			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
+				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(11),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
@@ -1167,9 +1187,9 @@ var _ = Describe("CloudProvider", func() {
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
 		})
 		It("should update in-flight IPs when a CreateFleet error occurs", func() {
-			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
-					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
+			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
 			}})
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod1)
@@ -1178,11 +1198,11 @@ var _ = Describe("CloudProvider", func() {
 			Expect(len(bindings)).To(Equal(0))
 		})
 		It("should launch instances into subnets that are excluded by another NodePool", func() {
-			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(10),
-					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
-				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(100),
-					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
+			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
+				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(100),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
 			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)

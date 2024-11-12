@@ -29,17 +29,18 @@ import (
 
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
-	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 
@@ -52,7 +53,7 @@ type Provider interface {
 }
 
 type DefaultProvider struct {
-	ec2api                ec2iface.EC2API
+	ec2api                sdk.EC2API
 	subnetProvider        subnet.Provider
 	instanceTypesResolver Resolver
 
@@ -62,7 +63,7 @@ type DefaultProvider struct {
 
 	muInstanceTypesInfo sync.RWMutex
 	// TODO @engedaam: Look into only storing the needed EC2InstanceTypeInfo
-	instanceTypesInfo []*ec2.InstanceTypeInfo
+	instanceTypesInfo []ec2types.InstanceTypeInfo
 
 	muInstanceTypesOfferings sync.RWMutex
 	instanceTypesOfferings   map[string]sets.Set[string]
@@ -76,11 +77,11 @@ type DefaultProvider struct {
 	instanceTypesOfferingsSeqNum uint64
 }
 
-func NewDefaultProvider(instanceTypesCache *cache.Cache, discoveredCapacityCache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider, instanceTypesResolver Resolver) *DefaultProvider {
+func NewDefaultProvider(instanceTypesCache *cache.Cache, discoveredCapacityCache *cache.Cache, ec2api sdk.EC2API, subnetProvider subnet.Provider, instanceTypesResolver Resolver) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api:                  ec2api,
 		subnetProvider:          subnetProvider,
-		instanceTypesInfo:       []*ec2.InstanceTypeInfo{},
+		instanceTypesInfo:       []ec2types.InstanceTypeInfo{},
 		instanceTypesOfferings:  map[string]sets.Set[string]{},
 		instanceTypesResolver:   instanceTypesResolver,
 		instanceTypesCache:      instanceTypesCache,
@@ -144,16 +145,16 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	subnetZoneToID := lo.SliceToMap(nodeClass.Status.Subnets, func(s v1.Subnet) (string, string) {
 		return s.Zone, s.ZoneID
 	})
-	result := lo.Map(p.instanceTypesInfo, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
-		instanceTypeVCPU.With(prometheus.Labels{
-			instanceTypeLabel: *i.InstanceType,
-		}).Set(float64(lo.FromPtr(i.VCpuInfo.DefaultVCpus)))
-		instanceTypeMemory.With(prometheus.Labels{
-			instanceTypeLabel: *i.InstanceType,
-		}).Set(float64(lo.FromPtr(i.MemoryInfo.SizeInMiB) * 1024 * 1024))
+	result := lo.Map(p.instanceTypesInfo, func(i ec2types.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
+		InstanceTypeVCPU.Set(float64(lo.FromPtr(i.VCpuInfo.DefaultVCpus)), map[string]string{
+			instanceTypeLabel: string(i.InstanceType),
+		})
+		InstanceTypeMemory.Set(float64(lo.FromPtr(i.MemoryInfo.SizeInMiB)*1024*1024), map[string]string{
+			instanceTypeLabel: string(i.InstanceType),
+		})
 
 		zoneData := lo.Map(allZones.UnsortedList(), func(zoneName string, _ int) ZoneData {
-			if !p.instanceTypesOfferings[lo.FromPtr(i.InstanceType)].Has(zoneName) || !subnetZones.Has(zoneName) {
+			if !p.instanceTypesOfferings[string(i.InstanceType)].Has(zoneName) || !subnetZones.Has(zoneName) {
 				return ZoneData{
 					Name:      zoneName,
 					Available: false,
@@ -171,16 +172,16 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			it.Capacity[corev1.ResourceMemory] = cached.(resource.Quantity)
 		}
 		for _, of := range it.Offerings {
-			instanceTypeOfferingAvailable.With(prometheus.Labels{
+			InstanceTypeOfferingAvailable.Set(float64(lo.Ternary(of.Available, 1, 0)), map[string]string{
 				instanceTypeLabel: it.Name,
 				capacityTypeLabel: of.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(),
 				zoneLabel:         of.Requirements.Get(corev1.LabelTopologyZone).Any(),
-			}).Set(float64(lo.Ternary(of.Available, 1, 0)))
-			instanceTypeOfferingPriceEstimate.With(prometheus.Labels{
+			})
+			InstanceTypeOfferingPriceEstimate.Set(of.Price, map[string]string{
 				instanceTypeLabel: it.Name,
 				capacityTypeLabel: of.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(),
 				zoneLabel:         of.Requirements.Get(corev1.LabelTopologyZone).Any(),
-			}).Set(of.Price)
+			})
 		}
 		return it
 	})
@@ -195,24 +196,29 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 	// TODO @joinnis: This can be made more efficient by holding a Read lock and only obtaining the Write if not in cache
 	p.muInstanceTypesInfo.Lock()
 	defer p.muInstanceTypesInfo.Unlock()
-	var instanceTypes []*ec2.InstanceTypeInfo
 
-	if err := p.ec2api.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
-		Filters: []*ec2.Filter{
+	var instanceTypes []ec2types.InstanceTypeInfo
+
+	paginator := ec2.NewDescribeInstanceTypesPaginator(p.ec2api, &ec2.DescribeInstanceTypesInput{
+		Filters: []ec2types.Filter{
 			{
-				Name:   lo.ToPtr("supported-virtualization-type"),
-				Values: lo.ToSlicePtr([]string{"hvm"}),
+				Name:   aws.String("supported-virtualization-type"),
+				Values: []string{"hvm"},
 			},
 			{
-				Name:   lo.ToPtr("processor-info.supported-architecture"),
-				Values: lo.ToSlicePtr([]string{"x86_64", "arm64"}),
+				Name:   aws.String("processor-info.supported-architecture"),
+				Values: []string{"x86_64", "arm64"},
 			},
 		},
-	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return fmt.Errorf("describing instance types, %w", err)
+		}
+
 		instanceTypes = append(instanceTypes, page.InstanceTypes...)
-		return true
-	}); err != nil {
-		return fmt.Errorf("describing instance types, %w", err)
 	}
 
 	if p.cm.HasChanged("instance-types", instanceTypes) {
@@ -237,18 +243,25 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 
 	// Get offerings from EC2
 	instanceTypeOfferings := map[string]sets.Set[string]{}
-	if err := p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: lo.ToPtr("availability-zone")},
-		func(output *ec2.DescribeInstanceTypeOfferingsOutput, lastPage bool) bool {
-			for _, offering := range output.InstanceTypeOfferings {
-				if _, ok := instanceTypeOfferings[lo.FromPtr(offering.InstanceType)]; !ok {
-					instanceTypeOfferings[lo.FromPtr(offering.InstanceType)] = sets.New[string]()
-				}
-				instanceTypeOfferings[lo.FromPtr(offering.InstanceType)].Insert(lo.FromPtr(offering.Location))
+
+	paginator := ec2.NewDescribeInstanceTypeOfferingsPaginator(p.ec2api, &ec2.DescribeInstanceTypeOfferingsInput{
+		LocationType: ec2types.LocationTypeAvailabilityZone,
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return fmt.Errorf("describing instance type zone offerings, %w", err)
+		}
+
+		for _, offering := range page.InstanceTypeOfferings {
+			if _, ok := instanceTypeOfferings[string(offering.InstanceType)]; !ok {
+				instanceTypeOfferings[string(offering.InstanceType)] = sets.New[string]()
 			}
-			return true
-		}); err != nil {
-		return fmt.Errorf("describing instance type zone offerings, %w", err)
+			instanceTypeOfferings[string(offering.InstanceType)].Insert(lo.FromPtr(offering.Location))
+		}
 	}
+
 	if p.cm.HasChanged("instance-type-offering", instanceTypeOfferings) {
 		// Only update instanceTypesSeqNun with the instance type offerings  have been changed
 		// This is to not create new keys with duplicate instance type offerings option
@@ -296,7 +309,7 @@ func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context
 }
 
 func (p *DefaultProvider) Reset() {
-	p.instanceTypesInfo = []*ec2.InstanceTypeInfo{}
+	p.instanceTypesInfo = []ec2types.InstanceTypeInfo{}
 	p.instanceTypesOfferings = map[string]sets.Set[string]{}
 	p.instanceTypesCache.Flush()
 	p.discoveredCapacityCache.Flush()

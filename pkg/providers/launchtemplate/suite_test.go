@@ -28,9 +28,10 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/smithy-go"
 	admv1alpha1 "github.com/awslabs/amazon-eks-ami/nodeadm/api/v1alpha1"
 	"github.com/awslabs/operatorpkg/object"
 	opstatus "github.com/awslabs/operatorpkg/status"
@@ -98,7 +99,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
 	cluster = state.NewCluster(fakeClock, env.Client)
-	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
+	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster, fakeClock)
 })
 
 var _ = AfterSuite(func() {
@@ -291,7 +292,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		Expect(len(createFleetInput.LaunchTemplateConfigs)).To(BeNumerically("==", awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()))
 		Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 5))
 		awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-			launchTemplate, ok := lo.Find(createFleetInput.LaunchTemplateConfigs, func(ltConfig *ec2.FleetLaunchTemplateConfigRequest) bool {
+			launchTemplate, ok := lo.Find(createFleetInput.LaunchTemplateConfigs, func(ltConfig ec2types.FleetLaunchTemplateConfigRequest) bool {
 				return *ltConfig.LaunchTemplateSpecification.LaunchTemplateName == *ltInput.LaunchTemplateName
 			})
 			Expect(ok).To(BeTrue())
@@ -387,13 +388,16 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 2))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				ltName := aws.StringValue(ltInput.LaunchTemplateName)
+				ltName := aws.ToString(ltInput.LaunchTemplateName)
 				lt, ok := awsEnv.LaunchTemplateCache.Get(ltName)
 				Expect(ok).To(Equal(true))
 				// Remove expiration from cached LT
 				awsEnv.LaunchTemplateCache.Set(ltName, lt, -1)
 			})
-			awsEnv.EC2API.CreateFleetBehavior.Error.Set(awserr.New("InvalidLaunchTemplateName.NotFoundException", "", nil), fake.MaxCalls(1))
+			awsEnv.EC2API.CreateFleetBehavior.Error.Set(&smithy.GenericAPIError{
+				Code:    "InvalidLaunchTemplateName.NotFoundException",
+				Message: "The launch template name is invalid.",
+			}, fake.MaxCalls(1))
 			pod = coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -531,13 +535,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
 
 			// tags should be included in instance, volume, and fleet tag specification
-			Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
+			Expect(createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2types.ResourceTypeInstance))
 			ExpectTags(createFleetInput.TagSpecifications[0].Tags, nodeClass.Spec.Tags)
 
-			Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
+			Expect(createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2types.ResourceTypeVolume))
 			ExpectTags(createFleetInput.TagSpecifications[1].Tags, nodeClass.Spec.Tags)
 
-			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
+			Expect(createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2types.ResourceTypeFleet))
 			ExpectTags(createFleetInput.TagSpecifications[2].Tags, nodeClass.Spec.Tags)
 		})
 		It("should request that tags be applied to both network interfaces and spot instance requests", func() {
@@ -562,10 +566,10 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Expect(i.LaunchTemplateData.TagSpecifications).To(HaveLen(2))
 
 				// tags should be included in instance, volume, and fleet tag specification
-				Expect(*i.LaunchTemplateData.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeNetworkInterface))
+				Expect(i.LaunchTemplateData.TagSpecifications[0].ResourceType).To(Equal(ec2types.ResourceTypeNetworkInterface))
 				ExpectTags(i.LaunchTemplateData.TagSpecifications[0].Tags, nodeClass.Spec.Tags)
 
-				Expect(*i.LaunchTemplateData.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeSpotInstancesRequest))
+				Expect(i.LaunchTemplateData.TagSpecifications[1].ResourceType).To(Equal(ec2types.ResourceTypeSpotInstancesRequest))
 				ExpectTags(i.LaunchTemplateData.TagSpecifications[1].Tags, nodeClass.Spec.Tags)
 			})
 		})
@@ -583,13 +587,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
 
 			// tags should be included in instance, volume, and fleet tag specification
-			Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
+			Expect(createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2types.ResourceTypeInstance))
 			ExpectTags(createFleetInput.TagSpecifications[0].Tags, nodeClass.Spec.Tags)
 
-			Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
+			Expect(createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2types.ResourceTypeVolume))
 			ExpectTags(createFleetInput.TagSpecifications[1].Tags, nodeClass.Spec.Tags)
 
-			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
+			Expect(createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2types.ResourceTypeFleet))
 			ExpectTags(createFleetInput.TagSpecifications[2].Tags, nodeClass.Spec.Tags)
 		})
 	})
@@ -603,9 +607,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(len(ltInput.LaunchTemplateData.BlockDeviceMappings)).To(Equal(1))
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize).To(Equal(int64(20)))
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal("gp3"))
-				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops).To(BeNil())
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(Equal(int32(20)))
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal(ec2types.VolumeType("gp3")))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops)).To(Equal(int32(0)))
 			})
 		})
 		It("should default AL2023 block device mappings", func() {
@@ -619,9 +623,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(len(ltInput.LaunchTemplateData.BlockDeviceMappings)).To(Equal(1))
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize).To(Equal(int64(20)))
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal("gp3"))
-				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops).To(BeNil())
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(Equal(int32(20)))
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal(ec2types.VolumeType("gp3")))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops)).To(Equal(int32(0)))
 			})
 		})
 		It("should use custom block device mapping", func() {
@@ -655,18 +659,18 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs).To(Equal(&ec2.LaunchTemplateEbsBlockDeviceRequest{
-					VolumeSize:          aws.Int64(187),
-					VolumeType:          aws.String("io2"),
-					Iops:                aws.Int64(10_000),
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs).To(Equal(&ec2types.LaunchTemplateEbsBlockDeviceRequest{
+					VolumeSize:          aws.Int32(187),
+					VolumeType:          ec2types.VolumeType("io2"),
+					Iops:                aws.Int32(10_000),
 					DeleteOnTermination: aws.Bool(true),
 					Encrypted:           aws.Bool(true),
 					KmsKeyId:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
 				}))
-				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs).To(Equal(&ec2.LaunchTemplateEbsBlockDeviceRequest{
-					VolumeSize:          aws.Int64(200),
-					VolumeType:          aws.String("io2"),
-					Iops:                aws.Int64(10_000),
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs).To(Equal(&ec2types.LaunchTemplateEbsBlockDeviceRequest{
+					VolumeSize:          aws.Int32(200),
+					VolumeType:          "io2",
+					Iops:                aws.Int32(10_000),
 					DeleteOnTermination: aws.Bool(true),
 					Encrypted:           aws.Bool(true),
 					KmsKeyId:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
@@ -705,8 +709,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				// Both of these values are rounded up when converting to Gibibytes
-				Expect(aws.Int64Value(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(BeNumerically("==", 4))
-				Expect(aws.Int64Value(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.VolumeSize)).To(BeNumerically("==", 2))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(BeNumerically("==", 4))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.VolumeSize)).To(BeNumerically("==", 2))
 			})
 		})
 		It("should default bottlerocket second volume with root volume size", func() {
@@ -719,13 +723,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(len(ltInput.LaunchTemplateData.BlockDeviceMappings)).To(Equal(2))
 				// Bottlerocket control volume
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize).To(Equal(int64(4)))
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal("gp3"))
-				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops).To(BeNil())
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(Equal(int32(4)))
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal(ec2types.VolumeType("gp3")))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops)).To(Equal(int32(0)))
 				// Bottlerocket user volume
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.VolumeSize).To(Equal(int64(20)))
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.VolumeType).To(Equal("gp3"))
-				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.Iops).To(BeNil())
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.VolumeSize)).To(Equal(int32(20)))
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.VolumeType).To(Equal(ec2types.VolumeType("gp3")))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.Iops)).To(Equal(int32(0)))
 			})
 		})
 		It("should not default block device mappings for custom AMIFamilies", func() {
@@ -763,12 +767,12 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 2))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(len(ltInput.LaunchTemplateData.BlockDeviceMappings)).To(Equal(1))
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize).To(Equal(int64(40)))
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal("io2"))
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops).To(Equal(int64(10_000)))
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.DeleteOnTermination).To(BeTrue())
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(BeTrue())
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.KmsKeyId).To(Equal("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(Equal(int32(40)))
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal(ec2types.VolumeType("io2")))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops)).To(Equal(int32(10_000)))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.DeleteOnTermination)).To(BeTrue())
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted)).To(BeTrue())
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.KmsKeyId)).To(Equal("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"))
 			})
 		})
 	})
@@ -976,28 +980,26 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 	})
 	Context("AL2", func() {
-		var info *ec2.InstanceTypeInfo
+		var info ec2types.InstanceTypeInfo
 		BeforeEach(func() {
 			var ok bool
-			var instanceInfo []*ec2.InstanceTypeInfo
-			err := awsEnv.EC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
-				Filters: []*ec2.Filter{
+			var instanceInfo []ec2types.InstanceTypeInfo
+			out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{
+				Filters: []ec2types.Filter{
 					{
 						Name:   aws.String("supported-virtualization-type"),
-						Values: []*string{aws.String("hvm")},
+						Values: []string{"hvm"},
 					},
 					{
 						Name:   aws.String("processor-info.supported-architecture"),
-						Values: aws.StringSlice([]string{"x86_64", "arm64"}),
+						Values: []string{"x86_64", "arm64"},
 					},
 				},
-			}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
-				instanceInfo = append(instanceInfo, page.InstanceTypes...)
-				return true
 			})
+			instanceInfo = out.InstanceTypes
 			Expect(err).To(BeNil())
-			info, ok = lo.Find(instanceInfo, func(i *ec2.InstanceTypeInfo) bool {
-				return aws.StringValue(i.InstanceType) == "m5.xlarge"
+			info, ok = lo.Find(instanceInfo, func(i ec2types.InstanceTypeInfo) bool {
+				return i.InstanceType == "m5.xlarge"
 			})
 			Expect(ok).To(BeTrue())
 		})
@@ -1029,28 +1031,26 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 	})
 	Context("Bottlerocket", func() {
-		var info *ec2.InstanceTypeInfo
+		var info ec2types.InstanceTypeInfo
 		BeforeEach(func() {
 			var ok bool
-			var instanceInfo []*ec2.InstanceTypeInfo
-			err := awsEnv.EC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
-				Filters: []*ec2.Filter{
+			var instanceInfo []ec2types.InstanceTypeInfo
+			out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{
+				Filters: []ec2types.Filter{
 					{
 						Name:   aws.String("supported-virtualization-type"),
-						Values: []*string{aws.String("hvm")},
+						Values: []string{"hvm"},
 					},
 					{
 						Name:   aws.String("processor-info.supported-architecture"),
-						Values: aws.StringSlice([]string{"x86_64", "arm64"}),
+						Values: []string{"x86_64", "arm64"},
 					},
 				},
-			}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
-				instanceInfo = append(instanceInfo, page.InstanceTypes...)
-				return true
 			})
+			instanceInfo = out.InstanceTypes
 			Expect(err).To(BeNil())
-			info, ok = lo.Find(instanceInfo, func(i *ec2.InstanceTypeInfo) bool {
-				return aws.StringValue(i.InstanceType) == "m5.xlarge"
+			info, ok = lo.Find(instanceInfo, func(i ec2types.InstanceTypeInfo) bool {
+				return i.InstanceType == "m5.xlarge"
 			})
 			Expect(ok).To(BeTrue())
 		})
@@ -1939,19 +1939,19 @@ essential = true
 			It("should correctly use ami selector with specific IDs in EC2NodeClass", func() {
 				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-123"}, {ID: "ami-456"}}
-				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
-						Architecture: aws.String("x86_64"),
-						Tags:         []*ec2.Tag{{Key: aws.String(corev1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
+						Architecture: "x86_64",
+						Tags:         []ec2types.Tag{{Key: aws.String(corev1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
-						Architecture: aws.String("x86_64"),
-						Tags:         []*ec2.Tag{{Key: aws.String(corev1.LabelInstanceTypeStable), Value: aws.String("m5.xlarge")}},
+						Architecture: "x86_64",
+						Tags:         []ec2types.Tag{{Key: aws.String(corev1.LabelInstanceTypeStable), Value: aws.String("m5.xlarge")}},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 				}})
@@ -1963,10 +1963,10 @@ essential = true
 				Expect(err).To(BeNil())
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 2))
 				actualFilter := awsEnv.EC2API.CalledWithDescribeImagesInput.Pop().Filters
-				expectedFilter := []*ec2.Filter{
+				expectedFilter := []ec2types.Filter{
 					{
 						Name:   aws.String("image-id"),
-						Values: aws.StringSlice([]string{"ami-123", "ami-456"}),
+						Values: []string{"ami-123", "ami-456"},
 					},
 				}
 				Expect(actualFilter).To(Equal(expectedFilter))
@@ -2001,24 +2001,24 @@ essential = true
 				Expect(expectedImageIds.Equal(actualImageIds)).To(BeTrue())
 			})
 			It("should create a launch template with the newest compatible AMI when multiple amis are discovered", func() {
-				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
-						Architecture: aws.String("x86_64"),
+						Architecture: "x86_64",
 						CreationDate: aws.String("2020-01-01T12:00:00Z"),
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
-						Architecture: aws.String("x86_64"),
+						Architecture: "x86_64",
 						CreationDate: aws.String("2021-01-01T12:00:00Z"),
 					},
 					{
 						// Incompatible because required ARM64
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-789"),
-						Architecture: aws.String("arm64"),
+						Architecture: "arm64",
 						CreationDate: aws.String("2022-01-01T12:00:00Z"),
 					},
 				}})
@@ -2047,7 +2047,7 @@ essential = true
 			})
 
 			It("should fail if no amis match selector.", func() {
-				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{}})
 				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				nodeClass.Status.AMIs = []v1.AMI{}
@@ -2058,8 +2058,8 @@ essential = true
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
 			})
 			It("should fail if no instanceType matches ami requirements.", func() {
-				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
-					{Name: aws.String(coretest.RandomName()), ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")}}})
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+					{Name: aws.String(coretest.RandomName()), ImageId: aws.String("ami-123"), Architecture: "newnew", CreationDate: aws.String("2022-01-01T12:00:00Z")}}})
 				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				nodeClass.Status.AMIs = []v1.AMI{
@@ -2180,7 +2180,7 @@ essential = true
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(aws.BoolValue(ltInput.LaunchTemplateData.Monitoring.Enabled)).To(BeFalse())
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.Monitoring.Enabled)).To(BeFalse())
 			})
 		})
 		It("should pass detailed monitoring setting to the launch template at creation", func() {
@@ -2191,7 +2191,7 @@ essential = true
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(aws.BoolValue(ltInput.LaunchTemplateData.Monitoring.Enabled)).To(BeTrue())
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.Monitoring.Enabled)).To(BeTrue())
 			})
 		})
 	})
@@ -2203,10 +2203,10 @@ essential = true
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpEndpoint)).To(Equal(ec2.InstanceMetadataEndpointStateEnabled))
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6)).To(Equal(ec2.InstanceMetadataEndpointStateDisabled))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2types.LaunchTemplateInstanceMetadataEndpointStateEnabled))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2types.LaunchTemplateInstanceMetadataProtocolIpv6Disabled))
 				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit)).To(BeNumerically("==", 1))
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpTokens)).To(Equal(ec2.HttpTokensStateRequired))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2types.LaunchTemplateHttpTokensStateRequired))
 			})
 		})
 		It("should set instance metadata tags to disabled", func() {
@@ -2216,16 +2216,78 @@ essential = true
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.InstanceMetadataTags)).To(Equal(ec2.InstanceMetadataTagsStateDisabled))
+				Expect(ltInput.LaunchTemplateData.MetadataOptions.InstanceMetadataTags).To(Equal(ec2types.LaunchTemplateInstanceMetadataTagsStateDisabled))
 			})
+		})
+	})
+	Context("Networking", func() {
+		Context("launch template respect to DNS ip for ipfamily selection", func() {
+			DescribeTable(
+				"should select correct ipFamily based on DNS ip",
+				func(ipFamily corev1.IPFamily) {
+					provider := launchtemplate.NewDefaultProvider(
+						ctx,
+						awsEnv.LaunchTemplateCache,
+						awsEnv.EC2API,
+						awsEnv.EKSAPI,
+						awsEnv.AMIResolver,
+						awsEnv.SecurityGroupProvider,
+						awsEnv.SubnetProvider,
+						awsEnv.LaunchTemplateProvider.CABundle,
+						make(chan struct{}),
+						net.ParseIP(lo.Ternary(ipFamily == corev1.IPv4Protocol, "10.0.100.10", "fd01:99f0:d47b::a")),
+						"https://test-cluster",
+					)
+					Expect(provider.ClusterIPFamily).To(Equal(ipFamily))
+				},
+				Entry("DNS has ipv4 address", corev1.IPv4Protocol),
+				Entry("DNS has ipv6 address", corev1.IPv6Protocol),
+			)
+		})
+		Context("should provision a v6 prefix and set v6 primary IP as true when running in an ipv6 cluster", func() {
+			DescribeTable(
+				"should set Primary IPv6 as true and provision a prefix",
+				func(isPublicAddressSet, isPublic, isEFA bool) {
+					awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
+					awsEnv.LaunchTemplateProvider.ClusterIPFamily = corev1.IPv6Protocol
+					if isPublicAddressSet {
+						nodeClass.Spec.AssociatePublicIPAddress = lo.ToPtr(isPublic)
+					}
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod(lo.Ternary(isEFA, coretest.PodOptions{
+						ResourceRequirements: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+							Limits:   corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+						},
+					}, coretest.PodOptions{}))
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+					if isPublicAddressSet {
+						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress)).To(Equal(isPublic))
+						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6PrefixCount)).To(Equal(int32(1)))
+						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].PrimaryIpv6)).To(BeTrue())
+					} else if !isEFA {
+						Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(0))
+					} else {
+						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
+						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6PrefixCount)).To(Equal(int32(1)))
+						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].PrimaryIpv6)).To(BeTrue())
+					}
+				},
+				Entry("AssociatePublicIPAddress is not set and EFA is false", false, true, false),
+				Entry("AssociatePublicIPAddress is not set and EFA is true", false, false, true),
+				Entry("AssociatePublicIPAddress is set as true and EFA is true", true, true, true),
+				Entry("AssociatePublicIPAddress is set as false and EFA is false", true, false, false),
+			)
 		})
 	})
 })
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
-func ExpectTags(tags []*ec2.Tag, expected map[string]string) {
+func ExpectTags(tags []ec2types.Tag, expected map[string]string) {
 	GinkgoHelper()
-	existingTags := lo.SliceToMap(tags, func(t *ec2.Tag) (string, string) { return *t.Key, *t.Value })
+	existingTags := lo.SliceToMap(tags, func(t ec2types.Tag) (string, string) { return *t.Key, *t.Value })
 	for expKey, expValue := range expected {
 		foundValue, ok := existingTags[expKey]
 		Expect(ok).To(BeTrue(), fmt.Sprintf("expected to find tag %s in %s", expKey, existingTags))
