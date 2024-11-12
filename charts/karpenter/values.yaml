@@ -45,7 +45,7 @@ podDisruptionBudget:
   name: karpenter
   maxUnavailable: 1
 # -- SecurityContext for the pod.
-podSecurityContext: 
+podSecurityContext:
   fsGroup: 65536
 # -- PriorityClass name for the pod.
 priorityClassName: system-cluster-critical
@@ -99,9 +99,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: v0.34.0
+    tag: 0.35.11
     # -- SHA256 digest of the controller image.
-    digest: sha256:1ec788c4358106d728a352426462014b7ee4734e9d5ec932d2f37a7b15f9be65
+    digest: sha256:7d8d543f1cae2b3b7d3cfe7d84dc451b31632b649ff766980398ab2b9c980240
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
