@@ -26,7 +26,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -61,8 +60,10 @@ func NewDefaultProvider(region string, iamapi sdk.IAMAPI, cache *cache.Cache) *D
 
 func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, error) {
 	profileName := m.InstanceProfileName(options.FromContext(ctx).ClusterName, p.region)
-	tags := lo.Assign(m.InstanceProfileTags(options.FromContext(ctx).ClusterName), map[string]string{corev1.LabelTopologyRegion: p.region})
-
+	tags := map[string]string{}
+	if len(m.InstanceProfileTags(options.FromContext(ctx).ClusterName)) != 0 {
+		tags = lo.Assign(m.InstanceProfileTags(options.FromContext(ctx).ClusterName), map[string]string{corev1.LabelTopologyRegion: p.region})
+	}
 	// An instance profile exists for this NodeClass
 	if _, ok := p.cache.Get(string(m.GetUID())); ok {
 		return profileName, nil
@@ -83,16 +84,6 @@ func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, 
 		}
 		instanceProfile = o.InstanceProfile
 	} else {
-		if !lo.ContainsBy(out.InstanceProfile.Tags, func(t iamtypes.Tag) bool {
-			return lo.FromPtr(t.Key) == v1.EKSClusterNameTagKey
-		}) {
-			if _, err = p.iamapi.TagInstanceProfile(ctx, &iam.TagInstanceProfileInput{
-				InstanceProfileName: aws.String(profileName),
-				Tags:                lo.MapToSlice(tags, func(k, v string) iamtypes.Tag { return iamtypes.Tag{Key: aws.String(k), Value: aws.String(v)} }),
-			}); err != nil {
-				return "", fmt.Errorf("tagging instance profile %q, %w", profileName, err)
-			}
-		}
 		instanceProfile = out.InstanceProfile
 	}
 	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
