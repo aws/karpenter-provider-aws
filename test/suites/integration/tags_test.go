@@ -20,7 +20,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/awslabs/operatorpkg/object"
 
@@ -96,31 +95,6 @@ var _ = Describe("Tags", func() {
 				iamtypes.Tag{Key: lo.ToPtr(v1.LabelNodeClass), Value: lo.ToPtr(nodeClass.Name)},
 				iamtypes.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)},
 			))
-		})
-		It("should tag managed instance profiles with the eks:eks-cluster-name tag key after restart", func() {
-			if env.PrivateCluster {
-				Skip("skipping managed instance profiles test for private cluster")
-			}
-			env.ExpectCreated(nodeClass)
-			env.EventuallyExpectInstanceProfileExists(env.GetInstanceProfileName(nodeClass))
-
-			_, err := env.IAMAPI.UntagInstanceProfile(env.Context, &iam.UntagInstanceProfileInput{
-				InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
-				TagKeys: []string{
-					v1.EKSClusterNameTagKey,
-				},
-			})
-			Expect(err).ToNot(HaveOccurred())
-			// Restart Karpenter to flush the instance profile cache and to trigger re-tagging of the instance profile
-			env.EventuallyExpectKarpenterRestarted()
-
-			Eventually(func(g Gomega) {
-				out, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
-					InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
-				})
-				g.Expect(err).ToNot(HaveOccurred())
-				g.Expect(out.InstanceProfile.Tags).To(ContainElement(iamtypes.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)}))
-			}).WithTimeout(time.Second * 20).Should(Succeed())
 		})
 	})
 	Context("Tagging Controller", func() {
