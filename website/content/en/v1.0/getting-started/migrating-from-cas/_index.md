@@ -10,8 +10,8 @@ This guide will show you how to switch from the [Kubernetes Cluster Autoscaler](
 We will make the following assumptions in this guide
 
 * You will use an existing EKS cluster
-* You will use an existing VPC and subnets
-* You will use an existing security groups
+* You will use existing VPC and subnets
+* You will use existing security groups
 * Your nodes are part of one or more node groups
 * Your workloads have pod disruption budgets that adhere to [EKS best practices](https://aws.github.io/aws-eks-best-practices/karpenter/)
 * Your cluster has an [OIDC provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) for service accounts
