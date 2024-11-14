@@ -404,7 +404,7 @@ func (p *DefaultProvider) DeleteAll(ctx context.Context, nodeClass *v1.EC2NodeCl
 				Values: []string{clusterName},
 			},
 			{
-				Name:   aws.String(fmt.Sprintf("tag:%s", v1.LabelNodeClass)),
+				Name:   aws.String(fmt.Sprintf("tag:%s", v1.NodeClassTagKey)),
 				Values: []string{nodeClass.Name},
 			},
 		},
