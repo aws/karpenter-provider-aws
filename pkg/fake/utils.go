@@ -139,7 +139,7 @@ func Filter(filters []ec2types.Filter, id, name string, tags []ec2types.Tag) boo
 // nolint: gocyclo
 func matchTags(tags []ec2types.Tag, filter ec2types.Filter) bool {
 	if strings.HasPrefix(*filter.Name, "tag:") {
-		tagKey := strings.Split(*filter.Name, ":")[1]
+		_, tagKey, _ := strings.Cut(*filter.Name, ":")
 		for _, val := range filter.Values {
 			for _, tag := range tags {
 				if tagKey == *tag.Key && (val == "*" || val == *tag.Value) {

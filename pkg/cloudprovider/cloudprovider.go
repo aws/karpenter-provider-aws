@@ -35,6 +35,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"github.com/samber/lo"
@@ -102,7 +103,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if len(instanceTypes) == 0 {
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
 	}
-	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, instanceTypes)
+	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, getTags(ctx, nodeClass, nodeClaim), instanceTypes)
 	if err != nil {
 		return nil, fmt.Errorf("creating instance, %w", err)
 	}
@@ -225,6 +226,16 @@ func (c *CloudProvider) Name() string {
 
 func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
 	return []status.Object{&v1.EC2NodeClass{}}
+}
+
+func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) map[string]string {
+	staticTags := map[string]string{
+		fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
+		karpv1.NodePoolLabelKey: nodeClaim.Labels[karpv1.NodePoolLabelKey],
+		v1.EKSClusterNameTagKey: options.FromContext(ctx).ClusterName,
+		v1.LabelNodeClass:       nodeClass.Name,
+	}
+	return lo.Assign(nodeClass.Spec.Tags, staticTags)
 }
 
 func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*v1.EC2NodeClass, error) {
