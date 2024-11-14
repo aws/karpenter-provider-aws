@@ -57,7 +57,11 @@ spec:
       hostNetwork: true
       {{- end }}
       containers:
+        {{- if .Values.controller.containerName }}
+        - name: {{ .Values.controller.containerName }}
+        {{- else }}
         - name: controller
+        {{- end }}
           securityContext:
             runAsUser: 65532
             runAsGroup: 65532
