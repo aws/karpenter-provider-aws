@@ -157,7 +157,7 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 				Values: []string{v1.NodeClassTagKey},
 			},
 			{
-				Name:   aws.String(v1.EKSClusterNameTagKey),
+				Name:   aws.String(fmt.Sprintf("tag:%s", v1.EKSClusterNameTagKey)),
 				Values: []string{options.FromContext(ctx).ClusterName},
 			},
 			instanceStateFilter,
@@ -166,10 +166,10 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
-		out.Reservations = append(out.Reservations, page.Reservations...)
 		if err != nil {
 			return nil, fmt.Errorf("describing ec2 instances, %w", err)
 		}
+		out.Reservations = append(out.Reservations, page.Reservations...)
 	}
 	instances, err := instancesFromOutput(out)
 	return instances, cloudprovider.IgnoreNodeClaimNotFoundError(err)
