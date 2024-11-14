@@ -118,7 +118,7 @@ var _ = Describe("TaggingController", func() {
 		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1.AnnotationInstanceTagged)))
 		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag ec2types.Tag) bool {
-			return *tag.Key == v1.TagName
+			return *tag.Key == v1.NameTagKey
 		})).To(BeFalse())
 	})
 
@@ -134,7 +134,7 @@ var _ = Describe("TaggingController", func() {
 		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1.AnnotationInstanceTagged)))
 		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag ec2types.Tag) bool {
-			return tag.Key == &v1.TagName
+			return tag.Key == &v1.NameTagKey
 		})).To(BeFalse())
 	})
 
@@ -181,7 +181,7 @@ var _ = Describe("TaggingController", func() {
 		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1.AnnotationInstanceTagged)))
 		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag ec2types.Tag) bool {
-			return tag.Key == &v1.TagName
+			return tag.Key == &v1.NameTagKey
 		})).To(BeFalse())
 	})
 
@@ -209,8 +209,8 @@ var _ = Describe("TaggingController", func() {
 			Expect(nodeClaim.Annotations).To(HaveKey(v1.AnnotationInstanceTagged))
 
 			expectedTags := map[string]string{
-				v1.TagName:              nodeClaim.Status.NodeName,
-				v1.TagNodeClaim:         nodeClaim.Name,
+				v1.NameTagKey:           nodeClaim.Status.NodeName,
+				v1.NodeClaimTagKey:      nodeClaim.Name,
 				v1.EKSClusterNameTagKey: options.FromContext(ctx).ClusterName,
 			}
 			ec2Instance := lo.Must(awsEnv.EC2API.Instances.Load(*ec2Instance.InstanceId)).(ec2types.Instance)
@@ -223,12 +223,12 @@ var _ = Describe("TaggingController", func() {
 				Expect(instanceTags).To(HaveKeyWithValue(tag, value))
 			}
 		},
-		Entry("with the karpenter.sh/nodeclaim tag", v1.TagName, v1.EKSClusterNameTagKey),
-		Entry("with the eks:eks-cluster-name tag", v1.TagName, v1.TagNodeClaim),
-		Entry("with the Name tag", v1.TagNodeClaim, v1.EKSClusterNameTagKey),
-		Entry("with the karpenter.sh/nodeclaim and eks:eks-cluster-name tags", v1.TagName),
-		Entry("with the Name and eks:eks-cluster-name tags", v1.TagNodeClaim),
+		Entry("with the karpenter.sh/nodeclaim tag", v1.NameTagKey, v1.EKSClusterNameTagKey),
+		Entry("with the eks:eks-cluster-name tag", v1.NameTagKey, v1.NodeClaimTagKey),
+		Entry("with the Name tag", v1.NodeClaimTagKey, v1.EKSClusterNameTagKey),
+		Entry("with the karpenter.sh/nodeclaim and eks:eks-cluster-name tags", v1.NameTagKey),
+		Entry("with the Name and eks:eks-cluster-name tags", v1.NodeClaimTagKey),
 		Entry("with the karpenter.sh/nodeclaim and Name tags", v1.EKSClusterNameTagKey),
-		Entry("with nothing to tag", v1.TagNodeClaim, v1.EKSClusterNameTagKey, v1.TagName),
+		Entry("with nothing to tag", v1.NodeClaimTagKey, v1.EKSClusterNameTagKey, v1.NameTagKey),
 	)
 })

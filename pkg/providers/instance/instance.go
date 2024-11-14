@@ -150,15 +150,15 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 		Filters: []ec2types.Filter{
 			{
 				Name:   aws.String("tag-key"),
-				Values: []string{karpv1.NodePoolLabelKey},
+				Values: []string{v1.NodePoolTagKey},
 			},
 			{
 				Name:   aws.String("tag-key"),
-				Values: []string{v1.LabelNodeClass},
+				Values: []string{v1.NodeClassTagKey},
 			},
 			{
-				Name:   aws.String("tag-key"),
-				Values: []string{fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)},
+				Name:   aws.String(v1.EKSClusterNameTagKey),
+				Values: []string{options.FromContext(ctx).ClusterName},
 			},
 			instanceStateFilter,
 		},
