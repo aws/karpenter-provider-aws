@@ -30,7 +30,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 )
 
@@ -48,7 +50,16 @@ func NewController(kubeClient client.Client, instancetypeProvider *instancetype.
 
 func (c *Controller) Reconcile(ctx context.Context, node *corev1.Node) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "providers.instancetype.capacity")
-	if err := c.instancetypeProvider.UpdateInstanceTypeCapacityFromNode(ctx, c.kubeClient, node); err != nil {
+	nodeClaim, err := nodeutils.NodeClaimForNode(ctx, c.kubeClient, node)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to get nodeclaim for node, %w", err)
+	}
+
+	nodeClass := &v1.EC2NodeClass{}
+	if err = c.kubeClient.Get(ctx, client.ObjectKey{Name: nodeClaim.Spec.NodeClassRef.Name}, nodeClass); err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to get ec2nodeclass, %w", err)
+	}
+	if err := c.instancetypeProvider.UpdateInstanceTypeCapacityFromNode(ctx, node, nodeClaim, nodeClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("updating discovered capacity cache, %w", err)
 	}
 	return reconcile.Result{}, nil

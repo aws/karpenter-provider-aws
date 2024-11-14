@@ -261,7 +261,7 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 		TagSpecifications: []ec2types.TagSpecification{
 			{
 				ResourceType: ec2types.ResourceTypeLaunchTemplate,
-				Tags:         utils.MergeTags(options.Tags, map[string]string{v1.TagManagedLaunchTemplate: options.ClusterName, v1.LabelNodeClass: options.NodeClassName}),
+				Tags:         utils.MergeTags(options.Tags),
 			},
 		},
 	})
@@ -348,12 +348,12 @@ func (p *DefaultProvider) volumeSize(quantity *resource.Quantity) *int32 {
 // Any error during hydration will result in a panic
 func (p *DefaultProvider) hydrateCache(ctx context.Context) {
 	clusterName := options.FromContext(ctx).ClusterName
-	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("tag-key", v1.TagManagedLaunchTemplate, "tag-value", clusterName))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("tag-key", v1.EKSClusterNameTagKey, "tag-value", clusterName))
 
 	paginator := ec2.NewDescribeLaunchTemplatesPaginator(p.ec2api, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []ec2types.Filter{
 			{
-				Name:   aws.String(fmt.Sprintf("tag:%s", v1.TagManagedLaunchTemplate)),
+				Name:   aws.String(fmt.Sprintf("tag:%s", v1.EKSClusterNameTagKey)),
 				Values: []string{clusterName},
 			},
 		},
@@ -400,11 +400,11 @@ func (p *DefaultProvider) DeleteAll(ctx context.Context, nodeClass *v1.EC2NodeCl
 	paginator := ec2.NewDescribeLaunchTemplatesPaginator(p.ec2api, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []ec2types.Filter{
 			{
-				Name:   aws.String(fmt.Sprintf("tag:%s", v1.TagManagedLaunchTemplate)),
+				Name:   aws.String(fmt.Sprintf("tag:%s", v1.EKSClusterNameTagKey)),
 				Values: []string{clusterName},
 			},
 			{
-				Name:   aws.String(fmt.Sprintf("tag:%s", v1.LabelNodeClass)),
+				Name:   aws.String(fmt.Sprintf("tag:%s", v1.NodeClassTagKey)),
 				Values: []string{nodeClass.Name},
 			},
 		},
