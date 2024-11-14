@@ -16,7 +16,7 @@ We will make the following assumptions in this guide
 * Your workloads have pod disruption budgets that adhere to [EKS best practices](https://aws.github.io/aws-eks-best-practices/karpenter/)
 * Your cluster has an [OIDC provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) for service accounts
 
-This guide will also assume you have the `aws` CLI and Helm client installed.
+This guide will also assume you have the `aws` CLI and Helm installed.
 You can also perform many of these steps in the console, but we will use the command line for simplicity.
 
 ## Set environment variables
