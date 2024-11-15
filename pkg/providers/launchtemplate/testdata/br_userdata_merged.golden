@@ -4,6 +4,7 @@ api-server = 'https://test-cluster'
 cloud-provider = 'external'
 cluster-certificate = 'ca-bundle'
 cluster-name = 'test-cluster'
+cluster-cidr = '10.100.0.0/16'
 cluster-dns-ip = '10.0.100.10'
 max-pods = 110
 

@@ -80,6 +80,7 @@ func (b Bottlerocket) UserData(kubeletConfig *v1.KubeletConfiguration, taints []
 		Options: bootstrap.Options{
 			ClusterName:         b.Options.ClusterName,
 			ClusterEndpoint:     b.Options.ClusterEndpoint,
+			ClusterCIDR:         b.Options.ClusterCIDR,
 			KubeletConfig:       kubeletConfig,
 			Taints:              taints,
 			Labels:              labels,

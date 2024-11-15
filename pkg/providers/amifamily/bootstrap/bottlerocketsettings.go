@@ -48,6 +48,7 @@ type BottlerocketKubernetes struct {
 	CloudProvider                      *string                                   `toml:"cloud-provider"`
 	ClusterCertificate                 *string                                   `toml:"cluster-certificate"`
 	ClusterName                        *string                                   `toml:"cluster-name"`
+	ClusterCIDR                        *string                                   `toml:"cluster-cidr,omitempty"`
 	ClusterDNSIP                       *string                                   `toml:"cluster-dns-ip,omitempty"`
 	CredentialProviders                map[string]BottlerocketCredentialProvider `toml:"credential-providers,omitempty"`
 	NodeLabels                         map[string]string                         `toml:"node-labels,omitempty"`

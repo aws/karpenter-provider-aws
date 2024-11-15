@@ -42,6 +42,7 @@ func (b Bottlerocket) Script() (string, error) {
 	s.Settings.Kubernetes.ClusterName = &b.ClusterName
 	s.Settings.Kubernetes.APIServer = &b.ClusterEndpoint
 	s.Settings.Kubernetes.ClusterCertificate = b.CABundle
+	s.Settings.Kubernetes.ClusterCIDR = b.ClusterCIDR
 	if err := mergo.MergeWithOverwrite(&s.Settings.Kubernetes.NodeLabels, b.Labels); err != nil {
 		return "", err
 	}
