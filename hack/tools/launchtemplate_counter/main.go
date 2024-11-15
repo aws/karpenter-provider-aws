@@ -69,7 +69,7 @@ func main() {
 				ec2api,
 				cfg.Region,
 			),
-			awscache.NewUnavailableOfferings(),
+			awscache.NewUnavailableOfferings(awscache.UnavailableOfferingsTTL),
 		),
 	)
 	if err := instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {

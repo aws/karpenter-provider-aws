@@ -142,7 +142,7 @@ below are the resources available with some assumptions and after the instance o
 					ec2api,
 					cfg.Region,
 				),
-				awscache.NewUnavailableOfferings(),
+				awscache.NewUnavailableOfferings(awscache.UnavailableOfferingsTTL),
 			),
 		)
 		if err = instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync/atomic"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -36,9 +37,9 @@ type UnavailableOfferings struct {
 	SeqNum uint64
 }
 
-func NewUnavailableOfferings() *UnavailableOfferings {
+func NewUnavailableOfferings(ttl time.Duration) *UnavailableOfferings {
 	uo := &UnavailableOfferings{
-		cache:  cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
+		cache:  cache.New(ttl, UnavailableOfferingsCleanupInterval),
 		SeqNum: 0,
 	}
 	uo.cache.OnEvicted(func(_ string, _ interface{}) {
