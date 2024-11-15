@@ -242,7 +242,7 @@ func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.
 		v1.LabelNodeClass:       nodeClass.Name,
 	}
 	return lo.Assign(lo.OmitBy(nodeClass.Spec.Tags, func(key string, _ string) bool {
-		return strings.HasPrefix(key, "kubernetes.io/")
+		return strings.HasPrefix(key, "kubernetes.io/cluster/")
 	}), staticTags)
 }
 
