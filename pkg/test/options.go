@@ -16,6 +16,7 @@ package test
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
@@ -31,6 +32,7 @@ type OptionsFields struct {
 	VMMemoryOverheadPercent *float64
 	InterruptionQueue       *string
 	ReservedENIs            *int
+	UnavailableOfferingsTTL *time.Duration
 }
 
 func Options(overrides ...OptionsFields) *options.Options {
@@ -48,5 +50,6 @@ func Options(overrides ...OptionsFields) *options.Options {
 		VMMemoryOverheadPercent: lo.FromPtrOr(opts.VMMemoryOverheadPercent, 0.075),
 		InterruptionQueue:       lo.FromPtrOr(opts.InterruptionQueue, ""),
 		ReservedENIs:            lo.FromPtrOr(opts.ReservedENIs, 0),
+		UnavailableOfferingsTTL: lo.FromPtrOr(opts.UnavailableOfferingsTTL, 3*time.Minute),
 	}
 }

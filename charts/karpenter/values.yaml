@@ -175,6 +175,10 @@ settings:
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html
   reservedENIs: "0"
+  # -- Duration (default value is '3m') for cache eviction for unavailable offerings.
+  # Valid time units are 'ns', 'us' (or 'µs'), 'ms', 's', 'm', 'h'.
+  # Decimals are accepted and units can be used alone or together like '300ms', '1.5h' or '2h45m'"
+  unavailableOfferingsTTL: "3m"
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features
   featureGates:
