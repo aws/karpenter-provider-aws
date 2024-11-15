@@ -83,6 +83,7 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 				KubernetesNetworkConfig: &ekstypes.KubernetesNetworkConfigResponse{
 					ServiceIpv6Cidr: lo.ToPtr("2001:db8::/64"),
 				},
+				Version: lo.ToPtr("1.30"),
 			},
 		})
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
