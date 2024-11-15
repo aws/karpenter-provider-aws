@@ -62,6 +62,8 @@ github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647 h1:
 github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647/go.mod h1:9NafTAUHL0FlMeL6Cu5PXnMZ1q/LnC9X2emLXHsVbM8=
 github.com/awslabs/operatorpkg v0.0.0-20241112190830-be645b3ea0ad h1:40ZsADFFLtStcyh6MQxTi5sFezU7ghdFR0uaGBsVpB4=
 github.com/awslabs/operatorpkg v0.0.0-20241112190830-be645b3ea0ad/go.mod h1:qO5OXavA/cGkE7eTT7ruVD54P5vVpL7HoCEl2bnB/r0=
+github.com/awslabs/operatorpkg v0.0.0-20241115011931-885371bcf05d h1:u0ftwckbIE7A3Ph4dtQI+VwmVXok8hen+H0kUi6AQR4=
+github.com/awslabs/operatorpkg v0.0.0-20241115011931-885371bcf05d/go.mod h1:jina2fQk+b3oa9r5bRuMDbpy6mfhTGuruh05oVVWwnk=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
