@@ -49,7 +49,7 @@ podAnnotations: {}
 podDisruptionBudget:
   name: karpenter
   maxUnavailable: 1
-  unhealthyPodEvictionPolicy:
+  unhealthyPodEvictionPolicy: AlwaysAllow
 # -- SecurityContext for the pod.
 podSecurityContext:
   fsGroup: 65532
