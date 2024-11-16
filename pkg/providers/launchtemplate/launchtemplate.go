@@ -287,25 +287,22 @@ func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTem
 				// with a single EFA network interface, and we should support those use cases. Launch failures with multiple enis should be considered user misconfiguration.
 				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
 				PrimaryIpv6:              lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
-				Ipv6PrefixCount:          lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+				Ipv6AddressCount:         lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
 			}
 		})
 	}
 
-	if options.AssociatePublicIPAddress != nil {
-		return []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
-			{
-				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
-				DeviceIndex:              aws.Int32(0),
-				Groups: lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string {
-					return s.ID
-				}),
-				PrimaryIpv6:     lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
-				Ipv6PrefixCount: lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
-			},
-		}
+	return []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+		{
+			AssociatePublicIpAddress: options.AssociatePublicIPAddress,
+			DeviceIndex:              aws.Int32(0),
+			Groups: lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string {
+				return s.ID
+			}),
+			PrimaryIpv6:      lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
+			Ipv6AddressCount: lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+		},
 	}
-	return nil
 }
 
 func (p *DefaultProvider) blockDeviceMappings(blockDeviceMappings []*v1.BlockDeviceMapping) []ec2types.LaunchTemplateBlockDeviceMappingRequest {
