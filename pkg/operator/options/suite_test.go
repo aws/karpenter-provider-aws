@@ -65,7 +65,9 @@ var _ = Describe("Options", func() {
 			"--isolated-vpc",
 			"--vm-memory-overhead-percent", "0.1",
 			"--interruption-queue", "env-cluster",
-			"--reserved-enis", "10")
+			"--reserved-enis", "10",
+			"--unavailable-offerings-ttl", "5m",
+		)
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
 			AssumeRoleARN:           lo.ToPtr("env-role"),
@@ -77,6 +79,7 @@ var _ = Describe("Options", func() {
 			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
 			InterruptionQueue:       lo.ToPtr("env-cluster"),
 			ReservedENIs:            lo.ToPtr(10),
+			UnavailableOfferingsTTL: lo.ToPtr(5 * time.Minute),
 		}))
 	})
 	It("should correctly fallback to env vars when CLI flags aren't set", func() {
@@ -89,6 +92,7 @@ var _ = Describe("Options", func() {
 		os.Setenv("VM_MEMORY_OVERHEAD_PERCENT", "0.1")
 		os.Setenv("INTERRUPTION_QUEUE", "env-cluster")
 		os.Setenv("RESERVED_ENIS", "10")
+		os.Setenv("UNAVAILABLE_OFFERINGS_TTL", "5m")
 
 		// Add flags after we set the environment variables so that the parsing logic correctly refers
 		// to the new environment variable values
@@ -105,6 +109,7 @@ var _ = Describe("Options", func() {
 			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
 			InterruptionQueue:       lo.ToPtr("env-cluster"),
 			ReservedENIs:            lo.ToPtr(10),
+			UnavailableOfferingsTTL: lo.ToPtr(5 * time.Minute),
 		}))
 	})
 
@@ -132,6 +137,10 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--reserved-enis", "-1")
 			Expect(err).To(HaveOccurred())
 		})
+		It("should fail when invalid durations are parsed", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--unavailable-offerings-ttl", "5abc")
+			Expect(err).To(HaveOccurred())
+		})
 	})
 })
 
@@ -146,4 +155,5 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.VMMemoryOverheadPercent).To(Equal(optsB.VMMemoryOverheadPercent))
 	Expect(optsA.InterruptionQueue).To(Equal(optsB.InterruptionQueue))
 	Expect(optsA.ReservedENIs).To(Equal(optsB.ReservedENIs))
+	Expect(optsA.UnavailableOfferingsTTL).To(Equal(optsB.UnavailableOfferingsTTL))
 }

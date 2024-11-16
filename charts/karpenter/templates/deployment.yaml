@@ -148,6 +148,10 @@ spec:
             - name: RESERVED_ENIS
               value: "{{ . }}"
           {{- end }}
+          {{- with .Values.settings.unavailableOfferingsTTL }}
+            - name: UNAVAILABLE_OFFERINGS_TTL
+              value: "{{ . }}"
+          {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
