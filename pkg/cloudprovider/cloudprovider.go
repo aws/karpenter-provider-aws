@@ -18,6 +18,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"strings"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -94,18 +95,23 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, cloudprovider.NewNodeClassNotReadyError(stderrors.New(nodeClassReady.Message))
 	}
 	if nodeClassReady.IsUnknown() {
-		return nil, fmt.Errorf("resolving NodeClass readiness, NodeClass is in Ready=Unknown, %s", nodeClassReady.Message)
+		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving NodeClass readiness, NodeClass is in Ready=Unknown, %s", nodeClassReady.Message), "NodeClass is in Ready=Unknown")
 	}
 	instanceTypes, err := c.resolveInstanceTypes(ctx, nodeClaim, nodeClass)
 	if err != nil {
-		return nil, fmt.Errorf("resolving instance types, %w", err)
+		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving instance types, %w", err), "Error resolving instance types")
 	}
 	if len(instanceTypes) == 0 {
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
 	}
 	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, getTags(ctx, nodeClass, nodeClaim), instanceTypes)
 	if err != nil {
-		return nil, fmt.Errorf("creating instance, %w", err)
+		conditionMessage := "Error creating instance"
+		var createError *cloudprovider.CreateError
+		if stderrors.As(err, &createError) {
+			conditionMessage = createError.ConditionMessage
+		}
+		return nil, cloudprovider.NewCreateError(fmt.Errorf("creating instance, %w", err), conditionMessage)
 	}
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return i.Name == string(instance.Type)
@@ -235,7 +241,9 @@ func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.
 		v1.EKSClusterNameTagKey: options.FromContext(ctx).ClusterName,
 		v1.LabelNodeClass:       nodeClass.Name,
 	}
-	return lo.Assign(nodeClass.Spec.Tags, staticTags)
+	return lo.Assign(lo.OmitBy(nodeClass.Spec.Tags, func(key string, _ string) bool {
+		return strings.HasPrefix(key, "kubernetes.io/cluster/")
+	}), staticTags)
 }
 
 func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*v1.EC2NodeClass, error) {
