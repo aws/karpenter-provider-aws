@@ -20,10 +20,7 @@ import (
 
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -102,10 +99,6 @@ var _ = Describe("IPv6", func() {
 	It("should provision a static IPv6 prefix with node launch and set IPv6 as primary in the primary network interface", func() {
 		clusterDNSAddr := env.ExpectIPv6ClusterDNS()
 		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{ClusterDNS: []string{clusterDNSAddr}}
-		Expect(disableVPCCNIProvisioning(true)).To(Succeed())
-		DeferCleanup(func() {
-			Expect(disableVPCCNIProvisioning(false)).To(Succeed())
-		})
 		pod := coretest.Pod()
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
@@ -113,42 +106,10 @@ var _ = Describe("IPv6", func() {
 		node := env.GetNode(pod.Spec.NodeName)
 		instance := env.GetInstanceByID(env.ExpectParsedProviderID(node.Spec.ProviderID))
 		Expect(instance.NetworkInterfaces).To(HaveLen(1))
-		Expect(instance.NetworkInterfaces[0].Ipv6Prefixes).To(HaveLen(1))
+		Expect(instance.NetworkInterfaces[0].Ipv6Addresses).To(HaveLen(1))
 		_, hasIPv6Primary := lo.Find(instance.NetworkInterfaces[0].Ipv6Addresses, func(ip types.InstanceIpv6Address) bool {
 			return lo.FromPtr(ip.IsPrimaryIpv6)
 		})
 		Expect(hasIPv6Primary).To(BeTrue())
 	})
 })
-
-// disable VPC CNI provisioning on network interfaces and IPs
-func disableVPCCNIProvisioning(disable bool) error {
-	dsClient := env.KubeClient.AppsV1().DaemonSets("kube-system")
-	retryErr := retry.OnError(
-		retry.DefaultRetry,
-		func(err error) bool {
-			return true
-		},
-		func() error {
-			awsNode, getErr := dsClient.Get(env.Context, "aws-node", metav1.GetOptions{})
-			if getErr != nil {
-				return getErr
-			}
-
-			for i := range awsNode.Spec.Template.Spec.Containers {
-				if awsNode.Spec.Template.Spec.Containers[i].Name == "aws-node" {
-					for j := range awsNode.Spec.Template.Spec.Containers[i].Env {
-						if awsNode.Spec.Template.Spec.Containers[i].Env[j].Name == "DISABLE_NETWORK_RESOURCE_PROVISIONING" {
-							awsNode.Spec.Template.Spec.Containers[i].Env[j].Value = lo.Ternary(disable, "true", "false")
-						}
-					}
-				}
-			}
-
-			_, updateErr := dsClient.Update(env.Context, awsNode, metav1.UpdateOptions{})
-			return updateErr
-		},
-	)
-	// ignore AWS VPC CNI is not installed
-	return client.IgnoreNotFound(retryErr)
-}
