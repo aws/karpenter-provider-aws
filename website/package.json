@@ -2,11 +2,11 @@
   "name": "website",
   "version": "1.0.0",
   "devDependencies": {
-    "ansi-regex": ">=5.0.1",
-    "autoprefixer": "^10.4.17",
-    "postcss": "^8.4.35",
+    "ansi-regex": ">=6.1.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
     "postcss-cli": "^11.0.0",
-    "hugo-extended": "0.122.0"
+    "hugo-extended": "0.138.0"
   },
 
   "scripts": {
