@@ -26,6 +26,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
@@ -48,25 +56,43 @@ type DefaultProvider struct {
 	cache               *cache.Cache
 	cm                  *pretty.ChangeMonitor
 	kubernetesInterface kubernetes.Interface
+	eksapi              sdk.EKSAPI
 }
 
-func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache, eksapi sdk.EKSAPI) *DefaultProvider {
 	return &DefaultProvider{
 		cm:                  pretty.NewChangeMonitor(),
 		cache:               cache,
 		kubernetesInterface: kubernetesInterface,
+		eksapi:              eksapi,
 	}
 }
 
 func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
+	var version string
 	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
 		return version.(string), nil
 	}
-	serverVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
+	output, err := p.eksapi.DescribeCluster(ctx, &eks.DescribeClusterInput{
+		Name: lo.ToPtr(options.FromContext(ctx).ClusterName),
+	})
 	if err != nil {
-		return "", err
+		if !awserrors.IsAccessDenied(err) {
+			return "", err
+		}
+		output, err := p.kubernetesInterface.Discovery().ServerVersion()
+		if err != nil {
+			return "", fmt.Errorf("getting kubernetes version from the kubernetes API")
+		} else if output != nil {
+			version = fmt.Sprintf("%s.%s", output.Major, strings.TrimSuffix(output.Minor, "+"))
+			log.FromContext(ctx).Info("retrieved Kubernetes version from Kubernetes API", "version", version)
+		}
+	} else if lo.FromPtr(output.Cluster.Version) != "" {
+		version = *output.Cluster.Version
+		log.FromContext(ctx).Info("retrieved Kubernetes version from EKS DescribeCluster", "version", version)
+	} else {
+		return "", fmt.Errorf("unable to retrieve Kubernetes version from EKS DescribeCluster")
 	}
-	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernetes-version", version) {
 		log.FromContext(ctx).WithValues("version", version).V(1).Info("discovered kubernetes version")

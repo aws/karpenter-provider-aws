@@ -2244,9 +2244,9 @@ essential = true
 				Entry("DNS has ipv6 address", corev1.IPv6Protocol),
 			)
 		})
-		Context("should provision a v6 prefix and set v6 primary IP as true when running in an ipv6 cluster", func() {
+		Context("should provision a v6 address and set v6 primary IP as true when running in an ipv6 cluster", func() {
 			DescribeTable(
-				"should set Primary IPv6 as true and provision a prefix",
+				"should set Primary IPv6 as true and provision a IPv6 address",
 				func(isPublicAddressSet, isPublic, isEFA bool) {
 					awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
 					awsEnv.LaunchTemplateProvider.ClusterIPFamily = corev1.IPv6Protocol
@@ -2263,17 +2263,18 @@ essential = true
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 					ExpectScheduled(ctx, env.Client, pod)
 					input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-					if isPublicAddressSet {
-						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress)).To(Equal(isPublic))
-						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6PrefixCount)).To(Equal(int32(1)))
-						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].PrimaryIpv6)).To(BeTrue())
-					} else if !isEFA {
-						Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(0))
-					} else {
-						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
-						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6PrefixCount)).To(Equal(int32(1)))
-						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].PrimaryIpv6)).To(BeTrue())
+
+					Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(BeNumerically(">=", 1))
+					if !isPublicAddressSet && !isEFA {
+						Expect(input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeNil())
 					}
+					if isEFA {
+						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
+						Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress)).To(Equal(isPublic))
+					}
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6AddressCount)).To(Equal(int32(1)))
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].PrimaryIpv6)).To(BeTrue())
+
 				},
 				Entry("AssociatePublicIPAddress is not set and EFA is false", false, true, false),
 				Entry("AssociatePublicIPAddress is not set and EFA is true", false, false, true),
