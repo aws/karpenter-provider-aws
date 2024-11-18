@@ -133,7 +133,7 @@ var _ = Describe("InstanceProvider", func() {
 		instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool { return i.Name == "m5.xlarge" })
 
 		// Since all the capacity pools are ICEd. This should return back an ICE error
-		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, instanceTypes)
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
 	})
