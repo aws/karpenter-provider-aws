@@ -17,6 +17,7 @@ Before you begin upgrading to `v1.0`, you should know that:
 * Version `v1.0` adds [conversion webhooks](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#webhook-conversion) to automatically pull the v1 API version of previously applied v1beta1 NodePools, EC2NodeClasses, and NodeClaims. Karpenter will stop serving the v1beta1 API version at v1.1 and will drop the conversion webhooks at that time. You will need to migrate all stored manifests to v1 API versions on Karpenter v1.0+. Keep in mind that this is a conversion and not dual support, which means that resources are updated in-place rather than migrated over from the previous version.
 * If you need to rollback the upgrade to v1, you need to upgrade to a special patch version of the minor version you came from. For instance, if you came from v0.33.5, you'll need to downgrade back to v0.33.6. More details on how to do this in [Downgrading]({{<ref "#downgrading" >}}).
 * Validate that you are running at least Kubernetes 1.25. Use the [compatibility matrix]({{<ref "compatibility#compatibility-matrix">}}) to confirm you are on a supported Kubernetes version.
+*  Due to Node expiration, you may observe an increased number of pods in the "Scheduling" state.
 
 See the [Changelog]({{<ref "#changelog" >}}) for details about actions you should take before upgrading to v1.0 or v1.1.
 
