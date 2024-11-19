@@ -17,8 +17,10 @@ package status
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/awslabs/operatorpkg/status"
+	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
@@ -40,6 +42,12 @@ func (n Readiness) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (r
 			nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to detect the cluster CIDR")
 			return reconcile.Result{}, fmt.Errorf("failed to detect the cluster CIDR, %w", err)
 		}
+	}
+	if _, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(key string, _ string) bool {
+		return strings.HasPrefix(key, "kubernetes.io/cluster/")
+	}); found {
+		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "validation bypassed")
+		return reconcile.Result{}, fmt.Errorf("validation bypassed")
 	}
 	return reconcile.Result{}, nil
 }
