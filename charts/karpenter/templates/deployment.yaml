@@ -107,7 +107,7 @@ spec:
                   divisor: "0"
                   resource: limits.memory
             - name: FEATURE_GATES
-              value: "SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }}"
+              value: "SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }}"
           {{- with .Values.settings.batchMaxDuration }}
             - name: BATCH_MAX_DURATION
               value: "{{ . }}"
