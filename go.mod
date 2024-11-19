@@ -24,6 +24,7 @@ require (
 	github.com/awslabs/operatorpkg v0.0.0-20241115011931-885371bcf05d
 	github.com/go-logr/zapr v1.3.0
 	github.com/imdario/mergo v0.3.16
+	github.com/jonathan-innis/aws-sdk-go-prometheus v0.1.1
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/ginkgo/v2 v2.21.0
 	github.com/onsi/gomega v1.35.1
@@ -42,11 +43,13 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.19.1
-	sigs.k8s.io/karpenter v1.0.1-0.20241115180652-995040b20d0a
+	sigs.k8s.io/karpenter v1.0.1-0.20241119070053-a03600e47f44
 	sigs.k8s.io/yaml v1.4.0
 )
 
 require (
+	github.com/Masterminds/semver/v3 v3.2.1 // indirect
+	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.42 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.22 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.22 // indirect
@@ -56,11 +59,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.24.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.3 // indirect
-)
-
-require (
-	github.com/Masterminds/semver/v3 v3.2.1 // indirect
-	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -84,7 +82,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/jonathan-innis/aws-sdk-go-prometheus v0.1.0
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
@@ -123,22 +120,4 @@ require (
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
-)
-
-//Here until we can drop dependency on github.com/jonathan-innis/aws-sdk-go-prometheus
-replace (
-	github.com/aws/aws-sdk-go-v2 => github.com/aws/aws-sdk-go-v2 v1.30.5
-	github.com/aws/aws-sdk-go-v2/config => github.com/aws/aws-sdk-go-v2/config v1.27.34
-	github.com/aws/aws-sdk-go-v2/service/ec2 => github.com/aws/aws-sdk-go-v2/service/ec2 v1.177.0
-	github.com/aws/aws-sdk-go-v2/service/eks => github.com/aws/aws-sdk-go-v2/service/eks v1.48.0
-	github.com/aws/aws-sdk-go-v2/service/fis => github.com/aws/aws-sdk-go-v2/service/fis v1.27.0
-	github.com/aws/aws-sdk-go-v2/service/iam => github.com/aws/aws-sdk-go-v2/service/iam v1.35.0
-	github.com/aws/aws-sdk-go-v2/service/pricing => github.com/aws/aws-sdk-go-v2/service/pricing v1.28.0
-	github.com/aws/aws-sdk-go-v2/service/sqs => github.com/aws/aws-sdk-go-v2/service/sqs v1.34.6
-	github.com/aws/aws-sdk-go-v2/service/ssm => github.com/aws/aws-sdk-go-v2/service/ssm v1.52.4
-	github.com/aws/aws-sdk-go-v2/service/sso => github.com/aws/aws-sdk-go-v2/service/sso v1.15.0
-	github.com/aws/aws-sdk-go-v2/service/ssoadmin => github.com/aws/aws-sdk-go-v2/service/ssoadmin v1.22.0
-	github.com/aws/aws-sdk-go-v2/service/ssooidc => github.com/aws/aws-sdk-go-v2/service/ssooidc v1.20.0
-	github.com/aws/aws-sdk-go-v2/service/sts => github.com/aws/aws-sdk-go-v2/service/sts v1.28.2
-	github.com/aws/aws-sdk-go-v2/service/timestreamwrite => github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.23.2
 )

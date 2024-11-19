@@ -89,3 +89,7 @@ func (c *CloudProvider) Name() string {
 func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
 	return []status.Object{&v1.EC2NodeClass{}}
 }
+
+func (c *CloudProvider) RepairPolicies() []corecloudprovider.RepairPolicy {
+	return []corecloudprovider.RepairPolicy{}
+}
