@@ -89,6 +89,36 @@ func (env *Environment) ExpectUpdated(objects ...client.Object) {
 	}
 }
 
+// ExpectStatusUpdated will update objects in the cluster to match the inputs.
+// WARNING: This ignores the resource version check, which can result in
+// overwriting changes made by other controllers in the cluster.
+// This is useful in ensuring that we can clean up resources by patching
+// out finalizers.
+// Grab the object before making the updates to reduce the chance of this race.
+func (env *Environment) ExpectStatusUpdated(objects ...client.Object) {
+	GinkgoHelper()
+	for _, o := range objects {
+		Eventually(func(g Gomega) {
+			current := o.DeepCopyObject().(client.Object)
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
+			if current.GetResourceVersion() != o.GetResourceVersion() {
+				log.FromContext(env).Info(fmt.Sprintf("detected an update to an object (%s) with an outdated resource version, did you get the latest version of the object before patching?", lo.Must(apiutil.GVKForObject(o, env.Client.Scheme()))))
+			}
+			o.SetResourceVersion(current.GetResourceVersion())
+			g.Expect(env.Client.Status().Update(env.Context, o)).To(Succeed())
+		}).WithTimeout(time.Second * 10).Should(Succeed())
+	}
+}
+
+func ReplaceNodeConditions(node *corev1.Node, conds ...corev1.NodeCondition) *corev1.Node {
+	keys := sets.New[string](lo.Map(conds, func(c corev1.NodeCondition, _ int) string { return string(c.Type) })...)
+	node.Status.Conditions = lo.Reject(node.Status.Conditions, func(c corev1.NodeCondition, _ int) bool {
+		return keys.Has(string(c.Type))
+	})
+	node.Status.Conditions = append(node.Status.Conditions, conds...)
+	return node
+}
+
 // ExpectCreatedOrUpdated can update objects in the cluster to match the inputs.
 // WARNING: ExpectUpdated ignores the resource version check, which can result in
 // overwriting changes made by other controllers in the cluster.
