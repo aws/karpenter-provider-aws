@@ -95,7 +95,7 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("unable to retrieve Kubernetes version from EKS DescribeCluster")
 	}
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
-	if p.cm.HasChanged("kubernetes-version", version) {
+	if p.cm.HasChanged("kubernetes-version", version) || p.cm.HasChanged("version-source", versionSource) {
 		log.FromContext(ctx).WithValues("version", version).V(1).Info(fmt.Sprintf("discovered kubernetes version from %s", versionSource))
 		if err := validateK8sVersion(version); err != nil {
 			log.FromContext(ctx).Error(err, "failed validating kubernetes version")
