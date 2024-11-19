@@ -35,8 +35,6 @@ var (
 		// d2.xlarge has vague bandwidth information, bandwidth is Moderate
 		// f1.2xlarge has vague bandwidth information, bandwidth is Up to 10 Gigabit
 		// f1.4xlarge has vague bandwidth information, bandwidth is Up to 10 Gigabit
-		// g3.4xlarge has vague bandwidth information, bandwidth is Up to 10 Gigabit
-		// g3s.xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// i2.2xlarge has vague bandwidth information, bandwidth is High
 		// i2.4xlarge has vague bandwidth information, bandwidth is High
 		// i2.xlarge has vague bandwidth information, bandwidth is Moderate
