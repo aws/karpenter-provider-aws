@@ -31,12 +31,12 @@ import (
 )
 
 type Controller struct {
-	instancetypeProvider instancetype.Provider
+	instanceTypeProvider *instancetype.DefaultProvider
 }
 
-func NewController(instancetypeProvider instancetype.Provider) *Controller {
+func NewController(instanceTypeProvider *instancetype.DefaultProvider) *Controller {
 	return &Controller{
-		instancetypeProvider: instancetypeProvider,
+		instanceTypeProvider: instanceTypeProvider,
 	}
 }
 
@@ -44,8 +44,8 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "providers.instancetype")
 
 	work := []func(ctx context.Context) error{
-		c.instancetypeProvider.UpdateInstanceTypes,
-		c.instancetypeProvider.UpdateInstanceTypeOfferings,
+		c.instanceTypeProvider.UpdateInstanceTypes,
+		c.instanceTypeProvider.UpdateInstanceTypeOfferings,
 	}
 	errs := make([]error, len(work))
 	lop.ForEach(work, func(f func(ctx context.Context) error, i int) {

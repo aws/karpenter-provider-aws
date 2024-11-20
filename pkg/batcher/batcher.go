@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/mitchellh/hashstructure/v2"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
 
@@ -139,7 +138,7 @@ func (b *Batcher[T, U]) run() {
 			return
 		case <-b.trigger:
 			// wait to start the batch of create fleet calls
-			measureDuration = metrics.Measure(batchWindowDuration.WithLabelValues(b.options.Name))
+			measureDuration = metrics.Measure(BatchWindowDuration, map[string]string{batcherNameLabel: b.options.Name})
 		}
 		b.waitForIdle()
 		measureDuration() // Observe the length of time between the start of the batch and now
@@ -184,7 +183,7 @@ func (b *Batcher[T, U]) waitForIdle() {
 
 func (b *Batcher[T, U]) runCalls(requests []*request[T, U]) {
 	// Measure the size of the request batch
-	batchSize.With(prometheus.Labels{batcherNameLabel: b.options.Name}).Observe(float64(len(requests)))
+	BatchSize.Observe(float64(len(requests)), map[string]string{batcherNameLabel: b.options.Name})
 	requestIdx := 0
 	for _, result := range b.options.BatchExecutor(requests[0].ctx, lo.Map(requests, func(req *request[T, U], _ int) *T { return req.input })) {
 		requests[requestIdx].requestor <- result

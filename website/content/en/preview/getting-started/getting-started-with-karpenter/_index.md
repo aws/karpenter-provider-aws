@@ -12,7 +12,7 @@ Karpenter automatically provisions new nodes in response to unschedulable pods. 
 This guide shows how to get started with Karpenter by creating a Kubernetes cluster and installing Karpenter.
 To use Karpenter, you must be running a supported Kubernetes cluster on a supported cloud provider.
 
-The guide below explains how to utilize the [Karpenter provider for AWS](https://github.com/aws/karpenter-provider-aws) with EKS. 
+The guide below explains how to utilize the [Karpenter provider for AWS](https://github.com/aws/karpenter-provider-aws) with EKS.
 
 See the [AKS Node autoprovisioning article](https://learn.microsoft.com/azure/aks/node-autoprovision) on how to use Karpenter on Azure's AKS or go to the [Karpenter provider for Azure open source repository](https://github.com/Azure/karpenter-provider-azure) for self-hosting on Azure and additional information.
 
@@ -35,7 +35,7 @@ Install these tools before proceeding:
 
 1. [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html)
 2. `kubectl` - [the Kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
-3. `eksctl` (>= v0.180.0) - [the CLI for AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
+3. `eksctl` (>= v0.191.0) - [the CLI for AWS EKS](https://eksctl.io/installation)
 4. `helm` - [the package manager for Kubernetes](https://helm.sh/docs/intro/install/)
 
 [Configure the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html)

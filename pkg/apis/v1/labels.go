@@ -71,10 +71,10 @@ var (
 		// Adheres to cluster name pattern matching as specified in the API spec
 		// https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateCluster.html
 		regexp.MustCompile(`^kubernetes\.io/cluster/[0-9A-Za-z][A-Za-z0-9\-_]*$`),
-		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(karpv1.NodePoolLabelKey))),
+		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(NodePoolTagKey))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(EKSClusterNameTagKey))),
-		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(LabelNodeClass))),
-		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(TagNodeClaim))),
+		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(NodeClassTagKey))),
+		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(NodeClaimTagKey))),
 	}
 	AMIFamilyBottlerocket                          = "Bottlerocket"
 	AMIFamilyAL2                                   = "AL2"
@@ -91,12 +91,11 @@ var (
 	ResourceNVIDIAGPU          corev1.ResourceName = "nvidia.com/gpu"
 	ResourceAMDGPU             corev1.ResourceName = "amd.com/gpu"
 	ResourceAWSNeuron          corev1.ResourceName = "aws.amazon.com/neuron"
+	ResourceAWSNeuronCore      corev1.ResourceName = "aws.amazon.com/neuroncore"
 	ResourceHabanaGaudi        corev1.ResourceName = "habana.ai/gaudi"
 	ResourceAWSPodENI          corev1.ResourceName = "vpc.amazonaws.com/pod-eni"
 	ResourcePrivateIPv4Address corev1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
 	ResourceEFA                corev1.ResourceName = "vpc.amazonaws.com/efa"
-
-	EKSClusterNameTagKey = "eks:eks-cluster-name"
 
 	LabelNodeClass = apis.Group + "/ec2nodeclass"
 
@@ -127,7 +126,9 @@ var (
 	AnnotationEC2NodeClassHashVersion         = apis.Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                  = apis.Group + "/tagged"
 
-	TagNodeClaim             = coreapis.Group + "/nodeclaim"
-	TagManagedLaunchTemplate = apis.Group + "/cluster"
-	TagName                  = "Name"
+	NodeClaimTagKey      = coreapis.Group + "/nodeclaim"
+	NameTagKey           = "Name"
+	NodePoolTagKey       = karpv1.NodePoolLabelKey
+	NodeClassTagKey      = LabelNodeClass
+	EKSClusterNameTagKey = "eks:eks-cluster-name"
 )

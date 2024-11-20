@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/karpenter/pkg/metrics"
 
-	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/awslabs/operatorpkg/singleton"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
@@ -132,7 +132,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 }
 
 // parseMessage parses the passed SQS message into an internal Message interface
-func (c *Controller) parseMessage(raw *sqsapi.Message) (messages.Message, error) {
+func (c *Controller) parseMessage(raw *sqstypes.Message) (messages.Message, error) {
 	// No message to parse in this case
 	if raw == nil || raw.Body == nil {
 		return nil, fmt.Errorf("message or message body is nil")
@@ -149,7 +149,7 @@ func (c *Controller) handleMessage(ctx context.Context, nodeClaimInstanceIDMap m
 	nodeInstanceIDMap map[string]*corev1.Node, msg messages.Message) (err error) {
 
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("messageKind", msg.Kind()))
-	receivedMessages.WithLabelValues(string(msg.Kind())).Inc()
+	ReceivedMessages.Inc(map[string]string{messageTypeLabel: string(msg.Kind())})
 
 	if msg.Kind() == messages.NoOpKind {
 		return nil
@@ -164,7 +164,7 @@ func (c *Controller) handleMessage(ctx context.Context, nodeClaimInstanceIDMap m
 			err = multierr.Append(err, e)
 		}
 	}
-	messageLatency.Observe(time.Since(msg.StartTime()).Seconds())
+	MessageLatency.Observe(time.Since(msg.StartTime()).Seconds(), nil)
 	if err != nil {
 		return fmt.Errorf("acting on NodeClaims, %w", err)
 	}
@@ -172,11 +172,11 @@ func (c *Controller) handleMessage(ctx context.Context, nodeClaimInstanceIDMap m
 }
 
 // deleteMessage removes the passed SQS message from the queue and fires a metric for the deletion
-func (c *Controller) deleteMessage(ctx context.Context, msg *sqsapi.Message) error {
+func (c *Controller) deleteMessage(ctx context.Context, msg *sqstypes.Message) error {
 	if err := c.sqsProvider.DeleteSQSMessage(ctx, msg); err != nil {
 		return fmt.Errorf("deleting sqs message, %w", err)
 	}
-	deletedMessages.Inc()
+	DeletedMessages.Inc(nil)
 	return nil
 }
 
@@ -196,7 +196,7 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 		zone := nodeClaim.Labels[corev1.LabelTopologyZone]
 		instanceType := nodeClaim.Labels[corev1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), instanceType, zone, karpv1.CapacityTypeSpot)
+			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), ec2types.InstanceType(instanceType), zone, karpv1.CapacityTypeSpot)
 		}
 	}
 	if action != NoAction {
@@ -215,11 +215,11 @@ func (c *Controller) deleteNodeClaim(ctx context.Context, msg messages.Message, 
 	}
 	log.FromContext(ctx).Info("initiating delete from interruption message")
 	c.recorder.Publish(interruptionevents.TerminatingOnInterruption(node, nodeClaim)...)
-	metrics.NodeClaimsDisruptedTotal.With(prometheus.Labels{
+	metrics.NodeClaimsDisruptedTotal.Inc(map[string]string{
 		metrics.ReasonLabel:       string(msg.Kind()),
 		metrics.NodePoolLabel:     nodeClaim.Labels[karpv1.NodePoolLabelKey],
 		metrics.CapacityTypeLabel: nodeClaim.Labels[karpv1.CapacityTypeLabelKey],
-	}).Inc()
+	})
 	return nil
 }
 

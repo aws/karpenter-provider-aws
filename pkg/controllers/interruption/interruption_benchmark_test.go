@@ -25,13 +25,9 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
-	"github.com/aws/aws-sdk-go/aws"
-	awsclient "github.com/aws/aws-sdk-go/aws/client"
-	"github.com/aws/aws-sdk-go/aws/endpoints"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/aws/session"
-	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/go-logr/zapr"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -163,18 +159,13 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 type providerSet struct {
 	kubeClient  client.Client
-	sqsAPI      sqsiface.SQSAPI
+	sqsAPI      sqs.Client
 	sqsProvider sqs.Provider
 }
 
 func newProviders(ctx context.Context, kubeClient client.Client) providerSet {
-	sess := session.Must(session.NewSession(
-		request.WithRetryer(
-			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
-			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
-		),
-	))
-	sqsAPI := servicesqs.New(sess)
+	cfg := lo.Must(config.LoadDefaultConfig(ctx))
+	sqsAPI := servicesqs.New(cfg)
 	out := lo.Must(sqsAPI.GetQueueUrlWithContext(ctx, &servicesqs.GetQueueUrlInput{QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)}))
 	return providerSet{
 		kubeClient:  kubeClient,

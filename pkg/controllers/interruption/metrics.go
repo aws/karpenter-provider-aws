@@ -15,6 +15,7 @@ limitations under the License.
 package interruption
 
 import (
+	opmetrics "github.com/awslabs/operatorpkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
@@ -27,7 +28,8 @@ const (
 )
 
 var (
-	receivedMessages = prometheus.NewCounterVec(
+	ReceivedMessages = opmetrics.NewPrometheusCounter(
+		crmetrics.Registry,
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: interruptionSubsystem,
@@ -36,15 +38,18 @@ var (
 		},
 		[]string{messageTypeLabel},
 	)
-	deletedMessages = prometheus.NewCounter(
+	DeletedMessages = opmetrics.NewPrometheusCounter(
+		crmetrics.Registry,
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: interruptionSubsystem,
 			Name:      "deleted_messages_total",
 			Help:      "Count of messages deleted from the SQS queue.",
 		},
+		[]string{},
 	)
-	messageLatency = prometheus.NewHistogram(
+	MessageLatency = opmetrics.NewPrometheusHistogram(
+		crmetrics.Registry,
 		prometheus.HistogramOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: interruptionSubsystem,
@@ -52,9 +57,6 @@ var (
 			Help:      "Amount of time an interruption message is on the queue before it is processed by karpenter.",
 			Buckets:   metrics.DurationBuckets(),
 		},
+		[]string{},
 	)
 )
-
-func init() {
-	crmetrics.Registry.MustRegister(receivedMessages, deletedMessages, messageLatency)
-}

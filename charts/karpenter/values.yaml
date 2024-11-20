@@ -12,6 +12,9 @@ additionalAnnotations: {}
 imagePullPolicy: IfNotPresent
 # -- Image pull secrets for Docker images.
 imagePullSecrets: []
+service:
+  # -- Additional annotations for the Service.
+  annotations: {}
 serviceAccount:
   # -- Specifies if a ServiceAccount should be created.
   create: true
@@ -163,7 +166,7 @@ settings:
   # -- If true then assume we can't reach AWS services which don't have a VPC endpoint
   # This also has the effect of disabling look-ups to the AWS pricing endpoint
   isolatedVPC: false
-  # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types
+  # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types. The value of `0.075` equals to 7.5%.
   vmMemoryOverheadPercent: 0.075
   # -- Interruption queue is the name of the SQS queue used for processing interruption events from EC2
   # Interruption handling is disabled if not specified. Enabling interruption handling may
@@ -178,3 +181,6 @@ settings:
     # -- spotToSpotConsolidation is ALPHA and is disabled by default.
     # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
     spotToSpotConsolidation: false
+     # -- nodeRepair is ALPHA and is disabled by default.
+    # Setting this to true will enable node repair.
+    nodeRepair: false

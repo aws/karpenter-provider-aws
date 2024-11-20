@@ -28,8 +28,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -46,10 +46,13 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 	for path, variants := range map[string][]Variant{
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion):        {VariantStandard},
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):         {VariantStandard},
-		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion): {VariantNeuron, VariantNvidia},
-		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):  {VariantNeuron, VariantNvidia},
+		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion): {VariantNvidia},
+		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):  {VariantNvidia},
 	} {
-		imageID, err := ssmProvider.Get(ctx, path)
+		imageID, err := ssmProvider.Get(ctx, ssm.Parameter{
+			Name:      path,
+			IsMutable: amiVersion == v1.AliasVersionLatest,
+		})
 		if err != nil {
 			continue
 		}
@@ -61,9 +64,9 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 	}
 
 	return DescribeImageQuery{
-		Filters: []*ec2.Filter{{
+		Filters: []ec2types.Filter{{
 			Name:   lo.ToPtr("image-id"),
-			Values: lo.ToSlicePtr(lo.Keys(ids)),
+			Values: lo.Keys(ids),
 		}},
 		KnownRequirements: lo.MapValues(ids, func(variants []Variant, _ string) []scheduling.Requirements {
 			return lo.Map(variants, func(v Variant, _ int) scheduling.Requirements { return v.Requirements() })
@@ -72,16 +75,17 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (b Bottlerocket) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
+func (b Bottlerocket) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Bottlerocket{
 		Options: bootstrap.Options{
-			ClusterName:     b.Options.ClusterName,
-			ClusterEndpoint: b.Options.ClusterEndpoint,
-			KubeletConfig:   kubeletConfig,
-			Taints:          taints,
-			Labels:          labels,
-			CABundle:        caBundle,
-			CustomUserData:  customUserData,
+			ClusterName:         b.Options.ClusterName,
+			ClusterEndpoint:     b.Options.ClusterEndpoint,
+			KubeletConfig:       kubeletConfig,
+			Taints:              taints,
+			Labels:              labels,
+			CABundle:            caBundle,
+			CustomUserData:      customUserData,
+			InstanceStorePolicy: instanceStorePolicy,
 		},
 	}
 }

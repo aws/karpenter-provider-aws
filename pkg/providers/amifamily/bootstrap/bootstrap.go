@@ -28,17 +28,16 @@ import (
 
 // Options is the node bootstrapping parameters passed from Karpenter to the provisioning node
 type Options struct {
-	ClusterName             string
-	ClusterEndpoint         string
-	ClusterCIDR             *string
-	KubeletConfig           *v1.KubeletConfiguration
-	Taints                  []corev1.Taint    `hash:"set"`
-	Labels                  map[string]string `hash:"set"`
-	CABundle                *string
-	AWSENILimitedPodDensity bool
-	ContainerRuntime        *string
-	CustomUserData          *string
-	InstanceStorePolicy     *v1.InstanceStorePolicy
+	ClusterName         string
+	ClusterEndpoint     string
+	ClusterCIDR         *string
+	KubeletConfig       *v1.KubeletConfiguration
+	Taints              []corev1.Taint    `hash:"set"`
+	Labels              map[string]string `hash:"set"`
+	CABundle            *string
+	ContainerRuntime    *string
+	CustomUserData      *string
+	InstanceStorePolicy *v1.InstanceStorePolicy
 }
 
 func (o Options) kubeletExtraArgs() (args []string) {

@@ -20,9 +20,10 @@ import (
 	"testing"
 	"time"
 
-	awssdk "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/eks"
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/awslabs/operatorpkg/object"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -48,6 +49,7 @@ import (
 
 var env *aws.Environment
 var amdAMI string
+var deprecatedAMI string
 var nodeClass *v1.EC2NodeClass
 var nodePool *karpv1.NodePool
 
@@ -76,6 +78,7 @@ var _ = Describe("Drift", func() {
 	var numPods int
 	BeforeEach(func() {
 		amdAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+		deprecatedAMI = env.GetDeprecatedAMI(amdAMI, "AL2023")
 		numPods = 1
 		// Add pods with a do-not-disrupt annotation so that we can check node metadata before we disrupt
 		dep = coretest.Deployment(coretest.DeploymentOptions{
@@ -155,22 +158,7 @@ var _ = Describe("Drift", func() {
 
 			env.EventuallyExpectDrifted(nodeClaims...)
 
-			// Ensure that we get two nodes tainted, and they have overlap during the drift
-			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 3, 5*time.Second)
-
-			// Remove the finalizer from each node so that we can terminate
-			for _, node := range nodes {
-				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
-			}
-
-			// After the deletion timestamp is set and all pods are drained
-			// the node should be gone
-			env.EventuallyExpectNotFound(nodes[0], nodes[1])
-
-			nodes = env.EventuallyExpectTaintedNodeCount("==", 1)
-			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
-			env.EventuallyExpectNotFound(nodes[0])
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(3, 2, 5*time.Minute)
 		})
 		It("should respect budgets for non-empty delete drift", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool,
@@ -244,17 +232,7 @@ var _ = Describe("Drift", func() {
 				env.ExpectUpdated(pod)
 			}
 
-			// Ensure that we get two nodes tainted, and they have overlap during the drift
-			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 3, 30*time.Second)
-
-			By("removing the finalizer from the nodes")
-			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
-			Expect(env.ExpectTestingFinalizerRemoved(nodes[1])).To(Succeed())
-
-			// After the deletion timestamp is set and all pods are drained
-			// the node should be gone
-			env.EventuallyExpectNotFound(nodes[0], nodes[1])
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(3, 2, 5*time.Minute)
 		})
 		It("should respect budgets for non-empty replace drift", func() {
 			appLabels := map[string]string{"app": "large-app"}
@@ -301,15 +279,13 @@ var _ = Describe("Drift", func() {
 			By("drifting the nodepool")
 			nodePool.Spec.Template.Annotations = lo.Assign(nodePool.Spec.Template.Annotations, map[string]string{"test-annotation": "drift"})
 			env.ExpectUpdated(nodePool)
-
-			// Ensure that we get three nodes tainted, and they have overlap during the drift
-			env.EventuallyExpectTaintedNodeCount("==", 3)
-			env.EventuallyExpectNodeClaimCount("==", 8)
-			env.EventuallyExpectNodeCount("==", 8)
-			env.ConsistentlyExpectDisruptionsWithNodeCount(3, 8, 5*time.Second)
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(5, 3, 10*time.Minute)
 
 			for _, node := range originalNodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
+			}
+			for _, nodeClaim := range originalNodeClaims {
+				Expect(env.ExpectTestingFinalizerRemoved(nodeClaim)).To(Succeed())
 			}
 
 			// Eventually expect all the nodes to be rolled and completely removed
@@ -390,6 +366,31 @@ var _ = Describe("Drift", func() {
 		env.EventuallyExpectNotFound(pod, nodeClaim, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
+	It("should disrupt nodes for deprecated AMIs to non-deprecated AMIs", func() {
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: deprecatedAMI}}
+
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
+		env.ExpectCreatedNodeCount("==", 1)
+
+		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		node := env.EventuallyExpectNodeCount("==", 1)[0]
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: amdAMI}, {ID: deprecatedAMI}}
+		env.ExpectCreatedOrUpdated(nodeClass)
+
+		env.EventuallyExpectDrifted(nodeClaim)
+
+		delete(pod.Annotations, karpv1.DoNotDisruptAnnotationKey)
+		env.ExpectUpdated(pod)
+		env.EventuallyExpectNotFound(pod, nodeClaim, node)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+
+		// validate the AMI id matches the non-deprecated AMI
+		pod = env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(amdAMI))))
+
+	})
 	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
 		armAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", env.K8sVersion()))
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
@@ -411,29 +412,9 @@ var _ = Describe("Drift", func() {
 		env.EventuallyExpectNotFound(pod, nodeClaim, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
-	It("should not disrupt nodes that have drifted without the featureGate enabled", func() {
-		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
-
-		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)))
-		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: oldCustomAMI}}
-
-		env.ExpectCreated(dep, nodeClass, nodePool)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-		env.ExpectCreatedNodeCount("==", 1)
-
-		node := env.Monitor.CreatedNodes()[0]
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: amdAMI}}
-		env.ExpectUpdated(nodeClass)
-
-		// We should consistently get the same node existing for a minute
-		Consistently(func(g Gomega) {
-			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), &corev1.Node{})).To(Succeed())
-		}).WithTimeout(time.Minute).Should(Succeed())
-	})
 	It("should disrupt nodes that have drifted due to securitygroup", func() {
 		By("getting the cluster vpc id")
-		output, err := env.EKSAPI.DescribeCluster(&eks.DescribeClusterInput{Name: awssdk.String(env.ClusterName)})
+		output, err := env.EKSAPI.DescribeCluster(env.Context, &eks.DescribeClusterInput{Name: awssdk.String(env.ClusterName)})
 		Expect(err).To(BeNil())
 
 		By("creating new security group")
@@ -441,10 +422,10 @@ var _ = Describe("Drift", func() {
 			GroupName:   awssdk.String("security-group-drift"),
 			Description: awssdk.String("End-to-end Drift Test, should delete after drift test is completed"),
 			VpcId:       output.Cluster.ResourcesVpcConfig.VpcId,
-			TagSpecifications: []*ec2.TagSpecification{
+			TagSpecifications: []ec2types.TagSpecification{
 				{
-					ResourceType: awssdk.String("security-group"),
-					Tags: []*ec2.Tag{
+					ResourceType: "security-group",
+					Tags: []ec2types.Tag{
 						{
 							Key:   awssdk.String("karpenter.sh/discovery"),
 							Value: awssdk.String(env.ClusterName),
@@ -461,7 +442,7 @@ var _ = Describe("Drift", func() {
 				},
 			},
 		}
-		_, _ = env.EC2API.CreateSecurityGroup(createSecurityGroup)
+		_, _ = env.EC2API.CreateSecurityGroup(env.Context, createSecurityGroup)
 
 		By("looking for security groups")
 		var securitygroups []aws.SecurityGroup
@@ -469,19 +450,19 @@ var _ = Describe("Drift", func() {
 		Eventually(func(g Gomega) {
 			securitygroups = env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 			testSecurityGroup, _ = lo.Find(securitygroups, func(sg aws.SecurityGroup) bool {
-				return awssdk.StringValue(sg.GroupName) == "security-group-drift"
+				return awssdk.ToString(sg.GroupName) == "security-group-drift"
 			})
 			g.Expect(testSecurityGroup).ToNot(BeNil())
 		}).Should(Succeed())
 
 		By("creating a new provider with the new securitygroup")
 		awsIDs := lo.FilterMap(securitygroups, func(sg aws.SecurityGroup, _ int) (string, bool) {
-			if awssdk.StringValue(sg.GroupId) != awssdk.StringValue(testSecurityGroup.GroupId) {
-				return awssdk.StringValue(sg.GroupId), true
+			if awssdk.ToString(sg.GroupId) != awssdk.ToString(testSecurityGroup.GroupId) {
+				return awssdk.ToString(sg.GroupId), true
 			}
 			return "", false
 		})
-		sgTerms := []v1.SecurityGroupSelectorTerm{{ID: awssdk.StringValue(testSecurityGroup.GroupId)}}
+		sgTerms := []v1.SecurityGroupSelectorTerm{{ID: awssdk.ToString(testSecurityGroup.GroupId)}}
 		for _, id := range awsIDs {
 			sgTerms = append(sgTerms, v1.SecurityGroupSelectorTerm{ID: id})
 		}
@@ -493,7 +474,7 @@ var _ = Describe("Drift", func() {
 		node := env.ExpectCreatedNodeCount("==", 1)[0]
 
 		sgTerms = lo.Reject(sgTerms, func(t v1.SecurityGroupSelectorTerm, _ int) bool {
-			return t.ID == awssdk.StringValue(testSecurityGroup.GroupId)
+			return t.ID == awssdk.ToString(testSecurityGroup.GroupId)
 		})
 		nodeClass.Spec.SecurityGroupSelectorTerms = sgTerms
 		env.ExpectCreatedOrUpdated(nodeClass)

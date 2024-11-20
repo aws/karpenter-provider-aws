@@ -15,8 +15,6 @@ limitations under the License.
 package main
 
 import (
-	"github.com/samber/lo"
-
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers"
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
@@ -37,11 +35,11 @@ func main() {
 		op.AMIProvider,
 		op.SecurityGroupProvider,
 	)
-	lo.Must0(op.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 
 	op.
 		WithControllers(ctx, corecontrollers.NewControllers(
+			ctx,
 			op.Manager,
 			op.Clock,
 			op.GetClient(),
@@ -51,11 +49,12 @@ func main() {
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,
 			op.Manager,
-			op.Session,
+			op.Config,
 			op.Clock,
 			op.GetClient(),
 			op.EventRecorder,
 			op.UnavailableOfferingsCache,
+			op.SSMCache,
 			cloudProvider,
 			op.SubnetProvider,
 			op.SecurityGroupProvider,

@@ -21,13 +21,14 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/samber/lo"
 
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	ssmtypes "github.com/aws/aws-sdk-go-v2/service/ssm/types"
+
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 )
 
 type SSMAPI struct {
-	ssmiface.SSMAPI
+	sdk.SSMAPI
 	Parameters         map[string]string
 	GetParameterOutput *ssm.GetParameterOutput
 	WantErr            error
@@ -41,7 +42,7 @@ func NewSSMAPI() *SSMAPI {
 	}
 }
 
-func (a SSMAPI) GetParameterWithContext(_ context.Context, input *ssm.GetParameterInput, _ ...request.Option) (*ssm.GetParameterOutput, error) {
+func (a SSMAPI) GetParameter(_ context.Context, input *ssm.GetParameterInput, _ ...func(*ssm.Options)) (*ssm.GetParameterOutput, error) {
 	parameter := lo.FromPtr(input.Name)
 	if a.WantErr != nil {
 		return &ssm.GetParameterOutput{}, a.WantErr
@@ -55,7 +56,7 @@ func (a SSMAPI) GetParameterWithContext(_ context.Context, input *ssm.GetParamet
 			return &ssm.GetParameterOutput{}, fmt.Errorf("parameter %q not found", lo.FromPtr(input.Name))
 		}
 		return &ssm.GetParameterOutput{
-			Parameter: &ssm.Parameter{
+			Parameter: &ssmtypes.Parameter{
 				Name:  lo.ToPtr(parameter),
 				Value: lo.ToPtr(value),
 			},
@@ -69,7 +70,7 @@ func (a SSMAPI) GetParameterWithContext(_ context.Context, input *ssm.GetParamet
 		a.defaultParameters[parameter] = value
 	}
 	return &ssm.GetParameterOutput{
-		Parameter: &ssm.Parameter{
+		Parameter: &ssmtypes.Parameter{
 			Name:  lo.ToPtr(parameter),
 			Value: lo.ToPtr(value),
 		},

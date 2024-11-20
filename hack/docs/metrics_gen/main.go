@@ -342,6 +342,7 @@ func getIdentMapping(identName string) (string, error) {
 
 		"MetricNamespace":            "operator",
 		"MetricSubsystem":            "status_condition",
+		"TerminationSubsystem":       "termination",
 		"WorkQueueSubsystem":         "workqueue",
 		"DepthKey":                   "depth",
 		"AddsKey":                    "adds_total",

@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -37,14 +37,16 @@ import (
 
 var DefaultEBS = v1.BlockDevice{
 	Encrypted:  aws.Bool(true),
-	VolumeType: aws.String(ec2.VolumeTypeGp3),
+	VolumeType: aws.String(string(ec2types.VolumeTypeGp3)),
 	VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
 }
 
-// Resolver is able to fill-in dynamic launch template parameters
-type Resolver struct {
-	amiProvider Provider
+type Resolver interface {
+	Resolve(*v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, *Options) ([]*LaunchTemplate, error)
 }
+
+// DefaultResolver is able to fill-in dynamic launch template parameters
+type DefaultResolver struct{}
 
 // Options define the static launch template parameters
 type Options struct {
@@ -111,16 +113,14 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 	}
 }
 
-// NewResolver constructs a new launch template Resolver
-func NewResolver(amiProvider Provider) *Resolver {
-	return &Resolver{
-		amiProvider: amiProvider,
-	}
+// NewDefaultResolver constructs a new launch template DefaultResolver
+func NewDefaultResolver() *DefaultResolver {
+	return &DefaultResolver{}
 }
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r Resolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
+func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.AMIFamily(), options)
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
@@ -177,14 +177,14 @@ func GetAMIFamily(amiFamily string, options *Options) AMIFamily {
 
 func (o Options) DefaultMetadataOptions() *v1.MetadataOptions {
 	return &v1.MetadataOptions{
-		HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled),
-		HTTPProtocolIPv6:        aws.String(lo.Ternary(o.KubeDNSIP == nil || o.KubeDNSIP.To4() != nil, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled)),
+		HTTPEndpoint:            aws.String(string(ec2types.InstanceMetadataEndpointStateDisabled)),
+		HTTPProtocolIPv6:        aws.String(lo.Ternary(o.KubeDNSIP == nil || o.KubeDNSIP.To4() != nil, string(ec2types.LaunchTemplateInstanceMetadataProtocolIpv6Disabled), string(ec2types.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))),
 		HTTPPutResponseHopLimit: aws.Int64(2),
-		HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateRequired),
+		HTTPTokens:              aws.String(string(ec2types.LaunchTemplateHttpTokensStateRequired)),
 	}
 }
 
-func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.KubeletConfiguration) *v1.KubeletConfiguration {
+func (r DefaultResolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.KubeletConfiguration) *v1.KubeletConfiguration {
 	if opts.KubeDNSIP == nil {
 		return kubeletConfig
 	}
@@ -201,11 +201,11 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.KubeletConf
 	return newKubeletConfig
 }
 
-func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
+func (r DefaultResolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
 	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, options *Options) *LaunchTemplate {
-	kubeletConfig := nodeClass.Spec.Kubelet
-	if kubeletConfig == nil {
-		kubeletConfig = &v1.KubeletConfiguration{}
+	kubeletConfig := &v1.KubeletConfiguration{}
+	if nodeClass.Spec.Kubelet != nil {
+		kubeletConfig = nodeClass.Spec.Kubelet.DeepCopy()
 	}
 	if kubeletConfig.MaxPods == nil {
 		// nolint:gosec
@@ -236,7 +236,7 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *k
 		),
 		BlockDeviceMappings: nodeClass.Spec.BlockDeviceMappings,
 		MetadataOptions:     nodeClass.Spec.MetadataOptions,
-		DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
+		DetailedMonitoring:  aws.ToBool(nodeClass.Spec.DetailedMonitoring),
 		AMIID:               amiID,
 		InstanceTypes:       instanceTypes,
 		EFACount:            efaCount,

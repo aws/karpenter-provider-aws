@@ -16,11 +16,13 @@ package amifamily
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -29,16 +31,11 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
-const (
-	// AMIVersionLatest is the version used in EKS aliases to represent the latest version. This maps to different
-	// values in the SSM path, depending on the AMI type (e.g. "recommended" for AL2/AL2023)).
-	AMIVersionLatest = "latest"
-)
-
 type AMI struct {
 	Name         string
 	AmiID        string
 	CreationDate string
+	Deprecated   bool
 	Requirements scheduling.Requirements
 }
 
@@ -48,8 +45,9 @@ type AMIs []AMI
 // If creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by ID, which is guaranteed to be unique, in ascending order.
 func (a AMIs) Sort() {
 	sort.Slice(a, func(i, j int) bool {
-		itime, _ := time.Parse(time.RFC3339, a[i].CreationDate)
-		jtime, _ := time.Parse(time.RFC3339, a[j].CreationDate)
+		itime := parseTimeWithDefault(a[i].CreationDate, minTime)
+		jtime := parseTimeWithDefault(a[j].CreationDate, minTime)
+
 		if itime.Unix() != jtime.Unix() {
 			return itime.Unix() > jtime.Unix()
 		}
@@ -57,12 +55,21 @@ func (a AMIs) Sort() {
 	})
 }
 
+func parseTimeWithDefault(dateStr string, defaultTime time.Time) time.Time {
+	if dateStr == "" {
+		return defaultTime
+	}
+	return lo.Must(time.Parse(time.RFC3339, dateStr))
+}
+
 type Variant string
 
 var (
-	VariantStandard Variant = "standard"
-	VariantNvidia   Variant = "nvidia"
-	VariantNeuron   Variant = "neuron"
+	VariantStandard Variant   = "standard"
+	VariantNvidia   Variant   = "nvidia"
+	VariantNeuron   Variant   = "neuron"
+	maxTime         time.Time = time.Unix(math.MaxInt64, 0)
+	minTime         time.Time = time.Unix(math.MinInt64, 0)
 )
 
 func NewVariant(v string) (Variant, error) {
@@ -82,15 +89,15 @@ func (v Variant) Requirements() scheduling.Requirements {
 			scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpDoesNotExist),
 		)
 	case VariantNvidia:
-		return scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpExists))
-	case VariantNeuron:
 		return scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpExists))
+	case VariantNeuron:
+		return scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpExists))
 	}
 	return nil
 }
 
 type DescribeImageQuery struct {
-	Filters []*ec2.Filter
+	Filters []ec2types.Filter
 	Owners  []string
 	// KnownRequirements is a map from image IDs to a set of known requirements.
 	// When discovering image IDs via SSM we know additional requirements which aren't surfaced by ec2:DescribeImage (e.g. GPU / Neuron compatibility)
@@ -102,9 +109,10 @@ type DescribeImageQuery struct {
 func (q DescribeImageQuery) DescribeImagesInput() *ec2.DescribeImagesInput {
 	return &ec2.DescribeImagesInput{
 		// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
-		Filters:    lo.Ternary(len(q.Filters) > 0, q.Filters, nil),
-		Owners:     lo.Ternary(len(q.Owners) > 0, lo.ToSlicePtr(q.Owners), nil),
-		MaxResults: aws.Int64(1000),
+		Filters:           lo.Ternary(len(q.Filters) > 0, q.Filters, nil),
+		Owners:            lo.Ternary(len(q.Owners) > 0, q.Owners, nil),
+		IncludeDeprecated: aws.Bool(true),
+		MaxResults:        aws.Int32(1000),
 	}
 }
 

@@ -22,9 +22,10 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
+
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	"k8s.io/client-go/tools/record"
@@ -109,7 +110,7 @@ var _ = Describe("NodeClass Termination", func() {
 	})
 	It("should not delete the NodeClass if launch template deletion fails", func() {
 		launchTemplateName := aws.String(fake.LaunchTemplateName())
-		awsEnv.EC2API.LaunchTemplates.Store(launchTemplateName, &ec2.LaunchTemplate{LaunchTemplateName: launchTemplateName, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []*ec2.Tag{&ec2.Tag{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}}})
+		awsEnv.EC2API.LaunchTemplates.Store(launchTemplateName, ec2types.LaunchTemplate{LaunchTemplateName: launchTemplateName, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []ec2types.Tag{{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}}})
 		_, ok := awsEnv.EC2API.LaunchTemplates.Load(launchTemplateName)
 		Expect(ok).To(BeTrue())
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
@@ -123,7 +124,7 @@ var _ = Describe("NodeClass Termination", func() {
 	})
 	It("should not delete the launch template not associated with the nodeClass", func() {
 		launchTemplateName := aws.String(fake.LaunchTemplateName())
-		awsEnv.EC2API.LaunchTemplates.Store(launchTemplateName, &ec2.LaunchTemplate{LaunchTemplateName: launchTemplateName, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []*ec2.Tag{&ec2.Tag{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}}})
+		awsEnv.EC2API.LaunchTemplates.Store(launchTemplateName, ec2types.LaunchTemplate{LaunchTemplateName: launchTemplateName, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []ec2types.Tag{{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}}})
 		_, ok := awsEnv.EC2API.LaunchTemplates.Load(launchTemplateName)
 		Expect(ok).To(BeTrue())
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
@@ -138,9 +139,9 @@ var _ = Describe("NodeClass Termination", func() {
 	})
 	It("should succeed to delete the launch template", func() {
 		ltName1 := aws.String(fake.LaunchTemplateName())
-		awsEnv.EC2API.LaunchTemplates.Store(ltName1, &ec2.LaunchTemplate{LaunchTemplateName: ltName1, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []*ec2.Tag{&ec2.Tag{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}, {Key: aws.String("karpenter.k8s.aws/ec2nodeclass"), Value: aws.String(nodeClass.Name)}}})
+		awsEnv.EC2API.LaunchTemplates.Store(ltName1, ec2types.LaunchTemplate{LaunchTemplateName: ltName1, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []ec2types.Tag{{Key: aws.String("eks:eks-cluster-name"), Value: aws.String("test-cluster")}, {Key: aws.String("karpenter.k8s.aws/ec2nodeclass"), Value: aws.String(nodeClass.Name)}}})
 		ltName2 := aws.String(fake.LaunchTemplateName())
-		awsEnv.EC2API.LaunchTemplates.Store(ltName2, &ec2.LaunchTemplate{LaunchTemplateName: ltName2, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []*ec2.Tag{&ec2.Tag{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}, {Key: aws.String("karpenter.k8s.aws/ec2nodeclass"), Value: aws.String(nodeClass.Name)}}})
+		awsEnv.EC2API.LaunchTemplates.Store(ltName2, ec2types.LaunchTemplate{LaunchTemplateName: ltName2, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []ec2types.Tag{{Key: aws.String("eks:eks-cluster-name"), Value: aws.String("test-cluster")}, {Key: aws.String("karpenter.k8s.aws/ec2nodeclass"), Value: aws.String(nodeClass.Name)}}})
 		_, ok := awsEnv.EC2API.LaunchTemplates.Load(ltName1)
 		Expect(ok).To(BeTrue())
 		_, ok = awsEnv.EC2API.LaunchTemplates.Load(ltName2)
@@ -148,7 +149,6 @@ var _ = Describe("NodeClass Termination", func() {
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
-
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
 		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
 		_, ok = awsEnv.EC2API.LaunchTemplates.Load(ltName1)
@@ -158,10 +158,10 @@ var _ = Describe("NodeClass Termination", func() {
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
 	It("should succeed to delete the instance profile with no NodeClaims", func() {
-		awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
 			profileName: {
 				InstanceProfileName: aws.String(profileName),
-				Roles: []*iam.Role{
+				Roles: []iamtypes.Role{
 					{
 						RoleId:   aws.String(fake.RoleID()),
 						RoleName: aws.String(nodeClass.Spec.Role),
@@ -180,7 +180,7 @@ var _ = Describe("NodeClass Termination", func() {
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
 	It("should succeed to delete the instance profile when no roles exist with no NodeClaims", func() {
-		awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
 			profileName: {
 				InstanceProfileName: aws.String(profileName),
 			},
@@ -189,7 +189,6 @@ var _ = Describe("NodeClass Termination", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
-
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
 		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
@@ -220,10 +219,10 @@ var _ = Describe("NodeClass Termination", func() {
 			ExpectApplied(ctx, env.Client, nc)
 			nodeClaims = append(nodeClaims, nc)
 		}
-		awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
 			profileName: {
 				InstanceProfileName: aws.String(profileName),
-				Roles: []*iam.Role{
+				Roles: []iamtypes.Role{
 					{
 						RoleId:   aws.String(fake.RoleID()),
 						RoleName: aws.String(nodeClass.Spec.Role),
@@ -258,10 +257,10 @@ var _ = Describe("NodeClass Termination", func() {
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
 	It("should not call the IAM API when deleting a NodeClass with an instanceProfile specified", func() {
-		awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
 			profileName: {
 				InstanceProfileName: aws.String("test-instance-profile"),
-				Roles: []*iam.Role{
+				Roles: []iamtypes.Role{
 					{
 						RoleId:   aws.String(fake.RoleID()),
 						RoleName: aws.String("fake-role"),

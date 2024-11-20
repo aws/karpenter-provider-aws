@@ -16,9 +16,11 @@ limitations under the License.
 
 package pricing
 
-// generated at 2023-09-18T13:06:44Z for cn-north-1
+// generated at 2024-11-06T01:00:11Z for cn-north-1
 
-var InitialOnDemandPricesCN = map[string]map[string]float64{
+import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
+var InitialOnDemandPricesCN = map[string]map[ec2types.InstanceType]float64{
 	"cn-north-1": {
 		// c3 family
 		"c3.2xlarge": 4.217000, "c3.4xlarge": 8.434000, "c3.8xlarge": 16.869000, "c3.large": 1.054000,
@@ -41,10 +43,17 @@ var InitialOnDemandPricesCN = map[string]map[string]float64{
 		"c6g.12xlarge": 14.064400, "c6g.16xlarge": 18.752600, "c6g.2xlarge": 2.344100, "c6g.4xlarge": 4.688100,
 		"c6g.8xlarge": 9.376300, "c6g.large": 0.586000, "c6g.medium": 0.293000, "c6g.metal": 19.390900,
 		"c6g.xlarge": 1.172000,
+		// c6gn family
+		"c6gn.12xlarge": 17.869700, "c6gn.16xlarge": 23.826270, "c6gn.2xlarge": 2.978280, "c6gn.4xlarge": 5.956570,
+		"c6gn.8xlarge": 11.913140, "c6gn.large": 0.744570, "c6gn.medium": 0.372290, "c6gn.xlarge": 1.489140,
 		// c6i family
 		"c6i.12xlarge": 17.744830, "c6i.16xlarge": 23.659780, "c6i.24xlarge": 35.489660, "c6i.2xlarge": 2.957470,
 		"c6i.32xlarge": 47.319550, "c6i.4xlarge": 5.914940, "c6i.8xlarge": 11.829890, "c6i.large": 0.739370,
 		"c6i.metal": 47.319550, "c6i.xlarge": 1.478740,
+		// c7g family
+		"c7g.12xlarge": 15.083100, "c7g.16xlarge": 20.110800, "c7g.2xlarge": 2.513900, "c7g.4xlarge": 5.027700,
+		"c7g.8xlarge": 10.055400, "c7g.large": 0.628500, "c7g.medium": 0.314200, "c7g.metal": 20.110800,
+		"c7g.xlarge": 1.256900,
 		// d2 family
 		"d2.2xlarge": 13.345000, "d2.4xlarge": 26.690000, "d2.8xlarge": 53.380000, "d2.xlarge": 6.673000,
 		// g3 family
@@ -54,6 +63,9 @@ var InitialOnDemandPricesCN = map[string]map[string]float64{
 		// g4dn family
 		"g4dn.12xlarge": 38.849000, "g4dn.16xlarge": 43.218000, "g4dn.2xlarge": 7.468000, "g4dn.4xlarge": 11.956000,
 		"g4dn.8xlarge": 21.609000, "g4dn.xlarge": 5.223000,
+		// g5 family
+		"g5.12xlarge": 53.640920, "g5.16xlarge": 38.736460, "g5.24xlarge": 77.018980, "g5.2xlarge": 11.462060,
+		"g5.48xlarge": 154.037950, "g5.4xlarge": 15.358400, "g5.8xlarge": 23.151090, "g5.xlarge": 9.513890,
 		// i2 family
 		"i2.2xlarge": 20.407000, "i2.4xlarge": 40.815000, "i2.8xlarge": 81.630000, "i2.xlarge": 10.204000,
 		// i3 family
@@ -62,6 +74,10 @@ var InitialOnDemandPricesCN = map[string]map[string]float64{
 		// i3en family
 		"i3en.12xlarge": 54.302000, "i3en.24xlarge": 108.605000, "i3en.2xlarge": 9.050000, "i3en.3xlarge": 13.576000,
 		"i3en.6xlarge": 27.151000, "i3en.large": 2.263000, "i3en.xlarge": 4.525000,
+		// i4i family
+		"i4i.12xlarge": 43.665000, "i4i.16xlarge": 58.221000, "i4i.24xlarge": 87.330860, "i4i.2xlarge": 7.278000,
+		"i4i.32xlarge": 116.441150, "i4i.4xlarge": 14.555000, "i4i.8xlarge": 29.110000, "i4i.large": 1.819000,
+		"i4i.xlarge": 3.639000,
 		// inf1 family
 		"inf1.24xlarge": 47.342000, "inf1.2xlarge": 3.630000, "inf1.6xlarge": 11.835000, "inf1.xlarge": 2.288000,
 		// m1 family
@@ -90,6 +106,10 @@ var InitialOnDemandPricesCN = map[string]map[string]float64{
 		"m6i.12xlarge": 24.316990, "m6i.16xlarge": 32.422660, "m6i.24xlarge": 48.633980, "m6i.2xlarge": 4.052830,
 		"m6i.32xlarge": 64.845310, "m6i.4xlarge": 8.105660, "m6i.8xlarge": 16.211330, "m6i.large": 1.013210,
 		"m6i.metal": 64.845310, "m6i.xlarge": 2.026420,
+		// m7g family
+		"m7g.12xlarge": 20.669400, "m7g.16xlarge": 27.559300, "m7g.2xlarge": 3.444900, "m7g.4xlarge": 6.889800,
+		"m7g.8xlarge": 13.779600, "m7g.large": 0.861200, "m7g.medium": 0.430600, "m7g.metal": 27.559300,
+		"m7g.xlarge": 1.722500,
 		// p2 family
 		"p2.16xlarge": 169.792000, "p2.8xlarge": 84.896000, "p2.xlarge": 10.612000,
 		// p3 family
@@ -123,6 +143,12 @@ var InitialOnDemandPricesCN = map[string]map[string]float64{
 		"r6i.12xlarge": 29.246110, "r6i.16xlarge": 38.994820, "r6i.24xlarge": 58.492220, "r6i.2xlarge": 4.874350,
 		"r6i.32xlarge": 77.989630, "r6i.4xlarge": 9.748700, "r6i.8xlarge": 19.497410, "r6i.large": 1.218590,
 		"r6i.metal": 77.989630, "r6i.xlarge": 2.437180,
+		// r7g family
+		"r7g.12xlarge": 24.875600, "r7g.16xlarge": 33.167500, "r7g.2xlarge": 4.145900, "r7g.4xlarge": 8.291900,
+		"r7g.8xlarge": 16.583800, "r7g.large": 1.036500, "r7g.medium": 0.518200, "r7g.metal": 33.167500,
+		"r7g.xlarge": 2.073000,
+		// t1 family
+		"t1.micro": 0.221000,
 		// t2 family
 		"t2.2xlarge": 3.392000, "t2.large": 0.851000, "t2.medium": 0.426000, "t2.micro": 0.106000,
 		"t2.nano": 0.060600, "t2.small": 0.212000, "t2.xlarge": 1.696000,

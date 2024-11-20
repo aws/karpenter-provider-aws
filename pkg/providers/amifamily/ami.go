@@ -18,17 +18,18 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -44,15 +45,18 @@ type Provider interface {
 
 type DefaultProvider struct {
 	sync.Mutex
+
+	clk             clock.Clock
 	cache           *cache.Cache
-	ec2api          ec2iface.EC2API
+	ec2api          sdk.EC2API
 	cm              *pretty.ChangeMonitor
 	versionProvider version.Provider
 	ssmProvider     ssm.Provider
 }
 
-func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provider, ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(clk clock.Clock, versionProvider version.Provider, ssmProvider ssm.Provider, ec2api sdk.EC2API, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
+		clk:             clk,
 		cache:           cache,
 		ec2api:          ec2api,
 		cm:              pretty.NewChangeMonitor(),
@@ -85,27 +89,24 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]DescribeImageQuery, error) {
 	// Aliases are mutually exclusive, both on the term level and field level within a term.
 	// This is enforced by a CEL validation, we will treat this as an invariant.
-	if term, ok := lo.Find(nodeClass.Spec.AMISelectorTerms, func(term v1.AMISelectorTerm) bool {
-		return term.Alias != ""
-	}); ok {
+	if alias := nodeClass.Alias(); alias != nil {
 		kubernetesVersion, err := p.versionProvider.Get(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("getting kubernetes version, %w", err)
 		}
-		amiFamily := GetAMIFamily(v1.AMIFamilyFromAlias(term.Alias), nil)
-		query, err := amiFamily.DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, v1.AMIVersionFromAlias(term.Alias))
+		query, err := GetAMIFamily(alias.Family, nil).DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, alias.Version)
 		if err != nil {
 			return []DescribeImageQuery{}, err
 		}
 		return []DescribeImageQuery{query}, nil
 	}
 
-	idFilter := &ec2.Filter{Name: aws.String("image-id")}
+	idFilter := ec2types.Filter{Name: aws.String("image-id")}
 	queries := []DescribeImageQuery{}
 	for _, term := range nodeClass.Spec.AMISelectorTerms {
 		switch {
 		case term.ID != "":
-			idFilter.Values = append(idFilter.Values, aws.String(term.ID))
+			idFilter.Values = append(idFilter.Values, term.ID)
 		default:
 			query := DescribeImageQuery{
 				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{}),
@@ -116,22 +117,22 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 				query = DescribeImageQuery{
 					Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{"self", "amazon"}),
 				}
-				query.Filters = append(query.Filters, &ec2.Filter{
+				query.Filters = append(query.Filters, ec2types.Filter{
 					Name:   aws.String("name"),
-					Values: aws.StringSlice([]string{term.Name}),
+					Values: []string{term.Name},
 				})
 
 			}
 			for k, v := range term.Tags {
 				if v == "*" {
-					query.Filters = append(query.Filters, &ec2.Filter{
+					query.Filters = append(query.Filters, ec2types.Filter{
 						Name:   aws.String("tag-key"),
-						Values: []*string{aws.String(k)},
+						Values: []string{k},
 					})
 				} else {
-					query.Filters = append(query.Filters, &ec2.Filter{
+					query.Filters = append(query.Filters, ec2types.Filter{
 						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-						Values: []*string{aws.String(v)},
+						Values: []string{v},
 					})
 				}
 			}
@@ -139,7 +140,7 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		}
 	}
 	if len(idFilter.Values) > 0 {
-		queries = append(queries, DescribeImageQuery{Filters: []*ec2.Filter{idFilter}})
+		queries = append(queries, DescribeImageQuery{Filters: []ec2types.Filter{idFilter}})
 	}
 	return queries, nil
 }
@@ -157,38 +158,41 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 	}
 	images := map[uint64]AMI{}
 	for _, query := range queries {
-		if err = p.ec2api.DescribeImagesPagesWithContext(ctx, query.DescribeImagesInput(), func(page *ec2.DescribeImagesOutput, _ bool) bool {
+		paginator := ec2.NewDescribeImagesPaginator(p.ec2api, query.DescribeImagesInput())
+		for paginator.HasMorePages() {
+			page, err := paginator.NextPage(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("describing images, %w", err)
+			}
 			for _, image := range page.Images {
-				arch, ok := v1.AWSToKubeArchitectures[lo.FromPtr(image.Architecture)]
+				arch, ok := v1.AWSToKubeArchitectures[string(image.Architecture)]
 				if !ok {
 					continue
 				}
 				// Each image may have multiple associated sets of requirements. For example, an image may be compatible with Neuron instances
 				// and GPU instances. In that case, we'll have a set of requirements for each, and will create one "image" for each.
 				for _, reqs := range query.RequirementsForImageWithArchitecture(lo.FromPtr(image.ImageId), arch) {
-					// If we already have an image with the same set of requirements, but this image is newer, replace the previous image.
+					// Checks and store for AMIs
+					// Following checks are needed in order to always priortize non deprecated AMIs
+					// If we already have an image with the same set of requirements, but this image (candidate) is newer, replace the previous (existing) image.
+					// If we already have an image with the same set of requirements which is deprecated, but this image (candidate) is newer or non deprecated, replace the previous (existing) image
 					reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-					if v, ok := images[reqsHash]; ok {
-						candidateCreationTime, _ := time.Parse(time.RFC3339, lo.FromPtr(image.CreationDate))
-						existingCreationTime, _ := time.Parse(time.RFC3339, v.CreationDate)
-						if existingCreationTime == candidateCreationTime && lo.FromPtr(image.Name) < v.Name {
-							continue
-						}
-						if candidateCreationTime.Unix() < existingCreationTime.Unix() {
-							continue
-						}
-					}
-					images[reqsHash] = AMI{
+					candidateDeprecated := parseTimeWithDefault(lo.FromPtr(image.DeprecationTime), maxTime).Unix() <= p.clk.Now().Unix()
+					ami := AMI{
 						Name:         lo.FromPtr(image.Name),
 						AmiID:        lo.FromPtr(image.ImageId),
 						CreationDate: lo.FromPtr(image.CreationDate),
+						Deprecated:   candidateDeprecated,
 						Requirements: reqs,
 					}
+					if v, ok := images[reqsHash]; ok {
+						if cmpResult := compareAMI(v, ami); cmpResult <= 0 {
+							continue
+						}
+					}
+					images[reqsHash] = ami
 				}
 			}
-			return true
-		}); err != nil {
-			return nil, fmt.Errorf("describing images, %w", err)
 		}
 	}
 	p.cache.SetDefault(fmt.Sprintf("%d", hash), AMIs(lo.Values(images)))
@@ -210,4 +214,31 @@ func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1.A
 		}
 	}
 	return amiIDs
+}
+
+// Compare two AMI's based on their deprecation status, creation time or name
+// If both AMIs are deprecated, compare creation time and return the one with the newer creation time
+// If both AMIs are non-deprecated, compare creation time and return the one with the newer creation time
+// If one AMI is deprecated, return the non deprecated one
+// The result will be
+// 0 if AMI i == AMI j, where creation date, deprecation status and name are all equal
+// -1 if AMI i < AMI j, if AMI i is non-deprecated or newer than AMI j
+// +1 if AMI i > AMI j, if AMI j is non-deprecated or newer than AMI i
+func compareAMI(i, j AMI) int {
+	iCreationDate := parseTimeWithDefault(i.CreationDate, minTime)
+	jCreationDate := parseTimeWithDefault(j.CreationDate, minTime)
+	// Prioritize non-deprecated AMIs over deprecated ones
+	if i.Deprecated != j.Deprecated {
+		return lo.Ternary(i.Deprecated, 1, -1)
+	}
+	// If both are either non-deprecated or deprecated, compare by creation date
+	if iCreationDate.Unix() != jCreationDate.Unix() {
+		return lo.Ternary(iCreationDate.Unix() > jCreationDate.Unix(), -1, 1)
+	}
+	// If they have the same creation date, use the name as a tie-breaker
+	if i.Name != j.Name {
+		return lo.Ternary(i.Name > j.Name, -1, 1)
+	}
+	// If all attributes are are equal, both AMIs are exactly identical
+	return 0
 }

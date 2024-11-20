@@ -22,7 +22,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/labels"
 
-	awssdk "github.com/aws/aws-sdk-go/aws"
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -369,9 +369,13 @@ var _ = Describe("Stateful workloads", func() {
 })
 
 var _ = Describe("Ephemeral Storage", func() {
-	It("should run a pod with instance-store ephemeral storage that exceeds EBS root block device mappings", func() {
+	DescribeTable("should run a pod with instance-store ephemeral storage that exceeds EBS root block device mappings", func(alias string) {
 		nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
-
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+			{
+				Alias: alias,
+			},
+		}
 		pod := test.Pod(test.PodOptions{
 			ResourceRequirements: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
@@ -379,12 +383,14 @@ var _ = Describe("Ephemeral Storage", func() {
 				},
 			},
 		})
-
 		env.ExpectCreated(nodeClass, nodePool, pod)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
-		env.ExpectDeleted(pod)
-	})
+	},
+		Entry("AL2", "al2@latest"),
+		Entry("AL2023", "al2023@latest"),
+		Entry("Bottlerocket", "bottlerocket@latest"),
+	)
 })
 
 func ExpectSetEBSDriverLimit(limit int) {

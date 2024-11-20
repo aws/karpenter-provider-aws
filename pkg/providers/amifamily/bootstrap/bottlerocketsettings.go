@@ -38,7 +38,8 @@ type BottlerocketConfig struct {
 // BottlerocketSettings is a subset of all configuration in https://github.com/bottlerocket-os/bottlerocket/blob/d427c40931cba6e6bedc5b75e9c084a6e1818db9/sources/models/src/lib.rs#L260
 // These settings apply across all K8s versions that karpenter supports.
 type BottlerocketSettings struct {
-	Kubernetes BottlerocketKubernetes `toml:"kubernetes"`
+	Kubernetes        BottlerocketKubernetes      `toml:"kubernetes"`
+	BootstrapCommands map[string]BootstrapCommand `toml:"bootstrap-commands,omitempty"`
 }
 
 // BottlerocketKubernetes is k8s specific configuration for bottlerocket api
@@ -94,6 +95,22 @@ type BottlerocketCredentialProvider struct {
 	Environment   map[string]string `toml:"environment,omitempty"`
 }
 
+type BootstrapCommandMode string
+
+const (
+	BootstrapCommandModeAlways BootstrapCommandMode = "always"
+	BootstrapCommandModeOnce   BootstrapCommandMode = "once"
+	BootstrapCommandModeOff    BootstrapCommandMode = "off"
+)
+
+// BootstrapCommand model defined in the Bottlerocket Core Kit in
+// https://github.com/bottlerocket-os/bottlerocket-core-kit/blob/fdf32c291ad18370de3a5fdc4c20a9588bc14177/sources/bootstrap-commands/src/main.rs#L57
+type BootstrapCommand struct {
+	Commands  [][]string           `toml:"commands"`
+	Mode      BootstrapCommandMode `toml:"mode"`
+	Essential bool                 `toml:"essential"`
+}
+
 func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
 	// unmarshal known settings
 	s := struct {
@@ -115,5 +132,8 @@ func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 		c.SettingsRaw = map[string]interface{}{}
 	}
 	c.SettingsRaw["kubernetes"] = c.Settings.Kubernetes
+	if c.Settings.BootstrapCommands != nil {
+		c.SettingsRaw["bootstrap-commands"] = c.Settings.BootstrapCommands
+	}
 	return toml.Marshal(c)
 }

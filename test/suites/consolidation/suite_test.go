@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
@@ -239,30 +239,7 @@ var _ = Describe("Consolidation", func() {
 			// Update the deployment to only contain 1 replica.
 			env.ExpectUpdated(dep)
 
-			// Ensure that we get two nodes tainted, and they have overlap during consolidation
-			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 5, 5*time.Second)
-
-			// Remove the finalizer from each node so that we can terminate
-			for _, node := range nodes {
-				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
-			}
-
-			// After the deletion timestamp is set and all pods are drained
-			// the node should be gone
-			env.EventuallyExpectNotFound(nodes[0], nodes[1])
-
-			// This check ensures that we are consolidating nodes at the same time
-			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 3, 5*time.Second)
-
-			for _, node := range nodes {
-				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
-			}
-			env.EventuallyExpectNotFound(nodes[0], nodes[1])
-
-			// Expect there to only be one node remaining for the last replica
-			env.ExpectNodeCount("==", 1)
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(5, 2, 10*time.Minute)
 		})
 		It("should respect budgets for non-empty delete consolidation", func() {
 			// This test will hold consolidation until we are ready to execute it
@@ -322,15 +299,7 @@ var _ = Describe("Consolidation", func() {
 			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
 			env.ExpectUpdated(nodePool)
 
-			// Ensure that we get two nodes tainted, and they have overlap during consolidation
-			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 3, 5*time.Second)
-
-			for _, node := range nodes {
-				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
-			}
-			env.EventuallyExpectNotFound(nodes[0], nodes[1])
-			env.ExpectNodeCount("==", 1)
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(3, 2, 10*time.Minute)
 		})
 		It("should respect budgets for non-empty replace consolidation", func() {
 			appLabels := map[string]string{"app": "large-app"}
@@ -430,12 +399,15 @@ var _ = Describe("Consolidation", func() {
 			env.EventuallyExpectTaintedNodeCount("==", 3)
 			env.EventuallyExpectNodeClaimCount("==", 8)
 			env.EventuallyExpectNodeCount("==", 8)
-			env.ConsistentlyExpectDisruptionsWithNodeCount(3, 8, 5*time.Second)
+
+			env.ConsistentlyExpectDisruptionsUntilNoneLeft(5, 3, 10*time.Minute)
 
 			for _, node := range originalNodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
 			}
-
+			for _, nodeClaim := range originalNodeClaims {
+				Expect(env.ExpectTestingFinalizerRemoved(nodeClaim)).To(Succeed())
+			}
 			// Eventually expect all the nodes to be rolled and completely removed
 			// Since this completes the disruption operation, this also ensures that we aren't leaking nodes into subsequent
 			// tests since nodeclaims that are actively replacing but haven't brought-up nodes yet can register nodes later

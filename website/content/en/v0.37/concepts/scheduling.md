@@ -103,6 +103,9 @@ Refer to general [Kubernetes GPU](https://kubernetes.io/docs/tasks/manage-gpus/s
 {{% alert title="Note" color="primary" %}}
 You must enable Pod ENI support in the AWS VPC CNI Plugin before enabling Pod ENI support in Karpenter.  Please refer to the [Security Groups for Pods documentation](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html) for instructions.
 {{% /alert %}}
+{{% alert title="Note" color="primary" %}}
+If you've enabled [Security Groups per Pod](https://aws.github.io/aws-eks-best-practices/networking/sgpp/), one of the instance's ENIs is reserved. To avoid discrepancies between the `maxPods` value and the node's supported pod density, you need to set [RESERVED_ENIS]({{<ref "../reference/settings" >}})=1.
+{{% /alert %}}
 
 Here is an example of a pod-eni resource defined in a deployment manifest:
 ```

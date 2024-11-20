@@ -37,7 +37,10 @@ const (
 	AssociatePublicIPAddressTTL = 5 * time.Minute
 	// SSMGetParametersByPathTTL is the time to drop SSM Parameters by path data. This only queries EKS Optimized AMI
 	// releases, so we should expect this to be updated relatively infrequently.
-	SSMGetParametersByPathTTL = 24 * time.Hour
+	SSMCacheTTL = 24 * time.Hour
+	// DiscoveredCapacityCacheTTL is the time to drop discovered resource capacity data per-instance type
+	// if it is not updated by a node creation event or refreshed during controller reconciliation
+	DiscoveredCapacityCacheTTL = 60 * 24 * time.Hour
 )
 
 const (

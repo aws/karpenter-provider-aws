@@ -25,8 +25,8 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
@@ -47,17 +47,20 @@ type Windows struct {
 }
 
 func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
-	imageID, err := ssmProvider.Get(ctx, fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1.WindowsCore, k8sVersion))
+	imageID, err := ssmProvider.Get(ctx, ssm.Parameter{
+		Name:      fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1.WindowsCore, k8sVersion),
+		IsMutable: true,
+	})
 	if err != nil {
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "windows%s@%s"`, w.Version, amiVersion)
 	}
 	return DescribeImageQuery{
-		Filters: []*ec2.Filter{&ec2.Filter{
+		Filters: []ec2types.Filter{{
 			Name:   lo.ToPtr("image-id"),
-			Values: []*string{lo.ToPtr(imageID)},
+			Values: []string{imageID},
 		}},
 		KnownRequirements: map[string][]scheduling.Requirements{
-			imageID: []scheduling.Requirements{scheduling.NewRequirements(
+			imageID: {scheduling.NewRequirements(
 				scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)),
 				scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpIn, w.Build),
 			)},

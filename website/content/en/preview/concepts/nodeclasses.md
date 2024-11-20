@@ -383,8 +383,7 @@ kubelet:
 By default, the number of pods on a node is limited by both the number of networking interfaces (ENIs) that may be attached to an instance type and the number of IP addresses that can be assigned to each ENI.  See [IP addresses per network interface per instance type](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#AvailableIpPerENI) for a more detailed information on these instance types' limits.
 
 {{% alert title="Note" color="primary" %}}
-By default, the VPC CNI allocates IPs for a node and pods from the same subnet. With [VPC CNI Custom Networking](https://aws.github.io/aws-eks-best-practices/networking/custom-networking), the pods will receive IP addresses from another subnet dedicated to pod IPs. This approach makes it easier to manage IP addresses and allows for separate Network Access Control Lists (NACLs) applied to your pods. VPC CNI Custom Networking reduces the pod density of a node since one of the ENI attachments will be used for the node and cannot share the allocated IPs on the interface to pods. Karpenter supports VPC CNI Custom Networking and similar CNI setups where the primary node interface is separated from the pods interfaces through a global [setting](./settings.md#configmap) within the karpenter-global-settings configmap: `aws.reservedENIs`. In the common case, `aws.reservedENIs` should be set to `"1"` if using Custom Networking.
-{{% /alert %}}
+By default, the VPC CNI allocates IPs for a node and pods from the same subnet. With [VPC CNI Custom Networking](https://aws.github.io/aws-eks-best-practices/networking/custom-networking), the pods will receive IP addresses from another subnet dedicated to pod IPs. This approach makes it easier to manage IP addresses and allows for separate Network Access Control Lists (NACLs) applied to your pods. VPC CNI Custom Networking reduces the pod density of a node since one of the ENI attachments will be used for the node and cannot share the allocated IPs on the interface to pods. Karpenter supports VPC CNI Custom Networking and similar CNI setups where the primary node interface is separated from the pods interfaces through a global environment variable RESERVED_ENIS, see [Settings]({{<ref "../reference/settings" >}}). In the common case, RESERVED_ENIS should be set to "1" if using Custom Networking. {{% /alert %}}
 
 {{% alert title="Windows Support Notice" color="warning" %}}
 It's currently not possible to specify custom networking with Windows nodes.
@@ -400,7 +399,7 @@ AMIFamily does not impact which AMI is discovered, only the UserData generation 
 
 {{% alert title="Ubuntu Support Dropped at v1" color="warning" %}}
 
-Support for the Ubuntu AMIFamily has been dropped at Karpenter `v1.0.1`.
+Support for the Ubuntu AMIFamily has been dropped at Karpenter `v1.0.0`.
 This means Karpenter no longer supports automatic AMI discovery and UserData generation for Ubuntu.
 To continue using Ubuntu AMIs, you will need to select Ubuntu AMIs using `amiSelectorTerms`.
 
@@ -429,6 +428,10 @@ spec:
 
 
 ### AL2
+
+{{% alert title="Note" color="primary" %}}
+Note that Karpenter will automatically generate a call to the `/etc/eks/bootstrap.sh` script as part of its generated UserData. When using `amiFamily: AL2` you should not call this script yourself in `.spec.userData`. If you need to, use the [Custom AMI family]({{< ref "./nodeclasses/#custom" >}}) instead.
+{{% /alert %}}
 
 ```bash
 MIME-Version: 1.0
@@ -985,7 +988,7 @@ On AL2023, Karpenter automatically configures the disks via the generated `NodeC
 
 #### Others
 
-For all other AMI families, you must configure the disks yourself. Check out the [`setup-local-disks`](https://github.com/awslabs/amazon-eks-ami/blob/master/files/bin/setup-local-disks) script in [amazon-eks-ami](https://github.com/awslabs/amazon-eks-ami) to see how this is done for AL2.
+For all other AMI families, you must configure the disks yourself. Check out the [`setup-local-disks`](https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/bin/setup-local-disks) script in [amazon-eks-ami](https://github.com/awslabs/amazon-eks-ami) to see how this is done for AL2.
 
 {{% alert title="Tip" color="secondary" %}}
 Since the Kubelet & Containerd will be using the instance-store filesystem, you may consider using a more minimal root volume size.

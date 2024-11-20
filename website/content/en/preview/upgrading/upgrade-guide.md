@@ -11,7 +11,7 @@ Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes 
 This guide contains information needed to upgrade to the latest release of Karpenter, along with compatibility issues you need to be aware of when upgrading from earlier Karpenter versions.
 
 {{% alert title="Warning" color="warning" %}}
-With the release of Karpenter v1.0.1, the Karpenter team will be dropping support for karpenter versions v0.32 and below. We recommend upgrading to the latest version of Karpenter and keeping Karpenter up-to-date for bug fixes and new features.
+With the release of Karpenter v1.0.0, the Karpenter team will be dropping support for karpenter versions v0.32 and below. We recommend upgrading to the latest version of Karpenter and keeping Karpenter up-to-date for bug fixes and new features.
 {{% /alert %}}
 
 ### CRD Upgrades
@@ -32,6 +32,13 @@ If you get the error `invalid ownership metadata; label validation error:` while
 <!--
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
+
+### Upgrading to `1.1.0`+
+
+* Bottlerocket AMIFamily now supports `instanceStorePolicy: RAID0`. This means that Karpenter will auto-generate userData to RAID0 your instance store volumes (similar to AL2 and AL2023) when specifying this value.
+  * Note: This userData configuration is _only_ valid on Bottlerocket v1.22.0+. If you are using an earlier version of a Bottlerocket image (< v1.22.0) with `amiFamily: Bottlerocket` and `instanceStorePolicy: RAID0`, nodes will fail to join the cluster.  
+* The AWS Neuron accelerator well known name label (`karpenter.k8s.aws/instance-accelerator-name`) values now reflect their correct names of `trainium`, `inferentia`, and `inferentia2`. Previously, all Neuron accelerators were assigned the label name of `inferentia`.
+* Karpenter drops the internal `karpenter.k8s.aws/cluster` tag used for launch template management in favor of `eks:eks-cluster-name` and consistency with other Karpenter-provisioned resources
 
 ### Upgrading to `1.0.0`+
 
@@ -57,7 +64,7 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
 * API Moves:
   * ExpireAfter has moved from the `NodePool.Spec.Disruption` block to `NodePool.Spec.Template.Spec`, and is now a drift-able field.
   * `Kubelet` was moved to the EC2NodeClass from the NodePool.
-* RBAC changes: added `delete pods` | added `get, patch crds` | added `update nodes` | removed `create nodes`
+* RBAC changes: added `delete pods` | added `get, patch crds` | added `get, patch crd status` | added `update nodes` | removed `create nodes`
 * Breaking API (Manual Migration Needed):
   * Ubuntu is dropped as a first class supported AMI Family
   * `karpenter.sh/do-not-consolidate` (annotation), `karpenter.sh/do-not-evict` (annotation), and `karpenter.sh/managed-by` (tag) are all removed. `karpenter.sh/managed-by`, which currently stores the cluster name in its value, will be replaced by eks:eks-cluster-name

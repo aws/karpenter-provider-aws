@@ -17,10 +17,9 @@ package errors
 import (
 	"errors"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/smithy-go"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -34,11 +33,14 @@ var (
 		"InvalidInstanceID.NotFound",
 		launchTemplateNameNotFoundCode,
 		"InvalidLaunchTemplateId.NotFound",
-		sqs.ErrCodeQueueDoesNotExist,
-		iam.ErrCodeNoSuchEntityException,
+		"QueueDoesNotExist",
+		"NoSuchEntity",
 	)
 	alreadyExistsErrorCodes = sets.New[string](
-		iam.ErrCodeEntityAlreadyExistsException,
+		"EntityAlreadyExists",
+	)
+	accessDeniedErrorCodes = sets.New[int](
+		403,
 	)
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
 	unfulfillableCapacityErrorCodes = sets.New[string](
@@ -51,6 +53,17 @@ var (
 	)
 )
 
+func IsAccessDenied(err error) bool {
+	if err == nil {
+		return false
+	}
+	var awsError *awshttp.ResponseError
+	if errors.As(err, &awsError) {
+		return accessDeniedErrorCodes.Has(awsError.HTTPStatusCode())
+	}
+	return false
+}
+
 // IsNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more
 // serious or unexpected error)
@@ -58,9 +71,9 @@ func IsNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
-	var awsError awserr.Error
-	if errors.As(err, &awsError) {
-		return notFoundErrorCodes.Has(awsError.Code())
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return notFoundErrorCodes.Has(apiErr.ErrorCode())
 	}
 	return false
 }
@@ -76,9 +89,9 @@ func IsAlreadyExists(err error) bool {
 	if err == nil {
 		return false
 	}
-	var awsError awserr.Error
-	if errors.As(err, &awsError) {
-		return alreadyExistsErrorCodes.Has(awsError.Code())
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return alreadyExistsErrorCodes.Has(apiErr.ErrorCode())
 	}
 	return false
 }
@@ -93,7 +106,7 @@ func IgnoreAlreadyExists(err error) error {
 // IsUnfulfillableCapacity returns true if the Fleet err means
 // capacity is temporarily unavailable for launching.
 // This could be due to account limits, insufficient ec2 capacity, etc.
-func IsUnfulfillableCapacity(err *ec2.CreateFleetError) bool {
+func IsUnfulfillableCapacity(err ec2types.CreateFleetError) bool {
 	return unfulfillableCapacityErrorCodes.Has(*err.ErrorCode)
 }
 
@@ -101,9 +114,9 @@ func IsLaunchTemplateNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
-	var awsError awserr.Error
-	if errors.As(err, &awsError) {
-		return awsError.Code() == launchTemplateNameNotFoundCode
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.ErrorCode() == launchTemplateNameNotFoundCode
 	}
 	return false
 }

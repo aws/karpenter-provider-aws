@@ -18,27 +18,33 @@ import (
 	"context"
 
 	"github.com/awslabs/operatorpkg/controller"
+	opevents "github.com/awslabs/operatorpkg/events"
 	"github.com/awslabs/operatorpkg/status"
+	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	nodeclasshash "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/hash"
 	nodeclassstatus "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	nodeclasstermination "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/termination"
 	controllersinstancetype "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype"
+	controllersinstancetypecapacity "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/capacity"
 	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
+	ssminvalidation "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/ssm/invalidation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
+	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"sigs.k8s.io/karpenter/pkg/events"
 
-	"github.com/aws/karpenter-provider-aws/pkg/cache"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
 	nodeclaimgarbagecollection "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclaim/garbagecollection"
 	nodeclaimtagging "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclaim/tagging"
@@ -53,11 +59,24 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
 
-func NewControllers(ctx context.Context, mgr manager.Manager, sess *session.Session, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
-	unavailableOfferings *cache.UnavailableOfferings, cloudProvider cloudprovider.CloudProvider, subnetProvider subnet.Provider,
-	securityGroupProvider securitygroup.Provider, instanceProfileProvider instanceprofile.Provider, instanceProvider instance.Provider,
-	pricingProvider pricing.Provider, amiProvider amifamily.Provider, launchTemplateProvider launchtemplate.Provider, instanceTypeProvider instancetype.Provider) []controller.Controller {
-
+func NewControllers(
+	ctx context.Context,
+	mgr manager.Manager,
+	cfg aws.Config,
+	clk clock.Clock,
+	kubeClient client.Client,
+	recorder events.Recorder,
+	unavailableOfferings *awscache.UnavailableOfferings,
+	ssmCache *cache.Cache,
+	cloudProvider cloudprovider.CloudProvider,
+	subnetProvider subnet.Provider,
+	securityGroupProvider securitygroup.Provider,
+	instanceProfileProvider instanceprofile.Provider,
+	instanceProvider instance.Provider,
+	pricingProvider pricing.Provider,
+	amiProvider amifamily.Provider,
+	launchTemplateProvider launchtemplate.Provider,
+	instanceTypeProvider *instancetype.DefaultProvider) []controller.Controller {
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient),
 		nodeclassstatus.NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider),
@@ -66,11 +85,14 @@ func NewControllers(ctx context.Context, mgr manager.Manager, sess *session.Sess
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
 		controllerspricing.NewController(pricingProvider),
 		controllersinstancetype.NewController(instanceTypeProvider),
-		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter")),
+		controllersinstancetypecapacity.NewController(kubeClient, instanceTypeProvider),
+		ssminvalidation.NewController(ssmCache, amiProvider),
+		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter"), status.EmitDeprecatedMetrics),
+		opevents.NewController[*corev1.Node](kubeClient, clk),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
-		sqsapi := servicesqs.New(sess)
-		out := lo.Must(sqsapi.GetQueueUrlWithContext(ctx, &servicesqs.GetQueueUrlInput{QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)}))
+		sqsapi := servicesqs.NewFromConfig(cfg)
+		out := lo.Must(sqsapi.GetQueueUrl(ctx, &servicesqs.GetQueueUrlInput{QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)}))
 		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, lo.Must(sqs.NewDefaultProvider(sqsapi, lo.FromPtr(out.QueueUrl))), unavailableOfferings))
 	}
 	return controllers

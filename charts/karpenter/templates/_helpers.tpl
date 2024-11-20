@@ -69,9 +69,9 @@ Karpenter image to use
 */}}
 {{- define "karpenter.controller.image" -}}
 {{- if .Values.controller.image.digest }}
-{{- printf "%s:%s@%s" .Values.controller.image.repository  (default (printf "v%s" .Chart.AppVersion) .Values.controller.image.tag) .Values.controller.image.digest }}
+{{- printf "%s:%s@%s" .Values.controller.image.repository  (default (printf "%s" .Chart.AppVersion) .Values.controller.image.tag) .Values.controller.image.digest }}
 {{- else }}
-{{- printf "%s:%s" .Values.controller.image.repository  (default (printf "v%s" .Chart.AppVersion) .Values.controller.image.tag) }}
+{{- printf "%s:%s" .Values.controller.image.repository  (default (printf "%s" .Chart.AppVersion) .Values.controller.image.tag) }}
 {{- end }}
 {{- end }}
 

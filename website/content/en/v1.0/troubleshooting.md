@@ -10,26 +10,9 @@ description: >
 
 ### Enable debug logging
 
-To enable debug logging on Karpenter you should update the `config-logging` ConfigMap which can be found in the same namespace as the controller.
-If you installed the controller in the `karpenter` namespace you can see the current config with
+This can be done by updating the env variable `LOG_LEVEL` Karpenter deployment and then restarting the Karpenter deployment.
 
-```
-kubectl get configmap -n karpenter config-logging -o yaml
-apiVersion: v1
-data:
-  loglevel.webhook: error
-  zap-logger-config: |
-    {
-      "level": debug",
-      development": false,
-...
-```
-
-Update the zap-logger-config "level" and restart the Karpenter pod(s) to enable debug logging.
-
-#### Debug logging via Helm
-
-You can enable debug logging during installation with Helm by setting the option `logLevel`.
+You can also enable debug logging during installation with Helm by setting the option `logLevel`.
 
 ```
 helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
@@ -219,7 +202,7 @@ Karpenter does not support [in-tree storage plugins](https://kubernetes.io/blog/
 
 #### Pods were scheduled due to a race condition in Kubernetes
 
-Due to [this race condition in Kubernetes](https://github.com/kubernetes/kubernetes/issues/95911), it's possible that the scheduler and the CSINode can race during node registration such that the scheduler assumes that a node can mount more volumes than the node attachments support. There is currently no universal solve for this problem other than enforcing `toplogySpreadConstraints` and `podAntiAffinity` on your workloads that use PVCs such that you attempt to reduce the number of PVCs that schedule to a given node.
+Due to [this race condition in Kubernetes](https://github.com/kubernetes/kubernetes/issues/95911), it's possible that the scheduler and the CSINode can race during node registration such that the scheduler assumes that a node can mount more volumes than the node attachments support. There is currently no universal solve for this problem other than enforcing `topologySpreadConstraints` and `podAntiAffinity` on your workloads that use PVCs such that you attempt to reduce the number of PVCs that schedule to a given node.
 
 The following is a list of known CSI drivers which support a startupTaint to eliminate this issue:
 - [aws-ebs-csi-driver](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/install.md#configure-node-startup-taint)
@@ -265,6 +248,7 @@ To avoid this discrepancy between `maxPods` and the supported pod density of the
 1. Enable [Prefix Delegation](https://www.eksworkshop.com/docs/networking/prefix/) to increase the number of allocatable IPs for the ENIs on each instance type
 2. Reduce your `maxPods` value to be under the maximum pod density for the instance types assigned to your NodePods
 3. Remove the `maxPods` value from your [`kubeletConfiguration`]({{<ref "./concepts/nodeclasses#speckubeletconfiguration" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
+4. Set [RESERVED_ENIS]({{<ref "./reference/settings" >}})=1 in your Karpenter configuration to account for the reserved ENI when using Security Groups for Pods.
 
 For more information on pod density, view the [Pod Density Section in the NodePools doc]({{<ref "./concepts/nodeclasses#pod-density" >}}).
 

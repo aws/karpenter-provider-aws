@@ -32,7 +32,7 @@ spec:
         kind: EC2NodeClass
         name: default
       expireAfter: 168h # expire nodes after 7 days = 7 * 24h
-      terminationGracePeirod: 24h # grace period after 1 day = 7 * 24h, for a max node lifetime of 8 days
+      terminationGracePeriod: 24h # grace period after 1 day = 7 * 24h, for a max node lifetime of 8 days
   disruption:
     consolidationPolicy: WhenEmpty
     consolidateAfter: 60s # scale down nodes after 60 seconds without workloads (excluding daemons)

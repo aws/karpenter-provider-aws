@@ -12,13 +12,11 @@ The next large problem is the inability to define a hard ceiling on cluster cost
 
 We need to provide similar functionality via Karpenter as well wherein there's a hard limit a customer can configure.
 
-
 ## Current State
 
 To address the runaway-scaling problem the current fix in place is to detect if the kubelet for a worker node has never reported its status to the K8s control plane. If it's been longer than 15 minutes, Karpenter assumes that there's a hard failure mode due to which this worker node will never become healthy and terminates the worker node. If the condition map of the node object in the API Server says `NodeStatusNeverUpdated` then we use that as an indicator of the node having never come up.
 
 This fix ensures that if there are other scenarios where a worker node has become unhealthy due to a network partition or power outage in a availability zone, we don't terminate those worker nodes. It's important we don't make the static stability of a cluster worse during such an event. On the other hand, if there is an edge case where worker nodes come online and soon go offline, it will lead to runaway scaling again. This edge case should be unlikely to happen in the near term, so this document focuses on just the ability to limit costs within Karpenter. That way even if runaway scaling does occur there's a way to bound it. A longer-term solution to handle the runaway problem will be discussed separately.
-
 
 ## Proposed Solution for Limits
 
@@ -37,6 +35,7 @@ In the above example - `20%` indicates that if at any point in time, more than 2
 The good bit about this approach is that we don't constrain how many total worker nodes can be spun up by Karpenter, while also making sure that if we keep launching worker nodes that aren't healthy, we stop the scaling and save costs.
 
 The two main problems with this approach though are -
+
 1. This limit while meant to just constrain the number of unhealthy worker nodes in a cluster, will also inhibit the rate at which Karpenter can respond to pods that aren't schedulable. This somewhat goes against the goal of minimizing launch times of workers.
 2. While this helps ensure that costs don't increase due to runaway scaling, it won't help those who want a stricter cap on the amount of resources that's being provisioned even when nodes are otherwise healthy.
 
@@ -62,11 +61,13 @@ As a cost control mechanism, this requires a little more work from our users if 
 [CPU limits](https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/#cpu-units), memory limits and GPU limits will be defined similar to resource requests and will not be required by default. Karpenter will also will not default to any limits itself.
 
 The list of supported resource types is -
+
 - `cpu`
 - `memory`
 - `nvidia.com/gpu`
 - `amd.com/gpu`
 - `aws.amazon.com/neuron`
+- `aws.amazon.com/neuroncore`
 - `habana.ai/gaudi`
 
 Limits will be defined at the per-provisioner level. We'll rely on the `karpenter.sh/provisioner-name` node label when calculating resource usage by a specific provisioner. This is useful when multiple teams share a single cluster and use separate provisioners since each team's resource consumption will be limited separately.

@@ -20,8 +20,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 
@@ -53,30 +54,30 @@ var _ = Describe("GarbageCollection", func() {
 		instanceProfileName = fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
 		roleName = fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
 		instanceInput = &ec2.RunInstancesInput{
-			InstanceType: aws.String("c5.large"),
-			IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
+			InstanceType: "c5.large",
+			IamInstanceProfile: &ec2types.IamInstanceProfileSpecification{
 				Name: aws.String(instanceProfileName),
 			},
-			SecurityGroupIds: lo.Map(securityGroups, func(s environmentaws.SecurityGroup, _ int) *string {
-				return s.GroupIdentifier.GroupId
+			SecurityGroupIds: lo.Map(securityGroups, func(s environmentaws.SecurityGroup, _ int) string {
+				return *s.GroupIdentifier.GroupId
 			}),
 			SubnetId: aws.String(subnets[0].ID),
-			BlockDeviceMappings: []*ec2.BlockDeviceMapping{
+			BlockDeviceMappings: []ec2types.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &ec2.EbsBlockDevice{
+					Ebs: &ec2types.EbsBlockDevice{
 						Encrypted:           aws.Bool(true),
 						DeleteOnTermination: aws.Bool(true),
-						VolumeType:          aws.String(ec2.VolumeTypeGp3),
-						VolumeSize:          aws.Int64(20),
+						VolumeType:          ec2types.VolumeTypeGp3,
+						VolumeSize:          aws.Int32(20),
 					},
 				},
 			},
 			ImageId: aws.String(customAMI), // EKS AL2-based AMI
-			TagSpecifications: []*ec2.TagSpecification{
+			TagSpecifications: []ec2types.TagSpecification{
 				{
-					ResourceType: aws.String(ec2.ResourceTypeInstance),
-					Tags: []*ec2.Tag{
+					ResourceType: ec2types.ResourceTypeInstance,
+					Tags: []ec2types.Tag{
 						{
 							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", env.ClusterName)),
 							Value: aws.String("owned"),
@@ -92,8 +93,8 @@ var _ = Describe("GarbageCollection", func() {
 					},
 				},
 			},
-			MinCount: aws.Int64(1),
-			MaxCount: aws.Int64(1),
+			MinCount: aws.Int32(1),
+			MaxCount: aws.Int32(1),
 		}
 	})
 	It("should succeed to garbage collect an Instance that was launched by a NodeClaim but has no Instance mapping", func() {
@@ -102,7 +103,6 @@ var _ = Describe("GarbageCollection", func() {
 		Expect(err).ToNot(HaveOccurred())
 		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
 			env.ClusterEndpoint, env.ExpectCABundle()))))
-
 		env.ExpectInstanceProfileCreated(instanceProfileName, roleName)
 		DeferCleanup(func() {
 			env.ExpectInstanceProfileDeleted(instanceProfileName, roleName)
@@ -111,24 +111,20 @@ var _ = Describe("GarbageCollection", func() {
 		out := env.EventuallyExpectRunInstances(instanceInput)
 		Expect(out.Instances).To(HaveLen(1))
 
-		// Always ensure that we cleanup the instance
 		DeferCleanup(func() {
-			_, err := env.EC2API.TerminateInstances(&ec2.TerminateInstancesInput{
-				InstanceIds: []*string{out.Instances[0].InstanceId},
+			_, err := env.EC2API.TerminateInstances(env.Context, &ec2.TerminateInstancesInput{
+				InstanceIds: []string{*out.Instances[0].InstanceId},
 			})
-			if awserrors.IsNotFound(err) {
-				return
-			}
-			Expect(err).ToNot(HaveOccurred())
+			Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
 		})
 
 		// Wait for the node to register with the cluster
 		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 
 		// Update the tags to add the EKSClusterNameTagKey tag
-		_, err = env.EC2API.CreateTagsWithContext(env.Context, &ec2.CreateTagsInput{
-			Resources: []*string{out.Instances[0].InstanceId},
-			Tags: []*ec2.Tag{
+		_, err = env.EC2API.CreateTags(env.Context, &ec2.CreateTagsInput{
+			Resources: []string{*out.Instances[0].InstanceId},
+			Tags: []ec2types.Tag{
 				{
 					Key:   aws.String(v1.EKSClusterNameTagKey),
 					Value: aws.String(env.ClusterName),
@@ -136,24 +132,22 @@ var _ = Describe("GarbageCollection", func() {
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
-
 		// Eventually expect the node and the instance to be removed (shutting-down)
 		env.EventuallyExpectNotFound(node)
 		Eventually(func(g Gomega) {
-			g.Expect(lo.FromPtr(env.GetInstanceByID(aws.StringValue(out.Instances[0].InstanceId)).State.Name)).To(BeElementOf("terminated", "shutting-down"))
+			g.Expect(string(env.GetInstanceByID(aws.ToString(out.Instances[0].InstanceId)).State.Name)).To(BeElementOf("terminated", "shutting-down"))
 		}, time.Second*10).Should(Succeed())
 	})
 	It("should succeed to garbage collect an Instance that was deleted without the cluster's knowledge", func() {
 		// Disable the interruption queue for the garbage collection coretest
 		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "INTERRUPTION_QUEUE", Value: ""})
-
 		pod := coretest.Pod()
 		env.ExpectCreated(nodeClass, nodePool, pod)
 		env.EventuallyExpectHealthy(pod)
 		node := env.ExpectCreatedNodeCount("==", 1)[0]
 
-		_, err := env.EC2API.TerminateInstances(&ec2.TerminateInstancesInput{
-			InstanceIds: aws.StringSlice([]string{lo.Must(utils.ParseInstanceID(node.Spec.ProviderID))}),
+		_, err := env.EC2API.TerminateInstances(env.Context, &ec2.TerminateInstancesInput{
+			InstanceIds: []string{lo.Must(utils.ParseInstanceID(node.Spec.ProviderID))},
 		})
 		Expect(err).ToNot(HaveOccurred())
 
