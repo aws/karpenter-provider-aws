@@ -262,16 +262,6 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ConditionStatus:    corev1.ConditionFalse,
 			TolerationDuration: 30 * time.Minute,
 		},
-		{
-			ConditionType:      corev1.NodeDiskPressure,
-			ConditionStatus:    corev1.ConditionTrue,
-			TolerationDuration: 30 * time.Minute,
-		},
-		{
-			ConditionType:      corev1.NodeMemoryPressure,
-			ConditionStatus:    corev1.ConditionTrue,
-			TolerationDuration: 30 * time.Minute,
-		},
 	}
 }
 
