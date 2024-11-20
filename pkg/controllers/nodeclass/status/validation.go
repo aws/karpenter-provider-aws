@@ -36,6 +36,8 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "validation bypassed")
 		return reconcile.Result{}, fmt.Errorf("validation bypassed")
 	}
-	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
+	if ok := nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded); !ok {
+		return reconcile.Result{Requeue: true}, nil
+	}
 	return reconcile.Result{}, nil
 }
