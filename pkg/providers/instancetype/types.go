@@ -276,7 +276,7 @@ func computeRequirements(info ec2types.InstanceTypeInfo, offerings cloudprovider
 	// CPU Sustained Clock Speed
 	if info.ProcessorInfo != nil {
 		// Convert from Ghz to Mhz and round to nearest whole number - converting from float64 to int to support Gt and Lt operators
-		requirements.Get(v1.LabelInstanceCPUSustainedClockSpeedMhz).Insert(fmt.Sprint(int(math.Round(aws.Float64Value(info.ProcessorInfo.SustainedClockSpeedInGhz) * 1000))))
+		requirements.Get(v1.LabelInstanceCPUSustainedClockSpeedMhz).Insert(fmt.Sprint(int(math.Round(aws.ToFloat64(info.ProcessorInfo.SustainedClockSpeedInGhz) * 1000))))
 	}
 	// EBS Max Bandwidth
 	if info.EbsInfo != nil && info.EbsInfo.EbsOptimizedInfo != nil && info.EbsInfo.EbsOptimizedSupport == ec2types.EbsOptimizedSupportDefault {
