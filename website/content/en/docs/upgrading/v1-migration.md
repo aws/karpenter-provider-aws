@@ -429,7 +429,7 @@ You've successfully upgraded to `v1.0`, but more than likely your manifests are 
 You can continue to apply these `v1beta1` manifests on `v1.0`, but support will be dropped in `v1.1`.
 Before upgrading to `v1.1+`, you will need to migrate your manifests over to `v1`.
 
-#### General Migration
+#### Manifest Migration
 
 You can manually migrate your manifests by referring to the [changelog]({{<ref "#changelog">}}) and the updated API docs ([NodePool]({{<ref "../concepts/nodepools.md">}}), [EC2NodeClass]({{<ref "../concepts/nodeclasses.md">}})).
 Alternatively, you can take advantage of the conversion webhooks.
@@ -620,7 +620,31 @@ spec:
     maxPods: 20
 ```
 
-<!-- TODO (jmdeal@): Add a section on storage version migration -->
+#### Stored Version Migration
+
+Once you have upgraded all of your manifests, you need to ensure that all existing resources are stored as `v1` in ETCD.
+Karpenter `v1.0.6`+ includes a controller to automatically migrate all stored resources to `v1`.
+To validate that the migration was successful, you should check the stored versions for Karpenter's CRDs:
+
+```bash
+for crd in "nodepools.karpenter.sh" "nodeclaims.karpenter.sh" "ec2nodeclasses.karpenter.k8s.aws"; do
+    kubectl get crd ${crd} -ojsonpath="{.status.storedVersions}{'\n'}"
+done
+```
+
+For more details on this migration process, refer to the [kubernetes docs](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#upgrade-existing-objects-to-a-new-stored-version).
+
+{{% alert title="Note" color="primary" %}}
+If the `v1beta1` stored version persists, ensure that you are on Karpenter `v1.0.6+`.
+Additionally, ensure that the storage version on the CRD in question is set to `v1`.
+
+```bash
+kubectl get crd ${crd} -ojsonpath="{.spec.versions[?(.storage==true)].name}{'\n'}"
+```
+
+If it is not, this indicates an issue upgrading the CRD when upgrading Karpenter to `v1.0.x`.
+Revisit step 9 of the [upgrade procedure]({{< ref "#upgrading" >}}) and ensure the CRD was updated correctly.
+{{% /alert %}}
 
 ## Changelog
 
