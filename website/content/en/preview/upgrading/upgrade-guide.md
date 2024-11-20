@@ -54,7 +54,7 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
   * AMI Selector Terms has a new Alias field which can only be set by itself in `EC2NodeClass.Spec.AMISelectorTerms`
   * Disruption Budgets by Reason was added to `NodePool.Spec.Disruption.Budgets`
   * TerminationGracePeriod was added to `NodePool.Spec.Template.Spec`.
-  * LOG_OUTPUT_PATHS and LOG_ERROR_OUTPUT_PATHS environment variables added
+  * `LOG_OUTPUT_PATHS` and `LOG_ERROR_OUTPUT_PATHS` environment variables added
 * API Rename: NodePool’s ConsolidationPolicy `WhenUnderutilized` is now renamed to `WhenEmptyOrUnderutilized`
 * Behavior Changes:
   * Expiration is now forceful and begins draining as soon as it’s expired. Karpenter does not wait for replacement capacity to be available before draining, but will start provisioning a replacement as soon as the node is expired and begins draining.
@@ -71,8 +71,8 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
   * The taint used to mark nodes for disruption and termination changed from `karpenter.sh/disruption=disrupting:NoSchedule` to `karpenter.sh/disrupted:NoSchedule`. It is not recommended to tolerate this taint, however, if you were tolerating it in your applications, you'll need to adjust your taints to reflect this.
 * Environment Variable Changes:
   * Environment Variable Changes
-  * LOGGING_CONFIG, ASSUME_ROLE_ARN, ASSUME_ROLE_DURATION Dropped
-  * LEADER_ELECT renamed to DISABLE_LEADER_ELECTION
+  * `LOGGING_CONFIG`, `ASSUME_ROLE_ARN`, `ASSUME_ROLE_DURATION` Dropped
+  * `LEADER_ELECT` renamed to `DISABLE_LEADER_ELECTION`
   * `FEATURE_GATES.DRIFT=true` was dropped and promoted to Stable, and cannot be disabled.
       * Users currently opting out of drift, disabling the drift feature flag will no longer be able to do so.
 * Defaults changed:
