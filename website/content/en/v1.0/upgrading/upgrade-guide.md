@@ -47,7 +47,7 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
   * AMI Selector Terms has a new Alias field which can only be set by itself in `EC2NodeClass.Spec.AMISelectorTerms`
   * Disruption Budgets by Reason was added to `NodePool.Spec.Disruption.Budgets`
   * TerminationGracePeriod was added to `NodePool.Spec.Template.Spec`.
-  * LOG_OUTPUT_PATHS and LOG_ERROR_OUTPUT_PATHS environment variables added
+  * `LOG_OUTPUT_PATHS` and `LOG_ERROR_OUTPUT_PATHS` environment variables added
 * API Rename: NodePool’s ConsolidationPolicy `WhenUnderutilized` is now renamed to `WhenEmptyOrUnderutilized`
 * Behavior Changes:
   * Expiration is now forceful and begins draining as soon as it’s expired. Karpenter does not wait for replacement capacity to be available before draining, but will start provisioning a replacement as soon as the node is expired and begins draining.
