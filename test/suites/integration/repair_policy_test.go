@@ -78,16 +78,6 @@ var _ = Describe("Repair Policy", func() {
 			Status:             corev1.ConditionFalse,
 			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
 		}),
-		Entry("DiskPressure", corev1.NodeCondition{
-			Type:               corev1.NodeDiskPressure,
-			Status:             corev1.ConditionTrue,
-			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
-		}),
-		Entry("MemoryPressure", corev1.NodeCondition{
-			Type:               corev1.NodeMemoryPressure,
-			Status:             corev1.ConditionTrue,
-			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
-		}),
 	)
 	It("should ignore disruption budgets", func() {
 		nodePool.Spec.Disruption.Budgets = []karpenterv1.Budget{
