@@ -55,6 +55,8 @@ func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (rec
 			ZoneID: *ec2subnet.AvailabilityZoneId,
 		}
 	})
-	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeSubnetsReady)
+	if ok := nodeClass.StatusConditions().SetTrue(v1.ConditionTypeSubnetsReady); !ok {
+		return reconcile.Result{Requeue: true}, nil
+	}
 	return reconcile.Result{RequeueAfter: time.Minute}, nil
 }

@@ -39,6 +39,8 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 	} else {
 		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}
-	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
+	if ok := nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady); !ok {
+		return reconcile.Result{Requeue: true}, nil
+	}
 	return reconcile.Result{}, nil
 }

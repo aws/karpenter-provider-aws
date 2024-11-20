@@ -51,6 +51,8 @@ func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeCla
 			Name: *securityGroup.GroupName,
 		}
 	})
-	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeSecurityGroupsReady)
+	if ok := nodeClass.StatusConditions().SetTrue(v1.ConditionTypeSecurityGroupsReady); !ok {
+		return reconcile.Result{Requeue: true}, nil
+	}
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
