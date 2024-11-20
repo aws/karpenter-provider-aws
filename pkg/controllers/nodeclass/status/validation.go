@@ -33,8 +33,8 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	if _, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(key string, _ string) bool {
 		return strings.HasPrefix(key, "kubernetes.io/cluster/")
 	}); found {
-		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "validation bypassed")
-		return reconcile.Result{}, fmt.Errorf("validation bypassed")
+		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "tag validation bypassed")
+		return reconcile.Result{}, fmt.Errorf("tag validation bypassed")
 	}
 	if ok := nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded); !ok {
 		return reconcile.Result{Requeue: true}, nil
