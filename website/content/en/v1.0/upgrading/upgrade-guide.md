@@ -64,8 +64,8 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
   * The taint used to mark nodes for disruption and termination changed from `karpenter.sh/disruption=disrupting:NoSchedule` to `karpenter.sh/disrupted:NoSchedule`. It is not recommended to tolerate this taint, however, if you were tolerating it in your applications, you'll need to adjust your taints to reflect this.
 * Environment Variable Changes:
   * Environment Variable Changes
-  * LOGGING_CONFIG, ASSUME_ROLE_ARN, ASSUME_ROLE_DURATION Dropped
-  * LEADER_ELECT renamed to DISABLE_LEADER_ELECTION
+  * `LOGGING_CONFIG`, `ASSUME_ROLE_ARN`, `ASSUME_ROLE_DURATION` Dropped
+  * `LEADER_ELECT` renamed to `DISABLE_LEADER_ELECTION`
   * `FEATURE_GATES.DRIFT=true` was dropped and promoted to Stable, and cannot be disabled.
       * Users currently opting out of drift, disabling the drift feature flag will no longer be able to do so.
 * Defaults changed:
