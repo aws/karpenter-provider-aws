@@ -63,7 +63,7 @@ When you run `kubectl delete node` on a node without a finalizer, the node is de
 
 ## Automated Graceful Methods
 
-Automated graceful methods, can be rate limited through [NodePool Disruption Budgets]({{<ref "#disruption-budgets" >}})
+Automated graceful methods, can be rate limited through [NodePool Disruption Budgets]({{<ref "#nodepool-disruption-budgets" >}})
 
 * [**Consolidation**]({{<ref "#consolidation" >}}): Karpenter works to actively reduce cluster cost by identifying when:
   * Nodes can be removed because the node is empty
