@@ -64,6 +64,7 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	awsEnv.Reset()
+	awsEnv.EKSAPI.Reset()
 })
 
 var _ = AfterEach(func() {
@@ -73,11 +74,8 @@ var _ = AfterEach(func() {
 var _ = Describe("Operator", func() {
 
 	Context("with EKS_CONTROL_PLANE=true", func() {
-		BeforeEach(func() {
-			awsEnv.Reset()
-		})
-
 		It("should resolve Kubernetes Version via Describe Cluster with no errors", func() {
+			options.FromContext(ctx).IsEKSControlPlane = true
 			endpoint, err := awsEnv.VersionProvider.Get(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(endpoint).To(Equal("1.29"))
