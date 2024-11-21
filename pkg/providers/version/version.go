@@ -70,6 +70,7 @@ func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.C
 
 func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 	var version string
+	var versionSource string
 	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
 		return version.(string), nil
 	}
@@ -85,17 +86,17 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 			return "", fmt.Errorf("getting kubernetes version from the kubernetes API")
 		} else if output != nil {
 			version = fmt.Sprintf("%s.%s", output.Major, strings.TrimSuffix(output.Minor, "+"))
-			log.FromContext(ctx).Info("retrieved Kubernetes version from Kubernetes API", "version", version)
+			versionSource = "Kubernetes API"
 		}
 	} else if lo.FromPtr(output.Cluster.Version) != "" {
 		version = *output.Cluster.Version
-		log.FromContext(ctx).Info("retrieved Kubernetes version from EKS DescribeCluster", "version", version)
+		versionSource = "EKS DescribeCluster"
 	} else {
 		return "", fmt.Errorf("unable to retrieve Kubernetes version from EKS DescribeCluster")
 	}
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
-	if p.cm.HasChanged("kubernetes-version", version) {
-		log.FromContext(ctx).WithValues("version", version).V(1).Info("discovered kubernetes version")
+	if p.cm.HasChanged("kubernetes-version", version) || p.cm.HasChanged("version-source", versionSource) {
+		log.FromContext(ctx).WithValues("version", version, "source", versionSource).V(1).Info("discovered kubernetes version")
 		if err := validateK8sVersion(version); err != nil {
 			log.FromContext(ctx).Error(err, "failed validating kubernetes version")
 		}
