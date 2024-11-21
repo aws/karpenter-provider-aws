@@ -96,7 +96,7 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 	}
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernetes-version", version) || p.cm.HasChanged("version-source", versionSource) {
-		log.FromContext(ctx).WithValues("version", version).V(1).Info(fmt.Sprintf("discovered kubernetes version from %s", versionSource))
+		log.FromContext(ctx).WithValues("version", version, "source", versionSource).V(1).Info("discovered kubernetes version")
 		if err := validateK8sVersion(version); err != nil {
 			log.FromContext(ctx).Error(err, "failed validating kubernetes version")
 		}
