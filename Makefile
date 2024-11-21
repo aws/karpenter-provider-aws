@@ -107,6 +107,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	hack/validation/requirements.sh
 	hack/validation/labels.sh
 	cp pkg/apis/crds/* charts/karpenter-crd/templates
+	hack/mutation/crd_annotations.sh
 	hack/github/dependabot.sh
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
