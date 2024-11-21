@@ -17,6 +17,7 @@ package version
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -69,31 +70,26 @@ func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.C
 }
 
 func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
-	var version string
-	var versionSource string
 	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
 		return version.(string), nil
 	}
-	output, err := p.eksapi.DescribeCluster(ctx, &eks.DescribeClusterInput{
-		Name: lo.ToPtr(options.FromContext(ctx).ClusterName),
-	})
-	if err != nil {
-		if !awserrors.IsAccessDenied(err) {
+
+	var version, versionSource string
+	var err error
+
+	if os.Getenv("EKS_CONTROL_PLANE") == "true" {
+		version, versionSource, err = p.getEKSVersion(ctx)
+		if err != nil {
 			return "", err
 		}
-		output, err := p.kubernetesInterface.Discovery().ServerVersion()
-		if err != nil {
-			return "", fmt.Errorf("getting kubernetes version from the kubernetes API")
-		} else if output != nil {
-			version = fmt.Sprintf("%s.%s", output.Major, strings.TrimSuffix(output.Minor, "+"))
-			versionSource = "Kubernetes API"
-		}
-	} else if lo.FromPtr(output.Cluster.Version) != "" {
-		version = *output.Cluster.Version
-		versionSource = "EKS DescribeCluster"
-	} else {
-		return "", fmt.Errorf("unable to retrieve Kubernetes version from EKS DescribeCluster")
 	}
+	if version == "" {
+		version, versionSource, err = p.getK8sVersion()
+	}
+	if err != nil {
+		return "", err
+	}
+
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernetes-version", version) || p.cm.HasChanged("version-source", versionSource) {
 		log.FromContext(ctx).WithValues("version", version, "source", versionSource).V(1).Info("discovered kubernetes version")
@@ -128,4 +124,25 @@ func validateK8sVersion(v string) error {
 	}
 
 	return nil
+}
+
+func (p *DefaultProvider) getEKSVersion(ctx context.Context) (string, string, error) {
+	output, err := p.eksapi.DescribeCluster(ctx, &eks.DescribeClusterInput{
+		Name: lo.ToPtr(options.FromContext(ctx).ClusterName),
+	})
+	if err == nil && lo.FromPtr(output.Cluster.Version) != "" {
+		return *output.Cluster.Version, "EKS DescribeCluster", err
+	}
+	if err != nil && !awserrors.IsAccessDenied(err) {
+		return "", "", err
+	}
+	return "", "", nil
+}
+
+func (p *DefaultProvider) getK8sVersion() (string, string, error) {
+	output, err := p.kubernetesInterface.Discovery().ServerVersion()
+	if err != nil || output == nil {
+		return "", "", fmt.Errorf("getting kubernetes version from the kubernetes API")
+	}
+	return fmt.Sprintf("%s.%s", output.Major, strings.TrimSuffix(output.Minor, "+")), "Kubernetes API", err
 }
