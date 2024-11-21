@@ -18,8 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"strings"
 	"testing"
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
@@ -27,17 +25,15 @@ import (
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/patrickmn/go-cache"
-
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
-	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
-	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
+
+	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -49,9 +45,7 @@ var ctx context.Context
 var stop context.CancelFunc
 var env *coretest.Environment
 var awsEnv *test.Environment
-var fakeEKSAPI *fake.EKSAPI
-var k8sVersion string
-var versionProvider *version.DefaultProvider
+var testEnv *environmentaws.Environment
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -65,12 +59,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
-
-	serverVersion, err := env.KubernetesInterface.Discovery().ServerVersion()
-	Expect(err).ToNot(HaveOccurred())
-	k8sVersion = fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
-
-	fakeEKSAPI = &fake.EKSAPI{}
+	testEnv = &environmentaws.Environment{Environment: &common.Environment{KubeClient: env.KubernetesInterface}}
 })
 
 var _ = AfterSuite(func() {
@@ -79,7 +68,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	fakeEKSAPI.Reset()
+	awsEnv.Reset()
 })
 
 var _ = AfterEach(func() {
@@ -90,20 +79,20 @@ var _ = Describe("Operator", func() {
 
 	Context("with EKS_CONTROL_PLANE=true", func() {
 		BeforeEach(func() {
-			versionProvider = version.NewDefaultProvider(env.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), fakeEKSAPI)
-			os.Setenv("EKS_CONTROL_PLANE", "true")
+			awsEnv.Reset()
 		})
 
 		It("should resolve Kubernetes Version via Describe Cluster with no errors", func() {
-			endpoint, err := versionProvider.Get(ctx)
+			endpoint, err := awsEnv.VersionProvider.Get(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(endpoint).To(Equal("1.29"))
 		})
 
 		It("should handle EKS API errors and fallback to K8s API", func() {
-			fakeEKSAPI.DescribeClusterBehavior.Error.Set(fmt.Errorf("some error"))
-			_, err := versionProvider.Get(ctx)
-			Expect(err).To(HaveOccurred())
+			awsEnv.EKSAPI.DescribeClusterBehavior.Error.Set(fmt.Errorf("some error"))
+			endpoint, err := awsEnv.VersionProvider.Get(ctx)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(endpoint).To(Equal(testEnv.K8sVersion()))
 		})
 
 		It("should return error for access-denied EKS API errors", func() {
@@ -118,30 +107,18 @@ var _ = Describe("Operator", func() {
 				},
 			}
 
-			fakeEKSAPI.DescribeClusterBehavior.Error.Set(accessDeniedErr)
-			endpoint, err := versionProvider.Get(ctx)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(endpoint).To(Equal(k8sVersion))
+			awsEnv.EKSAPI.DescribeClusterBehavior.Error.Set(accessDeniedErr)
+			_, err := awsEnv.VersionProvider.Get(ctx)
+			Expect(err).To(HaveOccurred())
 		})
 	})
 
 	Context("with EKS_CONTROL_PLANE=false", func() {
 		It("should resolve Kubernetes Version via K8s API", func() {
-			versionProvider = version.NewDefaultProvider(env.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), fakeEKSAPI)
-			os.Setenv("EKS_CONTROL_PLANE", "false")
-			endpoint, err := versionProvider.Get(ctx)
+			options.FromContext(ctx).IsEKSControlPlane = false
+			endpoint, err := awsEnv.VersionProvider.Get(ctx)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(endpoint).To(Equal(k8sVersion))
-		})
-	})
-
-	Context("with EKS_CONTROL_PLANE not set", func() {
-		It("should resolve Kubernetes Version via K8s API", func() {
-			versionProvider = version.NewDefaultProvider(env.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), fakeEKSAPI)
-			os.Unsetenv("EKS_CONTROL_PLANE")
-			endpoint, err := versionProvider.Get(ctx)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(endpoint).To(Equal(k8sVersion))
+			Expect(endpoint).To(Equal(testEnv.K8sVersion()))
 		})
 	})
 })

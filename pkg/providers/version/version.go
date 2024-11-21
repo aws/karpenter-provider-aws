@@ -17,7 +17,6 @@ package version
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -77,7 +76,7 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 	var version, versionSource string
 	var err error
 
-	if os.Getenv("EKS_CONTROL_PLANE") == "true" {
+	if options.FromContext(ctx).IsEKSControlPlane {
 		version, versionSource, err = p.getEKSVersion(ctx)
 		if err != nil {
 			return "", err
@@ -133,7 +132,7 @@ func (p *DefaultProvider) getEKSVersion(ctx context.Context) (string, string, er
 	if err == nil && lo.FromPtr(output.Cluster.Version) != "" {
 		return *output.Cluster.Version, "EKS DescribeCluster", err
 	}
-	if err != nil && !awserrors.IsAccessDenied(err) {
+	if err != nil && awserrors.IsAccessDenied(err) {
 		return "", "", err
 	}
 	return "", "", nil
