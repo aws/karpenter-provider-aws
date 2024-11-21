@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 
@@ -38,18 +39,23 @@ import (
 
 type Controller struct {
 	kubeClient           client.Client
+	cloudProvider        cloudprovider.CloudProvider
 	instancetypeProvider *instancetype.DefaultProvider
 }
 
-func NewController(kubeClient client.Client, instancetypeProvider *instancetype.DefaultProvider) *Controller {
+func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider, instancetypeProvider *instancetype.DefaultProvider) *Controller {
 	return &Controller{
 		kubeClient:           kubeClient,
+		cloudProvider:        cloudProvider,
 		instancetypeProvider: instancetypeProvider,
 	}
 }
 
 func (c *Controller) Reconcile(ctx context.Context, node *corev1.Node) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "providers.instancetype.capacity")
+	if !nodeutils.IsManaged(node, c.cloudProvider) {
+		return reconcile.Result{}, nil
+	}
 	nodeClaim, err := nodeutils.NodeClaimForNode(ctx, c.kubeClient, node)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to get nodeclaim for node, %w", err)
@@ -82,7 +88,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 			},
 			DeleteFunc:  func(e event.TypedDeleteEvent[client.Object]) bool { return false },
 			GenericFunc: func(e event.TypedGenericEvent[client.Object]) bool { return false },
-		})).
+		}, nodeutils.IsMangedPredicates(c.cloudProvider))).
 		WithOptions(controller.Options{
 			RateLimiter:             reasonable.RateLimiter(),
 			MaxConcurrentReconciles: 1,

@@ -233,17 +233,31 @@ spec:
                               description: API version of the referent
                               pattern: ^[^/]*$
                               type: string
+                              x-kubernetes-validations:
+                                - message: group may not be empty
+                                  rule: self != ''
                             kind:
                               description: 'Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"'
                               type: string
+                              x-kubernetes-validations:
+                                - message: kind may not be empty
+                                  rule: self != ''
                             name:
                               description: 'Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names'
                               type: string
+                              x-kubernetes-validations:
+                                - message: name may not be empty
+                                  rule: self != ''
                           required:
                             - group
                             - kind
                             - name
                           type: object
+                          x-kubernetes-validations:
+                            - message: nodeClassRef.group is immutable
+                              rule: self.group == oldSelf.group
+                            - message: nodeClassRef.kind is immutable
+                              rule: self.kind == oldSelf.kind
                         requirements:
                           description: Requirements are layered with GetLabels and applied to every node.
                           items:

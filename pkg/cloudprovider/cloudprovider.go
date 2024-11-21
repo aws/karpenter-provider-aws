@@ -315,11 +315,14 @@ func (c *CloudProvider) resolveInstanceTypeFromInstance(ctx context.Context, ins
 }
 
 func (c *CloudProvider) resolveNodeClassFromInstance(ctx context.Context, instance *instance.Instance) (*v1.EC2NodeClass, error) {
-	np, err := c.resolveNodePoolFromInstance(ctx, instance)
-	if err != nil {
-		return nil, fmt.Errorf("resolving nodepool, %w", err)
+	if name, ok := instance.Tags[v1.NodeClassTagKey]; ok {
+		nc := &v1.EC2NodeClass{}
+		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: name}, nc); err != nil {
+			return nil, fmt.Errorf("resolving ec2nodeclass, %w", err)
+		}
+		return nc, nil
 	}
-	return c.resolveNodeClassFromNodePool(ctx, np)
+	return nil, errors.NewNotFound(schema.GroupResource{Group: apis.Group, Resource: "ec2nodeclasses"}, "")
 }
 
 func (c *CloudProvider) resolveNodePoolFromInstance(ctx context.Context, instance *instance.Instance) (*karpv1.NodePool, error) {

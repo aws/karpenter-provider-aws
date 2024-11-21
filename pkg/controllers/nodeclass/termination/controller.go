@@ -21,6 +21,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
@@ -78,12 +79,12 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	if !controllerutil.ContainsFinalizer(nodeClass, v1.TerminationFinalizer) {
 		return reconcile.Result{}, nil
 	}
-	nodeClaimList := &karpv1.NodeClaimList{}
-	if err := c.kubeClient.List(ctx, nodeClaimList, client.MatchingFields{"spec.nodeClassRef.name": nodeClass.Name}); err != nil {
+	nodeClaims, err := nodeclaimutils.List(ctx, c.kubeClient, nodeclaimutils.WithNodeClassFilter(nodeClass))
+	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing nodeclaims that are using nodeclass, %w", err)
 	}
-	if len(nodeClaimList.Items) > 0 {
-		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaimList.Items, func(nc karpv1.NodeClaim, _ int) string { return nc.Name })))
+	if len(nodeClaims) > 0 {
+		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaims, func(nc *karpv1.NodeClaim, _ int) string { return nc.Name })))
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
 	if nodeClass.Spec.Role != "" {

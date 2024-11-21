@@ -271,7 +271,6 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 }
 
 func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context, node *corev1.Node, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) error {
-
 	// Get mappings for most recent AMIs
 	instanceTypeName := node.Labels[corev1.LabelInstanceTypeStable]
 	amiMap := amifamily.MapToInstanceTypes([]*cloudprovider.InstanceType{{

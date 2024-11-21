@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/metrics"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -37,6 +38,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
@@ -60,6 +62,7 @@ const (
 // trigger node health events or node spot interruption/rebalance events.
 type Controller struct {
 	kubeClient                client.Client
+	cloudProvider             cloudprovider.CloudProvider
 	clk                       clock.Clock
 	recorder                  events.Recorder
 	sqsProvider               sqs.Provider
@@ -68,11 +71,17 @@ type Controller struct {
 	cm                        *pretty.ChangeMonitor
 }
 
-func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Recorder,
-	sqsProvider sqs.Provider, unavailableOfferingsCache *cache.UnavailableOfferings) *Controller {
-
+func NewController(
+	kubeClient client.Client,
+	cloudProvider cloudprovider.CloudProvider,
+	clk clock.Clock,
+	recorder events.Recorder,
+	sqsProvider sqs.Provider,
+	unavailableOfferingsCache *cache.UnavailableOfferings,
+) *Controller {
 	return &Controller{
 		kubeClient:                kubeClient,
+		cloudProvider:             cloudProvider,
 		clk:                       clk,
 		recorder:                  recorder,
 		sqsProvider:               sqsProvider,
@@ -249,19 +258,19 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 // NodeClaim .status.providerID and the NodeClaim
 func (c *Controller) makeNodeClaimInstanceIDMap(ctx context.Context) (map[string]*karpv1.NodeClaim, error) {
 	m := map[string]*karpv1.NodeClaim{}
-	nodeClaimList := &karpv1.NodeClaimList{}
-	if err := c.kubeClient.List(ctx, nodeClaimList); err != nil {
+	nodeClaims, err := nodeclaim.List(ctx, c.kubeClient, nodeclaim.WithManagedFilter(c.cloudProvider))
+	if err != nil {
 		return nil, err
 	}
-	for i := range nodeClaimList.Items {
-		if nodeClaimList.Items[i].Status.ProviderID == "" {
+	for _, nc := range nodeClaims {
+		if nc.Status.ProviderID == "" {
 			continue
 		}
-		id, err := utils.ParseInstanceID(nodeClaimList.Items[i].Status.ProviderID)
+		id, err := utils.ParseInstanceID(nc.Status.ProviderID)
 		if err != nil || id == "" {
 			continue
 		}
-		m[id] = &nodeClaimList.Items[i]
+		m[id] = nc
 	}
 	return m, nil
 }
