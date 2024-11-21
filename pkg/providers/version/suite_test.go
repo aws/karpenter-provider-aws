@@ -16,7 +16,6 @@ package version_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
@@ -82,14 +81,6 @@ var _ = Describe("Operator", func() {
 			endpoint, err := awsEnv.VersionProvider.Get(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(endpoint).To(Equal("1.29"))
-		})
-
-		It("should handle EKS API errors and fallback to K8s API", func() {
-			_, _ = awsEnv.VersionProvider.Get(ctx)
-			awsEnv.EKSAPI.DescribeClusterBehavior.Error.Set(fmt.Errorf("some error"))
-			endpoint, err := awsEnv.VersionProvider.Get(ctx)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(endpoint).To(Equal(testEnv.K8sVersion()))
 		})
 	})
 
