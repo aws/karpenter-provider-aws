@@ -162,8 +162,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 						NodeClassRef: &karpv1.NodeClassReference{
 							Group: object.GVK(nodeClass).Group,
-							Kind: object.GVK(nodeClass).Kind,
-							Name: nodeClass.Name,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
 						},
 					},
 				},
@@ -207,8 +207,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 						},
 						NodeClassRef: &karpv1.NodeClassReference{
 							Group: object.GVK(windowsNodeClass).Group,
-							Kind: object.GVK(windowsNodeClass).Kind,
-							Name: windowsNodeClass.Name,
+							Kind:  object.GVK(windowsNodeClass).Kind,
+							Name:  windowsNodeClass.Name,
 						},
 					},
 				},

@@ -315,14 +315,20 @@ func (c *CloudProvider) resolveInstanceTypeFromInstance(ctx context.Context, ins
 }
 
 func (c *CloudProvider) resolveNodeClassFromInstance(ctx context.Context, instance *instance.Instance) (*v1.EC2NodeClass, error) {
-	if name, ok := instance.Tags[v1.NodeClassTagKey]; ok {
-		nc := &v1.EC2NodeClass{}
-		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: name}, nc); err != nil {
-			return nil, fmt.Errorf("resolving ec2nodeclass, %w", err)
-		}
-		return nc, nil
+	name, ok := instance.Tags[v1.NodeClassTagKey]
+	if !ok {
+		return nil, errors.NewNotFound(schema.GroupResource{Group: apis.Group, Resource: "ec2nodeclasses"}, "")
 	}
-	return nil, errors.NewNotFound(schema.GroupResource{Group: apis.Group, Resource: "ec2nodeclasses"}, "")
+	nc := &v1.EC2NodeClass{}
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: name}, nc); err != nil {
+		return nil, fmt.Errorf("resolving ec2nodeclass, %w", err)
+	}
+	if !nc.DeletionTimestamp.IsZero() {
+		// For the purposes of NodeClass CloudProvider resolution, we treat deleting NodeClasses as NotFound,
+		// but we return a different error message to be clearer to users
+		return nil, newTerminatingNodeClassError(nc.Name)
+	}
+	return nc, nil
 }
 
 func (c *CloudProvider) resolveNodePoolFromInstance(ctx context.Context, instance *instance.Instance) (*karpv1.NodePool, error) {
