@@ -60,10 +60,12 @@ var _ = BeforeSuite(func() {
 		awsEnv.AMIProvider,
 		awsEnv.InstanceProfileProvider,
 		awsEnv.LaunchTemplateProvider,
+		awsEnv.EC2API,
 	)
 })
 
 var _ = AfterSuite(func() {
+	awsEnv.Reset()
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 

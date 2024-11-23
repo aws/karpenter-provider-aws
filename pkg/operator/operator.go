@@ -70,6 +70,7 @@ func init() {
 type Operator struct {
 	*operator.Operator
 	Config                    aws.Config
+	EC2API                    sdk.EC2API
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
 	SSMCache                  *cache.Cache
 	SubnetProvider            subnet.Provider
@@ -166,6 +167,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	return ctx, &Operator{
 		Operator:                  operator,
 		Config:                    cfg,
+		EC2API:                    ec2api,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		SSMCache:                  ssmCache,
 		SubnetProvider:            subnetProvider,
