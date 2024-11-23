@@ -66,7 +66,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	cloudNodeClaims = lo.Filter(cloudNodeClaims, func(nc *karpv1.NodeClaim, _ int) bool {
 		return nc.DeletionTimestamp.IsZero()
 	})
-	clusterNodeClaims, err := nodeclaimutils.List(ctx, c.kubeClient, nodeclaimutils.WithManagedFilter(c.cloudProvider))
+	clusterNodeClaims, err := nodeclaimutils.ListManaged(ctx, c.kubeClient, c.cloudProvider)
 	if err != nil {
 		return reconcile.Result{}, err
 	}

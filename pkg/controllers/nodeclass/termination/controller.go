@@ -79,12 +79,12 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	if !controllerutil.ContainsFinalizer(nodeClass, v1.TerminationFinalizer) {
 		return reconcile.Result{}, nil
 	}
-	nodeClaims, err := nodeclaimutils.List(ctx, c.kubeClient, nodeclaimutils.WithNodeClassFilter(nodeClass))
-	if err != nil {
+	nodeClaims := &karpv1.NodeClaimList{}
+	if err := c.kubeClient.List(ctx, nodeClaims, nodeclaimutils.ForNodeClass(nodeClass)); err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing nodeclaims that are using nodeclass, %w", err)
 	}
-	if len(nodeClaims) > 0 {
-		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaims, func(nc *karpv1.NodeClaim, _ int) string { return nc.Name })))
+	if len(nodeClaims.Items) > 0 {
+		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaims.Items, func(nc karpv1.NodeClaim, _ int) string { return nc.Name })))
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
 	if nodeClass.Spec.Role != "" {

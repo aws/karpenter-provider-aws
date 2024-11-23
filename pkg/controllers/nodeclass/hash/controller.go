@@ -84,13 +84,14 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 // EC2NodeClass. Since, we cannot rely on the `ec2nodeclass-hash` on the NodeClaims, due to the breaking change, we will need to re-calculate the hash and update the annotation.
 // For more information on the Drift Hash Versioning: https://github.com/kubernetes-sigs/karpenter/blob/main/designs/drift-hash-versioning.md
 func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
-	nodeClaims, err := nodeclaimutils.List(ctx, c.kubeClient, nodeclaimutils.WithNodeClassFilter(nodeClass))
-	if err != nil {
+	nodeClaims := &karpv1.NodeClaimList{}
+	if err := c.kubeClient.List(ctx, nodeClaims, nodeclaimutils.ForNodeClass(nodeClass)); err != nil {
 		return err
 	}
 
-	errs := make([]error, len(nodeClaims))
-	for i, nc := range nodeClaims {
+	errs := make([]error, len(nodeClaims.Items))
+	for i := range nodeClaims.Items {
+		nc := &nodeClaims.Items[i]
 		stored := nc.DeepCopy()
 
 		if nc.Annotations[v1.AnnotationEC2NodeClassHashVersion] != v1.EC2NodeClassHashVersion {

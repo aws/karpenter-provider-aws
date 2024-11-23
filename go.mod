@@ -122,4 +122,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )
 
-replace sigs.k8s.io/karpenter => github.com/jmdeal/karpenter v0.0.0-20241122235854-ad7c521abeab
+replace sigs.k8s.io/karpenter => github.com/jmdeal/karpenter v0.0.0-20241123233936-540eb38f3518

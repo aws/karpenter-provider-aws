@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	"sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
+	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
@@ -258,7 +258,7 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 // NodeClaim .status.providerID and the NodeClaim
 func (c *Controller) makeNodeClaimInstanceIDMap(ctx context.Context) (map[string]*karpv1.NodeClaim, error) {
 	m := map[string]*karpv1.NodeClaim{}
-	nodeClaims, err := nodeclaim.List(ctx, c.kubeClient, nodeclaim.WithManagedFilter(c.cloudProvider))
+	nodeClaims, err := nodeclaimutils.ListManaged(ctx, c.kubeClient, c.cloudProvider)
 	if err != nil {
 		return nil, err
 	}

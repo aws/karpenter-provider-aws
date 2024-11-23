@@ -88,7 +88,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 			},
 			DeleteFunc:  func(e event.TypedDeleteEvent[client.Object]) bool { return false },
 			GenericFunc: func(e event.TypedGenericEvent[client.Object]) bool { return false },
-		}, nodeutils.IsManagedPredicates(c.cloudProvider))).
+		}, nodeutils.IsManagedPredicateFuncs(c.cloudProvider))).
 		WithOptions(controller.Options{
 			RateLimiter:             reasonable.RateLimiter(),
 			MaxConcurrentReconciles: 1,
