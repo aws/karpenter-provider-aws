@@ -46,6 +46,6 @@ spec:
       - effect: NoExecute
         key: karpenter.sh/unregistered
     flags:
-    - --node-labels="karpenter.sh/capacity-type=on-demand,%s=%s,testing/cluster=unspecified"
+    - --node-labels="karpenter.k8s.aws/ec2nodeclass=%s,karpenter.sh/capacity-type=on-demand,%s=%s,testing/cluster=unspecified"
 
 --//--

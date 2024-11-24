@@ -7,6 +7,7 @@ cluster-dns-ip = '10.0.100.10'
 max-pods = 110
 
 [settings.kubernetes.node-labels]
+'karpenter.k8s.aws/ec2nodeclass' = '%s'
 'karpenter.sh/capacity-type' = 'on-demand'
 '%s' = '%s'
 'testing/cluster' = 'unspecified'
