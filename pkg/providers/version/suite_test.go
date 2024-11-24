@@ -75,7 +75,7 @@ var _ = Describe("Operator", func() {
 
 	Context("with EKS_CONTROL_PLANE=true", func() {
 		It("should resolve Kubernetes Version via Describe Cluster with no errors", func() {
-			options.FromContext(ctx).IsEKSControlPlane = true
+			options.FromContext(ctx).EKSControlPlane = true
 			endpoint, err := awsEnv.VersionProvider.Get(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(endpoint).To(Equal("1.29"))
@@ -84,7 +84,7 @@ var _ = Describe("Operator", func() {
 
 	Context("with EKS_CONTROL_PLANE=false", func() {
 		It("should resolve Kubernetes Version via K8s API", func() {
-			options.FromContext(ctx).IsEKSControlPlane = false
+			options.FromContext(ctx).EKSControlPlane = false
 			endpoint, err := awsEnv.VersionProvider.Get(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(endpoint).To(Equal(testEnv.K8sVersion()))

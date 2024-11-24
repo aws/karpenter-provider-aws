@@ -77,10 +77,10 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 	var version, versionSource string
 	var err error
 
-	if options.FromContext(ctx).IsEKSControlPlane {
+	if options.FromContext(ctx).EKSControlPlane {
 		version, versionSource, err = p.getEKSVersion(ctx)
 	}
-	if !options.FromContext(ctx).IsEKSControlPlane {
+	if !options.FromContext(ctx).EKSControlPlane {
 		version, versionSource, err = p.getK8sVersion()
 	}
 	if version == "" && err != nil {
