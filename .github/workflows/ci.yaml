@@ -17,3 +17,4 @@ jobs:
     - name: Enable the actionlint matcher
       run: echo "::add-matcher::.github/actionlint-matcher.json"
     - run: make ci-non-test
+      shell: bash
