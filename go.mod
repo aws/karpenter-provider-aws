@@ -43,7 +43,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.19.1
-	sigs.k8s.io/karpenter v1.0.1-0.20241121192054-9d472b7a5148
+	sigs.k8s.io/karpenter v1.0.1-0.20241124090654-63a72bf34b33
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -121,5 +121,3 @@ require (
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )
-
-replace sigs.k8s.io/karpenter => github.com/jmdeal/karpenter v0.0.0-20241123233936-540eb38f3518
