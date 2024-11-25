@@ -117,6 +117,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectSingletonReconciled(ctx, versionController)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))

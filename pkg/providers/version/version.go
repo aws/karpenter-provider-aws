@@ -37,7 +37,6 @@ import (
 )
 
 const (
-	kubernetesVersionCacheKey = "kubernetesVersion"
 	// Karpenter's supported version of Kubernetes
 	// If a user runs a karpenter image on a k8s version outside the min and max,
 	// One error message will be fired to notify
@@ -52,12 +51,11 @@ type Provider interface {
 // DefaultProvider get the APIServer version. This will be initialized at start up and allows karpenter to have an understanding of the cluster version
 // for decision making. The version is cached to help reduce the amount of calls made to the API Server
 type DefaultProvider struct {
-	cache                 *cache.Cache
-	cm                    *pretty.ChangeMonitor
-	kubernetesInterface   kubernetes.Interface
-	eksapi                sdk.EKSAPI
-	previousVersion       fake.AtomicPtr[string]
-	previousVersionSource string
+	cache               *cache.Cache
+	cm                  *pretty.ChangeMonitor
+	kubernetesInterface kubernetes.Interface
+	eksapi              sdk.EKSAPI
+	previousVersion     fake.AtomicPtr[string]
 }
 
 func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache, eksapi sdk.EKSAPI) *DefaultProvider {
