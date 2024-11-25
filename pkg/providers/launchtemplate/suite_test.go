@@ -2080,7 +2080,7 @@ essential = true
 			It("should choose amis from SSM if no selector specified in EC2NodeClass", func() {
 				versionController := controllersversion.NewController(awsEnv.VersionProvider)
 				ExpectSingletonReconciled(ctx, versionController)
-				version := lo.Must(awsEnv.VersionProvider.Get(ctx))
+				version := awsEnv.VersionProvider.Get(ctx)
 				awsEnv.SSMAPI.Parameters = map[string]string{
 					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version): "test-ami-123",
 				}

@@ -136,7 +136,7 @@ var _ = Describe("AMIProvider", func() {
 	var version string
 	BeforeEach(func() {
 		ExpectSingletonReconciled(ctx, versionController)
-		version = lo.Must(awsEnv.VersionProvider.Get(ctx))
+		version = awsEnv.VersionProvider.Get(ctx)
 		nodeClass = test.EC2NodeClass()
 	})
 	It("should succeed to resolve AMIs (AL2)", func() {

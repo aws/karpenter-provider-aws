@@ -45,7 +45,7 @@ const (
 )
 
 type Provider interface {
-	Get(ctx context.Context) (string, error)
+	Get(ctx context.Context) string
 }
 
 // DefaultProvider get the APIServer version. This will be initialized at start up and allows karpenter to have an understanding of the cluster version
@@ -67,8 +67,8 @@ func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.C
 	}
 }
 
-func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
-	return *p.version.Load(), nil
+func (p *DefaultProvider) Get(ctx context.Context) string {
+	return *p.version.Load()
 }
 
 func (p *DefaultProvider) UpdateVersion(ctx context.Context) error {
@@ -126,13 +126,14 @@ func (p *DefaultProvider) getEKSVersion(ctx context.Context) (string, error) {
 	output, err := p.eksapi.DescribeCluster(ctx, &eks.DescribeClusterInput{
 		Name: lo.ToPtr(options.FromContext(ctx).ClusterName),
 	})
-	if err == nil && lo.FromPtr(output.Cluster.Version) != "" {
-		return *output.Cluster.Version, err
-	}
 	if err != nil {
 		return "", err
 	}
-	return "", nil
+	version := lo.FromPtr(output.Cluster.Version)
+	if version == "" {
+		return "", fmt.Errorf("failed to get cluster version")
+	}
+	return version, nil
 }
 
 func (p *DefaultProvider) getK8sVersion() (string, error) {
