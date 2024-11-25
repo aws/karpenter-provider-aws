@@ -127,7 +127,10 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		ec2api,
 		cfg.Region,
 	)
-	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), eksapi)
+	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, eksapi)
+	// Ensure we're able to hydrate the version before starting any reliant controllers.
+	// Version updates are hydrated asynchronously after this, in the event of a failure
+	// the previously resolved value will be used.
 	lo.Must0(versionProvider.UpdateVersion(ctx))
 	ssmProvider := ssmp.NewDefaultProvider(ssm.NewFromConfig(cfg), ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))

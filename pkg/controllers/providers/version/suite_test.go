@@ -77,6 +77,7 @@ var _ = AfterEach(func() {
 
 var _ = Describe("Version", func() {
 	It("should update Version with response from the DescribeCluster API", func() {
+		options.FromContext(ctx).EKSControlPlane = true
 		awsEnv.EKSAPI.DescribeClusterBehavior.Output.Set(&eks.DescribeClusterOutput{
 			Cluster: &ekstypes.Cluster{
 				Version: lo.ToPtr("1.29"),

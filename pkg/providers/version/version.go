@@ -58,10 +58,9 @@ type DefaultProvider struct {
 	version             atomic.Pointer[string]
 }
 
-func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache, eksapi sdk.EKSAPI) *DefaultProvider {
+func NewDefaultProvider(kubernetesInterface kubernetes.Interface, eksapi sdk.EKSAPI) *DefaultProvider {
 	return &DefaultProvider{
 		cm:                  pretty.NewChangeMonitor(),
-		cache:               cache,
 		kubernetesInterface: kubernetesInterface,
 		eksapi:              eksapi,
 	}
@@ -129,11 +128,7 @@ func (p *DefaultProvider) getEKSVersion(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	version := lo.FromPtr(output.Cluster.Version)
-	if version == "" {
-		return "", fmt.Errorf("failed to get cluster version")
-	}
-	return version, nil
+	return lo.FromPtr(output.Cluster.Version), nil
 }
 
 func (p *DefaultProvider) getK8sVersion() (string, error) {

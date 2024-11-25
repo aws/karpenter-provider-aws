@@ -46,7 +46,7 @@ func Options(overrides ...OptionsFields) *options.Options {
 		ClusterName:             lo.FromPtrOr(opts.ClusterName, "test-cluster"),
 		ClusterEndpoint:         lo.FromPtrOr(opts.ClusterEndpoint, "https://test-cluster"),
 		IsolatedVPC:             lo.FromPtrOr(opts.IsolatedVPC, false),
-		EKSControlPlane:         lo.FromPtrOr(opts.EKSControlPlane, true),
+		EKSControlPlane:         lo.FromPtrOr(opts.EKSControlPlane, false),
 		VMMemoryOverheadPercent: lo.FromPtrOr(opts.VMMemoryOverheadPercent, 0.075),
 		InterruptionQueue:       lo.FromPtrOr(opts.InterruptionQueue, ""),
 		ReservedENIs:            lo.FromPtrOr(opts.ReservedENIs, 0),

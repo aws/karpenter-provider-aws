@@ -92,7 +92,6 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
-		ExpectSingletonReconciled(ctx, versionController)
 		Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("2001:db8::/64"))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().IsTrue(status.ConditionReady)).To(BeTrue())
