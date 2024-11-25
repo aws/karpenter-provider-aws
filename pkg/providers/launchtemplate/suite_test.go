@@ -99,7 +99,7 @@ var _ = BeforeSuite(func() {
 	fakeClock = &clock.FakeClock{}
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
-	cluster = state.NewCluster(fakeClock, env.Client)
+	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster, fakeClock)
 })
 
@@ -1442,7 +1442,7 @@ essential = true
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/br_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), nodeClass.Name, karpv1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should bootstrap when custom user data is empty", func() {
 				nodePool.Spec.Template.Spec.Taints = []corev1.Taint{{Key: "foo", Value: "bar", Effect: corev1.TaintEffectNoExecute}}
@@ -1456,7 +1456,7 @@ essential = true
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err := os.ReadFile("testdata/br_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), nodeClass.Name, karpv1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should not bootstrap when provider ref points to a non-existent EC2NodeClass resource", func() {
 				nodePool.Spec.Template.Spec.NodeClassRef = &karpv1.NodeClassReference{
@@ -1656,7 +1656,7 @@ essential = true
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				expectedUserData := fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name)
+				expectedUserData := fmt.Sprintf(string(content), nodeClass.Name, karpv1.NodePoolLabelKey, nodePool.Name)
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should merge in custom user data when Content-Type is before MIME-Version", func() {
@@ -1669,7 +1669,7 @@ essential = true
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				expectedUserData := fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name)
+				expectedUserData := fmt.Sprintf(string(content), nodeClass.Name, karpv1.NodePoolLabelKey, nodePool.Name)
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should merge in custom user data not in multi-part mime format", func() {
@@ -1682,7 +1682,7 @@ essential = true
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				expectedUserData := fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name)
+				expectedUserData := fmt.Sprintf(string(content), nodeClass.Name, karpv1.NodePoolLabelKey, nodePool.Name)
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should handle empty custom user data", func() {
@@ -1693,7 +1693,7 @@ essential = true
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err := os.ReadFile("testdata/al2_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
-				expectedUserData := fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name)
+				expectedUserData := fmt.Sprintf(string(content), nodeClass.Name, karpv1.NodePoolLabelKey, nodePool.Name)
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 		})
@@ -1881,7 +1881,7 @@ essential = true
 					ExpectScheduled(ctx, env.Client, pod)
 					content, err := os.ReadFile("testdata/" + mergedFile)
 					Expect(err).To(BeNil())
-					expectedUserData := fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name)
+					expectedUserData := fmt.Sprintf(string(content), nodeClass.Name, karpv1.NodePoolLabelKey, nodePool.Name)
 					ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 				},
 				Entry("MIME", lo.ToPtr("al2023_mime_userdata_input.golden"), "al2023_mime_userdata_merged.golden"),
@@ -2156,7 +2156,7 @@ essential = true
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/windows_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), nodeClass.Name, karpv1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should bootstrap when custom user data is empty", func() {
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
@@ -2171,7 +2171,7 @@ essential = true
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err := os.ReadFile("testdata/windows_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), nodeClass.Name, karpv1.NodePoolLabelKey, nodePool.Name))
 			})
 		})
 	})

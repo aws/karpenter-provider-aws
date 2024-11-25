@@ -114,11 +114,9 @@ spec:
                             description: |-
                               Reasons is a list of disruption methods that this budget applies to. If Reasons is not set, this budget applies to all methods.
                               Otherwise, this will apply to each reason defined.
-                              allowed reasons are Underutilized, Empty, and Drifted and additional CloudProvider-specific reasons.
+                              allowed reasons are Underutilized, Empty, and Drifted.
                             items:
-                              description: |-
-                                DisruptionReason defines valid reasons for disruption budgets.
-                                CloudProviders will need to append to the list of enums when implementing cloud provider disruption reasons
+                              description: DisruptionReason defines valid reasons for disruption budgets.
                               enum:
                                 - Underutilized
                                 - Empty
@@ -209,7 +207,7 @@ spec:
                             - message: label "kubernetes.io/hostname" is restricted
                               rule: self.all(x, x != "kubernetes.io/hostname")
                             - message: label domain "karpenter.k8s.aws" is restricted
-                              rule: self.all(x, x in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-cpu-manufacturer","karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !x.find("^([^/]+)").endsWith("karpenter.k8s.aws"))
+                              rule: self.all(x, x in ["karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu", "karpenter.k8s.aws/instance-cpu-manufacturer", "karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz", "karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !x.find("^([^/]+)").endsWith("karpenter.k8s.aws"))
                       type: object
                     spec:
                       description: |-
@@ -233,17 +231,31 @@ spec:
                               description: API version of the referent
                               pattern: ^[^/]*$
                               type: string
+                              x-kubernetes-validations:
+                                - message: group may not be empty
+                                  rule: self != ''
                             kind:
                               description: 'Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"'
                               type: string
+                              x-kubernetes-validations:
+                                - message: kind may not be empty
+                                  rule: self != ''
                             name:
                               description: 'Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names'
                               type: string
+                              x-kubernetes-validations:
+                                - message: name may not be empty
+                                  rule: self != ''
                           required:
                             - group
                             - kind
                             - name
                           type: object
+                          x-kubernetes-validations:
+                            - message: nodeClassRef.group is immutable
+                              rule: self.group == oldSelf.group
+                            - message: nodeClassRef.kind is immutable
+                              rule: self.kind == oldSelf.kind
                         requirements:
                           description: Requirements are layered with GetLabels and applied to every node.
                           items:
@@ -268,7 +280,7 @@ spec:
                                   - message: label "kubernetes.io/hostname" is restricted
                                     rule: self != "kubernetes.io/hostname"
                                   - message: label domain "karpenter.k8s.aws" is restricted
-                                    rule: self in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-cpu-manufacturer","karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
+                                    rule: self in ["karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu", "karpenter.k8s.aws/instance-cpu-manufacturer", "karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz", "karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
                               minValues:
                                 description: |-
                                   This field is ALPHA and can be dropped or replaced at any time

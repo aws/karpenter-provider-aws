@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
 	"github.com/awslabs/operatorpkg/reasonable"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -83,14 +84,14 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 // EC2NodeClass. Since, we cannot rely on the `ec2nodeclass-hash` on the NodeClaims, due to the breaking change, we will need to re-calculate the hash and update the annotation.
 // For more information on the Drift Hash Versioning: https://github.com/kubernetes-sigs/karpenter/blob/main/designs/drift-hash-versioning.md
 func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
-	ncList := &karpv1.NodeClaimList{}
-	if err := c.kubeClient.List(ctx, ncList, client.MatchingFields{"spec.nodeClassRef.name": nodeClass.Name}); err != nil {
+	nodeClaims := &karpv1.NodeClaimList{}
+	if err := c.kubeClient.List(ctx, nodeClaims, nodeclaimutils.ForNodeClass(nodeClass)); err != nil {
 		return err
 	}
 
-	errs := make([]error, len(ncList.Items))
-	for i := range ncList.Items {
-		nc := ncList.Items[i]
+	errs := make([]error, len(nodeClaims.Items))
+	for i := range nodeClaims.Items {
+		nc := &nodeClaims.Items[i]
 		stored := nc.DeepCopy()
 
 		if nc.Annotations[v1.AnnotationEC2NodeClassHashVersion] != v1.EC2NodeClassHashVersion {
@@ -107,7 +108,7 @@ func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *v1.EC2N
 			}
 
 			if !equality.Semantic.DeepEqual(stored, nc) {
-				if err := c.kubeClient.Patch(ctx, &nc, client.MergeFrom(stored)); err != nil {
+				if err := c.kubeClient.Patch(ctx, nc, client.MergeFrom(stored)); err != nil {
 					errs[i] = client.IgnoreNotFound(err)
 				}
 			}
