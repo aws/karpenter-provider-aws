@@ -50,6 +50,7 @@ func main() {
 			ctx,
 			op.Manager,
 			op.Config,
+			op.EC2API,
 			op.Clock,
 			op.GetClient(),
 			op.EventRecorder,
