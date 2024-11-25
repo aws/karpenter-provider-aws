@@ -128,6 +128,10 @@ spec:
             - name: ISOLATED_VPC
               value: "{{ . }}"
           {{- end }}
+          {{- with .Values.settings.eksControlPlane }}
+            - name: EKS_CONTROL_PLANE
+              value: "{{ . }}"
+          {{- end }}
           {{- with .Values.settings.vmMemoryOverheadPercent }}
             - name: VM_MEMORY_OVERHEAD_PERCENT
               value: "{{ . }}"
