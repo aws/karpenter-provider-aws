@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -30,7 +31,6 @@ import (
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 
-	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
@@ -55,7 +55,7 @@ type DefaultProvider struct {
 	cm                  *pretty.ChangeMonitor
 	kubernetesInterface kubernetes.Interface
 	eksapi              sdk.EKSAPI
-	previousVersion     fake.AtomicPtr[string]
+	version             atomic.Pointer[string]
 }
 
 func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache, eksapi sdk.EKSAPI) *DefaultProvider {
@@ -68,10 +68,7 @@ func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.C
 }
 
 func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
-	if version := *p.previousVersion.Clone(); version != "" {
-		return version, nil
-	}
-	return "", fmt.Errorf("kubernetes version not yet cached")
+	return *p.version.Load(), nil
 }
 
 func (p *DefaultProvider) UpdateVersion(ctx context.Context) error {
@@ -80,24 +77,20 @@ func (p *DefaultProvider) UpdateVersion(ctx context.Context) error {
 
 	if options.FromContext(ctx).EKSControlPlane {
 		version, err = p.getEKSVersion(ctx)
-		versionSource = "EKS DescribeCluster"
+		if err != nil {
+			return fmt.Errorf("validating kubernetes version, %w", err)
+		}
 	} else {
 		version, err = p.getK8sVersion()
-		versionSource = "Kubernetes API"
+		if err != nil {
+			return fmt.Errorf("validating kubernetes version, %w", err)
+		}
 	}
-	if version == "" && err == nil {
-		version = *p.previousVersion.Clone()
-	}
-	if err != nil {
-		log.FromContext(ctx).Error(err, "failed to get kubernetes version")
-		return err
-	}
-	p.previousVersion.Set(&version)
+	p.version.Store(&version)
 	if p.cm.HasChanged("kubernetes-version", version) || p.cm.HasChanged("version-source", versionSource) {
-		log.FromContext(ctx).WithValues("version", version, "source", versionSource).V(1).Info("discovered kubernetes version")
+		log.FromContext(ctx).WithValues("version", version).V(1).Info("discovered kubernetes version")
 		if err := validateK8sVersion(version); err != nil {
-			log.FromContext(ctx).Error(err, "failed validating kubernetes version")
-			return err
+			return fmt.Errorf("validating kubernetes version, %w", err)
 		}
 	}
 	return nil

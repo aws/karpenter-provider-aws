@@ -20,8 +20,6 @@ import (
 	"time"
 
 	"github.com/awslabs/operatorpkg/singleton"
-	lop "github.com/samber/lo/parallel"
-	"go.uber.org/multierr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -43,16 +41,7 @@ func NewController(versionProvider *version.DefaultProvider) *Controller {
 func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "providers.version")
 
-	work := []func(ctx context.Context) error{
-		c.versionProvider.UpdateVersion,
-	}
-	errs := make([]error, len(work))
-	lop.ForEach(work, func(f func(ctx context.Context) error, i int) {
-		if err := f(ctx); err != nil {
-			errs[i] = err
-		}
-	})
-	if err := multierr.Combine(errs...); err != nil {
+	if err := c.versionProvider.UpdateVersion(ctx); err != nil {
 		return reconcile.Result{}, fmt.Errorf("updating version, %w", err)
 	}
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil

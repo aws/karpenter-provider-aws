@@ -80,9 +80,9 @@ var _ = Describe("Operator", func() {
 		It("should resolve Kubernetes Version via Describe Cluster with no errors", func() {
 			options.FromContext(ctx).EKSControlPlane = true
 			ExpectSingletonReconciled(ctx, versionController)
-			endpoint, err := awsEnv.VersionProvider.Get(ctx)
+			version, err := awsEnv.VersionProvider.Get(ctx)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(endpoint).To(Equal("1.29"))
+			Expect(version).To(Equal("1.29"))
 		})
 	})
 
@@ -90,9 +90,9 @@ var _ = Describe("Operator", func() {
 		It("should resolve Kubernetes Version via K8s API", func() {
 			options.FromContext(ctx).EKSControlPlane = false
 			ExpectSingletonReconciled(ctx, versionController)
-			endpoint, err := awsEnv.VersionProvider.Get(ctx)
+			version, err := awsEnv.VersionProvider.Get(ctx)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(endpoint).To(Equal(testEnv.K8sVersion()))
+			Expect(version).To(Equal(testEnv.K8sVersion()))
 		})
 	})
 })
