@@ -39,7 +39,6 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 	It("should create the instance profile when it doesn't exist", func() {
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectSingletonReconciled(ctx, versionController)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
@@ -65,7 +64,6 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectSingletonReconciled(ctx, versionController)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
@@ -91,7 +89,6 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectSingletonReconciled(ctx, versionController)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
@@ -117,7 +114,6 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectSingletonReconciled(ctx, versionController)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
@@ -133,7 +129,6 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectSingletonReconciled(ctx, versionController)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -144,7 +139,6 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectSingletonReconciled(ctx, versionController)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 
 		Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(BeZero())
