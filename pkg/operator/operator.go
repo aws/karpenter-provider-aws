@@ -79,7 +79,7 @@ type Operator struct {
 	AMIResolver               amifamily.Resolver
 	LaunchTemplateProvider    launchtemplate.Provider
 	PricingProvider           pricing.Provider
-	VersionProvider           version.Provider
+	VersionProvider           *version.DefaultProvider
 	InstanceTypesProvider     *instancetype.DefaultProvider
 	InstanceProvider          instance.Provider
 	SSMProvider               ssmp.Provider

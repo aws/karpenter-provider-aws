@@ -27,6 +27,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
+	controllersversion "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/version"
 	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 
@@ -41,6 +42,7 @@ var stop context.CancelFunc
 var env *coretest.Environment
 var awsEnv *test.Environment
 var testEnv *environmentaws.Environment
+var versionController *controllersversion.Controller
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -55,6 +57,7 @@ var _ = BeforeSuite(func() {
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
 	testEnv = &environmentaws.Environment{Environment: &common.Environment{KubeClient: env.KubernetesInterface}}
+	versionController = controllersversion.NewController(awsEnv.VersionProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -76,6 +79,7 @@ var _ = Describe("Operator", func() {
 	Context("with EKS_CONTROL_PLANE=true", func() {
 		It("should resolve Kubernetes Version via Describe Cluster with no errors", func() {
 			options.FromContext(ctx).EKSControlPlane = true
+			ExpectSingletonReconciled(ctx, versionController)
 			endpoint, err := awsEnv.VersionProvider.Get(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(endpoint).To(Equal("1.29"))
@@ -85,6 +89,7 @@ var _ = Describe("Operator", func() {
 	Context("with EKS_CONTROL_PLANE=false", func() {
 		It("should resolve Kubernetes Version via K8s API", func() {
 			options.FromContext(ctx).EKSControlPlane = false
+			ExpectSingletonReconciled(ctx, versionController)
 			endpoint, err := awsEnv.VersionProvider.Get(ctx)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(endpoint).To(Equal(testEnv.K8sVersion()))
