@@ -36,7 +36,8 @@ import (
 var _ = Describe("NodeClass AMI Status Controller", func() {
 	var k8sVersion string
 	BeforeEach(func() {
-		k8sVersion = lo.Must(awsEnv.VersionProvider.Get(ctx))
+		ExpectSingletonReconciled(ctx, versionController)
+		k8sVersion = awsEnv.VersionProvider.Get(ctx)
 		nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
 			Spec: v1.EC2NodeClassSpec{
 				SubnetSelectorTerms: []v1.SubnetSelectorTerm{
@@ -132,6 +133,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectSingletonReconciled(ctx, versionController)
 			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
@@ -216,6 +218,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectSingletonReconciled(ctx, versionController)
 			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
@@ -419,6 +422,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
 			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectSingletonReconciled(ctx, versionController)
 			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 

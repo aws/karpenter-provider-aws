@@ -26,6 +26,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
+	controllersversion "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/version"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -40,6 +41,7 @@ var env *coretest.Environment
 var awsEnv *test.Environment
 var nodeClass *v1.EC2NodeClass
 var statusController *status.Controller
+var versionController *controllersversion.Controller
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -61,6 +63,8 @@ var _ = BeforeSuite(func() {
 		awsEnv.InstanceProfileProvider,
 		awsEnv.LaunchTemplateProvider,
 	)
+
+	versionController = controllersversion.NewController(awsEnv.VersionProvider)
 })
 
 var _ = AfterSuite(func() {
