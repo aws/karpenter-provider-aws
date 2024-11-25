@@ -29,7 +29,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/providers/ssm/invalidation"
-	controllersversion "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/version"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -45,7 +44,6 @@ var stop context.CancelFunc
 var env *coretest.Environment
 var awsEnv *test.Environment
 var invalidationController *invalidation.Controller
-var versionController *controllersversion.Controller
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -61,7 +59,6 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	invalidationController = invalidation.NewController(awsEnv.SSMCache, awsEnv.AMIProvider)
-	versionController = controllersversion.NewController(awsEnv.VersionProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -85,7 +82,6 @@ var _ = Describe("SSM Invalidation Controller", func() {
 		}
 	})
 	It("shouldn't invalidate cache entries for non-deprecated AMIs", func() {
-		ExpectSingletonReconciled(ctx, versionController)
 		_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
 		currentEntries := getSSMCacheEntries()
@@ -104,7 +100,6 @@ var _ = Describe("SSM Invalidation Controller", func() {
 		}
 	})
 	It("shouldn't invalidate cache entries for deprecated AMIs when the SSM parameter is immutable", func() {
-		ExpectSingletonReconciled(ctx, versionController)
 		nodeClass.Spec.AMISelectorTerms[0].Alias = "al2023@v20241024"
 		_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
@@ -125,7 +120,6 @@ var _ = Describe("SSM Invalidation Controller", func() {
 		}
 	})
 	It("should invalidate cache entries for deprecated AMIs when the SSM parameter is mutable", func() {
-		ExpectSingletonReconciled(ctx, versionController)
 		_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
 		currentEntries := getSSMCacheEntries()
