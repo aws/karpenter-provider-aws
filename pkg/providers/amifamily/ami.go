@@ -90,10 +90,7 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 	// Aliases are mutually exclusive, both on the term level and field level within a term.
 	// This is enforced by a CEL validation, we will treat this as an invariant.
 	if alias := nodeClass.Alias(); alias != nil {
-		kubernetesVersion, err := p.versionProvider.Get(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("getting kubernetes version, %w", err)
-		}
+		kubernetesVersion := p.versionProvider.Get(ctx)
 		query, err := GetAMIFamily(alias.Family, nil).DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, alias.Version)
 		if err != nil {
 			return []DescribeImageQuery{}, err

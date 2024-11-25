@@ -17,7 +17,6 @@ package errors
 import (
 	"errors"
 
-	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -39,9 +38,7 @@ var (
 	alreadyExistsErrorCodes = sets.New[string](
 		"EntityAlreadyExists",
 	)
-	accessDeniedErrorCodes = sets.New[int](
-		403,
-	)
+
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
 	unfulfillableCapacityErrorCodes = sets.New[string](
 		"InsufficientInstanceCapacity",
@@ -52,17 +49,6 @@ var (
 		"InsufficientFreeAddressesInSubnet",
 	)
 )
-
-func IsAccessDenied(err error) bool {
-	if err == nil {
-		return false
-	}
-	var awsError *awshttp.ResponseError
-	if errors.As(err, &awsError) {
-		return accessDeniedErrorCodes.Has(awsError.HTTPStatusCode())
-	}
-	return false
-}
 
 // IsNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more

@@ -63,7 +63,6 @@ type Environment struct {
 
 	// Cache
 	EC2Cache                      *cache.Cache
-	KubernetesVersionCache        *cache.Cache
 	InstanceTypeCache             *cache.Cache
 	UnavailableOfferingsCache     *awscache.UnavailableOfferings
 	LaunchTemplateCache           *cache.Cache
@@ -101,7 +100,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 
 	// cache
 	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	kubernetesVersionCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceTypeCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	discoveredCapacityCache := cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval)
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
@@ -118,7 +116,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	pricingProvider := pricing.NewDefaultProvider(ctx, fakePricingAPI, ec2api, fake.DefaultRegion)
 	subnetProvider := subnet.NewDefaultProvider(ec2api, subnetCache, availableIPAdressCache, associatePublicIPAddressCache)
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, securityGroupCache)
-	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, kubernetesVersionCache, eksapi)
+	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, eksapi)
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
@@ -158,7 +156,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		PricingAPI: fakePricingAPI,
 
 		EC2Cache:                      ec2Cache,
-		KubernetesVersionCache:        kubernetesVersionCache,
 		InstanceTypeCache:             instanceTypeCache,
 		LaunchTemplateCache:           launchTemplateCache,
 		SubnetCache:                   subnetCache,
@@ -195,7 +192,6 @@ func (env *Environment) Reset() {
 	env.InstanceTypesProvider.Reset()
 
 	env.EC2Cache.Flush()
-	env.KubernetesVersionCache.Flush()
 	env.UnavailableOfferingsCache.Flush()
 	env.LaunchTemplateCache.Flush()
 	env.SubnetCache.Flush()

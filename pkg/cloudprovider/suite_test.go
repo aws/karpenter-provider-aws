@@ -44,6 +44,7 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
+	controllersversion "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/version"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -1149,7 +1150,9 @@ var _ = Describe("CloudProvider", func() {
 					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
+			versionController := controllersversion.NewController(awsEnv.VersionProvider)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			ExpectSingletonReconciled(ctx, versionController)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1166,11 +1169,13 @@ var _ = Describe("CloudProvider", func() {
 					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
+			versionController := controllersversion.NewController(awsEnv.VersionProvider)
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				MaxPods: aws.Int32(1),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			ExpectSingletonReconciled(ctx, versionController)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
 			pod2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
@@ -1207,6 +1212,8 @@ var _ = Describe("CloudProvider", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
+			versionController := controllersversion.NewController(awsEnv.VersionProvider)
+			ExpectSingletonReconciled(ctx, versionController)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			podSubnet1 := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet1)
