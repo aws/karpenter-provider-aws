@@ -31,6 +31,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
@@ -88,7 +89,7 @@ var _ = BeforeSuite(func() {
 	fakeClock = &clock.FakeClock{}
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
-	cluster = state.NewCluster(fakeClock, env.Client)
+	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster, fakeClock)
 })
 
@@ -160,7 +161,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 							},
 						},
 						NodeClassRef: &karpv1.NodeClassReference{
-							Name: nodeClass.Name,
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
 						},
 					},
 				},
@@ -203,7 +206,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 							},
 						},
 						NodeClassRef: &karpv1.NodeClassReference{
-							Name: windowsNodeClass.Name,
+							Group: object.GVK(windowsNodeClass).Group,
+							Kind:  object.GVK(windowsNodeClass).Kind,
+							Name:  windowsNodeClass.Name,
 						},
 					},
 				},
@@ -236,6 +241,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceSize:                         "8xlarge",
 			v1.LabelInstanceCPU:                          "32",
 			v1.LabelInstanceCPUManufacturer:              "intel",
+			v1.LabelInstanceCPUSustainedClockSpeedMhz:    "2500",
 			v1.LabelInstanceMemory:                       "131072",
 			v1.LabelInstanceEBSBandwidth:                 "9500",
 			v1.LabelInstanceNetworkBandwidth:             "50000",
@@ -292,6 +298,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceSize:                         "8xlarge",
 			v1.LabelInstanceCPU:                          "32",
 			v1.LabelInstanceCPUManufacturer:              "intel",
+			v1.LabelInstanceCPUSustainedClockSpeedMhz:    "2500",
 			v1.LabelInstanceMemory:                       "131072",
 			v1.LabelInstanceEBSBandwidth:                 "9500",
 			v1.LabelInstanceNetworkBandwidth:             "50000",
@@ -344,6 +351,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceFamily:                       "inf2",
 			v1.LabelInstanceSize:                         "xlarge",
 			v1.LabelInstanceCPU:                          "4",
+			v1.LabelInstanceCPUSustainedClockSpeedMhz:    "3600",
 			v1.LabelInstanceCPUManufacturer:              "amd",
 			v1.LabelInstanceMemory:                       "16384",
 			v1.LabelInstanceEBSBandwidth:                 "10000",

@@ -15,13 +15,10 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/imdario/mergo"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
@@ -125,18 +122,6 @@ func EC2NodeClass(overrides ...v1.EC2NodeClass) *v1.EC2NodeClass {
 		ObjectMeta: test.ObjectMeta(options.ObjectMeta),
 		Spec:       options.Spec,
 		Status:     options.Status,
-	}
-}
-
-func EC2NodeClassFieldIndexer(ctx context.Context) func(cache.Cache) error {
-	return func(c cache.Cache) error {
-		return c.IndexField(ctx, &karpv1.NodeClaim{}, "spec.nodeClassRef.name", func(obj client.Object) []string {
-			nc := obj.(*karpv1.NodeClaim)
-			if nc.Spec.NodeClassRef == nil {
-				return []string{""}
-			}
-			return []string{nc.Spec.NodeClassRef.Name}
-		})
 	}
 }
 
