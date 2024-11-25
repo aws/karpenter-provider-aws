@@ -21,7 +21,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
@@ -51,7 +50,6 @@ type Provider interface {
 // DefaultProvider get the APIServer version. This will be initialized at start up and allows karpenter to have an understanding of the cluster version
 // for decision making. The version is cached to help reduce the amount of calls made to the API Server
 type DefaultProvider struct {
-	cache               *cache.Cache
 	cm                  *pretty.ChangeMonitor
 	kubernetesInterface kubernetes.Interface
 	eksapi              sdk.EKSAPI
