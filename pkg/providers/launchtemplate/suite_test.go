@@ -63,7 +63,6 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
-	controllersversion "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/version"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
@@ -2078,8 +2077,6 @@ essential = true
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
 			})
 			It("should choose amis from SSM if no selector specified in EC2NodeClass", func() {
-				versionController := controllersversion.NewController(awsEnv.VersionProvider)
-				ExpectSingletonReconciled(ctx, versionController)
 				version := awsEnv.VersionProvider.Get(ctx)
 				awsEnv.SSMAPI.Parameters = map[string]string{
 					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version): "test-ami-123",

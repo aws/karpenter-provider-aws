@@ -49,6 +49,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/spotinterruption"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/statechange"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -82,6 +83,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	ctx = options.ToContext(ctx, test.Options())
 	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
 	awsEnv = test.NewEnvironment(ctx, env)
 	fakeClock = &clock.FakeClock{}
