@@ -19,8 +19,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	stdlog "log"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
@@ -39,6 +41,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	clinetconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
@@ -46,6 +50,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator"
 
 	prometheusv2 "github.com/jonathan-innis/aws-sdk-go-prometheus/v2"
+
+	"sigs.k8s.io/karpenter/pkg/apis"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
@@ -86,6 +92,21 @@ type Operator struct {
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
+	kubeletCompatibilityAnnotationKey := fmt.Sprintf("%s/%s", apis.CompatibilityGroup, "v1beta1-kubelet-conversion")
+	// we are going to panic if any of the customer nodepools contain
+	// compatibility.karpenter.sh/v1beta1-kubelet-conversion
+	restConfig := clinetconfig.GetConfigOrDie()
+	kubeClient := lo.Must(client.New(restConfig, client.Options{}))
+	nodePoolList := &karpv1.NodePoolList{}
+	lo.Must0(kubeClient.List(ctx, nodePoolList))
+	npNames := lo.FilterMap(nodePoolList.Items, func(np karpv1.NodePool, _ int) (string, bool) {
+		_, ok := np.Annotations[kubeletCompatibilityAnnotationKey]
+		return np.Name, ok
+	})
+	if len(npNames) != 0 {
+		stdlog.Fatalf("The kubelet compatibility annotation, %s, is not supported on Karpenter v1.1+. Please refer to the upgrade guide in the docs. The following NodePools still have the compatibility annotation: %s", kubeletCompatibilityAnnotationKey, strings.Join(npNames, ", "))
+	}
+
 	cfg := prometheusv2.WithPrometheusMetrics(WithUserAgent(lo.Must(config.LoadDefaultConfig(ctx))), crmetrics.Registry)
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
