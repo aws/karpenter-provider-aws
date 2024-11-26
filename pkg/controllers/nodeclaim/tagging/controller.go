@@ -21,6 +21,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -28,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	"sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
 	"github.com/samber/lo"
 
@@ -44,12 +46,14 @@ import (
 
 type Controller struct {
 	kubeClient       client.Client
+	cloudProvider    cloudprovider.CloudProvider
 	instanceProvider instance.Provider
 }
 
-func NewController(kubeClient client.Client, instanceProvider instance.Provider) *Controller {
+func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider, instanceProvider instance.Provider) *Controller {
 	return &Controller{
 		kubeClient:       kubeClient,
+		cloudProvider:    cloudProvider,
 		instanceProvider: instanceProvider,
 	}
 }
@@ -86,7 +90,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		Named("nodeclaim.tagging").
-		For(&karpv1.NodeClaim{}).
+		For(&karpv1.NodeClaim{}, builder.WithPredicates(nodeclaim.IsManagedPredicateFuncs(c.cloudProvider))).
 		WithEventFilter(predicate.NewPredicateFuncs(func(o client.Object) bool {
 			return isTaggable(o.(*karpv1.NodeClaim))
 		})).
