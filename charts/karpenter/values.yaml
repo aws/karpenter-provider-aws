@@ -59,6 +59,8 @@ terminationGracePeriodSeconds:
 # -- Bind the pod to the host network.
 # This is required when using a custom CNI.
 hostNetwork: false
+# -- Specify which Kubernetes scheduler should dispatch the pod.
+schedulerName: default-scheduler
 # -- Configure the DNS Policy for the pod
 dnsPolicy: ClusterFirst
 # -- Configure DNS Config for the pod
@@ -183,6 +185,6 @@ settings:
     # -- spotToSpotConsolidation is ALPHA and is disabled by default.
     # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
     spotToSpotConsolidation: false
-     # -- nodeRepair is ALPHA and is disabled by default.
+    # -- nodeRepair is ALPHA and is disabled by default.
     # Setting this to true will enable node repair.
     nodeRepair: false
