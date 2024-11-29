@@ -39,6 +39,7 @@ WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE T
   * Note: This userData configuration is _only_ valid on Bottlerocket v1.22.0+. If you are using an earlier version of a Bottlerocket image (< v1.22.0) with `amiFamily: Bottlerocket` and `instanceStorePolicy: RAID0`, nodes will fail to join the cluster.  
 * The AWS Neuron accelerator well known name label (`karpenter.k8s.aws/instance-accelerator-name`) values now reflect their correct names of `trainium`, `inferentia`, and `inferentia2`. Previously, all Neuron accelerators were assigned the label name of `inferentia`.
 * Karpenter drops the internal `karpenter.k8s.aws/cluster` tag used for launch template management in favor of `eks:eks-cluster-name` and consistency with other Karpenter-provisioned resources
+* Generic operator metrics have been have been deprecated and replaced by resource-specific metrics.
 
 ### Upgrading to `1.0.0`+
 
