@@ -252,19 +252,19 @@ Total number of adds handled by workqueue
 
 ### `operator_status_condition_transitions_total`
 The count of transitions of a given object, type and status.
-- Stability Level: DEPRECATED
+- Stability Level: BETA
 
 ### `operator_status_condition_transition_seconds`
 The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes
-- Stability Level: DEPRECATED
+- Stability Level: BETA
 
 ### `operator_status_condition_current_status_seconds`
 The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes
-- Stability Level: DEPRECATED
+- Stability Level: BETA
 
 ### `operator_status_condition_count`
 The number of an condition for a given object, type and status. e.g. Alarm := Available=False > 0
-- Stability Level: DEPRECATED
+- Stability Level: BETA
 
 ## Client Go Metrics
 
