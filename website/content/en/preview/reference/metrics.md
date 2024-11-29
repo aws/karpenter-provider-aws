@@ -39,23 +39,23 @@ Number of nodeclaims created in total by Karpenter. Labeled by reason the nodecl
 - Stability Level: STABLE
 
 ### `operator_nodeclaim_status_condition_transitions_total`
-The count of transitions of a nodeclaim, type and status.
+The count of transitions of a nodeclaim, type and status. Labeled by the type, reason, and status.
 - Stability Level: BETA
 
 ### `operator_nodeclaim_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning.
+The amount of time a condition was in a given state before transitioning. Labeled by the name of the nodeclaim, and the namespace.
 - Stability Level: BETA
 
 ### `operator_nodeclaim_status_condition_current_status_seconds`
-The current amount of time in seconds that a status condition has been in a specific state.
+The current amount of time in seconds that a status condition has been in a specific state. Labeled by the name of the nodelcaim, namespace, type, status, and reason.
 - Stability Level: BETA
 
 ### `operator_nodeclaim_status_condition_count`
-The number of a condition for a nodeclaim, type and status.
+The number of a condition for a nodeclaim, type and status. Labeled by the name, namespace, type, status, and reason.
 - Stability Level: BETA
 
 ### `operator_nodeclaim_termination_current_time_seconds`
-The current amount of time in seconds that a nodeclaim has been in terminating state.
+The current amount of time in seconds that a nodeclaim has been in terminating state. Labeled by name, and namespace.
 - Stability Level: BETA
 
 ### `operator_nodeclaim_termination_duration_seconds`
@@ -121,19 +121,19 @@ The count of transitions of a node, type and status.
 - Stability Level: BETA
 
 ### `operator_node_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning.
+The amount of time a condition was in a given state before transitioning. Labeled by the name of the nodeclaim, and the namespace.
 - Stability Level: BETA
 
 ### `operator_node_status_condition_current_status_seconds`
-The current amount of time in seconds that a status condition has been in a specific state.
+The current amount of time in seconds that a status condition has been in a specific state. Labeled by the name of the nodelcaim, namespace, type, status, and reason.
 - Stability Level: BETA
 
 ### `operator_node_status_condition_count`
-The number of a condition for a node, type and status.
+The number of a condition for a node, type and status. Labeled by the name, namespace, type, status, and reason.
 - Stability Level: BETA
 
 ### `operator_node_termination_current_time_seconds`
-The current amount of time in seconds that a node has been in terminating state.
+The current amount of time in seconds that a node has been in terminating state. Labeled by name, and namespace.
 - Stability Level: BETA
 
 ### `operator_node_termination_duration_seconds`
@@ -211,49 +211,49 @@ The number of nodes for a given NodePool that can be concurrently disrupting at 
 - Stability Level: ALPHA
 
 ### `operator_nodepool_status_condition_transitions_total`
-The count of transitions of a nodepool, type and status.
+The count of transitions of a nodepool, type and status. Labeled by the type, reason, and status.
 - Stability Level: BETA
 
 ### `operator_nodepool_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning.
+The amount of time a condition was in a given state before transitioning. Labeled by the name of the nodeclaim, and the namespace.
 - Stability Level: BETA
 
 ### `operator_nodepool_status_condition_current_status_seconds`
-The current amount of time in seconds that a status condition has been in a specific state.
+The current amount of time in seconds that a status condition has been in a specific state. Labeled by the name of the nodelcaim, namespace, type, status, and reason.
 - Stability Level: BETA
 
 ### `operator_nodepool_status_condition_count`
-The number of an condition for a nodepool, type and status.
+The number of an condition for a nodepool, type and status. Labeled by the name, namespace, type, status, and reason.
 - Stability Level: BETA
 
 ### `operator_nodepool_termination_current_time_seconds`
-The current amount of time in seconds that a nodepool has been in terminating state.
+The current amount of time in seconds that a nodepool has been in terminating state. Labeled by name, and namespace.
 - Stability Level: BETA
 
 ### `operator_nodepool_termination_duration_seconds`
 Duration of NodePool termination in seconds.
 - Stability Level: BETA
 
-## NodeClass Metrics
+## EC2NodeClass Metrics
 
 ### `operator_ec2nodeclass_status_condition_transitions_total`
-The count of transitions of a ec2nodeclass, type and status.
+The count of transitions of a ec2nodeclass, type and status. Labeled by the type, reason, and status.
 - Stability Level: BETA
 
 ### `operator_ec2nodeclass_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning.
+The amount of time a condition was in a given state before transitioning. Labeled by the name of the nodeclaim, and the namespace.
 - Stability Level: BETA
 
 ### `operator_ec2nodeclass_status_condition_current_status_seconds`
-The current amount of time in seconds that a status condition has been in a specific state.
+The current amount of time in seconds that a status condition has been in a specific state. Labeled by the name of the nodelcaim, namespace, type, status, and reason.
 - Stability Level: BETA
 
 ### `operator_ec2nodeclass_status_condition_count`
-The number of an condition for an ec2nodeclass, type and status.
+The number of an condition for an ec2nodeclass, type and status. Labeled by the name, namespace, type, status, and reason.
 - Stability Level: BETA
 
 ### `operator_ec2nodeclass_termination_current_time_seconds`
-The current amount of time in seconds that an ec2nodeclass has been in terminating state.
+The current amount of time in seconds that an ec2nodeclass has been in terminating state. Labeled by name, and namespace.
 - Stability Level: BETA
 
 ### `operator_ec2nodeclass_termination_duration_seconds`
