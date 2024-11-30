@@ -258,10 +258,9 @@ You should still review the upgrade procedure; the sequence of operations remain
    Notable Changes to the IAM Policy include additional tag-scoping for the `eks:eks-cluster-name` tag for instances and instance profiles.
    We will remove this additional policy later once the controller has been migrated to v1 and we've updated the Karpenter cloudformation stack.
 
-   <!-- TODO: Pin ref to a specific commit once this commit has been merged -->
    ```bash
    POLICY_DOCUMENT=$(mktemp)
-   curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/website/content/en/docs/v1.0/upgrading/get-controller-policy.sh | sh | envsubst > ${POLICY_DOCUMENT}
+   curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/13d6fc014ea59019b1c3b1953184efc41809df11/website/content/en/v1.0/upgrading/get-controller-policy.sh | sh | envsubst > ${POLICY_DOCUMENT}
    POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-v1"
    ROLE_NAME="${CLUSTER_NAME}-karpenter"
    POLICY_ARN="$(aws iam create-policy --policy-name "${POLICY_NAME}" --policy-document "file://${POLICY_DOCUMENT}" | jq -r .Policy.Arn)"
