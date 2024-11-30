@@ -158,7 +158,7 @@ The time from pod creation until the pod is running.
 
 ### `operator_termination_duration_seconds`
 The amount of time taken by an object to terminate completely.
-- Stability Level: ALPHA
+- Stability Level: DEPRECATED
 
 ### `operator_termination_current_time_seconds`
 The current amount of time in seconds that an object has been in terminating state.
@@ -284,7 +284,7 @@ Utilization of allocatable resources by pod requests
 
 ### `karpenter_cluster_state_unsynced_time_seconds`
 The time for which cluster state is not synced
-- Stability Level: STABLE
+- Stability Level: ALPHA
 
 ### `karpenter_cluster_state_synced`
 Returns 1 if cluster state is synced and 0 otherwise. Synced checks that nodeclaims and nodes that are stored in the APIServer have the same representation as Karpenter's cluster state
