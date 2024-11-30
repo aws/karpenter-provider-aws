@@ -619,6 +619,13 @@ spec:
     maxPods: 20
 ```
 
+### NodeClassRef Requirements
+
+Starting with Karpenter `v1.1.0`, `nodeClassRef.group` and `nodeClassRef.kind` are strictly required on both NodePools and NodeClaims.
+Ensure these values are set for all resources **before** upgrading Karpenter.
+Failing to do so will result in Karpenter being unable to operate against those resources.
+For the AWS provider, the group will always be `karpenter.k8s.aws` and the kind will always be `EC2NodeClass`.
+
 #### Stored Version Migration
 
 Once you have upgraded all of your manifests, you need to ensure that all existing resources are stored as `v1` in ETCD.

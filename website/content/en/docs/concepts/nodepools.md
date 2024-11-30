@@ -27,7 +27,7 @@ Here are things you should know about NodePools:
 Objects for setting Kubelet features have been moved from the NodePool spec to the EC2NodeClasses spec, to not require other Karpenter providers to support those features.
 {{% /alert %}}
 
-For some example `NodePool` configurations, see the [examples in the Karpenter GitHub repository](https://github.com/aws/karpenter/blob/main/examples/v1/).
+For some example `NodePool` configurations, see the [examples in the Karpenter GitHub repository](https://github.com/aws/karpenter/blob/v1.1.0/examples/v1/).
 
 ```yaml
 apiVersion: karpenter.sh/v1
@@ -72,16 +72,16 @@ spec:
       # Avoiding long-running Nodes helps to reduce security vulnerabilities as well as to reduce the chance of issues that can plague Nodes with long uptimes such as file fragmentation or memory leaks from system processes
       # You can choose to disable expiration entirely by setting the string value 'Never' here
 
-      # Note: changing this value in the nodepool will drift the nodeclaims. 
+      # Note: changing this value in the nodepool will drift the nodeclaims.
       expireAfter: 720h | Never
 
       # The amount of time that a node can be draining before it's forcibly deleted. A node begins draining when a delete call is made against it, starting
-      # its finalization flow. Pods with TerminationGracePeriodSeconds will be deleted preemptively before this terminationGracePeriod ends to give as much time to cleanup as possible. 
+      # its finalization flow. Pods with TerminationGracePeriodSeconds will be deleted preemptively before this terminationGracePeriod ends to give as much time to cleanup as possible.
       # If your pod's terminationGracePeriodSeconds is larger than this terminationGracePeriod, Karpenter may forcibly delete the pod
-      # before it has its full terminationGracePeriod to cleanup. 
+      # before it has its full terminationGracePeriod to cleanup.
 
-      # Note: changing this value in the nodepool will drift the nodeclaims. 
-      terminationGracePeriod: 48h 
+      # Note: changing this value in the nodepool will drift the nodeclaims.
+      terminationGracePeriod: 48h
 
       # Requirements that constrain the parameters of provisioned nodes.
       # These requirements are combined with pod.spec.topologySpreadConstraints, pod.spec.affinity.nodeAffinity, pod.spec.affinity.podAffinity, and pod.spec.nodeSelector rules.
@@ -183,12 +183,12 @@ See [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-evic
 
 ## spec.template.spec.startupTaints
 
-Taints that are added to nodes to indicate that a certain condition must be met, such as starting an agent or setting up networking, before the node is can be initialized. 
+Taints that are added to nodes to indicate that a certain condition must be met, such as starting an agent or setting up networking, before the node is can be initialized.
 These taints must be cleared before pods can be deployed to a node.
 
 ## spec.template.spec.expireAfter
 
-The amount of time a Node can live on the cluster before being deleted by Karpenter. Nodes will begin draining once it's expiration has been hit. 
+The amount of time a Node can live on the cluster before being deleted by Karpenter. Nodes will begin draining once it's expiration has been hit.
 
 ## spec.template.spec.terminationGracePeriod
 

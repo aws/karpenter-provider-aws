@@ -79,10 +79,10 @@ params:
   latest_release_version: "1.1.0"
   latest_k8s_version: "1.31"
   versions:
-    - v0.32
-    - v0.37
-    - v1.0
     - v1.1
+    - v1.0
+    - v0.37
+    - v0.32
     - preview
 menu:
   main:

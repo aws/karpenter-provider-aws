@@ -35,6 +35,13 @@ WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE T
 
 ### Upgrading to `1.1.0`+
 
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* Support for the `v1beta1` compatiblity annotations have been dropped. Ensure you have completed migration before upgrading to `v1.1.0`. Refer to the [migration guide]({{<ref "../../v1.0/upgrading/v1-migration.md#kubelet-configuration-migration">}}) for more details.
+* `nodeClassRef.group` and `nodeClassRef.kind` are strictly required. Ensure these values are set for all `NodePools` / `NodeClaims` before upgrading.
 * Bottlerocket AMIFamily now supports `instanceStorePolicy: RAID0`. This means that Karpenter will auto-generate userData to RAID0 your instance store volumes (similar to AL2 and AL2023) when specifying this value.
   * Note: This userData configuration is _only_ valid on Bottlerocket v1.22.0+. If you are using an earlier version of a Bottlerocket image (< v1.22.0) with `amiFamily: Bottlerocket` and `instanceStorePolicy: RAID0`, nodes will fail to join the cluster.
 * The AWS Neuron accelerator well known name label (`karpenter.k8s.aws/instance-accelerator-name`) values now reflect their correct names of `trainium`, `inferentia`, and `inferentia2`. Previously, all Neuron accelerators were assigned the label name of `inferentia`.
