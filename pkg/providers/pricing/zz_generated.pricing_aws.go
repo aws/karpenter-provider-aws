@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2024-11-05T04:33:42Z for us-east-1
+// generated at 2024-12-02T13:14:31Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -163,6 +163,10 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"i4i.12xlarge": 4.118000, "i4i.16xlarge": 5.491000, "i4i.24xlarge": 8.236800, "i4i.2xlarge": 0.686000,
 		"i4i.32xlarge": 10.982400, "i4i.4xlarge": 1.373000, "i4i.8xlarge": 2.746000, "i4i.large": 0.172000,
 		"i4i.metal": 10.982000, "i4i.xlarge": 0.343000,
+		// i7ie family
+		"i7ie.12xlarge": 6.237600, "i7ie.18xlarge": 9.356400, "i7ie.24xlarge": 12.475200, "i7ie.2xlarge": 1.039600,
+		"i7ie.3xlarge": 1.559400, "i7ie.48xlarge": 24.950400, "i7ie.6xlarge": 3.118800, "i7ie.large": 0.259900,
+		"i7ie.xlarge": 0.519800,
 		// im4gn family
 		"im4gn.16xlarge": 5.820670, "im4gn.2xlarge": 0.727580, "im4gn.4xlarge": 1.455170, "im4gn.8xlarge": 2.910340,
 		"im4gn.large": 0.181900, "im4gn.xlarge": 0.363790,

@@ -254,7 +254,9 @@ Karpenter supports `linux` and `windows` operating systems.
 
 Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html).
 
-Karpenter prioritizes Spot offerings if the NodePool allows Spot and on-demand instances (note that in this scenario any Spot instances priced higher than the cheapest on-demand instance will be temporarily removed from consideration). If the provider API (e.g. EC2 Fleet's API) indicates Spot capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 45 seconds. If there are no other possible offerings available for Spot, Karpenter will attempt to provision on-demand instances, generally within milliseconds.
+Karpenter prioritizes Spot offerings if the NodePool allows Spot and on-demand instances (note that in this scenario any Spot instances priced higher than the cheapest on-demand instance will be temporarily removed from consideration).
+If the provider API (e.g. EC2 Fleet's API) indicates Spot capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 3 minutes.
+If there are no other possible offerings available for Spot, Karpenter will attempt to provision on-demand instances, generally within milliseconds.
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
