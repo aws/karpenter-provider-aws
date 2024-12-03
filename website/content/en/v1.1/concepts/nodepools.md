@@ -72,16 +72,16 @@ spec:
       # Avoiding long-running Nodes helps to reduce security vulnerabilities as well as to reduce the chance of issues that can plague Nodes with long uptimes such as file fragmentation or memory leaks from system processes
       # You can choose to disable expiration entirely by setting the string value 'Never' here
 
-      # Note: changing this value in the nodepool will drift the nodeclaims. 
+      # Note: changing this value in the nodepool will drift the nodeclaims.
       expireAfter: 720h | Never
 
       # The amount of time that a node can be draining before it's forcibly deleted. A node begins draining when a delete call is made against it, starting
-      # its finalization flow. Pods with TerminationGracePeriodSeconds will be deleted preemptively before this terminationGracePeriod ends to give as much time to cleanup as possible. 
+      # its finalization flow. Pods with TerminationGracePeriodSeconds will be deleted preemptively before this terminationGracePeriod ends to give as much time to cleanup as possible.
       # If your pod's terminationGracePeriodSeconds is larger than this terminationGracePeriod, Karpenter may forcibly delete the pod
-      # before it has its full terminationGracePeriod to cleanup. 
+      # before it has its full terminationGracePeriod to cleanup.
 
-      # Note: changing this value in the nodepool will drift the nodeclaims. 
-      terminationGracePeriod: 48h 
+      # Note: changing this value in the nodepool will drift the nodeclaims.
+      terminationGracePeriod: 48h
 
       # Requirements that constrain the parameters of provisioned nodes.
       # These requirements are combined with pod.spec.topologySpreadConstraints, pod.spec.affinity.nodeAffinity, pod.spec.affinity.podAffinity, and pod.spec.nodeSelector rules.
@@ -183,12 +183,12 @@ See [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-evic
 
 ## spec.template.spec.startupTaints
 
-Taints that are added to nodes to indicate that a certain condition must be met, such as starting an agent or setting up networking, before the node is can be initialized. 
+Taints that are added to nodes to indicate that a certain condition must be met, such as starting an agent or setting up networking, before the node is can be initialized.
 These taints must be cleared before pods can be deployed to a node.
 
 ## spec.template.spec.expireAfter
 
-The amount of time a Node can live on the cluster before being deleted by Karpenter. Nodes will begin draining once it's expiration has been hit. 
+The amount of time a Node can live on the cluster before being deleted by Karpenter. Nodes will begin draining once it's expiration has been hit.
 
 ## spec.template.spec.terminationGracePeriod
 
@@ -254,7 +254,9 @@ Karpenter supports `linux` and `windows` operating systems.
 
 Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html).
 
-Karpenter prioritizes Spot offerings if the NodePool allows Spot and on-demand instances (note that in this scenario any Spot instances priced higher than the cheapest on-demand instance will be temporarily removed from consideration). If the provider API (e.g. EC2 Fleet's API) indicates Spot capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 45 seconds. If there are no other possible offerings available for Spot, Karpenter will attempt to provision on-demand instances, generally within milliseconds.
+Karpenter prioritizes Spot offerings if the NodePool allows Spot and on-demand instances (note that in this scenario any Spot instances priced higher than the cheapest on-demand instance will be temporarily removed from consideration).
+If the provider API (e.g. EC2 Fleet's API) indicates Spot capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 3 minutes.
+If there are no other possible offerings available for Spot, Karpenter will attempt to provision on-demand instances, generally within milliseconds.
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
