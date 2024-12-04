@@ -623,7 +623,7 @@ spec:
     maxPods: 20
 ```
 
-### NodeClassRef Requirements
+#### NodeClassRef Requirements
 
 Starting with Karpenter `v1.1.0`, `nodeClassRef.group` and `nodeClassRef.kind` are strictly required on both NodePools and NodeClaims.
 Ensure these values are set for all resources **before** upgrading Karpenter.
