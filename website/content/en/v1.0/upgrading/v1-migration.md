@@ -21,6 +21,10 @@ Use the [compatibility matrix]({{<ref "compatibility#compatibility-matrix">}}) t
 Karpenter `v1.0` is a major release and contains a number of breaking changes.
 The following section will highlight some of the major breaking changes, but you should review the full [changelog]({{<ref "#changelog">}}) before proceeding with the upgrade.
 
+### Forceful Expiration
+
+Previously, Karpenter would only begin draining an expired node after ensuring graceful disruption was possible and replacement capacity was provisioned. Now, NodeClaim expiration is forceful. Once a NodeClaim expires, Karpenter will immediately begin draining the corresponding Node without first provisioning a replacement Node. This forceful approach means that all expired NodeClaims that were previously blocked from disruption (due to Pod Disruption Budgets (PDBs), do-not-disrupt pods, or other constraints) will be expired. The scheduler will then attempt to provision new Nodes for the disrupted workloads as they are draining. This behavior may lead to an increased number of pods in the "Pending" state while replacement capacity is being provisioned. Before upgrading, users should check for expired NodeClaims and resolve any disruption blockers to ensure a smooth upgrade process.
+
 #### Deprecated Annotations, Labels, and Tags Removed
 
 The following annotations, labels, and tags have been removed in `v1.0.0`:
