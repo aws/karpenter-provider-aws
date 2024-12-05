@@ -102,6 +102,8 @@ extraVolumes: []
 #         expirationSeconds: 86400
 #         path: token
 controller:
+  # -- Distinguishing container name (containerName: karpenter-controller).
+  containerName: controller
   image:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
