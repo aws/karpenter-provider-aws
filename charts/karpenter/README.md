@@ -44,15 +44,18 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.1.0 \
 | additionalClusterRoleRules | list | `[]` | Specifies additional rules for the core ClusterRole. |
 | additionalLabels | object | `{}` | Additional labels to add into metadata. |
 | affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/nodepool","operator":"DoesNotExist"}]}]}},"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"topologyKey":"kubernetes.io/hostname"}]}}` | Affinity rules for scheduling the pod. If an explicit label selector is not provided for pod affinity or pod anti-affinity one will be created from the pod selector labels. |
-| controller.env | list | `[]` | Additional environment variables for the controller pod. |
+| controller.env | list | `[]` | Additional environment variables for the controller container. |
 | controller.envFrom | list | `[]` |  |
-| controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
+| controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller container. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
 | controller.image.digest | string | `"sha256:51bca600197c7c6e6e0838549664b2c12c3f8dd4b23744ab28202ae97ca5aed1"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
 | controller.image.tag | string | `"1.1.0"` | Tag of the controller image. |
 | controller.metrics.port | int | `8080` | The container port to use for metrics. |
-| controller.resources | object | `{}` | Resources for the controller pod. |
+| controller.resources | object | `{}` | Resources for the controller container. |
+| controller.securityContext.appArmorProfile | object | `nil` | The AppArmor options to use by the controller container. |
+| controller.securityContext.seLinuxOptions | object | `nil` | The SELinux context to be applied to the controller container. |
+| controller.securityContext.seccompProfile | object | `{"type":"RuntimeDefault"}` | The seccomp options to use by the controller container. |
 | controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
 | controller.sidecarVolumeMounts | list | `[]` | Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts |
 | dnsConfig | object | `{}` | Configure DNS Config for the pod |
@@ -71,7 +74,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.1.0 \
 | podDisruptionBudget.maxUnavailable | int | `1` |  |
 | podDisruptionBudget.name | string | `"karpenter"` |  |
 | podLabels | object | `{}` | Additional labels for the pod. |
-| podSecurityContext | object | `{"fsGroup":65532}` | SecurityContext for the pod. |
+| podSecurityContext | object | `{"fsGroup":65532,"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | SecurityContext for the pod. |
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
 | replicas | int | `2` | Number of replicas. |
 | revisionHistoryLimit | int | `10` | The number of old ReplicaSets to retain to allow rollback. |
