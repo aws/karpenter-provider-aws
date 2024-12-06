@@ -54,7 +54,7 @@ func (s *EKSAPI) DescribeCluster(_ context.Context, input *eks.DescribeClusterIn
 				KubernetesNetworkConfig: &ekstypes.KubernetesNetworkConfigResponse{
 					ServiceIpv4Cidr: lo.ToPtr("10.100.0.0/16"),
 				},
-				Version: lo.ToPtr("1.30"),
+				Version: lo.ToPtr("1.29"),
 			},
 		}, nil
 	})

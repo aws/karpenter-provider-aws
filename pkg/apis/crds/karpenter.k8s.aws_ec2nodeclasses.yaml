@@ -115,7 +115,7 @@ spec:
                         additionalProperties:
                           type: string
                         description: |-
-                          Tags is a map of key/value tags used to select subnets
+                          Tags is a map of key/value tags used to select amis.
                           Specifying '*' for a value selects all values for a given tag key.
                         maxProperties: 20
                         type: object
@@ -485,7 +485,7 @@ spec:
                         additionalProperties:
                           type: string
                         description: |-
-                          Tags is a map of key/value tags used to select subnets
+                          Tags is a map of key/value tags used to select security groups.
                           Specifying '*' for a value selects all values for a given tag key.
                         maxProperties: 20
                         type: object
@@ -695,7 +695,7 @@ spec:
                   type: string
                 securityGroups:
                   description: |-
-                    SecurityGroups contains the current Security Groups values that are available to the
+                    SecurityGroups contains the current security group values that are available to the
                     cluster under the SecurityGroups selectors.
                   items:
                     description: SecurityGroup contains resolved SecurityGroup selector values utilized for node launch
@@ -712,7 +712,7 @@ spec:
                   type: array
                 subnets:
                   description: |-
-                    Subnets contains the current Subnet values that are available to the
+                    Subnets contains the current subnet values that are available to the
                     cluster under the subnet selectors.
                   items:
                     description: Subnet contains resolved Subnet selector values utilized for node launch

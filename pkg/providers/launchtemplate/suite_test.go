@@ -2081,7 +2081,7 @@ essential = true
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
 			})
 			It("should choose amis from SSM if no selector specified in EC2NodeClass", func() {
-				version := lo.Must(awsEnv.VersionProvider.Get(ctx))
+				version := awsEnv.VersionProvider.Get(ctx)
 				awsEnv.SSMAPI.Parameters = map[string]string{
 					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version): "test-ami-123",
 				}

@@ -36,7 +36,7 @@ import (
 var _ = Describe("NodeClass AMI Status Controller", func() {
 	var k8sVersion string
 	BeforeEach(func() {
-		k8sVersion = lo.Must(awsEnv.VersionProvider.Get(ctx))
+		k8sVersion = awsEnv.VersionProvider.Get(ctx)
 		nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
 			Spec: v1.EC2NodeClassSpec{
 				SubnetSelectorTerms: []v1.SubnetSelectorTerm{

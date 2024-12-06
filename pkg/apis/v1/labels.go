@@ -126,9 +126,10 @@ var (
 	AnnotationEC2NodeClassHashVersion         = apis.Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                  = apis.Group + "/tagged"
 
-	NodeClaimTagKey      = coreapis.Group + "/nodeclaim"
-	NameTagKey           = "Name"
-	NodePoolTagKey       = karpv1.NodePoolLabelKey
-	NodeClassTagKey      = LabelNodeClass
-	EKSClusterNameTagKey = "eks:eks-cluster-name"
+	NodeClaimTagKey          = coreapis.Group + "/nodeclaim"
+	NameTagKey               = "Name"
+	NodePoolTagKey           = karpv1.NodePoolLabelKey
+	NodeClassTagKey          = LabelNodeClass
+	LaunchTemplateNamePrefix = apis.Group
+	EKSClusterNameTagKey     = "eks:eks-cluster-name"
 )

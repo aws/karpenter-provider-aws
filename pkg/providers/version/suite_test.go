@@ -24,9 +24,12 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
-	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
+
+	controllersversion "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/version"
+	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -38,7 +41,8 @@ var ctx context.Context
 var stop context.CancelFunc
 var env *coretest.Environment
 var awsEnv *test.Environment
-var fakeEKSAPI *fake.EKSAPI
+var testEnv *environmentaws.Environment
+var versionController *controllersversion.Controller
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -52,8 +56,8 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
-
-	fakeEKSAPI = &fake.EKSAPI{}
+	testEnv = &environmentaws.Environment{Environment: &common.Environment{KubeClient: env.KubernetesInterface}}
+	versionController = controllersversion.NewController(awsEnv.VersionProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -62,7 +66,8 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	fakeEKSAPI.Reset()
+	awsEnv.Reset()
+	awsEnv.EKSAPI.Reset()
 })
 
 var _ = AfterEach(func() {
@@ -70,9 +75,22 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("Operator", func() {
-	It("should resolve Kubernetes Version via Describe Cluster", func() {
-		endpoint, err := awsEnv.VersionProvider.Get(ctx)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(endpoint).To(Equal("1.30"))
+
+	Context("with EKS_CONTROL_PLANE=true", func() {
+		It("should resolve Kubernetes Version via Describe Cluster with no errors", func() {
+			options.FromContext(ctx).EKSControlPlane = true
+			ExpectSingletonReconciled(ctx, versionController)
+			version := awsEnv.VersionProvider.Get(ctx)
+			Expect(version).To(Equal("1.29"))
+		})
+	})
+
+	Context("with EKS_CONTROL_PLANE=false", func() {
+		It("should resolve Kubernetes Version via K8s API", func() {
+			options.FromContext(ctx).EKSControlPlane = false
+			ExpectSingletonReconciled(ctx, versionController)
+			version := awsEnv.VersionProvider.Get(ctx)
+			Expect(version).To(Equal(testEnv.K8sVersion()))
+		})
 	})
 })
