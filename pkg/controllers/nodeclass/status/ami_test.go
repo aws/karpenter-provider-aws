@@ -534,4 +534,214 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeFalse())
 	})
+	Context("NodeClass AMI Status", func() {
+		BeforeEach(func() {
+			// Set time using the injectable/fake clock to now
+			awsEnv.Clock.SetTime(time.Now())
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					Tags: map[string]string{"*": "*"},
+				},
+			}
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []ec2types.Image{
+					{
+						Name:            aws.String("test-ami-3"),
+						ImageId:         aws.String("ami-id-789"),
+						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(30 * time.Minute).Format(time.RFC3339)),
+						Architecture:    "x86_64",
+						Tags: []ec2types.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+					{
+						Name:         aws.String("test-ami-2"),
+						ImageId:      aws.String("ami-id-456"),
+						CreationDate: aws.String("2021-08-31T00:12:42.000Z"),
+						Architecture: "arm64",
+						Tags: []ec2types.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+				},
+			})
+		})
+		It("should update nodeclass AMI status with correct deprecation value and conditions", func() {
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+			Expect(len(nodeClass.Status.AMIs)).To(Equal(2))
+			Expect(nodeClass.Status.AMIs).To(Equal(
+				[]v1.AMI{
+					{
+						Name: "test-ami-2",
+						ID:   "ami-id-456",
+						Requirements: []corev1.NodeSelectorRequirement{
+							{
+								Key:      corev1.LabelArchStable,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{karpv1.ArchitectureArm64},
+							},
+						},
+					},
+					{
+						Name: "test-ami-3",
+						ID:   "ami-id-789",
+						Requirements: []corev1.NodeSelectorRequirement{
+							{
+								Key:      corev1.LabelArchStable,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{karpv1.ArchitectureAmd64},
+							},
+						},
+					},
+				},
+			))
+			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
+
+			// Increment clock to simulate status updates on deprecated AMIs
+			awsEnv.Clock.Step(40 * time.Minute)
+
+			// Flush Cache
+			awsEnv.EC2Cache.Flush()
+
+			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(len(nodeClass.Status.AMIs)).To(Equal(2))
+			Expect(nodeClass.Status.AMIs).To(Equal(
+				[]v1.AMI{
+					{
+						Name: "test-ami-2",
+						ID:   "ami-id-456",
+						Requirements: []corev1.NodeSelectorRequirement{{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureArm64},
+						},
+						},
+					},
+					{
+						Name: "test-ami-3",
+						ID:   "ami-id-789",
+						// Adds deprecated field to the AMI status on the NodeClass
+						Deprecated: true,
+						Requirements: []corev1.NodeSelectorRequirement{{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureAmd64},
+						},
+						},
+					},
+				},
+			))
+			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsDeprecated)).To(BeTrue())
+			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
+		})
+		It("should remove AMIDeprecated status condition when non deprecated AMIs are discovered", func() {
+			// Increment clock to simulate status updates on deprecated AMIs
+			awsEnv.Clock.Step(40 * time.Minute)
+
+			// Initial reconcile discovers AMIs which are deprecated
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+			Expect(len(nodeClass.Status.AMIs)).To(Equal(2))
+			Expect(nodeClass.Status.AMIs).To(Equal(
+				[]v1.AMI{
+					{
+						Name: "test-ami-2",
+						ID:   "ami-id-456",
+						Requirements: []corev1.NodeSelectorRequirement{{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureArm64},
+						},
+						},
+					},
+					{
+						Name: "test-ami-3",
+						ID:   "ami-id-789",
+						// Adds deprecated field to the AMI status on the NodeClass
+						Deprecated: true,
+						Requirements: []corev1.NodeSelectorRequirement{{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureAmd64},
+						},
+						},
+					},
+				},
+			))
+			// Checks if both AMIsReady and AMIsDeprecated status conditions are set
+			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsDeprecated)).To(BeTrue())
+			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
+
+			// rediscover AMIs again and reconcile
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []ec2types.Image{
+					{
+						Name:            aws.String("test-ami-4"),
+						ImageId:         aws.String("ami-id-123"),
+						CreationDate:    aws.String("2021-08-31T00:12:42.000Z"),
+						DeprecationTime: aws.String(awsEnv.Clock.Now().Add(30 * time.Minute).Format(time.RFC3339)),
+						Architecture:    "x86_64",
+						Tags: []ec2types.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-4")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+					{
+						Name:         aws.String("test-ami-2"),
+						ImageId:      aws.String("ami-id-456"),
+						CreationDate: aws.String("2021-08-31T00:12:42.000Z"),
+						Architecture: "arm64",
+						Tags: []ec2types.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
+							{Key: aws.String("foo"), Value: aws.String("bar")},
+						},
+					},
+				},
+			})
+
+			awsEnv.EC2Cache.Flush()
+
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+			Expect(len(nodeClass.Status.AMIs)).To(Equal(2))
+			Expect(nodeClass.Status.AMIs).To(Equal(
+				[]v1.AMI{
+					{
+						Name: "test-ami-4",
+						ID:   "ami-id-123",
+						Requirements: []corev1.NodeSelectorRequirement{{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureAmd64},
+						},
+						},
+					},
+					{
+						Name: "test-ami-2",
+						ID:   "ami-id-456",
+						Requirements: []corev1.NodeSelectorRequirement{{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureArm64},
+						},
+						},
+					},
+				},
+			))
+			// Since all AMIs discovered are non deprecated, the status conditions should remove AMIsDeprecated and only set AMIsReady
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsDeprecated)).To(BeNil())
+			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
+		})
+	})
 })

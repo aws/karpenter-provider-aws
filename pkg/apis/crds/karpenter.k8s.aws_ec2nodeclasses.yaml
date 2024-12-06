@@ -592,6 +592,9 @@ spec:
                   items:
                     description: AMI contains resolved AMI selector values utilized for node launch
                     properties:
+                      deprecated:
+                        description: Deprecation status of the AMI
+                        type: boolean
                       id:
                         description: ID of the AMI
                         type: string

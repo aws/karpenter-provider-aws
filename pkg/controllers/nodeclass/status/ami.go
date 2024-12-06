@@ -58,9 +58,22 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 		return v1.AMI{
 			Name:         ami.Name,
 			ID:           ami.AmiID,
+			Deprecated:   ami.Deprecated,
 			Requirements: reqs,
 		}
 	})
+
+	// If deprecated AMIs are discovered set the AMIsDeprecated status condition
+	// If no deprecated AMIs are present, and previous status condition for AMIsDeprecated exists, remove the condition
+	hasDeprecatedAMIs := lo.Filter(nodeClass.Status.AMIs, func(ami v1.AMI, _ int) bool {
+		return ami.Deprecated
+	})
+	hasDeprecatedCondition := nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsDeprecated) != nil
+	if len(hasDeprecatedAMIs) > 0 {
+		nodeClass.StatusConditions().SetTrue(v1.ConditionTypeAMIsDeprecated)
+	} else if hasDeprecatedCondition {
+		_ = nodeClass.StatusConditions().Clear(v1.ConditionTypeAMIsDeprecated)
+	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeAMIsReady)
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }

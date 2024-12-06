@@ -23,6 +23,7 @@ const (
 	ConditionTypeSubnetsReady         = "SubnetsReady"
 	ConditionTypeSecurityGroupsReady  = "SecurityGroupsReady"
 	ConditionTypeAMIsReady            = "AMIsReady"
+	ConditionTypeAMIsDeprecated       = "AMIsDeprecated"
 	ConditionTypeInstanceProfileReady = "InstanceProfileReady"
 )
 
@@ -54,6 +55,9 @@ type AMI struct {
 	// ID of the AMI
 	// +required
 	ID string `json:"id"`
+	// Deprecation status of the AMI
+	// +optional
+	Deprecated bool `json:"deprecated,omitempty"`
 	// Name of the AMI
 	// +optional
 	Name string `json:"name,omitempty"`
