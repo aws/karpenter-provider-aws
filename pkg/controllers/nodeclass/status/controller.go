@@ -33,6 +33,7 @@ import (
 	"github.com/awslabs/operatorpkg/reasonable"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
@@ -52,10 +53,11 @@ type Controller struct {
 	subnet          *Subnet
 	securitygroup   *SecurityGroup
 	readiness       *Readiness //TODO : Remove this when we have sub status conditions
+	tags            *Tags
 }
 
 func NewController(kubeClient client.Client, subnetProvider subnet.Provider, securityGroupProvider securitygroup.Provider,
-	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider) *Controller {
+	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider, ec2API sdk.EC2API) *Controller {
 	return &Controller{
 		kubeClient: kubeClient,
 
@@ -64,6 +66,7 @@ func NewController(kubeClient client.Client, subnetProvider subnet.Provider, sec
 		securitygroup:   &SecurityGroup{securityGroupProvider: securityGroupProvider},
 		instanceprofile: &InstanceProfile{instanceProfileProvider: instanceProfileProvider},
 		readiness:       &Readiness{launchTemplateProvider: launchTemplateProvider},
+		tags:            &Tags{ec2API: ec2API},
 	}
 }
 
@@ -94,6 +97,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		c.securitygroup,
 		c.instanceprofile,
 		c.readiness,
+		c.tags,
 	} {
 		res, err := reconciler.Reconcile(ctx, nodeClass)
 		errs = multierr.Append(errs, err)
