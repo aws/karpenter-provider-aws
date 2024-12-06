@@ -104,7 +104,11 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if len(instanceTypes) == 0 {
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
 	}
-	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, getTags(ctx, nodeClass, nodeClaim), instanceTypes)
+	tags, err := getTags(ctx, nodeClass, nodeClaim)
+	if err != nil {
+		return nil, cloudprovider.NewCreateError(fmt.Errorf("tag validation bypassed, %w", err), "Error tag validation bypassed")
+	}
+	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
 	if err != nil {
 		conditionMessage := "Error creating instance"
 		var createError *cloudprovider.CreateError
@@ -234,16 +238,20 @@ func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
 	return []status.Object{&v1.EC2NodeClass{}}
 }
 
-func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) map[string]string {
+func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) (map[string]string, error) {
+	if _, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(key string, _ string) bool {
+		return strings.HasPrefix(key, "kubernetes.io/cluster/")
+	}); found {
+		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "tag validation bypassed")
+		return nil, fmt.Errorf("tag validation bypassed")
+	}
 	staticTags := map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
 		karpv1.NodePoolLabelKey: nodeClaim.Labels[karpv1.NodePoolLabelKey],
 		v1.EKSClusterNameTagKey: options.FromContext(ctx).ClusterName,
 		v1.LabelNodeClass:       nodeClass.Name,
 	}
-	return lo.Assign(lo.OmitBy(nodeClass.Spec.Tags, func(key string, _ string) bool {
-		return strings.HasPrefix(key, "kubernetes.io/cluster/")
-	}), staticTags)
+	return lo.Assign(nodeClass.Spec.Tags, staticTags), nil
 }
 
 func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
