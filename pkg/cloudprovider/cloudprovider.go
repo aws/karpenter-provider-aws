@@ -18,7 +18,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
-	"strings"
+	"regexp"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -106,7 +106,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	}
 	tags, err := getTags(ctx, nodeClass, nodeClaim)
 	if err != nil {
-		return nil, cloudprovider.NewCreateError(fmt.Errorf("tag validation bypassed, %w", err), "Error tag validation bypassed")
+		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("tag validation bypassed, %w", err))
 	}
 	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
 	if err != nil {
@@ -239,10 +239,14 @@ func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
 }
 
 func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) (map[string]string, error) {
-	if _, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(key string, _ string) bool {
-		return strings.HasPrefix(key, "kubernetes.io/cluster/")
+	if _, found := lo.Find(v1.RestrictedTagPatterns, func(exp *regexp.Regexp) bool {
+		for key := range nodeClass.Spec.Tags {
+			if exp.MatchString(key) {
+				return true
+			}
+		}
+		return false
 	}); found {
-		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "tag validation bypassed")
 		return nil, fmt.Errorf("tag validation bypassed")
 	}
 	staticTags := map[string]string{

@@ -17,6 +17,7 @@ package cloudprovider_test
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net"
 	"strings"
 	"testing"
@@ -48,6 +49,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
@@ -80,6 +82,21 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	tagStruct := apiextensionsv1.JSONSchemaProps{}
+	for _, crd := range apis.CRDs {
+		if crd.Name != "ec2nodeclasses.karpenter.k8s.aws" {
+			continue
+		}
+		tagStruct.Description = crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["tags"].Description
+		tagStruct.Type = crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["tags"].Type
+		tagStruct.AdditionalProperties = crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["tags"].AdditionalProperties
+		tagStruct.XValidations = nil
+		maps.DeleteFunc(crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties, func(key string, val apiextensionsv1.JSONSchemaProps) bool {
+			return key == "tags"
+		})
+		maps.Copy(crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties, map[string]apiextensionsv1.JSONSchemaProps{"tags": tagStruct})
+	}
+
 	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
@@ -209,6 +226,15 @@ var _ = Describe("CloudProvider", func() {
 	It("should return NodeClassNotReady error on creation if NodeClass is not ready", func() {
 		nodeClass.StatusConditions().SetFalse(opstatus.ConditionReady, "NodeClassNotReady", "NodeClass not ready")
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		_, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(HaveOccurred())
+		Expect(corecloudprovider.IsNodeClassNotReadyError(err)).To(BeTrue())
+	})
+	It("should return NodeClassNotReady error on creation if NodeClass tag validation fails", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		nodeClass.Spec.Tags = map[string]string{"kubernetes.io/cluster/thewrongcluster": "owned"}
+		ExpectApplied(ctx, env.Client, nodeClass)
+
 		_, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(HaveOccurred())
 		Expect(corecloudprovider.IsNodeClassNotReadyError(err)).To(BeTrue())
