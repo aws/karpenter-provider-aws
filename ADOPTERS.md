@@ -58,3 +58,4 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Grover Group GmbH | We use Karpenter for efficient and cost effective scaling of our nodes in all of our EKS clusters | `@suraj2410` | [Homepage](https://www.grover.com/de-en) & [Engineering Techblog](https://engineering.grover.com)|
 | Logz.io | Using Karpenter in all of our EKS clusters for efficient and cost effective scaling of all our K8s workloads | `@pincher95`, `@Samplify` | [Homepage](https://logz.io/)|
 | X3M ads | We have been using Karpenter for (almost) all our workloads since 2023 | `@mreparaz`, `@fmansilla`, `@mrmartinez95` | [Homepage](https://x3mads.com) |
+| Kaltura | Using Karpenter for cost efficient, fast and robust  Node Management across all Kubernetes infrastructure | `@Ido Ziv` | [Homepage](https://corp.kaltura.com/) |
