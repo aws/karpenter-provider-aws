@@ -29,9 +29,11 @@ import (
 type Validation struct{}
 
 func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	if offendingTag, found := lo.Find(v1.RestrictedTagPatterns, func(exp *regexp.Regexp) bool {
+	var offendingTag string
+	if _, found := lo.Find(v1.RestrictedTagPatterns, func(exp *regexp.Regexp) bool {
 		for key := range nodeClass.Spec.Tags {
 			if exp.MatchString(key) {
+				offendingTag = key
 				return true
 			}
 		}
