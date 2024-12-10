@@ -106,7 +106,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	}
 	tags, err := getTags(ctx, nodeClass, nodeClaim)
 	if err != nil {
-		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("tag validation bypassed, %w", err))
+		return nil, cloudprovider.NewNodeClassNotReadyError(err)
 	}
 	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
 	if err != nil {
@@ -239,15 +239,17 @@ func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
 }
 
 func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) (map[string]string, error) {
+	var offendingTag string
 	if _, found := lo.Find(v1.RestrictedTagPatterns, func(exp *regexp.Regexp) bool {
 		for key := range nodeClass.Spec.Tags {
 			if exp.MatchString(key) {
+				offendingTag = key
 				return true
 			}
 		}
 		return false
 	}); found {
-		return nil, fmt.Errorf("tag validation bypassed")
+		return nil, fmt.Errorf("%q tag does not pass tag validation requirements", offendingTag)
 	}
 	staticTags := map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
