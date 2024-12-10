@@ -23,7 +23,6 @@ const (
 	ConditionTypeSubnetsReady         = "SubnetsReady"
 	ConditionTypeSecurityGroupsReady  = "SecurityGroupsReady"
 	ConditionTypeAMIsReady            = "AMIsReady"
-	ConditionTypeAMIsDeprecated       = "AMIsDeprecated"
 	ConditionTypeInstanceProfileReady = "InstanceProfileReady"
 )
 
