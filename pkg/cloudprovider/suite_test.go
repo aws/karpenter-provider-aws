@@ -234,7 +234,6 @@ var _ = Describe("CloudProvider", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		nodeClass.Spec.Tags = map[string]string{"kubernetes.io/cluster/thewrongcluster": "owned"}
 		ExpectApplied(ctx, env.Client, nodeClass)
-
 		_, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(HaveOccurred())
 		Expect(corecloudprovider.IsNodeClassNotReadyError(err)).To(BeTrue())

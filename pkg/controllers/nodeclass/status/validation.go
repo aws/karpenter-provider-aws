@@ -17,9 +17,8 @@ package status
 import (
 	"context"
 	"fmt"
-	"strings"
+	"regexp"
 
-	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -30,14 +29,17 @@ import (
 type Validation struct{}
 
 func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	if _, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(key string, _ string) bool {
-		return strings.HasPrefix(key, "kubernetes.io/cluster/")
+	if _, found := lo.Find(v1.RestrictedTagPatterns, func(exp *regexp.Regexp) bool {
+		for key := range nodeClass.Spec.Tags {
+			if exp.MatchString(key) {
+				return true
+			}
+		}
+		return false
 	}); found {
-		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "tag validation bypassed")
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "NodeClassNotReady", "tag validation bypassed")
 		return reconcile.Result{}, fmt.Errorf("tag validation bypassed")
 	}
-	if ok := nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded); !ok {
-		return reconcile.Result{Requeue: true}, nil
-	}
+	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 	return reconcile.Result{}, nil
 }
