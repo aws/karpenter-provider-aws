@@ -54,7 +54,9 @@ var _ = Describe("TerminationGracePeriod", func() {
 				return t.MatchTaint(&karpv1.DisruptedNoScheduleTaint)
 			})
 			g.Expect(ok).To(BeTrue())
-		}).WithTimeout(3 * time.Second).WithPolling(100 * time.Millisecond).Should(Succeed())
+			//Reduced polling time from 100 to 50 to mitigate flakes
+			//TODO Investigate root cause of timing sensitivity and restructure test
+		}).WithTimeout(3 * time.Second).WithPolling(50 * time.Millisecond).Should(Succeed())
 
 		// Check that pod remains healthy until termination grace period
 		// subtract the polling time of the eventually above to reduce any races.

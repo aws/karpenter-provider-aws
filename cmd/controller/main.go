@@ -63,6 +63,7 @@ func main() {
 			op.PricingProvider,
 			op.AMIProvider,
 			op.LaunchTemplateProvider,
+			op.VersionProvider,
 			op.InstanceTypesProvider,
 		)...).
 		Start(ctx)

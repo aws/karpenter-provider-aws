@@ -21,13 +21,17 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/record"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	karpcloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	controllersinstancetypecapacity "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/capacity"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 
@@ -65,7 +69,7 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...), coretest.WithFieldIndexers(coretest.NodeClaimFieldIndexer(ctx)))
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...), coretest.WithFieldIndexers(coretest.NodeClaimProviderIDFieldIndexer(ctx)))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 		VMMemoryOverheadPercent: lo.ToPtr[float64](0.075),
@@ -75,7 +79,9 @@ var _ = BeforeSuite(func() {
 	nodeClass = test.EC2NodeClass()
 	nodeClaim = coretest.NodeClaim()
 	node = coretest.Node()
-	controller = controllersinstancetypecapacity.NewController(env.Client, awsEnv.InstanceTypesProvider)
+	cloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
+	controller = controllersinstancetypecapacity.NewController(env.Client, cloudProvider, awsEnv.InstanceTypesProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -109,8 +115,9 @@ var _ = Describe("CapacityCache", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-node",
 				Labels: map[string]string{
-					corev1.LabelInstanceTypeStable: "t3.medium",
-					karpv1.NodeRegisteredLabelKey:  "true",
+					corev1.LabelInstanceTypeStable:   "t3.medium",
+					karpv1.NodeRegisteredLabelKey:    "true",
+					"karpenter.k8s.aws/ec2nodeclass": nodeClass.Name,
 				},
 			},
 			Capacity: corev1.ResourceList{
@@ -125,7 +132,9 @@ var _ = Describe("CapacityCache", func() {
 			},
 			Spec: karpv1.NodeClaimSpec{
 				NodeClassRef: &karpv1.NodeClassReference{
-					Name: nodeClass.Name,
+					Group: object.GVK(nodeClass).Group,
+					Kind:  object.GVK(nodeClass).Kind,
+					Name:  nodeClass.Name,
 				},
 				Requirements: make([]karpv1.NodeSelectorRequirementWithMinValues, 0),
 			},
@@ -140,7 +149,7 @@ var _ = Describe("CapacityCache", func() {
 		ExpectObjectReconciled(ctx, env.Client, controller, node)
 		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
-		i, ok := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
+		i, ok := lo.Find(instanceTypes, func(i *karpcloudprovider.InstanceType) bool {
 			return i.Name == "t3.medium"
 		})
 		Expect(ok).To(BeTrue())
@@ -155,7 +164,7 @@ var _ = Describe("CapacityCache", func() {
 		ExpectObjectReconciled(ctx, env.Client, controller, node)
 		instanceTypesNoCache, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
-		i, ok := lo.Find(instanceTypesNoCache, func(i *cloudprovider.InstanceType) bool {
+		i, ok := lo.Find(instanceTypesNoCache, func(i *karpcloudprovider.InstanceType) bool {
 			return i.Name == "t3.medium"
 		})
 		Expect(ok).To(BeTrue())

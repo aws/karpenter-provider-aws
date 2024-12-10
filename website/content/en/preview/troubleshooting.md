@@ -362,6 +362,84 @@ This can be spot checked like shown above, or monitored via the following metric
 operator_status_condition_count{type="ConsistentStateFound",kind="NodeClaim",status="False"}
 ```
 
+### Karpenter Is Unable to Satisfy Topology Spread Constraint
+
+When scheduling pods with TopologySpreadConstraints, Karpenter will attempt to spread the pods across all eligible domains.
+Eligible domains are determined based on the pod's requirements, e.g. node affinity terms.
+However, pod's do not inherit the requirements of compatible NodePools.
+
+For example, consider the following NodePool and Deployment specs:
+
+```yaml
+appVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    spec:
+      requirements:
+      - key: topology.kubernetes.io/zone
+        operator: Exists
+---
+appVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: np-zonal-constraint
+  labels:
+    project: zone-specific-project
+spec:
+  template:
+    spec:
+      requirements:
+      - key: topology.kubernetes.io/zone
+        operator: In
+        values: ['us-east-1a', 'us-east-1b']
+      # ...
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inflate
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: inflate
+  template:
+    metadata:
+      labels:
+        app: inflate
+    spec:
+      nodeSelector:
+        project: zone-specific-project
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: inflate
+```
+
+This cluster has subnets in three availability zones: `us-east-1a`, `us-east-1b`, and `us-east-1c`.
+NodePool `default` can launch instance types in all three zones, but `np-zonal-constraint` is constrained to two.
+Since Karpenter uses the pod's requirements to derive eligible domains, and the pod does not have any zonal constraints, all three availability zones are considered eligible domains.
+However, the only NodePool compatible with the pod's requirements is `np-zonal-constraints`, which can only create instances in two of the three eligible domains.
+Karpenter will succeed to launch the first two instances, for the first two replicas, but will fail to provision capacity for subsequent replicas since it can't provision capacity in the third domain.
+
+In order to prevent these scenarios, you should ensure that all eligible domains for a pod can be provisioned by compatible NodePools, or constrain the pod such that it's eligble domains match those of the NodePools.
+To resolve this specific issue, zonal constraints should be added to the pod spec to match the requirements of `np-zonal-constraint`:
+```yaml
+nodeAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:
+    nodeSelectorTerms:
+      - matchExpressions:
+          - key: topology.kubernetes.io/zone
+            operator: In
+            values: ['us-east-1a', 'us-east-1b']
+```
+
 ## Deprovisioning
 
 ### Nodes not deprovisioned

@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 )
@@ -54,32 +55,32 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudPr
 func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "instance.garbagecollection")
 
-	// We LIST machines on the CloudProvider BEFORE we grab Machines/Nodes on the cluster so that we make sure that, if
-	// LISTing instances takes a long time, our information is more updated by the time we get to Machine and Node LIST
-	// This works since our CloudProvider instances are deleted based on whether the Machine exists or not, not vise-versa
-	retrieved, err := c.cloudProvider.List(ctx)
+	// We LIST NodeClaims on the CloudProvider BEFORE we grab NodeClaims/Nodes on the cluster so that we make sure that, if
+	// LISTing cloudNodeClaims takes a long time, our information is more updated by the time we get to Node and NodeClaim LIST
+	// This works since our CloudProvider cloudNodeClaims are deleted based on whether the Machine exists or not, not vise-versa
+	cloudNodeClaims, err := c.cloudProvider.List(ctx)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
+		return reconcile.Result{}, fmt.Errorf("listing cloudprovider nodeclaims, %w", err)
 	}
-	managedRetrieved := lo.Filter(retrieved, func(nc *karpv1.NodeClaim, _ int) bool {
+	// Filter out any cloudprovider NodeClaim which is already terminating
+	cloudNodeClaims = lo.Filter(cloudNodeClaims, func(nc *karpv1.NodeClaim, _ int) bool {
 		return nc.DeletionTimestamp.IsZero()
 	})
-	nodeClaimList := &karpv1.NodeClaimList{}
-	if err = c.kubeClient.List(ctx, nodeClaimList); err != nil {
+	clusterNodeClaims, err := nodeclaimutils.ListManaged(ctx, c.kubeClient, c.cloudProvider)
+	if err != nil {
 		return reconcile.Result{}, err
 	}
+	clusterProviderIDs := sets.New(lo.FilterMap(clusterNodeClaims, func(nc *karpv1.NodeClaim, _ int) (string, bool) {
+		return nc.Status.ProviderID, nc.Status.ProviderID != ""
+	})...)
 	nodeList := &corev1.NodeList{}
 	if err = c.kubeClient.List(ctx, nodeList); err != nil {
 		return reconcile.Result{}, err
 	}
-	resolvedProviderIDs := sets.New[string](lo.FilterMap(nodeClaimList.Items, func(n karpv1.NodeClaim, _ int) (string, bool) {
-		return n.Status.ProviderID, n.Status.ProviderID != ""
-	})...)
-	errs := make([]error, len(retrieved))
-	workqueue.ParallelizeUntil(ctx, 100, len(managedRetrieved), func(i int) {
-		if !resolvedProviderIDs.Has(managedRetrieved[i].Status.ProviderID) &&
-			time.Since(managedRetrieved[i].CreationTimestamp.Time) > time.Second*30 {
-			errs[i] = c.garbageCollect(ctx, managedRetrieved[i], nodeList)
+	errs := make([]error, len(cloudNodeClaims))
+	workqueue.ParallelizeUntil(ctx, 100, len(cloudNodeClaims), func(i int) {
+		if nc := cloudNodeClaims[i]; !clusterProviderIDs.Has(nc.Status.ProviderID) && time.Since(nc.CreationTimestamp.Time) > time.Second*30 {
+			errs[i] = c.garbageCollect(ctx, cloudNodeClaims[i], nodeList)
 		}
 	})
 	if err = multierr.Combine(errs...); err != nil {

@@ -109,16 +109,17 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				karpv1.NodePoolLabelKey:        nodePool.Name,
 				corev1.LabelInstanceTypeStable: "c5.large",
 				// Well Known to AWS
-				v1.LabelInstanceHypervisor:       "nitro",
-				v1.LabelInstanceCategory:         "c",
-				v1.LabelInstanceGeneration:       "5",
-				v1.LabelInstanceFamily:           "c5",
-				v1.LabelInstanceSize:             "large",
-				v1.LabelInstanceCPU:              "2",
-				v1.LabelInstanceCPUManufacturer:  "intel",
-				v1.LabelInstanceMemory:           "4096",
-				v1.LabelInstanceEBSBandwidth:     "4750",
-				v1.LabelInstanceNetworkBandwidth: "750",
+				v1.LabelInstanceHypervisor:                "nitro",
+				v1.LabelInstanceCategory:                  "c",
+				v1.LabelInstanceGeneration:                "5",
+				v1.LabelInstanceFamily:                    "c5",
+				v1.LabelInstanceSize:                      "large",
+				v1.LabelInstanceCPU:                       "2",
+				v1.LabelInstanceCPUManufacturer:           "intel",
+				v1.LabelInstanceCPUSustainedClockSpeedMhz: "3400",
+				v1.LabelInstanceMemory:                    "4096",
+				v1.LabelInstanceEBSBandwidth:              "4750",
+				v1.LabelInstanceNetworkBandwidth:          "750",
 			}
 			selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 			requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {

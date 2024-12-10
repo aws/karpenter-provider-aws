@@ -13,28 +13,21 @@ This guide contains information needed to upgrade to the latest release of Karpe
 ### CRD Upgrades
 
 Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are published:
-* As an independent helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd) that can be used by Helm to manage the lifecycle of these CRDs. To upgrade or install `karpenter-crd` run:
+* As an independent Helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd) ([source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd)) that can be used by Helm to manage the lifecycle of these CRDs. To upgrade or install `karpenter-crd` run:
   ```bash
-  KARPENTER_NAMESPACE=karpenter
+  KARPENTER_NAMESPACE=kube-system
   helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace "${KARPENTER_NAMESPACE}" --create-namespace
   ```
+* As part of the helm chart [karpenter](https://gallery.ecr.aws/karpenter/karpenter) ([source](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds)).
+  Helm [does not manage the lifecycle of CRDs using this method](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/) - the tool will only install the CRD during the first installation of the Helm chart.
+  Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed.
+
+CRDs are coupled to the version of Karpenter, and should be updated along with Karpenter.
+For this reason, we recommend using the independent `karpenter-crd` chart to manage CRDs.
 
 {{% alert title="Note" color="warning" %}}
-If you get the error `invalid ownership metadata; label validation error:` while installing the `karpenter-crd` chart from an older version of Karpenter, follow the [Troubleshooting Guide]({{<ref "../troubleshooting#helm-error-when-upgrading-from-older-karpenter-version" >}}) for details on how to resolve these errors.
+If you get the error `invalid ownership metadata; label validation error:` while installing the `karpenter-crd` chart from an older version of Karpenter, follow the [Troubleshooting Guide]({{<ref "../troubleshooting/#helm-error-when-upgrading-from-older-karpenter-version" >}}) for details on how to resolve these errors.
 {{% /alert %}}
-
-* As part of the helm chart [karpenter](https://gallery.ecr.aws/karpenter/karpenter) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds). Helm [does not manage the lifecycle of CRDs using this method](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/), the tool will only install the CRD during the first installation of the helm chart. Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed. When CRDs are changed, we will make a note in the version's upgrade guide.
-
-In general, you can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
-
-```shell
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.10/pkg/apis/crds/karpenter.sh_provisioners.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.10/pkg/apis/crds/karpenter.sh_machines.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.10/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.10/pkg/apis/crds/karpenter.sh_nodepools.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.10/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.10/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
-```
 
 ### Upgrading to v0.32.0+
 

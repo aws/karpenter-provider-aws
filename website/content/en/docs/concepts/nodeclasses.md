@@ -207,7 +207,7 @@ status:
       status: "True"
       type: Ready
 ```
-Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable to all providers. To explore various `EC2NodeClass` configurations, refer to the examples provided [in the Karpenter Github repository](https://github.com/aws/karpenter/blob/v1.0.8/examples/v1/).
+Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable to all providers. To explore various `EC2NodeClass` configurations, refer to the examples provided [in the Karpenter Github repository](https://github.com/aws/karpenter/blob/v1.1.0/examples/v1/).
 
 
 ## spec.kubelet
@@ -272,7 +272,7 @@ spec:
           registryPullQPS: 10
 ```
 
-Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kublet` and `spec.userData`.
+Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kubelet` and `spec.userData`.
 {{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
@@ -740,19 +740,19 @@ The following commands can be used to determine the versions availble for an ali
 {{< tabpane text=true right=false >}}
   {{% tab "AL2023" %}}
   ```bash
-  export K8S_VERSION="{{< param "latest_k8s_version" >}}"
+  export K8S_VERSION="1.31"
   aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2023/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $10}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
   ```
   {{% /tab %}}
   {{% tab "AL2" %}}
   ```bash
-  export K8S_VERSION="{{< param "latest_k8s_version" >}}"
+  export K8S_VERSION="1.31"
   aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $8}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
   ```
   {{% /tab %}}
   {{% tab "Bottlerocket" %}}
   ```bash
-  export K8S_VERSION="{{< param "latest_k8s_version" >}}"
+  export K8S_VERSION="1.31"
   aws ssm get-parameters-by-path --path "/aws/service/bottlerocket/aws-k8s-$K8S_VERSION" --recursive | jq -cr '.Parameters[].Name' | grep -v "latest" | awk -F '/' '{print $7}' | sort | uniq
   ```
   {{% /tab %}}
@@ -1041,7 +1041,7 @@ spec:
     chown -R ec2-user ~ec2-user/.ssh
 ```
 
-For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/v1.0.8/examples/v1).
+For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/v1.1.0/examples/v1).
 
 Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#specamifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
 
