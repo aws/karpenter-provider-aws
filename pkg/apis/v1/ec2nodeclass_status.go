@@ -23,6 +23,7 @@ const (
 	ConditionTypeSubnetsReady         = "SubnetsReady"
 	ConditionTypeSecurityGroupsReady  = "SecurityGroupsReady"
 	ConditionTypeAMIsReady            = "AMIsReady"
+	ConditionTypeAMIsDeprecated       = "AMIsDeprecated"
 	ConditionTypeInstanceProfileReady = "InstanceProfileReady"
 )
 
@@ -54,6 +55,9 @@ type AMI struct {
 	// ID of the AMI
 	// +required
 	ID string `json:"id"`
+	// Deprecation status of the AMI
+	// +optional
+	Deprecated bool `json:"deprecated,omitempty"`
 	// Name of the AMI
 	// +optional
 	Name string `json:"name,omitempty"`
@@ -64,11 +68,11 @@ type AMI struct {
 
 // EC2NodeClassStatus contains the resolved state of the EC2NodeClass
 type EC2NodeClassStatus struct {
-	// Subnets contains the current Subnet values that are available to the
+	// Subnets contains the current subnet values that are available to the
 	// cluster under the subnet selectors.
 	// +optional
 	Subnets []Subnet `json:"subnets,omitempty"`
-	// SecurityGroups contains the current Security Groups values that are available to the
+	// SecurityGroups contains the current security group values that are available to the
 	// cluster under the SecurityGroups selectors.
 	// +optional
 	SecurityGroups []SecurityGroup `json:"securityGroups,omitempty"`

@@ -1,6 +1,6 @@
 cat <<EOF | envsubst | kubectl apply -f -
 ---
-apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+apiVersion: flowcontrol.apiserver.k8s.io/v1
 kind: FlowSchema
 metadata:
   name: karpenter-leader-election
@@ -13,22 +13,23 @@ spec:
   rules:
   - resourceRules:
     - apiGroups:
-        - coordination.k8s.io
+      - coordination.k8s.io
       namespaces:
-        - '*'
+      - '*'
       resources:
-        - leases
+      - leases
       verbs:
-        - get
-        - create
-        - update
+      - get
+      - create
+      - update
     subjects:
-      - kind: ServiceAccount
-        serviceAccount:
-          name: karpenter
-          namespace: "${KARPENTER_NAMESPACE}"
+    - kind: ServiceAccount
+      serviceAccount:
+        name: karpenter
+        namespace: "${KARPENTER_NAMESPACE}"
+
 ---
-apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+apiVersion: flowcontrol.apiserver.k8s.io/v1
 kind: FlowSchema
 metadata:
   name: karpenter-workload
@@ -39,24 +40,24 @@ spec:
   priorityLevelConfiguration:
     name: workload-high
   rules:
-    - nonResourceRules:
-        - nonResourceURLs:
-            - '*'
-          verbs:
-            - '*'
-      resourceRules:
-        - apiGroups:
-            - '*'
-          clusterScope: true
-          namespaces:
-            - '*'
-          resources:
-            - '*'
-          verbs:
-            - '*'
-      subjects:
-        - kind: ServiceAccount
-          serviceAccount:
-            name: karpenter
-            namespace: "${KARPENTER_NAMESPACE}"
+  - nonResourceRules:
+    - nonResourceURLs:
+      - '*'
+      verbs:
+      - '*'
+    resourceRules:
+    - apiGroups:
+      - '*'
+      clusterScope: true
+      namespaces:
+      - '*'
+      resources:
+      - '*'
+      verbs:
+      - '*'
+    subjects:
+    - kind: ServiceAccount
+      serviceAccount:
+        name: karpenter
+        namespace: "${KARPENTER_NAMESPACE}"
 EOF

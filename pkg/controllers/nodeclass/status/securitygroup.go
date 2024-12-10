@@ -40,7 +40,9 @@ func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeCla
 	if len(securityGroups) == 0 && len(nodeClass.Spec.SecurityGroupSelectorTerms) > 0 {
 		nodeClass.Status.SecurityGroups = nil
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeSecurityGroupsReady, "SecurityGroupsNotFound", "SecurityGroupSelector did not match any SecurityGroups")
-		return reconcile.Result{}, nil
+		// If users have omitted the necessary tags from their SecurityGroups and later add them, we need to reprocess the information.
+		// Returning 'ok' in this case means that the nodeclass will remain in an unready state until the component is restarted.
+		return reconcile.Result{RequeueAfter: time.Minute}, nil
 	}
 	sort.Slice(securityGroups, func(i, j int) bool {
 		return *securityGroups[i].GroupId < *securityGroups[j].GroupId

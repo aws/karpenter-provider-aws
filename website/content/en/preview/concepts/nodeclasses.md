@@ -1464,7 +1464,7 @@ status:
 
 ## status.amis
 
-[`status.amis`]({{< ref "#statusamis" >}}) contains the resolved `id`, `name`, and `requirements` of either the default AMIs for the [`spec.amiFamily`]({{< ref "#specamifamily" >}}) or the AMIs selected by the [`spec.amiSelectorTerms`]({{< ref "#specamiselectorterms" >}}) if this field is specified.
+[`status.amis`]({{< ref "#statusamis" >}}) contains the resolved `id`, `name`, `requirements`, and the `deprecated` status of either the default AMIs for the [`spec.amiFamily`]({{< ref "#specamifamily" >}}) or the AMIs selected by the [`spec.amiSelectorTerms`]({{< ref "#specamiselectorterms" >}}) if this field is specified. The `deprecated` status will be shown for resolved AMIs that are deprecated.
 
 #### Examples
 
@@ -1529,6 +1529,7 @@ status:
   amis:
   - id: ami-01234567890123456
     name: custom-ami-amd64
+    deprecated: true
     requirements:
     - key: kubernetes.io/arch
       operator: In
@@ -1565,7 +1566,8 @@ NodeClasses have the following status conditions:
 | SubnetsReady         | Subnets are discovered.                                                                                                                                                                                                           |
 | SecurityGroupsReady  | Security Groups are discovered.                                                                                                                                                                                                   |
 | InstanceProfileReady | Instance Profile is discovered.                                                                                                                                                                                                   |
-| AMIsReady            | AMIs are discovered                                                                                                                                                                                                               |
+| AMIsReady            | AMIs are discovered.                                                                                                                                                                                                            |
+| AMIsDeprecated       | AMIs are discovered, but they are deprecated. Individual deprecated AMIs can be identified by reviewing the `status.amis`.                                                                                                                                                                                                                 |
 | Ready                | Top level condition that indicates if the nodeClass is ready. If any of the underlying conditions is `False` then this condition is set to `False` and `Message` on the condition indicates the dependency that was not resolved. |
 
 If a NodeClass is not ready, NodePools that reference it through their `nodeClassRef` will not be considered for scheduling.
