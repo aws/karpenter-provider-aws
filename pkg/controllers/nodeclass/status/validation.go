@@ -29,7 +29,7 @@ import (
 type Validation struct{}
 
 func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	if _, found := lo.Find(v1.RestrictedTagPatterns, func(exp *regexp.Regexp) bool {
+	if offendingTag, found := lo.Find(v1.RestrictedTagPatterns, func(exp *regexp.Regexp) bool {
 		for key := range nodeClass.Spec.Tags {
 			if exp.MatchString(key) {
 				return true
@@ -37,8 +37,9 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		}
 		return false
 	}); found {
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "NodeClassNotReady", "tag validation bypassed")
-		return reconcile.Result{}, fmt.Errorf("tag validation bypassed")
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "TagValidationFailed",
+			fmt.Sprintf("%q tag does not pass tag validation requirements", offendingTag))
+		return reconcile.Result{}, fmt.Errorf("%q tag does not pass tag validation requirements", offendingTag)
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 	return reconcile.Result{}, nil

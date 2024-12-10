@@ -17,7 +17,6 @@ package cloudprovider_test
 import (
 	"context"
 	"fmt"
-	"maps"
 	"net"
 	"strings"
 	"testing"
@@ -49,7 +48,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
@@ -82,22 +80,9 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	tagStruct := apiextensionsv1.JSONSchemaProps{}
-	for _, crd := range apis.CRDs {
-		if crd.Name != "ec2nodeclasses.karpenter.k8s.aws" {
-			continue
-		}
-		tagStruct.Description = crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["tags"].Description
-		tagStruct.Type = crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["tags"].Type
-		tagStruct.AdditionalProperties = crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["tags"].AdditionalProperties
-		tagStruct.XValidations = nil
-		maps.DeleteFunc(crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties, func(key string, val apiextensionsv1.JSONSchemaProps) bool {
-			return key == "tags"
-		})
-		maps.Copy(crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties, map[string]apiextensionsv1.JSONSchemaProps{"tags": tagStruct})
-	}
+	crds := test.RemoveNodeClassTagValidation(apis.CRDs)
 
-	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(crds...), coretest.WithCRDs(v1alpha1.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
