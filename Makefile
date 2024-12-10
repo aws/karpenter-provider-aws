@@ -107,6 +107,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	bash -c 'source ./hack/validation/requirements.sh && injectDomainRequirementRestrictions "karpenter.k8s.aws"'
 	bash -c 'source ./hack/validation/labels.sh && injectDomainLabelRestrictions "karpenter.k8s.aws"'
 	cp pkg/apis/crds/* charts/karpenter-crd/templates
+	hack/mutation/crd_annotations.sh
 	hack/github/dependabot.sh
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
