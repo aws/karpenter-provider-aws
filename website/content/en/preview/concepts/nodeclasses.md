@@ -1566,8 +1566,7 @@ NodeClasses have the following status conditions:
 | SubnetsReady         | Subnets are discovered.                                                                                                                                                                                                           |
 | SecurityGroupsReady  | Security Groups are discovered.                                                                                                                                                                                                   |
 | InstanceProfileReady | Instance Profile is discovered.                                                                                                                                                                                                   |
-| AMIsReady            | AMIs are discovered.                                                                                                                                                                                                            |
-| AMIsDeprecated       | AMIs are discovered, but they are deprecated. Individual deprecated AMIs can be identified by reviewing the `status.amis`.                                                                                                                                                                                                                 |
+| AMIsReady            | AMIs are discovered.                                                |
 | Ready                | Top level condition that indicates if the nodeClass is ready. If any of the underlying conditions is `False` then this condition is set to `False` and `Message` on the condition indicates the dependency that was not resolved. |
 
 If a NodeClass is not ready, NodePools that reference it through their `nodeClassRef` will not be considered for scheduling.

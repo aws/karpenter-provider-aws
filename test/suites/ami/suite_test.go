@@ -178,7 +178,6 @@ var _ = Describe("AMI", func() {
 		Expect(len(nc.Status.AMIs)).To(BeNumerically("==", 1))
 		Expect(nc.Status.AMIs[0].Deprecated).To(BeTrue())
 		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeAMIsReady, Status: metav1.ConditionTrue})
-		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeAMIsDeprecated, Status: metav1.ConditionTrue})
 	})
 	It("should prioritize launch with non-deprecated AMIs", func() {
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)

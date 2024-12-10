@@ -377,7 +377,8 @@ var _ = Describe("Drift", func() {
 
 		By("validating the deprecated status condition has propagated")
 		Eventually(func(g Gomega) {
-			g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsDeprecated).IsTrue()).To(BeTrue())
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).Should(Succeed())
+			g.Expect(nodeClass.Status.AMIs[0].Deprecated).To(BeTrue())
 			g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 
@@ -397,10 +398,8 @@ var _ = Describe("Drift", func() {
 		pod = env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(amdAMI))))
 
-		By("validating the deprecated status condition has been removed")
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).Should(Succeed())
-			g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsDeprecated)).To(BeNil())
 			g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 	})
