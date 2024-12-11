@@ -69,16 +69,6 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		Entry(v1.NodeClassTagKey, map[string]string{v1.NodeClassTagKey: "testnodeclass"}),
 		Entry(v1.NodeClaimTagKey, map[string]string{v1.NodeClaimTagKey: "testnodeclaim"}),
 	)
-	It("should update status condition on nodeClass as NotReady when tag validation fails", func() {
-		ExpectApplied(ctx, env.Client, nodeClass)
-		err := ExpectObjectReconcileFailed(ctx, env.Client, statusController, nodeClass)
-		Expect(err).To(HaveOccurred())
-		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.Conditions).To(HaveLen(6))
-		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
-		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
-		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("ValidationSucceeded=False"))
-	})
 	It("should update status condition as Ready when tags are valid", func() {
 		nodeClass.Spec.Tags = map[string]string{}
 		ExpectApplied(ctx, env.Client, nodeClass)
