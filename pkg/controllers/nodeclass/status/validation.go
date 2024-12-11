@@ -17,7 +17,6 @@ package status
 import (
 	"context"
 	"fmt"
-	"regexp"
 
 	"github.com/samber/lo"
 
@@ -29,11 +28,9 @@ import (
 type Validation struct{}
 
 func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	var offendingTag string
-	if _, found := lo.Find(v1.RestrictedTagPatterns, func(exp *regexp.Regexp) bool {
-		for key := range nodeClass.Spec.Tags {
-			if exp.MatchString(key) {
-				offendingTag = key
+	if offendingTag, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(k string, v string) bool {
+		for _, exp := range v1.RestrictedTagPatterns {
+			if exp.MatchString(k) {
 				return true
 			}
 		}
@@ -41,7 +38,7 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	}); found {
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "TagValidationFailed",
 			fmt.Sprintf("%q tag does not pass tag validation requirements", offendingTag))
-		return reconcile.Result{}, fmt.Errorf("%q tag does not pass tag validation requirements", offendingTag)
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("%q tag does not pass tag validation requirements", offendingTag))
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 	return reconcile.Result{}, nil

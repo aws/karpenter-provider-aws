@@ -18,7 +18,6 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
-	"regexp"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -239,11 +238,9 @@ func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
 }
 
 func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) (map[string]string, error) {
-	var offendingTag string
-	if _, found := lo.Find(v1.RestrictedTagPatterns, func(exp *regexp.Regexp) bool {
-		for key := range nodeClass.Spec.Tags {
-			if exp.MatchString(key) {
-				offendingTag = key
+	if offendingTag, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(k string, v string) bool {
+		for _, exp := range v1.RestrictedTagPatterns {
+			if exp.MatchString(k) {
 				return true
 			}
 		}

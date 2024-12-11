@@ -80,9 +80,7 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	crds := test.RemoveNodeClassTagValidation(apis.CRDs)
-
-	env = coretest.NewEnvironment(coretest.WithCRDs(crds...), coretest.WithCRDs(v1alpha1.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(test.RemoveNodeClassTagValidation(apis.CRDs)...), coretest.WithCRDs(v1alpha1.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
