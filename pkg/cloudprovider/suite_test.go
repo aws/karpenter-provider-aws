@@ -80,7 +80,7 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(test.RemoveNodeClassTagValidation(apis.CRDs)...), coretest.WithCRDs(v1alpha1.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
@@ -209,6 +209,14 @@ var _ = Describe("CloudProvider", func() {
 	It("should return NodeClassNotReady error on creation if NodeClass is not ready", func() {
 		nodeClass.StatusConditions().SetFalse(opstatus.ConditionReady, "NodeClassNotReady", "NodeClass not ready")
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		_, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(HaveOccurred())
+		Expect(corecloudprovider.IsNodeClassNotReadyError(err)).To(BeTrue())
+	})
+	It("should return NodeClassNotReady error on creation if NodeClass tag validation fails", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		nodeClass.Spec.Tags = map[string]string{"kubernetes.io/cluster/thewrongcluster": "owned"}
+		ExpectApplied(ctx, env.Client, nodeClass)
 		_, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(HaveOccurred())
 		Expect(corecloudprovider.IsNodeClassNotReadyError(err)).To(BeTrue())
