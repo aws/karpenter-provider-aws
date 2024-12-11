@@ -15,7 +15,7 @@ limitations under the License.
 package status_test
 
 import (
-	"github.com/awslabs/operatorpkg/status"
+	status "github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -26,7 +26,7 @@ import (
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
-var _ = Describe("NodeClass Status Condition Controller", func() {
+var _ = Describe("NodeClass Validation Status Controller", func() {
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
 			Spec: v1.EC2NodeClassSpec{
@@ -46,27 +46,36 @@ var _ = Describe("NodeClass Status Condition Controller", func() {
 						Tags: map[string]string{"*": "*"},
 					},
 				},
+				Tags: map[string]string{
+					"kubernetes.io/cluster/anothercluster": "owned",
+				},
 			},
 		})
 	})
-	It("should update status condition on nodeClass as Ready", func() {
+	DescribeTable("should update status condition on nodeClass as NotReady when tag validation fails", func(illegalTag map[string]string) {
+		nodeClass.Spec.Tags = illegalTag
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		err := ExpectObjectReconcileFailed(ctx, env.Client, statusController, nodeClass)
+		Expect(err).To(HaveOccurred())
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Conditions).To(HaveLen(6))
-		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
-	})
-	It("should update status condition as Not Ready", func() {
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
-			{
-				Tags: map[string]string{"foo": "invalid"},
-			},
-		}
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("ValidationSucceeded=False"))
+	},
+		Entry("kubernetes.io/cluster*", map[string]string{"kubernetes.io/cluster/acluster": "owned"}),
+		Entry(v1.NodePoolTagKey, map[string]string{v1.NodePoolTagKey: "testnodepool"}),
+		Entry(v1.EKSClusterNameTagKey, map[string]string{v1.EKSClusterNameTagKey: "acluster"}),
+		Entry(v1.NodeClassTagKey, map[string]string{v1.NodeClassTagKey: "testnodeclass"}),
+		Entry(v1.NodeClaimTagKey, map[string]string{v1.NodeClaimTagKey: "testnodeclaim"}),
+	)
+	It("should update status condition as Ready when tags are valid", func() {
+		nodeClass.Spec.Tags = map[string]string{}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
-		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("SecurityGroupsReady=False"))
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
 	})
 })

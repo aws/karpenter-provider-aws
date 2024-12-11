@@ -24,6 +24,7 @@ const (
 	ConditionTypeSecurityGroupsReady  = "SecurityGroupsReady"
 	ConditionTypeAMIsReady            = "AMIsReady"
 	ConditionTypeInstanceProfileReady = "InstanceProfileReady"
+	ConditionTypeValidationSucceeded  = "ValidationSucceeded"
 )
 
 // Subnet contains resolved Subnet selector values utilized for node launch
@@ -93,6 +94,7 @@ func (in *EC2NodeClass) StatusConditions() status.ConditionSet {
 		ConditionTypeSubnetsReady,
 		ConditionTypeSecurityGroupsReady,
 		ConditionTypeInstanceProfileReady,
+		ConditionTypeValidationSucceeded,
 	).For(in)
 }
 

@@ -51,6 +51,7 @@ type Controller struct {
 	instanceprofile *InstanceProfile
 	subnet          *Subnet
 	securitygroup   *SecurityGroup
+	validation      *Validation
 	readiness       *Readiness //TODO : Remove this when we have sub status conditions
 }
 
@@ -63,6 +64,7 @@ func NewController(kubeClient client.Client, subnetProvider subnet.Provider, sec
 		subnet:          &Subnet{subnetProvider: subnetProvider},
 		securitygroup:   &SecurityGroup{securityGroupProvider: securityGroupProvider},
 		instanceprofile: &InstanceProfile{instanceProfileProvider: instanceProfileProvider},
+		validation:      &Validation{},
 		readiness:       &Readiness{launchTemplateProvider: launchTemplateProvider},
 	}
 }
@@ -93,6 +95,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		c.subnet,
 		c.securitygroup,
 		c.instanceprofile,
+		c.validation,
 		c.readiness,
 	} {
 		res, err := reconciler.Reconcile(ctx, nodeClass)
