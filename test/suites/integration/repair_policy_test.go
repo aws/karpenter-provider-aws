@@ -73,9 +73,14 @@ var _ = Describe("Repair Policy", func() {
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	},
-		Entry("Readiness", corev1.NodeCondition{
+		Entry("Node Ready False", corev1.NodeCondition{
 			Type:               corev1.NodeReady,
 			Status:             corev1.ConditionFalse,
+			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
+		}),
+		Entry("Node Ready Unknown", corev1.NodeCondition{
+			Type:               corev1.NodeReady,
+			Status:             corev1.ConditionUnknown,
 			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
 		}),
 	)
