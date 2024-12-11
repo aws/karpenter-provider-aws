@@ -638,7 +638,6 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 					},
 				},
 			))
-			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsDeprecated)).To(BeTrue())
 			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
 		})
 		It("should remove AMIDeprecated status condition when non deprecated AMIs are discovered", func() {
@@ -678,7 +677,6 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			))
 			// Checks if both AMIsReady and AMIsDeprecated status conditions are set
-			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsDeprecated)).To(BeTrue())
 			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
 
 			// rediscover AMIs again and reconcile
@@ -740,7 +738,6 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			))
 			// Since all AMIs discovered are non deprecated, the status conditions should remove AMIsDeprecated and only set AMIsReady
-			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsDeprecated)).To(BeNil())
 			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
 		})
 	})

@@ -527,6 +527,7 @@ var (
 		"c7i.12xlarge":        18750,
 		"i4g.8xlarge":         18750,
 		"i4i.8xlarge":         18750,
+		"i8g.16xlarge":        18750,
 		"m6a.12xlarge":        18750,
 		"m6i.12xlarge":        18750,
 		"m6id.12xlarge":       18750,
@@ -689,7 +690,6 @@ var (
 		"i4g.16xlarge":        37500,
 		"i4i.16xlarge":        37500,
 		"i7ie.18xlarge":       37500,
-		"i8g.16xlarge":        37500,
 		"m6a.24xlarge":        37500,
 		"m6i.24xlarge":        37500,
 		"m6id.24xlarge":       37500,
@@ -892,5 +892,8 @@ var (
 		"trn1n.32xlarge":      1600000,
 		"p5.48xlarge":         3200000,
 		"p5e.48xlarge":        3200000,
+		"p5en.48xlarge":       3200000,
+		"trn2.48xlarge":       3200000,
+		"trn2u.48xlarge":      3200000,
 	}
 )

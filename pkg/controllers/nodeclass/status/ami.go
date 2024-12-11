@@ -42,7 +42,9 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 	if len(amis) == 0 {
 		nodeClass.Status.AMIs = nil
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeAMIsReady, "AMINotFound", "AMISelector did not match any AMIs")
-		return reconcile.Result{}, nil
+		// If users have omitted the necessary tags from their AMIs and later add them, we need to reprocess the information.
+		// Returning 'ok' in this case means that the nodeclass will remain in an unready state until the component is restarted.
+		return reconcile.Result{RequeueAfter: time.Minute}, nil
 	}
 	nodeClass.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1.AMI {
 		reqs := lo.Map(ami.Requirements.NodeSelectorRequirements(), func(item karpv1.NodeSelectorRequirementWithMinValues, _ int) corev1.NodeSelectorRequirement {
@@ -63,17 +65,6 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 		}
 	})
 
-	// If deprecated AMIs are discovered set the AMIsDeprecated status condition
-	// If no deprecated AMIs are present, and previous status condition for AMIsDeprecated exists, remove the condition
-	hasDeprecatedAMIs := lo.Filter(nodeClass.Status.AMIs, func(ami v1.AMI, _ int) bool {
-		return ami.Deprecated
-	})
-	hasDeprecatedCondition := nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsDeprecated) != nil
-	if len(hasDeprecatedAMIs) > 0 {
-		nodeClass.StatusConditions().SetTrue(v1.ConditionTypeAMIsDeprecated)
-	} else if hasDeprecatedCondition {
-		_ = nodeClass.StatusConditions().Clear(v1.ConditionTypeAMIsDeprecated)
-	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeAMIsReady)
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
