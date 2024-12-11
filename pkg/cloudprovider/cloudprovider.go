@@ -18,6 +18,8 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"strings"
+	"text/template"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -248,13 +250,41 @@ func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.
 	}); found {
 		return nil, fmt.Errorf("%q tag does not pass tag validation requirements", offendingTag)
 	}
+	clusterName := options.FromContext(ctx).ClusterName
+	nodePoolName := nodeClaim.Labels[karpv1.NodePoolLabelKey]
+	nodeClassName := nodeClass.Name
 	staticTags := map[string]string{
-		fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
-		karpv1.NodePoolLabelKey: nodeClaim.Labels[karpv1.NodePoolLabelKey],
-		v1.EKSClusterNameTagKey: options.FromContext(ctx).ClusterName,
-		v1.LabelNodeClass:       nodeClass.Name,
+		fmt.Sprintf("kubernetes.io/cluster/%s", clusterName): "owned",
+		karpv1.NodePoolLabelKey:                              nodePoolName,
+		v1.EKSClusterNameTagKey:                              clusterName,
+		v1.LabelNodeClass:                                    nodeClassName,
 	}
-	return lo.Assign(nodeClass.Spec.Tags, staticTags), nil
+	tags := lo.Assign(nodeClass.Spec.Tags, staticTags)
+
+	t := template.New("ec2tags")
+	sb := strings.Builder{}
+	type tdata struct {
+		ClusterName   string
+		NodePoolName  string
+		NodeClassName string
+	}
+	for k, v := range tags {
+		sb.Reset()
+		if _, err := t.Parse(v); err != nil {
+			return nil, fmt.Errorf("unable to parse tag %s value `%s` as a go template: %w", k, v, err)
+		}
+		err := t.Execute(&sb, tdata{
+			ClusterName:   clusterName,
+			NodePoolName:  nodePoolName,
+			NodeClassName: nodeClassName,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to execute tag %s value `%s` as a go template: %w", k, v, err)
+		}
+		tags[k] = sb.String()
+	}
+
+	return tags, nil
 }
 
 func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
