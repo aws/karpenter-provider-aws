@@ -17,6 +17,7 @@ package instanceprofile
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -99,9 +100,12 @@ func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, 
 			return "", fmt.Errorf("removing role %q for instance profile %q, %w", aws.ToString(instanceProfile.Roles[0].RoleName), profileName, err)
 		}
 	}
+	// If the role has a path, ignore the path and take the role name only since AddRoleToInstanceProfile
+	// does not support paths in the role name.
+	instanceProfileRoleName := lo.LastOr(strings.Split(m.InstanceProfileRole(), "/"), m.InstanceProfileRole())
 	if _, err = p.iamapi.AddRoleToInstanceProfile(ctx, &iam.AddRoleToInstanceProfileInput{
 		InstanceProfileName: aws.String(profileName),
-		RoleName:            aws.String(m.InstanceProfileRole()),
+		RoleName:            aws.String(instanceProfileRoleName),
 	}); err != nil {
 		return "", fmt.Errorf("adding role %q to instance profile %q, %w", m.InstanceProfileRole(), profileName, err)
 	}
