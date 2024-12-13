@@ -47,6 +47,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Rapid7 | Using Karpenter across all of our Kubernetes infrastructure for efficient autoscaling, both in terms of speed and cost | `@arobinson`, `@Ross Kirk`, `@Ryan Williams` | [Homepage](https://www.rapid7.com/) |
 | Sendcloud | Using Karpenter to scale our k8s clusters for Europe’s #1 shipping automation platform  | N/A | [Homepage](https://www.sendcloud.com/) |
 | Sentra | Using Karpenter to scale our EKS clusters, running our platform and workflows while maximizing cost-efficiency with minimal operational overhead | `@Roei Jacobovich` | [Homepage](https://sentra.io/) |
+| SternumIOT | Using Karpenter to efficiently autoscale & manage our EKS clusters with GitOps, optimizing node lifecycle management for both performance and cost-effectiveness across our Kubernetes workloads | `@itayvolo` `@amitde69` | [SternumIOT](https://sternumiot.com/) |
 | Stone Pagamentos | Using Karpenter to do smart sizing of our clusters  | `@fabiano-amaral` | [Stone Pagamentos](https://www.stone.com.br/) |
 | Stytch | Powering the scaling needs of Stytch's authentication and user-management APIs  | `@Elijah Chanakira`, `@Ovadia Harary` | [Homepage](https://www.stytch.com/) |
 | Superbexperience | Using Karpenter to scale the k8s clusters running our Guest Experience Management platform  | `@Wernich Bekker` | [Homepage](https://www.superbexperience.com/) |
