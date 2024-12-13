@@ -20,12 +20,18 @@ import (
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	"sigs.k8s.io/karpenter/pkg/utils/result"
@@ -34,7 +40,9 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
@@ -52,11 +60,12 @@ type Controller struct {
 	subnet          *Subnet
 	securitygroup   *SecurityGroup
 	validation      *Validation
+	degraded        *Degraded
 	readiness       *Readiness //TODO : Remove this when we have sub status conditions
 }
 
 func NewController(kubeClient client.Client, subnetProvider subnet.Provider, securityGroupProvider securitygroup.Provider,
-	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider) *Controller {
+	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider, instanceTypeProvider instancetype.Provider, instanceProvider instance.Provider) *Controller {
 	return &Controller{
 		kubeClient: kubeClient,
 
@@ -65,6 +74,7 @@ func NewController(kubeClient client.Client, subnetProvider subnet.Provider, sec
 		securitygroup:   &SecurityGroup{securityGroupProvider: securityGroupProvider},
 		instanceprofile: &InstanceProfile{instanceProfileProvider: instanceProfileProvider},
 		validation:      &Validation{},
+		degraded:        &Degraded{kubeClient: kubeClient, instanceProvider: instanceProvider, instanceTypeProvider: instanceTypeProvider},
 		readiness:       &Readiness{launchTemplateProvider: launchTemplateProvider},
 	}
 }
@@ -96,6 +106,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		c.securitygroup,
 		c.instanceprofile,
 		c.validation,
+		c.degraded,
 		c.readiness,
 	} {
 		res, err := reconciler.Reconcile(ctx, nodeClass)
@@ -124,6 +135,22 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		Named("nodeclass.status").
 		For(&v1.EC2NodeClass{}).
+		Watches(
+			&karpv1.NodeClaim{},
+			handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []reconcile.Request {
+				nc := o.(*karpv1.NodeClaim)
+				if nc.Spec.NodeClassRef == nil {
+					return nil
+				}
+				return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: nc.Spec.NodeClassRef.Name}}}
+			}),
+			// Watch for NodeClaim creation events
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool { return false },
+				UpdateFunc: func(e event.UpdateEvent) bool { return false },
+				DeleteFunc: func(e event.DeleteEvent) bool { return true },
+			}),
+		).
 		WithOptions(controller.Options{
 			RateLimiter:             reasonable.RateLimiter(),
 			MaxConcurrentReconciles: 10,

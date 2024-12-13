@@ -242,8 +242,13 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 	} else {
 		createFleetInput.OnDemandOptions = &ec2types.OnDemandOptionsRequest{AllocationStrategy: ec2types.FleetOnDemandAllocationStrategyLowestPrice}
 	}
-
+	createFleetInput.DryRun = lo.ToPtr(true)
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
+	if err != nil && awserrors.IsUnauthorizedError(err) {
+		return ec2types.CreateFleetInstance{}, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("dry run failed, %w", err))
+	}
+	createFleetInput.DryRun = lo.ToPtr(false)
+	createFleetOutput, err = p.ec2Batcher.CreateFleet(ctx, createFleetInput)
 	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, lo.Values(zonalSubnets), capacityType)
 	if err != nil {
 		conditionMessage := "Error creating fleet"

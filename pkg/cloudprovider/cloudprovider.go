@@ -108,6 +108,9 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, cloudprovider.NewNodeClassNotReadyError(err)
 	}
 	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
+	if cloudprovider.IsNodeClassNotReadyError(err) {
+		return nil, err
+	}
 	if err != nil {
 		conditionMessage := "Error creating instance"
 		var createError *cloudprovider.CreateError

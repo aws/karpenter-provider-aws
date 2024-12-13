@@ -106,3 +106,14 @@ func IsLaunchTemplateNotFound(err error) bool {
 	}
 	return false
 }
+
+func IsUnauthorizedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.ErrorCode() == "UnauthorizedOperation"
+	}
+	return false
+}
