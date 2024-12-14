@@ -37,6 +37,20 @@ If you get the error `invalid ownership metadata; label validation error:` while
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+
+### Upgrading to `1.2.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* We have recently updated our labels on `karpenter_voluntary_disruption_queue_failures_total` and `karpenter_nodeclaims_disrupted_total` reason label from camille case to snake case. Therefore these reason labels values on those metrics have now been update as such:
+- Drifted -> drifted
+- Empty -> empty
+- Expired -> expired
+- Underutilized -> underutilized
+
 ### Upgrading to `1.1.0`+
 
 {{% alert title="Warning" color="warning" %}}
