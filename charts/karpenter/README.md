@@ -49,7 +49,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.1.1 \
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.digest | string | `"sha256:51bca600197c7c6e6e0838549664b2c12c3f8dd4b23744ab28202ae97ca5aed1"` | SHA256 digest of the controller image. |
+| controller.image.digest | string | `"sha256:fe383abf1dbc79f164d1cbcfd8edaaf7ce97a43fbd6cb70176011ff99ce57523"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
 | controller.image.tag | string | `"1.1.1"` | Tag of the controller image. |
 | controller.metrics.port | int | `8080` | The container port to use for metrics. |
@@ -76,6 +76,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.1.1 \
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
 | replicas | int | `2` | Number of replicas. |
 | revisionHistoryLimit | int | `10` | The number of old ReplicaSets to retain to allow rollback. |
+| schedulerName | string | `"default-scheduler"` | Specify which Kubernetes scheduler should dispatch the pod. |
 | service.annotations | object | `{}` | Additional annotations for the Service. |
 | serviceAccount.annotations | object | `{}` | Additional annotations for the ServiceAccount. |
 | serviceAccount.create | bool | `true` | Specifies if a ServiceAccount should be created. |
