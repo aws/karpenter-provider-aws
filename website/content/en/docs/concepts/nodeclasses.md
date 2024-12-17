@@ -207,7 +207,7 @@ status:
       status: "True"
       type: Ready
 ```
-Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable to all providers. To explore various `EC2NodeClass` configurations, refer to the examples provided [in the Karpenter Github repository](https://github.com/aws/karpenter/blob/v1.1.0/examples/v1/).
+Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable to all providers. To explore various `EC2NodeClass` configurations, refer to the examples provided [in the Karpenter Github repository](https://github.com/aws/karpenter/blob/v1.1.1/examples/v1/).
 
 
 ## spec.kubelet
@@ -1041,7 +1041,7 @@ spec:
     chown -R ec2-user ~ec2-user/.ssh
 ```
 
-For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/v1.1.0/examples/v1).
+For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/v1.1.1/examples/v1).
 
 Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#specamifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
 
@@ -1464,7 +1464,7 @@ status:
 
 ## status.amis
 
-[`status.amis`]({{< ref "#statusamis" >}}) contains the resolved `id`, `name`, and `requirements` of either the default AMIs for the [`spec.amiFamily`]({{< ref "#specamifamily" >}}) or the AMIs selected by the [`spec.amiSelectorTerms`]({{< ref "#specamiselectorterms" >}}) if this field is specified.
+[`status.amis`]({{< ref "#statusamis" >}}) contains the resolved `id`, `name`, `requirements`, and the `deprecated` status of either the default AMIs for the [`spec.amiFamily`]({{< ref "#specamifamily" >}}) or the AMIs selected by the [`spec.amiSelectorTerms`]({{< ref "#specamiselectorterms" >}}) if this field is specified. The `deprecated` status will be shown for resolved AMIs that are deprecated.
 
 #### Examples
 
@@ -1529,6 +1529,7 @@ status:
   amis:
   - id: ami-01234567890123456
     name: custom-ami-amd64
+    deprecated: true
     requirements:
     - key: kubernetes.io/arch
       operator: In
