@@ -1464,7 +1464,7 @@ status:
 
 ## status.amis
 
-[`status.amis`]({{< ref "#statusamis" >}}) contains the resolved `id`, `name`, and `requirements` of either the default AMIs for the [`spec.amiFamily`]({{< ref "#specamifamily" >}}) or the AMIs selected by the [`spec.amiSelectorTerms`]({{< ref "#specamiselectorterms" >}}) if this field is specified.
+[`status.amis`]({{< ref "#statusamis" >}}) contains the resolved `id`, `name`, `requirements`, and the `deprecated` status of either the default AMIs for the [`spec.amiFamily`]({{< ref "#specamifamily" >}}) or the AMIs selected by the [`spec.amiSelectorTerms`]({{< ref "#specamiselectorterms" >}}) if this field is specified. The `deprecated` status will be shown for resolved AMIs that are deprecated.
 
 #### Examples
 
@@ -1529,6 +1529,7 @@ status:
   amis:
   - id: ami-01234567890123456
     name: custom-ami-amd64
+    deprecated: true
     requirements:
     - key: kubernetes.io/arch
       operator: In
