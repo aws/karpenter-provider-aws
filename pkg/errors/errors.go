@@ -16,6 +16,7 @@ package errors
 
 import (
 	"errors"
+	"strings"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
@@ -105,4 +106,21 @@ func IsLaunchTemplateNotFound(err error) bool {
 		return apiErr.ErrorCode() == launchTemplateNameNotFoundCode
 	}
 	return false
+}
+
+func IsRefreshCredentials(err error) bool {
+	if err == nil {
+		return false
+	}
+	if strings.Contains(err.Error(), "failed to refresh cached credentials") {
+		return true
+	}
+	return false
+}
+
+func IgnoreRefreshCredentials(err error) error {
+	if IsRefreshCredentials(err) {
+		return nil
+	}
+	return err
 }
