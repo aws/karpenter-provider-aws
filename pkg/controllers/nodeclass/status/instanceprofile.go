@@ -19,9 +19,11 @@ import (
 	"fmt"
 
 	"github.com/samber/lo"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 )
 
@@ -32,8 +34,11 @@ type InstanceProfile struct {
 func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if nodeClass.Spec.Role != "" {
 		name, err := ip.instanceProfileProvider.Create(ctx, nodeClass)
-		if err != nil {
+		if awserrors.IgnoreRefreshCredentials(err) != nil {
 			return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
+		} else if err != nil {
+			log.FromContext(ctx).Error(err, "creating instance profile, ")
+			return reconcile.Result{}, nil
 		}
 		nodeClass.Status.InstanceProfile = name
 	} else {
