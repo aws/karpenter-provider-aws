@@ -22,10 +22,10 @@ github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.25 h1:ZntTCl5EsYnhN/IygQ
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.25/go.mod h1:DBdPrgeocww+CSl1C8cEV8PN1mHMBhuCDLpXezyvWkE=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.8.1 h1:VaRN3TlFdd6KxX1x3ILT5ynH6HvKgqdiXoTxAF4HQcQ=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.8.1/go.mod h1:FbtygfRFze9usAadmnGJNc8KsP346kEe+y2/oyhGAGc=
-github.com/aws/aws-sdk-go-v2/service/ec2 v1.195.0 h1:F3pFi50sK30DZ4IkkNpHwTLGeal5c3nlKuvTgv7xec4=
-github.com/aws/aws-sdk-go-v2/service/ec2 v1.195.0/go.mod h1:00zqVNJFK6UASrTnuvjJHJuaqUdkVz5tW8Ip+VhzuNg=
-github.com/aws/aws-sdk-go-v2/service/eks v1.53.0 h1:ACTxnLwL6YNmuYbxtp/VR3HGL9SWXU6VZkXPjWST9ZQ=
-github.com/aws/aws-sdk-go-v2/service/eks v1.53.0/go.mod h1:ZzOjZXGGUQxOq+T3xmfPLKCZe4OaB5vm1LdGaC8IPn4=
+github.com/aws/aws-sdk-go-v2/service/ec2 v1.197.0 h1:Bo20e0LV3Qbkr7yZVGuOxvWbf9Vf3nqss5WyerHr6Ic=
+github.com/aws/aws-sdk-go-v2/service/ec2 v1.197.0/go.mod h1:00zqVNJFK6UASrTnuvjJHJuaqUdkVz5tW8Ip+VhzuNg=
+github.com/aws/aws-sdk-go-v2/service/eks v1.54.0 h1:78/Za9/4c5boz78pcKvJV4WfzVHcFwebpfAUzS6XYUg=
+github.com/aws/aws-sdk-go-v2/service/eks v1.54.0/go.mod h1:ZzOjZXGGUQxOq+T3xmfPLKCZe4OaB5vm1LdGaC8IPn4=
 github.com/aws/aws-sdk-go-v2/service/fis v1.31.2 h1:sgNhe7x7r4SffGdtbZteb0AHqCmw5ZHDIiyMCEl6BWs=
 github.com/aws/aws-sdk-go-v2/service/fis v1.31.2/go.mod h1:MDGBuQGY9Y4zvv6Bi5tDF4Am+D7fRCvk+nUVndGr0l0=
 github.com/aws/aws-sdk-go-v2/service/iam v1.38.2 h1:8iFKuRj/FJipy/aDZ2lbq0DYuEHdrxp0qVsdi+ZEwnE=
@@ -155,8 +155,8 @@ github.com/olekukonko/tablewriter v0.0.5 h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N
 github.com/olekukonko/tablewriter v0.0.5/go.mod h1:hPp6KlRPjbx+hW8ykQs1w3UBbZlj6HuIJcUGPhkA7kY=
 github.com/onsi/ginkgo/v2 v2.22.0 h1:Yed107/8DjTr0lKCNt7Dn8yQ6ybuDRQoMGrNFKzMfHg=
 github.com/onsi/ginkgo/v2 v2.22.0/go.mod h1:7Du3c42kxCUegi0IImZ1wUQzMBVecgIHjR1C+NkhLQo=
-github.com/onsi/gomega v1.36.0 h1:Pb12RlruUtj4XUuPUqeEWc6j5DkVVVA49Uf6YLfC95Y=
-github.com/onsi/gomega v1.36.0/go.mod h1:PvZbdDc8J6XJEpDK4HCuRBm8a6Fzp9/DmhC9C7yFlog=
+github.com/onsi/gomega v1.36.1 h1:bJDPBO7ibjxcbHMgSCoo4Yj18UWbKDlLwX1x9sybDcw=
+github.com/onsi/gomega v1.36.1/go.mod h1:PvZbdDc8J6XJEpDK4HCuRBm8a6Fzp9/DmhC9C7yFlog=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
 github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pelletier/go-toml/v2 v2.2.3 h1:YmeHyLY8mFWbdkNWwpr+qIL2bEqT0o95WSdkNHvL12M=
