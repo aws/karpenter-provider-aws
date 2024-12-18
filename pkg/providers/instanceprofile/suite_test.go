@@ -16,7 +16,10 @@ package instanceprofile_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
@@ -34,6 +37,8 @@ import (
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 )
+
+const nodeRole = "NodeRole"
 
 var ctx context.Context
 var stop context.CancelFunc
@@ -99,5 +104,21 @@ var _ = Describe("InstanceProfileProvider", func() {
 		Expect(err).To(BeNil())
 		Expect(instanceProfile).ToNot(BeNil())
 		Expect(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Tags).To(HaveLen(0))
+	})
+	It("should support IAM roles without custom paths", func() {
+		nodeClass.Spec.Role = nodeRole
+		instanceProfile, err := awsEnv.InstanceProfileProvider.Create(ctx, &nodeClass)
+		Expect(err).To(BeNil())
+		Expect(instanceProfile).ToNot(BeNil())
+		Expect(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Roles).To(HaveLen(1))
+		Expect(aws.ToString(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Roles[0].RoleName)).To(Equal(nodeRole))
+	})
+	It("should support IAM roles with custom paths", func() {
+		nodeClass.Spec.Role = fmt.Sprintf("CustomPath/%s", nodeRole)
+		instanceProfile, err := awsEnv.InstanceProfileProvider.Create(ctx, &nodeClass)
+		Expect(err).To(BeNil())
+		Expect(instanceProfile).ToNot(BeNil())
+		Expect(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Roles).To(HaveLen(1))
+		Expect(aws.ToString(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Roles[0].RoleName)).To(Equal(nodeRole))
 	})
 })
