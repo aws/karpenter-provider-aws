@@ -104,6 +104,8 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		switch {
 		case term.ID != "":
 			idFilter.Values = append(idFilter.Values, term.ID)
+		case term.SSMParameterName != "":
+			p.updateFilterFromCustomParameter(ctx, term.SSMParameterName, &idFilter)
 		default:
 			query := DescribeImageQuery{
 				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{}),
@@ -140,6 +142,17 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		queries = append(queries, DescribeImageQuery{Filters: []ec2types.Filter{idFilter}})
 	}
 	return queries, nil
+}
+
+func (p *DefaultProvider) updateFilterFromCustomParameter(ctx context.Context, ssmParameterName string, idFilter *ec2types.Filter) {
+	imageID, err := p.ssmProvider.GetCustomParameter(ctx, ssm.Parameter{
+		Name: ssmParameterName,
+	})
+	if err != nil {
+		log.FromContext(ctx).WithValues("ssmParameterName", ssmParameterName).V(1).Error(err, "parameter not found")
+	} else {
+		idFilter.Values = append(idFilter.Values, imageID)
+	}
 }
 
 //nolint:gocyclo
