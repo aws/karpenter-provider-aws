@@ -1618,8 +1618,8 @@ essential = true
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
-					Expect(config.Settings.Kubernetes.ClusterDNSIP).ToNot(BeNil())
-					Expect(*config.Settings.Kubernetes.ClusterDNSIP).To(Equal("10.0.100.10"))
+					Expect(len(config.Settings.Kubernetes.ClusterDNSIP)).To(Equal(1))
+					Expect(config.Settings.Kubernetes.ClusterDNSIP[0]).To(Equal("10.0.100.10"))
 				})
 			})
 			It("should pass CPUCFSQuota when specified", func() {
