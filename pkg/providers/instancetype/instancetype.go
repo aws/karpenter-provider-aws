@@ -123,10 +123,15 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		subnetZonesHash,
 		p.instanceTypesResolver.CacheKey(nodeClass),
 	)
-	if item, ok := p.instanceTypesCache.Get(key); ok {
-		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
-		// so that modifications to the ordering of the data don't affect the original
-		return append([]*cloudprovider.InstanceType{}, item.([]*cloudprovider.InstanceType)...), nil
+
+	if p.instanceTypesResolver.UnavailableOfferingsChanged() {
+		p.instanceTypesCache.Flush()
+	} else {
+		if item, ok := p.instanceTypesCache.Get(key); ok {
+			// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
+			// so that modifications to the ordering of the data don't affect the original
+			return append([]*cloudprovider.InstanceType{}, item.([]*cloudprovider.InstanceType)...), nil
+		}
 	}
 
 	// Get all zones across all offerings
@@ -220,7 +225,7 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 	}
 
 	if p.cm.HasChanged("instance-types", instanceTypes) {
-		// Only update instanceTypesSeqNun with the instance types have been changed
+		// Only update instanceTypesSeqNum with the instance types have been changed
 		// This is to not create new keys with duplicate instance types option
 		atomic.AddUint64(&p.instanceTypesSeqNum, 1)
 		log.FromContext(ctx).WithValues(
