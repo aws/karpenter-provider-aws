@@ -295,7 +295,6 @@ This annotation will be ignored for [terminating pods](https://kubernetes.io/doc
 Examples of voluntary node removal that will be prevented by this annotation include:
 - [Consolidation]({{<ref "#consolidation" >}})
 - [Drift]({{<ref "#drift" >}})
-- Expiration
 
 {{% alert title="Note" color="primary" %}}
 Voluntary node removal does not include [Interruption]({{<ref "#interruption" >}}) or manual deletion initiated through `kubectl delete node`. Both of these are considered involuntary events, since node removal cannot be delayed.
