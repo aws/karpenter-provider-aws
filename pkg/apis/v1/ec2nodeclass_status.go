@@ -25,6 +25,7 @@ const (
 	ConditionTypeAMIsReady            = "AMIsReady"
 	ConditionTypeInstanceProfileReady = "InstanceProfileReady"
 	ConditionTypeValidationSucceeded  = "ValidationSucceeded"
+	ConditionTypeNotDegraded          = "NodeclassNotDegraded"
 )
 
 // Subnet contains resolved Subnet selector values utilized for node launch
