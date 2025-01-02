@@ -45,15 +45,18 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.1.1 \
 | additionalLabels | object | `{}` | Additional labels to add into metadata. |
 | affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/nodepool","operator":"DoesNotExist"}]}]}},"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"topologyKey":"kubernetes.io/hostname"}]}}` | Affinity rules for scheduling the pod. If an explicit label selector is not provided for pod affinity or pod anti-affinity one will be created from the pod selector labels. |
 | controller.containerName | string | `"controller"` | Distinguishing container name (containerName: karpenter-controller). |
-| controller.env | list | `[]` | Additional environment variables for the controller pod. |
+| controller.env | list | `[]` | Additional environment variables for the controller container. |
 | controller.envFrom | list | `[]` |  |
-| controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
+| controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller container. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
 | controller.image.digest | string | `"sha256:fe383abf1dbc79f164d1cbcfd8edaaf7ce97a43fbd6cb70176011ff99ce57523"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
 | controller.image.tag | string | `"1.1.1"` | Tag of the controller image. |
 | controller.metrics.port | int | `8080` | The container port to use for metrics. |
-| controller.resources | object | `{}` | Resources for the controller pod. |
+| controller.resources | object | `{}` | Resources for the controller container. |
+| controller.securityContext.appArmorProfile | object | `nil` | The AppArmor options to use by the controller container. |
+| controller.securityContext.seLinuxOptions | object | `nil` | The SELinux context to be applied to the controller container. |
+| controller.securityContext.seccompProfile | object | `{"type":"RuntimeDefault"}` | The seccomp options to use by the controller container. |
 | controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
 | controller.sidecarVolumeMounts | list | `[]` | Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts |
 | dnsConfig | object | `{}` | Configure DNS Config for the pod |
@@ -72,7 +75,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.1.1 \
 | podDisruptionBudget.maxUnavailable | int | `1` |  |
 | podDisruptionBudget.name | string | `"karpenter"` |  |
 | podLabels | object | `{}` | Additional labels for the pod. |
-| podSecurityContext | object | `{"fsGroup":65532}` | SecurityContext for the pod. |
+| podSecurityContext | object | `{"fsGroup":65532,"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | SecurityContext for the pod. |
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
 | replicas | int | `2` | Number of replicas. |
 | revisionHistoryLimit | int | `10` | The number of old ReplicaSets to retain to allow rollback. |
@@ -90,7 +93,6 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.1.1 \
 | settings.clusterCABundle | string | `""` | Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server. |
 | settings.clusterEndpoint | string | `""` | Cluster endpoint. If not set, will be discovered during startup (EKS only) |
 | settings.clusterName | string | `""` | Cluster name. |
-| settings.eksControlPlane | bool | `false` | Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API |
 | settings.featureGates | object | `{"nodeRepair":false,"spotToSpotConsolidation":false}` | Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features |
 | settings.featureGates.nodeRepair | bool | `false` | nodeRepair is ALPHA and is disabled by default. Setting this to true will enable node repair. |
 | settings.featureGates.spotToSpotConsolidation | bool | `false` | spotToSpotConsolidation is ALPHA and is disabled by default. Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation. |
