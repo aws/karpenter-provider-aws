@@ -77,6 +77,10 @@ For example, you could have:
   spec:
     # The latest AMI in this family will be used
     amiFamily: AL2
+    amiSelectorTerms:
+      - alias: "al2@latest"
+    # Or pin to a specific version
+    # - alias: "al2@v20241213"
   ```
 * **Production clusters**: After you've confirmed that the AMI works in your lower environments, you can pin the latest AMIs to be deployed in your production clusters to roll out the AMI. One way to do that is to use `amiSelectorTerms` to set the tested AMI to be used in your production cluster. Refer to Option 2 for how to choose a particular AMI by `name` or `id`. Remember that it is still best practice to gradually roll new AMIs into your cluster, even if they have been tested. So consider implementing that for your production clusters as described in Option 3.
 
