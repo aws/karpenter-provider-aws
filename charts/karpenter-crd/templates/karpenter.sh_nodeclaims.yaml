@@ -38,6 +38,10 @@ spec:
         - jsonPath: .metadata.creationTimestamp
           name: Age
           type: date
+        - jsonPath: .status.imageID
+          name: ImageID
+          priority: 1
+          type: string
         - jsonPath: .status.providerID
           name: ID
           priority: 1
