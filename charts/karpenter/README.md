@@ -18,7 +18,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
   --version 1.1.1 \
   --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}" \
   --set settings.clusterName=${CLUSTER_NAME} \
-  --set settings.interruptionQueue=${CLUSTER_NAME} \
+  --set settings.interruptionQueue=arn:${AWS_PARTITION}:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:${CLUSTER_NAME} \
   --wait
 ```
 
