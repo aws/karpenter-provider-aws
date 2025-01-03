@@ -205,4 +205,40 @@ var _ = Describe("InstanceProvider", func() {
 		retrievedIDs := sets.New[string](lo.Map(instances, func(i *instance.Instance, _ int) string { return i.ID })...)
 		Expect(ids.Equal(retrievedIDs)).To(BeTrue())
 	})
+	It("should not consider subnet with no available IPs for instance creation", func() {
+		// Prepare the context, nodeClass, and nodeClaim as in the other tests
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			
+		awsEnv.EC2API.Subnets.Store(subnetID, ec2types.Subnet{
+			SubnetId:                aws.String(fake.subnetID),
+			AvailableIpAddressCount: aws.Int32(0), // 0 available IPs
+			AvailabilityZone:        aws.String(fake.AvailabilityZone),
+		})
+		
+		// Update the EC2 API mock to include this subnet
+		awsEnv.EC2API.DescribeSubnetsReturns = func(input *ec2.DescribeSubnetsInput) (*ec2.DescribeSubnetsOutput, error) {
+			return &ec2.DescribeSubnetsOutput{
+				Subnets: []ec2types.Subnet{
+					{
+						SubnetId:           aws.String(fake.subnetID),
+						AvailableIpAddressCount: aws.Int32(0), // 0 available IPs
+						AvailabilityZone:   aws.String(fake.AvailabilityZone),
+					},
+				},
+			}, nil
+		}
+	
+		// Now we attempt to create instances
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+	
+		instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool { return i.Name == "m5.xlarge" })
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		
+		// Assert that the instance was not created due to IP exhaustion
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(instance).To(BeNil())
+	})
+	
 })
