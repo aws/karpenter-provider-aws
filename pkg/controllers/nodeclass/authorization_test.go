@@ -15,9 +15,10 @@ limitations under the License.
 package nodeclass_test
 
 import (
+	"github.com/aws/smithy-go"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
-	"github.com/aws/smithy-go"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
