@@ -23,10 +23,11 @@ import (
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
+	"github.com/samber/lo"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
-	"github.com/samber/lo"
 )
 
 type Authorization struct {
@@ -35,6 +36,7 @@ type Authorization struct {
 }
 
 func (a Authorization) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
+	//nolint:ineffassign, staticcheck
 	ctx = context.WithValue(ctx, "DryRun", lo.ToPtr(true))
 	if nodeClass.StatusConditions().Get(v1.ConditionTypeSubnetsReady).IsFalse() || nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsFalse() {
 		return reconcile.Result{}, nil
@@ -48,10 +50,11 @@ func (a Authorization) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass
 			err = a.instanceProvider.CreateTags(ctx, "mock-id", map[string]string{"mock-tag": "mock-tag-value"})
 		}
 	}
+	//nolint:ineffassign, staticcheck
 	ctx = context.WithValue(ctx, "DryRun", lo.ToPtr(false))
 	if corecloudprovider.IsNodeClassNotReadyError(err) {
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeAuthorization, "NodeClassNotReady", "Unauthorized Operation")
-		return reconcile.Result{}, fmt.Errorf("Unauthorized Operation %w", err)
+		return reconcile.Result{}, fmt.Errorf("unauthorized operation %w", err)
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeAuthorization)
 	return reconcile.Result{}, nil

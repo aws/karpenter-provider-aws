@@ -217,7 +217,7 @@ func (e *EC2API) CreateLaunchTemplate(_ context.Context, input *ec2.CreateLaunch
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
 	}
-	if *input.DryRun == false {
+	if !*input.DryRun {
 		e.CalledWithCreateLaunchTemplateInput.Add(input)
 	}
 	launchTemplate := ec2types.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
