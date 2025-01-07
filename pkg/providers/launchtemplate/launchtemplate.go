@@ -191,7 +191,9 @@ func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *ami
 		return launchTemplate.(ec2types.LaunchTemplate), nil
 	}
 	// Attempt to find an existing LT.
+	dryRun := ctx.Value("DryRun") != nil && *(ctx.Value("DryRun").(*bool))
 	output, err := p.ec2api.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
+		DryRun:              &dryRun,
 		LaunchTemplateNames: []string{name},
 	})
 	// Create LT if one doesn't exist
@@ -226,7 +228,9 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 		launchTemplateDataTags = append(launchTemplateDataTags, ec2types.LaunchTemplateTagSpecificationRequest{ResourceType: ec2types.ResourceTypeSpotInstancesRequest, Tags: utils.MergeTags(options.Tags)})
 	}
 	networkInterfaces := p.generateNetworkInterfaces(options)
+	dryRun := ctx.Value("DryRun") != nil && *(ctx.Value("DryRun").(*bool))
 	output, err := p.ec2api.CreateLaunchTemplate(ctx, &ec2.CreateLaunchTemplateInput{
+		DryRun:             &dryRun,
 		LaunchTemplateName: aws.String(LaunchTemplateName(options)),
 		LaunchTemplateData: &ec2types.RequestLaunchTemplateData{
 			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),

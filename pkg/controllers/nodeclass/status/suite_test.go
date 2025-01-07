@@ -25,9 +25,11 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
+	"github.com/samber/lo"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -40,6 +42,7 @@ var env *coretest.Environment
 var awsEnv *test.Environment
 var nodeClass *v1.EC2NodeClass
 var statusController *status.Controller
+var cloudProvider cloudprovider.CloudProvider
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -53,6 +56,14 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 
+	instanceTypesProvider := awsEnv.InstanceTypesProvider
+
+	Expect(instanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+	Expect(instanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+	cloudProvider = lo.FromPtr(cloudprovider.New(instanceTypesProvider, awsEnv.InstanceProvider, coretest.NewEventRecorder(),
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider))
+
 	statusController = status.NewController(
 		env.Client,
 		awsEnv.SubnetProvider,
@@ -60,6 +71,8 @@ var _ = BeforeSuite(func() {
 		awsEnv.AMIProvider,
 		awsEnv.InstanceProfileProvider,
 		awsEnv.LaunchTemplateProvider,
+		cloudProvider,
+		awsEnv.InstanceProvider,
 	)
 })
 
@@ -71,6 +84,25 @@ var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	nodeClass = test.EC2NodeClass()
 	awsEnv.Reset()
+
+	instanceTypesProvider := awsEnv.InstanceTypesProvider
+
+	Expect(instanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+	Expect(instanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+	cloudProvider = lo.FromPtr(cloudprovider.New(instanceTypesProvider, awsEnv.InstanceProvider, coretest.NewEventRecorder(),
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider))
+
+	statusController = status.NewController(
+		env.Client,
+		awsEnv.SubnetProvider,
+		awsEnv.SecurityGroupProvider,
+		awsEnv.AMIProvider,
+		awsEnv.InstanceProfileProvider,
+		awsEnv.LaunchTemplateProvider,
+		cloudProvider,
+		awsEnv.InstanceProvider,
+	)
 })
 
 var _ = AfterEach(func() {

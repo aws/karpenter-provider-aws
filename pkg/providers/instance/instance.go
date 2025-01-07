@@ -174,11 +174,16 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
+	dryRun := ctx.Value("DryRun") != nil && *(ctx.Value("DryRun").(*bool))
 	if _, err := p.ec2Batcher.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
+		DryRun:      aws.Bool(dryRun),
 		InstanceIds: []string{id},
 	}); err != nil {
 		if awserrors.IsNotFound(err) {
 			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance already terminated"))
+		}
+		if awserrors.IsUnauthorizedError(err) {
+			return cloudprovider.NewNodeClassNotReadyError(err)
 		}
 		if _, e := p.Get(ctx, id); e != nil {
 			if cloudprovider.IsNodeClaimNotFoundError(e) {
@@ -195,12 +200,17 @@ func (p *DefaultProvider) CreateTags(ctx context.Context, id string, tags map[st
 	ec2Tags := lo.MapToSlice(tags, func(key, value string) ec2types.Tag {
 		return ec2types.Tag{Key: aws.String(key), Value: aws.String(value)}
 	})
+	dryRun := ctx.Value("DryRun") != nil && *(ctx.Value("DryRun").(*bool))
 	if _, err := p.ec2api.CreateTags(ctx, &ec2.CreateTagsInput{
+		DryRun:    aws.Bool(dryRun),
 		Resources: []string{id},
 		Tags:      ec2Tags,
 	}); err != nil {
 		if awserrors.IsNotFound(err) {
 			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("tagging instance, %w", err))
+		}
+		if awserrors.IsUnauthorizedError(err) {
+			return cloudprovider.NewNodeClassNotReadyError(err)
 		}
 		return fmt.Errorf("tagging instance, %w", err)
 	}
@@ -223,7 +233,9 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
 	}
 	// Create fleet
+	dryRun := ctx.Value("DryRun") != nil && *(ctx.Value("DryRun").(*bool))
 	createFleetInput := &ec2.CreateFleetInput{
+		DryRun:                &dryRun,
 		Type:                  ec2types.FleetTypeInstant,
 		Context:               nodeClass.Spec.Context,
 		LaunchTemplateConfigs: launchTemplateConfigs,

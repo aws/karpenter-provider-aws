@@ -33,7 +33,9 @@ import (
 	"github.com/awslabs/operatorpkg/reasonable"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
@@ -52,11 +54,12 @@ type Controller struct {
 	subnet          *Subnet
 	securitygroup   *SecurityGroup
 	validation      *Validation
+	authorization   *Authorization
 	readiness       *Readiness //TODO : Remove this when we have sub status conditions
 }
 
 func NewController(kubeClient client.Client, subnetProvider subnet.Provider, securityGroupProvider securitygroup.Provider,
-	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider) *Controller {
+	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider, cloudProvider cloudprovider.CloudProvider, instanceProvider instance.Provider) *Controller {
 	return &Controller{
 		kubeClient: kubeClient,
 
@@ -65,6 +68,7 @@ func NewController(kubeClient client.Client, subnetProvider subnet.Provider, sec
 		securitygroup:   &SecurityGroup{securityGroupProvider: securityGroupProvider},
 		instanceprofile: &InstanceProfile{instanceProfileProvider: instanceProfileProvider},
 		validation:      &Validation{},
+		authorization:   &Authorization{cloudProvider: cloudProvider, instanceProvider: instanceProvider},
 		readiness:       &Readiness{launchTemplateProvider: launchTemplateProvider},
 	}
 }
@@ -96,6 +100,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		c.securitygroup,
 		c.instanceprofile,
 		c.validation,
+		c.authorization,
 		c.readiness,
 	} {
 		res, err := reconciler.Reconcile(ctx, nodeClass)

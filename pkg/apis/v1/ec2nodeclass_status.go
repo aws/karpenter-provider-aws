@@ -24,6 +24,7 @@ const (
 	ConditionTypeSecurityGroupsReady  = "SecurityGroupsReady"
 	ConditionTypeAMIsReady            = "AMIsReady"
 	ConditionTypeInstanceProfileReady = "InstanceProfileReady"
+	ConditionTypeAuthorization        = "AuthorizationReady"
 	ConditionTypeValidationSucceeded  = "ValidationSucceeded"
 )
 
@@ -94,6 +95,7 @@ func (in *EC2NodeClass) StatusConditions() status.ConditionSet {
 		ConditionTypeSubnetsReady,
 		ConditionTypeSecurityGroupsReady,
 		ConditionTypeInstanceProfileReady,
+		ConditionTypeAuthorization,
 		ConditionTypeValidationSucceeded,
 	).For(in)
 }

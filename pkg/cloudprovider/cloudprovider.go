@@ -35,6 +35,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
@@ -93,7 +94,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if nodeClassReady.IsFalse() {
 		return nil, cloudprovider.NewNodeClassNotReadyError(stderrors.New(nodeClassReady.Message))
 	}
-	if nodeClassReady.IsUnknown() {
+	if nodeClassReady.IsUnknown() && (ctx.Value("DryRun") == nil || ctx.Value("DryRun") == false) {
 		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving NodeClass readiness, NodeClass is in Ready=Unknown, %s", nodeClassReady.Message), "NodeClass is in Ready=Unknown")
 	}
 	instanceTypes, err := c.resolveInstanceTypes(ctx, nodeClaim, nodeClass)
@@ -109,6 +110,9 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	}
 	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
 	if err != nil {
+		if awserrors.IsUnauthorizedError(err) {
+			return nil, cloudprovider.NewNodeClassNotReadyError(err)
+		}
 		conditionMessage := "Error creating instance"
 		var createError *cloudprovider.CreateError
 		if stderrors.As(err, &createError) {
