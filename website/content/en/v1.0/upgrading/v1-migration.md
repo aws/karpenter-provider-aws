@@ -340,7 +340,7 @@ For more information, refer to [kubelet configuration migration]({{<ref "#kubele
 {{% alert title="Note" color="primary" %}}
 Since both `v1beta1` and `v1` will be served, `kubectl` will default to returning the `v1` version of your CRs.
 To interact with the v1beta1 version of your CRs, you'll need to add the full resource path (including api version) into `kubectl` calls.
-For example: `kubectl get nodepoll.v1beta1.karpenter.sh`.
+For example: `kubectl get nodepool.v1beta1.karpenter.sh`.
 {{% /alert %}}
 
 #### Downgrade Procedure
