@@ -53,7 +53,7 @@ var _ = Describe("NodeClass Status Condition Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.Conditions).To(HaveLen(7))
+		Expect(nodeClass.Status.Conditions).To(HaveLen(6))
 		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
 	})
 	It("should update status condition as Not Ready", func() {

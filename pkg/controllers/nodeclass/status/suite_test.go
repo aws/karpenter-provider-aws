@@ -56,25 +56,6 @@ var _ = BeforeSuite(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
-
-	instanceTypesProvider := awsEnv.InstanceTypesProvider
-
-	Expect(instanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
-	Expect(instanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
-
-	cloudProvider = lo.FromPtr(cloudprovider.New(instanceTypesProvider, awsEnv.InstanceProvider, coretest.NewEventRecorder(),
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider))
-
-	statusController = status.NewController(
-		env.Client,
-		awsEnv.SubnetProvider,
-		awsEnv.SecurityGroupProvider,
-		awsEnv.AMIProvider,
-		awsEnv.InstanceProfileProvider,
-		awsEnv.LaunchTemplateProvider,
-		cloudProvider,
-		awsEnv.InstanceProvider,
-	)
 })
 
 var _ = AfterSuite(func() {
@@ -86,12 +67,10 @@ var _ = BeforeEach(func() {
 	nodeClass = test.EC2NodeClass()
 	awsEnv.Reset()
 
-	instanceTypesProvider := awsEnv.InstanceTypesProvider
+	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
-	Expect(instanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
-	Expect(instanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
-
-	cloudProvider = lo.FromPtr(cloudprovider.New(instanceTypesProvider, awsEnv.InstanceProvider, coretest.NewEventRecorder(),
+	cloudProvider = lo.FromPtr(cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, coretest.NewEventRecorder(),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider))
 
 	statusController = status.NewController(
