@@ -69,7 +69,7 @@ func (p *DefaultProvider) Get(ctx context.Context) string {
 }
 
 func (p *DefaultProvider) UpdateVersion(ctx context.Context) error {
-	var version, versionSource string
+	var version string
 	var err error
 
 	if options.FromContext(ctx).EKSControlPlane {
@@ -84,9 +84,18 @@ func (p *DefaultProvider) UpdateVersion(ctx context.Context) error {
 		}
 	}
 	p.version.Store(&version)
+	return nil
+}
+func (p *DefaultProvider) UpdateVersionWithValidation(ctx context.Context) error {
+	err := p.UpdateVersion(ctx)
+	if err != nil {
+		return err
+	}
+	var versionSource string
+	version := p.version.Load()
 	if p.cm.HasChanged("kubernetes-version", version) || p.cm.HasChanged("version-source", versionSource) {
 		log.FromContext(ctx).WithValues("version", version).V(1).Info("discovered kubernetes version")
-		if err := validateK8sVersion(version); err != nil {
+		if err := validateK8sVersion(lo.FromPtr(version)); err != nil {
 			return fmt.Errorf("validating kubernetes version, %w", err)
 		}
 	}
