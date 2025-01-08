@@ -358,10 +358,10 @@ For example: `kubectl get nodepoll.v1beta1.karpenter.sh`.
 
 2. Configure your target Karpenter version. You should select one of the following versions:
    * `0.37.6`
-   * `0.36.7`
-   * `0.35.10`
-   * `v0.34.11`
-   * `v0.33.10`
+   * `0.36.8`
+   * `0.35.11`
+   * `v0.34.12`
+   * `v0.33.11`
 
    ```bash
    # Note: v0.33.x and v0.34.x include the v prefix, omit it for versions v0.35+
