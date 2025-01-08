@@ -325,7 +325,7 @@ The following releases should be used as rollback targets:
 
 * `v0.37.6`
 * `v0.36.8`
-* `v0.35.12`
+* `v0.35.11`
 * `v0.34.12`
 * `v0.33.11`
 
