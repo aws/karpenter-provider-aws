@@ -179,7 +179,7 @@ You should still review the upgrade procedure; the sequence of operations remain
 
    ```bash
    # Note: v0.33.x and v0.34.x include the v prefix, omit it for versions v0.35+
-   export KARPENTER_VERSION="0.37.5" # Replace with your minor version
+   export KARPENTER_VERSION="0.37.6" # Replace with your minor version
    ```
 
 4. Upgrade Karpenter to the latest patch release for your current minor version.
@@ -325,7 +325,7 @@ The following releases should be used as rollback targets:
 
 * `v0.37.6`
 * `v0.36.8`
-* `v0.35.12`
+* `v0.35.11`
 * `v0.34.12`
 * `v0.33.11`
 
@@ -357,15 +357,15 @@ For example: `kubectl get nodepool.v1beta1.karpenter.sh`.
    ```
 
 2. Configure your target Karpenter version. You should select one of the following versions:
-   * `0.37.5`
-   * `0.36.7`
-   * `0.35.10`
-   * `v0.34.11`
-   * `v0.33.10`
+   * `0.37.6`
+   * `0.36.8`
+   * `0.35.11`
+   * `v0.34.12`
+   * `v0.33.11`
 
    ```bash
    # Note: v0.33.x and v0.34.x include the v prefix, omit it for versions v0.35+
-   export KARPENTER_VERSION="0.37.5" # Replace with your minor version
+   export KARPENTER_VERSION="0.37.6" # Replace with your minor version
    ```
 
 3. Attach the `v1beta1` policy from your target version to your existing NodeRole.
