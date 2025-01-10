@@ -91,9 +91,8 @@ func (p *DefaultProvider) UpdateVersionWithValidation(ctx context.Context) error
 	if err != nil {
 		return err
 	}
-	var versionSource string
 	version := p.Get(ctx)
-	if p.cm.HasChanged("kubernetes-version", version) || p.cm.HasChanged("version-source", versionSource) {
+	if p.cm.HasChanged("kubernetes-version", version) {
 		log.FromContext(ctx).WithValues("version", version).V(1).Info("discovered kubernetes version")
 		if err := validateK8sVersion(version); err != nil {
 			return fmt.Errorf("validating kubernetes version, %w", err)
