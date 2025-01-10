@@ -464,11 +464,11 @@ spec:
 You can set `minAvailable` or `maxUnavailable` as integers or as a percentage.
 Review what [disruptions are](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/), and [how to configure them](https://kubernetes.io/docs/tasks/run-application/configure-pdb/).
 
-#### `karpenter.sh/do-not-evict` Annotation
+#### `karpenter.sh/do-not-disrupt` Annotation
 
-If a pod exists with the annotation `karpenter.sh/do-not-evict: true` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. Nodes that have pods with a `do-not-evict` annotation are not considered for consolidation, though their unused capacity is considered for the purposes of running pods from other nodes which can be consolidated.
+If a pod exists with the annotation `karpenter.sh/do-not-disrupt: true` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. Nodes that have pods with a `do-not-disrupt` annotation are not considered for consolidation, though their unused capacity is considered for the purposes of running pods from other nodes which can be consolidated.
 
-If you want to terminate a node with a `do-not-evict` pod, you can simply remove the annotation and the deprovisioning process will continue.
+If you want to terminate a node with a `do-not-disrupt` pod, you can simply remove the annotation and the deprovisioning process will continue.
 
 #### Scheduling Constraints (Consolidation Only)
 
