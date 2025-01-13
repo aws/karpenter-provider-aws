@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2025-01-06T13:11:45Z for us-east-1
+// generated at 2025-01-13T13:11:42Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -243,6 +243,10 @@ var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 		"c7g.12xlarge": 2.080800, "c7g.16xlarge": 2.774400, "c7g.2xlarge": 0.346800, "c7g.4xlarge": 0.693600,
 		"c7g.8xlarge": 1.387200, "c7g.large": 0.086700, "c7g.medium": 0.043400, "c7g.metal": 2.774400,
 		"c7g.xlarge": 0.173400,
+		// c7i family
+		"c7i.12xlarge": 2.570400, "c7i.16xlarge": 3.427200, "c7i.24xlarge": 5.140800, "c7i.2xlarge": 0.428400,
+		"c7i.48xlarge": 10.281600, "c7i.4xlarge": 0.856800, "c7i.8xlarge": 1.713600, "c7i.large": 0.107100,
+		"c7i.metal-24xl": 5.654880, "c7i.metal-48xl": 10.281600, "c7i.xlarge": 0.214200,
 		// cc2 family
 		"cc2.8xlarge": 2.250000,
 		// d2 family
