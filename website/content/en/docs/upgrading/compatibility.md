@@ -13,6 +13,8 @@ Before you begin upgrading Karpenter, consider Karpenter compatibility issues re
 
 ## Compatibility Matrix
 
+The table below outline the minium version of Karpenter that has been vaildated to run of the Kubernetes version. However, this is table is not meant to provide a guide for which Karpenter version can run on a parspective Kubernetes.
+
 [comment]: <> (the content below is generated from hack/docs/compataiblitymetrix_gen_docs.go)
 
 | KUBERNETES |   1.25   |   1.26   |   1.27   |   1.28   |   1.29   |   1.30   |   1.31    |

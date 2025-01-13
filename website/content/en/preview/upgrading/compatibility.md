@@ -9,9 +9,11 @@ description: >
 # Compatibility
 
 To make upgrading easier we aim to minimize the introduction of breaking changes.
-Before you begin upgrading Karpenter, consider Karpenter compatibility issues related to Kubernetes and the NodePool API (previously Provisioner).
+Before you begin upgrading Karpenter, consider Karpenter compatibility issues related to Kubernetes and the NodePool API (previously Provisioner). 
 
 ## Compatibility Matrix
+
+The table below outline the minium version of Karpenter that has been vaildated to run of the Kubernetes version. However, this is table is not meant to provide a guide for which Karpenter version can run on a parspective Kubernetes.
 
 [comment]: <> (the content below is generated from hack/docs/compataiblitymetrix_gen_docs.go)
 
