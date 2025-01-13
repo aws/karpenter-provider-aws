@@ -28,14 +28,21 @@ See [How do I upgrade an EKS Cluster with Karpenter]({{< relref "../faq/#how-do-
 
 Here is how Karpenter assigns AMIs nodes:
 
-* When you create an `EC2NodeClass`, you are required to specify [`amiSelectorTerms`]({{< relref "../concepts/nodeclasses/#specamiselectorterms" >}}). [`amiSelectorTerms`]({{< relref "../concepts/nodeclasses/#specamiselectorterms" >}}) allow you to select on AMIs that can be spun-up by this EC2NodeClass based on tags, id, name, or an alias.
-* If you specify an `amiSelectorTerm` with an `alias` set to `@latest` e.g. `al2023@latest`, `al2@latest`, `bottlerocket@latest`, any time Karpenter spins up a new node, it uses the latest release for that AMI type.
-* When a node is replaced, Karpenter checks to see if a newer AMI is available based on your `amiSelectorTerms`. If a newer AMI is available, Karpenter will automatically use the new AMI to spin up the new node. In particular, if you are using an `alias` set to `@latest`, you may get a new AMI deployed to your environment without having properly tested it.
-  * Karpenter automatically marks nodes as `Drifted` (determining that the node needs to be replaced) when the latest AMI that matches your `amiSelectorTerms` does not match the AMI assigned to the node.
+* When you create an `EC2NodeClass`, you are required to specify [`amiSelectorTerms`]({{< relref "../concepts/nodeclasses/#specamiselectorterms" >}}). [`amiSelectorTerms`]({{< relref "../concepts/nodeclasses/#specamiselectorterms" >}}) allow you to select on AMIs that can be spun-up by this EC2NodeClass based on tags, id, name, or an alias. Multiple AMIs may be specified, and Karpenter will choose the newest compatible AMI when spinning up new nodes.
+* Some `amiSelectorTerm` types are static and always resolve to the same AMI (e.g. `id`). However, some are dynamic and may resolve to different AMIs over time. Examples of dynamic types include `alias`, `tags`, and `name` (when using a wildcard). For example, if you specify an `amiSelectorTerm` with an `alias` set to `@latest` (e.g. `al2023@latest`, `al2@latest`, or `bottlerocket@latest`), Karpenter will use the _latest_ release for that AMI type when spinning up a new node.
+* When a node is replaced, Karpenter checks to see if a newer AMI is available based on your `amiSelectorTerms`. If a newer AMI is available, Karpenter will automatically use the new AMI to spin up the new node. __In particular, if you are using a dynamic `amiSelectorTerm` type, you may get a new AMI deployed to your environment without having properly tested it.__
 
-You can manually delete a node managed by Karpenter, which will cause the replacement behavior mentioned above to take effect. Karpenter will also automatically replace your nodes when the node meets a certain replacement condition. These conditions include: [**Expiration**]({{< relref "../concepts/disruption/#expiration" >}}) (if node expiry is set, the node is marked for deletion at a certain time after the node is created), [**Consolidation**]({{< relref "../concepts/disruption/#consolidation" >}}) (if a node is empty of workloads, or deemed to be inefficiently running workloads, nodes can be deleted and more appropriately featured nodes are brought up to consolidate workloads), [**Drift**]({{< relref "../concepts/disruption/#drift" >}}) (nodes are set for deletion when they drift from the desired state of the `NodeClaims` and new nodes are brought up to replace them), and [**Interruption**]({{< relref "../concepts/disruption/#interruption" >}}) (nodes are sometimes involuntarily disrupted by things like Spot interruption, health changes, and instance events, requiring new nodes to be deployed).
+Whenever a node is replaced, the replacement node will be launched using the newest AMI based on your `amiSelectorTerms`. Nodes may be replaced due to manual deletion, or any of Karpenter's automated methods:
+- [**Expiration**]({{< relref "../concepts/disruption/#expiration" >}}): Automatically initiates replacement at a certain time after the node is created.
+-  [**Consolidation**]({{< relref "../concepts/disruption/#consolidation" >}}): If Karpenter detects that a cheaper node can be used to run the same workloads, Karpenter may replace the current node automatically.
+- [**Drift**]({{< relref "../concepts/disruption/#drift" >}}): If a node's state no longer matches the desired state dictated by the `NodePool` or `EC2NodeClass`, it will be replaced, including if the node's AMI no longer matches the latest AMI selected by the `amiSelectorTerms`.
+- [**Interruption**]({{< relref "../concepts/disruption/#interruption" >}}): Nodes are sometimes involuntarily disrupted by things like Spot interruption, health changes, and instance events, requiring new nodes to be deployed.
 
 See [**Automated Methods**]({{< relref "../concepts/disruption/#automated-methods" >}}) for details on how Karpenter uses these automated actions to replace nodes.
+
+The most relevant automated disruption method is [**Drift**]({{< relref "../concepts/disruption/#drift" >}}), since it is initiated when a new AMI is selected-on by your `amiSelectorTerms`. This could be due to a manual update (e.g. a new `id` term was added), or due to a new AMI being resolved by a dynamic term.
+
+If you're using an `alias` with the `latest` pin (e.g. `al2023@latest`), Karpenter periodically checks for new AMI releases. Since AMI releases are outside your control, this could result in new AMIs being deployed before they have been properly tested in a lower environment. This is why we **strongly recommend** using version pins in production environments when using an alias (e.g. `al2023@v20240807`).
 
 {{% alert title="Important" color="warning" %}}
 If you are new to Karpenter, you should know that the behavior described here is different than you get with Managed Node Groups (MNG). MNG will always use the assigned AMI when it creates a new node and will never automatically upgrade to a new AMI when a new node is required. See [Updating a Managed Node Group](https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html) to see how you would manually update MNG to use new AMIs.
@@ -51,32 +58,47 @@ Karpenter offers you various controls to ensure you don't take on too much risk 
 * [Testing AMIs]({{< relref "#testing-amis" >}}): The safest way for ensuring that a new AMI doesn't break your workloads is to test it before putting it into production. This takes the most effort on your part, but most effectively models how your workloads will run in production, allowing you to catch issues ahead of time. Note that you can sometimes get different results from your test environment when you roll a new AMI into production, since issues like scale and other factors can elevate problems you might not see in test. Combining this with other controls like [Using Disruption Budgets]({{< relref "#using-disruption-budgets" >}}) can allow you to catch problems before they impact your whole cluster.
 * [Using Disruption Budgets]({{< relref "#using-disruption-budgets" >}}): This option can be used as a way of mitigating the scope of impact if a new AMI causes problems with your workloads. With Disruption budgets you can slow the pace of upgrades to nodes with new AMIs or make sure that upgrades only happen during selected dates and times (using `schedule`). This doesn't prevent a bad AMI from being deployed, but it allows you to control when nodes are upgraded, and gives you more time to respond to rollout issues.
 
-## Controls
-
-The following lays out the controls you have to impact Karpenter’s behavior as it relates to how nodes are created and AMIs are consumed.
-
 ### Pinning AMIs
 
-When you configure the [**EC2NodeClass**]({{< relref "../concepts/nodeclasses" >}}), you are required to configure which AMIs you want Karpenter to select on using the `amiSelectorTerms` field. When pinning to a specific `id`, `name` or an `alias` that contains a fixed version, Karpenter will only select on a single AMI and won't automatically upgrade your nodes to a new version of an AMI. This prevents a new and potentially untested AMI from replacing existing nodes when those nodes are terminated.
+When you configure the [**EC2NodeClass**]({{< relref "../concepts/nodeclasses" >}}), you are required to configure which AMIs you want Karpenter to select on using the `amiSelectorTerms` field. When pinning to a specific `id`, `name`, `tags` or an `alias` that contains a fixed version, Karpenter will only select on a single AMI and won't automatically upgrade your nodes to a new version of an AMI. This prevents a new and potentially untested AMI from replacing existing nodes when those nodes are terminated.
 ).
+
+{{% alert title="Note" color="primary" %}}
+Pinning an AMI to an `alias` type with a fixed version _will_ pin the AMI so long as your K8s control plane version doesn't change. Unlike `id` and `name` types, specifying a version `alias` in your `amiSelectorTerms` will cause Karpenter to consider the K8s control plane version of your cluster when choosing the AMI. If you upgrade your Kubernetes cluster while using this alias type, Karpenter _will_ automatically drift your nodes to a new AMI that still matches the AMI version but also matches your new K8s control plane version.
+{{% /alert %}}
+
 These examples show three different ways to identify the same AMI:
 
 ```yaml
 # Using alias
+# Pinning to this fixed version alias will pull this version of the AMI,
+# matching the K8s control plane version of your cluster
 amiSelectorTerms:
 - alias: al2023@v20240219
 ```
 
 ```yaml
 # Using name
+# This will only ever select the AMI that contains this exact name
 amiSelectorTerms:
 - name: al2023-ami-2023.3.20240219.0-kernel-6.1-x86_64
 ```
 
 ```yaml
 # Using id
+# This will only ever select this specific AMI id
 amiSelectorTerms:
 - id: ami-052c9ea013e6e3567
+```
+
+```yaml
+# Using tags
+# You can use a CI/CD system to test newer versions of an AMI
+# and automatically tag them as you validate that they are safe to upgrade to
+amiSelectorTerms:
+- tags:
+    karpenter.sh/discovery: "${CLUSTER_NAME}"
+    environment: prod
 ```
 
 See the [**spec.amiSelectorTerms**]({{< relref "../concepts/nodeclasses/#specamiselectorterms" >}}) section of the NodeClasses page for details.
