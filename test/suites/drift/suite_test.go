@@ -373,6 +373,14 @@ var _ = Describe("Drift", func() {
 		env.ExpectCreated(dep, nodeClass, nodePool)
 		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
 		env.ExpectCreatedNodeCount("==", 1)
+		env.ExpectUpdated(nodeClass)
+
+		By("validating the deprecated status condition has propagated")
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).Should(Succeed())
+			g.Expect(nodeClass.Status.AMIs[0].Deprecated).To(BeTrue())
+			g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsTrue()).To(BeTrue())
+		}).Should(Succeed())
 
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 		node := env.EventuallyExpectNodeCount("==", 1)[0]
@@ -390,6 +398,10 @@ var _ = Describe("Drift", func() {
 		pod = env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(amdAMI))))
 
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).Should(Succeed())
+			g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsTrue()).To(BeTrue())
+		}).Should(Succeed())
 	})
 	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
 		armAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", env.K8sVersion()))

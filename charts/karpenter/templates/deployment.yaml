@@ -56,8 +56,11 @@ spec:
       {{- if .Values.hostNetwork }}
       hostNetwork: true
       {{- end }}
+      {{- with .Values.schedulerName }}
+      schedulerName: {{ . | quote }}
+      {{- end }}
       containers:
-        - name: controller
+        - name: {{ .Values.controller.containerName | default "controller" }}
           securityContext:
             runAsUser: 65532
             runAsGroup: 65532

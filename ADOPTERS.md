@@ -31,8 +31,10 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | GlobalDots | Using Karpenter to scale Kubernetes clusters for a lot of our clients & for internal needs | `@vainkop` | [GlobalDots](https://globaldots.com) |
 | Grafana Labs | Using Karpenter as our Autoscaling tool on EKS | `@paulajulve`, `@logyball` | [Homepage](https://grafana.com/) & [Blog](https://grafana.com/blog/2023/11/09/how-grafana-labs-switched-to-karpenter-to-reduce-costs-and-complexities-in-amazon-eks/) |
 | H2O.ai | Dynamically scaling CPU and GPU nodes for AI workloads  | `@Ophir Zahavi`, `@Asaf Oren` | [H2O.ai](https://h2o.ai/) |
+| HENNGE K.K. | Dynamically scaling production workloads in Tokyo region | `@furqan.habibi`, `@Hans Gunawan` | [HENNGE](https://hennge.com/global/) |
 | Homa | Using Karpenter to manage dynamically big instances and save cost effectively with disruptions | `@afreyermuth98`, `@alexbescond` | [Homa](https://www.homagames.com/) |
 | idealo | Scaling multi-arch IPv6 clusters hosting web and event-driven applications | `@Heiko Rothe` | [Homepage](https://www.idealo.de) |
+| Kaltura | Using karpenter to deliver video to millions of end users | `@Ido Ziv` | [Homepage](https://corp.kaltura.com/) |
 | Livspace | Replacement for cluster autoscaler on production and staging EKS clusters | `@praveen-livspace` | [Homepage](https://www.livspace.com) |
 | Nexxiot | Easier, Safer, Cleaner Global Transportation - Using Karpenter to manage EKS nodes | `@Alex Berger` | [Homepage](https://nexxiot.com/) |
 | Nirvana Money | Building healthy, happy financial lives - Using Karpenter to manage all-Spot clusters | `@DWSR` | [Homepage](https://www.nirvana.money/) |
@@ -45,6 +47,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Rapid7 | Using Karpenter across all of our Kubernetes infrastructure for efficient autoscaling, both in terms of speed and cost | `@arobinson`, `@Ross Kirk`, `@Ryan Williams` | [Homepage](https://www.rapid7.com/) |
 | Sendcloud | Using Karpenter to scale our k8s clusters for Europe’s #1 shipping automation platform  | N/A | [Homepage](https://www.sendcloud.com/) |
 | Sentra | Using Karpenter to scale our EKS clusters, running our platform and workflows while maximizing cost-efficiency with minimal operational overhead | `@Roei Jacobovich` | [Homepage](https://sentra.io/) |
+| SternumIOT | Using Karpenter to efficiently autoscale & manage our EKS clusters with GitOps, optimizing node lifecycle management for both performance and cost-effectiveness across our Kubernetes workloads | `@itayvolo` `@amitde69` | [SternumIOT](https://sternumiot.com/) |
 | Stone Pagamentos | Using Karpenter to do smart sizing of our clusters  | `@fabiano-amaral` | [Stone Pagamentos](https://www.stone.com.br/) |
 | Stytch | Powering the scaling needs of Stytch's authentication and user-management APIs  | `@Elijah Chanakira`, `@Ovadia Harary` | [Homepage](https://www.stytch.com/) |
 | Superbexperience | Using Karpenter to scale the k8s clusters running our Guest Experience Management platform  | `@Wernich Bekker` | [Homepage](https://www.superbexperience.com/) |
@@ -56,5 +59,6 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Whoosh | Using Karpenter to scale the EKS clusters for many purposes | `@vainkop` | [Whoosh](https://whoosh.bike) |
 | Next Insurance | Using Karpenter to manage the nodes in all our EKS clusters, including dev and prod, on demand and spots | `@moshebs` | [Homepage](https://www.nextinsurance.com)|
 | Grover Group GmbH | We use Karpenter for efficient and cost effective scaling of our nodes in all of our EKS clusters | `@suraj2410` | [Homepage](https://www.grover.com/de-en) & [Engineering Techblog](https://engineering.grover.com)|
+| Legit Security | We run Karpenter across all our EKS clusters to ensure efficient and cost-effective scaling across our infrastructure | `@Tal Balash`, `@Matan Ryngler` | [Homepage](https://www.legitsecurity.com)|
 | Logz.io | Using Karpenter in all of our EKS clusters for efficient and cost effective scaling of all our K8s workloads | `@pincher95`, `@Samplify` | [Homepage](https://logz.io/)|
 | X3M ads | We have been using Karpenter for (almost) all our workloads since 2023 | `@mreparaz`, `@fmansilla`, `@mrmartinez95` | [Homepage](https://x3mads.com) |

@@ -17,74 +17,64 @@ With the release of Karpenter v1.0.0, the Karpenter team will be dropping suppor
 ### CRD Upgrades
 
 Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are published:
-* As an independent Helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd) that can be used by Helm to manage the lifecycle of these CRDs. To upgrade or install `karpenter-crd` run:
+* As an independent Helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd) ([source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd)) that can be used by Helm to manage the lifecycle of these CRDs. To upgrade or install `karpenter-crd` run:
   ```bash
   KARPENTER_NAMESPACE=kube-system
   helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version x.y.z --namespace "${KARPENTER_NAMESPACE}" --create-namespace
   ```
+* As part of the helm chart [karpenter](https://gallery.ecr.aws/karpenter/karpenter) ([source](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds)).
+  Helm [does not manage the lifecycle of CRDs using this method](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/) - the tool will only install the CRD during the first installation of the Helm chart.
+  Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed.
+
+CRDs are coupled to the version of Karpenter, and should be updated along with Karpenter.
+For this reason, we recommend using the independent `karpenter-crd` chart to manage CRDs.
 
 {{% alert title="Note" color="warning" %}}
 If you get the error `invalid ownership metadata; label validation error:` while installing the `karpenter-crd` chart from an older version of Karpenter, follow the [Troubleshooting Guide]({{<ref "../troubleshooting/#helm-error-when-installing-the-karpenter-crd-chart" >}}) for details on how to resolve these errors.
 {{% /alert %}}
 
-* As part of the helm chart [karpenter](https://gallery.ecr.aws/karpenter/karpenter) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds). Helm [does not manage the lifecycle of CRDs using this method](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/), the tool will only install the CRD during the first installation of the Helm chart. Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed. When CRDs are changed, we will make a note in the version's upgrade guide.
-
 <!--
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+
+### Upgrading to `1.2.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* We have recently updated our labels on `karpenter_voluntary_disruption_queue_failures_total` and `karpenter_nodeclaims_disrupted_total` reason label from camille case to snake case. Therefore these reason labels values on those metrics have now been update as such:
+  - Drifted -> drifted
+  - Empty -> empty
+  - Expired -> expired
+  - Underutilized -> underutilized
+* Nodeclass status and termination controllers have been merged into a single `nodeclass` controller. If you are relying on logs or metrics for `nodeclass.termination` or `nodeclass.status` controllers, please make sure that you update them to reference the new `nodeclass` controller.
+
 ### Upgrading to `1.1.0`+
 
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* Support for the `v1beta1` compatiblity annotations have been dropped. Ensure you have completed migration before upgrading to `v1.1.0`. Refer to the [migration guide]({{<ref "../../v1.0/upgrading/v1-migration.md#kubelet-configuration-migration">}}) for more details.
+* `nodeClassRef.group` and `nodeClassRef.kind` are strictly required. Ensure these values are set for all `NodePools` / `NodeClaims` before upgrading.
 * Bottlerocket AMIFamily now supports `instanceStorePolicy: RAID0`. This means that Karpenter will auto-generate userData to RAID0 your instance store volumes (similar to AL2 and AL2023) when specifying this value.
-  * Note: This userData configuration is _only_ valid on Bottlerocket v1.22.0+. If you are using an earlier version of a Bottlerocket image (< v1.22.0) with `amiFamily: Bottlerocket` and `instanceStorePolicy: RAID0`, nodes will fail to join the cluster.  
+  * Note: This userData configuration is _only_ valid on Bottlerocket v1.22.0+. If you are using an earlier version of a Bottlerocket image (< v1.22.0) with `amiFamily: Bottlerocket` and `instanceStorePolicy: RAID0`, nodes will fail to join the cluster.
 * The AWS Neuron accelerator well known name label (`karpenter.k8s.aws/instance-accelerator-name`) values now reflect their correct names of `trainium`, `inferentia`, and `inferentia2`. Previously, all Neuron accelerators were assigned the label name of `inferentia`.
 * Karpenter drops the internal `karpenter.k8s.aws/cluster` tag used for launch template management in favor of `eks:eks-cluster-name` and consistency with other Karpenter-provisioned resources
+* Generic operator metrics have been have been deprecated and replaced by resource-specific metrics.
 
 ### Upgrading to `1.0.0`+
 
 {{% alert title="Warning" color="warning" %}}
-Karpenter `1.0.0` introduces v1 APIs, including _significant_ changes to the API and upgrade procedures for the Karpenter controllers. **Do not** upgrade to `1.0.0`+ without referencing the [v1 Migration Upgrade Procedure]({{<ref "../../v1.0/upgrading/v1-migration#upgrade-procedure" >}}).
-
-This version adds [conversion webhooks](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#webhook-conversion) to automatically pull the v1 API version of previously applied v1beta1 NodePools, EC2NodeClasses, and NodeClaims. Karpenter will stop serving the v1beta1 API version at v1.1.0 and will drop the conversion webhooks at that time. Migrate all stored manifests to v1 API versions on Karpenter v1.0+.
+Karpenter `1.0.0` introduces the `v1` APIs and uses [conversion webhooks](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#webhook-conversion) to support existing `v1beta1` APIs.
+**Do not** upgrade to `1.0.0`+ without following the [`v1` Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md">}}).
 {{% /alert %}}
 
-Below is the full changelog for v1, copied from the [v1 Migration Upgrade Procedure]({{<ref "../../v1.0/upgrading/v1-migration#upgrade-procedure" >}}).
-
-* Features:
-  * AMI Selector Terms has a new Alias field which can only be set by itself in `EC2NodeClass.Spec.AMISelectorTerms`
-  * Disruption Budgets by Reason was added to `NodePool.Spec.Disruption.Budgets`
-  * TerminationGracePeriod was added to `NodePool.Spec.Template.Spec`.
-  * LOG_OUTPUT_PATHS and LOG_ERROR_OUTPUT_PATHS environment variables added
-* API Rename: NodePool’s ConsolidationPolicy `WhenUnderutilized` is now renamed to `WhenEmptyOrUnderutilized`
-* Behavior Changes:
-  * Expiration is now forceful and begins draining as soon as it’s expired. Karpenter does not wait for replacement capacity to be available before draining, but will start provisioning a replacement as soon as the node is expired and begins draining.
-  * Karpenter's generated NodeConfig now takes precedence when generating UserData with the AL2023 `amiFamily`. If you're setting any values managed by Karpenter in your AL2023 UserData, configure these through Karpenter natively (e.g. kubelet configuration fields).
-  * Karpenter now adds a `karpenter.sh/unregistered:NoExecute` taint to nodes in injected UserData when using alias in AMISelectorTerms or non-Custom AMIFamily. When using `amiFamily: Custom`, users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes.
-  * Karpenter now waits for underlying instances to be completely terminated before removing the associated nodes. This means it may take longer for nodes to be deleted and for nodeclaims to get cleaned up.
-* API Moves:
-  * ExpireAfter has moved from the `NodePool.Spec.Disruption` block to `NodePool.Spec.Template.Spec`, and is now a drift-able field.
-  * `Kubelet` was moved to the EC2NodeClass from the NodePool.
-* RBAC changes: added `delete pods` | added `get, patch crds` | added `get, patch crd status` | added `update nodes` | removed `create nodes`
-* Breaking API (Manual Migration Needed):
-  * Ubuntu is dropped as a first class supported AMI Family
-  * `karpenter.sh/do-not-consolidate` (annotation), `karpenter.sh/do-not-evict` (annotation), and `karpenter.sh/managed-by` (tag) are all removed. `karpenter.sh/managed-by`, which currently stores the cluster name in its value, will be replaced by eks:eks-cluster-name
-  * The taint used to mark nodes for disruption and termination changed from `karpenter.sh/disruption=disrupting:NoSchedule` to `karpenter.sh/disrupted:NoSchedule`. It is not recommended to tolerate this taint, however, if you were tolerating it in your applications, you'll need to adjust your taints to reflect this.
-* Environment Variable Changes:
-  * Environment Variable Changes
-  * LOGGING_CONFIG, ASSUME_ROLE_ARN, ASSUME_ROLE_DURATION Dropped
-  * LEADER_ELECT renamed to DISABLE_LEADER_ELECTION
-  * `FEATURE_GATES.DRIFT=true` was dropped and promoted to Stable, and cannot be disabled.
-      * Users currently opting out of drift, disabling the drift feature flag will no longer be able to do so.
-* Defaults changed:
-  * API: Karpenter will drop support for IMDS access from containers by default on new EC2NodeClasses by updating the default of `httpPutResponseHopLimit` from 2 to 1.
-  * API: ConsolidateAfter is required. Users couldn’t set this before with ConsolidationPolicy: WhenUnderutilized, where this is now required. Users can set it to 0 to have the same behavior as in v1beta1.
-  * API: All `NodeClassRef` fields are now all required, and apiVersion has been renamed to group
-  * API: AMISelectorTerms are required. Setting an Alias cannot be done with any other type of term, and must match the AMI Family that's set or be Custom.
-  * Helm: Deployment spec TopologySpreadConstraint to have required zonal spread over preferred. Users who had one node running their Karpenter deployments need to either:
-    * Have two nodes in different zones to ensure both Karpenter replicas schedule
-    * Scale down their Karpenter replicas from 2 to 1 in the helm chart
-    * Edit and relax the topology spread constraint in their helm chart from DoNotSchedule to ScheduleAnyway
-  * Helm/Binary: `controller.METRICS_PORT` default changed back to 8080
+Refer to the `v1` Migration Guide for the [full changelog]({{<ref "../../v1.0/upgrading/v1-migration.md#changelog">}}).
 
 ### Upgrading to `0.37.0`+
 
@@ -92,11 +82,17 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
 `0.33.0`+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to `0.37.0`+ without first [upgrading to `0.32.x`]({{<ref "#upgrading-to-0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
 {{% /alert %}}
 
+{{% alert title="Note" color="primary" %}}
+Webhooks have been re-enabled by default starting in `0.37.3` to faciliate migration to `v1.0`.
+If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
+You may still choose to disable webhooks through the helm chart.
+{{% /alert %}}
+
+
 * Karpenter now adds a readiness status condition to the EC2NodeClass. Make sure to upgrade your Custom Resource Definitions before proceeding with the upgrade. Failure to do so will result in Karpenter being unable to provision new nodes.
 * Karpenter no longer updates the logger name when creating controller loggers. We now adhere to the controller-runtime standard, where the logger name will be set as `"logger": "controller"` always and the controller name will be stored in the structured value `"controller"`
 * Karpenter updated the NodeClass controller naming in the following way: `nodeclass` -> `nodeclass.status`, `nodeclass.hash`, `nodeclass.termination`
 * Karpenter's NodeClaim status conditions no longer include the `severity` field
-* Starting with `0.37.3` Karpenter has enabled conversion webhooks by default to improve the v1 migration experience. If working with a cluster with a network policy that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
 
 ### Upgrading to `0.36.0`+
 
@@ -105,11 +101,16 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
 {{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
-   v0.36.x introduces update to drift that restricts rollback. When rolling back from >=v0.36.0, note that v0.32.9+, v0.33.4+, v0.34.5+, v0.35.4+ are the patch versions that support rollback. If Karpenter is rolled back to an older patch version, Karpenter can potentially drift all the nodes in the cluster.
+v0.36.x introduces update to drift that restricts rollback. When rolling back from >=v0.36.0, note that v0.32.9+, v0.33.4+, v0.34.5+, v0.35.4+ are the patch versions that support rollback. If Karpenter is rolled back to an older patch version, Karpenter can potentially drift all the nodes in the cluster.
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+Webhooks have been re-enabled by default starting in `0.36.5` to faciliate migration to `v1.0`.
+If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
+You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
 
 * Karpenter changed the name of the `karpenter_cloudprovider_instance_type_price_estimate` metric to `karpenter_cloudprovider_instance_type_offering_price_estimate` to align with the new `karpenter_cloudprovider_instance_type_offering_available` metric. The `region` label was also dropped from the metric, since this can be inferred from the environment that Karpenter is running in.
-* Starting with `0.36.5` Karpenter has enabled conversion webhooks by default to improve the v1 migration experience. If working with a cluster with a network policy that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
 
 ### Upgrading to `0.35.0`+
 
@@ -117,8 +118,13 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
 `0.33.0`+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to `0.35.0`+ without first [upgrading to `0.32.x`]({{<ref "#upgrading-to-0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
 {{% /alert %}}
 
+{{% alert title="Note" color="primary" %}}
+Webhooks have been re-enabled by default starting in `0.35.8` to faciliate migration to `v1.0`.
+If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
+You may still choose to disable webhooks through the helm chart.
+{{% /alert %}}
+
 * Karpenter OCI tags and Helm chart version are now valid semantic versions, meaning that the `v` prefix from the git tag has been removed and they now follow the `x.y.z` pattern.
-* Starting with `0.35.8` Karpenter has enabled conversion webhooks by default to improve the v1 migration experience. If working with a cluster with a network policy that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
 
 ### Upgrading to `0.34.0`+
 
@@ -130,6 +136,12 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
 The Ubuntu EKS optimized AMI has moved from 20.04 to 22.04 for Kubernetes 1.29+. This new AMI version is __not currently__ supported for users relying on AMI auto-discovery with the Ubuntu AMI family. More details can be found in this [GitHub issue](https://github.com/aws/karpenter-provider-aws/issues/5572). Please review this issue before upgrading to Kubernetes 1.29 if you are using the Ubuntu AMI family. Upgrading to 1.29 without making any changes to your EC2NodeClass will result in Karpenter being unable to create new nodes.
 {{% /alert %}}
 
+{{% alert title="Note" color="primary" %}}
+Webhooks have been re-enabled by default starting in `0.34.9` to faciliate migration to `v1.0`.
+If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
+You may still choose to disable webhooks through the helm chart.
+{{% /alert %}}
+
 * Karpenter now supports `nodepool.spec.disruption.budgets`, which allows users to control the speed of disruption in the cluster. Since this requires an update to the Custom Resource, before upgrading, you should re-apply the new updates to the CRDs. Check out [Disruption Budgets]({{<ref "../concepts/disruption#disruption-budgets" >}}) for more.
 * With Disruption Budgets, Karpenter will disrupt multiple batches of nodes simultaneously, which can result in overall quicker scale-down of your cluster. Before `0.34.0`, Karpenter had a hard-coded parallelism limit for each type of disruption. In `0.34.0`+, Karpenter will now disrupt at most 10% of nodes for a given NodePool. There is no setting that will be perfectly equivalent with the behavior prior to `0.34.0`. When considering how to configure your budgets, please refer to the following limits for versions prior to `0.34.0`:
   * `Empty Expiration / Empty Drift / Empty Consolidation`: infinite parallelism
@@ -139,7 +151,6 @@ The Ubuntu EKS optimized AMI has moved from 20.04 to 22.04 for Kubernetes 1.29+.
 * Karpenter now adds a default `podSecurityContext` that configures the `fsgroup: 65536` of volumes in the pod. If you are using sidecar containers, you should review if this configuration is compatible for them. You can disable this default `podSecurityContext` through helm by performing `--set podSecurityContext=null` when installing/upgrading the chart.
 * The `dnsPolicy` for the Karpenter controller pod has been changed back to the Kubernetes cluster default of `ClusterFirst`. Setting our `dnsPolicy` to `Default` (confusingly, this is not the Kubernetes cluster default) caused more confusion for any users running IPv6 clusters with dual-stack nodes or anyone running Karpenter with dependencies on cluster services (like clusters running service meshes). This change may be breaking for any users on Fargate or MNG who were allowing Karpenter to manage their in-cluster DNS service (`core-dns` on most clusters). If you still want the old behavior here, you can change the `dnsPolicy` to point to use `Default` by setting the helm value on install/upgrade with `--set dnsPolicy=Default`. More details on this issue can be found in the following Github issues: [#2186](https://github.com/aws/karpenter-provider-aws/issues/2186) and [#4947](https://github.com/aws/karpenter-provider-aws/issues/4947).
 * Karpenter now disallows `nodepool.spec.template.spec.resources` to be set. The webhook validation never allowed `nodepool.spec.template.spec.resources`. We are now ensuring that CEL validation also disallows `nodepool.spec.template.spec.resources` to be set. If you were previously setting the resources field on your NodePool, ensure that you remove this field before upgrading to the newest version of Karpenter or else updates to the resource may fail on the new version.
-* Starting with `0.34.9` Karpenter has enabled conversion webhooks by default to improve the v1 migration experience. If working with a cluster with a network policy that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
 
 ### Upgrading to `0.33.0`+
 
@@ -147,16 +158,21 @@ The Ubuntu EKS optimized AMI has moved from 20.04 to 22.04 for Kubernetes 1.29+.
 `0.33.0`+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. **Do not** upgrade to `0.33.0`+ without first [upgrading to `0.32.x`]({{<ref "#upgrading-to-0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
 {{% /alert %}}
 
+{{% alert title="Note" color="primary" %}}
+Webhooks have been re-enabled by default starting in `0.33.8` to faciliate migration to `v1.0`.
+If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
+You may still choose to disable webhooks through the helm chart.
+{{% /alert %}}
+
 * Karpenter no longer supports using the `karpenter.sh/provisioner-name` label in NodePool labels and requirements or in application node selectors, affinities, or topologySpreadConstraints. If you were previously using this label to target applications to specific Provisioners, you should update your applications to use the `karpenter.sh/nodepool` label instead before upgrading. If you upgrade without changing these labels, you may begin to see pod scheduling failures for these applications.
 * Karpenter now tags `spot-instances-request` with the same tags that it tags instances, volumes, and primary ENIs. This means that you will now need to add `ec2:CreateTags` permission for `spot-instances-request`. You can also further scope your controller policy for the `ec2:RunInstances` action to require that it launches the `spot-instances-request` with these specific tags. You can view an example of scoping these actions in the [Getting Started Guide's default CloudFormation controller policy](https://github.com/aws/karpenter/blob/v0.33.0/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml#L61).
 * We now recommend that you set the installation namespace for your Karpenter controllers to `kube-system` to denote Karpenter as a critical cluster component. This ensures that requests from the Karpenter controllers are treated with higher priority by assigning them to a different [PriorityLevelConfiguration](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#prioritylevelconfiguration) than generic requests from other namespaces. For more details on API Priority and Fairness, read the [Kubernetes API Priority and Fairness Conceptual Docs](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/). Note: Changing the namespace for your Karpenter release will cause the service account namespace to change. If you are using IRSA for authentication with AWS, you will need to change scoping set in the controller's trust policy from `karpenter:karpenter` to `kube-system:karpenter`.
-* `0.33.0` disables mutating and validating webhooks by default in favor of using [Common Expression Language for CRD validation](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation). The Common Expression Language Validation Feature [is enabled by default on EKS 1.25](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation-rules). If you are using Kubernetes version >= 1.25, no further action is required. If you are using a Kubernetes version below 1.25, you now need to set `DISABLE_WEBHOOK=false` in your container environment variables or `--set webhook.enabled=true` if using Helm. View the [Webhook Support Deprecated in Favor of CEL Section of the v1beta1 Migration Guide]({{<ref "../../v0.32/upgrading/v1beta1-migration#webhook-support-deprecated-in-favor-of-cel" >}}).
+* ~~`0.33.0` disables mutating and validating webhooks by default in favor of using [Common Expression Language for CRD validation](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation). The Common Expression Language Validation Feature [is enabled by default on EKS 1.25](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation-rules). If you are using Kubernetes version >= 1.25, no further action is required. If you are using a Kubernetes version below 1.25, you now need to set `DISABLE_WEBHOOK=false` in your container environment variables or `--set webhook.enabled=true` if using Helm. View the [Webhook Support Deprecated in Favor of CEL Section of the v1beta1 Migration Guide]({{<ref "../../v0.32/upgrading/v1beta1-migration#webhook-support-deprecated-in-favor-of-cel" >}}).~~
 * `0.33.0` drops support for passing settings through the `karpenter-global-settings` ConfigMap. You should pass settings through the container environment variables in the Karpenter deployment manifest. View the [Global Settings Section of the v1beta1 Migration Guide]({{<ref "../../v0.32/upgrading/v1beta1-migration#global-settings" >}}) for more details.
 * `0.33.0` enables `Drift=true` by default in the `FEATURE_GATES`. If you previously didn't enable the feature gate, Karpenter will now check if there is a difference between the desired state of your nodes declared in your NodePool and the actual state of your nodes. View the [Drift Section of Disruption Conceptual Docs]({{<ref "../concepts/disruption#drift" >}}) for more details.
 * `0.33.0` drops looking up the `zap-logger-config` through ConfigMap discovery. Instead, Karpenter now expects the logging config to be mounted on the filesystem if you are using this to configure Zap logging. This is not enabled by default, but can be enabled through `--set logConfig.enabled=true` in the Helm values. If you are setting any values in the `logConfig` from the `0.32.x` upgrade, such as `logConfig.logEncoding`, note that you will have to explicitly set `logConfig.enabled=true` alongside it. Also, note that setting the Zap logging config is a deprecated feature in beta and is planned to be dropped at v1. View the [Logging Configuration Section of the v1beta1 Migration Guide]({{<ref "../../v0.32/upgrading/v1beta1-migration#logging-configuration-is-no-longer-dynamic" >}}) for more details.
 * `0.33.0` change the default `LOG_LEVEL` from `debug` to `info` by default. If you are still enabling logging configuration through the `zap-logger-config`, no action is required.
 * `0.33.0` drops support for comma delimited lists on tags for `SubnetSelectorTerm`, `SecurityGroupsSelectorTerm`, and `AMISelectorTerm`. Karpenter now supports multiple terms for each of the selectors which means that we can specify a more explicit OR-based constraint through separate terms rather than a comma-delimited list of values.
-* Starting with `0.33.8` Karpenter has enabled conversion webhooks by default to improve the v1 migration experience. If working with a cluster with a network policy that blocks Ingress, ports 8000, 8001, 8081, 8443 will need to be allowlisted.
 
 ### Upgrading to `0.32.0`+
 

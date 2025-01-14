@@ -154,7 +154,7 @@ type SubnetSelectorTerm struct {
 // SecurityGroupSelectorTerm defines selection logic for a security group used by Karpenter to launch nodes.
 // If multiple fields are used for selection, the requirements are ANDed.
 type SecurityGroupSelectorTerm struct {
-	// Tags is a map of key/value tags used to select subnets
+	// Tags is a map of key/value tags used to select security groups.
 	// Specifying '*' for a value selects all values for a given tag key.
 	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
 	// +kubebuilder:validation:MaxProperties:=20
@@ -184,7 +184,7 @@ type AMISelectorTerm struct {
 	// +kubebuilder:validation:MaxLength=30
 	// +optional
 	Alias string `json:"alias,omitempty"`
-	// Tags is a map of key/value tags used to select subnets
+	// Tags is a map of key/value tags used to select amis.
 	// Specifying '*' for a value selects all values for a given tag key.
 	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
 	// +kubebuilder:validation:MaxProperties:=20

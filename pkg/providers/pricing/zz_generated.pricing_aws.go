@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2024-11-05T04:33:42Z for us-east-1
+// generated at 2025-01-06T13:11:40Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -118,6 +118,8 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"dl1.24xlarge": 13.109040,
 		// f1 family
 		"f1.16xlarge": 13.200000, "f1.2xlarge": 1.650000, "f1.4xlarge": 3.300000,
+		// f2 family
+		"f2.12xlarge": 3.960000, "f2.48xlarge": 15.840000,
 		// g2 family
 		"g2.2xlarge": 0.650000, "g2.8xlarge": 2.600000,
 		// g3 family
@@ -163,6 +165,14 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"i4i.12xlarge": 4.118000, "i4i.16xlarge": 5.491000, "i4i.24xlarge": 8.236800, "i4i.2xlarge": 0.686000,
 		"i4i.32xlarge": 10.982400, "i4i.4xlarge": 1.373000, "i4i.8xlarge": 2.746000, "i4i.large": 0.172000,
 		"i4i.metal": 10.982000, "i4i.xlarge": 0.343000,
+		// i7ie family
+		"i7ie.12xlarge": 6.237600, "i7ie.18xlarge": 9.356400, "i7ie.24xlarge": 12.475200, "i7ie.2xlarge": 1.039600,
+		"i7ie.3xlarge": 1.559400, "i7ie.48xlarge": 24.950400, "i7ie.6xlarge": 3.118800, "i7ie.large": 0.259900,
+		"i7ie.xlarge": 0.519800,
+		// i8g family
+		"i8g.12xlarge": 4.118400, "i8g.16xlarge": 5.491200, "i8g.24xlarge": 8.236800, "i8g.2xlarge": 0.686400,
+		"i8g.4xlarge": 1.372800, "i8g.8xlarge": 2.745600, "i8g.large": 0.171600, "i8g.metal-24xl": 9.060480,
+		"i8g.xlarge": 0.343200,
 		// im4gn family
 		"im4gn.16xlarge": 5.820670, "im4gn.2xlarge": 0.727580, "im4gn.4xlarge": 1.455170, "im4gn.8xlarge": 2.910340,
 		"im4gn.large": 0.181900, "im4gn.xlarge": 0.363790,
@@ -386,6 +396,10 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"u-9tb1.112xlarge": 81.900000,
 		// u7i-12tb family
 		"u7i-12tb.224xlarge": 152.880000,
+		// u7i-6tb family
+		"u7i-6tb.112xlarge": 62.790000,
+		// u7i-8tb family
+		"u7i-8tb.112xlarge": 83.720000,
 		// u7in-16tb family
 		"u7in-16tb.224xlarge": 203.840000,
 		// u7in-24tb family

@@ -18,7 +18,6 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
-	"strings"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -104,7 +103,11 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if len(instanceTypes) == 0 {
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
 	}
-	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, getTags(ctx, nodeClass, nodeClaim), instanceTypes)
+	tags, err := getTags(ctx, nodeClass, nodeClaim)
+	if err != nil {
+		return nil, cloudprovider.NewNodeClassNotReadyError(err)
+	}
+	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
 	if err != nil {
 		conditionMessage := "Error creating instance"
 		var createError *cloudprovider.CreateError
@@ -234,23 +237,63 @@ func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
 	return []status.Object{&v1.EC2NodeClass{}}
 }
 
-func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) map[string]string {
+func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) (map[string]string, error) {
+	if offendingTag, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(k string, v string) bool {
+		for _, exp := range v1.RestrictedTagPatterns {
+			if exp.MatchString(k) {
+				return true
+			}
+		}
+		return false
+	}); found {
+		return nil, fmt.Errorf("%q tag does not pass tag validation requirements", offendingTag)
+	}
 	staticTags := map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
 		karpv1.NodePoolLabelKey: nodeClaim.Labels[karpv1.NodePoolLabelKey],
 		v1.EKSClusterNameTagKey: options.FromContext(ctx).ClusterName,
 		v1.LabelNodeClass:       nodeClass.Name,
 	}
-	return lo.Assign(lo.OmitBy(nodeClass.Spec.Tags, func(key string, _ string) bool {
-		return strings.HasPrefix(key, "kubernetes.io/cluster/")
-	}), staticTags)
+	return lo.Assign(nodeClass.Spec.Tags, staticTags), nil
 }
 
 func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 	return []cloudprovider.RepairPolicy{
-		// Supported Kubelet fields
+		// Supported Kubelet Node Conditions
 		{
 			ConditionType:      corev1.NodeReady,
+			ConditionStatus:    corev1.ConditionFalse,
+			TolerationDuration: 30 * time.Minute,
+		},
+		{
+			ConditionType:      corev1.NodeReady,
+			ConditionStatus:    corev1.ConditionUnknown,
+			TolerationDuration: 30 * time.Minute,
+		},
+		// Support Node Monitoring Agent Conditions
+		//
+		{
+			ConditionType:      "AcceleratedHardwareReady",
+			ConditionStatus:    corev1.ConditionFalse,
+			TolerationDuration: 10 * time.Minute,
+		},
+		{
+			ConditionType:      "StorageReady",
+			ConditionStatus:    corev1.ConditionFalse,
+			TolerationDuration: 30 * time.Minute,
+		},
+		{
+			ConditionType:      "NetworkingReady",
+			ConditionStatus:    corev1.ConditionFalse,
+			TolerationDuration: 30 * time.Minute,
+		},
+		{
+			ConditionType:      "KernelReady",
+			ConditionStatus:    corev1.ConditionFalse,
+			TolerationDuration: 30 * time.Minute,
+		},
+		{
+			ConditionType:      "ContainerRuntimeReady",
 			ConditionStatus:    corev1.ConditionFalse,
 			TolerationDuration: 30 * time.Minute,
 		},

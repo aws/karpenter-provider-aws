@@ -59,6 +59,8 @@ terminationGracePeriodSeconds:
 # -- Bind the pod to the host network.
 # This is required when using a custom CNI.
 hostNetwork: false
+# -- Specify which Kubernetes scheduler should dispatch the pod.
+schedulerName: default-scheduler
 # -- Configure the DNS Policy for the pod
 dnsPolicy: ClusterFirst
 # -- Configure DNS Config for the pod
@@ -100,13 +102,15 @@ extraVolumes: []
 #         expirationSeconds: 86400
 #         path: token
 controller:
+  # -- Distinguishing container name (containerName: karpenter-controller).
+  containerName: controller
   image:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.0.0
+    tag: 1.1.1
     # -- SHA256 digest of the controller image.
-    digest: sha256:1eb1073b9f4ed804634aabf320e4d6e822bb61c0f5ecfd9c3a88f05f1ca4c5c5
+    digest: sha256:51bca600197c7c6e6e0838549664b2c12c3f8dd4b23744ab28202ae97ca5aed1
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -183,6 +187,6 @@ settings:
     # -- spotToSpotConsolidation is ALPHA and is disabled by default.
     # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
     spotToSpotConsolidation: false
-     # -- nodeRepair is ALPHA and is disabled by default.
+    # -- nodeRepair is ALPHA and is disabled by default.
     # Setting this to true will enable node repair.
     nodeRepair: false
