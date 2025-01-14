@@ -23,8 +23,11 @@ import (
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -40,6 +43,7 @@ var env *coretest.Environment
 var awsEnv *test.Environment
 var nodeClass *v1.EC2NodeClass
 var statusController *status.Controller
+var cloudProvider cloudprovider.CloudProvider
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -52,15 +56,6 @@ var _ = BeforeSuite(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
-
-	statusController = status.NewController(
-		env.Client,
-		awsEnv.SubnetProvider,
-		awsEnv.SecurityGroupProvider,
-		awsEnv.AMIProvider,
-		awsEnv.InstanceProfileProvider,
-		awsEnv.LaunchTemplateProvider,
-	)
 })
 
 var _ = AfterSuite(func() {
@@ -71,6 +66,23 @@ var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	nodeClass = test.EC2NodeClass()
 	awsEnv.Reset()
+
+	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+	cloudProvider = lo.FromPtr(cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, coretest.NewEventRecorder(),
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider))
+
+	statusController = status.NewController(
+		env.Client,
+		awsEnv.SubnetProvider,
+		awsEnv.SecurityGroupProvider,
+		awsEnv.AMIProvider,
+		awsEnv.InstanceProfileProvider,
+		awsEnv.LaunchTemplateProvider,
+		cloudProvider,
+		awsEnv.InstanceProvider,
+	)
 })
 
 var _ = AfterEach(func() {

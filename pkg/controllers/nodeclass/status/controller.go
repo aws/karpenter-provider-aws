@@ -33,7 +33,9 @@ import (
 	"github.com/awslabs/operatorpkg/reasonable"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
@@ -56,7 +58,7 @@ type Controller struct {
 }
 
 func NewController(kubeClient client.Client, subnetProvider subnet.Provider, securityGroupProvider securitygroup.Provider,
-	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider) *Controller {
+	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider, cloudProvider cloudprovider.CloudProvider, instanceProvider instance.Provider) *Controller {
 	return &Controller{
 		kubeClient: kubeClient,
 
@@ -64,7 +66,7 @@ func NewController(kubeClient client.Client, subnetProvider subnet.Provider, sec
 		subnet:          &Subnet{subnetProvider: subnetProvider},
 		securitygroup:   &SecurityGroup{securityGroupProvider: securityGroupProvider},
 		instanceprofile: &InstanceProfile{instanceProfileProvider: instanceProfileProvider},
-		validation:      &Validation{},
+		validation:      &Validation{cloudProvider: cloudProvider, instanceProvider: instanceProvider},
 		readiness:       &Readiness{launchTemplateProvider: launchTemplateProvider},
 	}
 }
