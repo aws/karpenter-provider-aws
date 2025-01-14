@@ -95,7 +95,7 @@ func NewControllers(
 		ssminvalidation.NewController(ssmCache, amiProvider),
 		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter"), status.EmitDeprecatedMetrics),
 		opevents.NewController[*corev1.Node](kubeClient, clk),
-		controllersversion.NewController(versionProvider),
+		controllersversion.NewController(versionProvider, versionProvider.UpdateVersionWithValidation),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsapi := servicesqs.NewFromConfig(cfg)
