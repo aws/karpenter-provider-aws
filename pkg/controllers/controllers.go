@@ -27,9 +27,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	nodeclass "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	nodeclasshash "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/hash"
-	nodeclassstatus "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
-	nodeclasstermination "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/termination"
 	controllersinstancetype "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype"
 	controllersinstancetypecapacity "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/capacity"
 	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
@@ -82,8 +81,7 @@ func NewControllers(
 	instanceTypeProvider *instancetype.DefaultProvider) []controller.Controller {
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient),
-		nodeclassstatus.NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider),
-		nodeclasstermination.NewController(kubeClient, recorder, instanceProfileProvider, launchTemplateProvider),
+		nodeclass.NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, cloudProvider, instanceProvider),
 		controllerspricing.NewController(pricingProvider),
