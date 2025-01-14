@@ -45,6 +45,14 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 {{- end }}
 
+
+{{/*
+Container name
+*/}}
+{{- define "karpenter.controller.ContainerName" -}}
+{{ .Values.controller.containerName | default "controller" }}
+{{- end }}
+
 {{/*
 Selector labels
 */}}
