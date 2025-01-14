@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package status_test
+package nodeclass_test
 
 import (
 	"github.com/aws/aws-sdk-go-v2/service/eks"
@@ -59,7 +59,7 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 			nodeClass.Spec.AMIFamily = lo.ToPtr(family)
 			nodeClass.Spec.AMISelectorTerms = terms
 			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			Expect(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load()).To(BeNil())
 		},
 		Entry(v1.AMIFamilyAL2, v1.AMIFamilyAL2, []v1.AMISelectorTerm{{Alias: "al2@latest"}}),
@@ -72,7 +72,7 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("10.100.0.0/16"))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().IsTrue(status.ConditionReady)).To(BeTrue())
@@ -89,7 +89,7 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("2001:db8::/64"))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().IsTrue(status.ConditionReady)).To(BeTrue())
