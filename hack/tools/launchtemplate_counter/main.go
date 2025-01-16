@@ -61,15 +61,15 @@ func main() {
 		cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		subnetProvider,
+		pricing.NewDefaultProvider(
+			ctx,
+			pricing.NewAPI(cfg),
+			ec2api,
+			cfg.Region,
+		),
+		awscache.NewUnavailableOfferings(),
 		instancetype.NewDefaultResolver(
 			region,
-			pricing.NewDefaultProvider(
-				ctx,
-				pricing.NewAPI(cfg),
-				ec2api,
-				cfg.Region,
-			),
-			awscache.NewUnavailableOfferings(),
 		),
 	)
 	if err := instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {

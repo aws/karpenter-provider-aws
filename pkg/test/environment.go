@@ -32,6 +32,7 @@ import (
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
@@ -76,19 +77,21 @@ type Environment struct {
 	InstanceProfileCache          *cache.Cache
 	SSMCache                      *cache.Cache
 	DiscoveredCapacityCache       *cache.Cache
+	CapacityReservationCache      *cache.Cache
 
 	// Providers
-	InstanceTypesResolver   *instancetype.DefaultResolver
-	InstanceTypesProvider   *instancetype.DefaultProvider
-	InstanceProvider        *instance.DefaultProvider
-	SubnetProvider          *subnet.DefaultProvider
-	SecurityGroupProvider   *securitygroup.DefaultProvider
-	InstanceProfileProvider *instanceprofile.DefaultProvider
-	PricingProvider         *pricing.DefaultProvider
-	AMIProvider             *amifamily.DefaultProvider
-	AMIResolver             *amifamily.DefaultResolver
-	VersionProvider         *version.DefaultProvider
-	LaunchTemplateProvider  *launchtemplate.DefaultProvider
+	CapacityReservationProvider *capacityreservation.DefaultProvider
+	InstanceTypesResolver       *instancetype.DefaultResolver
+	InstanceTypesProvider       *instancetype.DefaultProvider
+	InstanceProvider            *instance.DefaultProvider
+	SubnetProvider              *subnet.DefaultProvider
+	SecurityGroupProvider       *securitygroup.DefaultProvider
+	InstanceProfileProvider     *instanceprofile.DefaultProvider
+	PricingProvider             *pricing.DefaultProvider
+	AMIProvider                 *amifamily.DefaultProvider
+	AMIResolver                 *amifamily.DefaultResolver
+	VersionProvider             *version.DefaultProvider
+	LaunchTemplateProvider      *launchtemplate.DefaultProvider
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
@@ -113,6 +116,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	securityGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceProfileCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	capacityReservationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
 
 	// Providers
@@ -128,30 +132,30 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
 	amiResolver := amifamily.NewDefaultResolver()
-	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion, pricingProvider, unavailableOfferingsCache)
-	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, discoveredCapacityCache, ec2api, subnetProvider, instanceTypesResolver)
-	launchTemplateProvider :=
-		launchtemplate.NewDefaultProvider(
-			ctx,
-			launchTemplateCache,
-			ec2api,
-			eksapi,
-			amiResolver,
-			securityGroupProvider,
-			subnetProvider,
-			lo.ToPtr("ca-bundle"),
-			make(chan struct{}),
-			net.ParseIP("10.0.100.10"),
-			"https://test-cluster",
-		)
-	instanceProvider :=
-		instance.NewDefaultProvider(ctx,
-			"",
-			ec2api,
-			unavailableOfferingsCache,
-			subnetProvider,
-			launchTemplateProvider,
-		)
+	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion)
+	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, unavailableOfferingsCache, instanceTypesResolver)
+	launchTemplateProvider := launchtemplate.NewDefaultProvider(
+		ctx,
+		launchTemplateCache,
+		ec2api,
+		eksapi,
+		amiResolver,
+		securityGroupProvider,
+		subnetProvider,
+		lo.ToPtr("ca-bundle"),
+		make(chan struct{}),
+		net.ParseIP("10.0.100.10"),
+		"https://test-cluster",
+	)
+	instanceProvider := instance.NewDefaultProvider(
+		ctx,
+		"",
+		ec2api,
+		unavailableOfferingsCache,
+		subnetProvider,
+		launchTemplateProvider,
+	)
+	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache)
 
 	return &Environment{
 		Clock: clock,
@@ -173,18 +177,20 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		UnavailableOfferingsCache:     unavailableOfferingsCache,
 		SSMCache:                      ssmCache,
 		DiscoveredCapacityCache:       discoveredCapacityCache,
+		CapacityReservationCache:      capacityReservationCache,
 
-		InstanceTypesResolver:   instanceTypesResolver,
-		InstanceTypesProvider:   instanceTypesProvider,
-		InstanceProvider:        instanceProvider,
-		SubnetProvider:          subnetProvider,
-		SecurityGroupProvider:   securityGroupProvider,
-		LaunchTemplateProvider:  launchTemplateProvider,
-		InstanceProfileProvider: instanceProfileProvider,
-		PricingProvider:         pricingProvider,
-		AMIProvider:             amiProvider,
-		AMIResolver:             amiResolver,
-		VersionProvider:         versionProvider,
+		CapacityReservationProvider: capacityReservationProvider,
+		InstanceTypesResolver:       instanceTypesResolver,
+		InstanceTypesProvider:       instanceTypesProvider,
+		InstanceProvider:            instanceProvider,
+		SubnetProvider:              subnetProvider,
+		SecurityGroupProvider:       securityGroupProvider,
+		LaunchTemplateProvider:      launchTemplateProvider,
+		InstanceProfileProvider:     instanceProfileProvider,
+		PricingProvider:             pricingProvider,
+		AMIProvider:                 amiProvider,
+		AMIResolver:                 amiResolver,
+		VersionProvider:             versionProvider,
 	}
 }
 

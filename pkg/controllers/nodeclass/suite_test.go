@@ -67,12 +67,15 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	controller = nodeclass.NewController(
-		env.Client, events.NewRecorder(&record.FakeRecorder{}),
+		awsEnv.Clock,
+		env.Client,
+		events.NewRecorder(&record.FakeRecorder{}),
 		awsEnv.SubnetProvider,
 		awsEnv.SecurityGroupProvider,
 		awsEnv.AMIProvider,
 		awsEnv.InstanceProfileProvider,
 		awsEnv.LaunchTemplateProvider,
+		awsEnv.CapacityReservationProvider,
 		awsEnv.EC2API,
 	)
 })

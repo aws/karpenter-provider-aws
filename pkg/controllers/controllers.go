@@ -34,6 +34,7 @@ import (
 	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
 	ssminvalidation "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/ssm/invalidation"
 	controllersversion "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/version"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
@@ -78,10 +79,12 @@ func NewControllers(
 	amiProvider amifamily.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	versionProvider *version.DefaultProvider,
-	instanceTypeProvider *instancetype.DefaultProvider) []controller.Controller {
+	instanceTypeProvider *instancetype.DefaultProvider,
+	capacityReservationProvider capacityreservation.Provider,
+) []controller.Controller {
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient),
-		nodeclass.NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider, ec2api),
+		nodeclass.NewController(clk, kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider, capacityReservationProvider, ec2api),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, cloudProvider, instanceProvider),
 		controllerspricing.NewController(pricingProvider),

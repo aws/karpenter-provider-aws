@@ -21,6 +21,7 @@ import (
 
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 	"sigs.k8s.io/karpenter/pkg/utils/result"
@@ -46,6 +47,7 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
@@ -61,22 +63,34 @@ type Controller struct {
 	recorder               events.Recorder
 	launchTemplateProvider launchtemplate.Provider
 
-	ami             *AMI
-	instanceProfile *InstanceProfile
-	subnet          *Subnet
-	securityGroup   *SecurityGroup
-	validation      *Validation
-	readiness       *Readiness //TODO : Remove this when we have sub status conditions
+	ami                 *AMI
+	capacityReservation *CapacityReservation
+	instanceProfile     *InstanceProfile
+	subnet              *Subnet
+	securityGroup       *SecurityGroup
+	validation          *Validation
+	readiness           *Readiness //TODO : Remove this when we have sub status conditions
 }
 
-func NewController(kubeClient client.Client, recorder events.Recorder, subnetProvider subnet.Provider, securityGroupProvider securitygroup.Provider,
-	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider, ec2api sdk.EC2API) *Controller {
+func NewController(
+	clk clock.Clock,
+	kubeClient client.Client,
+	recorder events.Recorder,
+	subnetProvider subnet.Provider,
+	securityGroupProvider securitygroup.Provider,
+	amiProvider amifamily.Provider,
+	instanceProfileProvider instanceprofile.Provider,
+	launchTemplateProvider launchtemplate.Provider,
+	capacityReservationProvider capacityreservation.Provider,
+	ec2api sdk.EC2API,
+) *Controller {
 
 	return &Controller{
 		kubeClient:             kubeClient,
 		recorder:               recorder,
 		launchTemplateProvider: launchTemplateProvider,
 		ami:                    NewAMIReconciler(amiProvider),
+		capacityReservation:    NewCapacityReservationReconciler(clk, capacityReservationProvider),
 		subnet:                 &Subnet{subnetProvider: subnetProvider},
 		securityGroup:          &SecurityGroup{securityGroupProvider: securityGroupProvider},
 		instanceProfile:        &InstanceProfile{instanceProfileProvider: instanceProfileProvider},
@@ -116,6 +130,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	var errs error
 	for _, reconciler := range []nodeClassReconciler{
 		c.ami,
+		c.capacityReservation,
 		c.subnet,
 		c.securityGroup,
 		c.instanceProfile,

@@ -22,7 +22,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/metrics"
 
-	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/awslabs/operatorpkg/singleton"
 	"go.uber.org/multierr"
@@ -208,7 +207,7 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 		zone := nodeClaim.Labels[corev1.LabelTopologyZone]
 		instanceType := nodeClaim.Labels[corev1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), ec2types.InstanceType(instanceType), zone, karpv1.CapacityTypeSpot)
+			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), instanceType, zone, karpv1.CapacityTypeSpot)
 		}
 	}
 	if action != NoAction {
