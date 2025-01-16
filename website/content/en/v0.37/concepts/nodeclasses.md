@@ -682,9 +682,11 @@ spec:
   instanceStorePolicy: RAID0
 ```
 
-This will set the allocatable ephemeral-storage of each node to the total size of the instance-store volume(s).
+This will set the allocatable ephemeral-storage of each node to the total size of the instance-store volume(s). This configuration is likely to be useful for workloads that leverage dense storage instance types or require the low latency from instance-stores that are nvme ssd based.
 
-The disks must be formatted & mounted in a RAID0 and be the underlying filesystem for the Kubelet & Containerd. Instructions for each AMI family are listed below:
+The disks must be formatted & mounted in a RAID0 and be the underlying filesystem for the Kubelet & Containerd. Even if you already configure your volumes with RAID0, Karpenter won't recognize this by default unless you set the `instanceStorePolicy` to `RAID0`. Without this, scheduling workloads that depend on ephemeral-storage from the instance-stores may result in a deadlock due to insufficient storage.
+
+Instructions for each AMI family are listed below:
 
 #### AL2
 
