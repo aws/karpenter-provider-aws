@@ -28,7 +28,7 @@ Karpenter automatically discovers disruptable nodes and spins up replacements wh
 
 ### Termination Controller
 
-When a Karpenter node is deleted, the Karpenter finalizer will block deletion and the APIServer will set the `DeletionTimestamp` on the node, allowing Karpenter to gracefully shutdown the node, modeled after [Kubernetes Graceful Node Shutdown](https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown). Karpenter's graceful shutdown process will:
+When a Karpenter node is deleted, the Karpenter finalizer will block deletion and the APIServer will set the `DeletionTimestamp` on the node, allowing Karpenter to gracefully shutdown the node, modeled after [Kubernetes Graceful Node Shutdown](https://kubernetes.io/docs/concepts/cluster-administration/node-shutdown/#graceful-node-shutdown). Karpenter's graceful shutdown process will:
 1. Add the `karpenter.sh/disruption=disrupting:NoSchedule` taint to the node to prevent pods from scheduling to it.
 2. Begin evicting the pods on the node with the [Kubernetes Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/) to respect PDBs, while ignoring all [static pods](https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/), pods tolerating the `karpenter.sh/disruption=disrupting:NoSchedule` taint, and succeeded/failed pods. Wait for the node to be fully drained before proceeding to Step (3).
    * While waiting, if the underlying NodeClaim for the node no longer exists, remove the finalizer to allow the APIServer to delete the node, completing termination.

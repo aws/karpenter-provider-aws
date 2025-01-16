@@ -146,7 +146,7 @@ The simplest option is to include [NTH IMDS mode](https://quip-amazon.com/EUgPAQ
 
 **3B: Build a System Daemon (nthd)**
 
-An option to transparently handle spot interruption notifications is to build a system daemon in a separate repo that performs the IMDS monitoring and triggers an instance shutdown when an interruption is observed. This would rely on K8s’ new [graceful shutdown](https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown) feature which went beta in K8s 1.21. 
+An option to transparently handle spot interruption notifications is to build a system daemon in a separate repo that performs the IMDS monitoring and triggers an instance shutdown when an interruption is observed. This would rely on K8s’ new [graceful shutdown](https://kubernetes.io/docs/concepts/cluster-administration/node-shutdown/#graceful-node-shutdown) feature which went beta in K8s 1.21.
 
 With graceful shutdown, the kubelet registers [systemd-inhibitor-locks](https://www.freedesktop.org/wiki/Software/systemd/inhibit/) to stop the shutdown flow until locks are relinquished, which in this case would be when the kubelet has drained pods off of the node. Two parameters were added to the kubelet to tune the drain timeouts:  `shutdownGracePeriod` & `shutdownGracePeriodCriticalPods`
 
