@@ -73,6 +73,7 @@ var _ = Describe("Repair Policy", func() {
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	},
+		// Kubelet Supported Conditions
 		Entry("Node Ready False", corev1.NodeCondition{
 			Type:               corev1.NodeReady,
 			Status:             corev1.ConditionFalse,
@@ -81,6 +82,32 @@ var _ = Describe("Repair Policy", func() {
 		Entry("Node Ready Unknown", corev1.NodeCondition{
 			Type:               corev1.NodeReady,
 			Status:             corev1.ConditionUnknown,
+			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
+		}),
+		// Node Monitoring Agent Supported Conditions
+		Entry("Node AcceleratedHardwareReady False", corev1.NodeCondition{
+			Type:               "AcceleratedHardwareReady",
+			Status:             corev1.ConditionFalse,
+			LastTransitionTime: metav1.Time{Time: time.Now().Add(-11 * time.Minute)},
+		}),
+		Entry("Node StorageReady False", corev1.NodeCondition{
+			Type:               "StorageReady",
+			Status:             corev1.ConditionFalse,
+			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
+		}),
+		Entry("Node NetworkingReady False", corev1.NodeCondition{
+			Type:               "NetworkingReady",
+			Status:             corev1.ConditionFalse,
+			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
+		}),
+		Entry("Node KernelReady False", corev1.NodeCondition{
+			Type:               "KernelReady",
+			Status:             corev1.ConditionFalse,
+			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
+		}),
+		Entry("Node ContainerRuntimeReady False", corev1.NodeCondition{
+			Type:               "ContainerRuntimeReady",
+			Status:             corev1.ConditionFalse,
 			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
 		}),
 	)

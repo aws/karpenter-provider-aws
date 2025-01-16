@@ -46,10 +46,11 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 {{% /alert %}}
 
 * We have recently updated our labels on `karpenter_voluntary_disruption_queue_failures_total` and `karpenter_nodeclaims_disrupted_total` reason label from camille case to snake case. Therefore these reason labels values on those metrics have now been update as such:
-- Drifted -> drifted
-- Empty -> empty
-- Expired -> expired
-- Underutilized -> underutilized
+  - Drifted -> drifted
+  - Empty -> empty
+  - Expired -> expired
+  - Underutilized -> underutilized
+* Nodeclass status and termination controllers have been merged into a single `nodeclass` controller. If you are relying on logs or metrics for `nodeclass.termination` or `nodeclass.status` controllers, please make sure that you update them to reference the new `nodeclass` controller.
 
 ### Upgrading to `1.1.0`+
 

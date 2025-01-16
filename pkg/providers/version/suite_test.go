@@ -57,7 +57,7 @@ var _ = BeforeSuite(func() {
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
 	testEnv = &environmentaws.Environment{Environment: &common.Environment{KubeClient: env.KubernetesInterface}}
-	versionController = controllersversion.NewController(awsEnv.VersionProvider)
+	versionController = controllersversion.NewController(awsEnv.VersionProvider, awsEnv.VersionProvider.UpdateVersionWithValidation)
 })
 
 var _ = AfterSuite(func() {
