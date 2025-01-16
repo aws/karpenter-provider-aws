@@ -266,7 +266,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 
 		// Ensure that we're exercising all well known labels
-		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(karpv1.WellKnownLabels.UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
+		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(karpv1.WellKnownLabels.Difference(sets.New(
+			// TODO: add back to test with a preconfigured reserved instance type
+			v1.LabelCapacityReservationID,
+		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		var pods []*corev1.Pod
 		for key, value := range nodeSelector {
@@ -317,10 +320,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for accelerator labels
+		// Ensure that we're exercising all well known labels except for the accelerator and capacity reservation labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(
 			append(
 				karpv1.WellKnownLabels.Difference(sets.New(
+					v1.LabelCapacityReservationID,
 					v1.LabelInstanceAcceleratorCount,
 					v1.LabelInstanceAcceleratorName,
 					v1.LabelInstanceAcceleratorManufacturer,
@@ -369,8 +373,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for gpu labels and nvme
+		// Ensure that we're exercising all well known labels except for the gpu, nvme and capacity reservation id labels
 		expectedLabels := append(karpv1.WellKnownLabels.Difference(sets.New(
+			v1.LabelCapacityReservationID,
 			v1.LabelInstanceGPUCount,
 			v1.LabelInstanceGPUName,
 			v1.LabelInstanceGPUManufacturer,

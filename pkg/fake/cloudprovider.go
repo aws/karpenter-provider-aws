@@ -17,6 +17,7 @@ package fake
 import (
 	"context"
 
+	"github.com/awslabs/operatorpkg/option"
 	"github.com/awslabs/operatorpkg/status"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +53,7 @@ func (c *CloudProvider) Create(_ context.Context, _ *karpv1.NodeClaim) (*karpv1.
 	}, nil
 }
 
-func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *karpv1.NodePool) ([]*corecloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *karpv1.NodePool, _ ...option.Function[corecloudprovider.GetInstanceTypeOptions]) ([]*corecloudprovider.InstanceType, error) {
 	if c.InstanceTypes != nil {
 		return c.InstanceTypes, nil
 	}
