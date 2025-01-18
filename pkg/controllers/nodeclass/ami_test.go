@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package status_test
+package nodeclass_test
 
 import (
 	"fmt"
@@ -132,7 +132,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			Expect(len(nodeClass.Status.AMIs)).To(Equal(4))
@@ -216,7 +216,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			Expect(len(nodeClass.Status.AMIs)).To(Equal(4))
@@ -302,7 +302,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			Expect(len(nodeClass.Status.AMIs)).To(Equal(4))
@@ -384,7 +384,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2019@latest"}}
 			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			Expect(len(nodeClass.Status.AMIs)).To(Equal(1))
@@ -419,7 +419,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
 			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			Expect(len(nodeClass.Status.AMIs)).To(Equal(1))
@@ -459,7 +459,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			Alias: "bottlerocket@latest",
 		}}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 		Expect(len(nodeClass.Status.AMIs)).To(Equal(2))
@@ -510,7 +510,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			Tags: map[string]string{"Name": "amd64-standard"},
 		}}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.AMIs).To(Equal(
 			[]v1.AMI{
@@ -530,7 +530,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 	It("should get error when resolving AMIs and have status condition set to false", func() {
 		awsEnv.EC2API.NextError.Set(fmt.Errorf("unable to resolve AMI"))
 		ExpectApplied(ctx, env.Client, nodeClass)
-		_ = ExpectObjectReconcileFailed(ctx, env.Client, statusController, nodeClass)
+		_ = ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeFalse())
 	})
@@ -571,7 +571,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		})
 		It("should update nodeclass AMI status with correct deprecation value and conditions", func() {
 			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			Expect(len(nodeClass.Status.AMIs)).To(Equal(2))
@@ -609,7 +609,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			// Flush Cache
 			awsEnv.EC2Cache.Flush()
 
-			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(len(nodeClass.Status.AMIs)).To(Equal(2))
 			Expect(nodeClass.Status.AMIs).To(Equal(
@@ -646,7 +646,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 
 			// Initial reconcile discovers AMIs which are deprecated
 			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			Expect(len(nodeClass.Status.AMIs)).To(Equal(2))
@@ -709,7 +709,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			awsEnv.EC2Cache.Flush()
 
 			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			Expect(len(nodeClass.Status.AMIs)).To(Equal(2))
