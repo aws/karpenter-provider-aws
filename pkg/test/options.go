@@ -32,6 +32,7 @@ type OptionsFields struct {
 	VMMemoryOverheadPercent *float64
 	InterruptionQueue       *string
 	ReservedENIs            *int
+	ExtraHourlyCostPerHost  *float64
 }
 
 func Options(overrides ...OptionsFields) *options.Options {

@@ -147,6 +147,10 @@ spec:
             - name: RESERVED_ENIS
               value: "{{ . }}"
           {{- end }}
+          {{- with .Values.settings.extraHourlyCostPerHost }}
+            - name: EXTRA_HOURLY_COST_PER_HOST
+              value: "{{ . }}"
+          {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
