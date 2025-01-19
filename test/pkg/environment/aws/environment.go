@@ -22,6 +22,7 @@ import (
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
+	"github.com/aws/amazon-vpc-resource-controller-k8s/apis/vpcresources/v1beta1"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	config "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -37,6 +38,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/env"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -49,6 +51,7 @@ import (
 )
 
 func init() {
+	lo.Must0(v1beta1.AddToScheme(scheme.Scheme)) // add scheme for the security group policy CRD
 	karpv1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 }
 

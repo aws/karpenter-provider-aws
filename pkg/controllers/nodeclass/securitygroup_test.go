@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package status_test
+package nodeclass_test
 
 import (
 	"github.com/samber/lo"
@@ -50,7 +50,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 	})
 	It("Should update EC2NodeClass status for Security Groups", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
@@ -78,7 +78,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
@@ -99,7 +99,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
@@ -111,7 +111,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 	})
 	It("Should update Security Groups status when the Security Groups selector gets updated by tags", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
@@ -137,7 +137,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
@@ -153,7 +153,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 	})
 	It("Should update Security Groups status when the Security Groups selector gets updated by ids", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
@@ -176,7 +176,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
@@ -193,14 +193,14 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(BeNil())
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsFalse()).To(BeTrue())
 	})
 	It("Should not resolve a invalid selectors for an updated Security Groups selector", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
@@ -223,7 +223,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(BeNil())
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsFalse()).To(BeTrue())

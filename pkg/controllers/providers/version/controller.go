@@ -28,20 +28,24 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 )
 
+type UpdateVersion func(context.Context) error
+
 type Controller struct {
 	versionProvider *version.DefaultProvider
+	updateVersion   UpdateVersion
 }
 
-func NewController(versionProvider *version.DefaultProvider) *Controller {
+func NewController(versionProvider *version.DefaultProvider, updateVersion UpdateVersion) *Controller {
 	return &Controller{
 		versionProvider: versionProvider,
+		updateVersion:   updateVersion,
 	}
 }
 
 func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "providers.version")
 
-	if err := c.versionProvider.UpdateVersion(ctx); err != nil {
+	if err := c.updateVersion(ctx); err != nil {
 		return reconcile.Result{}, fmt.Errorf("updating version, %w", err)
 	}
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil

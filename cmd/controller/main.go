@@ -21,6 +21,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
 	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"
+	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
 )
 
@@ -36,6 +37,7 @@ func main() {
 		op.SecurityGroupProvider,
 	)
 	cloudProvider := metrics.Decorate(awsCloudProvider)
+	clusterState := state.NewCluster(op.Clock, op.GetClient(), cloudProvider)
 
 	op.
 		WithControllers(ctx, corecontrollers.NewControllers(
@@ -45,6 +47,7 @@ func main() {
 			op.GetClient(),
 			op.EventRecorder,
 			cloudProvider,
+			clusterState,
 		)...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,

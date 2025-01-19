@@ -35,6 +35,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/aws/amazon-vpc-resource-controller-k8s/apis/vpcresources/v1beta1"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
@@ -195,6 +197,17 @@ var _ = Describe("Extended Resources", func() {
 		DeferCleanup(func() {
 			env.ExpectPodENIDisabled()
 		})
+		env.ExpectCreated(nodeClass) // Creating the nodeclass first to discover the security groups
+
+		// evenutally expect the status on the nodeclass to be hydrated
+		Eventually(func(g Gomega) {
+			nodeClass = env.ExpectExists(nodeClass).(*v1.EC2NodeClass)
+			g.Expect(len(nodeClass.Status.SecurityGroups)).To(BeNumerically(">", 0))
+		}).Should(Succeed())
+		securityGroupIDs := lo.Map(nodeClass.Status.SecurityGroups, func(sg v1.SecurityGroup, _ int) string {
+			return sg.ID
+		})
+
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -202,18 +215,20 @@ var _ = Describe("Extended Resources", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "large-app"},
 				},
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						"vpc.amazonaws.com/pod-eni": resource.MustParse("1"),
-					},
-					Limits: corev1.ResourceList{
-						"vpc.amazonaws.com/pod-eni": resource.MustParse("1"),
-					},
-				},
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		env.ExpectCreated(nodeClass, nodePool, dep)
+		sgp := &v1beta1.SecurityGroupPolicy{
+			ObjectMeta: test.NamespacedObjectMeta(),
+			Spec: v1beta1.SecurityGroupPolicySpec{
+				PodSelector: metav1.SetAsLabelSelector(dep.Spec.Selector.MatchLabels),
+				SecurityGroups: v1beta1.GroupIds{
+					Groups: securityGroupIDs,
+				},
+			},
+		}
+
+		env.ExpectCreated(nodePool, dep, sgp)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectInitializedNodeCount("==", 1)

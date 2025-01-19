@@ -59,5 +59,6 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Whoosh | Using Karpenter to scale the EKS clusters for many purposes | `@vainkop` | [Whoosh](https://whoosh.bike) |
 | Next Insurance | Using Karpenter to manage the nodes in all our EKS clusters, including dev and prod, on demand and spots | `@moshebs` | [Homepage](https://www.nextinsurance.com)|
 | Grover Group GmbH | We use Karpenter for efficient and cost effective scaling of our nodes in all of our EKS clusters | `@suraj2410` | [Homepage](https://www.grover.com/de-en) & [Engineering Techblog](https://engineering.grover.com)|
+| Legit Security | We run Karpenter across all our EKS clusters to ensure efficient and cost-effective scaling across our infrastructure | `@Tal Balash`, `@Matan Ryngler` | [Homepage](https://www.legitsecurity.com)|
 | Logz.io | Using Karpenter in all of our EKS clusters for efficient and cost effective scaling of all our K8s workloads | `@pincher95`, `@Samplify` | [Homepage](https://logz.io/)|
 | X3M ads | We have been using Karpenter for (almost) all our workloads since 2023 | `@mreparaz`, `@fmansilla`, `@mrmartinez95` | [Homepage](https://x3mads.com) |

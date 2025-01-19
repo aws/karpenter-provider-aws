@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package status_test
+package nodeclass_test
 
 import (
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -53,7 +53,7 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 	})
 	It("Should update EC2NodeClass status for Subnets", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1.Subnet{
 			{
@@ -86,7 +86,7 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 			{SubnetId: aws.String("subnet-test3"), AvailabilityZone: aws.String("test-zone-1c"), AvailabilityZoneId: aws.String("tstz1-1c"), AvailableIpAddressCount: aws.Int32(50)},
 		}})
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1.Subnet{
 			{
@@ -117,7 +117,7 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1.Subnet{
 			{
@@ -140,7 +140,7 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1.Subnet{
 			{
@@ -153,7 +153,7 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 	})
 	It("Should update Subnet status when the Subnet selector gets updated by tags", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1.Subnet{
 			{
@@ -191,7 +191,7 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1.Subnet{
 			{
@@ -209,7 +209,7 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 	})
 	It("Should update Subnet status when the Subnet selector gets updated by ids", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1.Subnet{
 			{
@@ -240,7 +240,7 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1.Subnet{
 			{
@@ -258,14 +258,14 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(BeNil())
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSubnetsReady).IsFalse()).To(BeTrue())
 	})
 	It("Should not resolve a invalid selectors for an updated subnet selector", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1.Subnet{
 			{
@@ -296,7 +296,7 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(BeNil())
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSubnetsReady).IsFalse()).To(BeTrue())
