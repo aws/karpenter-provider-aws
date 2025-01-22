@@ -168,6 +168,13 @@ func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *
 		if trackedIPs, ok := p.inflightIPs[subnet.ID]; ok {
 			prevIPs = trackedIPs
 		}
+
+		// Check if the remaining IP count is insufficient to meet the predicted IP usage;
+		// if so, remove this subnet zone record from inflightIPs and continue to the next item in the loop。
+		if prevIPs-predictedIPsUsed < 0 {
+			delete(zonalSubnets, subnet.Zone)
+			continue
+		}
 		p.inflightIPs[subnet.ID] = prevIPs - predictedIPsUsed
 	}
 	return zonalSubnets, nil
