@@ -56,7 +56,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
-	controller = controllersversion.NewController(awsEnv.VersionProvider)
+	controller = controllersversion.NewController(awsEnv.VersionProvider, awsEnv.VersionProvider.UpdateVersionWithValidation)
 })
 
 var _ = AfterSuite(func() {

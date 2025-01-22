@@ -35,6 +35,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test"
 	"sigs.k8s.io/karpenter/pkg/utils/pod"
 
+	"github.com/aws/amazon-vpc-resource-controller-k8s/apis/vpcresources/v1beta1"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 
@@ -60,6 +62,7 @@ var (
 		&corev1.Node{},
 		&karpv1.NodeClaim{},
 		&v1.EC2NodeClass{},
+		&v1beta1.SecurityGroupPolicy{},
 	}
 )
 
