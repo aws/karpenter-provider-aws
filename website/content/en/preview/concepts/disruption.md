@@ -162,7 +162,6 @@ Behavioral Fields are treated as over-arching settings on the NodePool to dictat
 
 Read the [Drift Design](https://github.com/aws/karpenter-core/blob/main/designs/drift.md) for more.
 
-To enable the drift feature flag, refer to the [Feature Gates]({{<ref "../reference/settings#feature-gates" >}}).
 
 Karpenter will add the `Drifted` status condition on NodeClaims if the NodeClaim is drifted from its owning NodePool. Karpenter will also remove the `Drifted` status condition if either:
 1. The `Drift` feature gate is not enabled but the NodeClaim is drifted, Karpenter will remove the status condition.
@@ -197,6 +196,39 @@ If you require handling for Spot Rebalance Recommendations, you can use the [AWS
 Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. Karpenter requires that an SQS queue be provisioned and EventBridge rules and targets be added that forward interruption events from AWS services to the SQS queue. Karpenter provides details for provisioning this infrastructure in the [CloudFormation template in the Getting Started Guide](../../getting-started/getting-started-with-karpenter/#create-the-karpenter-infrastructure-and-iam-roles).
 
 To enable interruption handling, configure the `--interruption-queue` CLI argument with the name of the interruption queue provisioned to handle interruption events.
+
+### Node Auto Repair 
+
+Node Auto Repair is a feature that automatically identifies and replaces unhealthy nodes in your cluster, helping to maintain overall cluster health. Nodes can experience various types of failures affecting their hardware, file systems, or container environments. These failures may be surfaced through node conditions such as network unavailability, disk pressure, memory pressure, or other conditions reported by node diagnostic agents. When Karpenter detects these unhealthy conditions, it automatically replaces the affected nodes based on cloud provider-defined repair policies. Once a node has been in an unhealthy state beyond its configured toleration duration, Karpenter will forcefully terminate the node and its corresponding NodeClaim, bypassing the standard drain and termination grace period procedures to ensure swift replacement of problematic nodes. This ensures your cluster remains in a healthy state with minimal manual intervention, even in scenarios where normal node termination procedures might be impacted by the node's unhealthy state.
+
+To enable Node Auto Repair: 
+  1.  Ensure you have a [Node Monitoring Agent](https://docs.aws.amazon.com/en_us/eks/latest/userguide/node-health.html) deployed(e.g., Node Problem Detector)
+  2.  Enable the feature flag: NodeRepair=true
+  3.  The feature will automatically begin monitoring nodes based on your cloud provider's repair policies
+
+
+Karpenter monitors nodes for the following node status conditions when initiating repair actions:
+
+
+#### Kubelet Node Conditions
+
+|   Type  |    Status     | Toleration Duration | 
+| ------  | ------------- | ------------------- |
+|  Ready  |     False     |     30 minutes      |
+|  Ready  |     Unknown   |     30 minutes      |    
+
+#### Node Monitoring Agent Conditions
+
+|            Type            |    Status     | Toleration Duration | 
+| ------------------------   | ------------| --------------------- |
+|  AcceleratedHardwareReady  |     False   |     10 minutes        |
+|  StorageReady              |     False   |     30 minutes        |    
+|  NetworkingReady           |     False   |     30 minutes        |    
+|  KernelReady               |     False   |     30 minutes        |    
+|  ContainerRuntimeReady     |     False   |     30 minutes        |       
+
+To enable the drift feature flag, refer to the [Feature Gates]({{<ref "../reference/settings#feature-gates" >}}).
+
 
 ## Controls
 
