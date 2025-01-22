@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2024-12-09T13:15:15Z for us-east-1
+// generated at 2025-01-20T13:09:39Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -95,8 +95,9 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"c7gn.8xlarge": 1.996800, "c7gn.large": 0.124800, "c7gn.medium": 0.062400, "c7gn.metal": 3.993600,
 		"c7gn.xlarge": 0.249600,
 		// c7i-flex family
-		"c7i-flex.2xlarge": 0.339150, "c7i-flex.4xlarge": 0.678300, "c7i-flex.8xlarge": 1.356600,
-		"c7i-flex.large": 0.084790, "c7i-flex.xlarge": 0.169580,
+		"c7i-flex.12xlarge": 2.034900, "c7i-flex.16xlarge": 2.713200, "c7i-flex.2xlarge": 0.339150,
+		"c7i-flex.4xlarge": 0.678300, "c7i-flex.8xlarge": 1.356600, "c7i-flex.large": 0.084790,
+		"c7i-flex.xlarge": 0.169580,
 		// c7i family
 		"c7i.12xlarge": 2.142000, "c7i.16xlarge": 2.856000, "c7i.24xlarge": 4.284000, "c7i.2xlarge": 0.357000,
 		"c7i.48xlarge": 8.568000, "c7i.4xlarge": 0.714000, "c7i.8xlarge": 1.428000, "c7i.large": 0.089250,
@@ -118,6 +119,8 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"dl1.24xlarge": 13.109040,
 		// f1 family
 		"f1.16xlarge": 13.200000, "f1.2xlarge": 1.650000, "f1.4xlarge": 3.300000,
+		// f2 family
+		"f2.12xlarge": 3.960000, "f2.48xlarge": 15.840000,
 		// g2 family
 		"g2.2xlarge": 0.650000, "g2.8xlarge": 2.600000,
 		// g3 family
@@ -256,8 +259,9 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"m7gd.8xlarge": 1.708600, "m7gd.large": 0.106800, "m7gd.medium": 0.053400, "m7gd.metal": 3.417100,
 		"m7gd.xlarge": 0.213600,
 		// m7i-flex family
-		"m7i-flex.2xlarge": 0.383040, "m7i-flex.4xlarge": 0.766080, "m7i-flex.8xlarge": 1.532160,
-		"m7i-flex.large": 0.095760, "m7i-flex.xlarge": 0.191520,
+		"m7i-flex.12xlarge": 2.298240, "m7i-flex.16xlarge": 3.064320, "m7i-flex.2xlarge": 0.383040,
+		"m7i-flex.4xlarge": 0.766080, "m7i-flex.8xlarge": 1.532160, "m7i-flex.large": 0.095760,
+		"m7i-flex.xlarge": 0.191520,
 		// m7i family
 		"m7i.12xlarge": 2.419200, "m7i.16xlarge": 3.225600, "m7i.24xlarge": 4.838400, "m7i.2xlarge": 0.403200,
 		"m7i.48xlarge": 9.676800, "m7i.4xlarge": 0.806400, "m7i.8xlarge": 1.612800, "m7i.large": 0.100800,
@@ -394,6 +398,10 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"u-9tb1.112xlarge": 81.900000,
 		// u7i-12tb family
 		"u7i-12tb.224xlarge": 152.880000,
+		// u7i-6tb family
+		"u7i-6tb.112xlarge": 62.790000,
+		// u7i-8tb family
+		"u7i-8tb.112xlarge": 83.720000,
 		// u7in-16tb family
 		"u7in-16tb.224xlarge": 203.840000,
 		// u7in-24tb family

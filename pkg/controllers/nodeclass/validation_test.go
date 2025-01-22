@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package status_test
+package nodeclass_test
 
 import (
 	status "github.com/awslabs/operatorpkg/status"
@@ -55,7 +55,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 	DescribeTable("should update status condition on nodeClass as NotReady when tag validation fails", func(illegalTag map[string]string) {
 		nodeClass.Spec.Tags = illegalTag
 		ExpectApplied(ctx, env.Client, nodeClass)
-		err := ExpectObjectReconcileFailed(ctx, env.Client, statusController, nodeClass)
+		err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
 		Expect(err).To(HaveOccurred())
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Conditions).To(HaveLen(6))
@@ -72,7 +72,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 	It("should update status condition as Ready when tags are valid", func() {
 		nodeClass.Spec.Tags = map[string]string{}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())

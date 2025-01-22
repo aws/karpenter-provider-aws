@@ -29,15 +29,17 @@ There are two ways in-which Spot interruption notifications and Rebalance Recomm
 EC2 IMDS is an HTTP API that can only be locally accessed from an EC2 instance.
 
 ```
-`curl 169.254.169.254/latest/meta-data/spot/instance-action
+# Termination Check
+curl 169.254.169.254/latest/meta-data/spot/instance-action
 {
     "action": "terminate",
     "time": "2022-07-11T17:11:44Z"
 }
 
-curl 169.254.169.254``/``latest``/``meta``-``data``/``events``/``recommendations``/``rebalance`
-`{`
-`        ``"noticeTime"``:`` ``"2022-07-16T19:18:24Z"`
+# Rebalance Check
+curl 169.254.169.254/latest/meta-data/events/recommendations/rebalance
+{
+    "noticeTime": "2022-07-16T19:18:24Z"
 }
 
 ```
@@ -47,19 +49,19 @@ curl 169.254.169.254``/``latest``/``meta``-``data``/``events``/``recommendations
 EventBridge is an Event Bus service within AWS that allows users to set rules on events to capture and then target destinations for those events. Relevant targets for Spot interruption notifications include SQS, Lambda, and EC2-Terminate-Instance.
 
 ```
-`# Example spot interruption notification EventBridge rule`
-`$ aws events put``-``rule \`
-`  ``--``name ``MyK8sSpotTermRule`` \`
-`  ``--``event``-``pattern ``"{\"source\": [\"aws.ec2\"],\"detail-type\": [\"EC2 Spot Instance Interruption\"]}"`
+# Example spot interruption notification EventBridge rule
+aws events put-rule \
+ --name MyK8sSpotTermRule \
+ --event-pattern "{\"source\": [\"aws.ec2\"],\"detail-type\": [\"EC2 Spot Instance Interruption\"]}"
 
-`# Example rebalance recommendation EventBridge rule``
-$ aws events put-rule \
-  --name MyK8sRebalanceRule \
-  --event-pattern "{\"source\": [\"aws.ec2\"],\"detail-type\": [\"EC2 Instance Rebalance Recommendation\"]}"
-``  `
-`# Example targeting an SQS queue`
-`$ aws events put``-``targets ``--``rule ``MyK8sSpotTermRule`` \`
-`  ``--``targets ``"Id"``=``"1"``,``"Arn"``=``"arn:aws:sqs:us-east-1:123456789012:MyK8sTermQueue"``  `
+# Example rebalance recommendation EventBridge rule
+aws events put-rule \
+ --name MyK8sRebalanceRule \
+ --event-pattern "{\"source\": [\"aws.ec2\"],\"detail-type\": [\"EC2 Instance Rebalance Recommendation\"]}"
+
+# Example targeting an SQS queue
+aws events put-targets --rule MyK8sSpotTermRule \
+ --targets "Id=1,Arn=arn:aws:sqs:us-east-1:123456789012:MyK8sTermQueue"
 ```
 
 
@@ -113,17 +115,17 @@ SQS exposes a VPC Endpoint which will fulfill the isolated VPC use-case.
 Dynamically creating the SQS infrastructure and EventBridge rules means that Karpenter’s IAM role would need permissions to SQS and EventBridge:
 
 ```
-`"sqs:GetQueueUrl",`
-`"sqs:ListQueues"``,`
-`"sqs:ReceiveMessage"``,`
-`"sqs:CreateQueue"``,`
-`"sqs:DeleteMessage"``,`
-`"events:ListRules",`
-"`events:DescribeRule`",
-"events:PutRule",
+"sqs:GetQueueUrl",
+"sqs:ListQueues",
+"sqs:ReceiveMessage",
+"sqs:CreateQueue",
+"sqs:DeleteMessage",
+"events:ListRules",
+"events:DescribeRule",
+"events:PutRule", 
 "events:PutTargets",
-"`events:DeleteRule`",
-`"events:RemoveTargets"`
+"events:DeleteRule",
+"events:RemoveTargets"
 ```
 
 The policy can be setup with a predefined name based on the cluster name. For example, `karpenter-events-${CLUSTER_NAME}` which would allow for a more constrained resource policy. 
@@ -144,7 +146,7 @@ The simplest option is to include [NTH IMDS mode](https://quip-amazon.com/EUgPAQ
 
 **3B: Build a System Daemon (nthd)**
 
-An option to transparently handle spot interruption notifications is to build a system daemon in a separate repo that performs the IMDS monitoring and triggers an instance shutdown when an interruption is observed. This would rely on K8s’ new [graceful shutdown](https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown) feature which went beta in K8s 1.21. 
+An option to transparently handle spot interruption notifications is to build a system daemon in a separate repo that performs the IMDS monitoring and triggers an instance shutdown when an interruption is observed. This would rely on K8s’ new [graceful shutdown](https://kubernetes.io/docs/concepts/cluster-administration/node-shutdown/#graceful-node-shutdown) feature which went beta in K8s 1.21.
 
 With graceful shutdown, the kubelet registers [systemd-inhibitor-locks](https://www.freedesktop.org/wiki/Software/systemd/inhibit/) to stop the shutdown flow until locks are relinquished, which in this case would be when the kubelet has drained pods off of the node. Two parameters were added to the kubelet to tune the drain timeouts:  `shutdownGracePeriod` & `shutdownGracePeriodCriticalPods`
 

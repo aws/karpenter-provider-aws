@@ -12,18 +12,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package termination
+package nodeclass
 
 import (
 	"context"
 	"fmt"
 	"time"
 
+	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
-
-	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"sigs.k8s.io/karpenter/pkg/utils/result"
 
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -44,34 +44,103 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
 
-type Controller struct {
-	kubeClient              client.Client
-	recorder                events.Recorder
-	instanceProfileProvider instanceprofile.Provider
-	launchTemplateProvider  launchtemplate.Provider
+type nodeClassReconciler interface {
+	Reconcile(context.Context, *v1.EC2NodeClass) (reconcile.Result, error)
 }
 
-func NewController(kubeClient client.Client, recorder events.Recorder,
-	instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider) *Controller {
+type Controller struct {
+	kubeClient             client.Client
+	recorder               events.Recorder
+	launchTemplateProvider launchtemplate.Provider
+
+	ami             *AMI
+	instanceProfile *InstanceProfile
+	subnet          *Subnet
+	securityGroup   *SecurityGroup
+	validation      *Validation
+	readiness       *Readiness //TODO : Remove this when we have sub status conditions
+}
+
+func NewController(kubeClient client.Client, recorder events.Recorder, subnetProvider subnet.Provider, securityGroupProvider securitygroup.Provider,
+	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider) *Controller {
 
 	return &Controller{
-		kubeClient:              kubeClient,
-		recorder:                recorder,
-		instanceProfileProvider: instanceProfileProvider,
-		launchTemplateProvider:  launchTemplateProvider,
+		kubeClient:             kubeClient,
+		recorder:               recorder,
+		launchTemplateProvider: launchTemplateProvider,
+		ami:                    &AMI{amiProvider: amiProvider},
+		subnet:                 &Subnet{subnetProvider: subnetProvider},
+		securityGroup:          &SecurityGroup{securityGroupProvider: securityGroupProvider},
+		instanceProfile:        &InstanceProfile{instanceProfileProvider: instanceProfileProvider},
+		validation:             &Validation{},
+		readiness:              &Readiness{launchTemplateProvider: launchTemplateProvider},
 	}
 }
 
+func (c *Controller) Name() string {
+	return "nodeclass"
+}
+
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "nodeclass.termination")
+	ctx = injection.WithControllerName(ctx, c.Name())
 
 	if !nodeClass.GetDeletionTimestamp().IsZero() {
 		return c.finalize(ctx, nodeClass)
 	}
-	return reconcile.Result{}, nil
+
+	if !controllerutil.ContainsFinalizer(nodeClass, v1.TerminationFinalizer) {
+		stored := nodeClass.DeepCopy()
+		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
+
+		// We use client.MergeFromWithOptimisticLock because patching a list with a JSON merge patch
+		// can cause races due to the fact that it fully replaces the list on a change
+		// Here, we are updating the finalizer list
+		if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); err != nil {
+			if errors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+			return reconcile.Result{}, err
+		}
+	}
+	stored := nodeClass.DeepCopy()
+
+	var results []reconcile.Result
+	var errs error
+	for _, reconciler := range []nodeClassReconciler{
+		c.ami,
+		c.subnet,
+		c.securityGroup,
+		c.instanceProfile,
+		c.validation,
+		c.readiness,
+	} {
+		res, err := reconciler.Reconcile(ctx, nodeClass)
+		errs = multierr.Append(errs, err)
+		results = append(results, res)
+	}
+
+	if !equality.Semantic.DeepEqual(stored, nodeClass) {
+		// We use client.MergeFromWithOptimisticLock because patching a list with a JSON merge patch
+		// can cause races due to the fact that it fully replaces the list on a change
+		// Here, we are updating the status condition list
+		if err := c.kubeClient.Status().Patch(ctx, nodeClass, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); err != nil {
+			if errors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+			errs = multierr.Append(errs, client.IgnoreNotFound(err))
+		}
+	}
+	if errs != nil {
+		return reconcile.Result{}, errs
+	}
+	return result.Min(results...), nil
 }
 
 func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
@@ -88,8 +157,8 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
 	if nodeClass.Spec.Role != "" {
-		if err := c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
-			return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
+		if _, err := c.instanceProfile.Finalize(ctx, nodeClass); err != nil {
+			return reconcile.Result{}, err
 		}
 	}
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {
@@ -113,7 +182,7 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("nodeclass.termination").
+		Named(c.Name()).
 		For(&v1.EC2NodeClass{}).
 		Watches(
 			&karpv1.NodeClaim{},

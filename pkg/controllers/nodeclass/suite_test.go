@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package termination_test
+package nodeclass_test
 
 import (
 	"context"
@@ -37,7 +37,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/termination"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -51,7 +51,8 @@ import (
 var ctx context.Context
 var env *coretest.Environment
 var awsEnv *test.Environment
-var terminationController *termination.Controller
+var nodeClass *v1.EC2NodeClass
+var controller *nodeclass.Controller
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -60,12 +61,19 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...), coretest.WithFieldIndexers(coretest.NodeClaimNodeClassRefFieldIndexer(ctx)))
+	env = coretest.NewEnvironment(coretest.WithCRDs(test.RemoveNodeClassTagValidation(apis.CRDs)...), coretest.WithCRDs(v1alpha1.CRDs...), coretest.WithFieldIndexers(coretest.NodeClaimNodeClassRefFieldIndexer(ctx)))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	terminationController = termination.NewController(env.Client, events.NewRecorder(&record.FakeRecorder{}), awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
+	controller = nodeclass.NewController(
+		env.Client, events.NewRecorder(&record.FakeRecorder{}),
+		awsEnv.SubnetProvider,
+		awsEnv.SecurityGroupProvider,
+		awsEnv.AMIProvider,
+		awsEnv.InstanceProfileProvider,
+		awsEnv.LaunchTemplateProvider,
+	)
 })
 
 var _ = AfterSuite(func() {
@@ -74,6 +82,7 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	nodeClass = test.EC2NodeClass()
 	awsEnv.Reset()
 })
 
@@ -82,7 +91,6 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("NodeClass Termination", func() {
-	var nodeClass *v1.EC2NodeClass
 	var profileName string
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
@@ -115,11 +123,11 @@ var _ = Describe("NodeClass Termination", func() {
 		Expect(ok).To(BeTrue())
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
 		awsEnv.EC2API.NextError.Set(fmt.Errorf("delete Launch Template Error"))
-		_ = ExpectObjectReconcileFailed(ctx, env.Client, terminationController, nodeClass)
+		_ = ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
 		ExpectExists(ctx, env.Client, nodeClass)
 	})
 	It("should not delete the launch template not associated with the nodeClass", func() {
@@ -129,10 +137,10 @@ var _ = Describe("NodeClass Termination", func() {
 		Expect(ok).To(BeTrue())
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		_, ok = awsEnv.EC2API.LaunchTemplates.Load(launchTemplateName)
 		Expect(ok).To(BeTrue())
 		ExpectNotFound(ctx, env.Client, nodeClass)
@@ -148,9 +156,9 @@ var _ = Describe("NodeClass Termination", func() {
 		Expect(ok).To(BeTrue())
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		_, ok = awsEnv.EC2API.LaunchTemplates.Load(ltName1)
 		Expect(ok).To(BeFalse())
 		_, ok = awsEnv.EC2API.LaunchTemplates.Load(ltName2)
@@ -171,11 +179,11 @@ var _ = Describe("NodeClass Termination", func() {
 		}
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
@@ -187,10 +195,10 @@ var _ = Describe("NodeClass Termination", func() {
 		}
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
@@ -200,7 +208,7 @@ var _ = Describe("NodeClass Termination", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
@@ -232,11 +240,11 @@ var _ = Describe("NodeClass Termination", func() {
 		}
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
-		res := ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		res := ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(res.RequeueAfter).To(Equal(time.Minute * 10))
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		ExpectExists(ctx, env.Client, nodeClass)
@@ -244,7 +252,7 @@ var _ = Describe("NodeClass Termination", func() {
 		// Delete one of the NodeClaims
 		// The NodeClass should still not delete
 		ExpectDeleted(ctx, env.Client, nodeClaims[0])
-		res = ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		res = ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(res.RequeueAfter).To(Equal(time.Minute * 10))
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		ExpectExists(ctx, env.Client, nodeClass)
@@ -252,7 +260,7 @@ var _ = Describe("NodeClass Termination", func() {
 		// Delete the last NodeClaim
 		// The NodeClass should now delete
 		ExpectDeleted(ctx, env.Client, nodeClaims[1])
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
@@ -272,11 +280,11 @@ var _ = Describe("NodeClass Termination", func() {
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
-		ExpectObjectReconciled(ctx, env.Client, terminationController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		ExpectNotFound(ctx, env.Client, nodeClass)
 
