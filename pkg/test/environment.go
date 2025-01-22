@@ -86,6 +86,7 @@ type Environment struct {
 	AMIResolver             *amifamily.DefaultResolver
 	VersionProvider         *version.DefaultProvider
 	LaunchTemplateProvider  *launchtemplate.DefaultProvider
+	SSMProvider             *ssmp.DefaultProvider
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {

@@ -18,7 +18,12 @@ import (
 	status "github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/smithy-go"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -27,55 +32,105 @@ import (
 )
 
 var _ = Describe("NodeClass Validation Status Controller", func() {
-	BeforeEach(func() {
-		nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
-			Spec: v1.EC2NodeClassSpec{
-				SubnetSelectorTerms: []v1.SubnetSelectorTerm{
-					{
-						Tags: map[string]string{"*": "*"},
+	Context("Tag Validation", func() {
+		BeforeEach(func() {
+			nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					SubnetSelectorTerms: []v1.SubnetSelectorTerm{
+						{
+							Tags: map[string]string{"*": "*"},
+						},
+					},
+					SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{
+						{
+							Tags: map[string]string{"*": "*"},
+						},
+					},
+					AMIFamily: lo.ToPtr(v1.AMIFamilyCustom),
+					AMISelectorTerms: []v1.AMISelectorTerm{
+						{
+							Tags: map[string]string{"*": "*"},
+						},
+					},
+					Tags: map[string]string{
+						"kubernetes.io/cluster/anothercluster": "owned",
 					},
 				},
-				SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{
-					{
-						Tags: map[string]string{"*": "*"},
-					},
-				},
-				AMIFamily: lo.ToPtr(v1.AMIFamilyCustom),
-				AMISelectorTerms: []v1.AMISelectorTerm{
-					{
-						Tags: map[string]string{"*": "*"},
-					},
-				},
-				Tags: map[string]string{
-					"kubernetes.io/cluster/anothercluster": "owned",
-				},
-			},
+			})
+		})
+		DescribeTable("should update status condition on nodeClass as NotReady when tag validation fails", func(illegalTag map[string]string) {
+			nodeClass.Spec.Tags = illegalTag
+			ExpectApplied(ctx, env.Client, nodeClass)
+			err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+			Expect(err).To(HaveOccurred())
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.Status.Conditions).To(HaveLen(6))
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
+			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("ValidationSucceeded=False"))
+		},
+			Entry("kubernetes.io/cluster*", map[string]string{"kubernetes.io/cluster/acluster": "owned"}),
+			Entry(v1.NodePoolTagKey, map[string]string{v1.NodePoolTagKey: "testnodepool"}),
+			Entry(v1.EKSClusterNameTagKey, map[string]string{v1.EKSClusterNameTagKey: "acluster"}),
+			Entry(v1.NodeClassTagKey, map[string]string{v1.NodeClassTagKey: "testnodeclass"}),
+			Entry(v1.NodeClaimTagKey, map[string]string{v1.NodeClaimTagKey: "testnodeclaim"}),
+		)
+		It("should update status condition as Ready when tags are valid", func() {
+			nodeClass.Spec.Tags = map[string]string{}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
 		})
 	})
-	DescribeTable("should update status condition on nodeClass as NotReady when tag validation fails", func(illegalTag map[string]string) {
-		nodeClass.Spec.Tags = illegalTag
-		ExpectApplied(ctx, env.Client, nodeClass)
-		err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
-		Expect(err).To(HaveOccurred())
-		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.Conditions).To(HaveLen(6))
-		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
-		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
-		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("ValidationSucceeded=False"))
-	},
-		Entry("kubernetes.io/cluster*", map[string]string{"kubernetes.io/cluster/acluster": "owned"}),
-		Entry(v1.NodePoolTagKey, map[string]string{v1.NodePoolTagKey: "testnodepool"}),
-		Entry(v1.EKSClusterNameTagKey, map[string]string{v1.EKSClusterNameTagKey: "acluster"}),
-		Entry(v1.NodeClassTagKey, map[string]string{v1.NodeClassTagKey: "testnodeclass"}),
-		Entry(v1.NodeClaimTagKey, map[string]string{v1.NodeClaimTagKey: "testnodeclaim"}),
-	)
-	It("should update status condition as Ready when tags are valid", func() {
-		nodeClass.Spec.Tags = map[string]string{}
-		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+	Context("Authorization Validation", func() {
+		It("should update status condition on nodeClass as NotReady when nodeclass has authorization failure due to createfleet", func() {
+			ExpectApplied(ctx, env.Client, nodeClass)
+			awsEnv.EC2API.CreateFleetBehavior.Error.Set(&smithy.GenericAPIError{
+				Code: "UnauthorizedOperation",
+			}, fake.MaxCalls(1))
+			err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+			Expect(err).To(HaveOccurred())
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.Status.Conditions).To(HaveLen(6))
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+		})
+		It("should update status condition on nodeClass as NotReady when nodeclass has authorization failure due to runinstances", func() {
+			ExpectApplied(ctx, env.Client, nodeClass)
+			awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+				Code: "UnauthorizedOperation",
+			}, fake.MaxCalls(1))
+			err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+			Expect(err).To(HaveOccurred())
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.Status.Conditions).To(HaveLen(6))
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+		})
+		It("should update status condition on nodeClass as NotReady when nodeclass has authorization failure due to describelt", func() {
+			ExpectApplied(ctx, env.Client, nodeClass)
+			awsEnv.EC2API.NextError.Set(&smithy.GenericAPIError{
+				Code: "UnauthorizedOperation",
+			})
+			describeLaunchTemplatesInput := &ec2.DescribeLaunchTemplatesInput{
+				DryRun:              lo.ToPtr(true),
+				LaunchTemplateNames: []string{"mock-lt-name"},
+			}
 
-		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
-		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
+			_, err := awsEnv.EC2API.DescribeLaunchTemplates(ctx, describeLaunchTemplatesInput)
+			if !awserrors.IsUnauthorizedError(err) {
+				err = nil
+			}
+			Expect(err).To(HaveOccurred())
+		})
+		It("should update status condition as Ready", func() {
+			nodeClass.Spec.Tags = map[string]string{}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
 	})
 })

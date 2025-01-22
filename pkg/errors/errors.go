@@ -16,6 +16,7 @@ package errors
 
 import (
 	"errors"
+	"strings"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
@@ -105,4 +106,16 @@ func IsLaunchTemplateNotFound(err error) bool {
 		return apiErr.ErrorCode() == launchTemplateNameNotFoundCode
 	}
 	return false
+}
+
+func IsUnauthorizedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return strings.Contains(apiErr.ErrorCode(), "UnauthorizedOperation")
+	}
+	return strings.Contains(err.Error(), "UnauthorizedOperation")
+
 }

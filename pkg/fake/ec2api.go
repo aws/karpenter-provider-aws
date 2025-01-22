@@ -59,6 +59,7 @@ type EC2Behavior struct {
 	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
 	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
 	CreateTagsBehavior                  MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
+	RunInstancesBehavior                MockedFunction[ec2.RunInstancesInput, ec2.RunInstancesOutput]
 	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
 	Instances                           sync.Map
@@ -212,12 +213,15 @@ func (e *EC2API) TerminateInstances(_ context.Context, input *ec2.TerminateInsta
 	})
 }
 
-func (e *EC2API) CreateLaunchTemplate(_ context.Context, input *ec2.CreateLaunchTemplateInput, _ ...func(*ec2.Options)) (*ec2.CreateLaunchTemplateOutput, error) {
+func (e *EC2API) CreateLaunchTemplate(ctx context.Context, input *ec2.CreateLaunchTemplateInput, _ ...func(*ec2.Options)) (*ec2.CreateLaunchTemplateOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
 	}
-	e.CalledWithCreateLaunchTemplateInput.Add(input)
+	// We dont want to count the status controllers call to createlaunchtemplate
+	if ctx.Value("reconcile") != true {
+		e.CalledWithCreateLaunchTemplateInput.Add(input)
+	}
 	launchTemplate := ec2types.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
 	e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
 	return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: lo.ToPtr(launchTemplate)}, nil
@@ -317,18 +321,22 @@ func filterInstances(instances []ec2types.Instance, filters []ec2types.Filter) [
 	return ret
 }
 
-func (e *EC2API) DescribeImages(_ context.Context, input *ec2.DescribeImagesInput, _ ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
+func (e *EC2API) DescribeImages(ctx context.Context, input *ec2.DescribeImagesInput, _ ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
 	}
-	e.CalledWithDescribeImagesInput.Add(input)
-	if !e.DescribeImagesOutput.IsNil() {
-		describeImagesOutput := e.DescribeImagesOutput.Clone()
-		describeImagesOutput.Images = FilterDescribeImages(describeImagesOutput.Images, input.Filters)
-		return describeImagesOutput, nil
+	// We dont want to count the status controllers call to describe images
+	if ctx.Value("reconcile") != true {
+		e.CalledWithDescribeImagesInput.Add(input)
+		if !e.DescribeImagesOutput.IsNil() {
+			describeImagesOutput := e.DescribeImagesOutput.Clone()
+
+			describeImagesOutput.Images = FilterDescribeImages(describeImagesOutput.Images, input.Filters)
+			return describeImagesOutput, nil
+		}
 	}
-	if input.Filters[0].Values[0] == "invalid" {
+	if input.Filters != nil && input.Filters[0].Values[0] == "invalid" {
 		return &ec2.DescribeImagesOutput{}, nil
 	}
 	return &ec2.DescribeImagesOutput{
@@ -652,4 +660,25 @@ func (e *EC2API) DescribeSpotPriceHistory(_ context.Context, input *ec2.Describe
 	}
 	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
 	return nil, errors.New("no pricing data provided")
+}
+
+func (e *EC2API) RunInstances(ctx context.Context, input *ec2.RunInstancesInput, optFns ...func(*ec2.Options)) (*ec2.RunInstancesOutput, error) {
+	return e.RunInstancesBehavior.Invoke(input, func(input *ec2.RunInstancesInput) (*ec2.RunInstancesOutput, error) {
+		if !e.NextError.IsNil() {
+			defer e.NextError.Reset()
+			return nil, e.NextError.Get()
+		}
+
+		// Default implementation
+		instance := ec2types.Instance{
+			InstanceId:   aws.String(test.RandomName()),
+			InstanceType: input.InstanceType,
+			State:        &ec2types.InstanceState{Name: ec2types.InstanceStateNameRunning},
+			// Add other required fields
+		}
+
+		return &ec2.RunInstancesOutput{
+			Instances: []ec2types.Instance{instance},
+		}, nil
+	})
 }
