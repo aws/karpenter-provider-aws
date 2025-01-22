@@ -47,7 +47,6 @@ var _ = Describe("Nodeclass Validation", func() {
 		Expect(err).To(BeNil())
 	})
 	It("should fail reconciliation when CreateFleet is explicitly denied", func() {
-		// Create an explicit deny policy for CreateFleet
 		createPolicyInput := &iam.CreatePolicyInput{
 			PolicyName: aws.String("DenyPolicy"),
 			PolicyDocument: aws.String(`{
@@ -62,7 +61,6 @@ var _ = Describe("Nodeclass Validation", func() {
 			}`),
 		}
 
-		// Attach the deny policy to the Karpenter role
 		roleName = fmt.Sprintf("%s-karpenter", env.ClusterName)
 
 		createPolicyOutput, err = env.IAMAPI.CreatePolicy(env.Context, createPolicyInput)
@@ -74,7 +72,6 @@ var _ = Describe("Nodeclass Validation", func() {
 		})
 		Expect(err).To(BeNil())
 
-		// Create test resources
 		pod := coretest.Pod()
 		env.ExpectCreated(nodePool, nodeClass, pod)
 
@@ -87,14 +84,12 @@ var _ = Describe("Nodeclass Validation", func() {
 			g.Expect(err).To(BeNil())
 		}, "30s", "5s").Should(Succeed())
 
-		// Expect the pod to remain unscheduled due to CreateFleet failure
 		Consistently(func(g Gomega) {
 			err := env.Client.Get(env.Context, client.ObjectKeyFromObject(pod), pod)
 			g.Expect(err).To(BeNil())
 			g.Expect(pod.Spec.NodeName).To(Equal(""))
 		}, "30s", "5s").Should(Succeed())
 
-		// Verify the error in events
 		Eventually(func(g Gomega) {
 			events := &corev1.EventList{}
 			err := env.Client.List(env.Context, events)
@@ -114,7 +109,6 @@ var _ = Describe("Nodeclass Validation", func() {
 		}, "60s", "5s").Should(Succeed())
 	})
 	It("should fail reconciliation when RunInstances is explicitly denied", func() {
-		// Create an explicit deny policy for RunInstances
 		createPolicyInput := &iam.CreatePolicyInput{
 			PolicyName: aws.String("DenyPolicy"),
 			PolicyDocument: aws.String(`{
@@ -129,7 +123,6 @@ var _ = Describe("Nodeclass Validation", func() {
 			}`),
 		}
 
-		// Attach the deny policy to the Karpenter role
 		roleName = fmt.Sprintf("%s-karpenter", env.ClusterName)
 
 		createPolicyOutput, err = env.IAMAPI.CreatePolicy(env.Context, createPolicyInput)
@@ -141,7 +134,6 @@ var _ = Describe("Nodeclass Validation", func() {
 		})
 		Expect(err).To(BeNil())
 
-		// Create test resources
 		pod := coretest.Pod()
 		env.ExpectCreated(nodePool, nodeClass, pod)
 
@@ -160,7 +152,6 @@ var _ = Describe("Nodeclass Validation", func() {
 			g.Expect(pod.Spec.NodeName).To(Equal(""))
 		}, "30s", "5s").Should(Succeed())
 
-		// Verify the error in events
 		Eventually(func(g Gomega) {
 			events := &corev1.EventList{}
 			err := env.Client.List(env.Context, events)
@@ -180,7 +171,6 @@ var _ = Describe("Nodeclass Validation", func() {
 		}, "60s", "5s").Should(Succeed())
 	})
 	It("should fail reconciliation when CreateLaunchTemplate is explicitly denied", func() {
-		// Create an explicit deny policy for RunInstances
 		createPolicyInput := &iam.CreatePolicyInput{
 			PolicyName: aws.String("DenyPolicy"),
 			PolicyDocument: aws.String(`{
@@ -195,7 +185,6 @@ var _ = Describe("Nodeclass Validation", func() {
 			}`),
 		}
 
-		// Attach the deny policy to the Karpenter role
 		roleName = fmt.Sprintf("%s-karpenter", env.ClusterName)
 
 		createPolicyOutput, err = env.IAMAPI.CreatePolicy(env.Context, createPolicyInput)
@@ -207,7 +196,6 @@ var _ = Describe("Nodeclass Validation", func() {
 		})
 		Expect(err).To(BeNil())
 
-		// Create test resources
 		pod := coretest.Pod()
 		env.ExpectCreated(nodePool, nodeClass, pod)
 
@@ -226,7 +214,6 @@ var _ = Describe("Nodeclass Validation", func() {
 			g.Expect(pod.Spec.NodeName).To(Equal(""))
 		}, "30s", "5s").Should(Succeed())
 
-		// Verify the error in events
 		Eventually(func(g Gomega) {
 			events := &corev1.EventList{}
 			err := env.Client.List(env.Context, events)
@@ -246,7 +233,6 @@ var _ = Describe("Nodeclass Validation", func() {
 		}, "60s", "5s").Should(Succeed())
 	})
 	It("should fail reconciliation when DescribeLaunchTemplate is explicitly denied", func() {
-		// Create an explicit deny policy for RunInstances
 		createPolicyInput := &iam.CreatePolicyInput{
 			PolicyName: aws.String("DenyPolicy"),
 			PolicyDocument: aws.String(`{
@@ -261,7 +247,6 @@ var _ = Describe("Nodeclass Validation", func() {
 			}`),
 		}
 
-		// Attach the deny policy to the Karpenter role
 		roleName = fmt.Sprintf("%s-karpenter", env.ClusterName)
 
 		createPolicyOutput, err = env.IAMAPI.CreatePolicy(env.Context, createPolicyInput)
@@ -273,7 +258,6 @@ var _ = Describe("Nodeclass Validation", func() {
 		})
 		Expect(err).To(BeNil())
 
-		// Create test resources
 		pod := coretest.Pod()
 		env.ExpectCreated(nodePool, nodeClass, pod)
 
@@ -292,7 +276,6 @@ var _ = Describe("Nodeclass Validation", func() {
 			g.Expect(pod.Spec.NodeName).To(Equal(""))
 		}, "30s", "5s").Should(Succeed())
 
-		// Verify the error in events
 		Eventually(func(g Gomega) {
 			events := &corev1.EventList{}
 			err := env.Client.List(env.Context, events)
@@ -312,7 +295,6 @@ var _ = Describe("Nodeclass Validation", func() {
 		}, "90s", "5s").Should(Succeed())
 	})
 	It("should fail reconciliation when more than one permission is explicitly denied", func() {
-		// Create an explicit deny policy for RunInstances
 		createPolicyInput := &iam.CreatePolicyInput{
 			PolicyName: aws.String("DenyPolicy"),
 			PolicyDocument: aws.String(`{
@@ -330,7 +312,6 @@ var _ = Describe("Nodeclass Validation", func() {
 }`),
 		}
 
-		// Attach the deny policy to the Karpenter role
 		roleName = fmt.Sprintf("%s-karpenter", env.ClusterName)
 
 		createPolicyOutput, err = env.IAMAPI.CreatePolicy(env.Context, createPolicyInput)
@@ -342,7 +323,6 @@ var _ = Describe("Nodeclass Validation", func() {
 		})
 		Expect(err).To(BeNil())
 
-		// Create test resources
 		pod := coretest.Pod()
 		env.ExpectCreated(nodePool, nodeClass, pod)
 
@@ -361,7 +341,6 @@ var _ = Describe("Nodeclass Validation", func() {
 			g.Expect(pod.Spec.NodeName).To(Equal(""))
 		}, "30s", "5s").Should(Succeed())
 
-		// Verify the error in events
 		Eventually(func(g Gomega) {
 			events := &corev1.EventList{}
 			err := env.Client.List(env.Context, events)
@@ -382,7 +361,6 @@ var _ = Describe("Nodeclass Validation", func() {
 		}, "90s", "5s").Should(Succeed())
 	})
 	It("should pass reconciliation when policy has all required permissions", func() {
-		// Create an explicit deny policy for RunInstances
 		createPolicyInput := &iam.CreatePolicyInput{
 			PolicyName: aws.String("DenyPolicy"),
 			PolicyDocument: aws.String(`{
@@ -402,7 +380,6 @@ var _ = Describe("Nodeclass Validation", func() {
 }`),
 		}
 
-		// Attach the deny policy to the Karpenter role
 		roleName = fmt.Sprintf("%s-karpenter", env.ClusterName)
 
 		createPolicyOutput, err = env.IAMAPI.CreatePolicy(env.Context, createPolicyInput)
@@ -414,7 +391,6 @@ var _ = Describe("Nodeclass Validation", func() {
 		})
 		Expect(err).To(BeNil())
 
-		// Create test resources
 		pod := coretest.Pod()
 		env.ExpectCreated(nodePool, nodeClass, pod)
 
@@ -433,7 +409,6 @@ var _ = Describe("Nodeclass Validation", func() {
 			g.Expect(pod.Spec.NodeName).To(Equal(""))
 		}, "30s", "5s").Should(Succeed())
 
-		// Verify the error in events
 		Eventually(func(g Gomega) {
 			events := &corev1.EventList{}
 			err := env.Client.List(env.Context, events)

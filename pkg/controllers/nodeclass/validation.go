@@ -157,7 +157,7 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 			Monitoring: &ec2types.LaunchTemplatesMonitoringRequest{
 				Enabled: nodeClass.Spec.DetailedMonitoring,
 			},
-			// If the network interface is defined, the security groups are defined within it
+
 			SecurityGroupIds: lo.Ternary(networkInterfaces != nil, nil, lo.Map(nodeClass.Status.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID })),
 			UserData:         userData,
 			ImageId:          aws.String(nodeClaim.Status.ImageID),
