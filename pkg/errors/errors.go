@@ -114,9 +114,8 @@ func IsUnauthorizedError(err error) bool {
 	}
 	var apiErr smithy.APIError
 	if errors.As(err, &apiErr) {
-		return apiErr.ErrorCode() == "UnauthorizedOperation"
+		return strings.Contains(apiErr.ErrorCode(), "UnauthorizedOperation")
 	}
-
 	return strings.Contains(err.Error(), "UnauthorizedOperation")
 
 }

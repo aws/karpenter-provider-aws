@@ -54,6 +54,7 @@ func main() {
 			op.Manager,
 			op.Config,
 			op.Clock,
+			&op.EC2API,
 			op.GetClient(),
 			op.EventRecorder,
 			op.UnavailableOfferingsCache,
