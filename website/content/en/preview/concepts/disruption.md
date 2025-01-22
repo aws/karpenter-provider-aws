@@ -206,7 +206,7 @@ Node Auto Repair is a feature that automatically identifies and replaces unhealt
 To enable Node Auto Repair: 
   1.  Ensure you have a [Node Monitoring Agent](https://docs.aws.amazon.com/en_us/eks/latest/userguide/node-health.html) deployed or any agent that will add status conditions to nodes that are supported (e.g., Node Problem Detector)
   2.  Enable the feature flag: `NodeRepair=true`
-  3.  Node AutoRepair will the automatically begin terminating nodes when they go unhealthy based on your cloud provider's repair policies
+  3. Node AutoRepair will automatically terminate nodes when they have unhealthy status conditions based on your cloud provider's repair policies
 
 
 Karpenter monitors nodes for the following node status conditions when initiating repair actions:
