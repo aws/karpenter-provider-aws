@@ -12,3 +12,4 @@ spec:
       - 10.0.100.10
     flags:
     - --node-labels="testing/cluster=unspecified"
+    - --register-with-taints="karpenter.sh/unregistered:NoExecute"
