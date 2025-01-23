@@ -27,7 +27,7 @@ inputs:
     required: true
   k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
-    default: "1.31"
+    default: "1.32"
   eksctl_version:
     description: "Version of eksctl to install"
     default: v0.191.0
