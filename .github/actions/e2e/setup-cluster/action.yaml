@@ -27,10 +27,10 @@ inputs:
     required: true
   k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
-    default: "1.31"
+    default: "1.32"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.191.0
+    default: v0.202.0
   ip_family:
     description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
     default: "IPv4"
