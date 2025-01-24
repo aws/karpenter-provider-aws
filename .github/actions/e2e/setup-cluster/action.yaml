@@ -30,7 +30,7 @@ inputs:
     default: "1.32"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.191.0
+    default: v0.202.0
   ip_family:
     description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
     default: "IPv4"

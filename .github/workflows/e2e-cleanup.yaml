@@ -38,4 +38,4 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ inputs.cluster_name }}
           git_ref: ${{ inputs.git_ref }}
-          eksctl_version: v0.191.0
+          eksctl_version: v0.202.0
