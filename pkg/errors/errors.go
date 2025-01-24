@@ -16,6 +16,7 @@ package errors
 
 import (
 	"errors"
+	"strings"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
@@ -105,4 +106,55 @@ func IsLaunchTemplateNotFound(err error) bool {
 		return apiErr.ErrorCode() == launchTemplateNameNotFoundCode
 	}
 	return false
+}
+
+// ToReasonMessage converts an error message from AWS into a well-known condition reason
+// and well-known condition message that can be used for Launch failure classification
+// nolint:gocyclo
+func ToReasonMessage(err error) (string, string) {
+	if strings.Contains(err.Error(), "AuthFailure.ServiceLinkedRoleCreationNotPermitted") {
+		return "SpotSLRCreationFailed", "User does not hae sufficient permission to create the Spot ServiceLinkedRole to launch spot instances"
+	}
+	if strings.Contains(err.Error(), "UnauthorizedOperation") || strings.Contains(err.Error(), "AccessDenied") || strings.Contains(err.Error(), "AuthFailure") {
+		if strings.Contains(err.Error(), "with an explicit deny in a permissions boundary") {
+			return "Unauthorized", "User is not authorized to perform this operation due to a permission boundary"
+		}
+		if strings.Contains(err.Error(), "with an explicit deny in a service control policy") {
+			return "Unauthorized", "User is not authorized to perform this operation due to a service control policy"
+		}
+		return "Unauthorized", "User is not authorized to perform this operation because no identity-based policy allows it"
+	}
+	if strings.Contains(err.Error(), "iamInstanceProfile.name is invalid") {
+		return "InstanceProfileNameInvalid", "Instance profile name used from EC2NodeClass status does not exist"
+	}
+	if strings.Contains(err.Error(), "InvalidLaunchTemplateId.NotFound") {
+		return "LaunchTemplateNotFound", "Launch template used for instance launch wasn't found"
+	}
+	if strings.Contains(err.Error(), "InvalidAMIID.Malformed") {
+		return "InvalidAMIID", "AMI used for instance launch is invalid"
+	}
+	if strings.Contains(err.Error(), "RequestLimitExceeded") {
+		return "RequestLimitExceeded", "Request limit exceeded"
+	}
+	if strings.Contains(err.Error(), "InternalError") {
+		return "InternalError", "An internal error has occurred"
+	}
+	// ICE Errors come last in this list because we should return a generic ICE error if all of the errors that are returned from
+	// fleet are ICE errors
+	if strings.Contains(err.Error(), "MaxFleetCountExceeded") {
+		return "FleetQuotaExceeded", "A fleet launch was requested but this would exceed your fleet request quota"
+	}
+	if strings.Contains(err.Error(), "PendingVerification") {
+		return "AccountPendingVerification", "An instance launch was requested but the request for launching resources in this region is still being verified"
+	}
+	if strings.Contains(err.Error(), "MaxSpotInstanceCountExceeded") {
+		return "SpotQuotaExceeded", "A spot instance launch was requested but this would exceed your spot instance quota"
+	}
+	if strings.Contains(err.Error(), "VcpuLimitExceeded") {
+		return "VCPULimitExceeded", "An instance was requested that would exceed your VCPU quota"
+	}
+	if strings.Contains(err.Error(), "InsufficientFreeAddressesInSubnet") {
+		return "InsufficientFreeAddressesInSubnet", "There are not enough free IP addresses to launch an instance in this subnet"
+	}
+	return "LaunchFailed", "Instance launch failed"
 }
