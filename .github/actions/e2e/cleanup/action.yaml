@@ -17,7 +17,7 @@ inputs:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.191.0
+    default: v0.202.0
   private_cluster:
     description: "Whether the cluster that has to be deleted is private or not. Valid values are 'true' or 'false'"
     default: 'false'

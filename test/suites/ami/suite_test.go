@@ -209,12 +209,12 @@ var _ = Describe("AMI", func() {
 				env.ExpectCreatedNodeCount("==", 1)
 			},
 			Entry("AL2023 (latest)", "al2023@latest"),
-			Entry("AL2023 (pinned)", "al2023@v20240928"),
+			Entry("AL2023 (pinned)", "al2023@v20250116"),
 			Entry("AL2 (latest)", "al2@latest"),
-			Entry("AL2 (pinned)", "al2@v20240928"),
+			Entry("AL2 (pinned)", "al2@v20250116"),
 			Entry("Bottlerocket (latest)", "bottlerocket@latest"),
-			Entry("Bottlerocket (pinned with v prefix)", "bottlerocket@v1.24.0"),
-			Entry("Bottlerocket (pinned without v prefix)", "bottlerocket@1.24.0"),
+			Entry("Bottlerocket (pinned with v prefix)", "bottlerocket@v1.30.0"),
+			Entry("Bottlerocket (pinned without v prefix)", "bottlerocket@1.30.0"),
 		)
 		It("should support Custom AMIFamily with AMI Selectors", func() {
 			al2023AMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
