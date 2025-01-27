@@ -199,12 +199,12 @@ var _ = Describe("CloudProvider", func() {
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
-	It("should not proceed with instance creation if NodeClass is unknown", func() {
+	It("should return NodeClassNotReady error on creation if NodeClass is unknown", func() {
 		nodeClass.StatusConditions().SetUnknown(opstatus.ConditionReady)
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		_, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(HaveOccurred())
-		Expect(corecloudprovider.IsNodeClassNotReadyError(err)).To(BeFalse())
+		Expect(corecloudprovider.IsNodeClassNotReadyError(err)).To(BeTrue())
 	})
 	It("should return NodeClassNotReady error on creation if NodeClass is not ready", func() {
 		nodeClass.StatusConditions().SetFalse(opstatus.ConditionReady, "NodeClassNotReady", "NodeClass not ready")
