@@ -59,7 +59,7 @@ func TestAMI(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "AmiTest")
+	RunSpecs(t, "Ami")
 }
 
 var _ = BeforeEach(func() {
