@@ -38,7 +38,7 @@ func TestIntegration(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "TestNodeClass")
+	RunSpecs(t, "NodeClass")
 }
 
 var _ = BeforeEach(func() {

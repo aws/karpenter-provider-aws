@@ -83,7 +83,7 @@ func NewControllers(
 	instanceTypeProvider *instancetype.DefaultProvider) []controller.Controller {
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient),
-		nodeclass.NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider, ec2api),
+		nodeclass.NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider, instanceProvider, ec2api),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, cloudProvider, instanceProvider),
 		controllerspricing.NewController(pricingProvider),

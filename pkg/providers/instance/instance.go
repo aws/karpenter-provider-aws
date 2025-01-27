@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -44,7 +45,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
-	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -74,6 +74,7 @@ type Provider interface {
 	List(context.Context) ([]*Instance, error)
 	Delete(context.Context, string) error
 	CreateTags(context.Context, string, map[string]string) error
+	GetCreateFleetInput(nodeClass *v1.EC2NodeClass, capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest, dryrun ...bool) *ec2.CreateFleetInput
 }
 
 type DefaultProvider struct {
@@ -223,20 +224,7 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
 	}
 	// Create fleet
-	createFleetInput := &ec2.CreateFleetInput{
-		Type:                  ec2types.FleetTypeInstant,
-		Context:               nodeClass.Spec.Context,
-		LaunchTemplateConfigs: launchTemplateConfigs,
-		TargetCapacitySpecification: &ec2types.TargetCapacitySpecificationRequest{
-			DefaultTargetCapacityType: ec2types.DefaultTargetCapacityType(capacityType),
-			TotalTargetCapacity:       aws.Int32(1),
-		},
-		TagSpecifications: []ec2types.TagSpecification{
-			{ResourceType: ec2types.ResourceTypeInstance, Tags: utils.MergeTags(tags)},
-			{ResourceType: ec2types.ResourceTypeVolume, Tags: utils.MergeTags(tags)},
-			{ResourceType: ec2types.ResourceTypeFleet, Tags: utils.MergeTags(tags)},
-		},
-	}
+	createFleetInput := p.GetCreateFleetInput(nodeClass, capacityType, tags, launchTemplateConfigs)
 	if capacityType == karpv1.CapacityTypeSpot {
 		createFleetInput.SpotOptions = &ec2types.SpotOptionsRequest{AllocationStrategy: ec2types.SpotAllocationStrategyPriceCapacityOptimized}
 	} else {
@@ -264,6 +252,28 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 		return ec2types.CreateFleetInstance{}, combineFleetErrors(createFleetOutput.Errors)
 	}
 	return createFleetOutput.Instances[0], nil
+}
+
+func (p *DefaultProvider) GetCreateFleetInput(nodeClass *v1.EC2NodeClass, capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest, dryrun ...bool) *ec2.CreateFleetInput {
+	dryRunInput := false
+	if dryrun != nil && dryrun[0] {
+		dryRunInput = true
+	}
+	return &ec2.CreateFleetInput{
+		DryRun:                &dryRunInput,
+		Type:                  ec2types.FleetTypeInstant,
+		Context:               nodeClass.Spec.Context,
+		LaunchTemplateConfigs: launchTemplateConfigs,
+		TargetCapacitySpecification: &ec2types.TargetCapacitySpecificationRequest{
+			DefaultTargetCapacityType: ec2types.DefaultTargetCapacityType(capacityType),
+			TotalTargetCapacity:       aws.Int32(1),
+		},
+		TagSpecifications: []ec2types.TagSpecification{
+			{ResourceType: ec2types.ResourceTypeInstance, Tags: utils.MergeTags(tags)},
+			{ResourceType: ec2types.ResourceTypeVolume, Tags: utils.MergeTags(tags)},
+			{ResourceType: ec2types.ResourceTypeFleet, Tags: utils.MergeTags(tags)},
+		},
+	}
 }
 
 func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) error {

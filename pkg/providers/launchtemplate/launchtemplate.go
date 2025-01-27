@@ -58,6 +58,8 @@ type Provider interface {
 	DeleteAll(context.Context, *v1.EC2NodeClass) error
 	InvalidateCache(context.Context, string, string)
 	ResolveClusterCIDR(context.Context) error
+	GetCreateLaunchTemplateInput(options *amifamily.LaunchTemplate, ClusterIPFamily corev1.IPFamily, userData string, dryrun ...bool) *ec2.CreateLaunchTemplateInput
+	GenerateNetworkInterfaces(options *amifamily.LaunchTemplate) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest
 }
 type LaunchTemplate struct {
 	Name          string
@@ -219,14 +221,30 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
 	}
+	createLaunchTemplateInput := p.GetCreateLaunchTemplateInput(options, p.ClusterIPFamily, userData)
+	output, err := p.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput)
+	if err != nil {
+		return ec2types.LaunchTemplate{}, err
+	}
+	log.FromContext(ctx).WithValues("id", aws.ToString(output.LaunchTemplate.LaunchTemplateId)).V(1).Info("created launch template")
+	return lo.FromPtr(output.LaunchTemplate), nil
+}
+
+// you need UserData, AmiID, tags, blockdevicemappings, instance profile,
+func (p *DefaultProvider) GetCreateLaunchTemplateInput(options *amifamily.LaunchTemplate, ClusterIPFamily corev1.IPFamily, userData string, dryrun ...bool) *ec2.CreateLaunchTemplateInput {
 	launchTemplateDataTags := []ec2types.LaunchTemplateTagSpecificationRequest{
 		{ResourceType: ec2types.ResourceTypeNetworkInterface, Tags: utils.MergeTags(options.Tags)},
 	}
 	if options.CapacityType == karpv1.CapacityTypeSpot {
 		launchTemplateDataTags = append(launchTemplateDataTags, ec2types.LaunchTemplateTagSpecificationRequest{ResourceType: ec2types.ResourceTypeSpotInstancesRequest, Tags: utils.MergeTags(options.Tags)})
 	}
-	networkInterfaces := p.generateNetworkInterfaces(options)
-	output, err := p.ec2api.CreateLaunchTemplate(ctx, &ec2.CreateLaunchTemplateInput{
+	networkInterfaces := p.GenerateNetworkInterfaces(options)
+	dryRunInput := false
+	if dryrun != nil && dryrun[0] {
+		dryRunInput = true
+	}
+	return &ec2.CreateLaunchTemplateInput{
+		DryRun:             &dryRunInput,
 		LaunchTemplateName: aws.String(LaunchTemplateName(options)),
 		LaunchTemplateData: &ec2types.RequestLaunchTemplateData{
 			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),
@@ -263,16 +281,11 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 				Tags:         utils.MergeTags(options.Tags),
 			},
 		},
-	})
-	if err != nil {
-		return ec2types.LaunchTemplate{}, err
 	}
-	log.FromContext(ctx).WithValues("id", aws.ToString(output.LaunchTemplate.LaunchTemplateId)).V(1).Info("created launch template")
-	return lo.FromPtr(output.LaunchTemplate), nil
 }
 
 // generateNetworkInterfaces generates network interfaces for the launch template.
-func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTemplate) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+func (p *DefaultProvider) GenerateNetworkInterfaces(options *amifamily.LaunchTemplate) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 	if options.EFACount != 0 {
 		return lo.Times(options.EFACount, func(i int) ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 			return ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
