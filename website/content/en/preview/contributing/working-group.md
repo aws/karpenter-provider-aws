@@ -26,8 +26,8 @@ These weekly meetings rotate between repositories and time zones to accommodate 
 #### Schedule (Mondays):
 - **Week 1**: kubernetes-sigs/karpenter @ 9:00 AM PST (Europe-friendly)
 - **Week 2**: karpenter-provider-aws @ 9:00 AM PST (Europe-friendly)
-- **Week 3**: kubernetes-sigs/karpenter @ 3:05 PM PST (Americas-friendly)
-- **Week 4**: karpenter-provider-aws @ 3:05 PM PST (Americas-friendly)
+- **Week 3**: kubernetes-sigs/karpenter @ 3:00 PM PST (Americas-friendly)
+- **Week 4**: karpenter-provider-aws @ 3:00 PM PST (Americas-friendly)
 
 ### Working Group Meetings
 
@@ -47,8 +47,8 @@ The working group provides a platform for both synchronous decision-making and a
 
 Our established Working Group meetings continue on a bi-weekly schedule:
 
-- 2:00 PM PST (Americas-friendly)
 - 9:00 AM PST (Europe-friendly)
+- 3:00 PM PST (Americas-friendly)
 
 ### Getting Involved
 All community members are welcome to join these meetings. Meeting links and calendar invites are shared through our usual communication channels.
