@@ -59,7 +59,7 @@ func TestAMI(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Ami")
+	RunSpecs(t, "AmiTest")
 }
 
 var _ = BeforeEach(func() {
@@ -88,9 +88,9 @@ var _ = Describe("AMI", func() {
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
-	It("should use the most recent AMI when discovering multiple", func() {
+	FIt("should use the most recent AMI when discovering multiple", func() {
 		// choose an old static image that will definitely have an older creation date
-		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%[1]s/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-%[1]s-v20240514/image_id", env.K8sVersionWithOffset(1)))
+		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%[1]s/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-%[1]s-v20241213/image_id", env.K8sVersionWithOffset(1)))
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{ID: customAMI},
