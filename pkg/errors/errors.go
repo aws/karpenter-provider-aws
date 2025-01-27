@@ -118,6 +118,8 @@ func IsUnauthorizedError(err error) bool {
 	}
 	return strings.Contains(err.Error(), "UnauthorizedOperation")
 
+}
+
 // ToReasonMessage converts an error message from AWS into a well-known condition reason
 // and well-known condition message that can be used for Launch failure classification
 // nolint:gocyclo

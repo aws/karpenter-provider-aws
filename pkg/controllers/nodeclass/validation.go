@@ -30,11 +30,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
@@ -52,13 +47,7 @@ type Validation struct {
 	instanceProvider       instance.Provider
 	launchTemplateProvider launchtemplate.Provider
 }
-type Validation struct {
-	ec2api sdk.EC2API
 
-	amiProvider amifamily.Provider
-}
-
-//nolint:gocyclo
 //nolint:gocyclo
 func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	//nolint:staticcheck
