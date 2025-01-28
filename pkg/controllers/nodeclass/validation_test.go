@@ -108,7 +108,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Expect(nodeClass.Status.Conditions).To(HaveLen(6))
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 		})
-		It("should update status condition on nodeClass as NotReady when nodeclass has authorization failure due to describelt", func() {
+		It("should update status condition on nodeClass as NotReady when nodeclass has authorization failure due to describelaunchtemplate", func() {
 			ExpectApplied(ctx, env.Client, nodeClass)
 			awsEnv.EC2API.NextError.Set(&smithy.GenericAPIError{
 				Code: "UnauthorizedOperation",
@@ -119,7 +119,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			}
 
 			_, err := awsEnv.EC2API.DescribeLaunchTemplates(ctx, describeLaunchTemplatesInput)
-			if !awserrors.IsUnauthorizedError(err) {
+			if !awserrors.IsNotDryRunError(err) {
 				err = nil
 			}
 			Expect(err).To(HaveOccurred())

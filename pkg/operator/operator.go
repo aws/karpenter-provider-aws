@@ -88,6 +88,7 @@ type Operator struct {
 	VersionProvider           *version.DefaultProvider
 	InstanceTypesProvider     *instancetype.DefaultProvider
 	InstanceProvider          instance.Provider
+	SSMProvider               ssmp.Provider
 	EC2API                    ec2.Client
 }
 

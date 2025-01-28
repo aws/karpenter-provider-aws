@@ -52,9 +52,7 @@ type Validation struct {
 func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "reconcile", true)
-	//Tag Validation
-	//nolint:staticcheck
-	ctx = context.WithValue(ctx, "reconcile", true)
+
 	//Tag Validation
 	if offendingTag, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(k string, v string) bool {
 		for _, exp := range v1.RestrictedTagPatterns {
@@ -94,7 +92,7 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 
 	createFleetInput := n.instanceProvider.GetCreateFleetInput(nodeClass, string(karpv1.CapacityTypeOnDemand), tags, mockLaunchTemplateConfig(), true)
 
-	if _, err := n.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IsUnauthorizedError(err) {
+	if _, err := n.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IsNotDryRunError(err) {
 		errs = append(errs, fmt.Errorf("create fleet"))
 	}
 
@@ -106,24 +104,24 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 
 	createLaunchTemplateInput := n.launchTemplateProvider.GetCreateLaunchTemplateInput(mockOptions(*nodeClaim, nodeClass, tags), corev1.IPv4Protocol, *userData)
 
-	describeLaunchTemplatesInput := &ec2.DescribeLaunchTemplatesInput{
-		DryRun:              lo.ToPtr(true),
-		LaunchTemplateNames: []string{"mock-lt-name"},
-	}
-
-	if _, err := n.ec2api.DescribeLaunchTemplates(ctx, describeLaunchTemplatesInput); awserrors.IsUnauthorizedError(err) {
-		errs = append(errs, fmt.Errorf("describe launch template"))
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "NodeClassNotReady", fmt.Sprintf("unauthorized operation %v", errors.Join(errs...)))
-		//returning here because run instances depends on being able to create a launch template and delete launch template needs describe launch template
-		return reconcile.Result{}, fmt.Errorf("unauthorized operation %w", errors.Join(errs...))
-	}
-
 	lt, err := n.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput)
 
-	if awserrors.IsUnauthorizedError(err) {
+	if awserrors.IsNotDryRunError(err) {
 		errs = append(errs, fmt.Errorf("create launch template"))
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "NodeClassNotReady", fmt.Sprintf("unauthorized operation %v", errors.Join(errs...)))
 		//returning here because run instances depends on being able to create a launch template
+		return reconcile.Result{}, fmt.Errorf("unauthorized operation %w", errors.Join(errs...))
+	}
+
+	describeLaunchTemplatesInput := &ec2.DescribeLaunchTemplatesInput{
+		DryRun:              lo.ToPtr(true),
+		LaunchTemplateNames: []string{*createLaunchTemplateInput.LaunchTemplateName},
+	}
+
+	if _, err := n.ec2api.DescribeLaunchTemplates(ctx, describeLaunchTemplatesInput); awserrors.IsNotDryRunError(err) {
+		errs = append(errs, fmt.Errorf("describe launch template"))
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "NodeClassNotReady", fmt.Sprintf("unauthorized operation %v", errors.Join(errs...)))
+		//returning here because run instances depends on being able to create a launch template and delete launch template needs describe launch template
 		return reconcile.Result{}, fmt.Errorf("unauthorized operation %w", errors.Join(errs...))
 	}
 
@@ -185,7 +183,7 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	}
 
 	_, err = n.ec2api.RunInstances(ctx, runInstancesInput)
-	if awserrors.IsUnauthorizedError(err) {
+	if awserrors.IsNotDryRunError(err) {
 		errs = append(errs, fmt.Errorf("run instances"))
 	}
 
@@ -212,8 +210,9 @@ func mockLaunchTemplateConfig() []ec2types.FleetLaunchTemplateConfigRequest {
 	return []ec2types.FleetLaunchTemplateConfigRequest{
 		{
 			LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateId: aws.String("lt-1234567890abcdef0"),
-				Version:          aws.String("1"),
+				LaunchTemplateName: aws.String("mock-lt-name"),
+				LaunchTemplateId:   aws.String("lt-1234567890abcdef0"),
+				Version:            aws.String("1"),
 			},
 			Overrides: []ec2types.FleetLaunchTemplateOverridesRequest{
 				{

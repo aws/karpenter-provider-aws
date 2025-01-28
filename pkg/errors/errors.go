@@ -108,15 +108,15 @@ func IsLaunchTemplateNotFound(err error) bool {
 	return false
 }
 
-func IsUnauthorizedError(err error) bool {
+func IsNotDryRunError(err error) bool {
 	if err == nil {
 		return false
 	}
 	var apiErr smithy.APIError
 	if errors.As(err, &apiErr) {
-		return strings.Contains(apiErr.ErrorCode(), "UnauthorizedOperation")
+		return !strings.Contains(apiErr.ErrorCode(), "DryRunOperation")
 	}
-	return strings.Contains(err.Error(), "UnauthorizedOperation")
+	return !strings.Contains(err.Error(), "DryRunOperation")
 
 }
 

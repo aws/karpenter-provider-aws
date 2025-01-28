@@ -362,7 +362,7 @@ func (e *EC2API) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 	output := &ec2.DescribeLaunchTemplatesOutput{}
 	e.LaunchTemplates.Range(func(key, value interface{}) bool {
 		launchTemplate := value.(ec2types.LaunchTemplate)
-		if lo.Contains(aws.StringSlice(input.LaunchTemplateNames), launchTemplate.LaunchTemplateName) || len(input.Filters) != 0 && Filter(input.Filters, aws.ToString(launchTemplate.LaunchTemplateId), aws.ToString(launchTemplate.LaunchTemplateName), launchTemplate.Tags) {
+		if lo.Contains(input.LaunchTemplateNames, lo.FromPtr(launchTemplate.LaunchTemplateName)) || len(input.Filters) != 0 && Filter(input.Filters, aws.ToString(launchTemplate.LaunchTemplateId), aws.ToString(launchTemplate.LaunchTemplateName), launchTemplate.Tags) {
 			output.LaunchTemplates = append(output.LaunchTemplates, launchTemplate)
 		}
 		return true
