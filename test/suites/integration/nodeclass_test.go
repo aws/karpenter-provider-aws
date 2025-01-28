@@ -54,7 +54,11 @@ var _ = Describe("Nodeclass Validation", func() {
 				"Statement": [
 					{
 						"Effect": "Deny",
-						"Action": "ec2:CreateFleet",
+						"Action": [
+							"ec2:CreateFleet",
+							"ec2:CreateLaunchTemplate",
+							"ec2:RunInstances"
+						],
 						"Resource": "*"
 					}
 				]
@@ -100,7 +104,9 @@ var _ = Describe("Nodeclass Validation", func() {
 				if strings.Contains(event.Message, "Validation") &&
 					strings.Contains(event.Message, "False") &&
 					strings.Contains(event.Message, "unauthorized operation") &&
-					strings.Contains(event.Message, "create fleet") {
+					strings.Contains(event.Message, "RunInstances") &&
+					strings.Contains(event.Message, "CreateLaunchTemplate") &&
+					strings.Contains(event.Message, "CreateFleet") {
 					found = true
 					break
 				}

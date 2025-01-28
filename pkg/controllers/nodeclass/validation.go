@@ -16,7 +16,6 @@ package nodeclass
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 
@@ -93,54 +92,18 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	createFleetInput := n.instanceProvider.GetCreateFleetInput(nodeClass, string(karpv1.CapacityTypeOnDemand), tags, mockLaunchTemplateConfig(), true)
 
 	if _, err := n.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IsNotDryRunError(err) {
-		errs = append(errs, fmt.Errorf("create fleet"))
+		errs = append(errs, fmt.Errorf("create fleet %w", err))
 	}
 
-	var userData = lo.ToPtr("")
-	if nodeClass.Spec.UserData != nil {
-		encoded := base64.StdEncoding.EncodeToString([]byte(*nodeClass.Spec.UserData))
-		userData = &encoded
-	}
+	createLaunchTemplateInput := n.launchTemplateProvider.GetCreateLaunchTemplateInput(mockOptions(*nodeClaim, nodeClass, tags), corev1.IPv4Protocol, "", true)
 
-	createLaunchTemplateInput := n.launchTemplateProvider.GetCreateLaunchTemplateInput(mockOptions(*nodeClaim, nodeClass, tags), corev1.IPv4Protocol, *userData)
-
-	lt, err := n.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput)
-
-	if awserrors.IsNotDryRunError(err) {
-		errs = append(errs, fmt.Errorf("create launch template"))
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "NodeClassNotReady", fmt.Sprintf("unauthorized operation %v", errors.Join(errs...)))
-		//returning here because run instances depends on being able to create a launch template
-		return reconcile.Result{}, fmt.Errorf("unauthorized operation %w", errors.Join(errs...))
-	}
-
-	describeLaunchTemplatesInput := &ec2.DescribeLaunchTemplatesInput{
-		DryRun:              lo.ToPtr(true),
-		LaunchTemplateNames: []string{*createLaunchTemplateInput.LaunchTemplateName},
-	}
-
-	if _, err := n.ec2api.DescribeLaunchTemplates(ctx, describeLaunchTemplatesInput); awserrors.IsNotDryRunError(err) {
-		errs = append(errs, fmt.Errorf("describe launch template"))
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "NodeClassNotReady", fmt.Sprintf("unauthorized operation %v", errors.Join(errs...)))
-		//returning here because run instances depends on being able to create a launch template and delete launch template needs describe launch template
-		return reconcile.Result{}, fmt.Errorf("unauthorized operation %w", errors.Join(errs...))
+	if _, err := n.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IsNotDryRunError(err) {
+		errs = append(errs, fmt.Errorf("create launch template %w", err))
 	}
 
 	imageOutput, err := n.ec2api.DescribeImages(ctx, &ec2.DescribeImagesInput{
 		ImageIds: []string{amis[0].AmiID},
 	})
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	describeInstanceTypesInput := &ec2.DescribeInstanceTypesInput{
-		Filters: []ec2types.Filter{
-			{
-				Name:   aws.String("processor-info.supported-architecture"),
-				Values: []string{string(imageOutput.Images[0].Architecture)},
-			},
-		},
-	}
-	instancetypes, err := n.ec2api.DescribeInstanceTypes(ctx, describeInstanceTypesInput)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -158,44 +121,16 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 				ResourceType: ec2types.ResourceTypeVolume,
 				Tags:         utils.MergeTags(tags),
 			},
-		},
-		InstanceType: instancetypes.InstanceTypes[0].InstanceType,
-		IamInstanceProfile: &ec2types.IamInstanceProfileSpecification{
-			Name: nodeClass.Spec.InstanceProfile,
-		},
-		LaunchTemplate: &ec2types.LaunchTemplateSpecification{
-			LaunchTemplateName: lt.LaunchTemplate.LaunchTemplateName,
-			Version:            aws.String("1"),
-		},
-		NetworkInterfaces: []ec2types.InstanceNetworkInterfaceSpecification{
 			{
-				DeviceIndex: aws.Int32(0),
-				SubnetId:    aws.String(nodeClass.Status.Subnets[0].ID),
-				Groups: lo.Map(nodeClass.Status.SecurityGroups, func(sg v1.SecurityGroup, _ int) string {
-					return sg.ID
-				}),
-				DeleteOnTermination:      aws.Bool(true),
-				AssociatePublicIpAddress: aws.Bool(true),
-				NetworkCardIndex:         aws.Int32(0),
-				InterfaceType:            aws.String(string(ec2types.NetworkInterfaceTypeEfa)),
+				ResourceType: ec2types.ResourceTypeNetworkInterface,
+				Tags:         utils.MergeTags(tags),
 			},
 		},
+		ImageId: imageOutput.Images[0].ImageId,
 	}
 
-	_, err = n.ec2api.RunInstances(ctx, runInstancesInput)
-	if awserrors.IsNotDryRunError(err) {
-		errs = append(errs, fmt.Errorf("run instances"))
-	}
-
-	deleteLaunchTemplateInput := ec2.DeleteLaunchTemplateInput{
-		LaunchTemplateName: lt.LaunchTemplate.LaunchTemplateName,
-	}
-
-	_, err = n.ec2api.DeleteLaunchTemplate(ctx, &deleteLaunchTemplateInput)
-	if err != nil {
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "NodeClassNotReady", fmt.Sprintf("delete launch template: %v", err))
-		return reconcile.Result{}, fmt.Errorf("delete launch template: %w", err)
-
+	if _, err = n.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IsNotDryRunError(err) {
+		errs = append(errs, fmt.Errorf("run instances %w", err))
 	}
 
 	if errors.Join(errs...) != nil {
