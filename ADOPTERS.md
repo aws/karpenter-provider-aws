@@ -37,7 +37,6 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Kaltura | Using karpenter to deliver video to millions of end users | `@Ido Ziv` | [Homepage](https://corp.kaltura.com/) |
 | Livspace | Replacement for cluster autoscaler on production and staging EKS clusters | `@praveen-livspace` | [Homepage](https://www.livspace.com) |
 | Nexxiot | Easier, Safer, Cleaner Global Transportation - Using Karpenter to manage EKS nodes | `@Alex Berger` | [Homepage](https://nexxiot.com/) |
-| Nirvana Money | Building healthy, happy financial lives - Using Karpenter to manage all-Spot clusters | `@DWSR` | [Homepage](https://www.nirvana.money/) |
 | OccMundial | Using karpenter to manage our production workloads, using the dynamic scaling according to workload that needs to scale.  | `@parraletz` | [Homepage](https://www.occ.com.mx) |
 | Omaze | Intelligently using Karpenter's autoscaling to power our platforms | `@devopsidiot` | [Homepage](https://www.omaze.com/) |
 | PITS Global Data Recovery Services | Used to manage continuous integration and continuous delivery/deployment workflows. | N/A | [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/) |
