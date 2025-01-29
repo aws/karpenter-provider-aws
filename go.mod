@@ -33,7 +33,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-toml/v2 v2.2.3
 	github.com/prometheus/client_golang v1.20.5
-	github.com/samber/lo v1.47.0
+	github.com/samber/lo v1.49.1
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
@@ -45,7 +45,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	sigs.k8s.io/controller-runtime v0.20.1
-	sigs.k8s.io/karpenter v1.1.2-0.20250128171724-96d4bcef19a3
+	sigs.k8s.io/karpenter v1.2.1-0.20250128194523-2a09110a1cb6
 	sigs.k8s.io/yaml v1.4.0
 )
 
