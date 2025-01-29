@@ -65,7 +65,7 @@ If you are only interested in building the Karpenter images and not deploying th
 make image # build and push the karpenter images
 ```
 
-Note: that this will produce a build with the version of https://github.com/kubernetes-sigs/karpenter in your local filesystem.
+*Note: that this will produce a build with the version of https://github.com/kubernetes-sigs/karpenter in your local filesystem.
 
 You can test out changes made in https://github.com/kubernetes-sigs/karpenter by replacing the dependency of https://github.com/aws/karpenter-provider-aws/.
 For local changes, replace `$PATH_TO_KUBERNETES_SIGS_KARPENTER` with the relative or absolute path and run:
