@@ -15,24 +15,26 @@ limitations under the License.
 package integration_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	coretest "sigs.k8s.io/karpenter/pkg/test"
+	"github.com/google/uuid"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Nodeclass Validation", func() {
-	var createPolicyOutput *iam.CreatePolicyOutput
-	var roleName string
-	var err error
+var _ = Describe("NodeClass IAM Permissions", func() {
+	var (
+		roleName           string
+		createPolicyOutput *iam.CreatePolicyOutput
+		err                error
+	)
 
 	AfterEach(func() {
 		_, err := env.IAMAPI.DetachRolePolicy(env.Context, &iam.DetachRolePolicyInput{
@@ -46,137 +48,77 @@ var _ = Describe("Nodeclass Validation", func() {
 		})
 		Expect(err).To(BeNil())
 	})
-	It("should fail reconciliation when a required permission is explicitly denied", func() {
-		createPolicyInput := &iam.CreatePolicyInput{
-			PolicyName: aws.String("DenyPolicy"),
-			PolicyDocument: aws.String(`{
-				"Version": "2012-10-17",
-				"Statement": [
-					{
-						"Effect": "Deny",
-						"Action": [
-							"ec2:CreateFleet",
-							"ec2:CreateLaunchTemplate",
-							"ec2:RunInstances"
-						],
-						"Resource": "*"
+
+	DescribeTable("IAM Permission Tests",
+		func(effect string, actions []string, expectSuccess bool) {
+			policyDoc := fmt.Sprintf(`{
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "%s",
+                        "Action": %s,
+                        "Resource": "*"
+                    }
+                ]
+            }`, effect, generateJSONArray(actions))
+
+			createPolicyInput := &iam.CreatePolicyInput{
+				PolicyName:     aws.String(fmt.Sprintf("TestPolicy-%s", uuid.New().String())),
+				PolicyDocument: aws.String(policyDoc),
+			}
+
+			roleName = fmt.Sprintf("%s-karpenter", env.ClusterName)
+
+			createPolicyOutput, err = env.IAMAPI.CreatePolicy(env.Context, createPolicyInput)
+			Expect(err).To(BeNil())
+
+			_, err = env.IAMAPI.AttachRolePolicy(env.Context, &iam.AttachRolePolicyInput{
+				RoleName:  aws.String(roleName),
+				PolicyArn: createPolicyOutput.Policy.Arn,
+			})
+			Expect(err).To(BeNil())
+
+			env.ExpectCreated(nodeClass)
+
+			if expectSuccess {
+				Eventually(func(g Gomega) {
+					env.ExpectUpdated(nodeClass)
+					g.Expect(string(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Status)).To(Equal("True"))
+				}, "60s", "5s").Should(Succeed())
+			} else {
+				Eventually(func(g Gomega) {
+					env.ExpectUpdated(nodeClass)
+					g.Expect(string(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Status)).To(Equal("False"))
+
+					condition := nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded)
+					g.Expect(condition).ToNot(BeNil())
+					g.Expect(condition.Message).To(ContainSubstring("unauthorized operation"))
+					for _, action := range actions {
+						g.Expect(condition.Message).To(ContainSubstring(strings.TrimPrefix(action, "ec2:")))
 					}
-				]
-			}`),
-		}
-
-		roleName = fmt.Sprintf("%s-karpenter", env.ClusterName)
-
-		createPolicyOutput, err = env.IAMAPI.CreatePolicy(env.Context, createPolicyInput)
-		Expect(err).To(BeNil())
-
-		_, err = env.IAMAPI.AttachRolePolicy(env.Context, &iam.AttachRolePolicyInput{
-			RoleName:  aws.String(roleName),
-			PolicyArn: createPolicyOutput.Policy.Arn,
-		})
-		Expect(err).To(BeNil())
-
-		pod := coretest.Pod()
-		env.ExpectCreated(nodePool, nodeClass, pod)
-
-		createdPod := &corev1.Pod{}
-		Eventually(func(g Gomega) {
-			err := env.Client.Get(env.Context, client.ObjectKey{
-				Namespace: pod.Namespace,
-				Name:      pod.Name,
-			}, createdPod)
-			g.Expect(err).To(BeNil())
-		}, "30s", "5s").Should(Succeed())
-
-		Consistently(func(g Gomega) {
-			err := env.Client.Get(env.Context, client.ObjectKeyFromObject(pod), pod)
-			g.Expect(err).To(BeNil())
-			g.Expect(pod.Spec.NodeName).To(Equal(""))
-		}, "30s", "5s").Should(Succeed())
-
-		Eventually(func(g Gomega) {
-			events := &corev1.EventList{}
-			err := env.Client.List(env.Context, events)
-			g.Expect(err).To(BeNil())
-
-			found := false
-			for _, event := range events.Items {
-				if strings.Contains(event.Message, "Validation") &&
-					strings.Contains(event.Message, "False") &&
-					strings.Contains(event.Message, "unauthorized operation") &&
-					strings.Contains(event.Message, "RunInstances") &&
-					strings.Contains(event.Message, "CreateLaunchTemplate") &&
-					strings.Contains(event.Message, "CreateFleet") {
-					found = true
-					break
-				}
+				}, "90s", "5s").Should(Succeed())
 			}
-			g.Expect(found).To(BeTrue())
-		}, "90s", "5s").Should(Succeed())
-	})
-	It("should pass reconciliation when policy has all required permissions", func() {
-		createPolicyInput := &iam.CreatePolicyInput{
-			PolicyName: aws.String("DenyPolicy"),
-			PolicyDocument: aws.String(`{
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Effect": "Allow",
-			"Action": [
-				"ec2:RunInstances",
-				"ec2:CreateFleet",
-				"ec2:CreateLaunchTemplate",
-				"ec2:DescribeLaunchTemplates"
-			],
-			"Resource": "*"
-		}
-	]
-}`),
-		}
-
-		roleName = fmt.Sprintf("%s-karpenter", env.ClusterName)
-
-		createPolicyOutput, err = env.IAMAPI.CreatePolicy(env.Context, createPolicyInput)
-		Expect(err).To(BeNil())
-
-		_, err = env.IAMAPI.AttachRolePolicy(env.Context, &iam.AttachRolePolicyInput{
-			RoleName:  aws.String(roleName),
-			PolicyArn: createPolicyOutput.Policy.Arn,
-		})
-		Expect(err).To(BeNil())
-
-		pod := coretest.Pod()
-		env.ExpectCreated(nodePool, nodeClass, pod)
-
-		createdPod := &corev1.Pod{}
-		Eventually(func(g Gomega) {
-			err := env.Client.Get(env.Context, client.ObjectKey{
-				Namespace: pod.Namespace,
-				Name:      pod.Name,
-			}, createdPod)
-			g.Expect(err).To(BeNil())
-		}, "30s", "5s").Should(Succeed())
-
-		Consistently(func(g Gomega) {
-			err := env.Client.Get(env.Context, client.ObjectKeyFromObject(pod), pod)
-			g.Expect(err).To(BeNil())
-			g.Expect(pod.Spec.NodeName).To(Equal(""))
-		}, "30s", "5s").Should(Succeed())
-
-		Eventually(func(g Gomega) {
-			events := &corev1.EventList{}
-			err := env.Client.List(env.Context, events)
-			g.Expect(err).To(BeNil())
-
-			found := false
-			for _, event := range events.Items {
-				if strings.Contains(event.Message, "Validation") &&
-					strings.Contains(event.Message, "True") {
-					found = true
-					break
-				}
-			}
-			g.Expect(found).To(BeTrue())
-		}, "60s", "5s").Should(Succeed())
-	})
+		},
+		Entry("should fail when CreateFleet is denied",
+			"Deny",
+			[]string{"ec2:CreateFleet"},
+			false),
+		Entry("should fail when CreateLaunchTemplate is denied",
+			"Deny",
+			[]string{"ec2:CreateLaunchTemplate"},
+			false),
+		Entry("should fail when RunInstances is denied",
+			"Deny",
+			[]string{"ec2:RunInstances"},
+			false),
+		Entry("should pass with all required permissions",
+			"Allow",
+			[]string{"ec2:CreateFleet", "ec2:CreateLaunchTemplate", "ec2:RunInstances"},
+			true),
+	)
 })
+
+func generateJSONArray(actions []string) string {
+	jsonActions, _ := json.Marshal(actions)
+	return string(jsonActions)
+}

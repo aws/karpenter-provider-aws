@@ -16,7 +16,6 @@ package nodeclass
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/samber/lo"
@@ -49,8 +48,6 @@ type Validation struct {
 
 //nolint:gocyclo
 func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	//nolint:staticcheck
-	ctx = context.WithValue(ctx, "reconcile", true)
 
 	//Tag Validation
 	if offendingTag, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(k string, v string) bool {
@@ -66,44 +63,34 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("%q tag does not pass tag validation requirements", offendingTag))
 	}
 	//Auth Validation
-	amis, err := n.amiProvider.List(ctx, nodeClass)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-	if nodeClass.StatusConditions().Get(v1.ConditionTypeSubnetsReady).IsFalse() || nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsFalse() {
-		return reconcile.Result{}, nil
-	}
 	nodeClaim := &karpv1.NodeClaim{
 		Spec: karpv1.NodeClaimSpec{
 			NodeClassRef: &karpv1.NodeClassReference{
 				Name: nodeClass.ObjectMeta.Name,
 			},
 		},
-		Status: karpv1.NodeClaimStatus{
-			ImageID: amis[0].AmiID,
-		},
 	}
-	tags, err := utils.GetTags(ctx, nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
+	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	var errs []error
+	var errs []string
 
-	createFleetInput := n.instanceProvider.GetCreateFleetInput(nodeClass, string(karpv1.CapacityTypeOnDemand), tags, mockLaunchTemplateConfig(), true)
+	createFleetInput := n.instanceProvider.GetCreateFleetInput(nodeClass, string(karpv1.CapacityTypeOnDemand), tags, mockLaunchTemplateConfig())
+	createFleetInput.DryRun = aws.Bool(true)
 
 	if _, err := n.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IsNotDryRunError(err) {
-		errs = append(errs, fmt.Errorf("create fleet %w", err))
+		errs = append(errs, fmt.Sprintf("create fleet %s", err))
 	}
 
-	createLaunchTemplateInput := n.launchTemplateProvider.GetCreateLaunchTemplateInput(mockOptions(*nodeClaim, nodeClass, tags), corev1.IPv4Protocol, "", true)
+	createLaunchTemplateInput := n.launchTemplateProvider.GetCreateLaunchTemplateInput(mockOptions(*nodeClaim, nodeClass, tags), corev1.IPv4Protocol, "")
+	createLaunchTemplateInput.DryRun = aws.Bool(true)
 
 	if _, err := n.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IsNotDryRunError(err) {
-		errs = append(errs, fmt.Errorf("create launch template %w", err))
+		errs = append(errs, fmt.Sprintf("create launch template %s", err))
 	}
 
-	imageOutput, err := n.ec2api.DescribeImages(ctx, &ec2.DescribeImagesInput{
-		ImageIds: []string{amis[0].AmiID},
-	})
+	amis, err := n.amiProvider.List(ctx, nodeClass)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -126,16 +113,16 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 				Tags:         utils.MergeTags(tags),
 			},
 		},
-		ImageId: imageOutput.Images[0].ImageId,
+		ImageId: lo.ToPtr(amis[0].AmiID),
 	}
 
 	if _, err = n.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IsNotDryRunError(err) {
-		errs = append(errs, fmt.Errorf("run instances %w", err))
+		errs = append(errs, fmt.Sprintf("run instances %s", err))
 	}
 
-	if errors.Join(errs...) != nil {
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "NodeClassNotReady", fmt.Sprintf("unauthorized operation %v", errors.Join(errs...)))
-		return reconcile.Result{}, fmt.Errorf("unauthorized operation %w", errors.Join(errs...))
+	if errs != nil {
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "NodeClassNotReady", fmt.Sprintf("unauthorized operation %s", errs))
+		return reconcile.Result{}, fmt.Errorf("unauthorized operation %s", errs)
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 	return reconcile.Result{}, nil

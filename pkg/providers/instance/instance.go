@@ -74,7 +74,7 @@ type Provider interface {
 	List(context.Context) ([]*Instance, error)
 	Delete(context.Context, string) error
 	CreateTags(context.Context, string, map[string]string) error
-	GetCreateFleetInput(nodeClass *v1.EC2NodeClass, capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest, dryrun ...bool) *ec2.CreateFleetInput
+	GetCreateFleetInput(nodeClass *v1.EC2NodeClass, capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) *ec2.CreateFleetInput
 }
 
 type DefaultProvider struct {
@@ -255,13 +255,8 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 	return createFleetOutput.Instances[0], nil
 }
 
-func (p *DefaultProvider) GetCreateFleetInput(nodeClass *v1.EC2NodeClass, capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest, dryrun ...bool) *ec2.CreateFleetInput {
-	dryRunInput := false
-	if dryrun != nil && dryrun[0] {
-		dryRunInput = true
-	}
+func (p *DefaultProvider) GetCreateFleetInput(nodeClass *v1.EC2NodeClass, capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) *ec2.CreateFleetInput {
 	return &ec2.CreateFleetInput{
-		DryRun:                &dryRunInput,
 		Type:                  ec2types.FleetTypeInstant,
 		Context:               nodeClass.Spec.Context,
 		LaunchTemplateConfigs: launchTemplateConfigs,

@@ -18,11 +18,9 @@ import (
 	status "github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/smithy-go"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -108,21 +106,16 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Expect(nodeClass.Status.Conditions).To(HaveLen(6))
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 		})
-		It("should update status condition on nodeClass as NotReady when nodeclass has authorization failure due to describelaunchtemplate", func() {
+		It("should update status condition on nodeClass as NotReady when nodeclass has authorization failure due to createlaunchtemplate", func() {
 			ExpectApplied(ctx, env.Client, nodeClass)
-			awsEnv.EC2API.NextError.Set(&smithy.GenericAPIError{
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
 				Code: "UnauthorizedOperation",
-			})
-			describeLaunchTemplatesInput := &ec2.DescribeLaunchTemplatesInput{
-				DryRun:              lo.ToPtr(true),
-				LaunchTemplateNames: []string{"mock-lt-name"},
-			}
-
-			_, err := awsEnv.EC2API.DescribeLaunchTemplates(ctx, describeLaunchTemplatesInput)
-			if !awserrors.IsNotDryRunError(err) {
-				err = nil
-			}
+			}, fake.MaxCalls(1))
+			err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
 			Expect(err).To(HaveOccurred())
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.Status.Conditions).To(HaveLen(6))
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 		})
 		It("should update status condition as Ready", func() {
 			nodeClass.Spec.Tags = map[string]string{}

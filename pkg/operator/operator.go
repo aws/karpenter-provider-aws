@@ -89,7 +89,7 @@ type Operator struct {
 	InstanceTypesProvider     *instancetype.DefaultProvider
 	InstanceProvider          instance.Provider
 	SSMProvider               ssmp.Provider
-	EC2API                    ec2.Client
+	EC2API                    *ec2.Client
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
@@ -201,7 +201,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		PricingProvider:           pricingProvider,
 		InstanceTypesProvider:     instanceTypeProvider,
 		InstanceProvider:          instanceProvider,
-		EC2API:                    *ec2api,
+		SSMProvider:               ssmProvider,
+		EC2API:                    ec2api,
 	}
 }
 

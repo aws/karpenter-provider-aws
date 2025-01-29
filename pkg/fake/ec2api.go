@@ -60,7 +60,7 @@ type EC2Behavior struct {
 	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
 	CreateTagsBehavior                  MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
 	RunInstancesBehavior                MockedFunction[ec2.RunInstancesInput, ec2.RunInstancesOutput]
-	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
+	CreateLaunchTemplateBehavior        MockedFunction[ec2.CreateLaunchTemplateInput, ec2.CreateLaunchTemplateOutput]
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
@@ -93,7 +93,7 @@ func (e *EC2API) Reset() {
 	e.CreateFleetBehavior.Reset()
 	e.TerminateInstancesBehavior.Reset()
 	e.DescribeInstancesBehavior.Reset()
-	e.CalledWithCreateLaunchTemplateInput.Reset()
+	e.CreateLaunchTemplateBehavior.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
 	e.DescribeSpotPriceHistoryInput.Reset()
 	e.DescribeSpotPriceHistoryOutput.Reset()
@@ -141,10 +141,10 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 					continue
 				}
 				amiID := aws.String("")
-				if e.CalledWithCreateLaunchTemplateInput.Len() > 0 {
-					lt := e.CalledWithCreateLaunchTemplateInput.Pop()
+				if e.CreateLaunchTemplateBehavior.CalledWithInput.Len() > 0 {
+					lt := e.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
 					amiID = lt.LaunchTemplateData.ImageId
-					e.CalledWithCreateLaunchTemplateInput.Add(lt)
+					e.CreateLaunchTemplateBehavior.CalledWithInput.Add(lt)
 				}
 				instanceState := ec2types.InstanceStateNameRunning
 				for ; fulfilled < int(*input.TargetCapacitySpecification.TotalTargetCapacity); fulfilled++ {
@@ -213,18 +213,17 @@ func (e *EC2API) TerminateInstances(_ context.Context, input *ec2.TerminateInsta
 	})
 }
 
+// Then modify the CreateLaunchTemplate method:
 func (e *EC2API) CreateLaunchTemplate(ctx context.Context, input *ec2.CreateLaunchTemplateInput, _ ...func(*ec2.Options)) (*ec2.CreateLaunchTemplateOutput, error) {
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	// We dont want to count the status controllers call to createlaunchtemplate
-	if ctx.Value("reconcile") != true {
-		e.CalledWithCreateLaunchTemplateInput.Add(input)
-	}
-	launchTemplate := ec2types.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
-	e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
-	return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: lo.ToPtr(launchTemplate)}, nil
+	return e.CreateLaunchTemplateBehavior.Invoke(input, func(input *ec2.CreateLaunchTemplateInput) (*ec2.CreateLaunchTemplateOutput, error) {
+		if !e.NextError.IsNil() {
+			defer e.NextError.Reset()
+			return nil, e.NextError.Get()
+		}
+		launchTemplate := ec2types.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
+		e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
+		return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: lo.ToPtr(launchTemplate)}, nil
+	})
 }
 
 func (e *EC2API) CreateTags(_ context.Context, input *ec2.CreateTagsInput, _ ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error) {
@@ -327,7 +326,7 @@ func (e *EC2API) DescribeImages(ctx context.Context, input *ec2.DescribeImagesIn
 		return nil, e.NextError.Get()
 	}
 	// We dont want to count the status controllers call to describe images
-	if ctx.Value("reconcile") != true {
+	if input.DryRun != lo.ToPtr(true) {
 		e.CalledWithDescribeImagesInput.Add(input)
 		if !e.DescribeImagesOutput.IsNil() {
 			describeImagesOutput := e.DescribeImagesOutput.Clone()

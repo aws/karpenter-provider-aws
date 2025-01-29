@@ -58,8 +58,7 @@ type Provider interface {
 	DeleteAll(context.Context, *v1.EC2NodeClass) error
 	InvalidateCache(context.Context, string, string)
 	ResolveClusterCIDR(context.Context) error
-	GetCreateLaunchTemplateInput(options *amifamily.LaunchTemplate, ClusterIPFamily corev1.IPFamily, userData string, dryrun ...bool) *ec2.CreateLaunchTemplateInput
-	GenerateNetworkInterfaces(options *amifamily.LaunchTemplate) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest
+	GetCreateLaunchTemplateInput(options *amifamily.LaunchTemplate, ClusterIPFamily corev1.IPFamily, userData string) *ec2.CreateLaunchTemplateInput
 }
 type LaunchTemplate struct {
 	Name          string
@@ -231,20 +230,15 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 }
 
 // you need UserData, AmiID, tags, blockdevicemappings, instance profile,
-func (p *DefaultProvider) GetCreateLaunchTemplateInput(options *amifamily.LaunchTemplate, ClusterIPFamily corev1.IPFamily, userData string, dryrun ...bool) *ec2.CreateLaunchTemplateInput {
+func (p *DefaultProvider) GetCreateLaunchTemplateInput(options *amifamily.LaunchTemplate, ClusterIPFamily corev1.IPFamily, userData string) *ec2.CreateLaunchTemplateInput {
 	launchTemplateDataTags := []ec2types.LaunchTemplateTagSpecificationRequest{
 		{ResourceType: ec2types.ResourceTypeNetworkInterface, Tags: utils.MergeTags(options.Tags)},
 	}
 	if options.CapacityType == karpv1.CapacityTypeSpot {
 		launchTemplateDataTags = append(launchTemplateDataTags, ec2types.LaunchTemplateTagSpecificationRequest{ResourceType: ec2types.ResourceTypeSpotInstancesRequest, Tags: utils.MergeTags(options.Tags)})
 	}
-	networkInterfaces := p.GenerateNetworkInterfaces(options)
-	dryRunInput := false
-	if dryrun != nil && dryrun[0] {
-		dryRunInput = true
-	}
+	networkInterfaces := p.generateNetworkInterfaces(options)
 	return &ec2.CreateLaunchTemplateInput{
-		DryRun:             &dryRunInput,
 		LaunchTemplateName: aws.String(LaunchTemplateName(options)),
 		LaunchTemplateData: &ec2types.RequestLaunchTemplateData{
 			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),
@@ -285,7 +279,7 @@ func (p *DefaultProvider) GetCreateLaunchTemplateInput(options *amifamily.Launch
 }
 
 // generateNetworkInterfaces generates network interfaces for the launch template.
-func (p *DefaultProvider) GenerateNetworkInterfaces(options *amifamily.LaunchTemplate) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTemplate) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 	if options.EFACount != 0 {
 		return lo.Times(options.EFACount, func(i int) ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 			return ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{

@@ -15,7 +15,6 @@ limitations under the License.
 package utils
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -88,7 +87,7 @@ func WithDefaultFloat64(key string, def float64) float64 {
 	return f
 }
 
-func GetTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, clusterName string) (map[string]string, error) {
+func GetTags(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, clusterName string) (map[string]string, error) {
 	if offendingTag, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(k string, v string) bool {
 		for _, exp := range v1.RestrictedTagPatterns {
 			if exp.MatchString(k) {
