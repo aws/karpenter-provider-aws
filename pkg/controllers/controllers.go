@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"github.com/awslabs/operatorpkg/controller"
-	opevents "github.com/awslabs/operatorpkg/events"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -40,7 +39,6 @@ import (
 
 	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/samber/lo"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -91,7 +89,6 @@ func NewControllers(
 		controllersinstancetypecapacity.NewController(kubeClient, cloudProvider, instanceTypeProvider),
 		ssminvalidation.NewController(ssmCache, amiProvider),
 		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter"), status.EmitDeprecatedMetrics),
-		opevents.NewController[*corev1.Node](kubeClient, clk),
 		controllersversion.NewController(versionProvider, versionProvider.UpdateVersionWithValidation),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
