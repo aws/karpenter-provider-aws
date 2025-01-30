@@ -19,3 +19,8 @@
 
 # Redirect old working group page to the new community meetings page
 /preview/contributing/working-group /preview/contributing/community-meetings
+/docs/contributing/working-group /docs/contributing/community-meetings
+/v0.32/contributing/working-group /v0.32/contributing/community-meetings
+/v1.0/contributing/working-group /v1.0/contributing/community-meetings
+/v1.1/contributing/working-group /v1.1/contributing/community-meetings
+/v1.2/contributing/working-group /v1.2/contributing/community-meetings
