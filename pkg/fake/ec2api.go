@@ -111,6 +111,16 @@ func (e *EC2API) Reset() {
 
 // nolint: gocyclo
 func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ ...func(*ec2.Options)) (*ec2.CreateFleetOutput, error) {
+	if input.DryRun != nil && *input.DryRun {
+		err := e.CreateFleetBehavior.Error.Get()
+		if err == nil {
+			return &ec2.CreateFleetOutput{}, &smithy.GenericAPIError{
+				Code:    "DryRunOperation",
+				Message: "Request would have succeeded, but DryRun flag is set",
+			}
+		}
+		return nil, err
+	}
 	return e.CreateFleetBehavior.Invoke(input, func(input *ec2.CreateFleetInput) (*ec2.CreateFleetOutput, error) {
 		if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 			return nil, fmt.Errorf("missing launch template name")
@@ -215,6 +225,16 @@ func (e *EC2API) TerminateInstances(_ context.Context, input *ec2.TerminateInsta
 
 // Then modify the CreateLaunchTemplate method:
 func (e *EC2API) CreateLaunchTemplate(ctx context.Context, input *ec2.CreateLaunchTemplateInput, _ ...func(*ec2.Options)) (*ec2.CreateLaunchTemplateOutput, error) {
+	if input.DryRun != nil && *input.DryRun {
+		err := e.CreateLaunchTemplateBehavior.Error.Get()
+		if err == nil {
+			return &ec2.CreateLaunchTemplateOutput{}, &smithy.GenericAPIError{
+				Code:    "DryRunOperation",
+				Message: "Request would have succeeded, but DryRun flag is set",
+			}
+		}
+		return nil, err
+	}
 	return e.CreateLaunchTemplateBehavior.Invoke(input, func(input *ec2.CreateLaunchTemplateInput) (*ec2.CreateLaunchTemplateOutput, error) {
 		if !e.NextError.IsNil() {
 			defer e.NextError.Reset()
@@ -325,15 +345,12 @@ func (e *EC2API) DescribeImages(ctx context.Context, input *ec2.DescribeImagesIn
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
 	}
-	// We dont want to count the status controllers call to describe images
-	if input.DryRun != lo.ToPtr(true) {
-		e.CalledWithDescribeImagesInput.Add(input)
-		if !e.DescribeImagesOutput.IsNil() {
-			describeImagesOutput := e.DescribeImagesOutput.Clone()
+	e.CalledWithDescribeImagesInput.Add(input)
+	if !e.DescribeImagesOutput.IsNil() {
+		describeImagesOutput := e.DescribeImagesOutput.Clone()
 
-			describeImagesOutput.Images = FilterDescribeImages(describeImagesOutput.Images, input.Filters)
-			return describeImagesOutput, nil
-		}
+		describeImagesOutput.Images = FilterDescribeImages(describeImagesOutput.Images, input.Filters)
+		return describeImagesOutput, nil
 	}
 	if input.Filters != nil && input.Filters[0].Values[0] == "invalid" {
 		return &ec2.DescribeImagesOutput{}, nil
@@ -662,6 +679,16 @@ func (e *EC2API) DescribeSpotPriceHistory(_ context.Context, input *ec2.Describe
 }
 
 func (e *EC2API) RunInstances(ctx context.Context, input *ec2.RunInstancesInput, optFns ...func(*ec2.Options)) (*ec2.RunInstancesOutput, error) {
+	if input.DryRun != nil && *input.DryRun {
+		err := e.RunInstancesBehavior.Error.Get()
+		if err == nil {
+			return &ec2.RunInstancesOutput{}, &smithy.GenericAPIError{
+				Code:    "DryRunOperation",
+				Message: "Request would have succeeded, but DryRun flag is set",
+			}
+		}
+		return nil, err
+	}
 	return e.RunInstancesBehavior.Invoke(input, func(input *ec2.RunInstancesInput) (*ec2.RunInstancesOutput, error) {
 		if !e.NextError.IsNil() {
 			defer e.NextError.Reset()

@@ -15,10 +15,7 @@ limitations under the License.
 package fake
 
 import (
-	"reflect"
 	"sync/atomic"
-
-	"github.com/samber/lo"
 )
 
 type MockedFunction[I any, O any] struct {
@@ -47,9 +44,8 @@ func (m *MockedFunction[I, O]) Invoke(input *I, defaultTransformer func(*I) (*O,
 		m.failedCalls.Add(1)
 		return nil, err
 	}
-	if f := reflect.ValueOf(input).Elem().FieldByName("DryRun"); f.IsValid() && !lo.FromPtr((*bool)(f.UnsafePointer())) {
-		m.CalledWithInput.Add(input)
-	}
+
+	m.CalledWithInput.Add(input)
 
 	if !m.Output.IsNil() {
 		m.successfulCalls.Add(1)

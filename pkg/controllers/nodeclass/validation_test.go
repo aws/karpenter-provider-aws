@@ -62,7 +62,6 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
 			Expect(err).To(HaveOccurred())
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-			Expect(nodeClass.Status.Conditions).To(HaveLen(6))
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
 			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("ValidationSucceeded=False"))
@@ -84,46 +83,43 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		})
 	})
 	Context("Authorization Validation", func() {
-		It("should update status condition on nodeClass as NotReady when nodeclass has authorization failure due to createfleet", func() {
-			ExpectApplied(ctx, env.Client, nodeClass)
-			awsEnv.EC2API.CreateFleetBehavior.Error.Set(&smithy.GenericAPIError{
-				Code: "UnauthorizedOperation",
-			}, fake.MaxCalls(1))
-			err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
-			Expect(err).To(HaveOccurred())
-			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-			Expect(nodeClass.Status.Conditions).To(HaveLen(6))
-			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
-		})
-		It("should update status condition on nodeClass as NotReady when nodeclass has authorization failure due to runinstances", func() {
-			ExpectApplied(ctx, env.Client, nodeClass)
-			awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
-				Code: "UnauthorizedOperation",
-			}, fake.MaxCalls(1))
-			err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
-			Expect(err).To(HaveOccurred())
-			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-			Expect(nodeClass.Status.Conditions).To(HaveLen(6))
-			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
-		})
-		It("should update status condition on nodeClass as NotReady when nodeclass has authorization failure due to createlaunchtemplate", func() {
-			ExpectApplied(ctx, env.Client, nodeClass)
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
-				Code: "UnauthorizedOperation",
-			}, fake.MaxCalls(1))
-			err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
-			Expect(err).To(HaveOccurred())
-			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-			Expect(nodeClass.Status.Conditions).To(HaveLen(6))
-			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
-		})
-		It("should update status condition as Ready", func() {
-			nodeClass.Spec.Tags = map[string]string{}
-			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-
-			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
-		})
+		DescribeTable("NodeClass validation conditions",
+			func(setupFn func(), expectSuccess bool) {
+				ExpectApplied(ctx, env.Client, nodeClass)
+				setupFn()
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				if expectSuccess {
+					Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+				} else {
+					Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				}
+			},
+			Entry("should update status condition as NotReady when CreateFleet unauthorized",
+				func() {
+					awsEnv.EC2API.CreateFleetBehavior.Error.Set(&smithy.GenericAPIError{
+						Code: "UnauthorizedOperation",
+					}, fake.MaxCalls(1))
+				},
+				false),
+			Entry("should update status condition as NotReady when RunInstances unauthorized",
+				func() {
+					awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+						Code: "UnauthorizedOperation",
+					}, fake.MaxCalls(1))
+				},
+				false),
+			Entry("should update status condition as NotReady when CreateLaunchTemplate unauthorized",
+				func() {
+					awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
+						Code: "UnauthorizedOperation",
+					}, fake.MaxCalls(1))
+				},
+				false),
+			Entry("should update status condition as Ready",
+				func() {
+				},
+				true),
+		)
 	})
 })

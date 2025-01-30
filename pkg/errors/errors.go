@@ -25,6 +25,7 @@ import (
 
 const (
 	launchTemplateNameNotFoundCode = "InvalidLaunchTemplateName.NotFoundException"
+	DryRunOperationErrorCode       = "DryRunOperation"
 )
 
 var (
@@ -90,6 +91,24 @@ func IgnoreAlreadyExists(err error) error {
 	return err
 }
 
+func IsDryRunError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.ErrorCode() == DryRunOperationErrorCode
+	}
+	return false
+}
+
+func IgnoreDryRunError(err error) error {
+	if IsDryRunError(err) {
+		return nil
+	}
+	return err
+}
+
 // IsUnfulfillableCapacity returns true if the Fleet err means
 // capacity is temporarily unavailable for launching.
 // This could be due to account limits, insufficient ec2 capacity, etc.
@@ -106,18 +125,6 @@ func IsLaunchTemplateNotFound(err error) bool {
 		return apiErr.ErrorCode() == launchTemplateNameNotFoundCode
 	}
 	return false
-}
-
-func IsNotDryRunError(err error) bool {
-	if err == nil {
-		return false
-	}
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
-		return !strings.Contains(apiErr.ErrorCode(), "DryRunOperation")
-	}
-	return !strings.Contains(err.Error(), "DryRunOperation")
-
 }
 
 // ToReasonMessage converts an error message from AWS into a well-known condition reason
