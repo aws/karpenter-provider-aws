@@ -365,7 +365,7 @@ For example: `kubectl get nodepool.v1beta1.karpenter.sh`.
 
    ```bash
    # Note: v0.33.x and v0.34.x include the v prefix, omit it for versions v0.35+
-   export KARPENTER_VERSION="0.37.6" # Replace with your minor version
+   export KARPENTER_VERSION="0.37.7" # Replace with your minor version
    ```
 
 3. Attach the `v1beta1` policy from your target version to your existing NodeRole.
