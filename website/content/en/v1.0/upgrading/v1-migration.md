@@ -171,15 +171,15 @@ You should still review the upgrade procedure; the sequence of operations remain
    Set the `KARPENTER_VERSION` environment variable to the latest patch release for your current minor version.
    The following releases are the current latest:
 
-   * `0.37.6`
-   * `0.36.8`
-   * `0.35.11`
-   * `v0.34.12`
-   * `v0.33.11`
+   * `0.37.7`
+   * `0.36.9`
+   * `0.35.12`
+   * `v0.34.13`
+   * `v0.33.12`
 
    ```bash
    # Note: v0.33.x and v0.34.x include the v prefix, omit it for versions v0.35+
-   export KARPENTER_VERSION="0.37.6" # Replace with your minor version
+   export KARPENTER_VERSION="0.37.7" # Replace with your minor version
    ```
 
 4. Upgrade Karpenter to the latest patch release for your current minor version.
@@ -323,15 +323,15 @@ Once you upgrade to Karpenter `v1.0.x`, both `v1` and `v1beta1` resources may be
 Due to this, you may only rollback to a version of Karpenter with the conversion webhooks.
 The following releases should be used as rollback targets:
 
-* `v0.37.6`
-* `v0.36.8`
-* `v0.35.11`
-* `v0.34.12`
-* `v0.33.11`
+* `v0.37.7`
+* `v0.36.9`
+* `v0.35.12`
+* `v0.34.13`
+* `v0.33.12`
 
 {{% alert title="Warning" color="warning" %}}
 When rolling back from `v1`, Karpenter will not retain data that was only valid in the `v1` APIs.
-For instance, if you upgraded from `v0.33.5` to `v1.0.x`, updated the `NodePool.Spec.Disruption.Budgets` field, and then rolled back to `v0.33.6`, Karpenter would not retain the `NodePool.Spec.Disruption.Budgets` field, as that was introduced in `v0.34.0`.
+For instance, if you upgraded from `v0.33.5` to `v1.0.x`, updated the `NodePool.Spec.Disruption.Budgets` field, and then rolled back to `v0.33.12`, Karpenter would not retain the `NodePool.Spec.Disruption.Budgets` field, as that was introduced in `v0.34.0`.
 
 If you have configured the `kubelet` field on your `EC2NodeClass` and have removed the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation from your `NodePools`, you must re-add the annotation before downgrading.
 For more information, refer to [kubelet configuration migration]({{<ref "#kubelet-configuration-migration">}}).
@@ -357,15 +357,15 @@ For example: `kubectl get nodepool.v1beta1.karpenter.sh`.
    ```
 
 2. Configure your target Karpenter version. You should select one of the following versions:
-   * `0.37.6`
-   * `0.36.8`
-   * `0.35.11`
-   * `v0.34.12`
-   * `v0.33.11`
+   * `0.37.7`
+   * `0.36.9`
+   * `0.35.12`
+   * `v0.34.13`
+   * `v0.33.12`
 
    ```bash
    # Note: v0.33.x and v0.34.x include the v prefix, omit it for versions v0.35+
-   export KARPENTER_VERSION="0.37.6" # Replace with your minor version
+   export KARPENTER_VERSION="0.37.7" # Replace with your minor version
    ```
 
 3. Attach the `v1beta1` policy from your target version to your existing NodeRole.
