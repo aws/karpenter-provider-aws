@@ -1,4 +1,4 @@
-curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml  > "${TEMPOUT}" \
+curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml  > $TEMPOUT \
 && aws cloudformation deploy \
   --stack-name "Karpenter-${CLUSTER_NAME}" \
   --template-file "${TEMPOUT}" \
@@ -18,12 +18,14 @@ metadata:
 
 iam:
   withOIDC: true
-  podIdentityAssociations:
-  - namespace: "${KARPENTER_NAMESPACE}"
-    serviceAccountName: karpenter
+  serviceAccounts:
+  - metadata:
+      name: karpenter
+      namespace: "${KARPENTER_NAMESPACE}"
     roleName: ${CLUSTER_NAME}-karpenter
-    permissionPolicyARNs:
+    attachPolicyARNs:
     - arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}
+    roleOnly: true
 
 iamIdentityMappings:
 - arn: "arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}"
@@ -35,19 +37,13 @@ iamIdentityMappings:
   # For more information, see https://github.com/aws/karpenter/issues/5099.
   # - eks:kube-proxy-windows
 
-managedNodeGroups:
-- instanceType: m5.large
-  amiFamily: AmazonLinux2
-  name: ${CLUSTER_NAME}-ng
-  desiredCapacity: 2
-  minSize: 1
-  maxSize: 10
-
-addons:
-- name: eks-pod-identity-agent
+fargateProfiles:
+- name: karpenter
+  selectors:
+  - namespace: "${KARPENTER_NAMESPACE}"
 EOF
 
-export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name "${CLUSTER_NAME}" --query "cluster.endpoint" --output text)"
+export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
 export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
 
-echo "${CLUSTER_ENDPOINT} ${KARPENTER_IAM_ROLE_ARN}"
+echo $CLUSTER_ENDPOINT $KARPENTER_IAM_ROLE_ARN
