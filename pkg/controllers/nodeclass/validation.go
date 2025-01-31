@@ -78,7 +78,7 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 
 	if _, err := n.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IgnoreDryRunError(err) != nil {
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateFleetAuthCheckFailed", fmt.Sprintf("unauthorized operation %s", err))
-		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("create fleet %s", err))
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("create fleet %w", err))
 	}
 
 	createLaunchTemplateInput := launchtemplate.GetCreateLaunchTemplateInput(mockOptions(*nodeClaim, nodeClass, tags), corev1.IPv4Protocol, "")
@@ -86,7 +86,7 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 
 	if _, err := n.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IgnoreDryRunError(err) != nil {
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "LaunchTemplateAuthCheckFailed", fmt.Sprintf("unauthorized operation %s", err))
-		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("create launch template %s", err))
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("create launch template %w", err))
 	}
 
 	amis := nodeClass.Status.AMIs
@@ -117,7 +117,7 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 
 	if _, err = n.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "RunInstancesAuthCheckFailed", fmt.Sprintf("unauthorized operation %s", err))
-		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("run instances %s", err))
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("run instances %w", err))
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 	return reconcile.Result{}, nil

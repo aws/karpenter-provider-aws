@@ -83,43 +83,40 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		})
 	})
 	Context("Authorization Validation", func() {
-		DescribeTable("NodeClass validation conditions",
-			func(setupFn func(), expectSuccess bool) {
+		DescribeTable("NodeClass validation failure conditions",
+			func(setupFn func()) {
 				ExpectApplied(ctx, env.Client, nodeClass)
 				setupFn()
-				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				Expect(err).To(HaveOccurred())
 				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-				if expectSuccess {
-					Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
-				} else {
-					Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
-				}
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 			},
 			Entry("should update status condition as NotReady when CreateFleet unauthorized",
 				func() {
 					awsEnv.EC2API.CreateFleetBehavior.Error.Set(&smithy.GenericAPIError{
 						Code: "UnauthorizedOperation",
 					}, fake.MaxCalls(1))
-				},
-				false),
+				}),
 			Entry("should update status condition as NotReady when RunInstances unauthorized",
 				func() {
 					awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
 						Code: "UnauthorizedOperation",
 					}, fake.MaxCalls(1))
-				},
-				false),
+				}),
 			Entry("should update status condition as NotReady when CreateLaunchTemplate unauthorized",
 				func() {
 					awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
 						Code: "UnauthorizedOperation",
 					}, fake.MaxCalls(1))
-				},
-				false),
-			Entry("should update status condition as Ready",
-				func() {
-				},
-				true),
+				}),
 		)
+
+		It("should update status condition as Ready when authorized", func() {
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
 	})
 })
