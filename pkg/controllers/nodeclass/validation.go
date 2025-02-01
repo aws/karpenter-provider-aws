@@ -95,9 +95,10 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	}
 
 	runInstancesInput := &ec2.RunInstancesInput{
-		DryRun:   lo.ToPtr(true),
-		MaxCount: aws.Int32(1),
-		MinCount: aws.Int32(1),
+		DryRun:       lo.ToPtr(true),
+		MaxCount:     aws.Int32(1),
+		MinCount:     aws.Int32(1),
+		InstanceType: ec2types.InstanceTypeT3Micro,
 		TagSpecifications: []ec2types.TagSpecification{
 			{
 				ResourceType: ec2types.ResourceTypeInstance,
