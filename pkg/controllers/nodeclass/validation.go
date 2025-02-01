@@ -94,11 +94,35 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		return reconcile.Result{}, fmt.Errorf("failed to list AMIs from NodeClass status, %w", err)
 	}
 
+	describeImagesInput := &ec2.DescribeImagesInput{
+		ImageIds: []string{amis[0].ID},
+	}
+
+	imageResult, err := n.ec2api.DescribeImages(ctx, describeImagesInput)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to describe AMI: %w", err)
+	}
+
+	// Use the AMI's architecture to find compatible instance types
+	describeInstanceTypesInput := &ec2.DescribeInstanceTypesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   aws.String("processor-info.supported-architecture"),
+				Values: []string{string(imageResult.Images[0].Architecture)},
+			},
+		},
+	}
+
+	instancetype, err := n.ec2api.DescribeInstanceTypes(ctx, describeInstanceTypesInput)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to describe instance types: %w", err)
+	}
+
 	runInstancesInput := &ec2.RunInstancesInput{
 		DryRun:       lo.ToPtr(true),
 		MaxCount:     aws.Int32(1),
 		MinCount:     aws.Int32(1),
-		InstanceType: ec2types.InstanceTypeT3Micro,
+		InstanceType: instancetype.InstanceTypes[0].InstanceType,
 		TagSpecifications: []ec2types.TagSpecification{
 			{
 				ResourceType: ec2types.ResourceTypeInstance,
