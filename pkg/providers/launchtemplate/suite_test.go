@@ -1948,6 +1948,7 @@ essential = true
 						Architecture: "x86_64",
 						Tags:         []ec2types.Tag{{Key: aws.String(corev1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+						State:        ec2types.ImageStateAvailable,
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
@@ -1955,6 +1956,7 @@ essential = true
 						Architecture: "x86_64",
 						Tags:         []ec2types.Tag{{Key: aws.String(corev1.LabelInstanceTypeStable), Value: aws.String("m5.xlarge")}},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+						State:        ec2types.ImageStateAvailable,
 					},
 				}})
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
@@ -1969,6 +1971,10 @@ essential = true
 					{
 						Name:   aws.String("image-id"),
 						Values: []string{"ami-123", "ami-456"},
+					},
+					{
+						Name:   aws.String("state"),
+						Values: []string{string(ec2types.ImageStateAvailable)},
 					},
 				}
 				Expect(actualFilter).To(Equal(expectedFilter))
@@ -2009,12 +2015,14 @@ essential = true
 						ImageId:      aws.String("ami-123"),
 						Architecture: "x86_64",
 						CreationDate: aws.String("2020-01-01T12:00:00Z"),
+						State:        ec2types.ImageStateAvailable,
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
 						Architecture: "x86_64",
 						CreationDate: aws.String("2021-01-01T12:00:00Z"),
+						State:        ec2types.ImageStateAvailable,
 					},
 					{
 						// Incompatible because required ARM64
@@ -2022,6 +2030,7 @@ essential = true
 						ImageId:      aws.String("ami-789"),
 						Architecture: "arm64",
 						CreationDate: aws.String("2022-01-01T12:00:00Z"),
+						State:        ec2types.ImageStateAvailable,
 					},
 				}})
 				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
