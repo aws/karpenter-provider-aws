@@ -114,6 +114,11 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		MaxCount:     aws.Int32(1),
 		MinCount:     aws.Int32(1),
 		InstanceType: instanceType,
+		MetadataOptions: &ec2types.InstanceMetadataOptionsRequest{
+			HttpTokens:              ec2types.HttpTokensStateRequired,
+			HttpEndpoint:            ec2types.InstanceMetadataEndpointStateEnabled,
+			HttpPutResponseHopLimit: aws.Int32(1),
+		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{
 				ResourceType: ec2types.ResourceTypeInstance,
