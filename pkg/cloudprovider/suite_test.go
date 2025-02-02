@@ -639,6 +639,7 @@ var _ = Describe("CloudProvider", func() {
 								Value: aws.String("ami-value-1"),
 							},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
@@ -651,6 +652,7 @@ var _ = Describe("CloudProvider", func() {
 								Value: aws.String("ami-value-2"),
 							},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 				},
 			})

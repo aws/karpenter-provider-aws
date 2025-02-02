@@ -362,6 +362,7 @@ func (e *EC2API) DescribeImages(ctx context.Context, input *ec2.DescribeImagesIn
 				ImageId:      aws.String(test.RandomName()),
 				CreationDate: aws.String(time.Now().Format(time.UnixDate)),
 				Architecture: "x86_64",
+				State:        ec2types.ImageStateAvailable,
 			},
 		},
 	}, nil
