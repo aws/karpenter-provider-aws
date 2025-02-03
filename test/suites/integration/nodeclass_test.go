@@ -16,10 +16,14 @@ package integration_test
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/google/uuid"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
@@ -46,24 +50,30 @@ var _ = Describe("NodeClass IAM Permissions", func() {
             ]
         }`, action)
 
-			roleName = fmt.Sprintf("%s-karpenter", env.ClusterName)
+			deployment := &appsv1.Deployment{}
+			err := env.Client.Get(env.Context, types.NamespacedName{
+				Namespace: "kube-system",
+				Name:      "karpenter",
+			}, deployment)
+
+			Expect(err).To(BeNil())
+
+			sa := &corev1.ServiceAccount{}
+			err = env.Client.Get(env.Context, types.NamespacedName{
+				Namespace: "kube-system",
+				Name:      deployment.Spec.Template.Spec.ServiceAccountName,
+			}, sa)
+			Expect(err).To(BeNil())
+
+			roleName = strings.Split(sa.Annotations["eks.amazonaws.com/role-arn"], "/")[1]
 			policyName = fmt.Sprintf("TestPolicy-%s", uuid.New().String())
 
-			_, err := env.IAMAPI.PutRolePolicy(env.Context, &iam.PutRolePolicyInput{
+			_, err = env.IAMAPI.PutRolePolicy(env.Context, &iam.PutRolePolicyInput{
 				RoleName:       aws.String(roleName),
 				PolicyName:     aws.String(policyName),
 				PolicyDocument: aws.String(policyDoc),
 			})
-			if err != nil {
-				//e2e test role naming
-				roleName = fmt.Sprintf("karpenter-irsa-%s", env.ClusterName)
-				_, err = env.IAMAPI.PutRolePolicy(env.Context, &iam.PutRolePolicyInput{
-					RoleName:       aws.String(roleName),
-					PolicyName:     aws.String(policyName),
-					PolicyDocument: aws.String(policyDoc),
-				})
-				Expect(err).To(BeNil())
-			}
+			Expect(err).To(BeNil())
 
 			DeferCleanup(func() {
 				_, err := env.IAMAPI.DeleteRolePolicy(env.Context, &iam.DeleteRolePolicyInput{
