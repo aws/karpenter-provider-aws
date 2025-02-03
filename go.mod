@@ -35,7 +35,6 @@ require (
 	github.com/samber/lo v1.49.1
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
 	golang.org/x/sync v0.10.0
 	k8s.io/api v0.32.1
 	k8s.io/apiextensions-apiserver v0.32.1
