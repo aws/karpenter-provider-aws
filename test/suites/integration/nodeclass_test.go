@@ -54,7 +54,16 @@ var _ = Describe("NodeClass IAM Permissions", func() {
 				PolicyName:     aws.String(policyName),
 				PolicyDocument: aws.String(policyDoc),
 			})
-			Expect(err).To(BeNil())
+			if err != nil {
+				//e2e test role naming
+				roleName = fmt.Sprintf("karpenter-irsa-%s", env.ClusterName)
+				_, err = env.IAMAPI.PutRolePolicy(env.Context, &iam.PutRolePolicyInput{
+					RoleName:       aws.String(roleName),
+					PolicyName:     aws.String(policyName),
+					PolicyDocument: aws.String(policyDoc),
+				})
+				Expect(err).To(BeNil())
+			}
 
 			DeferCleanup(func() {
 				_, err := env.IAMAPI.DeleteRolePolicy(env.Context, &iam.DeleteRolePolicyInput{
