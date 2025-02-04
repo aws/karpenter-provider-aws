@@ -35,7 +35,7 @@ Install these tools before proceeding:
 
 1. [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html)
 2. `kubectl` - [the Kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
-3. `eksctl` (>= v0.191.0) - [the CLI for AWS EKS](https://eksctl.io/installation)
+3. `eksctl` (>= v0.202.0) - [the CLI for AWS EKS](https://eksctl.io/installation)
 4. `helm` - [the package manager for Kubernetes](https://helm.sh/docs/intro/install/)
 
 [Configure the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html)
@@ -49,7 +49,7 @@ After setting up the tools, set the Karpenter and Kubernetes version:
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
 export KARPENTER_VERSION="1.2.1"
-export K8S_VERSION="1.31"
+export K8S_VERSION="1.32"
 ```
 
 Then set the following environment variable:
