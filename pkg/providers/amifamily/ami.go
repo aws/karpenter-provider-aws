@@ -26,7 +26,6 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/utils/clock"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -34,7 +33,6 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
-	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
@@ -49,7 +47,6 @@ type DefaultProvider struct {
 	clk             clock.Clock
 	cache           *cache.Cache
 	ec2api          sdk.EC2API
-	cm              *pretty.ChangeMonitor
 	versionProvider version.Provider
 	ssmProvider     ssm.Provider
 }
@@ -59,7 +56,6 @@ func NewDefaultProvider(clk clock.Clock, versionProvider version.Provider, ssmPr
 		clk:             clk,
 		cache:           cache,
 		ec2api:          ec2api,
-		cm:              pretty.NewChangeMonitor(),
 		versionProvider: versionProvider,
 		ssmProvider:     ssmProvider,
 	}
@@ -78,11 +74,6 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return nil, err
 	}
 	amis.Sort()
-	uniqueAMIs := lo.Uniq(lo.Map(amis, func(a AMI, _ int) string { return a.AmiID }))
-	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeClass.Name), uniqueAMIs) {
-		log.FromContext(ctx).WithValues(
-			"ids", uniqueAMIs).V(1).Info("discovered amis")
-	}
 	return amis, nil
 }
 
