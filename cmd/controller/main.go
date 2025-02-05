@@ -68,6 +68,7 @@ func main() {
 			op.LaunchTemplateProvider,
 			op.VersionProvider,
 			op.InstanceTypesProvider,
+			op.CapacityReservationProvider,
 		)...).
 		Start(ctx)
 }

@@ -58,7 +58,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
 		Expect(err).To(HaveOccurred())
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.Conditions).To(HaveLen(6))
+		Expect(nodeClass.Status.Conditions).To(HaveLen(7))
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
 		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("ValidationSucceeded=False"))

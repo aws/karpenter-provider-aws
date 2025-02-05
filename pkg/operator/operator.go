@@ -57,6 +57,7 @@ import (
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
@@ -75,20 +76,21 @@ func init() {
 // Operator is injected into the AWS CloudProvider's factories
 type Operator struct {
 	*operator.Operator
-	Config                    aws.Config
-	UnavailableOfferingsCache *awscache.UnavailableOfferings
-	SSMCache                  *cache.Cache
-	SubnetProvider            subnet.Provider
-	SecurityGroupProvider     securitygroup.Provider
-	InstanceProfileProvider   instanceprofile.Provider
-	AMIProvider               amifamily.Provider
-	AMIResolver               amifamily.Resolver
-	LaunchTemplateProvider    launchtemplate.Provider
-	PricingProvider           pricing.Provider
-	VersionProvider           *version.DefaultProvider
-	InstanceTypesProvider     *instancetype.DefaultProvider
-	InstanceProvider          instance.Provider
-	SSMProvider               ssmp.Provider
+	Config                      aws.Config
+	UnavailableOfferingsCache   *awscache.UnavailableOfferings
+	SSMCache                    *cache.Cache
+	SubnetProvider              subnet.Provider
+	SecurityGroupProvider       securitygroup.Provider
+	InstanceProfileProvider     instanceprofile.Provider
+	AMIProvider                 amifamily.Provider
+	AMIResolver                 amifamily.Resolver
+	LaunchTemplateProvider      launchtemplate.Provider
+	PricingProvider             pricing.Provider
+	VersionProvider             *version.DefaultProvider
+	InstanceTypesProvider       *instancetype.DefaultProvider
+	InstanceProvider            instance.Provider
+	SSMProvider                 ssmp.Provider
+	CapacityReservationProvider capacityreservation.Provider
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
@@ -184,23 +186,25 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 	)
+	capacityReservationProvider := capacityreservation.NewProvider(ec2api, operator.Clock, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 
 	return ctx, &Operator{
-		Operator:                  operator,
-		Config:                    cfg,
-		UnavailableOfferingsCache: unavailableOfferingsCache,
-		SSMCache:                  ssmCache,
-		SubnetProvider:            subnetProvider,
-		SecurityGroupProvider:     securityGroupProvider,
-		InstanceProfileProvider:   instanceProfileProvider,
-		AMIProvider:               amiProvider,
-		AMIResolver:               amiResolver,
-		VersionProvider:           versionProvider,
-		LaunchTemplateProvider:    launchTemplateProvider,
-		PricingProvider:           pricingProvider,
-		InstanceTypesProvider:     instanceTypeProvider,
-		InstanceProvider:          instanceProvider,
-		SSMProvider:               ssmProvider,
+		Operator:                    operator,
+		Config:                      cfg,
+		UnavailableOfferingsCache:   unavailableOfferingsCache,
+		SSMCache:                    ssmCache,
+		SubnetProvider:              subnetProvider,
+		SecurityGroupProvider:       securityGroupProvider,
+		InstanceProfileProvider:     instanceProfileProvider,
+		AMIProvider:                 amiProvider,
+		AMIResolver:                 amiResolver,
+		VersionProvider:             versionProvider,
+		LaunchTemplateProvider:      launchTemplateProvider,
+		PricingProvider:             pricingProvider,
+		InstanceTypesProvider:       instanceTypeProvider,
+		InstanceProvider:            instanceProvider,
+		SSMProvider:                 ssmProvider,
+		CapacityReservationProvider: capacityReservationProvider,
 	}
 }
 
