@@ -35,7 +35,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
@@ -43,8 +42,7 @@ import (
 type Validation struct {
 	ec2api sdk.EC2API
 
-	amiProvider           amifamily.Provider
-	instanceTypesProvider instancetype.Provider
+	amiProvider amifamily.Provider
 }
 
 // nolint:gocyclo
