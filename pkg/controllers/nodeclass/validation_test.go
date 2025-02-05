@@ -87,8 +87,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			func(setupFn func()) {
 				ExpectApplied(ctx, env.Client, nodeClass)
 				setupFn()
-				err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
-				Expect(err).To(HaveOccurred())
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 			},

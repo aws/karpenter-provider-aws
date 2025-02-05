@@ -17,16 +17,20 @@ package integration_test
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/google/uuid"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
+	. "github.com/awslabs/operatorpkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -36,26 +40,24 @@ var _ = Describe("NodeClass IAM Permissions", func() {
 		roleName   string
 		policyName string
 	)
-
 	DescribeTable("IAM Permission Failure Tests",
-		func(action string) {
+		func(action string, expectedMessage string) {
 			policyDoc := fmt.Sprintf(`{
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Effect": "Deny",
-                    "Action": ["%s"],
-                    "Resource": "*"
-                }
-            ]
-        }`, action)
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Deny",
+							"Action": ["%s"],
+							"Resource": "*"
+						}
+					]
+				}`, action)
 
 			deployment := &appsv1.Deployment{}
 			err := env.Client.Get(env.Context, types.NamespacedName{
 				Namespace: "kube-system",
 				Name:      "karpenter",
 			}, deployment)
-
 			Expect(err).To(BeNil())
 
 			sa := &corev1.ServiceAccount{}
@@ -86,16 +88,21 @@ var _ = Describe("NodeClass IAM Permissions", func() {
 			env.ExpectCreated(nodeClass)
 			Eventually(func(g Gomega) {
 				env.ExpectUpdated(nodeClass)
-				g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeFalse())
-
-				condition := nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded)
-				g.Expect(condition).ToNot(BeNil())
-				g.Expect(condition.Message).To(ContainSubstring("unauthorized operation"))
-			}, "90s", "5s").Should(Succeed())
+				g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Message).To(Equal("Unauthorized Operation"))
+				g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(expectedMessage))
+			}, "120s", "5s").Should(Succeed())
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False"})
 		},
-		Entry("should fail when CreateFleet is denied", "ec2:CreateFleet"),
-		Entry("should fail when CreateLaunchTemplate is denied", "ec2:CreateLaunchTemplate"),
-		Entry("should fail when RunInstances is denied", "ec2:RunInstances"),
+		Entry("should fail when CreateFleet is denied",
+			"ec2:CreateFleet",
+			"CreateFleetAuthCheckFailed"),
+		Entry("should fail when CreateLaunchTemplate is denied",
+			"ec2:CreateLaunchTemplate",
+			"CreateLaunchTemplateAuthCheckFailed"),
+		Entry("should fail when RunInstances is denied",
+			"ec2:RunInstances",
+			"RunInstancesAuthCheckFailed"),
 	)
 
 	It("should succeed with all required permissions", func() {

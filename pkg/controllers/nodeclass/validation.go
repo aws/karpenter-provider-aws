@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -34,6 +35,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
@@ -41,13 +43,13 @@ import (
 type Validation struct {
 	ec2api sdk.EC2API
 
-	amiProvider amifamily.Provider
+	amiProvider           amifamily.Provider
+	instanceTypesProvider instancetype.Provider
 }
 
-//nolint:gocyclo
+// nolint:gocyclo
 func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-
-	//Tag Validation
+	// Tag Validation
 	if offendingTag, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(k string, v string) bool {
 		for _, exp := range v1.RestrictedTagPatterns {
 			if exp.MatchString(k) {
@@ -60,7 +62,12 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 			fmt.Sprintf("%q tag does not pass tag validation requirements", offendingTag))
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("%q tag does not pass tag validation requirements", offendingTag))
 	}
-	//Auth Validation
+	// Auth Validation
+	if !nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeInstanceProfileReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeSubnetsReady).IsTrue() {
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "DependenciesNotReady", "Waiting for SecurityGroups, AMIs, and InstanceProfiles")
+		// nolint:nilerr
+		return reconcile.Result{}, nil
+	}
 	nodeClaim := &karpv1.NodeClaim{
 		Spec: karpv1.NodeClaimSpec{
 			NodeClassRef: &karpv1.NodeClassReference{
@@ -70,23 +77,27 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	}
 	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("failed to get Tags, %w", err)
+		return reconcile.Result{}, fmt.Errorf("getting tags, %w", err)
 	}
 
 	createFleetInput := instance.GetCreateFleetInput(nodeClass, string(karpv1.CapacityTypeOnDemand), tags, mockLaunchTemplateConfig())
 	createFleetInput.DryRun = aws.Bool(true)
 
 	if _, err := n.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IgnoreDryRunError(err) != nil {
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateFleetAuthCheckFailed", fmt.Sprintf("unauthorized operation %s", err))
-		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("create fleet %w", err))
+		log.FromContext(ctx).Info(err.Error())
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateFleetAuthCheckFailed", "Unauthorized Operation")
+		// nolint:nilerr
+		return reconcile.Result{}, nil
 	}
 
 	createLaunchTemplateInput := launchtemplate.GetCreateLaunchTemplateInput(mockOptions(*nodeClaim, nodeClass, tags), corev1.IPv4Protocol, "")
 	createLaunchTemplateInput.DryRun = aws.Bool(true)
 
 	if _, err := n.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IgnoreDryRunError(err) != nil {
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "LaunchTemplateAuthCheckFailed", fmt.Sprintf("unauthorized operation %s", err))
-		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("create launch template %w", err))
+		log.FromContext(ctx).Info(err.Error())
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateLaunchTemplateAuthCheckFailed", "Unauthorized Operation")
+		// nolint:nilerr
+		return reconcile.Result{}, nil
 	}
 
 	amis := nodeClass.Status.AMIs
@@ -137,10 +148,13 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	}
 
 	if _, err = n.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "RunInstancesAuthCheckFailed", fmt.Sprintf("unauthorized operation %s", err))
-		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("run instances %w", err))
+		log.FromContext(ctx).Info(err.Error())
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "RunInstancesAuthCheckFailed", "Unauthorized Operation")
+		// nolint:nilerr
+		return reconcile.Result{}, nil
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
+	// nolint:nilerr
 	return reconcile.Result{}, nil
 }
 
@@ -169,7 +183,7 @@ func mockOptions(nodeClaim karpv1.NodeClaim, nodeClass *v1.EC2NodeClass, tags ma
 	return &amifamily.LaunchTemplate{
 		Options: &amifamily.Options{
 			Tags:            tags,
-			InstanceProfile: lo.FromPtr(nodeClass.Spec.InstanceProfile),
+			InstanceProfile: nodeClass.Status.InstanceProfile,
 			SecurityGroups:  nodeClass.Status.SecurityGroups,
 		},
 		MetadataOptions: &v1.MetadataOptions{
