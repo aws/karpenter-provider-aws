@@ -61,7 +61,7 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("%q tag does not pass tag validation requirements", offendingTag))
 	}
 	// Auth Validation
-	if !nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeInstanceProfileReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeSubnetsReady).IsTrue() {
+	if nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsFalse() || nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsFalse() || nodeClass.StatusConditions().Get(v1.ConditionTypeInstanceProfileReady).IsFalse() || nodeClass.StatusConditions().Get(v1.ConditionTypeSubnetsReady).IsFalse() {
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "DependenciesNotReady", "Waiting for SecurityGroups, AMIs, and InstanceProfiles")
 		// nolint:nilerr
 		return reconcile.Result{}, nil
