@@ -76,7 +76,7 @@ func NewController(kubeClient client.Client, recorder events.Recorder, subnetPro
 		kubeClient:             kubeClient,
 		recorder:               recorder,
 		launchTemplateProvider: launchTemplateProvider,
-		ami:                    &AMI{amiProvider: amiProvider},
+		ami:                    NewAMIReconciler(amiProvider),
 		subnet:                 &Subnet{subnetProvider: subnetProvider},
 		securityGroup:          &SecurityGroup{securityGroupProvider: securityGroupProvider},
 		instanceProfile:        &InstanceProfile{instanceProfileProvider: instanceProfileProvider},
