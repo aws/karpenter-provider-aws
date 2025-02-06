@@ -102,7 +102,7 @@ spec:
             - name: MEMORY_LIMIT
               valueFrom:
                 resourceFieldRef:
-                  containerName: controller
+                  containerName: {{ .Values.controller.containerName | default "controller" }}
                   divisor: "0"
                   resource: limits.memory
             - name: FEATURE_GATES
