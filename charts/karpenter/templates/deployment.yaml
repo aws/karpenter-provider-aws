@@ -60,7 +60,7 @@ spec:
       schedulerName: {{ . | quote }}
       {{- end }}
       containers:
-        - name: {{ .Values.controller.containerName | default "controller" }}
+        - name: {{ include "karpenter.controller.containerName" . }}
           securityContext:
             runAsUser: 65532
             runAsGroup: 65532
@@ -102,7 +102,7 @@ spec:
             - name: MEMORY_LIMIT
               valueFrom:
                 resourceFieldRef:
-                  containerName: {{ .Values.controller.containerName | default "controller" }}
+                  containerName: {{ include "karpenter.controller.containerName" . }}
                   divisor: "0"
                   resource: limits.memory
             - name: FEATURE_GATES
