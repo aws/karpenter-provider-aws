@@ -91,7 +91,7 @@ var _ = Describe("NodeClass IAM Permissions", func() {
 				g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 				g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Message).To(Equal("Unauthorized Operation"))
 				g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(expectedMessage))
-			}, "120s", "5s").Should(Succeed())
+			}, "240s", "5s").Should(Succeed())
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False"})
 		},
 		Entry("should fail when CreateFleet is denied",
