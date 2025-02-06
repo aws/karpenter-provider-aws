@@ -109,9 +109,9 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 			if req.Key == "kubernetes.io/arch" && len(req.Values) > 0 {
 				switch req.Values[0] {
 				case "amd64":
-					instanceType = ec2types.InstanceTypeT3Micro
+					instanceType = ec2types.InstanceTypeM5Large
 				case "arm64":
-					instanceType = ec2types.InstanceTypeT4gMicro
+					instanceType = ec2types.InstanceTypeM6gLarge
 				}
 				break
 			}
