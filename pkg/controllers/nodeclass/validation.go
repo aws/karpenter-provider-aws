@@ -26,8 +26,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -61,8 +61,8 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("%q tag does not pass tag validation requirements", offendingTag))
 	}
 	// Auth Validation
-	if nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsFalse() || nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsFalse() || nodeClass.StatusConditions().Get(v1.ConditionTypeInstanceProfileReady).IsFalse() || nodeClass.StatusConditions().Get(v1.ConditionTypeSubnetsReady).IsFalse() {
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "DependenciesNotReady", "Waiting for SecurityGroups, AMIs, and InstanceProfiles")
+	if !nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeInstanceProfileReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeSubnetsReady).IsTrue() {
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "DependenciesNotReady", "Waiting for SecurityGroups, AMIs, Subnets and InstanceProfiles to go true")
 		// nolint:nilerr
 		return reconcile.Result{}, nil
 	}
@@ -82,8 +82,7 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	createFleetInput.DryRun = aws.Bool(true)
 
 	if _, err := n.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IgnoreDryRunError(err) != nil {
-		log.FromContext(ctx).Info(err.Error())
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateFleetAuthCheckFailed", "Unauthorized Operation")
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateFleetAuthCheckFailed", "Controller isn't authorized to call CreateFleet")
 		// nolint:nilerr
 		return reconcile.Result{}, nil
 	}
@@ -92,28 +91,27 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	createLaunchTemplateInput.DryRun = aws.Bool(true)
 
 	if _, err := n.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IgnoreDryRunError(err) != nil {
-		log.FromContext(ctx).Info(err.Error())
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateLaunchTemplateAuthCheckFailed", "Unauthorized Operation")
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateLaunchTemplateAuthCheckFailed", "Controller isn't authorized to call CreateLaunchTemplate")
 		// nolint:nilerr
 		return reconcile.Result{}, nil
 	}
 
-	amis := nodeClass.Status.AMIs
-	if amis == nil {
-		return reconcile.Result{}, fmt.Errorf("failed to list AMIs from NodeClass status, %w", err)
+	if nodeClass.Status.AMIs == nil {
+		return reconcile.Result{}, err
 	}
 
 	var instanceType ec2types.InstanceType
 	if len(nodeClass.Status.AMIs) > 0 {
-		for _, req := range nodeClass.Status.AMIs[0].Requirements {
-			if req.Key == "kubernetes.io/arch" && len(req.Values) > 0 {
-				switch req.Values[0] {
-				case "amd64":
-					instanceType = ec2types.InstanceTypeM5Large
-				case "arm64":
-					instanceType = ec2types.InstanceTypeM6gLarge
-				}
-				break
+		requirements := scheduling.NewRequirements(lo.Map(nodeClass.Status.AMIs[0].Requirements, func(req corev1.NodeSelectorRequirement, _ int) *scheduling.Requirement {
+			return scheduling.NewRequirement(req.Key, req.Operator, req.Values...)
+		})...)
+
+		if arch := requirements.Get("kubernetes.io/arch"); len(arch.Values()) > 0 {
+			switch arch.Values()[0] {
+			case "amd64":
+				instanceType = ec2types.InstanceTypeM5Large
+			case "arm64":
+				instanceType = ec2types.InstanceTypeM6gLarge
 			}
 		}
 	}
@@ -125,8 +123,8 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		InstanceType: instanceType,
 		MetadataOptions: &ec2types.InstanceMetadataOptionsRequest{
 			HttpTokens:              ec2types.HttpTokensStateRequired,
-			HttpEndpoint:            ec2types.InstanceMetadataEndpointStateEnabled,
-			HttpPutResponseHopLimit: aws.Int32(1),
+			HttpEndpoint:            ec2types.InstanceMetadataEndpointStateDisabled,
+			HttpPutResponseHopLimit: aws.Int32(2),
 		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{
@@ -142,17 +140,15 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 				Tags:         utils.MergeTags(tags),
 			},
 		},
-		ImageId: lo.ToPtr(amis[0].ID),
+		ImageId: lo.ToPtr(nodeClass.Status.AMIs[0].ID),
 	}
 
 	if _, err = n.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
-		log.FromContext(ctx).Info(err.Error())
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "RunInstancesAuthCheckFailed", "Unauthorized Operation")
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "RunInstancesAuthCheckFailed", "Controller isn't authorized to call RunInstances")
 		// nolint:nilerr
 		return reconcile.Result{}, nil
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
-	// nolint:nilerr
 	return reconcile.Result{}, nil
 }
 
