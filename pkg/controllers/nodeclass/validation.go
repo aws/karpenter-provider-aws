@@ -83,6 +83,7 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 
 	if _, err := n.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IgnoreDryRunError(err) != nil {
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateFleetAuthCheckFailed", "Controller isn't authorized to call CreateFleet")
+		// dry runs have 2 returns, DryRunOperation and UnauthorizedOperation. We don't need to check for a third error
 		// nolint:nilerr
 		return reconcile.Result{}, nil
 	}
@@ -92,6 +93,7 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 
 	if _, err := n.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IgnoreDryRunError(err) != nil {
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateLaunchTemplateAuthCheckFailed", "Controller isn't authorized to call CreateLaunchTemplate")
+		// dry runs have 2 returns, DryRunOperation and UnauthorizedOperation. We don't need to check for a third error
 		// nolint:nilerr
 		return reconcile.Result{}, nil
 	}
@@ -145,6 +147,7 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 
 	if _, err = n.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "RunInstancesAuthCheckFailed", "Controller isn't authorized to call RunInstances")
+		// dry runs have 2 returns, DryRunOperation and UnauthorizedOperation. We don't need to check for a third error
 		// nolint:nilerr
 		return reconcile.Result{}, nil
 	}
