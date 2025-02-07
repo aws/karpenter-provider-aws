@@ -199,10 +199,10 @@ Yes, see the [KubeletConfiguration Section in the NodePool docs]({{<ref "./conce
 The difference between the Core and Full variants is that Core is a minimal OS with less components and no graphic user interface (GUI) or desktop experience.
 `Windows2019` and `Windows2022` AMI families use the Windows Server Core option for simplicity, but if required, you can specify a custom AMI to run Windows Server Full.
 
-You can specify the [Amazon EKS optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-windows-ami.html) with Windows Server 2022 Full for Kubernetes 1.31 by configuring an `amiSelector` that references the AMI name.
+You can specify the [Amazon EKS optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-windows-ami.html) with Windows Server 2022 Full for Kubernetes 1.32 by configuring an `amiSelector` that references the AMI name.
 ```yaml
 amiSelectorTerms:
-    - name: Windows_Server-2022-English-Full-EKS_Optimized-1.31*
+    - name: Windows_Server-2022-English-Full-EKS_Optimized-1.32*
 ```
 
 ### Can I use Karpenter to scale my workload's pods?

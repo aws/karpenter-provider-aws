@@ -174,19 +174,21 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
-	if _, err := p.ec2Batcher.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
-		InstanceIds: []string{id},
-	}); err != nil {
-		if awserrors.IsNotFound(err) {
-			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance already terminated"))
+	out, err := p.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	// Check if the instance is already shutting-down to reduce the number of terminate-instance calls we make thereby
+	// reducing our overall QPS. Due to EC2's eventual consistency model, the result of the terminate-instance or
+	// describe-instance call may return a not found error even when the instance is not terminated -
+	// https://docs.aws.amazon.com/ec2/latest/devguide/eventual-consistency.html. In this case, the instance will get
+	// picked up by the garbage collection controller and will be cleaned up eventually.
+	if out.State != ec2types.InstanceStateNameShuttingDown {
+		if _, err := p.ec2Batcher.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
+			InstanceIds: []string{id},
+		}); err != nil {
+			return err
 		}
-		if _, e := p.Get(ctx, id); e != nil {
-			if cloudprovider.IsNodeClaimNotFoundError(e) {
-				return e
-			}
-			err = multierr.Append(err, e)
-		}
-		return fmt.Errorf("terminating instance, %w", err)
 	}
 	return nil
 }
