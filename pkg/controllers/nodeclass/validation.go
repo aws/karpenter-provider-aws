@@ -63,7 +63,7 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	// Auth Validation
 	if !nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeInstanceProfileReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeSubnetsReady).IsTrue() {
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "DependenciesNotReady", "Waiting for SecurityGroups, AMIs, Subnets and InstanceProfiles to go true")
-		// nolint:nilerr
+
 		return reconcile.Result{}, nil
 	}
 	nodeClaim := &karpv1.NodeClaim{
@@ -83,8 +83,9 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 
 	if _, err := n.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IgnoreDryRunError(err) != nil {
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateFleetAuthCheckFailed", "Controller isn't authorized to call CreateFleet")
-		// dry runs have 2 returns, DryRunOperation and UnauthorizedOperation. We don't need to check for a third error
-		// nolint:nilerr
+		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
+			return reconcile.Result{}, fmt.Errorf("unexpected error during CreateFleet validation: %w", err)
+		}
 		return reconcile.Result{}, nil
 	}
 
@@ -93,13 +94,17 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 
 	if _, err := n.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IgnoreDryRunError(err) != nil {
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateLaunchTemplateAuthCheckFailed", "Controller isn't authorized to call CreateLaunchTemplate")
-		// dry runs have 2 returns, DryRunOperation and UnauthorizedOperation. We don't need to check for a third error
-		// nolint:nilerr
+		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
+			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
+			// it would be an unexpected state
+			return reconcile.Result{}, fmt.Errorf("unexpected error during CreateLaunchTemplate validation: %w", err)
+		}
 		return reconcile.Result{}, nil
 	}
 
+	// This should never occur as AMIs should already be resolved during the AMI resolution phase
 	if nodeClass.Status.AMIs == nil {
-		return reconcile.Result{}, err
+		return reconcile.Result{}, fmt.Errorf("no resolved AMIs in status: %w", err)
 	}
 
 	var instanceType ec2types.InstanceType
@@ -147,8 +152,11 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 
 	if _, err = n.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "RunInstancesAuthCheckFailed", "Controller isn't authorized to call RunInstances")
-		// dry runs have 2 returns, DryRunOperation and UnauthorizedOperation. We don't need to check for a third error
-		// nolint:nilerr
+		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
+			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
+			// it would be an unexpected state
+			return reconcile.Result{}, fmt.Errorf("unexpected error during RunInstances validation: %w", err)
+		}
 		return reconcile.Result{}, nil
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)

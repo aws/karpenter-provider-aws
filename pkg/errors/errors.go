@@ -26,6 +26,7 @@ import (
 const (
 	launchTemplateNameNotFoundCode = "InvalidLaunchTemplateName.NotFoundException"
 	DryRunOperationErrorCode       = "DryRunOperation"
+	UnauthorizedOperationErrorCode = "UnauthorizedOperation"
 )
 
 var (
@@ -104,6 +105,24 @@ func IsDryRunError(err error) bool {
 
 func IgnoreDryRunError(err error) error {
 	if IsDryRunError(err) {
+		return nil
+	}
+	return err
+}
+
+func IsUnauthorizedOperationError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.ErrorCode() == UnauthorizedOperationErrorCode
+	}
+	return false
+}
+
+func IgnoreUnauthorizedOperationError(err error) error {
+	if IsUnauthorizedOperationError(err) {
 		return nil
 	}
 	return err
