@@ -249,13 +249,13 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
 	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, lo.Values(zonalSubnets), capacityType)
 	if err != nil {
+		reason, message := awserrors.ToReasonMessage(err)
 		if awserrors.IsLaunchTemplateNotFound(err) {
 			for _, lt := range launchTemplateConfigs {
 				p.launchTemplateProvider.InvalidateCache(ctx, aws.ToString(lt.LaunchTemplateSpecification.LaunchTemplateName), aws.ToString(lt.LaunchTemplateSpecification.LaunchTemplateId))
 			}
-			return ec2types.CreateFleetInstance{}, fmt.Errorf("creating fleet %w", err)
+			return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("launch templates not found when creating fleet request, %w", err), reason, fmt.Sprintf("Launch templates not found when creating fleet request: %s", message))
 		}
-		reason, message := awserrors.ToReasonMessage(err)
 		var reqErr *awshttp.ResponseError
 		if errors.As(err, &reqErr) {
 			return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w (%v)", err, reqErr.ServiceRequestID()), reason, fmt.Sprintf("Error creating fleet request: %s", message))
