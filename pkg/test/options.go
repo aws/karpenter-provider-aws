@@ -28,6 +28,7 @@ type OptionsFields struct {
 	ClusterName             *string
 	ClusterEndpoint         *string
 	IsolatedVPC             *bool
+	AvoidEmptySubnets       *bool
 	EKSControlPlane         *bool
 	VMMemoryOverheadPercent *float64
 	InterruptionQueue       *string
@@ -46,6 +47,7 @@ func Options(overrides ...OptionsFields) *options.Options {
 		ClusterName:             lo.FromPtrOr(opts.ClusterName, "test-cluster"),
 		ClusterEndpoint:         lo.FromPtrOr(opts.ClusterEndpoint, "https://test-cluster"),
 		IsolatedVPC:             lo.FromPtrOr(opts.IsolatedVPC, false),
+		AvoidEmptySubnets:       lo.FromPtrOr(opts.AvoidEmptySubnets, false),
 		EKSControlPlane:         lo.FromPtrOr(opts.EKSControlPlane, false),
 		VMMemoryOverheadPercent: lo.FromPtrOr(opts.VMMemoryOverheadPercent, 0.075),
 		InterruptionQueue:       lo.FromPtrOr(opts.InterruptionQueue, ""),

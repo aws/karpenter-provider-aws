@@ -131,6 +131,10 @@ spec:
             - name: ISOLATED_VPC
               value: "{{ . }}"
           {{- end }}
+          {{- with .Values.settings.avoidEmptySubnets }}
+            - name: AVOID_EMPTY_SUBNETS
+              value: "{{ . }}"
+          {{- end }}
           {{- with .Values.settings.eksControlPlane }}
             - name: EKS_CONTROL_PLANE
               value: "{{ . }}"

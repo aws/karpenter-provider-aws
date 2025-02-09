@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-
+ 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -170,10 +170,12 @@ func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *
 		}
 
 		// Check if the remaining IP count is insufficient to meet the predicted IP usage;
-		// if so, remove this subnet zone record from inflightIPs and continue to the next item in the loop。
-		if prevIPs-predictedIPsUsed < 0 {
-			delete(zonalSubnets, subnet.Zone)
-			continue
+		// if so, remove this subnet zone record from inflightIPs and continue to the next item in the loop.
+		if options.FromContext(ctx).AvoidEmptySubnets {
+			if prevIPs-predictedIPsUsed < 0 {
+				delete(zonalSubnets, subnet.Zone)
+				continue
+			}
 		}
 		p.inflightIPs[subnet.ID] = prevIPs - predictedIPsUsed
 	}
