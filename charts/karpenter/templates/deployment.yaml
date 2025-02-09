@@ -60,7 +60,7 @@ spec:
       schedulerName: {{ . | quote }}
       {{- end }}
       containers:
-        - name: {{ .Values.controller.containerName | default "controller" }}
+        - name: {{ include "karpenter.controller.containerName" . }}
           securityContext:
             runAsUser: 65532
             runAsGroup: 65532
@@ -102,7 +102,7 @@ spec:
             - name: MEMORY_LIMIT
               valueFrom:
                 resourceFieldRef:
-                  containerName: controller
+                  containerName: {{ include "karpenter.controller.containerName" . }}
                   divisor: "0"
                   resource: limits.memory
             - name: FEATURE_GATES
@@ -187,16 +187,16 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
         {{- end }}
-        {{- with .Values.controller.sidecarContainer }}
-          {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- if and (.Values.controller.sidecarContainer) (or .Values.controller.extraVolumeMounts .Values.controller.sidecarVolumeMounts) }}
+        {{- range .Values.controller.sidecarContainer }}
+        - {{- toYaml . | nindent 10 }}
+        {{- if or $.Values.controller.extraVolumeMounts $.Values.controller.sidecarVolumeMounts }}
           volumeMounts:
-          {{- with .Values.controller.extraVolumeMounts }}
+            {{- with $.Values.controller.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.controller.sidecarVolumeMounts }}
+            {{- end }}
+            {{- with $.Values.controller.sidecarVolumeMounts }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
         {{- end }}
       {{- with .Values.nodeSelector }}
