@@ -38,16 +38,14 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
+
+	"sigs.k8s.io/karpenter/pkg/events"
 
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	interruptionevents "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
-	"github.com/aws/karpenter-provider-aws/pkg/utils"
-
-	"sigs.k8s.io/karpenter/pkg/events"
 )
 
 type Action string
@@ -104,14 +102,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	if len(sqsMessages) == 0 {
 		return reconcile.Result{RequeueAfter: singleton.RequeueImmediately}, nil
 	}
-	nodeClaimInstanceIDMap, err := c.makeNodeClaimInstanceIDMap(ctx)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("making nodeclaim instance id map, %w", err)
-	}
-	nodeInstanceIDMap, err := c.makeNodeInstanceIDMap(ctx)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("making node instance id map, %w", err)
-	}
+
 	errs := make([]error, len(sqsMessages))
 	workqueue.ParallelizeUntil(ctx, 10, len(sqsMessages), func(i int) {
 		msg, e := c.parseMessage(sqsMessages[i])
@@ -121,7 +112,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 			errs[i] = c.deleteMessage(ctx, sqsMessages[i])
 			return
 		}
-		if e = c.handleMessage(ctx, nodeClaimInstanceIDMap, nodeInstanceIDMap, msg); e != nil {
+		if e = c.handleMessage(ctx, msg); e != nil {
 			errs[i] = fmt.Errorf("handling message, %w", e)
 			return
 		}
@@ -154,9 +145,7 @@ func (c *Controller) parseMessage(raw *sqstypes.Message) (messages.Message, erro
 }
 
 // handleMessage takes an action against every node involved in the message that is owned by a NodePool
-func (c *Controller) handleMessage(ctx context.Context, nodeClaimInstanceIDMap map[string]*karpv1.NodeClaim,
-	nodeInstanceIDMap map[string]*corev1.Node, msg messages.Message) (err error) {
-
+func (c *Controller) handleMessage(ctx context.Context, msg messages.Message) (err error) {
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("messageKind", msg.Kind()))
 	ReceivedMessages.Inc(map[string]string{messageTypeLabel: string(msg.Kind())})
 
@@ -164,13 +153,27 @@ func (c *Controller) handleMessage(ctx context.Context, nodeClaimInstanceIDMap m
 		return nil
 	}
 	for _, instanceID := range msg.EC2InstanceIDs() {
-		nodeClaim, ok := nodeClaimInstanceIDMap[instanceID]
-		if !ok {
+		nodeClaimList := &karpv1.NodeClaimList{}
+		if e := c.kubeClient.List(ctx, nodeClaimList, client.MatchingFields{"status.instanceID": instanceID}); e != nil {
+			err = multierr.Append(err, e)
 			continue
 		}
-		node := nodeInstanceIDMap[instanceID]
-		if e := c.handleNodeClaim(ctx, msg, nodeClaim, node); e != nil {
-			err = multierr.Append(err, e)
+		if len(nodeClaimList.Items) == 0 {
+			continue
+		}
+		for _, nodeClaim := range nodeClaimList.Items {
+			nodeList := &corev1.NodeList{}
+			if e := c.kubeClient.List(ctx, nodeList, client.MatchingFields{"spec.instanceID": instanceID}); e != nil {
+				err = multierr.Append(err, e)
+				continue
+			}
+			var node *corev1.Node
+			if len(nodeList.Items) > 0 {
+				node = &nodeList.Items[0]
+			}
+			if e := c.handleNodeClaim(ctx, msg, &nodeClaim, node); e != nil {
+				err = multierr.Append(err, e)
+			}
 		}
 	}
 	MessageLatency.Observe(time.Since(msg.StartTime()).Seconds(), nil)
@@ -252,48 +255,6 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 
 	default:
 	}
-}
-
-// makeNodeClaimInstanceIDMap builds a map between the instance id that is stored in the
-// NodeClaim .status.providerID and the NodeClaim
-func (c *Controller) makeNodeClaimInstanceIDMap(ctx context.Context) (map[string]*karpv1.NodeClaim, error) {
-	m := map[string]*karpv1.NodeClaim{}
-	nodeClaims, err := nodeclaimutils.ListManaged(ctx, c.kubeClient, c.cloudProvider)
-	if err != nil {
-		return nil, err
-	}
-	for _, nc := range nodeClaims {
-		if nc.Status.ProviderID == "" {
-			continue
-		}
-		id, err := utils.ParseInstanceID(nc.Status.ProviderID)
-		if err != nil || id == "" {
-			continue
-		}
-		m[id] = nc
-	}
-	return m, nil
-}
-
-// makeNodeInstanceIDMap builds a map between the instance id that is stored in the
-// node .spec.providerID and the node
-func (c *Controller) makeNodeInstanceIDMap(ctx context.Context) (map[string]*corev1.Node, error) {
-	m := map[string]*corev1.Node{}
-	nodeList := &corev1.NodeList{}
-	if err := c.kubeClient.List(ctx, nodeList); err != nil {
-		return nil, fmt.Errorf("listing nodes, %w", err)
-	}
-	for i := range nodeList.Items {
-		if nodeList.Items[i].Spec.ProviderID == "" {
-			continue
-		}
-		id, err := utils.ParseInstanceID(nodeList.Items[i].Spec.ProviderID)
-		if err != nil || id == "" {
-			continue
-		}
-		m[id] = &nodeList.Items[i]
-	}
-	return m, nil
 }
 
 func actionForMessage(msg messages.Message) Action {

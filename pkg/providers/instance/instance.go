@@ -174,19 +174,21 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
-	if _, err := p.ec2Batcher.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
-		InstanceIds: []string{id},
-	}); err != nil {
-		if awserrors.IsNotFound(err) {
-			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance already terminated"))
+	out, err := p.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	// Check if the instance is already shutting-down to reduce the number of terminate-instance calls we make thereby
+	// reducing our overall QPS. Due to EC2's eventual consistency model, the result of the terminate-instance or
+	// describe-instance call may return a not found error even when the instance is not terminated -
+	// https://docs.aws.amazon.com/ec2/latest/devguide/eventual-consistency.html. In this case, the instance will get
+	// picked up by the garbage collection controller and will be cleaned up eventually.
+	if out.State != ec2types.InstanceStateNameShuttingDown {
+		if _, err := p.ec2Batcher.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
+			InstanceIds: []string{id},
+		}); err != nil {
+			return err
 		}
-		if _, e := p.Get(ctx, id); e != nil {
-			if cloudprovider.IsNodeClaimNotFoundError(e) {
-				return e
-			}
-			err = multierr.Append(err, e)
-		}
-		return fmt.Errorf("terminating instance, %w", err)
 	}
 	return nil
 }
@@ -247,13 +249,13 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
 	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, lo.Values(zonalSubnets), capacityType)
 	if err != nil {
+		reason, message := awserrors.ToReasonMessage(err)
 		if awserrors.IsLaunchTemplateNotFound(err) {
 			for _, lt := range launchTemplateConfigs {
 				p.launchTemplateProvider.InvalidateCache(ctx, aws.ToString(lt.LaunchTemplateSpecification.LaunchTemplateName), aws.ToString(lt.LaunchTemplateSpecification.LaunchTemplateId))
 			}
-			return ec2types.CreateFleetInstance{}, fmt.Errorf("creating fleet %w", err)
+			return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("launch templates not found when creating fleet request, %w", err), reason, fmt.Sprintf("Launch templates not found when creating fleet request: %s", message))
 		}
-		reason, message := awserrors.ToReasonMessage(err)
 		var reqErr *awshttp.ResponseError
 		if errors.As(err, &reqErr) {
 			return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w (%v)", err, reqErr.ServiceRequestID()), reason, fmt.Sprintf("Error creating fleet request: %s", message))
