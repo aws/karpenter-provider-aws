@@ -26,12 +26,13 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
-	config "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/aws/smithy-go"
 	"github.com/patrickmn/go-cache"
@@ -66,6 +67,7 @@ import (
 	ssmp "github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
 func init() {
@@ -186,6 +188,10 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		launchTemplateProvider,
 	)
 
+	// Setup field indexers on instanceID -- specifically for the interruption controller
+	if options.FromContext(ctx).InterruptionQueue != "" {
+		SetupIndexers(ctx, operator.Manager)
+	}
 	return ctx, &Operator{
 		Operator:                  operator,
 		Config:                    cfg,
@@ -274,4 +280,27 @@ func KubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 		return nil, fmt.Errorf("parsing cluster IP")
 	}
 	return kubeDNSIP, nil
+}
+
+func SetupIndexers(ctx context.Context, mgr manager.Manager) {
+	lo.Must0(mgr.GetFieldIndexer().IndexField(ctx, &karpv1.NodeClaim{}, "status.instanceID", func(o client.Object) []string {
+		if o.(*karpv1.NodeClaim).Status.ProviderID == "" {
+			return nil
+		}
+		id, e := utils.ParseInstanceID(o.(*karpv1.NodeClaim).Status.ProviderID)
+		if e != nil || id == "" {
+			return nil
+		}
+		return []string{id}
+	}), "failed to setup nodeclaim instanceID indexer")
+	lo.Must0(mgr.GetFieldIndexer().IndexField(ctx, &corev1.Node{}, "spec.instanceID", func(o client.Object) []string {
+		if o.(*corev1.Node).Spec.ProviderID == "" {
+			return nil
+		}
+		id, e := utils.ParseInstanceID(o.(*corev1.Node).Spec.ProviderID)
+		if e != nil || id == "" {
+			return nil
+		}
+		return []string{id}
+	}), "failed to setup node instanceID indexer")
 }
