@@ -17,7 +17,6 @@ package nodeclass
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/samber/lo"
 
