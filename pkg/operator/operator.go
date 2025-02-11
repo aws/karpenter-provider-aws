@@ -176,7 +176,9 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		subnetProvider,
-		instancetype.NewDefaultResolver(cfg.Region, pricingProvider, unavailableOfferingsCache),
+		pricingProvider,
+		unavailableOfferingsCache,
+		instancetype.NewDefaultResolver(cfg.Region),
 	)
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,

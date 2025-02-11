@@ -48,13 +48,17 @@ func NewUnavailableOfferings() *UnavailableOfferings {
 }
 
 // IsUnavailable returns true if the offering appears in the cache
-func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType, zone, capacityType string) bool {
+func (u *UnavailableOfferings) IsUnavailable(instanceType string, zone, capacityType string) bool {
 	_, found := u.cache.Get(u.key(instanceType, zone, capacityType))
 	return found
 }
 
+func (u *UnavailableOfferings) IsReservationUnavailable(reservationID string) bool {
+	return false
+}
+
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
-func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason string, instanceType ec2types.InstanceType, zone, capacityType string) {
+func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason, instanceType, zone, capacityType string) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	log.FromContext(ctx).WithValues(
 		"reason", unavailableReason,
@@ -69,10 +73,10 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableR
 func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr ec2types.CreateFleetError, capacityType string) {
 	instanceType := fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType
 	zone := aws.ToString(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
-	u.MarkUnavailable(ctx, lo.FromPtr(fleetErr.ErrorCode), instanceType, zone, capacityType)
+	u.MarkUnavailable(ctx, lo.FromPtr(fleetErr.ErrorCode), string(instanceType), zone, capacityType)
 }
 
-func (u *UnavailableOfferings) Delete(instanceType ec2types.InstanceType, zone string, capacityType string) {
+func (u *UnavailableOfferings) Delete(instanceType, zone, capacityType string) {
 	u.cache.Delete(u.key(instanceType, zone, capacityType))
 }
 
@@ -81,6 +85,6 @@ func (u *UnavailableOfferings) Flush() {
 }
 
 // key returns the cache key for all offerings in the cache
-func (u *UnavailableOfferings) key(instanceType ec2types.InstanceType, zone string, capacityType string) string {
+func (u *UnavailableOfferings) key(instanceType, zone, capacityType string) string {
 	return fmt.Sprintf("%s:%s:%s", capacityType, instanceType, zone)
 }
