@@ -17,6 +17,7 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/samber/lo"
 
@@ -47,6 +48,7 @@ type Validation struct {
 
 // nolint:gocyclo
 func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
+	log.Print("IN VALIDATION")
 	// Tag Validation
 	if offendingTag, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(k string, v string) bool {
 		for _, exp := range v1.RestrictedTagPatterns {
@@ -105,18 +107,12 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	}
 
 	// This should never occur as AMIs should already be resolved during the AMI resolution phase
-	if nodeClass.Status.AMIs == nil {
+	if len(nodeClass.Status.AMIs) == 0 {
 		return reconcile.Result{}, fmt.Errorf("no resolved AMIs in status: %w", err)
 	}
 
 	var instanceType ec2types.InstanceType
-	requirements := scheduling.NewNodeSelectorRequirements(lo.Map(nodeClass.Status.AMIs[0].Requirements, func(req corev1.NodeSelectorRequirement, _ int) corev1.NodeSelectorRequirement {
-		return corev1.NodeSelectorRequirement{
-			Key:      req.Key,
-			Operator: req.Operator,
-			Values:   req.Values,
-		}
-	})...)
+	requirements := scheduling.NewNodeSelectorRequirements(nodeClass.Status.AMIs[0].Requirements...)
 
 	if requirements.Get(corev1.LabelArchStable).Has(karpv1.ArchitectureAmd64) {
 		instanceType = ec2types.InstanceTypeM5Large
@@ -130,8 +126,9 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		MinCount:     aws.Int32(1),
 		InstanceType: instanceType,
 		MetadataOptions: &ec2types.InstanceMetadataOptionsRequest{
-			HttpEndpoint: ec2types.InstanceMetadataEndpointState(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPEndpoint)),
-			HttpTokens:   ec2types.HttpTokensState(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPTokens)),
+			HttpEndpoint:     ec2types.InstanceMetadataEndpointState(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPEndpoint)),
+			HttpTokens:       ec2types.HttpTokensState(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPTokens)),
+			HttpProtocolIpv6: ec2types.InstanceMetadataProtocolState(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPProtocolIPv6)),
 			//aws sdk v2 changed this type to *int32 instead of *int64
 			//nolint: gosec
 			HttpPutResponseHopLimit: aws.Int32(int32(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPPutResponseHopLimit))),
