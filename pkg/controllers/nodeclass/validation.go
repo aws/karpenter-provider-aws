@@ -48,7 +48,6 @@ type Validation struct {
 
 // nolint:gocyclo
 func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	log.Print("IN VALIDATION")
 	// Tag Validation
 	if offendingTag, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(k string, v string) bool {
 		for _, exp := range v1.RestrictedTagPatterns {
