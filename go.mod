@@ -24,6 +24,7 @@ require (
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
 	github.com/awslabs/operatorpkg v0.0.0-20241205163410-0fff9f28d115
 	github.com/go-logr/zapr v1.3.0
+	github.com/google/uuid v1.6.0
 	github.com/imdario/mergo v0.3.16
 	github.com/jonathan-innis/aws-sdk-go-prometheus v0.1.1
 	github.com/mitchellh/hashstructure/v2 v2.0.2
@@ -43,7 +44,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	sigs.k8s.io/controller-runtime v0.20.1
-	sigs.k8s.io/karpenter v1.2.1-0.20250208015555-8e8b99d6bfa2
+	sigs.k8s.io/karpenter v1.2.1-0.20250211002957-aa118786c83c
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -79,7 +80,6 @@ require (
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20241210010833-40e02aabc2ad // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -104,8 +104,8 @@ require (
 	golang.org/x/oauth2 v0.23.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/term v0.27.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
-	golang.org/x/time v0.9.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/time v0.10.0 // indirect
 	golang.org/x/tools v0.28.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/protobuf v1.36.1 // indirect

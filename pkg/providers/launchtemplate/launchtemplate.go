@@ -219,17 +219,28 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
 	}
+	createLaunchTemplateInput := GetCreateLaunchTemplateInput(options, p.ClusterIPFamily, userData)
+	output, err := p.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput)
+	if err != nil {
+		return ec2types.LaunchTemplate{}, err
+	}
+	log.FromContext(ctx).WithValues("id", aws.ToString(output.LaunchTemplate.LaunchTemplateId)).V(1).Info("created launch template")
+	return lo.FromPtr(output.LaunchTemplate), nil
+}
+
+// you need UserData, AmiID, tags, blockdevicemappings, instance profile,
+func GetCreateLaunchTemplateInput(options *amifamily.LaunchTemplate, ClusterIPFamily corev1.IPFamily, userData string) *ec2.CreateLaunchTemplateInput {
 	launchTemplateDataTags := []ec2types.LaunchTemplateTagSpecificationRequest{
 		{ResourceType: ec2types.ResourceTypeNetworkInterface, Tags: utils.MergeTags(options.Tags)},
 	}
 	if options.CapacityType == karpv1.CapacityTypeSpot {
 		launchTemplateDataTags = append(launchTemplateDataTags, ec2types.LaunchTemplateTagSpecificationRequest{ResourceType: ec2types.ResourceTypeSpotInstancesRequest, Tags: utils.MergeTags(options.Tags)})
 	}
-	networkInterfaces := p.generateNetworkInterfaces(options)
-	output, err := p.ec2api.CreateLaunchTemplate(ctx, &ec2.CreateLaunchTemplateInput{
+	networkInterfaces := generateNetworkInterfaces(options, ClusterIPFamily)
+	return &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(LaunchTemplateName(options)),
 		LaunchTemplateData: &ec2types.RequestLaunchTemplateData{
-			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),
+			BlockDeviceMappings: blockDeviceMappings(options.BlockDeviceMappings),
 			IamInstanceProfile: &ec2types.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: aws.String(options.InstanceProfile),
 			},
@@ -263,16 +274,11 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 				Tags:         utils.MergeTags(options.Tags),
 			},
 		},
-	})
-	if err != nil {
-		return ec2types.LaunchTemplate{}, err
 	}
-	log.FromContext(ctx).WithValues("id", aws.ToString(output.LaunchTemplate.LaunchTemplateId)).V(1).Info("created launch template")
-	return lo.FromPtr(output.LaunchTemplate), nil
 }
 
 // generateNetworkInterfaces generates network interfaces for the launch template.
-func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTemplate) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamily corev1.IPFamily) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 	if options.EFACount != 0 {
 		return lo.Times(options.EFACount, func(i int) ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 			return ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
@@ -285,8 +291,8 @@ func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTem
 				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
 				// with a single EFA network interface, and we should support those use cases. Launch failures with multiple enis should be considered user misconfiguration.
 				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
-				PrimaryIpv6:              lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
-				Ipv6AddressCount:         lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+				PrimaryIpv6:              lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
+				Ipv6AddressCount:         lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
 			}
 		})
 	}
@@ -298,13 +304,13 @@ func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTem
 			Groups: lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string {
 				return s.ID
 			}),
-			PrimaryIpv6:      lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
-			Ipv6AddressCount: lo.Ternary(p.ClusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+			PrimaryIpv6:      lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
+			Ipv6AddressCount: lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
 		},
 	}
 }
 
-func (p *DefaultProvider) blockDeviceMappings(blockDeviceMappings []*v1.BlockDeviceMapping) []ec2types.LaunchTemplateBlockDeviceMappingRequest {
+func blockDeviceMappings(blockDeviceMappings []*v1.BlockDeviceMapping) []ec2types.LaunchTemplateBlockDeviceMappingRequest {
 	if len(blockDeviceMappings) == 0 {
 		// The EC2 API fails with empty slices and expects nil.
 		return nil
@@ -324,7 +330,7 @@ func (p *DefaultProvider) blockDeviceMappings(blockDeviceMappings []*v1.BlockDev
 				Throughput: lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.Throughput))),
 				KmsKeyId:   blockDeviceMapping.EBS.KMSKeyID,
 				SnapshotId: blockDeviceMapping.EBS.SnapshotID,
-				VolumeSize: p.volumeSize(blockDeviceMapping.EBS.VolumeSize),
+				VolumeSize: volumeSize(blockDeviceMapping.EBS.VolumeSize),
 			},
 		})
 	}
@@ -332,7 +338,7 @@ func (p *DefaultProvider) blockDeviceMappings(blockDeviceMappings []*v1.BlockDev
 }
 
 // volumeSize returns a GiB scaled value from a resource quantity or nil if the resource quantity passed in is nil
-func (p *DefaultProvider) volumeSize(quantity *resource.Quantity) *int32 {
+func volumeSize(quantity *resource.Quantity) *int32 {
 	if quantity == nil {
 		return nil
 	}
