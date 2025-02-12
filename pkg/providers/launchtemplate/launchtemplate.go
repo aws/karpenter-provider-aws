@@ -109,8 +109,14 @@ func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api sdk.EC2A
 	}()
 	return l
 }
-func (p *DefaultProvider) EnsureAll(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim,
-	instanceTypes []*cloudprovider.InstanceType, capacityType string, tags map[string]string) ([]*LaunchTemplate, error) {
+func (p *DefaultProvider) EnsureAll(
+	ctx context.Context,
+	nodeClass *v1.EC2NodeClass,
+	nodeClaim *karpv1.NodeClaim,
+	instanceTypes []*cloudprovider.InstanceType,
+	capacityType string,
+	tags map[string]string,
+) ([]*LaunchTemplate, error) {
 	p.Lock()
 	defer p.Unlock()
 	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{karpv1.CapacityTypeLabelKey: capacityType}), tags)
@@ -230,6 +236,20 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 		LaunchTemplateName: aws.String(LaunchTemplateName(options)),
 		LaunchTemplateData: &ec2types.RequestLaunchTemplateData{
 			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),
+			CapacityReservationSpecification: &ec2types.LaunchTemplateCapacityReservationSpecificationRequest{
+				CapacityReservationPreference: lo.Ternary(
+					options.CapacityType == karpv1.CapacityTypeReserved,
+					ec2types.CapacityReservationPreferenceCapacityReservationsOnly,
+					ec2types.CapacityReservationPreferenceNone,
+				),
+				CapacityReservationTarget: lo.Ternary(
+					options.CapacityType == karpv1.CapacityTypeReserved,
+					&ec2types.CapacityReservationTarget{
+						CapacityReservationId: &options.CapacityReservationID,
+					},
+					nil,
+				),
+			},
 			IamInstanceProfile: &ec2types.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: aws.String(options.InstanceProfile),
 			},

@@ -27,28 +27,39 @@ import (
 // Instance is an internal data representation of either an ec2.Instance or an ec2.FleetInstance
 // It contains all the common data that is needed to inject into the Machine from either of these responses
 type Instance struct {
-	LaunchTime       time.Time
-	State            ec2types.InstanceStateName
-	ID               string
-	ImageID          string
-	Type             ec2types.InstanceType
-	Zone             string
-	CapacityType     string
-	SecurityGroupIDs []string
-	SubnetID         string
-	Tags             map[string]string
-	EFAEnabled       bool
+	LaunchTime            time.Time
+	State                 ec2types.InstanceStateName
+	ID                    string
+	ImageID               string
+	Type                  ec2types.InstanceType
+	Zone                  string
+	CapacityType          string
+	CapacityReservationID string
+	SecurityGroupIDs      []string
+	SubnetID              string
+	Tags                  map[string]string
+	EFAEnabled            bool
 }
 
 func NewInstance(out ec2types.Instance) *Instance {
 	return &Instance{
-		LaunchTime:   aws.ToTime(out.LaunchTime),
-		State:        out.State.Name,
-		ID:           aws.ToString(out.InstanceId),
-		ImageID:      aws.ToString(out.ImageId),
-		Type:         out.InstanceType,
-		Zone:         aws.ToString(out.Placement.AvailabilityZone),
-		CapacityType: lo.Ternary(out.SpotInstanceRequestId != nil, karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand),
+		LaunchTime: aws.ToTime(out.LaunchTime),
+		State:      out.State.Name,
+		ID:         aws.ToString(out.InstanceId),
+		ImageID:    aws.ToString(out.ImageId),
+		Type:       out.InstanceType,
+		Zone:       aws.ToString(out.Placement.AvailabilityZone),
+		CapacityType: func() string {
+			switch {
+			case out.SpotInstanceRequestId != nil:
+				return karpv1.CapacityTypeSpot
+			case out.CapacityReservationId != nil:
+				return karpv1.CapacityTypeReserved
+			default:
+				return karpv1.CapacityTypeOnDemand
+			}
+		}(),
+		CapacityReservationID: lo.FromPtr(out.CapacityReservationId),
 		SecurityGroupIDs: lo.Map(out.SecurityGroups, func(securitygroup ec2types.GroupIdentifier, _ int) string {
 			return aws.ToString(securitygroup.GroupId)
 		}),
