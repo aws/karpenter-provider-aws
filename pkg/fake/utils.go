@@ -104,7 +104,16 @@ func FilterDescribeSubnets(subnets []ec2types.Subnet, filters []ec2types.Filter)
 
 func FilterDescribeImages(images []ec2types.Image, filters []ec2types.Filter) []ec2types.Image {
 	return lo.Filter(images, func(image ec2types.Image, _ int) bool {
-		return Filter(filters, *image.ImageId, *image.Name, image.Tags)
+		if stateFilter, ok := lo.Find(filters, func(f ec2types.Filter) bool {
+			return lo.FromPtr(f.Name) == "state"
+		}); ok {
+			if !lo.Contains(stateFilter.Values, string(image.State)) {
+				return false
+			}
+		}
+		return Filter(lo.Reject(filters, func(f ec2types.Filter, _ int) bool {
+			return lo.FromPtr(f.Name) == "state"
+		}), *image.ImageId, *image.Name, image.Tags)
 	})
 }
 

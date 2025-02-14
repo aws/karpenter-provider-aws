@@ -68,6 +68,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						{Key: aws.String("Name"), Value: aws.String("amd64-standard")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
+					State: ec2types.ImageStateAvailable,
 				},
 				{
 					Name:         aws.String("amd64-standard-new"),
@@ -78,6 +79,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						{Key: aws.String("Name"), Value: aws.String("amd64-standard")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
+					State: ec2types.ImageStateAvailable,
 				},
 				{
 					Name:         aws.String("amd64-nvidia"),
@@ -88,6 +90,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						{Key: aws.String("Name"), Value: aws.String("amd64-nvidia")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
+					State: ec2types.ImageStateAvailable,
 				},
 				{
 					Name:         aws.String("amd64-neuron"),
@@ -98,6 +101,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						{Key: aws.String("Name"), Value: aws.String("amd64-neuron")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
+					State: ec2types.ImageStateAvailable,
 				},
 				{
 					Name:         aws.String("arm64-standard"),
@@ -108,6 +112,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						{Key: aws.String("Name"), Value: aws.String("arm64-standard")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
+					State: ec2types.ImageStateAvailable,
 				},
 				{
 					Name:         aws.String("arm64-nvidia"),
@@ -118,6 +123,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						{Key: aws.String("Name"), Value: aws.String("arm64-nvidia")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
 					},
+					State: ec2types.ImageStateAvailable,
 				},
 			},
 		})
@@ -555,6 +561,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 							{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
 							{Key: aws.String("foo"), Value: aws.String("bar")},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 					{
 						Name:         aws.String("test-ami-2"),
@@ -565,6 +572,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
 							{Key: aws.String("foo"), Value: aws.String("bar")},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 				},
 			})
@@ -659,8 +667,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 							Key:      corev1.LabelArchStable,
 							Operator: corev1.NodeSelectorOpIn,
 							Values:   []string{karpv1.ArchitectureArm64},
-						},
-						},
+						}},
 					},
 					{
 						Name: "test-ami-3",
@@ -671,8 +678,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 							Key:      corev1.LabelArchStable,
 							Operator: corev1.NodeSelectorOpIn,
 							Values:   []string{karpv1.ArchitectureAmd64},
-						},
-						},
+						}},
 					},
 				},
 			))
@@ -692,6 +698,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 							{Key: aws.String("Name"), Value: aws.String("test-ami-4")},
 							{Key: aws.String("foo"), Value: aws.String("bar")},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 					{
 						Name:         aws.String("test-ami-2"),
@@ -702,6 +709,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
 							{Key: aws.String("foo"), Value: aws.String("bar")},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 				},
 			})

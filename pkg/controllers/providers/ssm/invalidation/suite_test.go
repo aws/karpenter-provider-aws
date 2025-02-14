@@ -158,6 +158,7 @@ func deprecateAMIs(amiIDs ...string) {
 				CreationDate:    lo.ToPtr(awsEnv.Clock.Now().Add(-24 * time.Hour).Format(time.RFC3339)),
 				Architecture:    "x86_64",
 				DeprecationTime: lo.ToPtr(awsEnv.Clock.Now().Add(-12 * time.Hour).Format(time.RFC3339)),
+				State:           ec2types.ImageStateAvailable,
 			}
 		}),
 	})

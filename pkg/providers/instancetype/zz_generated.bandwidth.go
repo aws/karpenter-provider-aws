@@ -480,6 +480,7 @@ var (
 		"c7i.8xlarge":          12500,
 		"d3.4xlarge":           12500,
 		"d3en.2xlarge":         12500,
+		"f2.6xlarge":           12500,
 		"i3en.3xlarge":         12500,
 		"i7ie.3xlarge":         12500,
 		"i7ie.6xlarge":         12500,

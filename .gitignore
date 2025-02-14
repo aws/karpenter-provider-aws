@@ -14,3 +14,6 @@ go.work.sum
 
 # Project Specific
 *.csv
+
+# Binary output
+karpenter-provider-aws-*

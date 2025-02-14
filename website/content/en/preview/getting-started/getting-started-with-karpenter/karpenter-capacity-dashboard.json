@@ -379,7 +379,7 @@
             "refId": "A"
           }
         ],
-        "title": "Nodes Eligibale for Disruptions by \"reason\"",
+        "title": "Nodes Eligible for Disruptions by \"reason\"",
         "type": "timeseries"
       },
       {
