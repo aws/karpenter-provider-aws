@@ -22,6 +22,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | ENABLE_PROFILING | \-\-enable-profiling | Enable the profiling on the metric endpoint|
 | FEATURE_GATES | \-\-feature-gates | Optional features can be enabled / disabled using feature gates. Current options are: SpotToSpotConsolidation (default = NodeRepair=false,SpotToSpotConsolidation=false)|
 | HEALTH_PROBE_PORT | \-\-health-probe-port | The port the health probe endpoint binds to for reporting controller health (default = 8081)|
+| INSTANCE_TYPE_FLEXIBILITY_THRESHOLD | \-\-instance-type-flexibility-threshold | The minimum number of instance types below which to fallback to on-demand. (default = 5)|
 | INTERRUPTION_QUEUE | \-\-interruption-queue | Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.|
 | ISOLATED_VPC | \-\-isolated-vpc | If true, then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS on-demand pricing endpoint.|
 | KARPENTER_SERVICE | \-\-karpenter-service | The Karpenter Service name for the dynamic webhook certificate|
