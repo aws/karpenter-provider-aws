@@ -36,6 +36,7 @@ require (
 	github.com/samber/lo v1.49.1
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
+	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
 	golang.org/x/sync v0.11.0
 	k8s.io/api v0.32.1
 	k8s.io/apiextensions-apiserver v0.32.1
@@ -44,7 +45,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	sigs.k8s.io/controller-runtime v0.20.1
-	sigs.k8s.io/karpenter v1.2.1-0.20250212185021-45f73ec7a790
+	sigs.k8s.io/karpenter v1.2.1-0.20250214004421-e20af95dc723
 	sigs.k8s.io/yaml v1.4.0
 )
 
