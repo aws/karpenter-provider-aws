@@ -27,6 +27,7 @@ func (o Options) Validate() error {
 		o.validateVMMemoryOverheadPercent(),
 		o.validateReservedENIs(),
 		o.validateRequiredFields(),
+		o.validateInstanceTypeFlexibilityThreshold(),
 	)
 }
 
@@ -60,6 +61,13 @@ func (o Options) validateReservedENIs() error {
 func (o Options) validateRequiredFields() error {
 	if o.ClusterName == "" {
 		return fmt.Errorf("missing field, cluster-name")
+	}
+	return nil
+}
+
+func (o Options) validateInstanceTypeFlexibilityThreshold() error {
+	if o.InstanceTypeFlexibilityThreshold < 1 {
+		return fmt.Errorf("instance-type-flexibility-threshold must be greater than 0")
 	}
 	return nil
 }

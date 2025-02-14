@@ -62,16 +62,18 @@ var _ = Describe("Options", func() {
 			"--isolated-vpc",
 			"--vm-memory-overhead-percent", "0.1",
 			"--interruption-queue", "env-cluster",
-			"--reserved-enis", "10")
+			"--reserved-enis", "10",
+			"--instance-type-flexibility-threshold", "2")
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
-			ClusterCABundle:         lo.ToPtr("env-bundle"),
-			ClusterName:             lo.ToPtr("env-cluster"),
-			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
-			IsolatedVPC:             lo.ToPtr(true),
-			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
-			InterruptionQueue:       lo.ToPtr("env-cluster"),
-			ReservedENIs:            lo.ToPtr(10),
+			ClusterCABundle:                  lo.ToPtr("env-bundle"),
+			ClusterName:                      lo.ToPtr("env-cluster"),
+			ClusterEndpoint:                  lo.ToPtr("https://env-cluster"),
+			IsolatedVPC:                      lo.ToPtr(true),
+			VMMemoryOverheadPercent:          lo.ToPtr[float64](0.1),
+			InterruptionQueue:                lo.ToPtr("env-cluster"),
+			ReservedENIs:                     lo.ToPtr(10),
+			InstanceTypeFlexibilityThreshold: lo.ToPtr(2),
 		}))
 	})
 	It("should correctly fallback to env vars when CLI flags aren't set", func() {
@@ -82,6 +84,7 @@ var _ = Describe("Options", func() {
 		os.Setenv("VM_MEMORY_OVERHEAD_PERCENT", "0.1")
 		os.Setenv("INTERRUPTION_QUEUE", "env-cluster")
 		os.Setenv("RESERVED_ENIS", "10")
+		os.Setenv("INSTANCE_TYPE_FLEXIBILITY_THRESHOLD", "2")
 
 		// Add flags after we set the environment variables so that the parsing logic correctly refers
 		// to the new environment variable values
@@ -89,13 +92,14 @@ var _ = Describe("Options", func() {
 		err := opts.Parse(fs)
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
-			ClusterCABundle:         lo.ToPtr("env-bundle"),
-			ClusterName:             lo.ToPtr("env-cluster"),
-			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
-			IsolatedVPC:             lo.ToPtr(true),
-			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
-			InterruptionQueue:       lo.ToPtr("env-cluster"),
-			ReservedENIs:            lo.ToPtr(10),
+			ClusterCABundle:                  lo.ToPtr("env-bundle"),
+			ClusterName:                      lo.ToPtr("env-cluster"),
+			ClusterEndpoint:                  lo.ToPtr("https://env-cluster"),
+			IsolatedVPC:                      lo.ToPtr(true),
+			VMMemoryOverheadPercent:          lo.ToPtr[float64](0.1),
+			InterruptionQueue:                lo.ToPtr("env-cluster"),
+			ReservedENIs:                     lo.ToPtr(10),
+			InstanceTypeFlexibilityThreshold: lo.ToPtr(2),
 		}))
 	})
 
@@ -119,6 +123,10 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--reserved-enis", "-1")
 			Expect(err).To(HaveOccurred())
 		})
+		It("should fail when instanceTypeFlexibilityThreshold is negative", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--instance-type-flexibility-threshold", "-1")
+			Expect(err).To(HaveOccurred())
+		})
 	})
 })
 
@@ -131,4 +139,5 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.VMMemoryOverheadPercent).To(Equal(optsB.VMMemoryOverheadPercent))
 	Expect(optsA.InterruptionQueue).To(Equal(optsB.InterruptionQueue))
 	Expect(optsA.ReservedENIs).To(Equal(optsB.ReservedENIs))
+	Expect(optsA.InstanceTypeFlexibilityThreshold).To(Equal(optsB.InstanceTypeFlexibilityThreshold))
 }
