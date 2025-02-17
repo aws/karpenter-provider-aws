@@ -31,3 +31,53 @@ Check out the [Docs](https://karpenter.sh/docs/) to learn more.
 - 11/19/2021 [Karpenter @ Container Day](https://youtu.be/qxWJRUF6JJc)
 - 05/14/2021 [Groupless Autoscaling with Karpenter @ Kubecon](https://www.youtube.com/watch?v=43g8uPohTgc)
 - 05/04/2021 [Karpenter @ Container Day](https://youtu.be/MZ-4HzOC_ac?t=7137)
+
+
+# Fix for Issue
+To address the issue of certain metrics not being auto-generated in the documentation, particularly with `karpenter_pods_scheduling_decision_duration_seconds`, you can follow these steps to diagnose and fix the problem:
+
+### Diagnosis
+
+1. **Check Metric Definitions**: Verify that the metric `karpenter_pods_scheduling_decision_duration_seconds` is correctly defined in the codebase. This involves checking the relevant module or file where metrics are registered.
+
+2. **Ensure Auto-Generation Tools are Configured**: Confirm that the tools and scripts responsible for auto-generating documentation (e.g., custom scripts, `make docgen`) are correctly configured to include all metrics. This may involve checking for configurations or annotations that guide the documentation generation process.
+
+3. **Review Version Control**: Since the issue mentions that these metrics were introduced at v1, ensure that any changes or updates made in version control after their introduction did not inadvertently exclude these metrics from the documentation generation process.
+
+4. **Inspect Build and Documentation Pipeline**: Examine the build and documentation generation pipeline to ensure that it is capturing all necessary files and data. This might involve checking the `make` commands or scripts to ensure they are comprehensive.
+
+### Code Fix
+
+Assuming the issue lies in the configuration of the auto-generation process, here is a general approach to fix it:
+
+1. **Update Metric Registration**: Ensure that the metric is properly registered in the codebase. It should follow the same pattern as other metrics that are correctly documented.
+
+   ```go
+   // Example metric registration
+   DescribeHistogram("karpenter_pods_scheduling_decision_duration_seconds",
+       "The duration of scheduling decisions.",
+       table.WithKind("Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob"),
+       table.WithPredicates("aws:nodegroupName"),
+   )
+   ```
+
+2. **Configure Documentation Generation**: Update the documentation generation configuration to include the new metrics. This might involve modifying a configuration file or script used by `make docgen`.
+
+   - If using a tool like `godoc`, ensure it is set to scan the directories where these metrics are defined.
+   - If using a custom script, ensure it includes logic to find and document all metric registrations.
+
+3. **Test the Fix**: After making changes, run the documentation generation process to verify that the metrics are now included.
+
+   ```bash
+   make docgen
+   ```
+
+4. **Verify Documentation**: Once the documentation is regenerated, verify that `karpenter_pods_scheduling_decision_duration_seconds` appears in the Metrics reference.
+
+### Additional Considerations
+
+- **Version Control**: If the metrics were introduced in an older version, ensure that any tagging or branching strategy used in version control does not exclude these metrics from the documentation process.
+  
+- **Community Feedback**: Engage with the community or maintainers if the issue persists, as they might provide insights or have encountered similar issues.
+
+By following these steps, you should be able to diagnose and fix the issue of missing metrics in the auto-generated documentation.
