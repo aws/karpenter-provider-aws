@@ -51,8 +51,7 @@ import (
 )
 
 const (
-	instanceTypeFlexibilityThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
-	maxInstanceTypes                 = 60
+	maxInstanceTypes = 60
 )
 
 var (
@@ -222,7 +221,7 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 		reason, message := awserrors.ToReasonMessage(err)
 		return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("getting launch template configs, %w", err), reason, fmt.Sprintf("Error getting launch template configs: %s", message))
 	}
-	if err := p.checkODFallback(nodeClaim, instanceTypes, launchTemplateConfigs); err != nil {
+	if err := p.checkODFallback(ctx, nodeClaim, instanceTypes, launchTemplateConfigs); err != nil {
 		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
 	}
 	// Create fleet
@@ -273,7 +272,7 @@ func GetCreateFleetInput(nodeClass *v1.EC2NodeClass, capacityType string, tags m
 	}
 }
 
-func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) error {
+func (p *DefaultProvider) checkODFallback(ctx context.Context, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
 	if p.getCapacityType(nodeClaim, instanceTypes) != karpv1.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
 		return nil
@@ -286,6 +285,7 @@ func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceT
 			instanceTypeZones[string(override.InstanceType)] = struct{}{}
 		}
 	}
+	instanceTypeFlexibilityThreshold := options.FromContext(ctx).InstanceTypeFlexibilityThreshold
 	if len(instanceTypes) < instanceTypeFlexibilityThreshold {
 		return fmt.Errorf("at least %d instance types are recommended when flexible to spot but requesting on-demand, "+
 			"the current provisioning request only has %d instance type options", instanceTypeFlexibilityThreshold, len(instanceTypes))
