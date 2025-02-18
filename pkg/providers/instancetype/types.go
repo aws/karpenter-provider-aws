@@ -63,6 +63,8 @@ type Resolver interface {
 	CacheKey(nodeClass *v1.EC2NodeClass) string
 	// Resolve generates an InstanceType based on raw InstanceTypeInfo and NodeClass setting data
 	Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zoneData []ZoneData, nodeClass *v1.EC2NodeClass) *cloudprovider.InstanceType
+	// GetUnavailableOfferingsSeqNum returns the current seq num of the unavailable offerings cache
+	GetUnavailableOfferingsSeqNum() uint64
 }
 
 type DefaultResolver struct {
@@ -106,6 +108,10 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 	}
 	return NewInstanceType(ctx, info, d.region, nodeClass.Spec.BlockDeviceMappings, nodeClass.Spec.InstanceStorePolicy, kc.MaxPods, kc.PodsPerCore, kc.KubeReserved,
 		kc.SystemReserved, kc.EvictionHard, kc.EvictionSoft, nodeClass.AMIFamily(), d.createOfferings(ctx, info, zoneData))
+}
+
+func (d *DefaultResolver) GetUnavailableOfferingsSeqNum() uint64 {
+	return d.unavailableOfferings.SeqNum
 }
 
 // createOfferings creates a set of mutually exclusive offerings for a given instance type. This provider maintains an
