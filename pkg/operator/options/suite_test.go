@@ -60,6 +60,7 @@ var _ = Describe("Options", func() {
 			"--cluster-name", "env-cluster",
 			"--cluster-endpoint", "https://env-cluster",
 			"--isolated-vpc",
+			"--avoid-empty-subnets",
 			"--vm-memory-overhead-percent", "0.1",
 			"--interruption-queue", "env-cluster",
 			"--reserved-enis", "10")
@@ -69,6 +70,7 @@ var _ = Describe("Options", func() {
 			ClusterName:             lo.ToPtr("env-cluster"),
 			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
 			IsolatedVPC:             lo.ToPtr(true),
+			AvoidEmptySubnets:       lo.ToPtr(true),
 			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
 			InterruptionQueue:       lo.ToPtr("env-cluster"),
 			ReservedENIs:            lo.ToPtr(10),
@@ -79,6 +81,7 @@ var _ = Describe("Options", func() {
 		os.Setenv("CLUSTER_NAME", "env-cluster")
 		os.Setenv("CLUSTER_ENDPOINT", "https://env-cluster")
 		os.Setenv("ISOLATED_VPC", "true")
+		os.Setenv("AVOID_EMPTY_SUBNETS", "true")
 		os.Setenv("VM_MEMORY_OVERHEAD_PERCENT", "0.1")
 		os.Setenv("INTERRUPTION_QUEUE", "env-cluster")
 		os.Setenv("RESERVED_ENIS", "10")
@@ -93,6 +96,7 @@ var _ = Describe("Options", func() {
 			ClusterName:             lo.ToPtr("env-cluster"),
 			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
 			IsolatedVPC:             lo.ToPtr(true),
+			AvoidEmptySubnets:       lo.ToPtr(true),
 			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
 			InterruptionQueue:       lo.ToPtr("env-cluster"),
 			ReservedENIs:            lo.ToPtr(10),
@@ -128,6 +132,7 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.ClusterName).To(Equal(optsB.ClusterName))
 	Expect(optsA.ClusterEndpoint).To(Equal(optsB.ClusterEndpoint))
 	Expect(optsA.IsolatedVPC).To(Equal(optsB.IsolatedVPC))
+	Expect(optsA.AvoidEmptySubnets).To(Equal(optsB.AvoidEmptySubnets))
 	Expect(optsA.VMMemoryOverheadPercent).To(Equal(optsB.VMMemoryOverheadPercent))
 	Expect(optsA.InterruptionQueue).To(Equal(optsB.InterruptionQueue))
 	Expect(optsA.ReservedENIs).To(Equal(optsB.ReservedENIs))

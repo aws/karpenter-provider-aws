@@ -170,6 +170,8 @@ settings:
   # -- If true then assume we can't reach AWS services which don't have a VPC endpoint
   # This also has the effect of disabling look-ups to the AWS pricing endpoint
   isolatedVPC: false
+  # -- Setting this to true will filter out subnets with no available IPs
+  avoidEmptySubnets: false
   # Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API
   eksControlPlane: false
   # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types. The value of `0.075` equals to 7.5%.
