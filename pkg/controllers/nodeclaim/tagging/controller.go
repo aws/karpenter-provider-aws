@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -65,7 +66,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if !isTaggable(nodeClaim) {
 		return reconcile.Result{}, nil
 	}
-	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("provider-id", nodeClaim.Status.ProviderID))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("Node", klog.KRef("", nodeClaim.Status.NodeName), "provider-id", nodeClaim.Status.ProviderID))
 	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
 	if err != nil {
 		// We don't throw an error here since we don't want to retry until the ProviderID has been updated.
