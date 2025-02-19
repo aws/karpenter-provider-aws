@@ -38,7 +38,7 @@ kind: EC2NodeClass
 metadata:
   name: default
 spec:
-  amiFamily: AL2 # Amazon Linux 2
+  amiFamily: AL2023 # Amazon Linux 2023
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -49,6 +49,7 @@ spec:
   amiSelectorTerms:
     - id: "${ARM_AMI_ID}"
     - id: "${AMD_AMI_ID}"
-#   - id: "${GPU_AMI_ID}" # <- GPU Optimized AMD AMI 
-#   - name: "amazon-eks-node-${K8S_VERSION}-*" # <- automatically upgrade when a new AL2 EKS Optimized AMI is released. This is unsafe for production workloads. Validate AMIs in lower environments before deploying them to production.
+#   - id: "${NVIDIA_AMI_ID}" # <- AL2023 NVIDIA AMI 
+#   - id: "${NEURON_AMI_ID}" # <- AL2023 NEURON AMI
+#   - name: "amazon-eks-node-${K8S_VERSION}-*" # <- automatically upgrade when a new AL2023 EKS Optimized AMI is released. This is unsafe for production workloads. Validate AMIs in lower environments before deploying them to production.
 EOF
