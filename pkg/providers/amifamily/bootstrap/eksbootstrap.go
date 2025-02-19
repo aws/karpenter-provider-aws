@@ -69,7 +69,7 @@ func (e EKS) eksBootstrapScript() string {
 		userData.WriteString(" \\\n--ip-family ipv6")
 	}
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
-		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
+		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", strings.Join(e.KubeletConfig.ClusterDNS, ",")))
 	}
 	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
 		userData.WriteString(" \\\n--use-max-pods false")
