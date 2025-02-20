@@ -305,6 +305,8 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", k8sVersion):         "ami-arm64-standard",
 				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", k8sVersion): "ami-amd64-nvidia",
 				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/latest/image_id", k8sVersion):  "ami-arm64-nvidia",
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-fips/x86_64/latest/image_id", k8sVersion):    "ami-amd64-standard",
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-fips/arm64/latest/image_id", k8sVersion):     "ami-arm64-standard",
 			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			ExpectApplied(ctx, env.Client, nodeClass)

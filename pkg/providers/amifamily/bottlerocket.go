@@ -48,6 +48,8 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):         {VariantStandard},
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion): {VariantNvidia},
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):  {VariantNvidia},
+		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-fips/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion):    {VariantFips},
+		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-fips/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):     {VariantFips},
 	} {
 		imageID, err := ssmProvider.Get(ctx, ssm.Parameter{
 			Name:      path,
