@@ -155,16 +155,6 @@ Pod state is the current state of pods. This metric can be used several ways as 
 The time from pod creation until the pod is running.
 - Stability Level: STABLE
 
-## Termination Metrics
-
-### `operator_termination_duration_seconds`
-The amount of time taken by an object to terminate completely.
-- Stability Level: DEPRECATED
-
-### `operator_termination_current_time_seconds`
-The current amount of time in seconds that an object has been in terminating state.
-- Stability Level: DEPRECATED
-
 ## Voluntary Disruption Metrics
 
 ### `karpenter_voluntary_disruption_queue_failures_total`
@@ -390,24 +380,6 @@ Current depth of workqueue
 ### `workqueue_adds_total`
 Total number of adds handled by workqueue
 - Stability Level: STABLE
-
-## Status Condition Metrics
-
-### `operator_status_condition_transitions_total`
-The count of transitions of a given object, type and status.
-- Stability Level: DEPRECATED
-
-### `operator_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes
-- Stability Level: DEPRECATED
-
-### `operator_status_condition_current_status_seconds`
-The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes
-- Stability Level: DEPRECATED
-
-### `operator_status_condition_count`
-The number of an condition for a given object, type and status. e.g. Alarm := Available=False > 0
-- Stability Level: DEPRECATED
 
 ## Client Go Metrics
 
