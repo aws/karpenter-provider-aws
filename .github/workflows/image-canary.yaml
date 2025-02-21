@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+      uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
       with:
         role-to-assume: arn:aws:iam::${{ vars.READONLY_ACCOUNT_ID }}:role/${{ vars.READONLY_ROLE_NAME }}
         aws-region: ${{ vars.READONLY_REGION }}
