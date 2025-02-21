@@ -12,7 +12,7 @@ jobs:
     if: github.repository == 'aws/karpenter-provider-aws'
     name: Stale issue bot
     steps:
-      - uses: actions/stale@28ca1036281a5e5922ead5184a1bbf96e5fc984e # v9.0.0
+      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           stale-issue-message: 'This issue has been inactive for 14 days. StaleBot will close this stale issue after 14 more days of inactivity.'
