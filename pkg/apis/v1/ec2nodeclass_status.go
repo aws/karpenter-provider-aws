@@ -74,7 +74,7 @@ type CapacityReservation struct {
 	AvailabilityZone string `json:"availabilityZone"`
 	// The last known available instance count for the capacity reservation.
 	// +required
-	AvailableInstanceCount int `json:"availableInstanceCount" hash:"ignore"`
+	AvailableInstanceCount int `json:"availableInstanceCount,omitempty" hash:"ignore"`
 	// The time at which the capacity reservation expires. Once expired, the reserved capacity is released and Karpenter
 	// will no longer be able to launch instances into that reservation.
 	// +optional

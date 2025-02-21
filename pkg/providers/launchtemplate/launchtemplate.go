@@ -60,9 +60,10 @@ type Provider interface {
 	ResolveClusterCIDR(context.Context) error
 }
 type LaunchTemplate struct {
-	Name          string
-	InstanceTypes []*cloudprovider.InstanceType
-	ImageID       string
+	Name                  string
+	InstanceTypes         []*cloudprovider.InstanceType
+	ImageID               string
+	CapacityReservationID string
 }
 
 type DefaultProvider struct {
@@ -134,7 +135,12 @@ func (p *DefaultProvider) EnsureAll(
 		if err != nil {
 			return nil, err
 		}
-		launchTemplates = append(launchTemplates, &LaunchTemplate{Name: *ec2LaunchTemplate.LaunchTemplateName, InstanceTypes: resolvedLaunchTemplate.InstanceTypes, ImageID: resolvedLaunchTemplate.AMIID})
+		launchTemplates = append(launchTemplates, &LaunchTemplate{
+			Name:                  *ec2LaunchTemplate.LaunchTemplateName,
+			InstanceTypes:         resolvedLaunchTemplate.InstanceTypes,
+			ImageID:               resolvedLaunchTemplate.AMIID,
+			CapacityReservationID: resolvedLaunchTemplate.CapacityReservationID,
+		})
 	}
 	return launchTemplates, nil
 }

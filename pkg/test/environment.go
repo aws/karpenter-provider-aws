@@ -66,18 +66,19 @@ type Environment struct {
 	PricingAPI *fake.PricingAPI
 
 	// Cache
-	EC2Cache                      *cache.Cache
-	InstanceTypeCache             *cache.Cache
-	UnavailableOfferingsCache     *awscache.UnavailableOfferings
-	LaunchTemplateCache           *cache.Cache
-	SubnetCache                   *cache.Cache
-	AvailableIPAdressCache        *cache.Cache
-	AssociatePublicIPAddressCache *cache.Cache
-	SecurityGroupCache            *cache.Cache
-	InstanceProfileCache          *cache.Cache
-	SSMCache                      *cache.Cache
-	DiscoveredCapacityCache       *cache.Cache
-	CapacityReservationCache      *cache.Cache
+	EC2Cache                             *cache.Cache
+	InstanceTypeCache                    *cache.Cache
+	UnavailableOfferingsCache            *awscache.UnavailableOfferings
+	LaunchTemplateCache                  *cache.Cache
+	SubnetCache                          *cache.Cache
+	AvailableIPAdressCache               *cache.Cache
+	AssociatePublicIPAddressCache        *cache.Cache
+	SecurityGroupCache                   *cache.Cache
+	InstanceProfileCache                 *cache.Cache
+	SSMCache                             *cache.Cache
+	DiscoveredCapacityCache              *cache.Cache
+	CapacityReservationCache             *cache.Cache
+	CapacityReservationAvailabilityCache *cache.Cache
 
 	// Providers
 	CapacityReservationProvider *capacityreservation.DefaultProvider
@@ -117,6 +118,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	instanceProfileCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	capacityReservationAvailabilityCache := cache.New(24*time.Hour, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
 
 	// Providers
@@ -147,6 +149,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		net.ParseIP("10.0.100.10"),
 		"https://test-cluster",
 	)
+	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		"",
@@ -154,8 +157,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		unavailableOfferingsCache,
 		subnetProvider,
 		launchTemplateProvider,
+		capacityReservationProvider,
 	)
-	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache)
 
 	return &Environment{
 		Clock: clock,
@@ -166,18 +169,19 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		IAMAPI:     iamapi,
 		PricingAPI: fakePricingAPI,
 
-		EC2Cache:                      ec2Cache,
-		InstanceTypeCache:             instanceTypeCache,
-		LaunchTemplateCache:           launchTemplateCache,
-		SubnetCache:                   subnetCache,
-		AvailableIPAdressCache:        availableIPAdressCache,
-		AssociatePublicIPAddressCache: associatePublicIPAddressCache,
-		SecurityGroupCache:            securityGroupCache,
-		InstanceProfileCache:          instanceProfileCache,
-		UnavailableOfferingsCache:     unavailableOfferingsCache,
-		SSMCache:                      ssmCache,
-		DiscoveredCapacityCache:       discoveredCapacityCache,
-		CapacityReservationCache:      capacityReservationCache,
+		EC2Cache:                             ec2Cache,
+		InstanceTypeCache:                    instanceTypeCache,
+		LaunchTemplateCache:                  launchTemplateCache,
+		SubnetCache:                          subnetCache,
+		AvailableIPAdressCache:               availableIPAdressCache,
+		AssociatePublicIPAddressCache:        associatePublicIPAddressCache,
+		SecurityGroupCache:                   securityGroupCache,
+		InstanceProfileCache:                 instanceProfileCache,
+		UnavailableOfferingsCache:            unavailableOfferingsCache,
+		SSMCache:                             ssmCache,
+		DiscoveredCapacityCache:              discoveredCapacityCache,
+		CapacityReservationCache:             capacityReservationCache,
+		CapacityReservationAvailabilityCache: capacityReservationAvailabilityCache,
 
 		CapacityReservationProvider: capacityReservationProvider,
 		InstanceTypesResolver:       instanceTypesResolver,

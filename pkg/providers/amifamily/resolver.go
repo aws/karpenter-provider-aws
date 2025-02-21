@@ -147,15 +147,6 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 			reservationIDs string
 		}
 		paramsToInstanceTypes := lo.GroupBy(instanceTypes, func(it *cloudprovider.InstanceType) launchTemplateParams {
-			var reservationIDs []string
-			if capacityType == karpv1.CapacityTypeReserved {
-				for i := range it.Offerings {
-					if it.Offerings[i].Requirements.Get(karpv1.CapacityTypeLabelKey).Any() != karpv1.CapacityTypeReserved {
-						continue
-					}
-					reservationIDs = append(reservationIDs, it.Offerings[i].Requirements.Get(cloudprovider.ReservationIDLabel).Any())
-				}
-			}
 			return launchTemplateParams{
 				efaCount: lo.Ternary(
 					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA),
@@ -166,7 +157,11 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 				// If we're dealing with reserved instances, there's only going to be a single instance per group. This invariant
 				// is due to reservation IDs not being shared across instance types. Because of this, we don't need to worry about
 				// ordering in this string.
-				reservationIDs: strings.Join(reservationIDs, ","),
+				reservationIDs: lo.Ternary(
+					capacityType == karpv1.CapacityTypeReserved,
+					strings.Join(selectReservationIDs(it, nodeClaim), ","),
+					"",
+				),
 			}
 		})
 
@@ -176,6 +171,25 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 		}
 	}
 	return resolvedTemplates, nil
+}
+
+// selectReservationIDs filters the set of reservation IDs available on the given instance type to only include those
+// that are compatible with the given NodeClaim. Additionally, if there are multiple reservations available in the same
+// zone, only the reservation with the greatest availability is selected. This is to address a limitation in the
+// CreateFleet interface, where you can only provide one override for a given instance-zone combination.
+func selectReservationIDs(it *cloudprovider.InstanceType, nodeClaim *karpv1.NodeClaim) []string {
+	zonalOfferings := map[string]*cloudprovider.Offering{}
+	for _, o := range it.Offerings.Available().Compatible(scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)) {
+		if o.CapacityType() != karpv1.CapacityTypeReserved {
+			continue
+		}
+		if current, ok := zonalOfferings[o.Zone()]; !ok || current.ReservationCapacity < o.ReservationCapacity {
+			zonalOfferings[o.Zone()] = o
+		}
+	}
+	return lo.Map(lo.Values(zonalOfferings), func(o *cloudprovider.Offering, _ int) string {
+		return o.ReservationID()
+	})
 }
 
 func GetAMIFamily(amiFamily string, options *Options) AMIFamily {

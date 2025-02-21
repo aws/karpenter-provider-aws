@@ -53,10 +53,6 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType string, zone, capacity
 	return found
 }
 
-func (u *UnavailableOfferings) IsReservationUnavailable(reservationID string) bool {
-	return false
-}
-
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
 func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason, instanceType, zone, capacityType string) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
@@ -65,7 +61,8 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableR
 		"instance-type", instanceType,
 		"zone", zone,
 		"capacity-type", capacityType,
-		"ttl", UnavailableOfferingsTTL).V(1).Info("removing offering from offerings")
+		"ttl", UnavailableOfferingsTTL,
+	).V(1).Info("removing offering from offerings")
 	u.cache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
 	atomic.AddUint64(&u.SeqNum, 1)
 }
@@ -76,7 +73,7 @@ func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, f
 	u.MarkUnavailable(ctx, lo.FromPtr(fleetErr.ErrorCode), string(instanceType), zone, capacityType)
 }
 
-func (u *UnavailableOfferings) Delete(instanceType, zone, capacityType string) {
+func (u *UnavailableOfferings) DeleteOffering(instanceType, zone, capacityType string) {
 	u.cache.Delete(u.key(instanceType, zone, capacityType))
 }
 
@@ -85,6 +82,6 @@ func (u *UnavailableOfferings) Flush() {
 }
 
 // key returns the cache key for all offerings in the cache
-func (u *UnavailableOfferings) key(instanceType, zone, capacityType string) string {
-	return fmt.Sprintf("%s:%s:%s", capacityType, instanceType, zone)
+func (*UnavailableOfferings) key(instanceType, zone, capacityType string) string {
+	return fmt.Sprintf("o:%s:%s:%s", capacityType, instanceType, zone)
 }

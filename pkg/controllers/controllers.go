@@ -34,7 +34,7 @@ import (
 	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
 	ssminvalidation "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/ssm/invalidation"
 	controllersversion "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/version"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	capacityreservationprovider "github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
@@ -80,7 +80,7 @@ func NewControllers(
 	launchTemplateProvider launchtemplate.Provider,
 	versionProvider *version.DefaultProvider,
 	instanceTypeProvider *instancetype.DefaultProvider,
-	capacityReservationProvider capacityreservation.Provider,
+	capacityReservationProvider capacityreservationprovider.Provider,
 ) []controller.Controller {
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient),

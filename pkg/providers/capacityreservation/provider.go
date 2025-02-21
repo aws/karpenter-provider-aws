@@ -17,7 +17,6 @@ package capacityreservation
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -32,48 +31,50 @@ import (
 
 type Provider interface {
 	List(context.Context, ...v1.CapacityReservationSelectorTerm) ([]*ec2types.CapacityReservation, error)
+	GetAvailableInstanceCount(string) int
+	MarkLaunched(string)
+	MarkTerminated(string)
+	MarkUnavailable(...string)
 }
 
 type DefaultProvider struct {
-	sync.RWMutex
+	availabilityCache
 
-	ec2api sdk.EC2API
-	clk    clock.Clock
-	cache  *cache.Cache
-	cm     *pretty.ChangeMonitor
+	ec2api           sdk.EC2API
+	clk              clock.Clock
+	reservationCache *cache.Cache
+	cm               *pretty.ChangeMonitor
 }
 
-func NewProvider(ec2api sdk.EC2API, clk clock.Clock, cache *cache.Cache) *DefaultProvider {
+func NewProvider(ec2api sdk.EC2API, clk clock.Clock, reservationCache, reservationAvailabilityCache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
-		ec2api: ec2api,
-		clk:    clk,
-		cache:  cache,
-		cm:     pretty.NewChangeMonitor(),
+		availabilityCache: availabilityCache{
+			cache: reservationAvailabilityCache,
+			clk:   clk,
+		},
+		ec2api:           ec2api,
+		clk:              clk,
+		reservationCache: reservationCache,
+		cm:               pretty.NewChangeMonitor(),
 	}
 }
 
 func (p *DefaultProvider) List(ctx context.Context, selectorTerms ...v1.CapacityReservationSelectorTerm) ([]*ec2types.CapacityReservation, error) {
 	queries := QueriesFromSelectorTerms(selectorTerms...)
-	reservations, remainingQueries := func() ([]*ec2types.CapacityReservation, []*Query) {
-		p.RLock()
-		defer p.RUnlock()
-		reservations := []*ec2types.CapacityReservation{}
-		remaining := []*Query{}
-		for _, query := range queries {
-			if value, ok := p.cache.Get(query.CacheKey()); ok {
-				reservations = append(reservations, value.([]*ec2types.CapacityReservation)...)
-			} else {
-				remaining = append(remaining, query)
-			}
+
+	var reservations []*ec2types.CapacityReservation
+	var remainingQueries []*Query
+	for _, query := range queries {
+		if value, ok := p.reservationCache.Get(query.CacheKey()); ok {
+			reservations = append(reservations, value.([]*ec2types.CapacityReservation)...)
+		} else {
+			remainingQueries = append(remainingQueries, query)
 		}
-		return reservations, remaining
-	}()
+	}
 	if len(remainingQueries) == 0 {
 		return p.filterReservations(reservations), nil
 	}
 
-	p.Lock()
-	defer p.Unlock()
 	for _, query := range remainingQueries {
 		paginator := ec2.NewDescribeCapacityReservationsPaginator(p.ec2api, query.DescribeCapacityReservationsInput())
 		for paginator.HasMorePages() {
@@ -82,10 +83,14 @@ func (p *DefaultProvider) List(ctx context.Context, selectorTerms ...v1.Capacity
 				return nil, fmt.Errorf("listing capacity reservations, %w", err)
 			}
 			queryReservations := lo.ToSlicePtr(out.CapacityReservations)
-			p.cache.SetDefault(query.CacheKey(), queryReservations)
+			p.reservationCache.SetDefault(query.CacheKey(), queryReservations)
 			reservations = append(reservations, queryReservations...)
+			p.syncAvailability(lo.SliceToMap(queryReservations, func(r *ec2types.CapacityReservation) (string, int) {
+				return *r.CapacityReservationId, int(*r.AvailableInstanceCount)
+			}))
 		}
 	}
+
 	return p.filterReservations(reservations), nil
 }
 

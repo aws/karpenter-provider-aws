@@ -98,14 +98,14 @@ func capacityReservationFromEC2(cr *ec2types.CapacityReservation) (v1.CapacityRe
 	}
 
 	return v1.CapacityReservation{
-		AvailabilityZone:       *cr.AvailabilityZone,
-		AvailableInstanceCount: int(*cr.AvailableInstanceCount),
-		EndTime:                endTime,
-		ID:                     *cr.CapacityReservationId,
-		InstanceMatchCriteria:  string(cr.InstanceMatchCriteria),
-		InstanceType:           *cr.InstanceType,
-		OwnerID:                *cr.OwnerId,
-		TotalInstanceCount:     int(*cr.TotalInstanceCount),
+		AvailabilityZone: *cr.AvailabilityZone,
+		// AvailableInstanceCount: int(*cr.AvailableInstanceCount),
+		EndTime:               endTime,
+		ID:                    *cr.CapacityReservationId,
+		InstanceMatchCriteria: string(cr.InstanceMatchCriteria),
+		InstanceType:          *cr.InstanceType,
+		OwnerID:               *cr.OwnerId,
+		TotalInstanceCount:    int(*cr.TotalInstanceCount),
 	}, nil
 }
 

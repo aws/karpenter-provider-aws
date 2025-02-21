@@ -23,6 +23,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
@@ -183,6 +184,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		unavailableOfferingsCache,
 		instancetype.NewDefaultResolver(cfg.Region),
 	)
+	capacityReservationProvider := capacityreservation.NewProvider(ec2api, operator.Clock, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(time.Hour*24, awscache.DefaultCleanupInterval))
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		cfg.Region,
@@ -190,8 +192,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		unavailableOfferingsCache,
 		subnetProvider,
 		launchTemplateProvider,
+		capacityReservationProvider,
 	)
-	capacityReservationProvider := capacityreservation.NewProvider(ec2api, operator.Clock, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 
 	// Setup field indexers on instanceID -- specifically for the interruption controller
 	if options.FromContext(ctx).InterruptionQueue != "" {

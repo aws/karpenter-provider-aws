@@ -42,6 +42,8 @@ var (
 		"EntityAlreadyExists",
 	)
 
+	reservationCapacityExceededErrorCode = "ReservationCapacityExceeded"
+
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
 	unfulfillableCapacityErrorCodes = sets.New[string](
 		"InsufficientInstanceCapacity",
@@ -50,6 +52,7 @@ var (
 		"UnfulfillableCapacity",
 		"Unsupported",
 		"InsufficientFreeAddressesInSubnet",
+		reservationCapacityExceededErrorCode,
 	)
 )
 
@@ -133,6 +136,10 @@ func IgnoreUnauthorizedOperationError(err error) error {
 // This could be due to account limits, insufficient ec2 capacity, etc.
 func IsUnfulfillableCapacity(err ec2types.CreateFleetError) bool {
 	return unfulfillableCapacityErrorCodes.Has(*err.ErrorCode)
+}
+
+func IsReservationCapacityExceeded(err ec2types.CreateFleetError) bool {
+	return *err.ErrorCode == reservationCapacityExceededErrorCode
 }
 
 func IsLaunchTemplateNotFound(err error) bool {

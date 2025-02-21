@@ -35,6 +35,7 @@ func main() {
 		op.GetClient(),
 		op.AMIProvider,
 		op.SecurityGroupProvider,
+		op.CapacityReservationProvider,
 	)
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 	clusterState := state.NewCluster(op.Clock, op.GetClient(), cloudProvider)

@@ -28,6 +28,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 )
 
@@ -36,8 +37,9 @@ type Provider interface {
 }
 
 type DefaultProvider struct {
-	unavailableOfferings *awscache.UnavailableOfferings
-	pricingProvider      pricing.Provider
+	unavailableOfferings        *awscache.UnavailableOfferings
+	pricingProvider             pricing.Provider
+	capacityReservationProvider capacityreservation.Provider
 }
 
 func NewDefaultProvider(unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider pricing.Provider) *DefaultProvider {
@@ -96,10 +98,10 @@ func (p *DefaultProvider) createOfferings(
 ) cloudprovider.Offerings {
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
 
-	offerings := []*cloudprovider.Offering{}
+	var offerings []*cloudprovider.Offering
 	for zone := range allZones {
 		for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
-			// Reserved capacity types are constructed separately, skip them for now.
+			// Reserved capacity types are constructed separately
 			if capacityType == karpv1.CapacityTypeReserved {
 				continue
 			}
@@ -138,7 +140,6 @@ func (p *DefaultProvider) createOfferings(
 		}
 		reservation := &nodeClass.Status.CapacityReservations[i]
 
-		isUnavailable := p.unavailableOfferings.IsReservationUnavailable(reservation.ID)
 		_, hasSubnetZone := subnetZones[reservation.AvailabilityZone]
 		price := 0.0
 		if odPrice, ok := p.pricingProvider.OnDemandPrice(ec2types.InstanceType(it.Name)); ok {
@@ -148,6 +149,7 @@ func (p *DefaultProvider) createOfferings(
 			// users to utilize the instances they're already paying for.
 			price = odPrice / 10_000_000.0
 		}
+		reservationCapacity := p.capacityReservationProvider.GetAvailableInstanceCount(reservation.ID)
 		offering := &cloudprovider.Offering{
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, karpv1.CapacityTypeReserved),
@@ -155,8 +157,8 @@ func (p *DefaultProvider) createOfferings(
 				scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpIn, reservation.ID),
 			),
 			Price:               price,
-			Available:           !isUnavailable && itZones.Has(reservation.AvailabilityZone) && hasSubnetZone,
-			ReservationCapacity: reservation.AvailableInstanceCount,
+			Available:           reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && hasSubnetZone,
+			ReservationCapacity: reservationCapacity,
 		}
 		if id, ok := subnetZones[reservation.AvailabilityZone]; ok {
 			offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))

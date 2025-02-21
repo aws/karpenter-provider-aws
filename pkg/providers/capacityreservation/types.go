@@ -16,11 +16,15 @@ package capacityreservation
 
 import (
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	"k8s.io/utils/clock"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
@@ -102,4 +106,80 @@ func (q *Query) tagsFilter() ([]ec2types.Filter, bool) {
 		}
 	}), len(q.tags) != 0
 
+}
+
+type availabilityCache struct {
+	mu    sync.RWMutex
+	cache *cache.Cache
+	clk   clock.Clock
+}
+
+type availabilityCacheEntry struct {
+	count    int
+	syncTime time.Time
+}
+
+func (c *availabilityCache) syncAvailability(availability map[string]int) {
+	now := c.clk.Now()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for id, count := range availability {
+		c.cache.SetDefault(id, &availabilityCacheEntry{
+			count:    count,
+			syncTime: now,
+		})
+	}
+}
+
+func (c *availabilityCache) MarkLaunched(reservationID string) {
+	now := c.clk.Now()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.cache.Get(reservationID)
+	if !ok {
+		return
+	}
+	// Only count the launch if it occurred before the last sync from EC2. In the worst case, this will lead to us
+	// overestimating availability if there's an eventual consistency delay with EC2, but we'd rather overestimate than
+	// underestimate.
+	if entry.(*availabilityCacheEntry).syncTime.After(now) {
+		return
+	}
+
+	if entry.(*availabilityCacheEntry).count != 0 {
+		entry.(*availabilityCacheEntry).count -= 1
+	}
+}
+
+func (c *availabilityCache) MarkTerminated(reservationID string) {
+	// We don't do a time based comparison for CountTerminated because the reservation becomes available some time between
+	// the termination call and the instance state transitioning to terminated. This can be a pretty big gap, so a time
+	// based comparison would have limited value. In the worst case, this can result in us overestimating the available
+	// capacity, but we'd rather overestimate than underestimate.
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.cache.Get(reservationID)
+	if !ok {
+		return
+	}
+	entry.(*availabilityCacheEntry).count += 1
+}
+
+func (c *availabilityCache) GetAvailableInstanceCount(reservationID string) int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	entry, ok := c.cache.Get(reservationID)
+	return lo.Ternary(ok, entry.(*availabilityCacheEntry).count, 0)
+}
+
+func (c *availabilityCache) MarkUnavailable(reservationIDs ...string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, id := range reservationIDs {
+		entry, ok := c.cache.Get(id)
+		if !ok {
+			continue
+		}
+		entry.(*availabilityCacheEntry).count = 0
+	}
 }
