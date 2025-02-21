@@ -93,7 +93,7 @@ runs:
       CLUSTER_VPC_ID: ${{ env.CLUSTER_VPC_ID }}
       EKS_CLUSTER_SG: ${{ env.EKS_CLUSTER_SG }}
       CLEANUP: ${{ inputs.cleanup }}
-    uses: aws-actions/aws-codebuild-run-build@540238d832197229bfaab9785feb4fb8450f6396 # v1.0.17
+    uses: aws-actions/aws-codebuild-run-build@4d15a47425739ac2296ba5e7eee3bdd4bfbdd767 # v1.0.18
     with:
       project-name: E2EPrivateClusterCodeBuildProject-us-east-1
       buildspec-override: |
