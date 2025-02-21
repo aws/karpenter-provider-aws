@@ -7,7 +7,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+    - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
       id: setup-go
       with:
         go-version-file: go.mod
@@ -16,7 +16,7 @@ runs:
     # Root path permission workaround for caching https://github.com/actions/cache/issues/845#issuecomment-1252594999
     - run: sudo chown "$USER" /usr/local
       shell: bash
-    - uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+    - uses: actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f # v4.2.1
       id: cache-toolchain
       with:
         path: |
