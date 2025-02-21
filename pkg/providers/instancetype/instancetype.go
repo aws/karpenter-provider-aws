@@ -183,7 +183,7 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 	p.muInstanceTypesInfo.Lock()
 	defer p.muInstanceTypesInfo.Unlock()
 
-	instanceTypes := []ec2types.InstanceTypeInfo{}
+	var instanceTypes []ec2types.InstanceTypeInfo
 	paginator := ec2.NewDescribeInstanceTypesPaginator(p.ec2api, &ec2.DescribeInstanceTypesInput{
 		Filters: []ec2types.Filter{
 			{

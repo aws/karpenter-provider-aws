@@ -450,6 +450,15 @@ var _ = Describe("CEL/Validation", func() {
 			}}
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 		})
+		It("should succeed for a valid ownerID", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				OwnerID: "012345678901",
+				Tags: map[string]string{
+					"test": "testvalue",
+				},
+			}}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
 		It("should fail with a capacity reservation selector on a malformed id", func() {
 			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
 				ID: "r-12345749",
@@ -519,15 +528,6 @@ var _ = Describe("CEL/Validation", func() {
 				},
 			}}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-		})
-		It("should succeed for a valid ownerID", func() {
-			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
-				OwnerID: "012345678901",
-				Tags: map[string]string{
-					"test": "testvalue",
-				},
-			}}
-			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 		})
 		It("should fail when the ownerID is malformed", func() {
 			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{

@@ -193,7 +193,7 @@ var _ = Describe("Hash", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
 			Tags: map[string]string{"ami-test-key": "ami-test-value"},
 		}}
-		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{
+		nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
 			Tags: map[string]string{"cr-test-key": "cr-test-value"},
 		}}
 		updatedHash := nodeClass.Hash()

@@ -106,7 +106,7 @@ func (p *DefaultProvider) createOfferings(
 				continue
 			}
 
-			isUnavailable := p.unavailableOfferings.IsUnavailable(it.Name, zone, capacityType)
+			isUnavailable := p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType)
 			_, hasSubnetZone := subnetZones[zone]
 			var price float64
 			var hasPrice bool

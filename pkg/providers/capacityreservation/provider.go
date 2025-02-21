@@ -46,7 +46,11 @@ type DefaultProvider struct {
 	cm               *pretty.ChangeMonitor
 }
 
-func NewProvider(ec2api sdk.EC2API, clk clock.Clock, reservationCache, reservationAvailabilityCache *cache.Cache) *DefaultProvider {
+func NewProvider(
+	ec2api sdk.EC2API,
+	clk clock.Clock,
+	reservationCache, reservationAvailabilityCache *cache.Cache,
+) *DefaultProvider {
 	return &DefaultProvider{
 		availabilityCache: availabilityCache{
 			cache: reservationAvailabilityCache,
@@ -60,38 +64,39 @@ func NewProvider(ec2api sdk.EC2API, clk clock.Clock, reservationCache, reservati
 }
 
 func (p *DefaultProvider) List(ctx context.Context, selectorTerms ...v1.CapacityReservationSelectorTerm) ([]*ec2types.CapacityReservation, error) {
-	queries := QueriesFromSelectorTerms(selectorTerms...)
-
 	var reservations []*ec2types.CapacityReservation
-	var remainingQueries []*Query
-	for _, query := range queries {
-		if value, ok := p.reservationCache.Get(query.CacheKey()); ok {
-			reservations = append(reservations, value.([]*ec2types.CapacityReservation)...)
-		} else {
-			remainingQueries = append(remainingQueries, query)
-		}
-	}
-	if len(remainingQueries) == 0 {
+	queries := QueriesFromSelectorTerms(selectorTerms...)
+	reservations, queries = p.resolveCachedQueries(queries...)
+	if len(queries) == 0 {
 		return p.filterReservations(reservations), nil
 	}
-
-	for _, query := range remainingQueries {
-		paginator := ec2.NewDescribeCapacityReservationsPaginator(p.ec2api, query.DescribeCapacityReservationsInput())
+	for _, q := range queries {
+		paginator := ec2.NewDescribeCapacityReservationsPaginator(p.ec2api, q.DescribeCapacityReservationsInput())
 		for paginator.HasMorePages() {
 			out, err := paginator.NextPage(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("listing capacity reservations, %w", err)
 			}
 			queryReservations := lo.ToSlicePtr(out.CapacityReservations)
-			p.reservationCache.SetDefault(query.CacheKey(), queryReservations)
+			p.reservationCache.SetDefault(q.CacheKey(), queryReservations)
 			reservations = append(reservations, queryReservations...)
 			p.syncAvailability(lo.SliceToMap(queryReservations, func(r *ec2types.CapacityReservation) (string, int) {
 				return *r.CapacityReservationId, int(*r.AvailableInstanceCount)
 			}))
 		}
 	}
-
 	return p.filterReservations(reservations), nil
+}
+
+func (p *DefaultProvider) resolveCachedQueries(queries ...*Query) (reservations []*ec2types.CapacityReservation, remainingQueries []*Query) {
+	for _, q := range queries {
+		if value, ok := p.reservationCache.Get(q.CacheKey()); ok {
+			reservations = append(reservations, value.([]*ec2types.CapacityReservation)...)
+		} else {
+			remainingQueries = append(remainingQueries, q)
+		}
+	}
+	return reservations, remainingQueries
 }
 
 // filterReservations removes duplicate and expired reservations

@@ -159,7 +159,9 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 				// ordering in this string.
 				reservationIDs: lo.Ternary(
 					capacityType == karpv1.CapacityTypeReserved,
-					strings.Join(selectReservationIDs(it, nodeClaim), ","),
+					strings.Join(lo.FilterMap(it.Offerings, func(o *cloudprovider.Offering, _ int) (string, bool) {
+						return o.ReservationID(), o.CapacityType() == karpv1.CapacityTypeReserved
+					}), ","),
 					"",
 				),
 			}
@@ -171,25 +173,6 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 		}
 	}
 	return resolvedTemplates, nil
-}
-
-// selectReservationIDs filters the set of reservation IDs available on the given instance type to only include those
-// that are compatible with the given NodeClaim. Additionally, if there are multiple reservations available in the same
-// zone, only the reservation with the greatest availability is selected. This is to address a limitation in the
-// CreateFleet interface, where you can only provide one override for a given instance-zone combination.
-func selectReservationIDs(it *cloudprovider.InstanceType, nodeClaim *karpv1.NodeClaim) []string {
-	zonalOfferings := map[string]*cloudprovider.Offering{}
-	for _, o := range it.Offerings.Available().Compatible(scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)) {
-		if o.CapacityType() != karpv1.CapacityTypeReserved {
-			continue
-		}
-		if current, ok := zonalOfferings[o.Zone()]; !ok || current.ReservationCapacity < o.ReservationCapacity {
-			zonalOfferings[o.Zone()] = o
-		}
-	}
-	return lo.Map(lo.Values(zonalOfferings), func(o *cloudprovider.Offering, _ int) string {
-		return o.ReservationID()
-	})
 }
 
 func GetAMIFamily(amiFamily string, options *Options) AMIFamily {

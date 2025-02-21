@@ -72,9 +72,6 @@ type CapacityReservation struct {
 	// The availability zone the capacity reservation is available in.
 	// +required
 	AvailabilityZone string `json:"availabilityZone"`
-	// The last known available instance count for the capacity reservation.
-	// +required
-	AvailableInstanceCount int `json:"availableInstanceCount,omitempty" hash:"ignore"`
 	// The time at which the capacity reservation expires. Once expired, the reserved capacity is released and Karpenter
 	// will no longer be able to launch instances into that reservation.
 	// +optional
@@ -94,9 +91,6 @@ type CapacityReservation struct {
 	// +kubebuilder:validation:Pattern:="^[0-9]{12}$"
 	// +required
 	OwnerID string `json:"ownerID"`
-	// The total instance count for the capacity reservation.
-	// +required
-	TotalInstanceCount int `json:"totalInstanceCount" hash:"ignore"`
 }
 
 // EC2NodeClassStatus contains the resolved state of the EC2NodeClass

@@ -56,6 +56,7 @@ func (c *CapacityReservation) Reconcile(ctx context.Context, nc *v1.EC2NodeClass
 		return reconcile.Result{}, fmt.Errorf("getting capacity reservations, %w", err)
 	}
 	if len(reservations) == 0 {
+		nc.Status.CapacityReservations = nil
 		nc.StatusConditions().SetTrue(v1.ConditionTypeCapacityReservationsReady)
 		return reconcile.Result{RequeueAfter: capacityReservationPollPeriod}, nil
 	}
@@ -86,6 +87,8 @@ func (c *CapacityReservation) Reconcile(ctx context.Context, nc *v1.EC2NodeClass
 }
 
 func capacityReservationFromEC2(cr *ec2types.CapacityReservation) (v1.CapacityReservation, error) {
+	// Guard against new instance match criteria added in the future. See https://github.com/kubernetes-sigs/karpenter/issues/806
+	// for a similar issue.
 	if !lo.Contains([]ec2types.InstanceMatchCriteria{
 		ec2types.InstanceMatchCriteriaOpen,
 		ec2types.InstanceMatchCriteriaTargeted,
@@ -98,17 +101,18 @@ func capacityReservationFromEC2(cr *ec2types.CapacityReservation) (v1.CapacityRe
 	}
 
 	return v1.CapacityReservation{
-		AvailabilityZone: *cr.AvailabilityZone,
-		// AvailableInstanceCount: int(*cr.AvailableInstanceCount),
+		AvailabilityZone:      *cr.AvailabilityZone,
 		EndTime:               endTime,
 		ID:                    *cr.CapacityReservationId,
 		InstanceMatchCriteria: string(cr.InstanceMatchCriteria),
 		InstanceType:          *cr.InstanceType,
 		OwnerID:               *cr.OwnerId,
-		TotalInstanceCount:    int(*cr.TotalInstanceCount),
 	}, nil
 }
 
+// requeueAfter determines the duration until the next target reconciliation time based on the provided reservations. If
+// any reservations are expected to expire before we would typically requeue, the duration will be based on the
+// nearest expiration time.
 func (c *CapacityReservation) requeueAfter(reservations ...*ec2types.CapacityReservation) time.Duration {
 	var next *time.Time
 	for _, reservation := range reservations {

@@ -60,52 +60,39 @@ func (q *Query) CacheKey() string {
 }
 
 func (q *Query) DescribeCapacityReservationsInput() *ec2.DescribeCapacityReservationsInput {
+	filters := []ec2types.Filter{{
+		Name:   lo.ToPtr("state"),
+		Values: []string{string(ec2types.CapacityReservationStateActive)},
+	}}
 	if len(q.ids) != 0 {
 		return &ec2.DescribeCapacityReservationsInput{
-			Filters:                []ec2types.Filter{lo.Must(q.stateFilter())[0]},
+			Filters:                filters,
 			CapacityReservationIds: q.ids,
 		}
 	}
-	type filterProvider func() ([]ec2types.Filter, bool)
-	return &ec2.DescribeCapacityReservationsInput{
-		Filters: lo.Flatten(lo.FilterMap([]filterProvider{
-			q.stateFilter,
-			q.ownerIDFilter,
-			q.tagsFilter,
-		}, func(f filterProvider, _ int) ([]ec2types.Filter, bool) {
-			return f()
-		})),
+	if q.ownerID != "" {
+		filters = append(filters, ec2types.Filter{
+			Name:   lo.ToPtr("owner-id"),
+			Values: []string{q.ownerID},
+		})
 	}
-}
-
-func (q *Query) stateFilter() ([]ec2types.Filter, bool) {
-	return []ec2types.Filter{{
-		Name:   lo.ToPtr("state"),
-		Values: []string{string(ec2types.CapacityReservationStateActive)},
-	}}, true
-}
-
-func (q *Query) ownerIDFilter() ([]ec2types.Filter, bool) {
-	return []ec2types.Filter{{
-		Name:   lo.ToPtr("owner-id"),
-		Values: []string{q.ownerID},
-	}}, q.ownerID != ""
-}
-
-func (q *Query) tagsFilter() ([]ec2types.Filter, bool) {
-	return lo.MapToSlice(q.tags, func(k, v string) ec2types.Filter {
-		if v == "*" {
-			return ec2types.Filter{
-				Name:   lo.ToPtr("tag-key"),
-				Values: []string{k},
+	if len(q.tags) != 0 {
+		filters = append(filters, lo.MapToSlice(q.tags, func(k, v string) ec2types.Filter {
+			if v == "*" {
+				return ec2types.Filter{
+					Name:   lo.ToPtr("tag-key"),
+					Values: []string{k},
+				}
 			}
-		}
-		return ec2types.Filter{
-			Name:   lo.ToPtr(fmt.Sprintf("tag:%s", k)),
-			Values: []string{v},
-		}
-	}), len(q.tags) != 0
-
+			return ec2types.Filter{
+				Name:   lo.ToPtr(fmt.Sprintf("tag:%s", k)),
+				Values: []string{v},
+			}
+		})...)
+	}
+	return &ec2.DescribeCapacityReservationsInput{
+		Filters: filters,
+	}
 }
 
 type availabilityCache struct {

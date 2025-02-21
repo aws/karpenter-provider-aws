@@ -117,6 +117,9 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 	// reserved instances that's all we'll include in our fleet request.
 	if reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...); reqs.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeReserved) {
 		instanceTypes = p.filterReservedInstanceTypes(reqs, instanceTypes)
+		if _, err := cloudprovider.InstanceTypes(instanceTypes).SatisfiesMinValues(schedulingRequirements); err != nil {
+			return nil, cloudprovider.NewCreateError(fmt.Errorf("failed to construct CreateFleet request while respecting minValues requirements"), "CreateFleetRequestConstructionFailed", "Failed to construct CreateFleet request while respecting minValues")
+		}
 	}
 	instanceTypes, err := cloudprovider.InstanceTypes(instanceTypes).Truncate(schedulingRequirements, maxInstanceTypes)
 	if err != nil {

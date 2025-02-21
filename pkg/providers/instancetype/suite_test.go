@@ -2079,7 +2079,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			ExpectNotScheduled(ctx, env.Client, pod)
 			// capacity shortage is over - expire the item from the cache and try again
 			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{})
-			awsEnv.UnavailableOfferingsCache.DeleteOffering("inf2.24xlarge", "test-zone-1a", karpv1.CapacityTypeOnDemand)
+			awsEnv.UnavailableOfferingsCache.Delete("inf2.24xlarge", "test-zone-1a", karpv1.CapacityTypeOnDemand)
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "inf2.24xlarge"))
