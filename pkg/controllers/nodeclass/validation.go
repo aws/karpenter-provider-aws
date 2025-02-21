@@ -62,8 +62,9 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	}
 	// Auth Validation
 	if !nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeInstanceProfileReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeSubnetsReady).IsTrue() {
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "DependenciesNotReady", "Waiting for SecurityGroups, AMIs, Subnets and InstanceProfiles to go true")
-
+		if nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsFalse() || nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsFalse() || nodeClass.StatusConditions().Get(v1.ConditionTypeInstanceProfileReady).IsFalse() || nodeClass.StatusConditions().Get(v1.ConditionTypeSubnetsReady).IsFalse() {
+			nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "DependenciesNotReady", "SecurityGroups, AMIs, Subnets or InstanceProfiles went false")
+		}
 		return reconcile.Result{}, nil
 	}
 	nodeClaim := &karpv1.NodeClaim{
