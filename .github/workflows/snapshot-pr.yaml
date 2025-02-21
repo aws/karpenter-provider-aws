@@ -35,6 +35,8 @@ jobs:
           role-to-assume: 'arn:aws:iam::${{ vars.SNAPSHOT_ACCOUNT_ID }}:role/${{ vars.SNAPSHOT_ROLE_NAME }}'
           aws-region: ${{ vars.SNAPSHOT_REGION }}
       - run: make snapshot
+        env:
+          KO_DEFAULTBASEIMAGE: 'public.ecr.aws/eks-distro-build-tooling/eks-distro-minimal-base@sha256:5c9f8d3da61beb5ed4d60344767c7efaf24e76f6e1355a86697b507b5488a4d6'
       - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
           SNAPSHOT_ACCOUNT_ID: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
@@ -49,7 +51,7 @@ jobs:
             To install you must login to the ECR repo with an AWS account:
             ~~~
             aws ecr get-login-password --region ${process.env.SNAPSHOT_REGION} | docker login --username AWS --password-stdin ${process.env.SNAPSHOT_ACCOUNT_ID}.dkr.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com
-            
+
             helm upgrade --install karpenter oci://${process.env.SNAPSHOT_ACCOUNT_ID}.dkr.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com/karpenter/snapshot/karpenter --version "0-${process.env.PR_COMMIT}" --namespace "kube-system" --create-namespace \\
               --set "settings.clusterName=\${CLUSTER_NAME}" \\
               --set "settings.interruptionQueue=\${CLUSTER_NAME}" \\
