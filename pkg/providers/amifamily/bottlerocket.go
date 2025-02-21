@@ -44,7 +44,7 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 	trimmedAMIVersion := strings.TrimLeft(amiVersion, "v")
 	ids := map[string][]Variant{}
 	for path, variants := range map[string][]Variant{
-		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion):        {VariantStandard},
+		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion):        {VariantStandard, VariantNeuron},
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):         {VariantStandard},
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion): {VariantNvidia},
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):  {VariantNvidia},
