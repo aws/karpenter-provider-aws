@@ -44,6 +44,7 @@ func (m *MockedFunction[I, O]) Invoke(input *I, defaultTransformer func(*I) (*O,
 		m.failedCalls.Add(1)
 		return nil, err
 	}
+
 	m.CalledWithInput.Add(input)
 
 	if !m.Output.IsNil() {

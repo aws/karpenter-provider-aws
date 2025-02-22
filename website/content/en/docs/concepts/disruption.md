@@ -247,7 +247,7 @@ To configure a maximum termination duration, `terminationGracePeriod` should be 
 It is configured through a NodePool's [`spec.template.spec.terminationGracePeriod`]({{<ref "../concepts/nodepools/#spectemplatespecterminationgraceperiod" >}}) field, and is persisted to created NodeClaims (`spec.terminationGracePeriod`).
 Changes to the [`spec.template.spec.terminationGracePeriod`]({{<ref "../concepts/nodepools/#spectemplatespecterminationgraceperiod" >}}) field on the NodePool will not result in a change for existing NodeClaims - it will induce NodeClaim drift and the replacements will have the updated `terminationGracePeriod`.
 
-Once a node is disrupted, via either a [graceful](#automated-graceful-methods) or [forceful](#automated-forceful-methods) disruption method, Karpenter will being draining the node.
+Once a node is disrupted, via either a [graceful](#automated-graceful-methods) or [forceful](#automated-forceful-methods) disruption method, Karpenter will begin draining the node.
 At this point, the countdown for `terminationGracePeriod` begins.
 Once the `terminationGracePeriod` elapses, remaining pods will be forcibly deleted and the unerlying instance will be terminated.
 A node may be terminated before the `terminationGracePeriod` has elapsed if all disruptable pods have been drained.

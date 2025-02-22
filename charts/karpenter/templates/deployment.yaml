@@ -35,6 +35,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      automountServiceAccountToken: true
       serviceAccountName: {{ include "karpenter.serviceAccountName" . }}
       {{- with .Values.podSecurityContext }}
       securityContext:
