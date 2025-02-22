@@ -429,6 +429,10 @@ spec:
 
 ### AL2
 
+{{% alert title="AL2 support dropped at Kubernetes 1.33" color="warning" %}}
+Kubernetes version 1.32 is the last version for which Amazon EKS will release Amazon Linux 2 (AL2) AMIs. 
+{{% /alert %}}
+
 {{% alert title="Note" color="primary" %}}
 Note that Karpenter will automatically generate a call to the `/etc/eks/bootstrap.sh` script as part of its generated UserData. When using `amiFamily: AL2` you should not call this script yourself in `.spec.userData`. If you need to, use the [Custom AMI family]({{< ref "./nodeclasses/#custom" >}}) instead.
 {{% /alert %}}
