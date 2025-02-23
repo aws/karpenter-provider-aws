@@ -125,20 +125,20 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 	if err != nil {
 		return nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeResolutionFailed", "Error truncating instance types based on the passed-in requirements")
 	}
-	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, instanceTypes, tags)
+	capacityType := p.getCapacityType(nodeClaim, instanceTypes)
+	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, capacityType, instanceTypes, tags)
 	if awserrors.IsLaunchTemplateNotFound(err) {
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
 		// cache was out-of-sync on the first try
-		fleetInstance, err = p.launchInstance(ctx, nodeClass, nodeClaim, instanceTypes, tags)
+		fleetInstance, err = p.launchInstance(ctx, nodeClass, nodeClaim, capacityType, instanceTypes, tags)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	capacityType := p.getCapacityType(nodeClaim, instanceTypes)
 	var capacityReservation string
 	if capacityType == karpv1.CapacityTypeReserved {
-		capacityReservation = p.getCapacityReservationForInstance(
+		capacityReservation = p.getCapacityReservationIDForInstance(
 			string(fleetInstance.InstanceType),
 			*fleetInstance.LaunchTemplateAndOverrides.Overrides.AvailabilityZone,
 			instanceTypes,
@@ -242,8 +242,14 @@ func (p *DefaultProvider) CreateTags(ctx context.Context, id string, tags map[st
 	return nil
 }
 
-func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, tags map[string]string) (ec2types.CreateFleetInstance, error) {
-	capacityType := p.getCapacityType(nodeClaim, instanceTypes)
+func (p *DefaultProvider) launchInstance(
+	ctx context.Context,
+	nodeClass *v1.EC2NodeClass,
+	nodeClaim *karpv1.NodeClaim,
+	capacityType string,
+	instanceTypes []*cloudprovider.InstanceType,
+	tags map[string]string,
+) (ec2types.CreateFleetInstance, error) {
 	zonalSubnets, err := p.subnetProvider.ZonalSubnetsForLaunch(ctx, nodeClass, instanceTypes, capacityType)
 	if err != nil {
 		return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("getting subnets, %w", err), "SubnetResolutionFailed", "Error getting subnets")
@@ -366,32 +372,40 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(
 
 // getOverrides creates and returns launch template overrides for the cross product of InstanceTypes and subnets (with subnets being constrained by
 // zones and the offerings in InstanceTypes)
-func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*subnet.Subnet, reqs scheduling.Requirements, image, capacityReservationID string) []ec2types.FleetLaunchTemplateOverridesRequest {
+func (p *DefaultProvider) getOverrides(
+	instanceTypes []*cloudprovider.InstanceType,
+	zonalSubnets map[string]*subnet.Subnet,
+	reqs scheduling.Requirements,
+	image, capacityReservationID string,
+) []ec2types.FleetLaunchTemplateOverridesRequest {
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
 	type offeringWithParentName struct {
 		*cloudprovider.Offering
 		parentInstanceTypeName ec2types.InstanceType
 	}
-	var unwrappedOfferings []offeringWithParentName
+	var filteredOfferings []offeringWithParentName
 	for _, it := range instanceTypes {
-		ofs := lo.Map(it.Offerings.Available(), func(of *cloudprovider.Offering, _ int) offeringWithParentName {
-			return offeringWithParentName{
-				Offering:               of,
+		ofs := it.Offerings.Available().Compatible(reqs)
+		// If we are generating a launch template for a specific capacity reservation, we only want to include the offering
+		// for that capacity reservation when generating overrides.
+		if capacityReservationID != "" {
+			ofs = ofs.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(
+				cloudprovider.ReservationIDLabel,
+				corev1.NodeSelectorOpIn,
+				capacityReservationID,
+			)))
+		}
+		for _, o := range ofs {
+			filteredOfferings = append(filteredOfferings, offeringWithParentName{
+				Offering:               o,
 				parentInstanceTypeName: ec2types.InstanceType(it.Name),
-			}
-		})
-		unwrappedOfferings = append(unwrappedOfferings, ofs...)
+			})
+		}
 	}
 	var overrides []ec2types.FleetLaunchTemplateOverridesRequest
-	for _, offering := range unwrappedOfferings {
-		if capacityReservationID != "" && offering.ReservationID() != capacityReservationID {
-			continue
-		}
-		if reqs.Compatible(offering.Requirements, scheduling.AllowUndefinedWellKnownLabels) != nil {
-			continue
-		}
-		subnet, ok := zonalSubnets[offering.Requirements.Get(corev1.LabelTopologyZone).Any()]
+	for _, offering := range filteredOfferings {
+		subnet, ok := zonalSubnets[offering.Zone()]
 		if !ok {
 			continue
 		}
@@ -424,7 +438,7 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 
 	reservationIDs := make([]string, 0, len(errs))
 	for i := range errs {
-		id := p.getCapacityReservationForInstance(
+		id := p.getCapacityReservationIDForInstance(
 			string(errs[i].LaunchTemplateAndOverrides.Overrides.InstanceType),
 			lo.FromPtr(errs[i].LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
 			instanceTypes,
@@ -440,7 +454,7 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	p.capacityReservationProvider.MarkUnavailable(reservationIDs...)
 }
 
-func (p *DefaultProvider) getCapacityReservationForInstance(instance, zone string, instanceTypes []*cloudprovider.InstanceType) string {
+func (p *DefaultProvider) getCapacityReservationIDForInstance(instance, zone string, instanceTypes []*cloudprovider.InstanceType) string {
 	for _, it := range instanceTypes {
 		if it.Name != instance {
 			continue

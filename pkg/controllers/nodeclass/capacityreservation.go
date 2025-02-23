@@ -80,7 +80,10 @@ func (c *CapacityReservation) Reconcile(ctx context.Context, nc *v1.EC2NodeClass
 		nc.Status.CapacityReservations = append(nc.Status.CapacityReservations, reservation)
 	}
 	if len(errors) != 0 {
-		log.FromContext(ctx).Error(multierr.Combine(errors...), "failed to update status with %d of %d capacity reservations", len(errors), len(reservations))
+		log.FromContext(ctx).WithValues(
+			"error-count", len(errors),
+			"total-count", len(reservations),
+		).Error(multierr.Combine(errors...), "failed to parse discovered capacity reservations")
 	}
 	nc.StatusConditions().SetTrue(v1.ConditionTypeCapacityReservationsReady)
 	return reconcile.Result{RequeueAfter: c.requeueAfter(reservations...)}, nil

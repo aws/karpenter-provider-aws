@@ -142,8 +142,9 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 		// launching reserved capacity. If it's a reserved capacity launch, we've already filtered the instance types
 		// further up the call stack.
 		type launchTemplateParams struct {
-			efaCount       int
-			maxPods        int
+			efaCount int
+			maxPods  int
+			// reservationIDs is encoded as a string rather than a slice to ensure this type is comparable for use by `lo.GroupBy`.
 			reservationIDs string
 		}
 		paramsToInstanceTypes := lo.GroupBy(instanceTypes, func(it *cloudprovider.InstanceType) launchTemplateParams {
@@ -251,6 +252,9 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	}
 	// If no reservation IDs are provided, insert an empty string so the end result is a single launch template with no
 	// associated capacity reservation.
+	// TODO: We can simplify this by creating an initial lt, and then copying it for each cr. However, this requires a deep
+	// copy of the LT struct, which contains an interface causing problems for deepcopy-gen. See review comment for context:
+	// https://github.com/aws/karpenter-provider-aws/pull/7726#discussion_r1955280055
 	if len(capacityReservationIDs) == 0 {
 		capacityReservationIDs = append(capacityReservationIDs, "")
 	}

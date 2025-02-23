@@ -23,7 +23,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
@@ -175,16 +174,23 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		kubeDNSIP,
 		clusterEndpoint,
 	)
+	capacityReservationProvider := capacityreservation.NewProvider(
+		ec2api,
+		operator.Clock,
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.CapacityReservationAvailabilityTTL, awscache.DefaultCleanupInterval),
+	)
 	instanceTypeProvider := instancetype.NewDefaultProvider(
-		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		subnetProvider,
 		pricingProvider,
+		capacityReservationProvider,
 		unavailableOfferingsCache,
 		instancetype.NewDefaultResolver(cfg.Region),
 	)
-	capacityReservationProvider := capacityreservation.NewProvider(ec2api, operator.Clock, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(time.Hour*24, awscache.DefaultCleanupInterval))
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		cfg.Region,

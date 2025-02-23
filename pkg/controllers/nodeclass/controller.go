@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	"sigs.k8s.io/karpenter/pkg/operator/options"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 	"sigs.k8s.io/karpenter/pkg/utils/result"
 
@@ -59,20 +60,15 @@ type nodeClassReconciler interface {
 }
 
 type Controller struct {
-	kubeClient             client.Client
-	recorder               events.Recorder
-	launchTemplateProvider launchtemplate.Provider
-
-	ami                 *AMI
-	capacityReservation *CapacityReservation
-	instanceProfile     *InstanceProfile
-	subnet              *Subnet
-	securityGroup       *SecurityGroup
-	validation          *Validation
-	readiness           *Readiness //TODO : Remove this when we have sub status conditions
+	kubeClient              client.Client
+	recorder                events.Recorder
+	launchTemplateProvider  launchtemplate.Provider
+	instanceProfileProvider instanceprofile.Provider
+	reconcilers             []nodeClassReconciler
 }
 
 func NewController(
+	ctx context.Context,
 	clk clock.Clock,
 	kubeClient client.Client,
 	recorder events.Recorder,
@@ -84,18 +80,23 @@ func NewController(
 	capacityReservationProvider capacityreservation.Provider,
 	ec2api sdk.EC2API,
 ) *Controller {
-
+	reconcilers := []nodeClassReconciler{
+		NewAMIReconciler(amiProvider),
+		&Subnet{subnetProvider: subnetProvider},
+		&SecurityGroup{securityGroupProvider: securityGroupProvider},
+		&InstanceProfile{instanceProfileProvider: instanceProfileProvider},
+		&Validation{ec2api: ec2api, amiProvider: amiProvider},
+		&Readiness{launchTemplateProvider: launchTemplateProvider},
+	}
+	if options.FromContext(ctx).FeatureGates.ReservedCapacity {
+		reconcilers = append(reconcilers, NewCapacityReservationReconciler(clk, capacityReservationProvider))
+	}
 	return &Controller{
-		kubeClient:             kubeClient,
-		recorder:               recorder,
-		launchTemplateProvider: launchTemplateProvider,
-		ami:                    NewAMIReconciler(amiProvider),
-		capacityReservation:    NewCapacityReservationReconciler(clk, capacityReservationProvider),
-		subnet:                 &Subnet{subnetProvider: subnetProvider},
-		securityGroup:          &SecurityGroup{securityGroupProvider: securityGroupProvider},
-		instanceProfile:        &InstanceProfile{instanceProfileProvider: instanceProfileProvider},
-		validation:             &Validation{ec2api: ec2api, amiProvider: amiProvider},
-		readiness:              &Readiness{launchTemplateProvider: launchTemplateProvider},
+		kubeClient:              kubeClient,
+		recorder:                recorder,
+		launchTemplateProvider:  launchTemplateProvider,
+		instanceProfileProvider: instanceProfileProvider,
+		reconcilers:             reconcilers,
 	}
 }
 
@@ -128,15 +129,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 
 	var results []reconcile.Result
 	var errs error
-	for _, reconciler := range []nodeClassReconciler{
-		c.ami,
-		c.capacityReservation,
-		c.subnet,
-		c.securityGroup,
-		c.instanceProfile,
-		c.validation,
-		c.readiness,
-	} {
+	for _, reconciler := range c.reconcilers {
 		res, err := reconciler.Reconcile(ctx, nodeClass)
 		errs = multierr.Append(errs, err)
 		results = append(results, res)
@@ -173,8 +166,8 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
 	if nodeClass.Spec.Role != "" {
-		if _, err := c.instanceProfile.Finalize(ctx, nodeClass); err != nil {
-			return reconcile.Result{}, err
+		if err := c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
+			return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
 		}
 	}
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {

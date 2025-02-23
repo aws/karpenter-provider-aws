@@ -20,6 +20,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var (
+	CapacityReservationsEnabled = false
+)
+
 const (
 	ConditionTypeSubnetsReady              = "SubnetsReady"
 	ConditionTypeSecurityGroupsReady       = "SecurityGroupsReady"
@@ -102,7 +106,10 @@ type EC2NodeClassStatus struct {
 	// SecurityGroups contains the current security group values that are available to the
 	// cluster under the SecurityGroups selectors.
 	// +optional
-	SecurityGroups       []SecurityGroup       `json:"securityGroups,omitempty"`
+	SecurityGroups []SecurityGroup `json:"securityGroups,omitempty"`
+	// CapacityReservations contains the current capacity reservation values that are available to this NodeClass under the
+	// CapacityReservation selectors.
+	// +optional
 	CapacityReservations []CapacityReservation `json:"capacityReservations,omitempty"`
 	// AMI contains the current AMI values that are available to the
 	// cluster under the AMI selectors.
@@ -117,14 +124,17 @@ type EC2NodeClassStatus struct {
 }
 
 func (in *EC2NodeClass) StatusConditions() status.ConditionSet {
-	return status.NewReadyConditions(
+	conds := []string{
 		ConditionTypeAMIsReady,
 		ConditionTypeSubnetsReady,
 		ConditionTypeSecurityGroupsReady,
 		ConditionTypeInstanceProfileReady,
-		ConditionTypeCapacityReservationsReady,
 		ConditionTypeValidationSucceeded,
-	).For(in)
+	}
+	if CapacityReservationsEnabled {
+		conds = append(conds, ConditionTypeCapacityReservationsReady)
+	}
+	return status.NewReadyConditions(conds...).For(in)
 }
 
 func (in *EC2NodeClass) GetConditions() []status.Condition {

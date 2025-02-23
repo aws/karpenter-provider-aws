@@ -17,6 +17,7 @@ package capacityreservation
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -39,6 +40,7 @@ type Provider interface {
 
 type DefaultProvider struct {
 	availabilityCache
+	sync.Mutex
 
 	ec2api           sdk.EC2API
 	clk              clock.Clock
@@ -64,6 +66,10 @@ func NewProvider(
 }
 
 func (p *DefaultProvider) List(ctx context.Context, selectorTerms ...v1.CapacityReservationSelectorTerm) ([]*ec2types.CapacityReservation, error) {
+	// Take a write lock over the entire List operation to ensure minimize duplicate DescribeCapacityReservation calls
+	p.Lock()
+	defer p.Unlock()
+
 	var reservations []*ec2types.CapacityReservation
 	queries := QueriesFromSelectorTerms(selectorTerms...)
 	reservations, queries = p.resolveCachedQueries(queries...)
@@ -72,18 +78,19 @@ func (p *DefaultProvider) List(ctx context.Context, selectorTerms ...v1.Capacity
 	}
 	for _, q := range queries {
 		paginator := ec2.NewDescribeCapacityReservationsPaginator(p.ec2api, q.DescribeCapacityReservationsInput())
+		var queryReservations []*ec2types.CapacityReservation
 		for paginator.HasMorePages() {
 			out, err := paginator.NextPage(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("listing capacity reservations, %w", err)
 			}
-			queryReservations := lo.ToSlicePtr(out.CapacityReservations)
-			p.reservationCache.SetDefault(q.CacheKey(), queryReservations)
-			reservations = append(reservations, queryReservations...)
-			p.syncAvailability(lo.SliceToMap(queryReservations, func(r *ec2types.CapacityReservation) (string, int) {
-				return *r.CapacityReservationId, int(*r.AvailableInstanceCount)
-			}))
+			queryReservations = append(queryReservations, lo.ToSlicePtr(out.CapacityReservations)...)
 		}
+		p.syncAvailability(lo.SliceToMap(queryReservations, func(r *ec2types.CapacityReservation) (string, int) {
+			return *r.CapacityReservationId, int(*r.AvailableInstanceCount)
+		}))
+		p.reservationCache.SetDefault(q.CacheKey(), queryReservations)
+		reservations = append(reservations, queryReservations...)
 	}
 	return p.filterReservations(reservations), nil
 }

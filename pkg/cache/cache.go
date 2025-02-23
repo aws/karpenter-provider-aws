@@ -27,8 +27,12 @@ const (
 	// UnavailableOfferingsTTL is the time before offerings that were marked as unavailable
 	// are removed from the cache and are available for launch again
 	UnavailableOfferingsTTL = 3 * time.Minute
-	// InstanceTypesAndZonesTTL is the time before we refresh instance types and zones at EC2
-	InstanceTypesAndZonesTTL = 5 * time.Minute
+	// CapacityReservationAvailabilityTTL is the time we will persist cached capacity availability. Nominally, this is
+	// updated every minute, but we want to persist the data longer in the event of an EC2 API outage. 24 hours was the
+	// compormise made for API outage reseliency and gargage collecting entries for orphaned reservations.
+	CapacityReservationAvailabilityTTL = 24 * time.Hour
+	// InstanceTypesZonesAndOfferingsTTL is the time before we refresh instance types, zones, and offerings at EC2
+	InstanceTypesZonesAndOfferingsTTL = 5 * time.Minute
 	// InstanceProfileTTL is the time before we refresh checking instance profile existence at IAM
 	InstanceProfileTTL = 15 * time.Minute
 	// AvailableIPAddressTTL is time to drop AvailableIPAddress data if it is not updated within the TTL

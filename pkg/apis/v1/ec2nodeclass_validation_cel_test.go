@@ -529,12 +529,25 @@ var _ = Describe("CEL/Validation", func() {
 			}}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
+		It("should fail when specifying id with ownerID in a single term", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				OwnerID: "012345678901",
+				ID:      "cr-12345749",
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
 		It("should fail when the ownerID is malformed", func() {
 			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
 				OwnerID: "01234567890", // OwnerID must be 12 digits, this is 11
 				Tags: map[string]string{
 					"test": "testvalue",
 				},
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when the ownerID is set by itself", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				OwnerID: "012345678901",
 			}}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})

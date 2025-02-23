@@ -25,6 +25,7 @@ import (
 
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/offering"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 
@@ -83,10 +84,12 @@ type DefaultProvider struct {
 
 func NewDefaultProvider(
 	instanceTypesCache *cache.Cache,
+	offeringCache *cache.Cache,
 	discoveredCapacityCache *cache.Cache,
 	ec2api sdk.EC2API,
 	subnetProvider subnet.Provider,
 	pricingProvider pricing.Provider,
+	capacityReservationProvider capacityreservation.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	instanceTypesResolver Resolver,
 ) *DefaultProvider {
@@ -100,8 +103,12 @@ func NewDefaultProvider(
 		discoveredCapacityCache: discoveredCapacityCache,
 		cm:                      pretty.NewChangeMonitor(),
 		instanceTypesSeqNum:     0,
-
-		offeringProvider: offering.NewDefaultProvider(unavailableOfferingsCache, pricingProvider),
+		offeringProvider: offering.NewDefaultProvider(
+			pricingProvider,
+			capacityReservationProvider,
+			unavailableOfferingsCache,
+			offeringCache,
+		),
 	}
 }
 
@@ -147,6 +154,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		p.instanceTypesCache.SetDefault(key, instanceTypes)
 	}
 	return p.offeringProvider.InjectOfferings(
+		ctx,
 		instanceTypes,
 		nodeClass,
 		p.allZones,

@@ -19,11 +19,14 @@ import (
 	"fmt"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/mitchellh/hashstructure/v2"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -37,19 +40,28 @@ type Provider interface {
 }
 
 type DefaultProvider struct {
-	unavailableOfferings        *awscache.UnavailableOfferings
 	pricingProvider             pricing.Provider
 	capacityReservationProvider capacityreservation.Provider
+	unavailableOfferings        *awscache.UnavailableOfferings
+	cache                       *cache.Cache
 }
 
-func NewDefaultProvider(unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider pricing.Provider) *DefaultProvider {
+func NewDefaultProvider(
+	pricingProvider pricing.Provider,
+	capacityReservationProvider capacityreservation.Provider,
+	unavailableOfferingsCache *awscache.UnavailableOfferings,
+	offeringCache *cache.Cache,
+) *DefaultProvider {
 	return &DefaultProvider{
-		unavailableOfferings: unavailableOfferingsCache,
-		pricingProvider:      pricingProvider,
+		pricingProvider:             pricingProvider,
+		capacityReservationProvider: capacityReservationProvider,
+		unavailableOfferings:        unavailableOfferingsCache,
+		cache:                       offeringCache,
 	}
 }
 
 func (p *DefaultProvider) InjectOfferings(
+	ctx context.Context,
 	instanceTypes []*cloudprovider.InstanceType,
 	nodeClass *v1.EC2NodeClass,
 	allZones sets.Set[string],
@@ -60,6 +72,7 @@ func (p *DefaultProvider) InjectOfferings(
 	its := []*cloudprovider.InstanceType{}
 	for _, it := range instanceTypes {
 		offerings := p.createOfferings(
+			ctx,
 			it,
 			nodeClass,
 			allZones,
@@ -91,47 +104,58 @@ func (p *DefaultProvider) InjectOfferings(
 
 //nolint:gocyclo
 func (p *DefaultProvider) createOfferings(
+	ctx context.Context,
 	it *cloudprovider.InstanceType,
 	nodeClass *v1.EC2NodeClass,
 	allZones sets.Set[string],
 	subnetZones map[string]string,
 ) cloudprovider.Offerings {
+	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
 
-	var offerings []*cloudprovider.Offering
-	for zone := range allZones {
-		for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
-			// Reserved capacity types are constructed separately
-			if capacityType == karpv1.CapacityTypeReserved {
-				continue
+	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it)); ok {
+		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
+	} else {
+		var cachedOfferings []*cloudprovider.Offering
+		for zone := range allZones {
+			for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
+				// Reserved capacity types are constructed separately
+				if capacityType == karpv1.CapacityTypeReserved {
+					continue
+				}
+				isUnavailable := p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType)
+				_, hasSubnetZone := subnetZones[zone]
+				var price float64
+				var hasPrice bool
+				switch capacityType {
+				case karpv1.CapacityTypeOnDemand:
+					price, hasPrice = p.pricingProvider.OnDemandPrice(ec2types.InstanceType(it.Name))
+				case karpv1.CapacityTypeSpot:
+					price, hasPrice = p.pricingProvider.SpotPrice(ec2types.InstanceType(it.Name), zone)
+				default:
+					panic(fmt.Sprintf("invalid capacity type %q in requirements for instance type %q", capacityType, it.Name))
+				}
+				offering := &cloudprovider.Offering{
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType),
+						scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, zone),
+						scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpDoesNotExist),
+					),
+					Price:     price,
+					Available: !isUnavailable && hasPrice && itZones.Has(zone) && hasSubnetZone,
+				}
+				if id, ok := subnetZones[zone]; ok {
+					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
+				}
+				cachedOfferings = append(cachedOfferings, offering)
+				offerings = append(cachedOfferings, offering)
 			}
-
-			isUnavailable := p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType)
-			_, hasSubnetZone := subnetZones[zone]
-			var price float64
-			var hasPrice bool
-			switch capacityType {
-			case karpv1.CapacityTypeOnDemand:
-				price, hasPrice = p.pricingProvider.OnDemandPrice(ec2types.InstanceType(it.Name))
-			case karpv1.CapacityTypeSpot:
-				price, hasPrice = p.pricingProvider.SpotPrice(ec2types.InstanceType(it.Name), zone)
-			default:
-				panic(fmt.Sprintf("invalid capacity type %q in requirements for instance type %q", capacityType, it.Name))
-			}
-			offering := &cloudprovider.Offering{
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType),
-					scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, zone),
-					scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpDoesNotExist),
-				),
-				Price:     price,
-				Available: !isUnavailable && hasPrice && itZones.Has(zone) && hasSubnetZone,
-			}
-			if id, ok := subnetZones[zone]; ok {
-				offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
-			}
-			offerings = append(offerings, offering)
 		}
+		p.cache.SetDefault(p.cacheKeyFromInstanceType(it), cachedOfferings)
+		offerings = append(offerings, cachedOfferings...)
+	}
+	if !options.FromContext(ctx).FeatureGates.ReservedCapacity {
+		return offerings
 	}
 
 	for i := range nodeClass.Status.CapacityReservations {
@@ -166,4 +190,24 @@ func (p *DefaultProvider) createOfferings(
 		offerings = append(offerings, offering)
 	}
 	return offerings
+}
+
+func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceType) string {
+	zoneHash, _ := hashstructure.Hash(
+		it.Requirements.Get(corev1.LabelTopologyZone).Values(),
+		hashstructure.FormatV2,
+		&hashstructure.HashOptions{SlicesAsSets: true},
+	)
+	ctHash, _ := hashstructure.Hash(
+		it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values(),
+		hashstructure.FormatV2,
+		&hashstructure.HashOptions{SlicesAsSets: true},
+	)
+	return fmt.Sprintf(
+		"%s-%016x-%016x-%d",
+		it.Name,
+		zoneHash,
+		ctHash,
+		p.unavailableOfferings.SeqNum,
+	)
 }

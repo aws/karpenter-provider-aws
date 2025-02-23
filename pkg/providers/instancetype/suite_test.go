@@ -2448,7 +2448,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
 					DeviceName: lo.ToPtr("/dev/xvda"),
-					EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(10, resource.Giga)},
+					EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(20, resource.Giga)},
 					RootVolume: false,
 				},
 			}
@@ -2457,32 +2457,39 @@ var _ = Describe("InstanceTypeProvider", func() {
 				{Spec: v1.EC2NodeClassSpec{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}},
 				{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}}},
 				{
-					Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{
-						{
-							DeviceName: lo.ToPtr("/dev/sda1"),
-							EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(10, resource.Giga)},
-							RootVolume: true,
+					Spec: v1.EC2NodeClassSpec{
+						BlockDeviceMappings: []*v1.BlockDeviceMapping{
+							{
+								DeviceName: lo.ToPtr("/dev/xvda"),
+								EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(20, resource.Giga)},
+								RootVolume: false,
+							},
+							{
+								DeviceName: lo.ToPtr("/dev/sda1"),
+								EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(10, resource.Giga)},
+								RootVolume: true,
+							},
 						},
 					},
-					}},
+				},
 				{
-					Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{
-						{
+					Spec: v1.EC2NodeClassSpec{
+						BlockDeviceMappings: []*v1.BlockDeviceMapping{{
 							DeviceName: lo.ToPtr("/dev/xvda"),
-							EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(10, resource.Giga)},
-							RootVolume: true,
-						},
-					},
-					}},
-				{
-					Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{
-						{
-							DeviceName: lo.ToPtr("/dev/xvda"),
-							EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(20, resource.Giga)},
+							EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(15, resource.Giga)},
 							RootVolume: false,
-						},
+						}},
 					},
-					}},
+				},
+				{
+					Spec: v1.EC2NodeClassSpec{
+						BlockDeviceMappings: []*v1.BlockDeviceMapping{{
+							DeviceName: lo.ToPtr("/dev/yvda"),
+							EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(25, resource.Giga)},
+							RootVolume: true,
+						}},
+					},
+				},
 			}
 			var instanceTypeResult [][]*corecloudprovider.InstanceType
 			ExpectApplied(ctx, env.Client, nodeClass)
@@ -2502,12 +2509,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 				_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
 				// We are making sure to pull from the cache
-				instanetypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				its, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
-				sort.Slice(instanetypes, func(x int, y int) bool {
-					return instanetypes[x].Name < instanetypes[y].Name
+				sort.Slice(its, func(x int, y int) bool {
+					return its[x].Name < its[y].Name
 				})
-				instanceTypeResult = append(instanceTypeResult, instanetypes)
+				instanceTypeResult = append(instanceTypeResult, its)
 			}
 
 			// Based on the nodeclass configuration, we expect to have 5 unique set of instance types
@@ -2552,6 +2559,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 })
 
 func uniqueInstanceTypeList(instanceTypesLists [][]*corecloudprovider.InstanceType) {
+	GinkgoHelper()
 	for x := range instanceTypesLists {
 		for y := range instanceTypesLists {
 			if x == y {

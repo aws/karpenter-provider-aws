@@ -42,10 +42,3 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
 	return reconcile.Result{}, nil
 }
-
-func (ip *InstanceProfile) Finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	if err := ip.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
-		return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
-	}
-	return reconcile.Result{}, nil
-}

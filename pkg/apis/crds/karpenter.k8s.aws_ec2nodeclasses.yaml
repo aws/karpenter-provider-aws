@@ -671,6 +671,9 @@ spec:
                     type: object
                   type: array
                 capacityReservations:
+                  description: |-
+                    CapacityReservations contains the current capacity reservation values that are available to this NodeClass under the
+                    CapacityReservation selectors.
                   items:
                     properties:
                       availabilityZone:

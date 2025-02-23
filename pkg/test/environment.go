@@ -68,6 +68,7 @@ type Environment struct {
 	// Cache
 	EC2Cache                             *cache.Cache
 	InstanceTypeCache                    *cache.Cache
+	OfferingCache                        *cache.Cache
 	UnavailableOfferingsCache            *awscache.UnavailableOfferings
 	LaunchTemplateCache                  *cache.Cache
 	SubnetCache                          *cache.Cache
@@ -108,6 +109,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	// cache
 	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceTypeCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	offeringCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	discoveredCapacityCache := cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval)
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	launchTemplateCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -135,7 +137,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
 	amiResolver := amifamily.NewDefaultResolver()
 	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion)
-	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, unavailableOfferingsCache, instanceTypesResolver)
+	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
+	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, unavailableOfferingsCache, instanceTypesResolver)
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		launchTemplateCache,
@@ -149,7 +152,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		net.ParseIP("10.0.100.10"),
 		"https://test-cluster",
 	)
-	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		"",
@@ -169,8 +171,10 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		IAMAPI:     iamapi,
 		PricingAPI: fakePricingAPI,
 
-		EC2Cache:                             ec2Cache,
-		InstanceTypeCache:                    instanceTypeCache,
+		EC2Cache:          ec2Cache,
+		InstanceTypeCache: instanceTypeCache,
+		OfferingCache:     offeringCache,
+
 		LaunchTemplateCache:                  launchTemplateCache,
 		SubnetCache:                          subnetCache,
 		AvailableIPAdressCache:               availableIPAdressCache,
@@ -210,6 +214,7 @@ func (env *Environment) Reset() {
 
 	env.EC2Cache.Flush()
 	env.UnavailableOfferingsCache.Flush()
+	env.OfferingCache.Flush()
 	env.LaunchTemplateCache.Flush()
 	env.SubnetCache.Flush()
 	env.AssociatePublicIPAddressCache.Flush()
