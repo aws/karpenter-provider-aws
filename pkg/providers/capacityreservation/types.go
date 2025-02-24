@@ -158,7 +158,20 @@ func (c *availabilityCache) GetAvailableInstanceCount(reservationID string) int 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	entry, ok := c.cache.Get(reservationID)
-	return lo.Ternary(ok, entry.(*availabilityCacheEntry).count, 0)
+	if !ok {
+		return 0
+	}
+	return entry.(*availabilityCacheEntry).count
+}
+
+// TODO: Determine better abstraction for setting availability in tests without reconciling the nodeclass controller
+func (c *availabilityCache) SetAvailableInstanceCount(reservationID string, count int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cache.SetDefault(reservationID, &availabilityCacheEntry{
+		count:    count,
+		syncTime: c.clk.Now(),
+	})
 }
 
 func (c *availabilityCache) MarkUnavailable(reservationIDs ...string) {

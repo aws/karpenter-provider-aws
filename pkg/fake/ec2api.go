@@ -38,9 +38,10 @@ import (
 )
 
 type CapacityPool struct {
-	CapacityType string
-	InstanceType string
-	Zone         string
+	CapacityType  string
+	InstanceType  string
+	Zone          string
+	ReservationID string
 }
 
 // EC2Behavior must be reset between tests otherwise tests will
@@ -127,11 +128,21 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 			return nil, fmt.Errorf("missing launch template name")
 		}
 		var instanceIds []string
-		var skippedPools []CapacityPool
+		var icedPools []CapacityPool
+		var reservationExceededPools []CapacityPool
 		var spotInstanceRequestID *string
 
 		if string(input.TargetCapacitySpecification.DefaultTargetCapacityType) == karpv1.CapacityTypeSpot {
 			spotInstanceRequestID = aws.String(test.RandomName())
+		}
+
+		launchTemplates := map[string]*ec2.CreateLaunchTemplateInput{}
+		for e.CreateLaunchTemplateBehavior.CalledWithInput.Len() > 0 {
+			lt := e.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			launchTemplates[*lt.LaunchTemplateName] = lt
+		}
+		for _, ltInput := range launchTemplates {
+			e.CreateLaunchTemplateBehavior.CalledWithInput.Add(ltInput)
 		}
 
 		fulfilled := 0
@@ -142,7 +153,7 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 					if pool.InstanceType == string(override.InstanceType) &&
 						pool.Zone == aws.ToString(override.AvailabilityZone) &&
 						pool.CapacityType == string(input.TargetCapacitySpecification.DefaultTargetCapacityType) {
-						skippedPools = append(skippedPools, pool)
+						icedPools = append(icedPools, pool)
 						skipInstance = true
 						return false
 					}
@@ -151,7 +162,34 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 				if skipInstance {
 					continue
 				}
-				amiID := aws.String("")
+				amiID := lo.ToPtr("")
+				var capacityReservationID *string
+				if lt, ok := launchTemplates[lo.FromPtr(ltc.LaunchTemplateSpecification.LaunchTemplateName)]; ok {
+					amiID = lt.LaunchTemplateData.ImageId
+					if crs := lt.LaunchTemplateData.CapacityReservationSpecification; crs != nil && crs.CapacityReservationPreference == ec2types.CapacityReservationPreferenceCapacityReservationsOnly {
+						id := crs.CapacityReservationTarget.CapacityReservationId
+						if id == nil {
+							panic("received a launch template targeting capacity reservations without a provided ID")
+						}
+						capacityReservationID = id
+					}
+				}
+				if capacityReservationID != nil {
+					if cr, ok := lo.Find(e.DescribeCapacityReservationsOutput.Clone().CapacityReservations, func(cr ec2types.CapacityReservation) bool {
+						return *cr.CapacityReservationId == *capacityReservationID
+					}); !ok || *cr.AvailableInstanceCount == 0 {
+						reservationExceededPools = append(reservationExceededPools, CapacityPool{
+							InstanceType:  string(override.InstanceType),
+							Zone:          lo.FromPtr(override.AvailabilityZone),
+							CapacityType:  karpv1.CapacityTypeReserved,
+							ReservationID: *capacityReservationID,
+						})
+						skipInstance = true
+					}
+				}
+				if skipInstance {
+					continue
+				}
 				if e.CreateLaunchTemplateBehavior.CalledWithInput.Len() > 0 {
 					lt := e.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
 					amiID = lt.LaunchTemplateData.ImageId
@@ -193,13 +231,24 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 				},
 			},
 		}}
-		for _, pool := range skippedPools {
+		for _, pool := range icedPools {
 			result.Errors = append(result.Errors, ec2types.CreateFleetError{
 				ErrorCode: aws.String("InsufficientInstanceCapacity"),
 				LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
 					Overrides: &ec2types.FleetLaunchTemplateOverrides{
 						InstanceType:     ec2types.InstanceType(pool.InstanceType),
 						AvailabilityZone: aws.String(pool.Zone),
+					},
+				},
+			})
+		}
+		for _, pool := range reservationExceededPools {
+			result.Errors = append(result.Errors, ec2types.CreateFleetError{
+				ErrorCode: lo.ToPtr("ReservationCapacityExceeded"),
+				LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+					Overrides: &ec2types.FleetLaunchTemplateOverrides{
+						InstanceType:     ec2types.InstanceType(pool.InstanceType),
+						AvailabilityZone: lo.ToPtr(pool.Zone),
 					},
 				},
 			})

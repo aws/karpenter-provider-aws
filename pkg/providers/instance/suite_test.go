@@ -23,9 +23,11 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
@@ -136,6 +138,123 @@ var _ = Describe("InstanceProvider", func() {
 		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
+	})
+	It("should return an ICE error when all attempted instance types return a ReservedCapacityReservation error", func() {
+		const targetReservationID = "cr-m5.large-1a-1"
+		// Ensure that Karpenter believes a reservation is available, but the API returns no capacity when attempting to launch
+		awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(targetReservationID, 1)
+		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
+			CapacityReservations: []ec2types.CapacityReservation{
+				{
+					AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+					InstanceType:           lo.ToPtr("m5.large"),
+					OwnerId:                lo.ToPtr("012345678901"),
+					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+					CapacityReservationId:  lo.ToPtr(targetReservationID),
+					AvailableInstanceCount: lo.ToPtr[int32](0),
+					State:                  ec2types.CapacityReservationStateActive,
+				},
+			},
+		})
+		nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, v1.CapacityReservation{
+			ID:                    "cr-m5.large-1a-1",
+			AvailabilityZone:      "test-zone-1a",
+			InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
+			InstanceType:          "m5.large",
+			OwnerID:               "012345678901",
+		})
+		nodeClaim.Spec.Requirements = append(
+			nodeClaim.Spec.Requirements,
+			karpv1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.CapacityTypeReserved},
+			}},
+		)
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(instance).To(BeNil())
+
+		// Ensure we marked the reservation as unavailable after encountering the error
+		Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(targetReservationID)).To(Equal(0))
+	})
+	It("should filter compatible reserved offerings such that only one offering per capacity pool is included in the CreateFleet request", func() {
+		const targetReservationID = "cr-m5.large-1a-2"
+		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
+			CapacityReservations: []ec2types.CapacityReservation{
+				{
+					AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+					InstanceType:           lo.ToPtr("m5.large"),
+					OwnerId:                lo.ToPtr("012345678901"),
+					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+					CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
+					AvailableInstanceCount: lo.ToPtr[int32](1),
+					State:                  ec2types.CapacityReservationStateActive,
+				},
+				{
+					AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+					InstanceType:           lo.ToPtr("m5.large"),
+					OwnerId:                lo.ToPtr("012345678901"),
+					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+					CapacityReservationId:  lo.ToPtr(targetReservationID),
+					AvailableInstanceCount: lo.ToPtr[int32](2),
+					State:                  ec2types.CapacityReservationStateActive,
+				},
+			},
+		})
+		awsEnv.CapacityReservationProvider.SetAvailableInstanceCount("cr-m5.large-1a-1", 1)
+		awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(targetReservationID, 2)
+		nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, []v1.CapacityReservation{
+			{
+				ID:                    "cr-m5.large-1a-1",
+				AvailabilityZone:      "test-zone-1a",
+				InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
+				InstanceType:          "m5.large",
+				OwnerID:               "012345678901",
+			},
+			{
+				ID:                    "cr-m5.large-1a-2",
+				AvailabilityZone:      "test-zone-1a",
+				InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
+				InstanceType:          "m5.large",
+				OwnerID:               "012345678901",
+			},
+		}...)
+
+		nodeClaim.Spec.Requirements = append(
+			nodeClaim.Spec.Requirements,
+			karpv1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.CapacityTypeReserved},
+			}},
+		)
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(instance.CapacityType).To(Equal(karpv1.CapacityTypeReserved))
+		Expect(instance.CapacityReservationID).To(Equal(targetReservationID))
+
+		// We should have only created a single launch template, for the single capacity reservation we're attempting to launch
+		var launchTemplates []*ec2.CreateLaunchTemplateInput
+		for awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len() > 0 {
+			launchTemplates = append(launchTemplates, awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop())
+		}
+		Expect(launchTemplates).To(HaveLen(1))
+		Expect(*launchTemplates[0].LaunchTemplateData.CapacityReservationSpecification.CapacityReservationTarget.CapacityReservationId).To(Equal(targetReservationID))
+
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).ToNot(Equal(0))
+		createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		Expect(createFleetInput.TargetCapacitySpecification.DefaultTargetCapacityType).To(Equal(ec2types.DefaultTargetCapacityTypeOnDemand))
+		Expect(createFleetInput.LaunchTemplateConfigs).To(HaveLen(1))
+		Expect(createFleetInput.LaunchTemplateConfigs[0].Overrides).To(HaveLen(1))
 	})
 	It("should return all NodePool-owned instances from List", func() {
 		ids := sets.New[string]()
