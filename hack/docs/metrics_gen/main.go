@@ -73,6 +73,13 @@ func main() {
 		return fmt.Sprintf("%s/%s/%s", m.namespace, m.subsystem, m.name)
 	})
 
+	// Remover métricas DEPRECATED antes de gerar a documentação
+	allMetrics = lo.Reject(allMetrics, func(m metricInfo, _ int) bool {
+		return strings.Contains(strings.ToLower(m.help), "deprecated")
+	})
+
+	// Código para gerar a documentação continua normalmente...
+
 	// Drop some metrics
 	for _, subsystem := range []string{"rest_client", "certwatcher_read", "controller_runtime_webhook"} {
 		allMetrics = lo.Reject(allMetrics, func(m metricInfo, _ int) bool {
