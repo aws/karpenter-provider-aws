@@ -93,7 +93,10 @@ var _ = Describe("InstanceProfile Generation", func() {
 	It("should have the EC2NodeClass status as not ready since Instance Profile was not resolved", func() {
 		nodeClass.Spec.Role = fmt.Sprintf("KarpenterNodeRole-%s", "invalidRole")
 		env.ExpectCreated(nodeClass)
-		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionUnknown})
-		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionUnknown})
+		Eventually(func(g Gomega) {
+			nc := env.ExpectExists(nodeClass).(*v1.EC2NodeClass)
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nc, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionUnknown})
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nc, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionUnknown})
+		}).Should(Succeed())
 	})
 })
