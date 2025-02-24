@@ -72,12 +72,10 @@ func main() {
 	allMetrics = lo.UniqBy(allMetrics, func(m metricInfo) string {
 		return fmt.Sprintf("%s/%s/%s", m.namespace, m.subsystem, m.name)
 	})
-
 	// remove metrics deprecated
 	allMetrics = lo.Reject(allMetrics, func(m metricInfo, _ int) bool {
 		return strings.Contains(strings.ToLower(m.help), "deprecated")
 	})
-
 	// Drop some metrics
 	for _, subsystem := range []string{"rest_client", "certwatcher_read", "controller_runtime_webhook"} {
 		allMetrics = lo.Reject(allMetrics, func(m metricInfo, _ int) bool {
