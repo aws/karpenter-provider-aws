@@ -113,7 +113,7 @@ func (p *DefaultProvider) createOfferings(
 	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
 
-	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it)); ok {
+	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it, subnetZones)); ok {
 		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
 	} else {
 		var cachedOfferings []*cloudprovider.Offering
@@ -151,7 +151,7 @@ func (p *DefaultProvider) createOfferings(
 				offerings = append(cachedOfferings, offering)
 			}
 		}
-		p.cache.SetDefault(p.cacheKeyFromInstanceType(it), cachedOfferings)
+		p.cache.SetDefault(p.cacheKeyFromInstanceType(it, subnetZones), cachedOfferings)
 		offerings = append(offerings, cachedOfferings...)
 	}
 	if !options.FromContext(ctx).FeatureGates.ReservedCapacity {
@@ -192,22 +192,28 @@ func (p *DefaultProvider) createOfferings(
 	return offerings
 }
 
-func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceType) string {
-	zoneHash, _ := hashstructure.Hash(
+func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceType, subnetZones map[string]string) string {
+	zonesHash, _ := hashstructure.Hash(
 		it.Requirements.Get(corev1.LabelTopologyZone).Values(),
 		hashstructure.FormatV2,
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
-	ctHash, _ := hashstructure.Hash(
+	subnetZonesHash, _ := hashstructure.Hash(
+		subnetZones,
+		hashstructure.FormatV2,
+		&hashstructure.HashOptions{SlicesAsSets: true},
+	)
+	capacityTypesHash, _ := hashstructure.Hash(
 		it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values(),
 		hashstructure.FormatV2,
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
 	return fmt.Sprintf(
-		"%s-%016x-%016x-%d",
+		"%s-%016x-%016x-%016x-%d",
 		it.Name,
-		zoneHash,
-		ctHash,
+		zonesHash,
+		subnetZonesHash,
+		capacityTypesHash,
 		p.unavailableOfferings.SeqNum,
 	)
 }
