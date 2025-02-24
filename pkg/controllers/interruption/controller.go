@@ -108,7 +108,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 		msg, e := c.parseMessage(sqsMessages[i])
 		if e != nil {
 			// If we fail to parse, then we should delete the message but still log the error
-			log.FromContext(ctx).Error(err, "failed parsing interruption message")
+			log.FromContext(ctx).Error(e, "failed parsing interruption message")
 			errs[i] = c.deleteMessage(ctx, sqsMessages[i])
 			return
 		}
