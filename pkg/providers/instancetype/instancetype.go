@@ -153,6 +153,10 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		instanceTypes = p.resolveInstanceTypes(ctx, nodeClass, amiHash)
 		p.instanceTypesCache.SetDefault(key, instanceTypes)
 	}
+	// Offerings aren't cached along with the rest of the instance type info because reserved offerings need to have up to
+	// date capacity information. Rather than incurring a cache miss each time an instance is launched into a reserved
+	// offering (or terminated), offerings are injected to the cached instance types on each call. Note that on-demand and
+	// spot offerings are still cached - only reserved offerings are generated each time.
 	return p.offeringProvider.InjectOfferings(
 		ctx,
 		instanceTypes,

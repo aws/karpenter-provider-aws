@@ -69,7 +69,7 @@ func (p *DefaultProvider) InjectOfferings(
 	subnetZones := lo.SliceToMap(nodeClass.Status.Subnets, func(s v1.Subnet) (string, string) {
 		return s.Zone, s.ZoneID
 	})
-	its := []*cloudprovider.InstanceType{}
+	var its []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
 		offerings := p.createOfferings(
 			ctx,
@@ -78,16 +78,31 @@ func (p *DefaultProvider) InjectOfferings(
 			allZones,
 			subnetZones,
 		)
+
+		reservedAvailability := map[string]bool{}
 		for _, of := range offerings {
-			InstanceTypeOfferingAvailable.Set(float64(lo.Ternary(of.Available, 1, 0)), map[string]string{
-				instanceTypeLabel: it.Name,
-				capacityTypeLabel: of.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(),
-				zoneLabel:         of.Requirements.Get(corev1.LabelTopologyZone).Any(),
-			})
+			// If the capacity type is reserved we need to determine if any of the reserved offerings are available. Otherwise,
+			// we can update the availability metric directly.
+			if of.CapacityType() == karpv1.CapacityTypeReserved {
+				reservedAvailability[of.Zone()] = reservedAvailability[of.Zone()] || of.Available
+			} else {
+				InstanceTypeOfferingAvailable.Set(float64(lo.Ternary(of.Available, 1, 0)), map[string]string{
+					instanceTypeLabel: it.Name,
+					capacityTypeLabel: of.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(),
+					zoneLabel:         of.Requirements.Get(corev1.LabelTopologyZone).Any(),
+				})
+			}
 			InstanceTypeOfferingPriceEstimate.Set(of.Price, map[string]string{
 				instanceTypeLabel: it.Name,
 				capacityTypeLabel: of.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(),
 				zoneLabel:         of.Requirements.Get(corev1.LabelTopologyZone).Any(),
+			})
+		}
+		for zone := range allZones {
+			InstanceTypeOfferingAvailable.Set(float64(lo.Ternary(reservedAvailability[zone], 1, 0)), map[string]string{
+				instanceTypeLabel: it.Name,
+				capacityTypeLabel: karpv1.CapacityTypeReserved,
+				zoneLabel:         zone,
 			})
 		}
 

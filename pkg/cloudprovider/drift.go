@@ -32,10 +32,11 @@ import (
 )
 
 const (
-	AMIDrift           cloudprovider.DriftReason = "AMIDrift"
-	SubnetDrift        cloudprovider.DriftReason = "SubnetDrift"
-	SecurityGroupDrift cloudprovider.DriftReason = "SecurityGroupDrift"
-	NodeClassDrift     cloudprovider.DriftReason = "NodeClassDrift"
+	AMIDrift                 cloudprovider.DriftReason = "AMIDrift"
+	SubnetDrift              cloudprovider.DriftReason = "SubnetDrift"
+	SecurityGroupDrift       cloudprovider.DriftReason = "SecurityGroupDrift"
+	CapacityReservationDrift cloudprovider.DriftReason = "CapacityReservationDrift"
+	NodeClassDrift           cloudprovider.DriftReason = "NodeClassDrift"
 )
 
 func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
@@ -59,7 +60,13 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 	if err != nil {
 		return "", fmt.Errorf("calculating subnet drift, %w", err)
 	}
-	drifted := lo.FindOrElse([]cloudprovider.DriftReason{amiDrifted, securitygroupDrifted, subnetDrifted}, "", func(i cloudprovider.DriftReason) bool {
+	capacityReservationsDrifted := c.isCapacityReservationDrifted(instance, nodeClass)
+	drifted := lo.FindOrElse([]cloudprovider.DriftReason{
+		amiDrifted,
+		securitygroupDrifted,
+		subnetDrifted,
+		capacityReservationsDrifted,
+	}, "", func(i cloudprovider.DriftReason) bool {
 		return string(i) != ""
 	})
 	return drifted, nil
@@ -117,6 +124,16 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 		return SecurityGroupDrift, nil
 	}
 	return "", nil
+}
+
+// Checks if capacity reservations are drifted, by comparing the capacity reservations persisted to the NodeClass to
+// the instance's capacity reservation.
+func (c *CloudProvider) isCapacityReservationDrifted(instance *instance.Instance, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {
+	capacityReservationIDs := sets.New(lo.Map(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation, _ int) string { return cr.ID })...)
+	if instance.CapacityReservationID != "" && !capacityReservationIDs.Has(instance.CapacityReservationID) {
+		return CapacityReservationDrift
+	}
+	return ""
 }
 
 func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {

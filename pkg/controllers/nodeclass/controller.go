@@ -55,16 +55,12 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
 
-type nodeClassReconciler interface {
-	Reconcile(context.Context, *v1.EC2NodeClass) (reconcile.Result, error)
-}
-
 type Controller struct {
 	kubeClient              client.Client
 	recorder                events.Recorder
 	launchTemplateProvider  launchtemplate.Provider
 	instanceProfileProvider instanceprofile.Provider
-	reconcilers             []nodeClassReconciler
+	reconcilers             []reconcile.TypedReconciler[*v1.EC2NodeClass]
 }
 
 func NewController(
@@ -80,7 +76,7 @@ func NewController(
 	capacityReservationProvider capacityreservation.Provider,
 	ec2api sdk.EC2API,
 ) *Controller {
-	reconcilers := []nodeClassReconciler{
+	reconcilers := []reconcile.TypedReconciler[*v1.EC2NodeClass]{
 		NewAMIReconciler(amiProvider),
 		&Subnet{subnetProvider: subnetProvider},
 		&SecurityGroup{securityGroupProvider: securityGroupProvider},

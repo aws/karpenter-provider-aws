@@ -507,6 +507,9 @@ func (*DefaultProvider) filterReservedInstanceTypes(nodeClaimRequirements schedu
 		if len(zonalOfferings) == 0 {
 			continue
 		}
+		// WARNING: It is only safe to mutate the slice containing the offerings, not the offerings themselves. The individual
+		// offerings are cached, but not the slice storing them. This helps keep the launch path simple, but changes to the
+		// caching strategy employed by the InstanceType provider could result in unexpected behavior.
 		it.Offerings = lo.Values(zonalOfferings)
 		reservedInstanceTypes = append(reservedInstanceTypes, it)
 	}
