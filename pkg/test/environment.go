@@ -223,6 +223,7 @@ func (env *Environment) Reset() {
 	env.InstanceProfileCache.Flush()
 	env.SSMCache.Flush()
 	env.DiscoveredCapacityCache.Flush()
+	env.CapacityReservationCache.Flush()
 	mfs, err := crmetrics.Registry.Gather()
 	if err != nil {
 		for _, mf := range mfs {

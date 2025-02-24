@@ -76,23 +76,20 @@ func NewController(
 	capacityReservationProvider capacityreservation.Provider,
 	ec2api sdk.EC2API,
 ) *Controller {
-	reconcilers := []reconcile.TypedReconciler[*v1.EC2NodeClass]{
-		NewAMIReconciler(amiProvider),
-		&Subnet{subnetProvider: subnetProvider},
-		&SecurityGroup{securityGroupProvider: securityGroupProvider},
-		&InstanceProfile{instanceProfileProvider: instanceProfileProvider},
-		&Validation{ec2api: ec2api, amiProvider: amiProvider},
-		&Readiness{launchTemplateProvider: launchTemplateProvider},
-	}
-	if options.FromContext(ctx).FeatureGates.ReservedCapacity {
-		reconcilers = append(reconcilers, NewCapacityReservationReconciler(clk, capacityReservationProvider))
-	}
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
 		launchTemplateProvider:  launchTemplateProvider,
 		instanceProfileProvider: instanceProfileProvider,
-		reconcilers:             reconcilers,
+		reconcilers: []reconcile.TypedReconciler[*v1.EC2NodeClass]{
+			NewAMIReconciler(amiProvider),
+			NewCapacityReservationReconciler(clk, capacityReservationProvider),
+			&Subnet{subnetProvider: subnetProvider},
+			&SecurityGroup{securityGroupProvider: securityGroupProvider},
+			&InstanceProfile{instanceProfileProvider: instanceProfileProvider},
+			&Validation{ec2api: ec2api, amiProvider: amiProvider},
+			&Readiness{launchTemplateProvider: launchTemplateProvider},
+		},
 	}
 }
 
@@ -100,6 +97,7 @@ func (c *Controller) Name() string {
 	return "nodeclass"
 }
 
+//nolint:gocyclo
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
 
@@ -126,6 +124,9 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	var results []reconcile.Result
 	var errs error
 	for _, reconciler := range c.reconcilers {
+		if _, ok := reconciler.(*CapacityReservation); ok && !options.FromContext(ctx).FeatureGates.ReservedCapacity {
+			continue
+		}
 		res, err := reconciler.Reconcile(ctx, nodeClass)
 		errs = multierr.Append(errs, err)
 		results = append(results, res)

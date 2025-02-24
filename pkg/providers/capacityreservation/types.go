@@ -30,9 +30,9 @@ import (
 )
 
 type Query struct {
-	ids     []string
-	ownerID string
-	tags    map[string]string
+	IDs     []string
+	OwnerID string
+	Tags    map[string]string
 }
 
 func QueriesFromSelectorTerms(terms ...v1.CapacityReservationSelectorTerm) []*Query {
@@ -42,13 +42,15 @@ func QueriesFromSelectorTerms(terms ...v1.CapacityReservationSelectorTerm) []*Qu
 		if terms[i].ID != "" {
 			ids = append(ids, terms[i].ID)
 		}
-		queries = append(queries, &Query{
-			ownerID: terms[i].OwnerID,
-			tags:    terms[i].Tags,
-		})
+		if len(terms[i].Tags) != 0 {
+			queries = append(queries, &Query{
+				OwnerID: terms[i].OwnerID,
+				Tags:    terms[i].Tags,
+			})
+		}
 	}
 	if len(ids) != 0 {
-		queries = append(queries, &Query{ids: ids})
+		queries = append(queries, &Query{IDs: ids})
 	}
 	return queries
 }
@@ -64,20 +66,20 @@ func (q *Query) DescribeCapacityReservationsInput() *ec2.DescribeCapacityReserva
 		Name:   lo.ToPtr("state"),
 		Values: []string{string(ec2types.CapacityReservationStateActive)},
 	}}
-	if len(q.ids) != 0 {
+	if len(q.IDs) != 0 {
 		return &ec2.DescribeCapacityReservationsInput{
 			Filters:                filters,
-			CapacityReservationIds: q.ids,
+			CapacityReservationIds: q.IDs,
 		}
 	}
-	if q.ownerID != "" {
+	if q.OwnerID != "" {
 		filters = append(filters, ec2types.Filter{
 			Name:   lo.ToPtr("owner-id"),
-			Values: []string{q.ownerID},
+			Values: []string{q.OwnerID},
 		})
 	}
-	if len(q.tags) != 0 {
-		filters = append(filters, lo.MapToSlice(q.tags, func(k, v string) ec2types.Filter {
+	if len(q.Tags) != 0 {
+		filters = append(filters, lo.MapToSlice(q.Tags, func(k, v string) ec2types.Filter {
 			if v == "*" {
 				return ec2types.Filter{
 					Name:   lo.ToPtr("tag-key"),

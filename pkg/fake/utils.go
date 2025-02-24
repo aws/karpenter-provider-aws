@@ -90,7 +90,7 @@ func SubnetsFromFleetRequest(createFleetInput *ec2.CreateFleetInput) []string {
 // Filters are chained with a logical "AND"
 func FilterDescribeSecurtyGroups(sgs []ec2types.SecurityGroup, filters []ec2types.Filter) []ec2types.SecurityGroup {
 	return lo.Filter(sgs, func(group ec2types.SecurityGroup, _ int) bool {
-		return Filter(filters, *group.GroupId, *group.GroupName, group.Tags)
+		return Filter(filters, *group.GroupId, *group.GroupName, "", group.Tags)
 	})
 }
 
@@ -98,7 +98,26 @@ func FilterDescribeSecurtyGroups(sgs []ec2types.SecurityGroup, filters []ec2type
 // Filters are chained with a logical "AND"
 func FilterDescribeSubnets(subnets []ec2types.Subnet, filters []ec2types.Filter) []ec2types.Subnet {
 	return lo.Filter(subnets, func(subnet ec2types.Subnet, _ int) bool {
-		return Filter(filters, *subnet.SubnetId, "", subnet.Tags)
+		return Filter(filters, *subnet.SubnetId, "", "", subnet.Tags)
+	})
+}
+
+func FilterDescribeCapacityReservations(crs []ec2types.CapacityReservation, ids []string, filters []ec2types.Filter) []ec2types.CapacityReservation {
+	idSet := sets.New[string](ids...)
+	return lo.Filter(crs, func(cr ec2types.CapacityReservation, _ int) bool {
+		if len(ids) != 0 && !idSet.Has(*cr.CapacityReservationId) {
+			return false
+		}
+		if stateFilter, ok := lo.Find(filters, func(f ec2types.Filter) bool {
+			return lo.FromPtr(f.Name) == "state"
+		}); ok {
+			if !lo.Contains(stateFilter.Values, string(cr.State)) {
+				return false
+			}
+		}
+		return Filter(lo.Reject(filters, func(f ec2types.Filter, _ int) bool {
+			return lo.FromPtr(f.Name) == "state"
+		}), *cr.CapacityReservationId, "", *cr.OwnerId, cr.Tags)
 	})
 }
 
@@ -113,12 +132,12 @@ func FilterDescribeImages(images []ec2types.Image, filters []ec2types.Filter) []
 		}
 		return Filter(lo.Reject(filters, func(f ec2types.Filter, _ int) bool {
 			return lo.FromPtr(f.Name) == "state"
-		}), *image.ImageId, *image.Name, image.Tags)
+		}), *image.ImageId, *image.Name, "", image.Tags)
 	})
 }
 
 //nolint:gocyclo
-func Filter(filters []ec2types.Filter, id, name string, tags []ec2types.Tag) bool {
+func Filter(filters []ec2types.Filter, id, name, owner string, tags []ec2types.Tag) bool {
 	return lo.EveryBy(filters, func(filter ec2types.Filter) bool {
 		switch filterName := aws.ToString(filter.Name); {
 		case filterName == "subnet-id" || filterName == "group-id" || filterName == "image-id":
@@ -130,6 +149,12 @@ func Filter(filters []ec2types.Filter, id, name string, tags []ec2types.Tag) boo
 		case filterName == "group-name" || filterName == "name":
 			for _, val := range filter.Values {
 				if name == val {
+					return true
+				}
+			}
+		case filterName == "owner-id":
+			for _, val := range filter.Values {
+				if owner == val {
 					return true
 				}
 			}

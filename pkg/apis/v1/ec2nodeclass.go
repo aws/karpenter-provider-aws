@@ -184,7 +184,7 @@ type CapacityReservationSelectorTerm struct {
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
 	// ID is the capacity reservation id in EC2
-	// +kubebuilder:validation:Pattern:="^cr-[0-9a-z]+$"
+	// +kubebuilder:validation:Pattern:="^cr-.+$"
 	// +optional
 	ID string `json:"id,omitempty"`
 	// Owner is the owner id for the ami.

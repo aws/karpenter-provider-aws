@@ -244,7 +244,7 @@ spec:
                     properties:
                       id:
                         description: ID is the capacity reservation id in EC2
-                        pattern: ^cr-[0-9a-z]+$
+                        pattern: ^cr-.+$
                         type: string
                       ownerID:
                         description: Owner is the owner id for the ami.
@@ -687,7 +687,7 @@ spec:
                         type: string
                       id:
                         description: The id for the capacity reservation.
-                        pattern: ^cr-[0-9a-z]+$
+                        pattern: ^cr-.+$
                         type: string
                       instanceMatchCriteria:
                         description: Indicates the type of instance launches the capacity reservation accepts.
