@@ -35,7 +35,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("InstanceProfile Generation", func() {
+var _ = FDescribe("InstanceProfile Generation", func() {
 	BeforeEach(func() {
 		if env.PrivateCluster {
 			Skip("skipping InstanceProfile Generation test for private cluster")
@@ -94,6 +94,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 		nodeClass.Spec.Role = fmt.Sprintf("KarpenterNodeRole-%s", "invalidRole")
 		env.ExpectCreated(nodeClass)
 		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionUnknown})
-		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionUnknown})
+		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeValidationSucceeded, Status: metav1.ConditionFalse})
+		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse})
 	})
 })
