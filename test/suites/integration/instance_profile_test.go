@@ -35,7 +35,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("InstanceProfile Generation", func() {
+var _ = Describe("InstanceProfile Generation", func() {
 	BeforeEach(func() {
 		if env.PrivateCluster {
 			Skip("skipping InstanceProfile Generation test for private cluster")
