@@ -2396,7 +2396,7 @@ essential = true
 		}
 	})
 	DescribeTable(
-		"should set the capacity reservation specification accoriding to the capacity reservation feature flag",
+		"should set the capacity reservation specification according to the capacity reservation feature flag",
 		func(enabled bool) {
 			coreoptions.FromContext(ctx).FeatureGates.ReservedCapacity = enabled
 

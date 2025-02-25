@@ -81,7 +81,7 @@ type CapacityReservation struct {
 	// +optional
 	EndTime *metav1.Time `json:"endTime,omitempty" hash:"ignore"`
 	// The id for the capacity reservation.
-	// +kubebuilder:validation:Pattern:="^cr-.+$"
+	// +kubebuilder:validation:Pattern:="^cr-[0-9a-z]+$"
 	// +required
 	ID string `json:"id"`
 	// Indicates the type of instance launches the capacity reservation accepts.

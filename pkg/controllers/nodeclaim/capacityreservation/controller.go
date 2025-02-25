@@ -41,8 +41,11 @@ type Controller struct {
 	kubeClient client.Client
 }
 
-func NewController() *Controller {
-	return nil
+func NewController(kubeClient client.Client, cp cloudprovider.CloudProvider) *Controller {
+	return &Controller{
+		cp:         cp,
+		kubeClient: kubeClient,
+	}
 }
 
 func (*Controller) Name() string {
@@ -58,15 +61,13 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 
 func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
-
 	cpNodeClaims, err := c.cp.List(ctx)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing instance types, %w", err)
 	}
-	cpNodeClaimIndex := lo.SliceToMap(cpNodeClaims, func(nc *karpv1.NodeClaim) (string, *karpv1.NodeClaim) {
+	providerIDsToCPNodeClaims := lo.SliceToMap(cpNodeClaims, func(nc *karpv1.NodeClaim) (string, *karpv1.NodeClaim) {
 		return nc.Status.ProviderID, nc
 	})
-
 	ncs := &karpv1.NodeClaimList{}
 	if err := c.kubeClient.List(ctx, ncs, client.MatchingLabels{
 		karpv1.NodeRegisteredLabelKey: "true",
@@ -76,7 +77,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	updatedNodeClaims := sets.New[string]()
 	var errs []error
 	for i := range ncs.Items {
-		cpNC, ok := cpNodeClaimIndex[ncs.Items[i].Status.ProviderID]
+		cpNC, ok := providerIDsToCPNodeClaims[ncs.Items[i].Status.ProviderID]
 		if !ok {
 			continue
 		}
@@ -88,10 +89,11 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 			updatedNodeClaims.Insert(ncs.Items[i].Name)
 		}
 	}
-	log.FromContext(ctx).WithValues("NodeClaims", lo.Map(updatedNodeClaims.UnsortedList(), func(name string, _ int) klog.ObjectRef {
-		return klog.KRef("", name)
-	})).V(1).Info("updated capacity type for nodeclaims")
-
+	if len(updatedNodeClaims) != 0 {
+		log.FromContext(ctx).WithValues("NodeClaims", lo.Map(updatedNodeClaims.UnsortedList(), func(name string, _ int) klog.ObjectRef {
+			return klog.KRef("", name)
+		})).V(1).Info("updated capacity type for nodeclaims")
+	}
 	if len(errs) != 0 {
 		if lo.EveryBy(errs, func(err error) bool { return errors.IsConflict(err) }) {
 			return reconcile.Result{Requeue: true}, nil
@@ -118,7 +120,7 @@ func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, 
 		stored := nc.DeepCopy()
 		nc.Labels[karpv1.CapacityTypeLabelKey] = karpv1.CapacityTypeOnDemand
 		delete(nc.Labels, cloudprovider.ReservationIDLabel)
-		if err := c.kubeClient.Patch(ctx, nc, client.MergeFrom(stored)); err != nil {
+		if err := c.kubeClient.Patch(ctx, nc, client.MergeFrom(stored)); client.IgnoreNotFound(err) != nil {
 			return false, fmt.Errorf("patching nodeclaim %q, %w", nc.Name, err)
 		}
 	}
@@ -144,8 +146,8 @@ func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, 
 		}
 		stored := n.DeepCopy()
 		n.Labels[karpv1.CapacityTypeLabelKey] = karpv1.CapacityTypeOnDemand
-		delete(nc.Labels, cloudprovider.ReservationIDLabel)
-		if err := c.kubeClient.Patch(ctx, n, client.MergeFrom(stored)); err != nil {
+		delete(n.Labels, cloudprovider.ReservationIDLabel)
+		if err := c.kubeClient.Patch(ctx, n, client.MergeFrom(stored)); client.IgnoreNotFound(err) != nil {
 			return false, fmt.Errorf("patching node %q, %w", n.Name, err)
 		}
 	}

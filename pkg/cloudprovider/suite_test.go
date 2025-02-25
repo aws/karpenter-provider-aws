@@ -876,11 +876,11 @@ var _ = Describe("CloudProvider", func() {
 		It("should dynamically drift nodeclaims for capacity reservations", func() {
 			nodeClass.Status.CapacityReservations = []v1.CapacityReservation{
 				{
-					AvailabilityZone: "test-zone-1a",
-					ID: "cr-foo",
+					AvailabilityZone:      "test-zone-1a",
+					ID:                    "cr-foo",
 					InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
-					InstanceType: "m5.large",
-					OwnerID: "012345678901",
+					InstanceType:          "m5.large",
+					OwnerID:               "012345678901",
 				},
 			}
 			setReservationID := func(id string) {

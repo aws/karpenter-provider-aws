@@ -40,9 +40,15 @@ func DisableCapacityReservationIDValidation(crds []*apiextensionsv1.CustomResour
 		if crd.Name != "ec2nodeclasses.karpenter.k8s.aws" {
 			continue
 		}
+		// Disable validation for the selector terms
 		idProps := crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["capacityReservationSelectorTerms"].Items.Schema.Properties["id"]
-		idProps.Pattern = `^cr-.+$`
+		idProps.Pattern = ""
 		crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["capacityReservationSelectorTerms"].Items.Schema.Properties["id"] = idProps
+
+		// Disable validation for the status
+		idProps = crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["status"].Properties["capacityReservations"].Items.Schema.Properties["id"]
+		idProps.Pattern = ""
+		crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["status"].Properties["capacityReservations"].Items.Schema.Properties["id"] = idProps
 	}
 	return crds
 }

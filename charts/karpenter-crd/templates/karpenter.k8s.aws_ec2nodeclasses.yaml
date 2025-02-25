@@ -690,7 +690,7 @@ spec:
                         type: string
                       id:
                         description: The id for the capacity reservation.
-                        pattern: ^cr-.+$
+                        pattern: ^cr-[0-9a-z]+$
                         type: string
                       instanceMatchCriteria:
                         description: Indicates the type of instance launches the capacity reservation accepts.
