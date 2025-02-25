@@ -68,6 +68,9 @@ type EC2Behavior struct {
 	LaunchTemplates                     sync.Map
 	InsufficientCapacityPools           atomic.Slice[CapacityPool]
 	NextError                           AtomicError
+
+	// Tracks the capacity reservations associated with launch templates, if applicable
+	launchTemplateCapacityReservationIndex sync.Map
 }
 
 type EC2API struct {
@@ -109,6 +112,11 @@ func (e *EC2API) Reset() {
 	})
 	e.InsufficientCapacityPools.Reset()
 	e.NextError.Reset()
+
+	e.launchTemplateCapacityReservationIndex.Range(func(k, _ any) bool {
+		e.launchTemplateCapacityReservationIndex.Delete(k)
+		return true
+	})
 }
 
 // nolint: gocyclo
@@ -136,15 +144,6 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 			spotInstanceRequestID = aws.String(test.RandomName())
 		}
 
-		launchTemplates := map[string]*ec2.CreateLaunchTemplateInput{}
-		for e.CreateLaunchTemplateBehavior.CalledWithInput.Len() > 0 {
-			lt := e.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
-			launchTemplates[*lt.LaunchTemplateName] = lt
-		}
-		for _, ltInput := range launchTemplates {
-			e.CreateLaunchTemplateBehavior.CalledWithInput.Add(ltInput)
-		}
-
 		fulfilled := 0
 		for _, ltc := range input.LaunchTemplateConfigs {
 			for _, override := range ltc.Overrides {
@@ -162,34 +161,21 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 				if skipInstance {
 					continue
 				}
-				amiID := lo.ToPtr("")
-				var capacityReservationID *string
-				if lt, ok := launchTemplates[lo.FromPtr(ltc.LaunchTemplateSpecification.LaunchTemplateName)]; ok {
-					amiID = lt.LaunchTemplateData.ImageId
-					if crs := lt.LaunchTemplateData.CapacityReservationSpecification; crs != nil && crs.CapacityReservationPreference == ec2types.CapacityReservationPreferenceCapacityReservationsOnly {
-						id := crs.CapacityReservationTarget.CapacityReservationId
-						if id == nil {
-							panic("received a launch template targeting capacity reservations without a provided ID")
-						}
-						capacityReservationID = id
-					}
-				}
-				if capacityReservationID != nil {
+
+				if crID, ok := e.launchTemplateCapacityReservationIndex.Load(*ltc.LaunchTemplateSpecification.LaunchTemplateName); ok {
 					if cr, ok := lo.Find(e.DescribeCapacityReservationsOutput.Clone().CapacityReservations, func(cr ec2types.CapacityReservation) bool {
-						return *cr.CapacityReservationId == *capacityReservationID
+						return *cr.CapacityReservationId == crID.(string)
 					}); !ok || *cr.AvailableInstanceCount == 0 {
 						reservationExceededPools = append(reservationExceededPools, CapacityPool{
 							InstanceType:  string(override.InstanceType),
 							Zone:          lo.FromPtr(override.AvailabilityZone),
 							CapacityType:  karpv1.CapacityTypeReserved,
-							ReservationID: *capacityReservationID,
+							ReservationID: crID.(string),
 						})
-						skipInstance = true
+						continue
 					}
 				}
-				if skipInstance {
-					continue
-				}
+				amiID := lo.ToPtr("")
 				if e.CreateLaunchTemplateBehavior.CalledWithInput.Len() > 0 {
 					lt := e.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
 					amiID = lt.LaunchTemplateData.ImageId
@@ -292,6 +278,9 @@ func (e *EC2API) CreateLaunchTemplate(ctx context.Context, input *ec2.CreateLaun
 		}
 		launchTemplate := ec2types.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
 		e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
+		if crs := input.LaunchTemplateData.CapacityReservationSpecification; crs != nil && crs.CapacityReservationPreference == ec2types.CapacityReservationPreferenceCapacityReservationsOnly {
+			e.launchTemplateCapacityReservationIndex.Store(*input.LaunchTemplateName, *crs.CapacityReservationTarget.CapacityReservationId)
+		}
 		return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: lo.ToPtr(launchTemplate)}, nil
 	})
 }
@@ -442,7 +431,7 @@ func (e *EC2API) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 	output := &ec2.DescribeLaunchTemplatesOutput{}
 	e.LaunchTemplates.Range(func(key, value interface{}) bool {
 		launchTemplate := value.(ec2types.LaunchTemplate)
-		if lo.Contains(input.LaunchTemplateNames, lo.FromPtr(launchTemplate.LaunchTemplateName)) || len(input.Filters) != 0 && Filter(input.Filters, aws.ToString(launchTemplate.LaunchTemplateId), aws.ToString(launchTemplate.LaunchTemplateName), "", launchTemplate.Tags) {
+		if lo.Contains(input.LaunchTemplateNames, lo.FromPtr(launchTemplate.LaunchTemplateName)) || len(input.Filters) != 0 && Filter(input.Filters, aws.ToString(launchTemplate.LaunchTemplateId), aws.ToString(launchTemplate.LaunchTemplateName), "", "", launchTemplate.Tags) {
 			output.LaunchTemplates = append(output.LaunchTemplates, launchTemplate)
 		}
 		return true

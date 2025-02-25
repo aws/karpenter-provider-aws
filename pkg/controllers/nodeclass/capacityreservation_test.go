@@ -25,6 +25,7 @@ import (
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
 const selfOwnerID = "012345678901"
@@ -54,7 +55,7 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
 					CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-2"),
 					AvailableInstanceCount: lo.ToPtr[int32](10),
-					Tags:                   toEC2Tags(discoveryTags),
+					Tags:                   utils.MergeTags(discoveryTags),
 					State:                  ec2types.CapacityReservationStateActive,
 				},
 				{
@@ -73,7 +74,7 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
 					CapacityReservationId:  lo.ToPtr("cr-m5.large-1b-2"),
 					AvailableInstanceCount: lo.ToPtr[int32](15),
-					Tags:                   toEC2Tags(discoveryTags),
+					Tags:                   utils.MergeTags(discoveryTags),
 					State:                  ec2types.CapacityReservationStateActive,
 				},
 			},
@@ -171,12 +172,3 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 		}),
 	)
 })
-
-func toEC2Tags(tags map[string]string) []ec2types.Tag {
-	return lo.MapToSlice(tags, func(key, value string) ec2types.Tag {
-		return ec2types.Tag{
-			Key:   lo.ToPtr(key),
-			Value: lo.ToPtr(value),
-		}
-	})
-}

@@ -128,6 +128,9 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 
 // Checks if capacity reservations are drifted, by comparing the capacity reservations persisted to the NodeClass to
 // the instance's capacity reservation.
+// NOTE: We handle drift dynamically for capacity reservations rather than relying on the offerings inducing drift since
+// a reserved instance may fall back to on-demand. Relying on offerings could result in drift occurring before fallback
+// would cancel it out.
 func (c *CloudProvider) isCapacityReservationDrifted(instance *instance.Instance, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {
 	capacityReservationIDs := sets.New(lo.Map(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation, _ int) string { return cr.ID })...)
 	if instance.CapacityReservationID != "" && !capacityReservationIDs.Has(instance.CapacityReservationID) {

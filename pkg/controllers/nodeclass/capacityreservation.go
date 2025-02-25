@@ -72,7 +72,7 @@ func (c *CapacityReservation) Reconcile(ctx context.Context, nc *v1.EC2NodeClass
 	errors := []error{}
 	nc.Status.CapacityReservations = []v1.CapacityReservation{}
 	for _, r := range reservations {
-		reservation, err := capacityReservationFromEC2(r)
+		reservation, err := CapacityReservationFromEC2(r)
 		if err != nil {
 			errors = append(errors, err)
 			continue
@@ -89,7 +89,7 @@ func (c *CapacityReservation) Reconcile(ctx context.Context, nc *v1.EC2NodeClass
 	return reconcile.Result{RequeueAfter: c.requeueAfter(reservations...)}, nil
 }
 
-func capacityReservationFromEC2(cr *ec2types.CapacityReservation) (v1.CapacityReservation, error) {
+func CapacityReservationFromEC2(cr *ec2types.CapacityReservation) (v1.CapacityReservation, error) {
 	// Guard against new instance match criteria added in the future. See https://github.com/kubernetes-sigs/karpenter/issues/806
 	// for a similar issue.
 	if !lo.Contains([]ec2types.InstanceMatchCriteria{

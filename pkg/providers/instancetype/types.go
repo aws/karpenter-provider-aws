@@ -28,6 +28,7 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -123,8 +124,8 @@ func NewInstanceType(
 	ctx context.Context,
 	info ec2types.InstanceTypeInfo,
 	region string,
-	zones []string,
-	zonesToZoneIDs map[string]string,
+	offeringZones []string,
+	subnetZonesToZoneIDs map[string]string,
 	blockDeviceMappings []*v1.BlockDeviceMapping,
 	instanceStorePolicy *v1.InstanceStorePolicy,
 	maxPods *int32,
@@ -139,7 +140,7 @@ func NewInstanceType(
 	amiFamily := amifamily.GetAMIFamily(amiFamilyType, &amifamily.Options{})
 	it := &cloudprovider.InstanceType{
 		Name:         string(info.InstanceType),
-		Requirements: computeRequirements(info, region, zones, zonesToZoneIDs, amiFamily, capacityReservations),
+		Requirements: computeRequirements(info, region, offeringZones, subnetZonesToZoneIDs, amiFamily, capacityReservations),
 		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, maxPods, podsPerCore), ENILimitedPods(ctx, info), amiFamily, kubeReserved),
@@ -157,8 +158,8 @@ func NewInstanceType(
 func computeRequirements(
 	info ec2types.InstanceTypeInfo,
 	region string,
-	zones []string,
-	zonesToZoneIDs map[string]string,
+	offeringZones []string,
+	subnetZonesToZoneIDs map[string]string,
 	amiFamily amifamily.AMIFamily,
 	capacityReservations []v1.CapacityReservation,
 ) scheduling.Requirements {
@@ -172,12 +173,15 @@ func computeRequirements(
 		capacityTypes = append(capacityTypes, karpv1.CapacityTypeReserved)
 	}
 
+	// Available zones is the set intersection between zones where the instance type is available, and zones which are
+	// available via the provided EC2NodeClass.
+	availableZones := sets.New(offeringZones...).Intersection(sets.New(lo.Keys(subnetZonesToZoneIDs)...))
 	requirements := scheduling.NewRequirements(
 		// Well Known Upstream
 		scheduling.NewRequirement(corev1.LabelInstanceTypeStable, corev1.NodeSelectorOpIn, string(info.InstanceType)),
 		scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, getArchitecture(info)),
 		scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, getOS(info, amiFamily)...),
-		scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, zones...),
+		scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, availableZones.UnsortedList()...),
 		scheduling.NewRequirement(corev1.LabelTopologyRegion, corev1.NodeSelectorOpIn, region),
 		scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpDoesNotExist),
 		// Well Known to Karpenter
@@ -206,8 +210,8 @@ func computeRequirements(
 	)
 	// Only add zone-id label when available in offerings. It may not be available if a user has upgraded from a
 	// previous version of Karpenter w/o zone-id support and the nodeclass subnet status has not yet updated.
-	if zoneIDs := lo.FilterMap(zones, func(zone string, _ int) (string, bool) {
-		id, ok := zonesToZoneIDs[zone]
+	if zoneIDs := lo.FilterMap(availableZones.UnsortedList(), func(zone string, _ int) (string, bool) {
+		id, ok := subnetZonesToZoneIDs[zone]
 		return id, ok
 	}); len(zoneIDs) != 0 {
 		requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, zoneIDs...))

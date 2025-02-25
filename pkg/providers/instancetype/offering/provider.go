@@ -128,7 +128,7 @@ func (p *DefaultProvider) createOfferings(
 	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
 
-	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it, subnetZones)); ok {
+	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it)); ok {
 		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
 	} else {
 		var cachedOfferings []*cloudprovider.Offering
@@ -139,7 +139,6 @@ func (p *DefaultProvider) createOfferings(
 					continue
 				}
 				isUnavailable := p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType)
-				_, hasSubnetZone := subnetZones[zone]
 				var price float64
 				var hasPrice bool
 				switch capacityType {
@@ -157,7 +156,7 @@ func (p *DefaultProvider) createOfferings(
 						scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpDoesNotExist),
 					),
 					Price:     price,
-					Available: !isUnavailable && hasPrice && itZones.Has(zone) && hasSubnetZone,
+					Available: !isUnavailable && hasPrice && itZones.Has(zone),
 				}
 				if id, ok := subnetZones[zone]; ok {
 					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
@@ -166,7 +165,7 @@ func (p *DefaultProvider) createOfferings(
 				offerings = append(cachedOfferings, offering)
 			}
 		}
-		p.cache.SetDefault(p.cacheKeyFromInstanceType(it, subnetZones), cachedOfferings)
+		p.cache.SetDefault(p.cacheKeyFromInstanceType(it), cachedOfferings)
 		offerings = append(offerings, cachedOfferings...)
 	}
 	if !options.FromContext(ctx).FeatureGates.ReservedCapacity {
@@ -178,8 +177,6 @@ func (p *DefaultProvider) createOfferings(
 			continue
 		}
 		reservation := &nodeClass.Status.CapacityReservations[i]
-
-		_, hasSubnetZone := subnetZones[reservation.AvailabilityZone]
 		price := 0.0
 		if odPrice, ok := p.pricingProvider.OnDemandPrice(ec2types.InstanceType(it.Name)); ok {
 			// Divide the on-demand price by a sufficiently large constant. This allows us to treat the reservation as "free",
@@ -196,7 +193,7 @@ func (p *DefaultProvider) createOfferings(
 				scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpIn, reservation.ID),
 			),
 			Price:               price,
-			Available:           reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && hasSubnetZone,
+			Available:           reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone),
 			ReservationCapacity: reservationCapacity,
 		}
 		if id, ok := subnetZones[reservation.AvailabilityZone]; ok {
@@ -207,14 +204,9 @@ func (p *DefaultProvider) createOfferings(
 	return offerings
 }
 
-func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceType, subnetZones map[string]string) string {
+func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceType) string {
 	zonesHash, _ := hashstructure.Hash(
 		it.Requirements.Get(corev1.LabelTopologyZone).Values(),
-		hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true},
-	)
-	subnetZonesHash, _ := hashstructure.Hash(
-		subnetZones,
 		hashstructure.FormatV2,
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
@@ -224,10 +216,9 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
 	return fmt.Sprintf(
-		"%s-%016x-%016x-%016x-%d",
+		"%s-%016x-%016x-%d",
 		it.Name,
 		zonesHash,
-		subnetZonesHash,
 		capacityTypesHash,
 		p.unavailableOfferings.SeqNum,
 	)

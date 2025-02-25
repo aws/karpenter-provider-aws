@@ -68,7 +68,9 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	})
 
 	ncs := &karpv1.NodeClaimList{}
-	if err := c.kubeClient.List(ctx, ncs); err != nil {
+	if err := c.kubeClient.List(ctx, ncs, client.MatchingLabels{
+		karpv1.NodeRegisteredLabelKey: "true",
+	}); err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing nodeclaims, %w", err)
 	}
 	updatedNodeClaims := sets.New[string]()

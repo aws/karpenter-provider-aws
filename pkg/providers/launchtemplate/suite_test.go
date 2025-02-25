@@ -90,7 +90,7 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(test.DisableCapacityReservationIDValidation(apis.CRDs)...), coretest.WithCRDs(v1alpha1.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
@@ -2300,6 +2300,129 @@ essential = true
 			)
 		})
 	})
+	It("should generate a unique launch template per capacity reservation", func() {
+		crs := []ec2types.CapacityReservation{
+			{
+				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+				InstanceType:           lo.ToPtr("m5.large"),
+				OwnerId:                lo.ToPtr("012345678901"),
+				InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
+				AvailableInstanceCount: lo.ToPtr[int32](10),
+				State:                  ec2types.CapacityReservationStateActive,
+			},
+			{
+				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+				InstanceType:           lo.ToPtr("m5.large"),
+				OwnerId:                lo.ToPtr("012345678901"),
+				InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-2"),
+				AvailableInstanceCount: lo.ToPtr[int32](15),
+				State:                  ec2types.CapacityReservationStateActive,
+			},
+			{
+				AvailabilityZone:       lo.ToPtr("test-zone-1b"),
+				InstanceType:           lo.ToPtr("m5.large"),
+				OwnerId:                lo.ToPtr("012345678901"),
+				InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+				CapacityReservationId:  lo.ToPtr("cr-m5.large-1b-1"),
+				AvailableInstanceCount: lo.ToPtr[int32](10),
+				State:                  ec2types.CapacityReservationStateActive,
+			},
+			{
+				AvailabilityZone:       lo.ToPtr("test-zone-1b"),
+				InstanceType:           lo.ToPtr("m5.xlarge"),
+				OwnerId:                lo.ToPtr("012345678901"),
+				InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+				CapacityReservationId:  lo.ToPtr("cr-m5.xlarge-1b-1"),
+				AvailableInstanceCount: lo.ToPtr[int32](15),
+				State:                  ec2types.CapacityReservationStateActive,
+			},
+		}
+		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
+			CapacityReservations: crs,
+		})
+		for _, cr := range crs {
+			nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, lo.Must(nodeclass.CapacityReservationFromEC2(&cr)))
+			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(*cr.CapacityReservationId, int(*cr.AvailableInstanceCount))
+		}
+
+		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+			Key:      karpv1.CapacityTypeLabelKey,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{karpv1.CapacityTypeReserved},
+		}}}
+		pod := coretest.UnschedulablePod()
+		ExpectApplied(ctx, env.Client, pod, nodePool, nodeClass)
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
+
+		launchTemplates := map[string]*ec2.CreateLaunchTemplateInput{}
+		for awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len() != 0 {
+			lt := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			launchTemplates[*lt.LaunchTemplateName] = lt
+		}
+		// We should have created 3 launch templates, rather than 4 since we only create 1 launch template per capacity pool
+		Expect(launchTemplates).To(HaveLen(3))
+		reservationIDs := lo.Uniq(lo.Map(lo.Values(launchTemplates), func(input *ec2.CreateLaunchTemplateInput, _ int) string {
+			return *input.LaunchTemplateData.CapacityReservationSpecification.CapacityReservationTarget.CapacityReservationId
+		}))
+		Expect(reservationIDs).To(HaveLen(3))
+		Expect(reservationIDs).To(ConsistOf(
+			// We don't include the m5.large offering in 1a because we select the zonal offering with the highest capacity
+			"cr-m5.large-1a-2",
+			"cr-m5.large-1b-1",
+			"cr-m5.xlarge-1b-1",
+		))
+		for _, input := range launchTemplates {
+			Expect(input.LaunchTemplateData.CapacityReservationSpecification.CapacityReservationPreference).To(Equal(ec2types.CapacityReservationPreferenceCapacityReservationsOnly))
+		}
+
+		// Validate that we generate one override per launch template, and the override is for the instance pool associated
+		// with the capacity reservation.
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).ToNot(Equal(0))
+		createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		Expect(createFleetInput.LaunchTemplateConfigs).To(HaveLen(3))
+		for _, ltc := range createFleetInput.LaunchTemplateConfigs {
+			Expect(ltc.Overrides).To(HaveLen(1))
+			Expect(launchTemplates).To(HaveKey(*ltc.LaunchTemplateSpecification.LaunchTemplateName))
+			lt := launchTemplates[*ltc.LaunchTemplateSpecification.LaunchTemplateName]
+			cr, ok := lo.Find(crs, func(cr ec2types.CapacityReservation) bool {
+				return *cr.CapacityReservationId == *lt.LaunchTemplateData.CapacityReservationSpecification.CapacityReservationTarget.CapacityReservationId
+			})
+			Expect(ok).To(BeTrue())
+			Expect(*ltc.Overrides[0].AvailabilityZone).To(Equal(*cr.AvailabilityZone))
+			Expect(ltc.Overrides[0].InstanceType).To(Equal(ec2types.InstanceType(*cr.InstanceType)))
+		}
+	})
+	DescribeTable(
+		"should set the capacity reservation specification accoriding to the capacity reservation feature flag",
+		func(enabled bool) {
+			coreoptions.FromContext(ctx).FeatureGates.ReservedCapacity = enabled
+
+			pod := coretest.UnschedulablePod()
+			ExpectApplied(ctx, env.Client, pod, nodePool, nodeClass)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			var launchTemplates []*ec2.CreateLaunchTemplateInput
+			for awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len() != 0 {
+				launchTemplates = append(launchTemplates, awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop())
+			}
+			for _, input := range launchTemplates {
+				crs := input.LaunchTemplateData.CapacityReservationSpecification
+				if !enabled {
+					Expect(crs).To(BeNil())
+				} else {
+					Expect(*crs).To(Equal(ec2types.LaunchTemplateCapacityReservationSpecificationRequest{
+						CapacityReservationPreference: ec2types.CapacityReservationPreferenceNone,
+					}))
+				}
+			}
+		},
+		Entry("enabled", true),
+		Entry("disabled", false),
+	)
 })
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
