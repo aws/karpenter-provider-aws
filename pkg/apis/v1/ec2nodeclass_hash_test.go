@@ -184,21 +184,18 @@ var _ = Describe("Hash", func() {
 		hash := nodeClass.Hash()
 
 		// Update a behavior/dynamic field
-		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
-			{
-				Tags: map[string]string{"subnet-test-key": "subnet-test-value"},
-			},
-		}
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
-			{
-				Tags: map[string]string{"sg-test-key": "sg-test-value"},
-			},
-		}
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-			{
-				Tags: map[string]string{"ami-test-key": "ami-test-value"},
-			},
-		}
+		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{
+			Tags: map[string]string{"subnet-test-key": "subnet-test-value"},
+		}}
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{{
+			Tags: map[string]string{"sg-test-key": "sg-test-value"},
+		}}
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+			Tags: map[string]string{"ami-test-key": "ami-test-value"},
+		}}
+		nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+			Tags: map[string]string{"cr-test-key": "cr-test-value"},
+		}}
 		updatedHash := nodeClass.Hash()
 		Expect(hash).To(Equal(updatedHash))
 	})

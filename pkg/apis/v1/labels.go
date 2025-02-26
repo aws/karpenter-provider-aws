@@ -29,6 +29,7 @@ import (
 func init() {
 	karpv1.RestrictedLabelDomains = karpv1.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
 	karpv1.WellKnownLabels = karpv1.WellKnownLabels.Insert(
+		LabelCapacityReservationID,
 		LabelInstanceHypervisor,
 		LabelInstanceEncryptionInTransitSupported,
 		LabelInstanceCategory,
@@ -97,10 +98,7 @@ var (
 	ResourcePrivateIPv4Address corev1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
 	ResourceEFA                corev1.ResourceName = "vpc.amazonaws.com/efa"
 
-	LabelNodeClass = apis.Group + "/ec2nodeclass"
-
-	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
-
+	LabelCapacityReservationID                = apis.Group + "/capacity-reservation-id"
 	LabelInstanceHypervisor                   = apis.Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = apis.Group + "/instance-encryption-in-transit-supported"
 	LabelInstanceCategory                     = apis.Group + "/instance-category"
@@ -121,10 +119,14 @@ var (
 	LabelInstanceAcceleratorName              = apis.Group + "/instance-accelerator-name"
 	LabelInstanceAcceleratorManufacturer      = apis.Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
-	AnnotationEC2NodeClassHash                = apis.Group + "/ec2nodeclass-hash"
-	AnnotationClusterNameTaggedCompatability  = apis.CompatibilityGroup + "/cluster-name-tagged"
-	AnnotationEC2NodeClassHashVersion         = apis.Group + "/ec2nodeclass-hash-version"
-	AnnotationInstanceTagged                  = apis.Group + "/tagged"
+	LabelNodeClass                            = apis.Group + "/ec2nodeclass"
+
+	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
+
+	AnnotationEC2NodeClassHash               = apis.Group + "/ec2nodeclass-hash"
+	AnnotationClusterNameTaggedCompatability = apis.CompatibilityGroup + "/cluster-name-tagged"
+	AnnotationEC2NodeClassHashVersion        = apis.Group + "/ec2nodeclass-hash-version"
+	AnnotationInstanceTagged                 = apis.Group + "/tagged"
 
 	NodeClaimTagKey          = coreapis.Group + "/nodeclaim"
 	NameTagKey               = "Name"

@@ -15,6 +15,7 @@ limitations under the License.
 package aws
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -41,6 +42,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -524,4 +526,40 @@ func ignoreAlreadyContainsRole(err error) error {
 		}
 	}
 	return err
+}
+
+func ExpectCapacityReservationCreated(
+	ctx context.Context,
+	ec2api *ec2.Client,
+	instanceType ec2types.InstanceType,
+	zone string,
+	capacity int32,
+	endDate *time.Time,
+	tags map[string]string,
+) string {
+	GinkgoHelper()
+	out, err := ec2api.CreateCapacityReservation(ctx, &ec2.CreateCapacityReservationInput{
+		InstanceCount:         lo.ToPtr(capacity),
+		InstanceType:          lo.ToPtr(string(instanceType)),
+		InstancePlatform:      ec2types.CapacityReservationInstancePlatformLinuxUnix,
+		AvailabilityZone:      lo.ToPtr(zone),
+		EndDate:               endDate,
+		InstanceMatchCriteria: ec2types.InstanceMatchCriteriaTargeted,
+		TagSpecifications: lo.Ternary(len(tags) != 0, []ec2types.TagSpecification{{
+			ResourceType: ec2types.ResourceTypeCapacityReservation,
+			Tags:         utils.MergeTags(tags),
+		}}, nil),
+	})
+	Expect(err).ToNot(HaveOccurred())
+	return *out.CapacityReservation.CapacityReservationId
+}
+
+func ExpectCapacityReservationsCanceled(ctx context.Context, ec2api *ec2.Client, reservationIDs ...string) {
+	GinkgoHelper()
+	for _, id := range reservationIDs {
+		_, err := ec2api.CancelCapacityReservation(ctx, &ec2.CancelCapacityReservationInput{
+			CapacityReservationId: &id,
+		})
+		Expect(err).ToNot(HaveOccurred())
+	}
 }

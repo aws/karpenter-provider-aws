@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
@@ -32,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	"sigs.k8s.io/karpenter/pkg/test"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
@@ -66,7 +67,7 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
-var _ = Describe("Consolidation", func() {
+var _ = Describe("Consolidation", Ordered, func() {
 	Context("LastPodEventTime", func() {
 		var nodePool *karpv1.NodePool
 		BeforeEach(func() {
@@ -76,9 +77,9 @@ var _ = Describe("Consolidation", func() {
 		})
 		It("should update lastPodEventTime when pods are scheduled and removed", func() {
 			var numPods int32 = 5
-			dep := test.Deployment(test.DeploymentOptions{
+			dep := coretest.Deployment(coretest.DeploymentOptions{
 				Replicas: numPods,
-				PodOptions: test.PodOptions{
+				PodOptions: coretest.PodOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{"app": "regular-app"},
 					},
@@ -129,7 +130,7 @@ var _ = Describe("Consolidation", func() {
 		})
 		It("should update lastPodEventTime when pods go terminal", func() {
 			podLabels := map[string]string{"app": "regular-app"}
-			pod := test.Pod(test.PodOptions{
+			pod := coretest.Pod(coretest.PodOptions{
 				// use a non-pause image so that we can have a sleep
 				Image:   "alpine:3.20.2",
 				Command: []string{"/bin/sh", "-c", "sleep 30"},
@@ -143,7 +144,7 @@ var _ = Describe("Consolidation", func() {
 			})
 			job := &batchv1.Job{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      test.RandomName(),
+					Name:      coretest.RandomName(),
 					Namespace: "default",
 				},
 				Spec: batchv1.JobSpec{
@@ -190,9 +191,9 @@ var _ = Describe("Consolidation", func() {
 			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
 
 			numPods = 5
-			dep = test.Deployment(test.DeploymentOptions{
+			dep = coretest.Deployment(coretest.DeploymentOptions{
 				Replicas: numPods,
-				PodOptions: test.PodOptions{
+				PodOptions: coretest.PodOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{"app": "regular-app"},
 					},
@@ -245,7 +246,7 @@ var _ = Describe("Consolidation", func() {
 			// This test will hold consolidation until we are ready to execute it
 			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("Never")
 
-			nodePool = test.ReplaceRequirements(nodePool,
+			nodePool = coretest.ReplaceRequirements(nodePool,
 				karpv1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.LabelInstanceSize,
 						Operator: corev1.NodeSelectorOpIn,
@@ -258,9 +259,9 @@ var _ = Describe("Consolidation", func() {
 				Nodes: "50%",
 			}}
 			numPods = 9
-			dep = test.Deployment(test.DeploymentOptions{
+			dep = coretest.Deployment(coretest.DeploymentOptions{
 				Replicas: numPods,
-				PodOptions: test.PodOptions{
+				PodOptions: coretest.PodOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{"app": "large-app"},
 					},
@@ -306,7 +307,7 @@ var _ = Describe("Consolidation", func() {
 			// This test will hold consolidation until we are ready to execute it
 			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("Never")
 
-			nodePool = test.ReplaceRequirements(nodePool,
+			nodePool = coretest.ReplaceRequirements(nodePool,
 				karpv1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 						Key:      v1.LabelInstanceSize,
@@ -328,9 +329,9 @@ var _ = Describe("Consolidation", func() {
 				Nodes: "3",
 			}}
 
-			ds := test.DaemonSet(test.DaemonSetOptions{
+			ds := coretest.DaemonSet(coretest.DaemonSetOptions{
 				Selector: appLabels,
-				PodOptions: test.PodOptions{
+				PodOptions: coretest.PodOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: appLabels,
 					},
@@ -352,9 +353,9 @@ var _ = Describe("Consolidation", func() {
 			numPods = 5
 			deployments := make([]*appsv1.Deployment, numPods)
 			for i := range lo.Range(int(numPods)) {
-				deployments[i] = test.Deployment(test.DeploymentOptions{
+				deployments[i] = coretest.Deployment(coretest.DeploymentOptions{
 					Replicas: 1,
-					PodOptions: test.PodOptions{
+					PodOptions: coretest.PodOptions{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: appLabels,
 						},
@@ -485,7 +486,7 @@ var _ = Describe("Consolidation", func() {
 	})
 	DescribeTable("should consolidate nodes (delete)", Label(debug.NoWatch), Label(debug.NoEvents),
 		func(spotToSpot bool) {
-			nodePool := test.NodePool(karpv1.NodePool{
+			nodePool := coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Disruption: karpv1.Disruption{
 						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
@@ -531,9 +532,9 @@ var _ = Describe("Consolidation", func() {
 			})
 
 			var numPods int32 = 100
-			dep := test.Deployment(test.DeploymentOptions{
+			dep := coretest.Deployment(coretest.DeploymentOptions{
 				Replicas: numPods,
-				PodOptions: test.PodOptions{
+				PodOptions: coretest.PodOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{"app": "large-app"},
 					},
@@ -568,7 +569,7 @@ var _ = Describe("Consolidation", func() {
 	)
 	DescribeTable("should consolidate nodes (replace)",
 		func(spotToSpot bool) {
-			nodePool := test.NodePool(karpv1.NodePool{
+			nodePool := coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Disruption: karpv1.Disruption{
 						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
@@ -621,9 +622,9 @@ var _ = Describe("Consolidation", func() {
 			})
 
 			var numPods int32 = 3
-			largeDep := test.Deployment(test.DeploymentOptions{
+			largeDep := coretest.Deployment(coretest.DeploymentOptions{
 				Replicas: numPods,
-				PodOptions: test.PodOptions{
+				PodOptions: coretest.PodOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{"app": "large-app"},
 					},
@@ -644,9 +645,9 @@ var _ = Describe("Consolidation", func() {
 					},
 				},
 			})
-			smallDep := test.Deployment(test.DeploymentOptions{
+			smallDep := coretest.Deployment(coretest.DeploymentOptions{
 				Replicas: numPods,
-				PodOptions: test.PodOptions{
+				PodOptions: coretest.PodOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{"app": "small-app"},
 					},
@@ -723,7 +724,7 @@ var _ = Describe("Consolidation", func() {
 		Entry("if the nodes are spot nodes", true),
 	)
 	It("should consolidate on-demand nodes to spot (replace)", func() {
-		nodePool := test.NodePool(karpv1.NodePool{
+		nodePool := coretest.NodePool(karpv1.NodePool{
 			Spec: karpv1.NodePoolSpec{
 				Disruption: karpv1.Disruption{
 					ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
@@ -768,9 +769,9 @@ var _ = Describe("Consolidation", func() {
 		})
 
 		var numPods int32 = 2
-		smallDep := test.Deployment(test.DeploymentOptions{
+		smallDep := coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: numPods,
-			PodOptions: test.PodOptions{
+			PodOptions: coretest.PodOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "small-app"},
 				},
@@ -809,7 +810,7 @@ var _ = Describe("Consolidation", func() {
 		// Expect the node to consolidate to a spot instance as it will be a cheaper
 		// instance than on-demand
 		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
-		test.ReplaceRequirements(nodePool,
+		coretest.ReplaceRequirements(nodePool,
 			karpv1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 					Key:      karpv1.CapacityTypeLabelKey,
@@ -852,5 +853,147 @@ var _ = Describe("Consolidation", func() {
 		}, time.Minute*10).Should(Succeed())
 
 		env.ExpectDeleted(smallDep)
+	})
+	Context("Capacity Reservations", func() {
+		var largeCapacityReservationID, xlargeCapacityReservationID string
+		var nodePool *karpv1.NodePool
+		BeforeAll(func() {
+			largeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
+				env.Context,
+				env.EC2API,
+				ec2types.InstanceTypeM5Large,
+				env.ZoneInfo[0].Zone,
+				1,
+				nil,
+				nil,
+			)
+			xlargeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
+				env.Context,
+				env.EC2API,
+				ec2types.InstanceTypeM5Xlarge,
+				env.ZoneInfo[0].Zone,
+				1,
+				nil,
+				nil,
+			)
+		})
+		AfterAll(func() {
+			environmentaws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, largeCapacityReservationID, xlargeCapacityReservationID)
+		})
+		BeforeEach(func() {
+			nodePool = coretest.NodePool(karpv1.NodePool{
+				Spec: karpv1.NodePoolSpec{
+					Disruption: karpv1.Disruption{
+						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
+						ConsolidateAfter:    karpv1.MustParseNillableDuration("0s"),
+					},
+					Template: karpv1.NodeClaimTemplate{
+						Spec: karpv1.NodeClaimTemplateSpec{
+							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+								{
+									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+										Key:      karpv1.CapacityTypeLabelKey,
+										Operator: corev1.NodeSelectorOpIn,
+										Values:   []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved},
+									},
+								},
+							},
+							NodeClassRef: &karpv1.NodeClassReference{
+								Group: object.GVK(nodeClass).Group,
+								Kind:  object.GVK(nodeClass).Kind,
+								Name:  nodeClass.Name,
+							},
+						},
+					},
+				},
+			})
+		})
+		It("should consolidate into a reserved offering", func() {
+			dep := coretest.Deployment(coretest.DeploymentOptions{
+				PodOptions: coretest.PodOptions{
+					NodeRequirements: []corev1.NodeSelectorRequirement{{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values: []string{
+							// Should result in an m5.large initially
+							string(ec2types.InstanceTypeM5Large),
+							// Should consolidate to the m5.xlarge when we add the reservation to the nodeclass
+							string(ec2types.InstanceTypeM5Xlarge),
+						},
+					}},
+				},
+				Replicas: 1,
+			})
+			env.ExpectCreated(nodePool, nodeClass, dep)
+			env.EventuallyExpectNodeClaimsReady(env.EventuallyExpectNodeClaimCount("==", 1)...)
+			n := env.EventuallyExpectNodeCount("==", int(1))[0]
+			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Large)))
+			Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
+
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: xlargeCapacityReservationID}}
+			env.ExpectUpdated(nodeClass)
+
+			// Eventually expect the m5.large on-demand node to be replaced with an m5.xlarge reserved node. We should prioritize
+			// the reserved instance since it's already been paid for.
+			Eventually(func(g Gomega) {
+				var nodes corev1.NodeList
+				g.Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
+				filtered := lo.Filter(nodes.Items, func(n corev1.Node, _ int) bool {
+					if val, ok := n.Labels[karpv1.NodePoolLabelKey]; !ok || val != nodePool.Name {
+						return false
+					}
+					return true
+				})
+				g.Expect(filtered).To(HaveLen(1))
+
+				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Xlarge)))
+				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
+				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
+			}, time.Minute*10).Should(Succeed())
+		})
+		It("should consolidate between reserved offerings", func() {
+			dep := coretest.Deployment(coretest.DeploymentOptions{
+				PodOptions: coretest.PodOptions{
+					NodeRequirements: []corev1.NodeSelectorRequirement{{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values: []string{
+							string(ec2types.InstanceTypeM5Large),
+							string(ec2types.InstanceTypeM5Xlarge),
+						},
+					}},
+				},
+				Replicas: 1,
+			})
+
+			// Start by only enabling the m5.xlarge capacity reservation, ensuring it's provisioned
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: xlargeCapacityReservationID}}
+			env.ExpectCreated(nodePool, nodeClass, dep)
+			env.EventuallyExpectNodeClaimsReady(env.EventuallyExpectNodeClaimCount("==", 1)...)
+			n := env.EventuallyExpectNodeCount("==", int(1))[0]
+			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Xlarge)))
+			Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
+
+			// Add the m5.large capacity reservation to the nodeclass. We should consolidate from the xlarge instance to the large.
+			nodeClass.Spec.CapacityReservationSelectorTerms = append(nodeClass.Spec.CapacityReservationSelectorTerms, v1.CapacityReservationSelectorTerm{
+				ID: largeCapacityReservationID,
+			})
+			env.ExpectUpdated(nodeClass)
+			Eventually(func(g Gomega) {
+				var nodes corev1.NodeList
+				g.Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
+				filtered := lo.Filter(nodes.Items, func(n corev1.Node, _ int) bool {
+					if val, ok := n.Labels[karpv1.NodePoolLabelKey]; !ok || val != nodePool.Name {
+						return false
+					}
+					return true
+				})
+				g.Expect(filtered).To(HaveLen(1))
+				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Large)))
+				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
+				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, largeCapacityReservationID))
+			}, time.Minute*10).Should(Succeed())
+		})
 	})
 })

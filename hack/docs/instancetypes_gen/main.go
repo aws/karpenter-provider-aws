@@ -89,7 +89,9 @@ func main() {
 	lo.Must0(os.Setenv("SYSTEM_NAMESPACE", "karpenter"))
 	lo.Must0(os.Setenv("AWS_SDK_LOAD_CONFIG", "true"))
 
-	ctx := coreoptions.ToContext(context.Background(), coretest.Options())
+	ctx := coreoptions.ToContext(context.Background(), coretest.Options(coretest.OptionsFields{
+		FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(false)},
+	}))
 	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 		ClusterName:     lo.ToPtr("docs-gen"),
 		ClusterEndpoint: lo.ToPtr("https://docs-gen.aws"),
@@ -130,19 +132,21 @@ below are the resources available with some assumptions and after the instance o
 		ec2api := ec2.NewFromConfig(cfg)
 		subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 		instanceTypeProvider := instancetype.NewDefaultProvider(
-			cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
+			cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
+			cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 			cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval),
 			ec2api,
 			subnetProvider,
+			pricing.NewDefaultProvider(
+				ctx,
+				pricing.NewAPI(cfg),
+				ec2api,
+				cfg.Region,
+			),
+			nil,
+			awscache.NewUnavailableOfferings(),
 			instancetype.NewDefaultResolver(
 				region,
-				pricing.NewDefaultProvider(
-					ctx,
-					pricing.NewAPI(cfg),
-					ec2api,
-					cfg.Region,
-				),
-				awscache.NewUnavailableOfferings(),
 			),
 		)
 		if err = instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {

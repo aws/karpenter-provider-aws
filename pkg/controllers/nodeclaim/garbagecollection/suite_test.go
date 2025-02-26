@@ -65,7 +65,7 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
 	awsEnv = test.NewEnvironment(ctx, env)
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider)
 	garbageCollectionController = garbagecollection.NewController(env.Client, cloudProvider)
 })
 

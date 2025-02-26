@@ -46,6 +46,7 @@ import (
 
 	cloudproviderevents "github.com/aws/karpenter-provider-aws/pkg/cloudprovider/events"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
@@ -59,21 +60,30 @@ type CloudProvider struct {
 	kubeClient client.Client
 	recorder   events.Recorder
 
-	instanceTypeProvider  instancetype.Provider
-	instanceProvider      instance.Provider
-	amiProvider           amifamily.Provider
-	securityGroupProvider securitygroup.Provider
+	instanceTypeProvider        instancetype.Provider
+	instanceProvider            instance.Provider
+	amiProvider                 amifamily.Provider
+	securityGroupProvider       securitygroup.Provider
+	capacityReservationProvider capacityreservation.Provider
 }
 
-func New(instanceTypeProvider instancetype.Provider, instanceProvider instance.Provider, recorder events.Recorder,
-	kubeClient client.Client, amiProvider amifamily.Provider, securityGroupProvider securitygroup.Provider) *CloudProvider {
+func New(
+	instanceTypeProvider instancetype.Provider,
+	instanceProvider instance.Provider,
+	recorder events.Recorder,
+	kubeClient client.Client,
+	amiProvider amifamily.Provider,
+	securityGroupProvider securitygroup.Provider,
+	capacityReservationProvider capacityreservation.Provider,
+) *CloudProvider {
 	return &CloudProvider{
-		instanceTypeProvider:  instanceTypeProvider,
-		instanceProvider:      instanceProvider,
-		kubeClient:            kubeClient,
-		amiProvider:           amiProvider,
-		securityGroupProvider: securityGroupProvider,
-		recorder:              recorder,
+		instanceTypeProvider:        instanceTypeProvider,
+		instanceProvider:            instanceProvider,
+		kubeClient:                  kubeClient,
+		amiProvider:                 amiProvider,
+		securityGroupProvider:       securityGroupProvider,
+		capacityReservationProvider: capacityReservationProvider,
+		recorder:                    recorder,
 	}
 }
 
@@ -110,6 +120,9 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
 	if err != nil {
 		return nil, fmt.Errorf("creating instance, %w", err)
+	}
+	if instance.CapacityType == karpv1.CapacityTypeReserved {
+		c.capacityReservationProvider.MarkLaunched(instance.CapacityReservationID)
 	}
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return i.Name == string(instance.Type)
@@ -189,7 +202,11 @@ func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return fmt.Errorf("getting instance ID, %w", err)
 	}
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id))
-	return c.instanceProvider.Delete(ctx, id)
+	err = c.instanceProvider.Delete(ctx, id)
+	if id := nodeClaim.Labels[cloudprovider.ReservationIDLabel]; id != "" && cloudprovider.IsNodeClaimNotFoundError(err) {
+		c.capacityReservationProvider.MarkTerminated(id)
+	}
+	return err
 }
 
 func (c *CloudProvider) DisruptionReasons() []karpv1.DisruptionReason {
@@ -399,6 +416,9 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 		}
 	}
 	labels[karpv1.CapacityTypeLabelKey] = i.CapacityType
+	if i.CapacityType == karpv1.CapacityTypeReserved {
+		labels[cloudprovider.ReservationIDLabel] = i.CapacityReservationID
+	}
 	if v, ok := i.Tags[karpv1.NodePoolLabelKey]; ok {
 		labels[karpv1.NodePoolLabelKey] = v
 	}

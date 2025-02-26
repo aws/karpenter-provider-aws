@@ -91,7 +91,7 @@ var _ = BeforeSuite(func() {
 	sqsapi = &fake.SQSAPI{}
 	sqsProvider = lo.Must(sqs.NewDefaultProvider(sqsapi, fmt.Sprintf("https://sqs.%s.amazonaws.com/%s/test-cluster", fake.DefaultRegion, fake.DefaultAccount)))
 	cloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider)
 	controller = interruption.NewController(env.Client, cloudProvider, fakeClock, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, unavailableOfferingsCache)
 })
 
@@ -100,7 +100,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	unavailableOfferingsCache.Flush()
 	sqsapi.Reset()
 })

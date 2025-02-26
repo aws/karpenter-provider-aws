@@ -435,6 +435,123 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 	})
+	Context("CapacityReservationSelectorTerms", func() {
+		It("should succeed with a valid capacity reservation selector on tags", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				Tags: map[string]string{
+					"test": "testvalue",
+				},
+			}}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with a valid capacity reservation selector on id", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				ID: "cr-12345749",
+			}}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed for a valid ownerID", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				OwnerID: "012345678901",
+				Tags: map[string]string{
+					"test": "testvalue",
+				},
+			}}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail with a capacity reservation selector on a malformed id", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				ID: "r-12345749",
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should succeed when capacity group selector terms is set to nil", func() {
+			nc.Spec.CapacityReservationSelectorTerms = nil
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail when a capacity reservation selector term has no values", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when a capacity reservation selector term has no tag map values", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				Tags: map[string]string{},
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when a capacity reservation selector term has a tag map key that is empty", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				Tags: map[string]string{
+					"test": "",
+				},
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when a capacity reservation selector term has a tag map value that is empty", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				Tags: map[string]string{
+					"": "testvalue",
+				},
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when the last capacity reservation selector is invalid", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
+				{
+					Tags: map[string]string{
+						"test": "testvalue",
+					},
+				},
+				{
+					Tags: map[string]string{
+						"test2": "testvalue2",
+					},
+				},
+				{
+					Tags: map[string]string{
+						"test3": "testvalue3",
+					},
+				},
+				{
+					Tags: map[string]string{
+						"": "testvalue4",
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when specifying id with tags in a single term", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				ID: "cr-12345749",
+				Tags: map[string]string{
+					"test": "testvalue",
+				},
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when specifying id with ownerID in a single term", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				OwnerID: "012345678901",
+				ID:      "cr-12345749",
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when the ownerID is malformed", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				OwnerID: "01234567890", // OwnerID must be 12 digits, this is 11
+				Tags: map[string]string{
+					"test": "testvalue",
+				},
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when the ownerID is set by itself", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				OwnerID: "012345678901",
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+	})
 	Context("AMISelectorTerms", func() {
 		It("should succeed with a valid ami selector on alias", func() {
 			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{

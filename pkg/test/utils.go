@@ -31,3 +31,24 @@ func RemoveNodeClassTagValidation(crds []*apiextensionsv1.CustomResourceDefiniti
 	}
 	return crds
 }
+
+// DisableCapacityReservationIDValidation updates the regex validation used for capacity reservation IDs to allow any
+// string after the "cr-" prefix. This enables us to embed useful debugging information in the reservation ID, such as
+// the instance type and zone.
+func DisableCapacityReservationIDValidation(crds []*apiextensionsv1.CustomResourceDefinition) []*apiextensionsv1.CustomResourceDefinition {
+	for _, crd := range crds {
+		if crd.Name != "ec2nodeclasses.karpenter.k8s.aws" {
+			continue
+		}
+		// Disable validation for the selector terms
+		idProps := crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["capacityReservationSelectorTerms"].Items.Schema.Properties["id"]
+		idProps.Pattern = ""
+		crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["capacityReservationSelectorTerms"].Items.Schema.Properties["id"] = idProps
+
+		// Disable validation for the status
+		idProps = crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["status"].Properties["capacityReservations"].Items.Schema.Properties["id"]
+		idProps.Pattern = ""
+		crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["status"].Properties["capacityReservations"].Items.Schema.Properties["id"] = idProps
+	}
+	return crds
+}

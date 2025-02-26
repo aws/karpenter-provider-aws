@@ -38,6 +38,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
+	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -60,9 +62,10 @@ type Provider interface {
 	ResolveClusterCIDR(context.Context) error
 }
 type LaunchTemplate struct {
-	Name          string
-	InstanceTypes []*cloudprovider.InstanceType
-	ImageID       string
+	Name                  string
+	InstanceTypes         []*cloudprovider.InstanceType
+	ImageID               string
+	CapacityReservationID string
 }
 
 type DefaultProvider struct {
@@ -109,8 +112,14 @@ func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api sdk.EC2A
 	}()
 	return l
 }
-func (p *DefaultProvider) EnsureAll(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim,
-	instanceTypes []*cloudprovider.InstanceType, capacityType string, tags map[string]string) ([]*LaunchTemplate, error) {
+func (p *DefaultProvider) EnsureAll(
+	ctx context.Context,
+	nodeClass *v1.EC2NodeClass,
+	nodeClaim *karpv1.NodeClaim,
+	instanceTypes []*cloudprovider.InstanceType,
+	capacityType string,
+	tags map[string]string,
+) ([]*LaunchTemplate, error) {
 	p.Lock()
 	defer p.Unlock()
 	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{karpv1.CapacityTypeLabelKey: capacityType}), tags)
@@ -128,7 +137,12 @@ func (p *DefaultProvider) EnsureAll(ctx context.Context, nodeClass *v1.EC2NodeCl
 		if err != nil {
 			return nil, err
 		}
-		launchTemplates = append(launchTemplates, &LaunchTemplate{Name: *ec2LaunchTemplate.LaunchTemplateName, InstanceTypes: resolvedLaunchTemplate.InstanceTypes, ImageID: resolvedLaunchTemplate.AMIID})
+		launchTemplates = append(launchTemplates, &LaunchTemplate{
+			Name:                  *ec2LaunchTemplate.LaunchTemplateName,
+			InstanceTypes:         resolvedLaunchTemplate.InstanceTypes,
+			ImageID:               resolvedLaunchTemplate.AMIID,
+			CapacityReservationID: resolvedLaunchTemplate.CapacityReservationID,
+		})
 	}
 	return launchTemplates, nil
 }
@@ -219,7 +233,7 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
 	}
-	createLaunchTemplateInput := GetCreateLaunchTemplateInput(options, p.ClusterIPFamily, userData)
+	createLaunchTemplateInput := GetCreateLaunchTemplateInput(ctx, options, p.ClusterIPFamily, userData)
 	output, err := p.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput)
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
@@ -229,7 +243,12 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 }
 
 // you need UserData, AmiID, tags, blockdevicemappings, instance profile,
-func GetCreateLaunchTemplateInput(options *amifamily.LaunchTemplate, ClusterIPFamily corev1.IPFamily, userData string) *ec2.CreateLaunchTemplateInput {
+func GetCreateLaunchTemplateInput(
+	ctx context.Context,
+	options *amifamily.LaunchTemplate,
+	ClusterIPFamily corev1.IPFamily,
+	userData string,
+) *ec2.CreateLaunchTemplateInput {
 	launchTemplateDataTags := []ec2types.LaunchTemplateTagSpecificationRequest{
 		{ResourceType: ec2types.ResourceTypeNetworkInterface, Tags: utils.MergeTags(options.Tags)},
 	}
@@ -237,7 +256,7 @@ func GetCreateLaunchTemplateInput(options *amifamily.LaunchTemplate, ClusterIPFa
 		launchTemplateDataTags = append(launchTemplateDataTags, ec2types.LaunchTemplateTagSpecificationRequest{ResourceType: ec2types.ResourceTypeSpotInstancesRequest, Tags: utils.MergeTags(options.Tags)})
 	}
 	networkInterfaces := generateNetworkInterfaces(options, ClusterIPFamily)
-	return &ec2.CreateLaunchTemplateInput{
+	lt := &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(LaunchTemplateName(options)),
 		LaunchTemplateData: &ec2types.RequestLaunchTemplateData{
 			BlockDeviceMappings: blockDeviceMappings(options.BlockDeviceMappings),
@@ -275,6 +294,25 @@ func GetCreateLaunchTemplateInput(options *amifamily.LaunchTemplate, ClusterIPFa
 			},
 		},
 	}
+	// Gate this specifically since the update to CapacityReservationPreference will opt od / spot launches out of open
+	// ODCRs, which is a breaking change from the pre-native ODCR support behavior.
+	if karpoptions.FromContext(ctx).FeatureGates.ReservedCapacity {
+		lt.LaunchTemplateData.CapacityReservationSpecification = &ec2types.LaunchTemplateCapacityReservationSpecificationRequest{
+			CapacityReservationPreference: lo.Ternary(
+				options.CapacityType == karpv1.CapacityTypeReserved,
+				ec2types.CapacityReservationPreferenceCapacityReservationsOnly,
+				ec2types.CapacityReservationPreferenceNone,
+			),
+			CapacityReservationTarget: lo.Ternary(
+				options.CapacityType == karpv1.CapacityTypeReserved,
+				&ec2types.CapacityReservationTarget{
+					CapacityReservationId: &options.CapacityReservationID,
+				},
+				nil,
+			),
+		}
+	}
+	return lt
 }
 
 // generateNetworkInterfaces generates network interfaces for the launch template.
