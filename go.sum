@@ -116,8 +116,6 @@ github.com/imdario/mergo v0.3.16 h1:wwQJbIsHYGMUyLSPrEq1CT16AhnhNJQ51+4fdHUnCl4=
 github.com/imdario/mergo v0.3.16/go.mod h1:WBLT9ZmE3lPoWsEzCh9LPo3TiwVN+ZKEjmz+hD27ysY=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/jmdeal/karpenter v0.0.0-20250225003856-d34d71584c1a h1:r7gPnoafSMfTjVmirGrkQu/3Suo6wiVDSElWyWIscXk=
-github.com/jmdeal/karpenter v0.0.0-20250225003856-d34d71584c1a/go.mod h1:/FgjYrt+hwAMcvY46hku76st/aeP4KjOib6RLEj312g=
 github.com/jonathan-innis/aws-sdk-go-prometheus v0.1.1 h1:gmpuckrozJ3lfKqSIia9YMGh0caoQmEY7mQP5MsnbTM=
 github.com/jonathan-innis/aws-sdk-go-prometheus v0.1.1/go.mod h1:168XvZFghCqo32ISSWnTXwdlMKzEq+x9TqdfswCjkrQ=
 github.com/josharian/intern v1.0.0 h1:vlS4z54oSdjm0bgjRigI+G1HpF+tI+9rE5LLzOg8HmY=
@@ -344,6 +342,8 @@ sigs.k8s.io/controller-runtime v0.20.2 h1:/439OZVxoEc02psi1h4QO3bHzTgu49bb347Xp4
 sigs.k8s.io/controller-runtime v0.20.2/go.mod h1:xg2XB0K5ShQzAgsoujxuKN4LNXR2LfwwHsPj7Iaw+XY=
 sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3 h1:/Rv+M11QRah1itp8VhT6HoVx1Ray9eB4DBr+K+/sCJ8=
 sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3/go.mod h1:18nIHnGi6636UCz6m8i4DhaJ65T6EruyzmoQqI2BVDo=
+sigs.k8s.io/karpenter v1.2.1-0.20250226155434-a8631046b542 h1:PMOKjiZhLRPrCxYnupvibbozgJwEh+tZP/cudbc9ycc=
+sigs.k8s.io/karpenter v1.2.1-0.20250226155434-a8631046b542/go.mod h1:1yjrpcMgklF1tauKrDINTR614QDflMN5FQ87kdEzcpk=
 sigs.k8s.io/structured-merge-diff/v4 v4.4.2 h1:MdmvkGuXi/8io6ixD5wud3vOLwc1rj0aNqRlpuvjmwA=
 sigs.k8s.io/structured-merge-diff/v4 v4.4.2/go.mod h1:N8f93tFZh9U6vpxwRArLiikrE5/2tiu1w1AGfACIGE4=
 sigs.k8s.io/yaml v1.4.0 h1:Mk1wCc2gy/F0THH0TAp1QYyJNzRm2KCLy3o5ASXVI5E=

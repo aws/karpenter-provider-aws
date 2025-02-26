@@ -41,7 +41,8 @@ Resources:
                 "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
-                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*"
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*"
               ],
               "Action": [
                 "ec2:RunInstances",
