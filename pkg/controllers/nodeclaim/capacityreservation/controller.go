@@ -69,11 +69,12 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 		return nc.Status.ProviderID, nc
 	})
 	ncs := &karpv1.NodeClaimList{}
-	if err := c.kubeClient.List(ctx, ncs, client.MatchingLabels{
-		karpv1.NodeRegisteredLabelKey: "true",
-	}); err != nil {
+	if err := c.kubeClient.List(ctx, ncs); err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing nodeclaims, %w", err)
 	}
+	log.FromContext(ctx).WithValues("provider-ids", lo.Keys(providerIDsToCPNodeClaims), "nodeclaims", lo.Map(ncs.Items, func(nc karpv1.NodeClaim, _ int) string {
+		return nc.Name
+	})).Info("evaluating")
 	updatedNodeClaims := sets.New[string]()
 	var errs []error
 	for i := range ncs.Items {
