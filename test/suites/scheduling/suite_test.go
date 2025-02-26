@@ -741,13 +741,27 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					ID: xlargeCapacityReservationID,
 				},
 			}
-			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      karpv1.CapacityTypeLabelKey,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved},
-			}}}
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      karpv1.CapacityTypeLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved},
+					},
+				},
+				// We need to specify the OS label to prevent a daemonset with a Windows specific resource from scheduling against
+				// the node. Omitting this requirement will result in scheduling failures.
+				{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      corev1.LabelOSStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{string(corev1.Linux)},
+					},
+				},
+			}
 		})
 		It("should schedule against a specific reservation ID", func() {
+			selectors.Insert(v1.LabelCapacityReservationID)
 			pod := test.Pod(test.PodOptions{
 				NodeRequirements: []corev1.NodeSelectorRequirement{{
 					Key:      v1.LabelCapacityReservationID,
