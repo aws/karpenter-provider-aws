@@ -30,7 +30,7 @@ import (
 )
 
 type Query struct {
-	IDs     []string
+	ID      string
 	OwnerID string
 	Tags    map[string]string
 }
@@ -49,9 +49,9 @@ func QueriesFromSelectorTerms(terms ...v1.CapacityReservationSelectorTerm) []*Qu
 			})
 		}
 	}
-	if len(ids) != 0 {
-		queries = append(queries, &Query{IDs: ids})
-	}
+	queries = append(queries, lo.Map(ids, func(id string, _ int) *Query {
+		return &Query{ID: id}
+	})...)
 	return queries
 }
 
@@ -66,10 +66,10 @@ func (q *Query) DescribeCapacityReservationsInput() *ec2.DescribeCapacityReserva
 		Name:   lo.ToPtr("state"),
 		Values: []string{string(ec2types.CapacityReservationStateActive)},
 	}}
-	if len(q.IDs) != 0 {
+	if len(q.ID) != 0 {
 		return &ec2.DescribeCapacityReservationsInput{
 			Filters:                filters,
-			CapacityReservationIds: q.IDs,
+			CapacityReservationIds: []string{q.ID},
 		}
 	}
 	if q.OwnerID != "" {

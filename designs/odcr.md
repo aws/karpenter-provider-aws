@@ -58,14 +58,14 @@ AWS also supports grouping Capacity Reservation into [Capacity Reservation group
 
 ## Goals
 
-1. Allow selection of targeted and open ODCRs with Karpenter 
-2. Ensure multiple ODCRs can be selected from a single NodePool 
+1. Allow selection of targeted and open ODCRs with Karpenter
+2. Ensure multiple ODCRs can be selected from a single NodePool
 3. Ensure that we only launch capacity into an ODCR in a cluster when an application requires the capacity, ensuring ODCR sharing between clusters and accounts
-4. Ensure ODCRs are prioritized over regular OD and spot capacity 
-5. Ensure Karpenter consolidates regular OD and spot instances to ODCR capacity when it is available 
+4. Ensure ODCRs are prioritized over regular OD and spot capacity
+5. Ensure Karpenter consolidates regular OD and spot instances to ODCR capacity when it is available
 6. Ensure Karpenter consolidates between ODCRs when a smaller/cheaper ODCR is available
-7. Allow users to constrain a NodePool to only launch into ODCR capacity without fallback 
-8. Allow users to fallback from ODCR to spot capacity and from ODCR to standard OD capacity 
+7. Allow users to constrain a NodePool to only launch into ODCR capacity without fallback
+8. Allow users to fallback from ODCR to spot capacity and from ODCR to standard OD capacity
 9. Ensure OD capacity is not automatically drifted to new capacity when a capacity reservation expires or is canceled to reduce workload disruption
 
 ## Non-Goals
@@ -96,11 +96,9 @@ spec:
   # All other fields are not mutually exclusive and can be combined
   capacityReservationSelectorTerms:
     - # The id for the Capacity Reservation
-      # Specifying '*' for this field selects all ids
       id: String | None
       # The id of the AWS account that owns the Capacity Reservation
-      # If no ownerID is specified, only ODCRs owned by the current account will be used
-      # Specifying '*' for this field selects all ownerIDs
+      # If no ownerID is specified, any ODCRs available to the current account will be used
       ownerID: String | None
       # Tags is a map of key/value tags used to select capacity reservations
       # Specifying '*' for a value selects all values for a given tag key.
@@ -109,8 +107,6 @@ status:
   capacityReservations:
     - # AvailabilityZone for the Capacity Reservation
       availabilityZone: String
-      # Available Instance Count for the Capacity Reservation
-      availableInstanceCount: Integer
       # The time at which the Capacity Reservation expires. When a Capacity
       # Reservation expires, the reserved capacity is released and you can no longer
       # launch instances into it. The Capacity Reservation's state changes to expired
@@ -136,15 +132,13 @@ status:
       instanceType: String
       # The id of the AWS account that owns the Capacity Reservation
       ownerID: String
-      # Total Instance Count for the Capacity Reservation
-      totalInstanceCount: Integer
 ```
 
 This API follows closely with how [DescribeCapacityReservations](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeCapacityReservations.html) can filter capacity reservations -- allowing Karpenter to receive the server-side filtered version of the capacity reservations to store in its status.
 
 ### NodePool API
 
-The EC2NodeClass API allows selection on capacity reservations, which give additional options to the scheduler to choose from when launching instance types; however, it does not offer a mechanism to scope-down whether instances in a NodePool should only launch into an ODCR, fallback between a capacity reservation to on-demand if none is available, or fallback between a capacity reservation to spot and then finally to on-demand. 
+The EC2NodeClass API allows selection on capacity reservations, which give additional options to the scheduler to choose from when launching instance types; however, it does not offer a mechanism to scope-down whether instances in a NodePool should only launch into an ODCR, fallback between a capacity reservation to on-demand if none is available, or fallback between a capacity reservation to spot and then finally to on-demand.
 
 This RFC proposes the addition of a new `karpenter.sh/capacity-type` label value, called `reserved`. A cluster admin could then select to support only launching ODCR capacity and falling back between ODCR capacity to on-demand capacity respectively. _NOTE: This option requires any applications (pods) that are using node selection on `karpenter.sh/capacity-type: "on-demand"` to expand their selection to include `reserved` or to update it to perform a `NotIn` node affinity on `karpenter.sh/capacity-type: spot`_
 
@@ -206,7 +200,7 @@ To solve for this problem, Karpenter will implement special handling for `karpen
 
 We can surface ODCR capacity as additional offerings attached to each instance type. Offerings currently allow us to track the pricing of variants of a specific instance type, primarily based on capacity type and availability zone today.
 
-To track reservation capacity, we can add additional offerings to an instance type when there is a capacity reservation that is matched on by an EC2NodeClass's `capacityReservationSelectorTerms`. This offering will have a price near 0 to model the fact that the reservation is already paid-for and to ensure the offering is prioritized ahead of other offerings. 
+To track reservation capacity, we can add additional offerings to an instance type when there is a capacity reservation that is matched on by an EC2NodeClass's `capacityReservationSelectorTerms`. This offering will have a price near 0 to model the fact that the reservation is already paid-for and to ensure the offering is prioritized ahead of other offerings.
 
 When there are multiple capacity reservation offerings for an instance type for different AZs, we will produce separate offerings for these different zones. When there are multiple capacity reservation offerings for instance type in the same AZ, we will only produce a single offering. With this change, an example instance type offerings set will look like the following
 
@@ -253,9 +247,9 @@ offerings:
 
 ### Representing ODCR Available Instance Counts in Instance Type Offerings
 
-ODCRs (unlike spot and on-demand capacity) have much more defined, constrained capacity ceilings. For instance, in an extreme example, a user may select on a capacity reservation with only a single available instance but launch 10,000 pods that contain hostname anti-affinity. The scheduler would do work to determine that it needs to launch 10,000 instances for these pods; however, without any kind of cap on the number of times the capacity reservation offering could be used, the scheduler would think that it could launch 10,000 instances into the capacity reservation offering. 
+ODCRs (unlike spot and on-demand capacity) have much more defined, constrained capacity ceilings. For instance, in an extreme example, a user may select on a capacity reservation with only a single available instance but launch 10,000 pods that contain hostname anti-affinity. The scheduler would do work to determine that it needs to launch 10,000 instances for these pods; however, without any kind of cap on the number of times the capacity reservation offering could be used, the scheduler would think that it could launch 10,000 instances into the capacity reservation offering.
 
-Attempting to launch this would result in a success for a single instance and an ICE error for the other 9,999. The next scheduling loop would remediate this, but this results in a lot of extra, unneeded work. 
+Attempting to launch this would result in a success for a single instance and an ICE error for the other 9,999. The next scheduling loop would remediate this, but this results in a lot of extra, unneeded work.
 
 A better way to model this would be to track the available instance count as a numerical value associated with an instance type offering. In this modeling, the scheduler could count the number of simulated NodeClaims that might use the offering and know that it can't simulate NodeClaims into particular offerings once they hit their cap.
 
@@ -306,7 +300,7 @@ offerings:
 
 ## CloudProvider Launch Behavior
 
-When a NodeClaim is passed to the CloudProvider `Create()` call that selects the `reserved` capacity type, the AWS Cloud Provider will prioritize launching into the `reserved` capacity type before attempting other capacity types. 
+When a NodeClaim is passed to the CloudProvider `Create()` call that selects the `reserved` capacity type, the AWS Cloud Provider will prioritize launching into the `reserved` capacity type before attempting other capacity types.
 
 Practically, this means that when a NodeClaim allows for the `reserved` capacity type, Karpenter will know that this NodeClaim is requesting to launch into an ODCR and leverage available ODCR offerings from this NodePool that match the instance type and availability zone requirements passed through the NodeClaim.
 
@@ -360,7 +354,7 @@ reservation first then fall back into other instances. Because of this reserved 
 If we track Capacity Reservation usage, we can optimize the cluster configuration by moving non-Capacity Reserved instances into
 Capacity Reserved instances. We would need to match the instance type, platform and availability zone prior to doing this.
 
-This would be done by the standard consolidation algorithm and should work with minimal changes, since consolidation already optimizes for cost. 
+This would be done by the standard consolidation algorithm and should work with minimal changes, since consolidation already optimizes for cost.
 
 #### Consolidating between Capacity Reservations
 

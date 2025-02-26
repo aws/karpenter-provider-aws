@@ -28,6 +28,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 )
 
 type Provider interface {
@@ -82,6 +83,11 @@ func (p *DefaultProvider) List(ctx context.Context, selectorTerms ...v1.Capacity
 		for paginator.HasMorePages() {
 			out, err := paginator.NextPage(ctx)
 			if err != nil {
+				if awserrors.IsNotFound(err) {
+					// Note: we only receive this error when requesting a single ID, in which case we will only ever get a single page.
+					// Replacing this with a continue will result in an infinite loop as HasMorePages will always return true.
+					break
+				}
 				return nil, fmt.Errorf("listing capacity reservations, %w", err)
 			}
 			queryReservations = append(queryReservations, lo.ToSlicePtr(out.CapacityReservations)...)

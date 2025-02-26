@@ -32,6 +32,7 @@ const (
 var (
 	// This is not an exhaustive list, add to it as needed
 	notFoundErrorCodes = sets.New[string](
+		"InvalidCapacityReservationId.NotFound",
 		"InvalidInstanceID.NotFound",
 		launchTemplateNameNotFoundCode,
 		"InvalidLaunchTemplateId.NotFound",
