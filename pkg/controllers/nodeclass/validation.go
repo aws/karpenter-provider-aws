@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/mitchellh/hashstructure/v2"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -39,33 +41,60 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
-type Validation struct {
-	ec2api sdk.EC2API
+const (
+	ConditionReasonCreateFleetAuthFailed          = "CreateFleetAuthCheckFailed"
+	ConditionReasonCreateLaunchTemplateAuthFailed = "CreateLaunchTemplateAuthCheckFailed"
+	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
+	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
+	ConditionReasonTagValidationFailed            = "TagValidationFailed"
+)
 
+var ValidationConditionMessages = map[string]string{
+	ConditionReasonCreateFleetAuthFailed:          "Controller isn't authorized to call ec2:CreateFleet",
+	ConditionReasonCreateLaunchTemplateAuthFailed: "Controller isn't authorized to call ec2:CreateLaunchTemplate",
+	ConditionReasonRunInstancesAuthFailed:         "Controller isn't authorized to call ec2:RunInstances",
+}
+
+type Validation struct {
+	ec2api      sdk.EC2API
 	amiProvider amifamily.Provider
+	cache       *cache.Cache
+}
+
+func NewValidationReconciler(ec2api sdk.EC2API, amiProvider amifamily.Provider, cache *cache.Cache) *Validation {
+	return &Validation{
+		ec2api:      ec2api,
+		amiProvider: amiProvider,
+		cache:       cache,
+	}
 }
 
 // nolint:gocyclo
-func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	// Tag Validation
-	if offendingTag, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(k string, v string) bool {
-		for _, exp := range v1.RestrictedTagPatterns {
-			if exp.MatchString(k) {
-				return true
-			}
-		}
-		return false
-	}); found {
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "TagValidationFailed",
-			fmt.Sprintf("%q tag does not pass tag validation requirements", offendingTag))
-		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("%q tag does not pass tag validation requirements", offendingTag))
-	}
-	// Auth Validation
-	if !nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeInstanceProfileReady).IsTrue() || !nodeClass.StatusConditions().Get(v1.ConditionTypeSubnetsReady).IsTrue() {
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "DependenciesNotReady", "Waiting for SecurityGroups, AMIs, Subnets and InstanceProfiles to go true")
-
+func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
+	if _, ok := lo.Find(v.requiredConditions(), func(cond string) bool {
+		return nodeClass.StatusConditions().Get(cond).IsFalse()
+	}); ok {
+		// If any of the required status conditions are false, we know validation will fail regardless of the other values.
+		nodeClass.StatusConditions().SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonDependenciesNotReady,
+			"Awaiting AMI, Instance Profile, Security Group, and Subnet resolution",
+		)
 		return reconcile.Result{}, nil
 	}
+	if _, ok := lo.Find(v.requiredConditions(), func(cond string) bool {
+		return nodeClass.StatusConditions().Get(cond).IsUnknown()
+	}); ok {
+		// If none of the status conditions are false, but at least one is unknown, we should also consider the validation
+		// state to be unknown. Once all required conditions collapse to a true or false state, we can test validation.
+		nodeClass.StatusConditions().SetUnknownWithReason(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonDependenciesNotReady,
+			"Awaiting AMI, Instance Profile, Security Group, and Subnet resolution",
+		)
+		return reconcile.Result{}, nil
+	}
+
 	nodeClaim := &karpv1.NodeClaim{
 		Spec: karpv1.NodeClaimSpec{
 			NodeClassRef: &karpv1.NodeClassReference{
@@ -75,38 +104,95 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	}
 	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("getting tags, %w", err)
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, ConditionReasonTagValidationFailed, err.Error())
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating tags, %w", err))
 	}
 
+	if val, ok := v.cache.Get(v.cacheKey(nodeClass, tags)); ok {
+		// We still update the status condition even if it's cached since we may have had a conflict error previously
+		if val == "" {
+			nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
+		} else {
+			nodeClass.StatusConditions().SetFalse(
+				v1.ConditionTypeValidationSucceeded,
+				val.(string),
+				ValidationConditionMessages[val.(string)],
+			)
+		}
+		return reconcile.Result{}, nil
+	}
+	for _, isValid := range []validatorFunc{
+		v.validateCreateFleetAuthorization,
+		v.validateCreateLaunchTemplateAuthorization,
+		v.validateRunInstancesAuthorization,
+	} {
+		if failureReason, err := isValid(ctx, nodeClass, nodeClaim, tags); err != nil {
+			return reconcile.Result{}, err
+		} else if failureReason != "" {
+			v.cache.SetDefault(v.cacheKey(nodeClass, tags), failureReason)
+			nodeClass.StatusConditions().SetFalse(
+				v1.ConditionTypeValidationSucceeded,
+				failureReason,
+				ValidationConditionMessages[failureReason],
+			)
+			return reconcile.Result{}, nil
+		}
+	}
+
+	v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
+	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
+	return reconcile.Result{}, nil
+}
+
+type validatorFunc func(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim, map[string]string) (string, error)
+
+func (v *Validation) validateCreateFleetAuthorization(
+	ctx context.Context,
+	nodeClass *v1.EC2NodeClass,
+	_ *karpv1.NodeClaim,
+	tags map[string]string,
+) (reason string, err error) {
 	createFleetInput := instance.GetCreateFleetInput(nodeClass, string(karpv1.CapacityTypeOnDemand), tags, mockLaunchTemplateConfig())
 	createFleetInput.DryRun = aws.Bool(true)
-
-	if _, err := n.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IgnoreDryRunError(err) != nil {
+	if _, err := v.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
 			// it would be an unexpected state
-			return reconcile.Result{}, fmt.Errorf("unexpected error during CreateFleet validation: %w", err)
+			return "", fmt.Errorf("validating ec2:CreateFleet authorization, %w", err)
 		}
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateFleetAuthCheckFailed", "Controller isn't authorized to call CreateFleet")
-		return reconcile.Result{}, nil
+		return ConditionReasonCreateFleetAuthFailed, nil
 	}
+	return "", nil
+}
 
+func (v *Validation) validateCreateLaunchTemplateAuthorization(
+	ctx context.Context,
+	nodeClass *v1.EC2NodeClass,
+	nodeClaim *karpv1.NodeClaim,
+	tags map[string]string,
+) (reason string, err error) {
 	createLaunchTemplateInput := launchtemplate.GetCreateLaunchTemplateInput(ctx, mockOptions(*nodeClaim, nodeClass, tags), corev1.IPv4Protocol, "")
 	createLaunchTemplateInput.DryRun = aws.Bool(true)
-
-	if _, err := n.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IgnoreDryRunError(err) != nil {
+	if _, err := v.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
 			// it would be an unexpected state
-			return reconcile.Result{}, fmt.Errorf("unexpected error during CreateLaunchTemplate validation: %w", err)
+			return "", fmt.Errorf("validating ec2:CreateLaunchTemplates authorization, %w", err)
 		}
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "CreateLaunchTemplateAuthCheckFailed", "Controller isn't authorized to call CreateLaunchTemplate")
-		return reconcile.Result{}, nil
+		return ConditionReasonCreateLaunchTemplateAuthFailed, nil
 	}
+	return "", nil
+}
 
-	// This should never occur as AMIs should already be resolved during the AMI resolution phase
+func (v *Validation) validateRunInstancesAuthorization(
+	ctx context.Context,
+	nodeClass *v1.EC2NodeClass,
+	nodeClaim *karpv1.NodeClaim,
+	tags map[string]string,
+) (reason string, err error) {
+	// NOTE: Since we've already validated the AMI status condition is true, this should never occur
 	if len(nodeClass.Status.AMIs) == 0 {
-		return reconcile.Result{}, fmt.Errorf("no resolved AMIs in status: %w", err)
+		return "", fmt.Errorf("no resolved amis in status")
 	}
 
 	var instanceType ec2types.InstanceType
@@ -148,17 +234,37 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		ImageId: lo.ToPtr(nodeClass.Status.AMIs[0].ID),
 	}
 
-	if _, err = n.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
+	if _, err := v.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
 			// it would be an unexpected state
-			return reconcile.Result{}, fmt.Errorf("unexpected error during RunInstances validation: %w", err)
+			return "", fmt.Errorf("validating ec2:RunInstances authorization, %w", err)
 		}
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "RunInstancesAuthCheckFailed", "Controller isn't authorized to call RunInstances")
-		return reconcile.Result{}, nil
+		return ConditionReasonRunInstancesAuthFailed, nil
 	}
-	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
-	return reconcile.Result{}, nil
+	return "", nil
+}
+
+func (*Validation) requiredConditions() []string {
+	return []string{
+		v1.ConditionTypeAMIsReady,
+		v1.ConditionTypeInstanceProfileReady,
+		v1.ConditionTypeSecurityGroupsReady,
+		v1.ConditionTypeSubnetsReady,
+	}
+}
+
+func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) string {
+	hash := lo.Must(hashstructure.Hash([]interface{}{
+		nodeClass.Status.Subnets,
+		nodeClass.Status.SecurityGroups,
+		nodeClass.Status.AMIs,
+		nodeClass.Status.InstanceProfile,
+		nodeClass.Spec.MetadataOptions,
+		nodeClass.Spec.BlockDeviceMappings,
+		tags,
+	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
+	return fmt.Sprintf("%s-%016x", nodeClass.Name, hash)
 }
 
 func mockLaunchTemplateConfig() []ec2types.FleetLaunchTemplateConfigRequest {
@@ -182,6 +288,7 @@ func mockLaunchTemplateConfig() []ec2types.FleetLaunchTemplateConfigRequest {
 		},
 	}
 }
+
 func mockOptions(nodeClaim karpv1.NodeClaim, nodeClass *v1.EC2NodeClass, tags map[string]string) *amifamily.LaunchTemplate {
 	return &amifamily.LaunchTemplate{
 		Options: &amifamily.Options{
