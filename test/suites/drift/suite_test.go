@@ -991,7 +991,14 @@ var _ = Describe("Drift", Ordered, func() {
 		})
 		It("should drift nodeclaim when the reservation is no longer selected by the nodeclass", func() {
 			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: largeCapacityReservationID}}
-			pod := coretest.Pod()
+			// Include the do-not-disrupt annotation to prevent replacement NodeClaims from leaking between tests
+			pod := coretest.Pod(coretest.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						karpv1.DoNotDisruptAnnotationKey: "true",
+					},
+				},
+			})
 			env.ExpectCreated(nodePool, nodeClass, pod)
 			nc := env.EventuallyExpectNodeClaimCount("==", 1)[0]
 			env.EventuallyExpectNodeClaimsReady(nc)
@@ -1005,7 +1012,6 @@ var _ = Describe("Drift", Ordered, func() {
 			env.EventuallyExpectDrifted(nc)
 		})
 		It("should drift nodeclaim when the nodeclaim is demoted to on-demand", func() {
-			var canceled bool
 			capacityReservationID := aws.ExpectCapacityReservationCreated(
 				env.Context,
 				env.EC2API,
@@ -1016,9 +1022,7 @@ var _ = Describe("Drift", Ordered, func() {
 				nil,
 			)
 			DeferCleanup(func() {
-				if !canceled {
-					aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
-				}
+				aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
 			})
 
 			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: capacityReservationID}}
@@ -1042,7 +1046,6 @@ var _ = Describe("Drift", Ordered, func() {
 			n := env.EventuallyExpectNodeCount("==", 1)[0]
 
 			aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
-			canceled = true
 
 			// The NodeClaim capacity reservation controller runs once every minute, we'll give a little extra time to avoid
 			// a failure from a small delay, but the capacity type label should be updated and the reservation-id label should

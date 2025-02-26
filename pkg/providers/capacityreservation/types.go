@@ -37,10 +37,9 @@ type Query struct {
 
 func QueriesFromSelectorTerms(terms ...v1.CapacityReservationSelectorTerm) []*Query {
 	queries := []*Query{}
-	ids := []string{}
 	for i := range terms {
-		if terms[i].ID != "" {
-			ids = append(ids, terms[i].ID)
+		if id := terms[i].ID; id != "" {
+			queries = append(queries, &Query{ID: id})
 		}
 		if len(terms[i].Tags) != 0 {
 			queries = append(queries, &Query{
@@ -49,9 +48,6 @@ func QueriesFromSelectorTerms(terms ...v1.CapacityReservationSelectorTerm) []*Qu
 			})
 		}
 	}
-	queries = append(queries, lo.Map(ids, func(id string, _ int) *Query {
-		return &Query{ID: id}
-	})...)
 	return queries
 }
 

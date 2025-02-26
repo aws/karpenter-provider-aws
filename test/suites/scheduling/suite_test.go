@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
@@ -806,53 +805,6 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			}
 			Expect(reservedCount).To(Equal(1))
 			env.EventuallyExpectNodeCount("==", 2)
-		})
-		It("should demote reserved instances when the reservation is canceled", func() {
-			var canceled bool
-			capacityReservationID := environmentaws.ExpectCapacityReservationCreated(
-				env.Context,
-				env.EC2API,
-				ec2types.InstanceTypeM5Large,
-				env.ZoneInfo[0].Zone,
-				1,
-				nil,
-				nil,
-			)
-			DeferCleanup(func() {
-				if !canceled {
-					environmentaws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
-				}
-			})
-
-			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: capacityReservationID}}
-			pod := test.Pod()
-			env.ExpectCreated(nodePool, nodeClass, pod)
-
-			nc := env.EventuallyExpectNodeClaimCount("==", 1)[0]
-			req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
-				return req.Key == v1.LabelCapacityReservationID
-			})
-			Expect(ok).To(BeTrue())
-			Expect(req.Values).To(ConsistOf(capacityReservationID))
-			n := env.EventuallyExpectNodeCount("==", 1)[0]
-
-			environmentaws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
-			canceled = true
-
-			// The NodeClaim capacity reservation controller runs once every minute, we'll give a little extra time to avoid
-			// a failure from a small delay, but the capacity type label should be updated and the reservation-id label should
-			// be removed within a minute of the reservation being canceled.
-			Eventually(func(g Gomega) {
-				updatedNodeClaim := &karpv1.NodeClaim{}
-				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nc), updatedNodeClaim)).To(BeNil())
-				g.Expect(updatedNodeClaim.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
-				g.Expect(updatedNodeClaim.Labels).ToNot(HaveKey(v1.LabelCapacityReservationID))
-
-				updatedNode := &corev1.Node{}
-				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(n), updatedNode)).To(BeNil())
-				g.Expect(updatedNodeClaim.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
-				g.Expect(updatedNodeClaim.Labels).ToNot(HaveKey(v1.LabelCapacityReservationID))
-			}).WithTimeout(75 * time.Second).Should(Succeed())
 		})
 	})
 })
