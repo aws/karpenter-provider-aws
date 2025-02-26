@@ -22,6 +22,7 @@ import (
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/onsi/gomega/types"
 	"github.com/samber/lo"
+	"github.com/samber/lo/mutable"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -43,7 +44,8 @@ var _ = Describe("Subnets", func() {
 	It("should use the subnet-id selector", func() {
 		subnets := env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(len(subnets)).ToNot(Equal(0))
-		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
+		shuffledAZs := lo.Keys(subnets)
+		mutable.Shuffle(shuffledAZs)
 		firstSubnet := subnets[shuffledAZs[0]][0]
 
 		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
@@ -104,7 +106,8 @@ var _ = Describe("Subnets", func() {
 	It("should use a subnet within the AZ requested", func() {
 		subnets := env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(len(subnets)).ToNot(Equal(0))
-		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
+		shuffledAZs := lo.Keys(subnets)
+		mutable.Shuffle(shuffledAZs)
 
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
