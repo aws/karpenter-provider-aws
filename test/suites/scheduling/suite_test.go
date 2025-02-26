@@ -706,6 +706,109 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			}
 		})
 	})
+
+	FContext("Capacity Reservations", func() {
+		var largeCapacityReservationID, xlargeCapacityReservationID string
+		var cleanupFuncs []func()
+		BeforeAll(func() {
+			var cleanupFunc func()
+			largeCapacityReservationID, cleanupFunc = environmentaws.ExpectCapacityReservationCreated(
+				env.Context,
+				env.EC2API,
+				ec2types.InstanceTypeM5Large,
+				env.ZoneInfo[0].Zone,
+				1,
+				nil,
+				nil,
+			)
+			cleanupFuncs = append(cleanupFuncs, cleanupFunc)
+			xlargeCapacityReservationID, cleanupFunc = environmentaws.ExpectCapacityReservationCreated(
+				env.Context,
+				env.EC2API,
+				ec2types.InstanceTypeM5Xlarge,
+				env.ZoneInfo[0].Zone,
+				1,
+				nil,
+				nil,
+			)
+			cleanupFuncs = append(cleanupFuncs, cleanupFunc)
+
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
+				{
+					ID: largeCapacityReservationID,
+				},
+				{
+					ID: xlargeCapacityReservationID,
+				},
+			}
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key: karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values: []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved},
+			}}}
+		})
+		AfterAll(func() {
+			for _, f := range cleanupFuncs {
+				f()
+			}
+		})
+		It("should schedule against a specific reservation ID", func() {
+			pod := test.Pod(test.PodOptions{
+				NodeRequirements: []corev1.NodeSelectorRequirement{{
+					Key:      v1.LabelCapacityReservationID,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{xlargeCapacityReservationID},
+				}},
+			})
+			env.ExpectCreated(nodePool, nodeClass, pod)
+
+			nc := env.EventuallyExpectNodeClaimCount("==", 1)[0]
+			req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
+				return req.Key == v1.LabelCapacityReservationID
+			})
+			Expect(ok).To(BeTrue())
+			Expect(req.Values).To(ConsistOf(xlargeCapacityReservationID))
+
+			n := env.EventuallyExpectNodeCount("==", 1)[0]
+			Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
+		})
+		FIt("should fall back when compatible capacity reservations are exhausted", func() {
+			podLabels := map[string]string{"foo": "bar"}
+			pods := test.Pods(2, test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: podLabels,
+				},
+				NodeRequirements: []corev1.NodeSelectorRequirement{{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{string(ec2types.InstanceTypeM5Large)},
+				}},
+				PodAntiRequirements: []corev1.PodAffinityTerm{{
+					TopologyKey: corev1.LabelHostname,
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: podLabels,
+					},
+				}},
+			})
+			env.ExpectCreated(nodePool, nodeClass, pods[0], pods[1])
+
+			reservedCount := 0
+			for _, nc := range env.EventuallyExpectNodeClaimCount("==", 2) {
+				req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
+					return req.Key == v1.LabelCapacityReservationID
+				})
+				if ok {
+					reservedCount += 1
+					Expect(req.Values).To(ConsistOf(xlargeCapacityReservationID))
+				}
+			}
+			Expect(reservedCount).To(Equal(1))
+			env.EventuallyExpectNodeCount("==", 2)
+		})
+		It("should demote reserved instances when the reservation is canceled", func() {
+		})
+	})
 })
 
 func ephemeralInitContainer(requirements corev1.ResourceRequirements) corev1.Container {
