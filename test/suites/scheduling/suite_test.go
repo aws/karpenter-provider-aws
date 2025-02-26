@@ -710,10 +710,8 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 
 	Context("Capacity Reservations", func() {
 		var largeCapacityReservationID, xlargeCapacityReservationID string
-		var cleanupFuncs []func()
 		BeforeAll(func() {
-			var cleanupFunc func()
-			largeCapacityReservationID, cleanupFunc = environmentaws.ExpectCapacityReservationCreated(
+			largeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
 				env.Context,
 				env.EC2API,
 				ec2types.InstanceTypeM5Large,
@@ -722,8 +720,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				nil,
 				nil,
 			)
-			cleanupFuncs = append(cleanupFuncs, cleanupFunc)
-			xlargeCapacityReservationID, cleanupFunc = environmentaws.ExpectCapacityReservationCreated(
+			xlargeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
 				env.Context,
 				env.EC2API,
 				ec2types.InstanceTypeM5Xlarge,
@@ -732,8 +729,11 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				nil,
 				nil,
 			)
-			cleanupFuncs = append(cleanupFuncs, cleanupFunc)
-
+		})
+		AfterAll(func() {
+			environmentaws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, largeCapacityReservationID, xlargeCapacityReservationID)
+		})
+		BeforeEach(func() {
 			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
 				{
 					ID: largeCapacityReservationID,
@@ -747,11 +747,6 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				Operator: corev1.NodeSelectorOpIn,
 				Values:   []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved},
 			}}}
-		})
-		AfterAll(func() {
-			for _, f := range cleanupFuncs {
-				f()
-			}
 		})
 		It("should schedule against a specific reservation ID", func() {
 			pod := test.Pod(test.PodOptions{
@@ -770,11 +765,16 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			Expect(ok).To(BeTrue())
 			Expect(req.Values).To(ConsistOf(xlargeCapacityReservationID))
 
+			env.EventuallyExpectNodeClaimsReady(nc)
 			n := env.EventuallyExpectNodeCount("==", 1)[0]
 			Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
 			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
 		})
 		It("should fall back when compatible capacity reservations are exhausted", func() {
+			// We create two pods with self anti-affinity and a node selector on a specific instance type. The anti-affinity term
+			// ensures that we must provision 2 nodes, and the node selector selects upon an instance type with a single reserved
+			// instance available. As such, we should create a reserved NodeClaim for one pod, and an on-demand NodeClaim for the
+			// other.
 			podLabels := map[string]string{"foo": "bar"}
 			pods := test.Pods(2, test.PodOptions{
 				ObjectMeta: metav1.ObjectMeta{
@@ -808,7 +808,8 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.EventuallyExpectNodeCount("==", 2)
 		})
 		It("should demote reserved instances when the reservation is canceled", func() {
-			id, cleanup := environmentaws.ExpectCapacityReservationCreated(
+			var canceled bool
+			capacityReservationID := environmentaws.ExpectCapacityReservationCreated(
 				env.Context,
 				env.EC2API,
 				ec2types.InstanceTypeM5Large,
@@ -817,7 +818,13 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				nil,
 				nil,
 			)
-			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: id}}
+			DeferCleanup(func() {
+				if !canceled {
+					environmentaws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
+				}
+			})
+
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: capacityReservationID}}
 			pod := test.Pod()
 			env.ExpectCreated(nodePool, nodeClass, pod)
 
@@ -826,11 +833,15 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				return req.Key == v1.LabelCapacityReservationID
 			})
 			Expect(ok).To(BeTrue())
-			Expect(req.Values).To(ConsistOf(id))
+			Expect(req.Values).To(ConsistOf(capacityReservationID))
 			n := env.EventuallyExpectNodeCount("==", 1)[0]
 
-			cleanup()
+			environmentaws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
+			canceled = true
 
+			// The NodeClaim capacity reservation controller runs once every minute, we'll give a little extra time to avoid
+			// a failure from a small delay, but the capacity type label should be updated and the reservation-id label should
+			// be removed within a minute of the reservation being canceled.
 			Eventually(func(g Gomega) {
 				updatedNodeClaim := &karpv1.NodeClaim{}
 				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nc), updatedNodeClaim)).To(BeNil())
@@ -841,7 +852,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(n), updatedNode)).To(BeNil())
 				g.Expect(updatedNodeClaim.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
 				g.Expect(updatedNodeClaim.Labels).ToNot(HaveKey(v1.LabelCapacityReservationID))
-			}).Should(Succeed())
+			}).WithTimeout(75 * time.Second).Should(Succeed())
 		})
 	})
 })

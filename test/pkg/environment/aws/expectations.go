@@ -536,7 +536,7 @@ func ExpectCapacityReservationCreated(
 	capacity int32,
 	endDate *time.Time,
 	tags map[string]string,
-) (id string, cleanup func()) {
+) string {
 	GinkgoHelper()
 	out, err := ec2api.CreateCapacityReservation(ctx, &ec2.CreateCapacityReservationInput{
 		InstanceCount:         lo.ToPtr(capacity),
@@ -551,10 +551,14 @@ func ExpectCapacityReservationCreated(
 		}}, nil),
 	})
 	Expect(err).ToNot(HaveOccurred())
-	return lo.FromPtr(out.CapacityReservation.CapacityReservationId), func() {
-		GinkgoHelper()
+	return *out.CapacityReservation.CapacityReservationId
+}
+
+func ExpectCapacityReservationsCanceled(ctx context.Context, ec2api *ec2.Client, reservationIDs ...string) {
+	GinkgoHelper()
+	for _, id := range reservationIDs {
 		_, err := ec2api.CancelCapacityReservation(ctx, &ec2.CancelCapacityReservationInput{
-			CapacityReservationId: lo.ToPtr(*out.CapacityReservation.CapacityReservationId),
+			CapacityReservationId: &id,
 		})
 		Expect(err).ToNot(HaveOccurred())
 	}

@@ -106,6 +106,9 @@ func (p *DefaultProvider) InjectOfferings(
 			})
 		}
 
+		// NOTE: By making this copy one level deep, we can modify the offerings without mutating the results from previous
+		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and
+		// once in the instance provider (filterReservedInstanceTypes)
 		its = append(its, &cloudprovider.InstanceType{
 			Name:         it.Name,
 			Requirements: it.Requirements,

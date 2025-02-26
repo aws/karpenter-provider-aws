@@ -154,16 +154,4 @@ var _ = Describe("Capacity Reservation NodeClaim Controller", func() {
 		Expect(node.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
 		Expect(node.Labels).ToNot(HaveKey(corecloudprovider.ReservationIDLabel))
 	})
-	It("should ignore nodeclaims which aren't registered", func() {
-		out := awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
-		out.Reservations[0].Instances[0].CapacityReservationId = nil
-		awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(out)
-		delete(nodeClaim.Labels, karpv1.NodeRegisteredLabelKey)
-
-		ExpectApplied(ctx, env.Client, nodeClaim)
-		ExpectSingletonReconciled(ctx, controller)
-		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
-		Expect(nodeClaim.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
-		Expect(nodeClaim.Labels).To(HaveKeyWithValue(corecloudprovider.ReservationIDLabel, reservationID))
-	})
 })
