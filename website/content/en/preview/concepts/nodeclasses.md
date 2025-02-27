@@ -110,6 +110,12 @@ spec:
     # exclusive and can't be specified with other terms.
     # - alias: al2023@v20240703
 
+  # Optional, each term in the array of capacityReservationSelectorTerms is ORed together.
+  capacityReservationSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: ${CLUSTER_NAME}
+    - id: cr-123
+
   # Optional, propagates tags to underlying EC2 resources
   tags:
     team: team-a
@@ -187,6 +193,19 @@ status:
           operator: In
           values:
             - arm64
+
+  # Capacity Reservations
+  capacityReservations:
+    - availabilityZone: us-west-2a
+      id: cr-01234567890123456
+      instanceMatchCriteria: targeted
+      instanceType: g6.48xlarge
+      ownerID: "012345678901"
+    - availabilityZone: us-west-2c
+      id: cr-12345678901234567
+      instanceMatchCriteria: open
+      instanceType: g6.48xlarge
+      ownerID: "98765432109"
 
   # Generated instance profile name from "role"
   instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
@@ -430,7 +449,7 @@ spec:
 ### AL2
 
 {{% alert title="AL2 support dropped at Kubernetes 1.33" color="warning" %}}
-Kubernetes version 1.32 is the last version for which Amazon EKS will release Amazon Linux 2 (AL2) AMIs. 
+Kubernetes version 1.32 is the last version for which Amazon EKS will release Amazon Linux 2 (AL2) AMIs.
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
@@ -844,6 +863,54 @@ Specify using ids:
   amiSelectorTerms:
     - id: "ami-123"
     - id: "ami-456"
+```
+
+## spec.capacityReservationSelectorTerms
+
+Capacity Reservation Selector Terms allow you to select [on-demand capacity reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html), which will be made available to NodePools which select the given EC2NodeClass.
+Karpenter will prioritize utilizing the capacity in these reservations before falling back to on-demand and spot.
+Capacity reservations can be discovered using ids or tags.
+
+This selection logic is modeled as terms.
+A term can specify an ID or a set of tags to select against.
+When specifying tags, it will select all capacity reservations accessible from the account with matching tags.
+This can be further restricted by specifying an owner ID.
+
+#### Examples
+
+Select the reservations with the given IDs:
+
+```yaml
+spec:
+  capacityReservationSelectorTerms:
+  - id: cr-123
+  - id: cr-456
+```
+
+Select the reservations by tags:
+
+```yaml
+spec:
+  capacityReservationSelectorTerms:
+  # Select all capacity reservations which have both matching tags
+  - tags:
+      key1: foo
+      key2: bar
+  # Additionally, select all capacity reservations with the following matching tag
+  - tags:
+      key3: foobar
+```
+
+Select by tags and owner ID:
+
+```yaml
+spec:
+  # Select all capacity reservations with the matching tags which are also owned by
+  # the specified account.
+  capacityReservationSelectorTerms:
+  - tags:
+      key: foo
+    ownerID: 012345678901
 ```
 
 ## spec.tags
