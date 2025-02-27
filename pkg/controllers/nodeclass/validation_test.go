@@ -27,6 +27,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
@@ -166,5 +167,20 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				}, fake.MaxCalls(1))
 			}, nodeclass.ConditionReasonCreateLaunchTemplateAuthFailed),
 		)
+	})
+	It("should clear the validation cache when the nodeclass is deleted", func() {
+		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
+		nodeClass.Spec.Tags = map[string]string{}
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(1))
+
+		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		ExpectNotFound(ctx, env.Client, nodeClass)
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
 	})
 })

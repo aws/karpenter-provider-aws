@@ -17,6 +17,7 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
@@ -264,7 +265,25 @@ func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) 
 		nodeClass.Spec.BlockDeviceMappings,
 		tags,
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-	return fmt.Sprintf("%s-%016x", nodeClass.Name, hash)
+	return fmt.Sprintf("%s:%016x", nodeClass.Name, hash)
+}
+
+// clearCacheEntries removes all cache entries associated with the given nodeclass from the validation cache
+func (v *Validation) clearCacheEntries(nodeClass *v1.EC2NodeClass) {
+	var toDelete []string
+	for key := range v.cache.Items() {
+		parts := strings.Split(key, ":")
+		// NOTE: should never occur, indicates malformed cache key
+		if len(parts) != 2 {
+			continue
+		}
+		if parts[0] == nodeClass.Name {
+			toDelete = append(toDelete, key)
+		}
+	}
+	for _, key := range toDelete {
+		v.cache.Delete(key)
+	}
 }
 
 func mockLaunchTemplateConfig() []ec2types.FleetLaunchTemplateConfigRequest {
