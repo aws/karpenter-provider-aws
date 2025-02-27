@@ -1,6 +1,8 @@
 module github.com/aws/karpenter-provider-aws
 
-go 1.23.5
+go 1.23.6
+
+toolchain go1.24.0
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
@@ -43,7 +45,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.19.3
-	sigs.k8s.io/karpenter v1.1.1
+	sigs.k8s.io/karpenter v1.1.2-0.20250227200631-f7cf5bb3ff2b
 	sigs.k8s.io/yaml v1.4.0
 )
 
