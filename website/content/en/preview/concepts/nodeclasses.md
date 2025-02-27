@@ -1353,6 +1353,20 @@ cluster-name = 'cluster'
 'memory.available' = '12%%'
 ```
 
+#### Device ownership in Bottlerocket
+
+Bottlerocket `v1.30.0+` supports device ownership using the [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) provided in the Kubernetes specfile. To enable this, you will need the following user-data configurations:
+
+```toml
+[settings]
+[settings.kubernetes]
+device-ownership-from-security-context = true
+```
+
+This allows the container to take ownership of devices allocated to the pod via device-plugins based on the `runAsUser` and `runAsGroup` values provided in the spec. For more details on this, see the [Kubernetes documentation](https://kubernetes.io/blog/2021/11/09/non-root-containers-and-devices/)
+
+This setting helps you enable Neuron workloads on Bottlerocket instances. See [Accelerators/GPU Resources]({{< ref "./scheduling#acceleratorsgpu-resources" >}}) for more details.
+
 ### Windows2019/Windows2022
 
 * Your UserData must be specified as PowerShell commands.
