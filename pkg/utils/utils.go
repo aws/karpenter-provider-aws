@@ -88,15 +88,20 @@ func WithDefaultFloat64(key string, def float64) float64 {
 }
 
 func GetTags(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, clusterName string) (map[string]string, error) {
-	if offendingTag, found := lo.FindKeyBy(nodeClass.Spec.Tags, func(k string, v string) bool {
+	var invalidTags []string
+	for key := range nodeClass.Spec.Tags {
 		for _, exp := range v1.RestrictedTagPatterns {
-			if exp.MatchString(k) {
-				return true
+			if exp.MatchString(key) {
+				invalidTags = append(invalidTags, key)
+				break
 			}
 		}
-		return false
-	}); found {
-		return nil, fmt.Errorf("%q tag does not pass tag validation requirements", offendingTag)
+	}
+	if len(invalidTags) != 0 {
+		quotedTags := lo.Map(invalidTags, func(tag string, _ int) string {
+			return fmt.Sprintf("%q", tag)
+		})
+		return nil, fmt.Errorf("the following tags failed validation requirements (%s)", strings.Join(quotedTags, ", "))
 	}
 	staticTags := map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", clusterName): "owned",

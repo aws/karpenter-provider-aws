@@ -66,6 +66,7 @@ func main() {
 			op.EventRecorder,
 			op.UnavailableOfferingsCache,
 			op.SSMCache,
+			op.ValidationCache,
 			cloudProvider,
 			op.SubnetProvider,
 			op.SecurityGroupProvider,

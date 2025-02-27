@@ -29,6 +29,12 @@ type InstanceProfile struct {
 	instanceProfileProvider instanceprofile.Provider
 }
 
+func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider) *InstanceProfile {
+	return &InstanceProfile{
+		instanceProfileProvider: instanceProfileProvider,
+	}
+}
+
 func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if nodeClass.Spec.Role != "" {
 		name, err := ip.instanceProfileProvider.Create(ctx, nodeClass)

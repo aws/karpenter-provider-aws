@@ -27,6 +27,7 @@ import (
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 	"sigs.k8s.io/karpenter/pkg/utils/result"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/types"
@@ -75,6 +76,7 @@ func NewController(
 	launchTemplateProvider launchtemplate.Provider,
 	capacityReservationProvider capacityreservation.Provider,
 	ec2api sdk.EC2API,
+	validationCache *cache.Cache,
 ) *Controller {
 	return &Controller{
 		kubeClient:              kubeClient,
@@ -84,11 +86,11 @@ func NewController(
 		reconcilers: []reconcile.TypedReconciler[*v1.EC2NodeClass]{
 			NewAMIReconciler(amiProvider),
 			NewCapacityReservationReconciler(clk, capacityReservationProvider),
-			&Subnet{subnetProvider: subnetProvider},
-			&SecurityGroup{securityGroupProvider: securityGroupProvider},
-			&InstanceProfile{instanceProfileProvider: instanceProfileProvider},
-			&Validation{ec2api: ec2api, amiProvider: amiProvider},
-			&Readiness{launchTemplateProvider: launchTemplateProvider},
+			NewSubnetReconciler(subnetProvider),
+			NewSecurityGroupReconciler(securityGroupProvider),
+			NewInstanceProfileReconciler(instanceProfileProvider),
+			NewValidationReconciler(ec2api, amiProvider, validationCache),
+			NewReadinessReconciler(launchTemplateProvider),
 		},
 	}
 }

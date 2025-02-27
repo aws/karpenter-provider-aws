@@ -71,6 +71,7 @@ func NewControllers(
 	recorder events.Recorder,
 	unavailableOfferings *awscache.UnavailableOfferings,
 	ssmCache *cache.Cache,
+	validationCache *cache.Cache,
 	cloudProvider cloudprovider.CloudProvider,
 	subnetProvider subnet.Provider,
 	securityGroupProvider securitygroup.Provider,
@@ -85,7 +86,7 @@ func NewControllers(
 ) []controller.Controller {
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient),
-		nodeclass.NewController(ctx, clk, kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider, capacityReservationProvider, ec2api),
+		nodeclass.NewController(ctx, clk, kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider, capacityReservationProvider, ec2api, validationCache),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, cloudProvider, instanceProvider),
 		controllerspricing.NewController(pricingProvider),
