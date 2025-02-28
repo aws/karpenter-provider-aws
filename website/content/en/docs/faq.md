@@ -29,7 +29,7 @@ Karpenter has multiple mechanisms for configuring the [operating system]({{< ref
 Karpenter is flexible to multi-architecture configurations using [well known labels]({{< ref "./concepts/scheduling/#supported-labels">}}).
 
 ### What RBAC access is required?
-All the required RBAC rules can be found in the Helm chart template. See [clusterrole-core.yaml](https://github.com/aws/karpenter/blob/v1.2.1/charts/karpenter/templates/clusterrole-core.yaml), [clusterrole.yaml](https://github.com/aws/karpenter/blob/v1.2.1/charts/karpenter/templates/clusterrole.yaml), [rolebinding.yaml](https://github.com/aws/karpenter/blob/v1.2.1/charts/karpenter/templates/rolebinding.yaml), and [role.yaml](https://github.com/aws/karpenter/blob/v1.2.1/charts/karpenter/templates/role.yaml) files for details.
+All the required RBAC rules can be found in the Helm chart template. See [clusterrole-core.yaml](https://github.com/aws/karpenter/blob/v1.2.2/charts/karpenter/templates/clusterrole-core.yaml), [clusterrole.yaml](https://github.com/aws/karpenter/blob/v1.2.2/charts/karpenter/templates/clusterrole.yaml), [rolebinding.yaml](https://github.com/aws/karpenter/blob/v1.2.2/charts/karpenter/templates/rolebinding.yaml), and [role.yaml](https://github.com/aws/karpenter/blob/v1.2.2/charts/karpenter/templates/role.yaml) files for details.
 
 ### Can I run Karpenter outside of a Kubernetes cluster?
 Yes, as long as the controller has network and IAM/RBAC access to the Kubernetes API and your provider API.
