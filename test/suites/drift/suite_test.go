@@ -1000,7 +1000,7 @@ var _ = Describe("Drift", Ordered, func() {
 				},
 			})
 			env.ExpectCreated(nodePool, nodeClass, pod)
-			nc := env.EventuallyExpectNodeClaimCount("==", 1)[0]
+			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
 			env.EventuallyExpectNodeClaimsReady(nc)
 			n := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Large)))
@@ -1037,7 +1037,7 @@ var _ = Describe("Drift", Ordered, func() {
 			})
 			env.ExpectCreated(nodePool, nodeClass, pod)
 
-			nc := env.EventuallyExpectNodeClaimCount("==", 1)[0]
+			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
 			req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
 				return req.Key == v1.LabelCapacityReservationID
 			})

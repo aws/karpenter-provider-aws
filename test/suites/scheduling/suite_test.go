@@ -771,7 +771,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			})
 			env.ExpectCreated(nodePool, nodeClass, pod)
 
-			nc := env.EventuallyExpectNodeClaimCount("==", 1)[0]
+			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
 			req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
 				return req.Key == v1.LabelCapacityReservationID
 			})
@@ -808,7 +808,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreated(nodePool, nodeClass, pods[0], pods[1])
 
 			reservedCount := 0
-			for _, nc := range env.EventuallyExpectNodeClaimCount("==", 2) {
+			for _, nc := range env.EventuallyExpectLaunchedNodeClaimCount("==", 2) {
 				req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
 					return req.Key == v1.LabelCapacityReservationID
 				})
