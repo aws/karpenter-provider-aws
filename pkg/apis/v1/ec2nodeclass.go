@@ -178,7 +178,7 @@ type CloudWatchAlarms struct {
 
 	// Dimensions for the metric associated with the alarm
 	// +optional
-	Dimensions []Dimension `json:"dimensions,omitempty"`
+	Dimensions []CloudwatchAlarmDimension `json:"dimensions,omitempty"`
 
 	// EvaluateLowSampleCountPercentile is used only for alarms based on percentiles
 	// +kubebuilder:validation:Enum={"evaluate","ignore"}
@@ -226,7 +226,7 @@ type CloudWatchAlarms struct {
 
 	// Tags to be attached to the alarm
 	// +optional
-	Tags []Tag `json:"tags,omitempty"`
+	Tags map[string]string `json:"tags,omitempty"`
 
 	// Threshold is the value against which the specified statistic is compared
 	// +kubebuilder:validation:Required
@@ -248,7 +248,7 @@ type CloudWatchAlarms struct {
 }
 
 // Dimension represents a CloudWatch metric dimension
-type Dimension struct {
+type CloudwatchAlarmDimension struct {
 	// Name of the dimension
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
@@ -259,56 +259,6 @@ type Dimension struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=255
-	Value string `json:"value"`
-}
-
-// MetricStat defines the metric to be returned, along with the statistics, period, and units
-type MetricStat struct {
-	// Metric is the metric to return, including the metric name, namespace, and dimensions
-	// +optional
-	Metric *Metric `json:"metric,omitempty"`
-
-	// Period is the granularity, in seconds, of the returned data points
-	// +kubebuilder:validation:Minimum=1
-	// +optional
-	Period *int32 `json:"period,omitempty"`
-
-	// Stat is the statistic to return
-	// +optional
-	Stat *string `json:"stat,omitempty"`
-
-	// Unit is the unit to use for the returned data points
-	// +optional
-	Unit *string `json:"unit,omitempty"`
-}
-
-// Metric represents a specific CloudWatch metric
-type Metric struct {
-	// MetricName is the name of the metric
-	// +optional
-	MetricName *string `json:"metricName,omitempty"`
-
-	// Namespace is the namespace of the metric
-	// +optional
-	Namespace *string `json:"namespace,omitempty"`
-
-	// Dimensions are the dimensions for the metric
-	// +optional
-	Dimensions []Dimension `json:"dimensions,omitempty"`
-}
-
-// Tag represents a CloudWatch alarm tag
-type Tag struct {
-	// Key of the tag
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=128
-	Key string `json:"key"`
-
-	// Value of the tag
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=256
 	Value string `json:"value"`
 }
 
