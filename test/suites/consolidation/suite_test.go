@@ -398,7 +398,7 @@ var _ = Describe("Consolidation", Ordered, func() {
 
 			// Ensure that we get three nodes tainted, and they have overlap during the consolidation
 			env.EventuallyExpectTaintedNodeCount("==", 3)
-			env.EventuallyExpectNodeClaimCount("==", 8)
+			env.EventuallyExpectLaunchedNodeClaimCount("==", 8)
 			env.EventuallyExpectNodeCount("==", 8)
 
 			env.ConsistentlyExpectDisruptionsUntilNoneLeft(5, 3, 10*time.Minute)
@@ -925,7 +925,7 @@ var _ = Describe("Consolidation", Ordered, func() {
 				Replicas: 1,
 			})
 			env.ExpectCreated(nodePool, nodeClass, dep)
-			env.EventuallyExpectNodeClaimsReady(env.EventuallyExpectNodeClaimCount("==", 1)...)
+			env.EventuallyExpectNodeClaimsReady(env.EventuallyExpectLaunchedNodeClaimCount("==", 1)...)
 			n := env.EventuallyExpectNodeCount("==", int(1))[0]
 			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Large)))
 			Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
@@ -969,7 +969,7 @@ var _ = Describe("Consolidation", Ordered, func() {
 			// Start by only enabling the m5.xlarge capacity reservation, ensuring it's provisioned
 			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: xlargeCapacityReservationID}}
 			env.ExpectCreated(nodePool, nodeClass, dep)
-			env.EventuallyExpectNodeClaimsReady(env.EventuallyExpectNodeClaimCount("==", 1)...)
+			env.EventuallyExpectNodeClaimsReady(env.EventuallyExpectLaunchedNodeClaimCount("==", 1)...)
 			n := env.EventuallyExpectNodeCount("==", int(1))[0]
 			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Xlarge)))
 			Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))

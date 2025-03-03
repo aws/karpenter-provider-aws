@@ -22,10 +22,8 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
-
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
@@ -153,8 +151,8 @@ func (v *Validation) validateCreateFleetAuthorization(
 	_ *karpv1.NodeClaim,
 	tags map[string]string,
 ) (reason string, err error) {
-	createFleetInput := instance.GetCreateFleetInput(nodeClass, string(karpv1.CapacityTypeOnDemand), tags, mockLaunchTemplateConfig())
-	createFleetInput.DryRun = aws.Bool(true)
+	createFleetInput := instance.GetCreateFleetInput(nodeClass, karpv1.CapacityTypeOnDemand, tags, mockLaunchTemplateConfig())
+	createFleetInput.DryRun = lo.ToPtr(true)
 	if _, err := v.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
@@ -173,7 +171,7 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	tags map[string]string,
 ) (reason string, err error) {
 	createLaunchTemplateInput := launchtemplate.GetCreateLaunchTemplateInput(ctx, mockOptions(*nodeClaim, nodeClass, tags), corev1.IPv4Protocol, "")
-	createLaunchTemplateInput.DryRun = aws.Bool(true)
+	createLaunchTemplateInput.DryRun = lo.ToPtr(true)
 	if _, err := v.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
@@ -207,8 +205,8 @@ func (v *Validation) validateRunInstancesAuthorization(
 
 	runInstancesInput := &ec2.RunInstancesInput{
 		DryRun:       lo.ToPtr(true),
-		MaxCount:     aws.Int32(1),
-		MinCount:     aws.Int32(1),
+		MaxCount:     lo.ToPtr[int32](1),
+		MinCount:     lo.ToPtr[int32](1),
 		InstanceType: instanceType,
 		MetadataOptions: &ec2types.InstanceMetadataOptionsRequest{
 			HttpEndpoint:     ec2types.InstanceMetadataEndpointState(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPEndpoint)),
@@ -216,7 +214,7 @@ func (v *Validation) validateRunInstancesAuthorization(
 			HttpProtocolIpv6: ec2types.InstanceMetadataProtocolState(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPProtocolIPv6)),
 			//aws sdk v2 changed this type to *int32 instead of *int64
 			//nolint: gosec
-			HttpPutResponseHopLimit: aws.Int32(int32(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPPutResponseHopLimit))),
+			HttpPutResponseHopLimit: lo.ToPtr(int32(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPPutResponseHopLimit))),
 		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{
@@ -290,18 +288,18 @@ func mockLaunchTemplateConfig() []ec2types.FleetLaunchTemplateConfigRequest {
 	return []ec2types.FleetLaunchTemplateConfigRequest{
 		{
 			LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateName: aws.String("mock-lt-name"),
-				LaunchTemplateId:   aws.String("lt-1234567890abcdef0"),
-				Version:            aws.String("1"),
+				LaunchTemplateName: lo.ToPtr("mock-lt-name"),
+				LaunchTemplateId:   lo.ToPtr("lt-1234567890abcdef0"),
+				Version:            lo.ToPtr("1"),
 			},
 			Overrides: []ec2types.FleetLaunchTemplateOverridesRequest{
 				{
 					InstanceType: ec2types.InstanceTypeT3Micro,
-					SubnetId:     aws.String("subnet-1234567890abcdef0"),
+					SubnetId:     lo.ToPtr("subnet-1234567890abcdef0"),
 				},
 				{
 					InstanceType: ec2types.InstanceTypeT3Small,
-					SubnetId:     aws.String("subnet-1234567890abcdef1"),
+					SubnetId:     lo.ToPtr("subnet-1234567890abcdef1"),
 				},
 			},
 		},
