@@ -249,7 +249,7 @@ Changes to the [`spec.template.spec.terminationGracePeriod`]({{<ref "../concepts
 
 Once a node is disrupted, via either a [graceful](#automated-graceful-methods) or [forceful](#automated-forceful-methods) disruption method, Karpenter will begin draining the node.
 At this point, the countdown for `terminationGracePeriod` begins.
-Once the `terminationGracePeriod` elapses, remaining pods will be forcibly deleted and the unerlying instance will be terminated.
+Once the `terminationGracePeriod` elapses, remaining pods will be forcibly deleted and the underlying instance will be terminated.
 A node may be terminated before the `terminationGracePeriod` has elapsed if all disruptable pods have been drained.
 
 In conjunction with `expireAfter`, `terminationGracePeriod` can be used to enforce an absolute maximum node lifetime.
