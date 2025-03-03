@@ -137,10 +137,179 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":1,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
+	// TODO: Cloudwatch Alarms
+	CloudWatchAlarms []*CloudWatchAlarms `json:"cloudwatchAlarms,omitempty"`
 	// Context is a Reserved field in EC2 APIs
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
 	Context *string `json:"context,omitempty"`
+}
+
+// CloudWatchAlarms defines the configuration for CloudWatch alarms to be created for EC2 instances
+type CloudWatchAlarms struct {
+	// ActionsEnabled indicates whether actions should be executed during any changes to the alarm state
+	// +optional
+	ActionsEnabled *bool `json:"actionsEnabled,omitempty"`
+
+	// AlarmActions is a list of ARNs to execute when this alarm transitions to the ALARM state
+	// +kubebuilder:validation:MaxItems=5
+	// +optional
+	AlarmActions []string `json:"alarmActions,omitempty"`
+
+	// AlarmDescription is a description for the alarm
+	// +optional
+	AlarmDescription *string `json:"alarmDescription,omitempty"`
+
+	// AlarmName is the name of the alarm
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=255
+	AlarmName string `json:"alarmName"`
+
+	// ComparisonOperator is the arithmetic operation to use when comparing the specified statistic and threshold
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum={"GreaterThanThreshold","GreaterThanOrEqualToThreshold","LessThanThreshold","LessThanOrEqualToThreshold","LessThanLowerOrGreaterThanUpperThreshold","LessThanLowerThreshold","GreaterThanUpperThreshold"}
+	ComparisonOperator string `json:"comparisonOperator"`
+
+	// DatapointsToAlarm is the number of datapoints that must be breaching to trigger the alarm
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	DatapointsToAlarm *int32 `json:"datapointsToAlarm,omitempty"`
+
+	// Dimensions for the metric associated with the alarm
+	// +optional
+	Dimensions []Dimension `json:"dimensions,omitempty"`
+
+	// EvaluateLowSampleCountPercentile is used only for alarms based on percentiles
+	// +kubebuilder:validation:Enum={"evaluate","ignore"}
+	// +optional
+	EvaluateLowSampleCountPercentile *string `json:"evaluateLowSampleCountPercentile,omitempty"`
+
+	// EvaluationPeriods is the number of periods over which data is compared to the threshold
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Minimum=1
+	EvaluationPeriods int32 `json:"evaluationPeriods"`
+
+	// ExtendedStatistic is the percentile statistic for the metric
+	// +kubebuilder:validation:Pattern="^p(100|[0-9]{1,2}(\\.[0-9]{0,2})?)$"
+	// +optional
+	ExtendedStatistic *string `json:"extendedStatistic,omitempty"`
+
+	// InsufficientDataActions is a list of ARNs to execute when this alarm transitions to the INSUFFICIENT_DATA state
+	// +kubebuilder:validation:MaxItems=5
+	// +optional
+	InsufficientDataActions []string `json:"insufficientDataActions,omitempty"`
+
+	// MetricName is the name of the metric associated with the alarm
+	// +optional
+	MetricName *string `json:"metricName,omitempty"`
+
+	// Namespace is the namespace of the metric
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+
+	// OKActions is a list of ARNs to execute when this alarm transitions to the OK state
+	// +kubebuilder:validation:MaxItems=5
+	// +optional
+	OKActions []string `json:"okActions,omitempty"`
+
+	// Period is the length of time in seconds over which the statistic is applied
+	// +kubebuilder:validation:Minimum=10
+	// +kubebuilder:validation:MultipleOf=60
+	// +optional
+	Period *int32 `json:"period,omitempty"`
+
+	// Statistic is the statistic to apply to the alarm's associated metric
+	// +kubebuilder:validation:Enum={"SampleCount","Average","Sum","Minimum","Maximum"}
+	// +optional
+	Statistic *string `json:"statistic,omitempty"`
+
+	// Tags to be attached to the alarm
+	// +optional
+	Tags []Tag `json:"tags,omitempty"`
+
+	// Threshold is the value against which the specified statistic is compared
+	// +kubebuilder:validation:Required
+	Threshold float64 `json:"threshold"`
+
+	// ThresholdMetricId is the ID of a threshold metric
+	// +optional
+	ThresholdMetricId *string `json:"thresholdMetricId,omitempty"`
+
+	// TreatMissingData specifies how to treat missing data points in the alarm evaluation
+	// +kubebuilder:validation:Enum={"breaching","notBreaching","ignore","missing"}
+	// +optional
+	TreatMissingData *string `json:"treatMissingData,omitempty"`
+
+	// Unit is the unit of the metric
+	// +kubebuilder:validation:Enum={"Seconds","Microseconds","Milliseconds","Bytes","Kilobytes","Megabytes","Gigabytes","Terabytes","Bits","Kilobits","Megabits","Gigabits","Terabits","Percent","Count","Bytes/Second","Kilobytes/Second","Megabytes/Second","Gigabytes/Second","Terabytes/Second","Bits/Second","Kilobits/Second","Megabits/Second","Gigabits/Second","Terabits/Second","Count/Second","None"}
+	// +optional
+	Unit *string `json:"unit,omitempty"`
+}
+
+// Dimension represents a CloudWatch metric dimension
+type Dimension struct {
+	// Name of the dimension
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=255
+	Name string `json:"name"`
+
+	// Value of the dimension
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=255
+	Value string `json:"value"`
+}
+
+// MetricStat defines the metric to be returned, along with the statistics, period, and units
+type MetricStat struct {
+	// Metric is the metric to return, including the metric name, namespace, and dimensions
+	// +optional
+	Metric *Metric `json:"metric,omitempty"`
+
+	// Period is the granularity, in seconds, of the returned data points
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	Period *int32 `json:"period,omitempty"`
+
+	// Stat is the statistic to return
+	// +optional
+	Stat *string `json:"stat,omitempty"`
+
+	// Unit is the unit to use for the returned data points
+	// +optional
+	Unit *string `json:"unit,omitempty"`
+}
+
+// Metric represents a specific CloudWatch metric
+type Metric struct {
+	// MetricName is the name of the metric
+	// +optional
+	MetricName *string `json:"metricName,omitempty"`
+
+	// Namespace is the namespace of the metric
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+
+	// Dimensions are the dimensions for the metric
+	// +optional
+	Dimensions []Dimension `json:"dimensions,omitempty"`
+}
+
+// Tag represents a CloudWatch alarm tag
+type Tag struct {
+	// Key of the tag
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=128
+	Key string `json:"key"`
+
+	// Value of the tag
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=256
+	Value string `json:"value"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.

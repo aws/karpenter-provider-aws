@@ -881,50 +881,6 @@ spec:
                       metricName:
                         description: Name of the metric associated with the alarm
                         type: string
-                      metrics:
-                        description: Array of MetricDataQuery structures for the alarm
-                        type: array
-                        items:
-                          type: object
-                          required:
-                            - id
-                          properties:
-                            id:
-                              description: ID of the metric data query
-                              type: string
-                            expression:
-                              description: Math expression for the metric data query
-                              type: string
-                            label:
-                              description: Label for the metric data query
-                              type: string
-                            metricStat:
-                              description: Structure that defines the metric to be returned
-                              type: object
-                              properties:
-                                metric:
-                                  type: object
-                                  properties:
-                                    metricName:
-                                      type: string
-                                    namespace:
-                                      type: string
-                                    dimensions:
-                                      type: array
-                                      items:
-                                        type: object
-                                        properties:
-                                          name:
-                                            type: string
-                                          value:
-                                            type: string
-                                period:
-                                  type: integer
-                                  minimum: 1
-                                stat:
-                                  type: string
-                                unit:
-                                  type: string
                       namespace:
                         description: Namespace of the metric
                         type: string
