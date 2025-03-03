@@ -807,8 +807,212 @@ spec:
                       - zone
                     type: object
                   type: array
+                cloudWatchAlarms:
+                  description: CloudWatchAlarms defines the CloudWatch alarms to be created for EC2 instances in this NodeClass
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      actionsEnabled:
+                        description: Indicates whether actions should be executed during any changes to the alarm state
+                        type: boolean
+                      alarmActions:
+                        description: Actions to execute when this alarm transitions to the ALARM state
+                        type: array
+                        items:
+                          type: string
+                          pattern: ^arn:aws:.*$
+                      alarmDescription:
+                        description: Description for the alarm
+                        type: string
+                      alarmName:
+                        description: Name of the alarm
+                        type: string
+                      comparisonOperator:
+                        description: Comparison operator used to compare the metric with the threshold
+                        type: string
+                        enum:
+                          - GreaterThanThreshold
+                          - GreaterThanOrEqualToThreshold
+                          - LessThanThreshold
+                          - LessThanOrEqualToThreshold
+                          - LessThanLowerOrGreaterThanUpperThreshold
+                          - LessThanLowerThreshold
+                          - GreaterThanUpperThreshold
+                      datapointsToAlarm:
+                        description: Number of datapoints that must be breaching to trigger the alarm
+                        type: integer
+                        minimum: 1
+                      dimensions:
+                        description: Dimensions for the metric associated with the alarm
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - name
+                            - value
+                          properties:
+                            name:
+                              description: Name of the dimension
+                              type: string
+                            value:
+                              description: Value of the dimension
+                              type: string
+                      evaluateLowSampleCountPercentile:
+                        description: Used only for alarms based on percentiles
+                        type: string
+                        enum:
+                          - evaluate
+                          - ignore
+                      evaluationPeriods:
+                        description: Number of periods over which data is compared to the threshold
+                        type: integer
+                        minimum: 1
+                      extendedStatistic:
+                        description: Percentile statistic for the metric
+                        type: string
+                        pattern: ^p(\d{1,2}(\.\d{0,2})?|100)$
+                      insufficientDataActions:
+                        description: Actions to execute when this alarm transitions to the INSUFFICIENT_DATA state
+                        type: array
+                        items:
+                          type: string
+                          pattern: ^arn:aws:.*$
+                      metricName:
+                        description: Name of the metric associated with the alarm
+                        type: string
+                      metrics:
+                        description: Array of MetricDataQuery structures for the alarm
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - id
+                          properties:
+                            id:
+                              description: ID of the metric data query
+                              type: string
+                            expression:
+                              description: Math expression for the metric data query
+                              type: string
+                            label:
+                              description: Label for the metric data query
+                              type: string
+                            metricStat:
+                              description: Structure that defines the metric to be returned
+                              type: object
+                              properties:
+                                metric:
+                                  type: object
+                                  properties:
+                                    metricName:
+                                      type: string
+                                    namespace:
+                                      type: string
+                                    dimensions:
+                                      type: array
+                                      items:
+                                        type: object
+                                        properties:
+                                          name:
+                                            type: string
+                                          value:
+                                            type: string
+                                period:
+                                  type: integer
+                                  minimum: 1
+                                stat:
+                                  type: string
+                                unit:
+                                  type: string
+                      namespace:
+                        description: Namespace of the metric
+                        type: string
+                      okActions:
+                        description: Actions to execute when this alarm transitions to the OK state
+                        type: array
+                        items:
+                          type: string
+                          pattern: ^arn:aws:.*$
+                      period:
+                        description: Period in seconds over which the metric is evaluated
+                        type: integer
+                        minimum: 10
+                      statistic:
+                        description: Statistic for the metric
+                        type: string
+                        enum:
+                          - SampleCount
+                          - Average
+                          - Sum
+                          - Minimum
+                          - Maximum
+                      tags:
+                        description: Tags to be attached to the alarm
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - key
+                            - value
+                          properties:
+                            key:
+                              type: string
+                            value:
+                              type: string
+                      threshold:
+                        description: Threshold value for the metric
+                        type: number
+                      thresholdMetricId:
+                        description: ID of a threshold metric
+                        type: string
+                      treatMissingData:
+                        description: How to treat missing data points
+                        type: string
+                        enum:
+                          - breaching
+                          - notBreaching
+                          - ignore
+                          - missing
+                      unit:
+                        description: Unit of the metric
+                        type: string
+                        enum:
+                          - Seconds
+                          - Microseconds
+                          - Milliseconds
+                          - Bytes
+                          - Kilobytes
+                          - Megabytes
+                          - Gigabytes
+                          - Terabytes
+                          - Bits
+                          - Kilobits
+                          - Megabits
+                          - Gigabits
+                          - Terabits
+                          - Percent
+                          - Count
+                          - Bytes/Second
+                          - Kilobytes/Second
+                          - Megabytes/Second
+                          - Gigabytes/Second
+                          - Terabytes/Second
+                          - Bits/Second
+                          - Kilobits/Second
+                          - Megabits/Second
+                          - Gigabits/Second
+                          - Terabits/Second
+                          - Count/Second
+                          - None
+                    required:
+                      - alarmName
+                      - comparisonOperator
+                      - evaluationPeriods
+                      - threshold
               type: object
           type: object
+
       served: true
       storage: true
       subresources:
