@@ -343,7 +343,7 @@ func setupFISRole(env *awsenv.Environment) {
 
 	// Create the FIS role with necessary permissions
 
-	assumeRolePolicy := `{
+	assumeRolePolicy := fmt.Sprintf(`{
 			"Version": "2012-10-17",
 			"Statement": [
 			{
@@ -351,10 +351,18 @@ func setupFISRole(env *awsenv.Environment) {
 				"Principal": {
 					"Service": "fis.amazonaws.com"
 				},
-				"Action": "sts:AssumeRole"
+				"Action": "sts:AssumeRole",
+				"Condition": {
+					"StringEquals": {
+						"aws:SourceAccount": "%s"
+					},
+					"ArnLike": {
+						"aws:SourceArn": "arn:aws:fis:%s:%s:experiment/*"
+					}
+				}
 			}
 		]
-	}`
+	}`, env.ExpectAccountID(), env.Region, env.ExpectAccountID())
 
 	createRoleOutput, err := env.IAMAPI.CreateRole(env.Context, &awsiam.CreateRoleInput{
 		RoleName:                 aws.String(fisRoleName),
@@ -371,7 +379,6 @@ func setupFISRole(env *awsenv.Environment) {
 	fisRoleArn = *createRoleOutput.Role.Arn
 
 	// Attach AWS managed policies for FIS
-	By("Attaching AWS managed policy AWSFaultInjectionSimulatorEC2Access to FIS role")
 	_, err = env.IAMAPI.AttachRolePolicy(env.Context, &awsiam.AttachRolePolicyInput{
 		RoleName:  aws.String(fisRoleName),
 		PolicyArn: aws.String("arn:aws:iam::aws:policy/service-role/AWSFaultInjectionSimulatorEC2Access"),
