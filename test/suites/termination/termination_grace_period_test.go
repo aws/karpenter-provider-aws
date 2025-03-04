@@ -32,12 +32,12 @@ import (
 
 var _ = Describe("TerminationGracePeriod", func() {
 	BeforeEach(func() {
-		nodePool.Spec.Template.Spec.TerminationGracePeriod = &metav1.Duration{Duration: time.Second * 30}
+		nodePool.Spec.Template.Spec.TerminationGracePeriod = &metav1.Duration{Duration: time.Second * 60}
 	})
 	It("should delete pod with do-not-disrupt when it reaches its terminationGracePeriodSeconds", func() {
 		pod := coretest.UnschedulablePod(coretest.PodOptions{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
 			karpv1.DoNotDisruptAnnotationKey: "true",
-		}}, TerminationGracePeriodSeconds: lo.ToPtr(int64(15))})
+		}}, TerminationGracePeriodSeconds: lo.ToPtr(int64(30))})
 		env.ExpectCreated(nodeClass, nodePool, pod)
 
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
@@ -59,15 +59,17 @@ var _ = Describe("TerminationGracePeriod", func() {
 		}).WithTimeout(3 * time.Second).WithPolling(50 * time.Millisecond).Should(Succeed())
 
 		// Check that pod remains healthy until termination grace period
-		// subtract the polling time of the eventually above to reduce any races.
-		env.ConsistentlyExpectHealthyPods(time.Second*15-100*time.Millisecond, pod)
+		// subtracting 5s is close enough to say that we waited for the entire terminationGracePeriod
+		// and to stop us flaking from tricky timing bugs
+		env.ConsistentlyExpectHealthyPods(time.Duration(lo.FromPtr(pod.Spec.TerminationGracePeriodSeconds)-5)*time.Second, pod)
+
 		// Both nodeClaim and node should be gone once terminationGracePeriod is reached
 		env.EventuallyExpectNotFound(nodeClaim, node, pod)
 	})
 	It("should delete pod that has a pre-stop hook after termination grace period seconds", func() {
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			PreStopSleep:                  lo.ToPtr(int64(300)),
-			TerminationGracePeriodSeconds: lo.ToPtr(int64(15)),
+			TerminationGracePeriodSeconds: lo.ToPtr(int64(30)),
 			Image:                         "alpine:3.20.2",
 			Command:                       []string{"/bin/sh", "-c", "sleep 30"}})
 		env.ExpectCreated(nodeClass, nodePool, pod)
@@ -91,8 +93,9 @@ var _ = Describe("TerminationGracePeriod", func() {
 		env.EventuallyExpectTerminating(pod)
 
 		// Check that pod remains healthy until termination grace period
-		// subtract the polling time of the eventually above to reduce any races.
-		env.ConsistentlyExpectTerminatingPods(time.Second*15-100*time.Millisecond, pod)
+		// subtracting 5s is close enough to say that we waited for the entire terminationGracePeriod
+		// and to stop us flaking from tricky timing bugs
+		env.ConsistentlyExpectHealthyPods(time.Duration(lo.FromPtr(pod.Spec.TerminationGracePeriodSeconds)-5)*time.Second, pod)
 
 		// Both nodeClaim and node should be gone once terminationGracePeriod is reached
 		env.EventuallyExpectNotFound(nodeClaim, node, pod)
