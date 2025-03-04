@@ -49,7 +49,7 @@ import (
 var fisRoleName string
 var fisRoleArn string
 
-var _ = FDescribe("ZonalFailure", func() {
+var _ = Describe("ZonalFailure", func() {
 	BeforeEach(func() {
 		setupFISRole(env)
 	})
