@@ -203,7 +203,7 @@ editWebsiteVersionsMenu() {
   local versions version
 
   # shellcheck disable=SC2207
-  versions=($(find website/content/en/* -maxdepth 0 -type d -name "*" -print0 | xargs -0 -r -n 1 basename | grep -v "docs\|preview"))
+  versions=($(find website/content/en/* -maxdepth 0 -type d -name "*" -print0 | xargs -0 -r -n 1 basename | grep -v "docs\|preview" | sort -r))
   versions+=('preview')
 
   yq -i '.params.versions = []' website/hugo.yaml
