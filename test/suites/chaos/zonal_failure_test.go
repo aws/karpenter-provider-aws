@@ -44,7 +44,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// FIS role variables are defined at package level to be accessible across tests
 var fisRoleName string
 var fisRoleArn string
 var customPolicyArn string
@@ -91,17 +90,12 @@ var _ = Describe("ZonalFailure", func() {
 			})
 			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-			// Create a deployment with multiple pods
 			env.ExpectCreated(nodeClass, nodePool, dep)
-
-			// Wait for all pods to be running
 			env.EventuallyExpectHealthyPodCount(selector, numPods)
 
-			// Start a context with a timeout for the chaos test
 			ctx, cancel := context.WithCancel(env.Context)
 			defer cancel()
 
-			// Start node count monitor
 			startNodeCountMonitor(ctx, env.Client)
 
 			// find AZ with most nodes
@@ -125,27 +119,22 @@ var _ = Describe("ZonalFailure", func() {
 				}
 			}
 
-			// Ensure we have nodes in multiple AZs
 			Expect(len(nodesByAZ)).To(BeNumerically(">", 1), "Expected nodes in multiple AZs")
 
 			By(fmt.Sprintf("Simulating %s with %d nodes (%s%% failure rate)",
 				description, maxNodes, failureRate))
 
-			// Get EC2 instance information for nodes in the target AZ
 			for _, node := range nodesByAZ[targetAZ] {
 				instance := env.GetInstance(node.Name)
 				instances = append(instances, instance)
 			}
 
-			// Create the experiment template with the target AZ and instances
 			By(fmt.Sprintf("Creating experiment template for AZ %s", targetAZ))
 			templateId := createExperimentTemplate(ctx, env, targetAZ, instances, failureRate)
 
-			// Start the experiment
 			By("Starting the experiment")
 			experiment := startExperiment(ctx, env, templateId)
 
-			// Wait for the experiment to complete
 			By(fmt.Sprintf("Waiting for the %s experiment to complete", description))
 			Eventually(func(g Gomega) {
 				select {
@@ -172,11 +161,10 @@ var _ = Describe("ZonalFailure", func() {
 				}
 			}, 10*time.Minute, 30*time.Second).Should(Succeed())
 
-			// Verify that the system recovered
 			By(fmt.Sprintf("Verifying system recovery from %s", description))
 			env.EventuallyExpectHealthyPodCountWithTimeout(5*time.Minute, selector, numPods)
 
-			// Clean up
+			By("Cleaning up test resources")
 			env.ExpectDeleted(dep)
 			env.ExpectExperimentTemplateDeleted(templateId)
 
@@ -192,14 +180,12 @@ var _ = Describe("ZonalFailure", func() {
 					g.Expect(env.Client.Delete(env.Context, &nodeClaim)).To(Succeed())
 				}
 
-				// Wait for nodes to be deleted from Kubernetes
 				g.Eventually(func() int {
 					tempNodeList := &corev1.NodeList{}
 					g.Expect(env.Client.List(env.Context, tempNodeList, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
 					return len(tempNodeList.Items)
 				}, 2*time.Minute, 10*time.Second).Should(BeZero())
 
-				// Now terminate any remaining EC2 instances to ensure complete cleanup
 				describeInstancesOutput, err := env.EC2API.DescribeInstances(env.Context, &ec2.DescribeInstancesInput{
 					Filters: []ec2types.Filter{
 						{
@@ -210,7 +196,6 @@ var _ = Describe("ZonalFailure", func() {
 				})
 				g.Expect(err).NotTo(HaveOccurred())
 
-				// Collect all instance IDs
 				var instanceIDs []string
 				for _, reservation := range describeInstancesOutput.Reservations {
 					for _, instance := range reservation.Instances {
@@ -220,7 +205,6 @@ var _ = Describe("ZonalFailure", func() {
 					}
 				}
 
-				// Terminate instances in batches if needed
 				if len(instanceIDs) > 0 {
 					fmt.Printf("Terminating %d remaining EC2 instances\n", len(instanceIDs))
 					_, err := env.EC2API.TerminateInstances(env.Context, &ec2.TerminateInstancesInput{
@@ -236,7 +220,6 @@ var _ = Describe("ZonalFailure", func() {
 	)
 })
 
-// createExperimentTemplate creates an AWS FIS experiment template for AZ failure testing
 func createExperimentTemplate(ctx context.Context, env *awsenv.Environment, targetAZ string, instances []ec2types.Instance, failurePercentage string) string {
 	// Filter instances to only include those in the target AZ
 	var targetInstances []string
@@ -321,7 +304,6 @@ func createExperimentTemplate(ctx context.Context, env *awsenv.Environment, targ
 	return *experimentTemplate.ExperimentTemplate.Id
 }
 
-// startExperiment starts an experiment from the given template and returns the experiment
 func startExperiment(ctx context.Context, env *awsenv.Environment, templateId string) *fistypes.Experiment {
 	experiment, err := env.FISAPI.StartExperiment(ctx, &fis.StartExperimentInput{
 		ExperimentTemplateId: aws.String(templateId),
@@ -330,7 +312,6 @@ func startExperiment(ctx context.Context, env *awsenv.Environment, templateId st
 	return experiment.Experiment
 }
 
-// setupRoles creates a role for AWS FIS with necessary permissions
 func setupRoles(env *awsenv.Environment) {
 	// First, check if the FIS service-linked role exists
 	serviceRoleName := "AWSServiceRoleForFIS"
@@ -452,7 +433,6 @@ func setupRoles(env *awsenv.Environment) {
 	})
 	Expect(err).NotTo(HaveOccurred())
 	customPolicyArn = *createPolicyOutput.Policy.Arn
-	// Attach custom API error policy to role
 	_, err = env.IAMAPI.AttachRolePolicy(env.Context, &awsiam.AttachRolePolicyInput{
 		RoleName:  aws.String(fisRoleName),
 		PolicyArn: createPolicyOutput.Policy.Arn,
@@ -463,7 +443,6 @@ func setupRoles(env *awsenv.Environment) {
 	time.Sleep(10 * time.Second)
 }
 
-// cleanupRoles removes the FIS role and associated policies
 func cleanupRoles(env *awsenv.Environment) {
 	listPoliciesOutput, err := env.IAMAPI.ListAttachedRolePolicies(env.Context, &awsiam.ListAttachedRolePoliciesInput{
 		RoleName: aws.String(fisRoleName),
@@ -487,7 +466,6 @@ func cleanupRoles(env *awsenv.Environment) {
 	})
 }
 
-// getSubnetsInAZ discovers all subnets in a specific availability zone
 func getSubnetsInAZ(ctx context.Context, env *awsenv.Environment, targetAZ string) []string {
 	describeSubnetsOutput, err := env.EC2API.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{
 		Filters: []ec2types.Filter{
