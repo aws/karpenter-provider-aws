@@ -5871,6 +5871,33 @@ below are the resources available with some assumptions and after the instance o
  |memory|919778Mi|
  |pods|394|
 ## f2 Family
+### `f2.6xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|f|
+ |karpenter.k8s.aws/instance-cpu|24|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|7500|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|f2|
+ |karpenter.k8s.aws/instance-generation|2|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|940|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-network-bandwidth|12500|
+ |karpenter.k8s.aws/instance-size|6xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|f2.6xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|23870m|
+ |ephemeral-storage|17Gi|
+ |memory|239554Mi|
+ |pods|234|
 ### `f2.12xlarge`
 #### Labels
  | Label | Value |
@@ -15764,7 +15791,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-gpu-count|8|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
  |karpenter.k8s.aws/instance-gpu-memory|144384|
- |karpenter.k8s.aws/instance-gpu-name|nvidia|
+ |karpenter.k8s.aws/instance-gpu-name|h200|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|30400|
  |karpenter.k8s.aws/instance-memory|2097152|

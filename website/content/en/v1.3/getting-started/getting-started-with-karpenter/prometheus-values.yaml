@@ -1,0 +1,22 @@
+alertmanager:
+  persistentVolume:
+    enabled: false
+
+server:
+  fullnameOverride: prometheus-server
+  persistentVolume:
+    enabled: false
+
+extraScrapeConfigs: |
+    - job_name: karpenter
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - $KARPENTER_NAMESPACE
+      relabel_configs:
+      - source_labels:
+        - __meta_kubernetes_endpoints_name
+        - __meta_kubernetes_endpoint_port_name
+        action: keep
+        regex: karpenter;http-metrics
