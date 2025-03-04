@@ -130,10 +130,10 @@ var _ = Describe("ZonalFailure", func() {
 			}
 
 			By(fmt.Sprintf("Creating experiment template for AZ %s", targetAZ))
-			templateId := createExperimentTemplate(ctx, env, targetAZ, instances, failureRate)
+			templateID := createExperimentTemplate(ctx, env, targetAZ, instances, failureRate)
 
 			By("Starting the experiment")
-			experiment := startExperiment(ctx, env, templateId)
+			experiment := startExperiment(ctx, env, templateID)
 
 			By(fmt.Sprintf("Waiting for the %s experiment to complete", description))
 			Eventually(func(g Gomega) {
@@ -166,7 +166,7 @@ var _ = Describe("ZonalFailure", func() {
 
 			By("Cleaning up test resources")
 			env.ExpectDeleted(dep)
-			env.ExpectExperimentTemplateDeleted(templateId)
+			env.ExpectExperimentTemplateDeleted(templateID)
 
 			Eventually(func(g Gomega) {
 				nodeList := &corev1.NodeList{}
@@ -302,9 +302,9 @@ func createExperimentTemplate(ctx context.Context, env *awsenv.Environment, targ
 	return *experimentTemplate.ExperimentTemplate.Id
 }
 
-func startExperiment(ctx context.Context, env *awsenv.Environment, templateId string) *fistypes.Experiment {
+func startExperiment(ctx context.Context, env *awsenv.Environment, templateID string) *fistypes.Experiment {
 	experiment, err := env.FISAPI.StartExperiment(ctx, &fis.StartExperimentInput{
-		ExperimentTemplateId: aws.String(templateId),
+		ExperimentTemplateId: aws.String(templateID),
 	})
 	Expect(err).NotTo(HaveOccurred())
 	return experiment.Experiment
