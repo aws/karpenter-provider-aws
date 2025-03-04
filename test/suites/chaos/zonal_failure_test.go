@@ -229,11 +229,9 @@ func createExperimentTemplate(ctx context.Context, env *awsenv.Environment, targ
 		}
 	}
 
-	// Get subnets in the target AZ
 	subnetARNs := getSubnetsInAZ(ctx, env, targetAZ)
 	By(fmt.Sprintf("Found %d subnets in AZ %s", len(subnetARNs), targetAZ))
 
-	// Create experiment template
 	template := &fis.CreateExperimentTemplateInput{
 		Actions: map[string]fistypes.CreateExperimentTemplateActionInput{
 			"stop-instances": {
