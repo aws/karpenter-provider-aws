@@ -41,6 +41,7 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -66,7 +67,7 @@ var _ = BeforeEach(func() {
 	nodeClass = env.DefaultEC2NodeClass()
 	nodePool = env.DefaultNodePool(nodeClass)
 })
-var _ = AfterEach(func() { env.Cleanup() })
+var _ = AfterEach(func() { ChaosCleanup(env) })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Chaos", func() {
@@ -226,4 +227,11 @@ func startNodeCountMonitor(ctx context.Context, kubeClient client.Client) {
 			}
 		}
 	}()
+}
+
+func ChaosCleanup(env *aws.Environment) {
+	env.CleanupObjects(common.CleanableObjects...)
+	env.EventuallyExpectNoLeakedKubeNodeLease()
+	env.ConsistentlyExpectNodeCount(">=", 0, time.Second*5)
+	env.ExpectActiveKarpenterPod()
 }

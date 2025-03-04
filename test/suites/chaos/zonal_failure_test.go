@@ -17,7 +17,6 @@ package chaos_test
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -48,13 +47,13 @@ import (
 // FIS role variables are defined at package level to be accessible across tests
 var fisRoleName string
 var fisRoleArn string
-
+var customPolicyArn string
 var _ = Describe("ZonalFailure", func() {
 	BeforeEach(func() {
-		setupFISRole(env)
+		setupRoles(env)
 	})
 	AfterEach(func() {
-		cleanupFISRole(env)
+		cleanupRoles(env)
 	})
 
 	DescribeTable("should recover from AZ failures with different failure rates",
@@ -64,7 +63,7 @@ var _ = Describe("ZonalFailure", func() {
 				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 					Key:      karpv1.CapacityTypeLabelKey,
 					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{karpv1.CapacityTypeSpot},
+					Values:   []string{karpv1.CapacityTypeOnDemand},
 				},
 			})
 			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
@@ -99,21 +98,19 @@ var _ = Describe("ZonalFailure", func() {
 			env.EventuallyExpectHealthyPodCount(selector, numPods)
 
 			// Start a context with a timeout for the chaos test
-			ctx, cancel := context.WithTimeout(env.Context, 15*time.Minute)
+			ctx, cancel := context.WithCancel(env.Context)
 			defer cancel()
 
 			// Start node count monitor
 			startNodeCountMonitor(ctx, env.Client)
 
-			// Get current nodes and group them by AZ
+			// find AZ with most nodes
 			nodesByAZ := make(map[string][]*corev1.Node)
-			nodeList := &corev1.NodeList{}
-			Expect(env.Client.List(ctx, nodeList, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
-
-			// Process nodes, find AZ with most nodes, and collect instances in a single pass
 			var targetAZ string
 			var maxNodes int
 			var instances []ec2types.Instance
+			nodeList := &corev1.NodeList{}
+			Expect(env.Client.List(ctx, nodeList, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
 
 			for i := range nodeList.Items {
 				node := &nodeList.Items[i]
@@ -170,8 +167,8 @@ var _ = Describe("ZonalFailure", func() {
 					g.Expect(exp.Experiment.State.Status).To(Or(
 						Equal(fistypes.ExperimentStatusCompleted),
 						Equal(fistypes.ExperimentStatusStopped),
-						Equal(fistypes.ExperimentStatusFailed),
 					))
+					g.Expect(exp.Experiment.State.Status).To(Not(Equal(fistypes.ExperimentActionStatusFailed)))
 				}
 			}, 10*time.Minute, 30*time.Second).Should(Succeed())
 
@@ -184,14 +181,15 @@ var _ = Describe("ZonalFailure", func() {
 			env.ExpectExperimentTemplateDeleted(templateId)
 
 			Eventually(func(g Gomega) {
-				// First delete all nodes to trigger proper cleanup
 				nodeList := &corev1.NodeList{}
 				g.Expect(env.Client.List(env.Context, nodeList, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
-
-				// Delete each node to trigger proper Kubernetes cleanup
 				for _, node := range nodeList.Items {
-					fmt.Printf("Deleting node %s\n", node.Name)
 					g.Expect(env.Client.Delete(env.Context, &node)).To(Succeed())
+				}
+				nodeClaimList := &karpv1.NodeClaimList{}
+				g.Expect(env.Client.List(env.Context, nodeClaimList, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
+				for _, nodeClaim := range nodeClaimList.Items {
+					g.Expect(env.Client.Delete(env.Context, &nodeClaim)).To(Succeed())
 				}
 
 				// Wait for nodes to be deleted from Kubernetes
@@ -332,17 +330,42 @@ func startExperiment(ctx context.Context, env *awsenv.Environment, templateId st
 	return experiment.Experiment
 }
 
-// setupFISRole creates a role for AWS FIS with necessary permissions
-func setupFISRole(env *awsenv.Environment) {
-	// Create a unique role name for this test run to avoid conflicts
+// setupRoles creates a role for AWS FIS with necessary permissions
+func setupRoles(env *awsenv.Environment) {
+	// First, check if the FIS service-linked role exists
+	serviceRoleName := "AWSServiceRoleForFIS"
+	_, err := env.IAMAPI.GetRole(env.Context, &awsiam.GetRoleInput{
+		RoleName: aws.String(serviceRoleName),
+	})
+
+	if err != nil {
+		// If the role doesn't exist, create it
+		if awserrors.IsNotFound(err) {
+			By("Creating FIS service-linked role")
+			_, err = env.IAMAPI.CreateServiceLinkedRole(env.Context, &awsiam.CreateServiceLinkedRoleInput{
+				AWSServiceName: aws.String("fis.amazonaws.com"),
+				Description:    aws.String("Service-linked role for AWS Fault Injection Simulator"),
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Wait for the role to be available
+			By("Waiting for FIS service-linked role to be available")
+			Eventually(func() error {
+				_, err := env.IAMAPI.GetRole(env.Context, &awsiam.GetRoleInput{
+					RoleName: aws.String(serviceRoleName),
+				})
+				return err
+			}, 30*time.Second, 2*time.Second).Should(Succeed())
+		} else {
+			Expect(err).NotTo(HaveOccurred(), "Failed to check for FIS service-linked role")
+		}
+	}
+
+	By("Creating FIS experiment role")
 	uid, err := uuid.NewUUID()
 	Expect(err).NotTo(HaveOccurred())
-	// Truncate UUID to ensure role name stays under 64 characters
 	shortUID := uid.String()[:8]
 	fisRoleName = fmt.Sprintf("Karp-FIS-Role-%s", shortUID)
-
-	// Create the FIS role with necessary permissions
-
 	assumeRolePolicy := fmt.Sprintf(`{
 			"Version": "2012-10-17",
 			"Statement": [
@@ -390,31 +413,75 @@ func setupFISRole(env *awsenv.Environment) {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
+	// Create custom policy for API error injection
+	By("Creating custom policy for API error injection")
+	policyName := fmt.Sprintf("Karp-FIS-APIError-Policy-%s", shortUID)
+	policyDocument := fmt.Sprintf(`{
+		"Version": "2012-10-17",
+		"Statement": [
+			{
+				"Effect": "Allow",
+				"Action": [
+					"ec2:InjectApiError"
+				],
+				"Resource": "*",
+				"Condition": {
+					"StringEquals": {
+						"ec2:FisActionId": "aws:ec2:api-insufficient-instance-capacity-error"
+					},
+					"ArnLike": {
+						"ec2:FisTargetArns": [
+							"arn:aws:iam::%s:role/KarpenterNodeRole-%s"
+						]
+					}
+				}
+			}
+		]
+	}`, env.ExpectAccountID(), env.ClusterName)
+
+	createPolicyOutput, err := env.IAMAPI.CreatePolicy(env.Context, &awsiam.CreatePolicyInput{
+		PolicyName:     aws.String(policyName),
+		PolicyDocument: aws.String(policyDocument),
+		Description:    aws.String("Policy for Karpenter zonal failure API error injection with AWS FIS"),
+		Tags: []iamtypes.Tag{
+			{
+				Key:   aws.String(coretest.DiscoveryLabel),
+				Value: aws.String(env.ClusterName),
+			},
+		},
+	})
+	Expect(err).NotTo(HaveOccurred())
+	customPolicyArn = *createPolicyOutput.Policy.Arn
+	// Attach custom API error policy to role
+	_, err = env.IAMAPI.AttachRolePolicy(env.Context, &awsiam.AttachRolePolicyInput{
+		RoleName:  aws.String(fisRoleName),
+		PolicyArn: createPolicyOutput.Policy.Arn,
+	})
+	Expect(err).NotTo(HaveOccurred())
+
 	// Wait for role to propagate
 	time.Sleep(10 * time.Second)
 }
 
-// cleanupFISRole removes the FIS role and associated policies
-func cleanupFISRole(env *awsenv.Environment) {
+// cleanupRoles removes the FIS role and associated policies
+func cleanupRoles(env *awsenv.Environment) {
 	listPoliciesOutput, err := env.IAMAPI.ListAttachedRolePolicies(env.Context, &awsiam.ListAttachedRolePoliciesInput{
 		RoleName: aws.String(fisRoleName),
 	})
 	Expect(err).NotTo(HaveOccurred())
 	for _, policy := range listPoliciesOutput.AttachedPolicies {
-		// Detach all policies
 		_, err = env.IAMAPI.DetachRolePolicy(env.Context, &awsiam.DetachRolePolicyInput{
 			RoleName:  aws.String(fisRoleName),
 			PolicyArn: policy.PolicyArn,
 		})
 		Expect(err).NotTo(HaveOccurred())
-
-		// Only delete custom policies (not AWS managed policies)
-		if !strings.HasPrefix(*policy.PolicyArn, "arn:aws:iam::aws:policy/") {
-			_, _ = env.IAMAPI.DeletePolicy(env.Context, &awsiam.DeletePolicyInput{
-				PolicyArn: policy.PolicyArn,
-			})
-		}
 	}
+
+	_, err = env.IAMAPI.DeletePolicy(env.Context, &awsiam.DeletePolicyInput{
+		PolicyArn: aws.String(customPolicyArn),
+	})
+	Expect(err).NotTo(HaveOccurred())
+
 	_, _ = env.IAMAPI.DeleteRole(env.Context, &awsiam.DeleteRoleInput{
 		RoleName: aws.String(fisRoleName),
 	})
@@ -422,7 +489,6 @@ func cleanupFISRole(env *awsenv.Environment) {
 
 // getSubnetsInAZ discovers all subnets in a specific availability zone
 func getSubnetsInAZ(ctx context.Context, env *awsenv.Environment, targetAZ string) []string {
-	// Describe subnets in the target AZ
 	describeSubnetsOutput, err := env.EC2API.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{
 		Filters: []ec2types.Filter{
 			{
@@ -437,18 +503,11 @@ func getSubnetsInAZ(ctx context.Context, env *awsenv.Environment, targetAZ strin
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	// Extract subnet ARNs
-	var subnetARNs []string
-	for _, subnet := range describeSubnetsOutput.Subnets {
-		if subnet.SubnetId != nil {
-			subnetARN := fmt.Sprintf("arn:aws:ec2:%s:%s:subnet/%s",
-				env.Region, env.ExpectAccountID(), *subnet.SubnetId)
-			subnetARNs = append(subnetARNs, subnetARN)
-		}
-	}
-
-	Expect(len(subnetARNs)).To(BeNumerically(">", 0),
+	arns := lo.Map(describeSubnetsOutput.Subnets, func(subnet ec2types.Subnet, _ int) string {
+		return *subnet.SubnetArn
+	})
+	Expect(len(arns)).To(BeNumerically(">", 0),
 		fmt.Sprintf("No subnets found in AZ %s", targetAZ))
 
-	return subnetARNs
+	return arns
 }
