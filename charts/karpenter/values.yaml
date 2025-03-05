@@ -68,6 +68,11 @@ dnsConfig: {}
 #  options:
 #    - name: ndots
 #      value: "1"
+# -- add additional initContainers to run before karpenter container starts
+initContainers: {}
+#  - name: list-ec2-instances
+#    image: amazon/aws-cli:latest
+#    command: [ 'aws', 'ec2', 'describe-instance-types']
 # -- Node selectors to schedule the pod to nodes with labels.
 nodeSelector:
   kubernetes.io/os: linux
