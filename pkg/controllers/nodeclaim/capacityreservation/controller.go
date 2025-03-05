@@ -114,6 +114,7 @@ func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, 
 	if capacityType != karpv1.CapacityTypeOnDemand {
 		return false, nil
 	}
+	updated := false
 	if nc.Labels[karpv1.CapacityTypeLabelKey] == karpv1.CapacityTypeReserved {
 		stored := nc.DeepCopy()
 		nc.Labels[karpv1.CapacityTypeLabelKey] = karpv1.CapacityTypeOnDemand
@@ -121,6 +122,7 @@ func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, 
 		if err := c.kubeClient.Patch(ctx, nc, client.MergeFrom(stored)); client.IgnoreNotFound(err) != nil {
 			return false, fmt.Errorf("patching nodeclaim %q, %w", nc.Name, err)
 		}
+		updated = true
 	}
 
 	// If the reservation expired before the NodeClaim became registered, there may not be a Node on the cluster. Note
@@ -130,7 +132,6 @@ func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, 
 	if err != nil {
 		return false, fmt.Errorf("listing nodes for nodeclaim %q, %w", nc.Name, err)
 	}
-	updated := false
 	for _, n := range nodes {
 		if !n.DeletionTimestamp.IsZero() {
 			continue
