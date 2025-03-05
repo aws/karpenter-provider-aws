@@ -165,7 +165,6 @@ func (p *DefaultProvider) createOfferings(
 					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
 				}
 				cachedOfferings = append(cachedOfferings, offering)
-				offerings = append(cachedOfferings, offering)
 			}
 		}
 		p.cache.SetDefault(p.cacheKeyFromInstanceType(it), cachedOfferings)
