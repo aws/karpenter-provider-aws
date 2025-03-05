@@ -189,18 +189,26 @@ func (v *Validation) validateRunInstancesAuthorization(
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
 ) (reason string, err error) {
-	// NOTE: Since we've already validated the AMI status condition is true, this should never occur
+	// NOTE: Since we've already validated the status conditions are true, these should never occur
 	if len(nodeClass.Status.AMIs) == 0 {
 		return "", fmt.Errorf("no resolved amis in status")
+	}
+	if len(nodeClass.Status.Subnets) == 0 {
+		return "", fmt.Errorf("no resolved subnets in status")
+	}
+	if len(nodeClass.Status.SecurityGroups) == 0 {
+		return "", fmt.Errorf("no resolved security groups in status")
+	}
+	if nodeClass.Status.InstanceProfile == "" {
+		return "", fmt.Errorf("no instance profile in status")
 	}
 
 	var instanceType ec2types.InstanceType
 	requirements := scheduling.NewNodeSelectorRequirements(nodeClass.Status.AMIs[0].Requirements...)
 
+	instanceType = ec2types.InstanceTypeM6gLarge
 	if requirements.Get(corev1.LabelArchStable).Has(karpv1.ArchitectureAmd64) {
 		instanceType = ec2types.InstanceTypeM5Large
-	} else if requirements.Get(corev1.LabelArchStable).Has(karpv1.ArchitectureArm64) {
-		instanceType = ec2types.InstanceTypeM6gLarge
 	}
 
 	runInstancesInput := &ec2.RunInstancesInput{
@@ -215,6 +223,10 @@ func (v *Validation) validateRunInstancesAuthorization(
 			//aws sdk v2 changed this type to *int32 instead of *int64
 			//nolint: gosec
 			HttpPutResponseHopLimit: lo.ToPtr(int32(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPPutResponseHopLimit))),
+		},
+		Monitoring: &ec2types.RunInstancesMonitoringEnabled{
+			// Default Enabled to False if not specified
+			Enabled: lo.ToPtr(lo.FromPtr(nodeClass.Spec.DetailedMonitoring)),
 		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{
@@ -231,6 +243,19 @@ func (v *Validation) validateRunInstancesAuthorization(
 			},
 		},
 		ImageId: lo.ToPtr(nodeClass.Status.AMIs[0].ID),
+		IamInstanceProfile: &ec2types.IamInstanceProfileSpecification{
+			Name: lo.ToPtr(nodeClass.Status.InstanceProfile),
+		},
+		// EC2 dry-run doesn't validate the number of IPs, so it's safe to take the first subnet here
+		// even if that subnet has no more IPv4 or IPv6 addresses to give out
+		NetworkInterfaces: []ec2types.InstanceNetworkInterfaceSpecification{
+			{
+				AssociatePublicIpAddress: nodeClass.Spec.AssociatePublicIPAddress,
+				DeviceIndex:              lo.ToPtr[int32](0),
+				Groups:                   lo.Map(nodeClass.Status.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
+				SubnetId:                 lo.ToPtr(nodeClass.Status.Subnets[0].ID),
+			},
+		},
 	}
 
 	if _, err := v.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
