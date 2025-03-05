@@ -130,6 +130,7 @@ func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, 
 	if err != nil {
 		return false, fmt.Errorf("listing nodes for nodeclaim %q, %w", nc.Name, err)
 	}
+	updated := false
 	for _, n := range nodes {
 		if !n.DeletionTimestamp.IsZero() {
 			continue
@@ -148,6 +149,7 @@ func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, 
 		if err := c.kubeClient.Patch(ctx, n, client.MergeFrom(stored)); client.IgnoreNotFound(err) != nil {
 			return false, fmt.Errorf("patching node %q, %w", n.Name, err)
 		}
+		updated = true
 	}
-	return true, nil
+	return updated, nil
 }
