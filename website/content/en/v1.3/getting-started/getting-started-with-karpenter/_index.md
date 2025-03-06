@@ -130,14 +130,6 @@ Karpenter uses the `ClusterFirst` pod DNS policy by default. This is the Kuberne
 If you need Karpenter to manage the DNS service pods' capacity, this means that DNS won't be running when Karpenter starts-up. In this case, you will need to set the pod DNS policy to `Default` with `--set dnsPolicy=Default`. This will tell Karpenter to use the host's DNS resolution instead of the internal DNS resolution, ensuring that you don't have a dependency on the DNS service pods to run. More details on this issue can be found in the following Github issues: [#2186](https://github.com/aws/karpenter-provider-aws/issues/2186) and [#4947](https://github.com/aws/karpenter-provider-aws/issues/4947).
 {{% /alert %}}
 
-{{% alert title="Common Expression Language/Webhooks Notice" color="warning" %}}
-Karpenter supports using [Kubernetes Common Expression Language](https://kubernetes.io/docs/reference/using-api/cel/) for validating its Custom Resource Definitions out-of-the-box; however, this feature is not supported on versions of Kubernetes < 1.25. If you are running an earlier version of Kubernetes, you will need to use the Karpenter admission webhooks for validation instead. You can enable these webhooks with `--set webhook.enabled=true` when applying the Karpenter Helm chart.
-{{% /alert %}}
-
-{{% alert title="Pod Identity Supports Notice" color="warning" %}}
-Karpenter now supports using [Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html) to authenticate AWS SDK to make API requests to AWS services using AWS Identity and Access Management (IAM) permissions. This feature not supported on versions of Kubernetes < 1.24.  If you are running an earlier version of Kubernetes, you will need to use the [IAM Roles for Service Accounts(IRSA)](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html) for pod authentication instead. You can enable these IRSA with `--set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}"` when applying the Karpenter Helm chart.
-{{% /alert %}}
-
 {{% alert title="Warning" color="warning" %}}
 Karpenter creates a mapping between CloudProvider machines and CustomResources in the cluster for capacity tracking. To ensure this mapping is consistent, Karpenter utilizes the following tag keys:
 
