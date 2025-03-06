@@ -125,8 +125,10 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		v.validateCreateLaunchTemplateAuthorization,
 		v.validateRunInstancesAuthorization,
 	} {
-		if failureReason, err := isValid(ctx, nodeClass, nodeClaim, tags); err != nil {
+		if failureReason, requeue, err := isValid(ctx, nodeClass, nodeClaim, tags); err != nil {
 			return reconcile.Result{}, err
+		} else if requeue {
+			return reconcile.Result{Requeue: true}, nil
 		} else if failureReason != "" {
 			v.cache.SetDefault(v.cacheKey(nodeClass, tags), failureReason)
 			nodeClass.StatusConditions().SetFalse(
@@ -143,25 +145,25 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	return reconcile.Result{}, nil
 }
 
-type validatorFunc func(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim, map[string]string) (string, error)
+type validatorFunc func(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim, map[string]string) (string, bool, error)
 
 func (v *Validation) validateCreateFleetAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
 	_ *karpv1.NodeClaim,
 	tags map[string]string,
-) (reason string, err error) {
+) (reason string, requeue bool, err error) {
 	createFleetInput := instance.GetCreateFleetInput(nodeClass, karpv1.CapacityTypeOnDemand, tags, mockLaunchTemplateConfig())
 	createFleetInput.DryRun = lo.ToPtr(true)
 	if _, err := v.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
 			// it would be an unexpected state
-			return "", fmt.Errorf("validating ec2:CreateFleet authorization, %w", err)
+			return "", false, fmt.Errorf("validating ec2:CreateFleet authorization, %w", err)
 		}
-		return ConditionReasonCreateFleetAuthFailed, nil
+		return ConditionReasonCreateFleetAuthFailed, false, nil
 	}
-	return "", nil
+	return "", false, nil
 }
 
 func (v *Validation) validateCreateLaunchTemplateAuthorization(
@@ -169,18 +171,18 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
-) (reason string, err error) {
+) (reason string, requeue bool, err error) {
 	createLaunchTemplateInput := launchtemplate.GetCreateLaunchTemplateInput(ctx, mockOptions(*nodeClaim, nodeClass, tags), corev1.IPv4Protocol, "")
 	createLaunchTemplateInput.DryRun = lo.ToPtr(true)
 	if _, err := v.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
 			// it would be an unexpected state
-			return "", fmt.Errorf("validating ec2:CreateLaunchTemplates authorization, %w", err)
+			return "", false, fmt.Errorf("validating ec2:CreateLaunchTemplates authorization, %w", err)
 		}
-		return ConditionReasonCreateLaunchTemplateAuthFailed, nil
+		return ConditionReasonCreateLaunchTemplateAuthFailed, false, nil
 	}
-	return "", nil
+	return "", false, nil
 }
 
 func (v *Validation) validateRunInstancesAuthorization(
@@ -188,19 +190,19 @@ func (v *Validation) validateRunInstancesAuthorization(
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
-) (reason string, err error) {
+) (reason string, requeue bool, err error) {
 	// NOTE: Since we've already validated the status conditions are true, these should never occur
 	if len(nodeClass.Status.AMIs) == 0 {
-		return "", fmt.Errorf("no resolved amis in status")
+		return "", false, fmt.Errorf("no resolved amis in status")
 	}
 	if len(nodeClass.Status.Subnets) == 0 {
-		return "", fmt.Errorf("no resolved subnets in status")
+		return "", false, fmt.Errorf("no resolved subnets in status")
 	}
 	if len(nodeClass.Status.SecurityGroups) == 0 {
-		return "", fmt.Errorf("no resolved security groups in status")
+		return "", false, fmt.Errorf("no resolved security groups in status")
 	}
 	if nodeClass.Status.InstanceProfile == "" {
-		return "", fmt.Errorf("no instance profile in status")
+		return "", false, fmt.Errorf("no instance profile in status")
 	}
 
 	var instanceType ec2types.InstanceType
@@ -258,15 +260,20 @@ func (v *Validation) validateRunInstancesAuthorization(
 		},
 	}
 
-	if _, err := v.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
+	if _, err = v.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
+		// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
+		// this means there is most likely an eventual consistency issue and we just need to requeue
+		if awserrors.IsInstanceProfileNotFound(err) {
+			return "", true, nil
+		}
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
 			// it would be an unexpected state
-			return "", fmt.Errorf("validating ec2:RunInstances authorization, %w", err)
+			return "", false, fmt.Errorf("validating ec2:RunInstances authorization, %w", err)
 		}
-		return ConditionReasonRunInstancesAuthFailed, nil
+		return ConditionReasonRunInstancesAuthFailed, false, nil
 	}
-	return "", nil
+	return "", false, nil
 }
 
 func (*Validation) requiredConditions() []string {

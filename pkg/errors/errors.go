@@ -15,18 +15,19 @@ limitations under the License.
 package errors
 
 import (
-	"errors"
 	"strings"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
+	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
-	launchTemplateNameNotFoundCode = "InvalidLaunchTemplateName.NotFoundException"
-	DryRunOperationErrorCode       = "DryRunOperation"
-	UnauthorizedOperationErrorCode = "UnauthorizedOperation"
+	launchTemplateNameNotFoundCode        = "InvalidLaunchTemplateName.NotFoundException"
+	RunInstancesInvalidParameterValueCode = "InvalidParameterValue"
+	DryRunOperationErrorCode              = "DryRunOperation"
+	UnauthorizedOperationErrorCode        = "UnauthorizedOperation"
 )
 
 var (
@@ -64,8 +65,7 @@ func IsNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
 		return notFoundErrorCodes.Has(apiErr.ErrorCode())
 	}
 	return false
@@ -82,8 +82,7 @@ func IsAlreadyExists(err error) bool {
 	if err == nil {
 		return false
 	}
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
 		return alreadyExistsErrorCodes.Has(apiErr.ErrorCode())
 	}
 	return false
@@ -100,8 +99,7 @@ func IsDryRunError(err error) bool {
 	if err == nil {
 		return false
 	}
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
 		return apiErr.ErrorCode() == DryRunOperationErrorCode
 	}
 	return false
@@ -118,8 +116,7 @@ func IsUnauthorizedOperationError(err error) bool {
 	if err == nil {
 		return false
 	}
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
 		return apiErr.ErrorCode() == UnauthorizedOperationErrorCode
 	}
 	return false
@@ -148,9 +145,18 @@ func IsLaunchTemplateNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
 		return apiErr.ErrorCode() == launchTemplateNameNotFoundCode
+	}
+	return false
+}
+
+func IsInstanceProfileNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
+		return apiErr.ErrorCode() == RunInstancesInvalidParameterValueCode && strings.Contains(apiErr.ErrorMessage(), "Invalid IAM Instance Profile name")
 	}
 	return false
 }
