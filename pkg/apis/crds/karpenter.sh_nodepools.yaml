@@ -500,6 +500,12 @@ spec:
                       - type
                     type: object
                   type: array
+                nodeClassObservedGeneration:
+                  description: |-
+                    NodeClassObservedGeneration represents the observed nodeClass generation for referenced nodeClass. If this does not match
+                    the actual NodeClass Generation, NodeRegistrationHealthy status condition on the NodePool will be reset
+                  format: int64
+                  type: integer
                 resources:
                   additionalProperties:
                     anyOf:
