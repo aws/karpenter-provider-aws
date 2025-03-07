@@ -180,7 +180,23 @@ To enable interruption handling, configure the `--interruption-queue` CLI argume
 
 ### Pod-Level Controls
 
-You can block Karpenter from voluntarily choosing to disrupt certain pods by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the pod. This is useful for pods that you want to run from start to finish without disruption. By opting pods out of this disruption, you are telling Karpenter that it should not voluntarily remove a node containing this pod.
+Pods with blocking PDBs will not be evicted by the [Termination Controller]({{<ref "#termination-controller">}}) or be considered for voluntary disruption actions. When multiple pods on a node have different PDBs, none of the PDBs may be blocking for Karpenter to voluntary disrupt a node. This can create complex eviction scenarios:
+  - If a pod matches multiple PDBs (via label selectors), ALL of these PDBs must allow for disruption
+  - When different pods on the same node belong to different PDBs, ALL PDBs must simultaneously permit eviction
+  - A single blocking PDB can prevent the entire node from being voluntary disrupted
+
+For example, consider a node with these pods and PDBs:
+- Pod A: Matches PDB-1 (maxUnavailable: 0) and PDB-2 (maxUnavailable: 1)
+- Pod B: Matches PDB-3 (minAvailable: 100%)
+- Pod C: No PDB
+
+In this scenario, Karpenter cannot voluntary disrupt the node because:
+1. Pod A is blocked by PDB-1 even though PDB-2 would allow disruption
+2. Pod B is blocked by PDB-3's requirement for 100% availability
+
+As seen in this example, the more PDBs there are affecting a Node, the more difficult it will be for Karpenter to find an opportunity to perform voluntary disruption actions. 
+
+Secondly, you can block Karpenter from voluntarily choosing to disrupt certain pods by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the pod. This is useful for pods that you want to run from start to finish without disruption. By opting pods out of this disruption, you are telling Karpenter that it should not voluntarily remove a node containing this pod.
 
 Examples of pods that you might want to opt-out of disruption include an interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
 

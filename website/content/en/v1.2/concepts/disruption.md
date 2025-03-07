@@ -334,7 +334,7 @@ Duration and Schedule must be defined together. When omitted, the budget is alwa
 
 ### Pod-Level Controls
 
-Pods with PDBs will not be evicted by the [Termination Controller]({{<ref "#termination-controller">}}) or be considered for voluntary disruption actions. When multiple pods on a node have different PDBs, none of the PDBs may be blocking for Karpenter to voluntary disrupt a node. This can create complex eviction scenarios:
+Pods with blocking PDBs will not be evicted by the [Termination Controller]({{<ref "#termination-controller">}}) or be considered for voluntary disruption actions. When multiple pods on a node have different PDBs, none of the PDBs may be blocking for Karpenter to voluntary disrupt a node. This can create complex eviction scenarios:
   - If a pod matches multiple PDBs (via label selectors), ALL of these PDBs must allow for disruption
   - When different pods on the same node belong to different PDBs, ALL PDBs must simultaneously permit eviction
   - A single blocking PDB can prevent the entire node from being voluntary disrupted
