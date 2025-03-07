@@ -334,12 +334,28 @@ Duration and Schedule must be defined together. When omitted, the budget is alwa
 
 ### Pod-Level Controls
 
-You can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt: "true"` annotation to the pod.
+Pods with blocking PDBs will not be evicted by the [Termination Controller]({{<ref "#termination-controller">}}) or be considered for voluntary disruption actions. When multiple pods on a node have different PDBs, none of the PDBs may be blocking for Karpenter to voluntary disrupt a node. This can create complex eviction scenarios:
+  - If a pod matches multiple PDBs (via label selectors), ALL of these PDBs must allow for disruption
+  - When different pods on the same node belong to different PDBs, ALL PDBs must simultaneously permit eviction
+  - A single blocking PDB can prevent the entire node from being voluntary disrupted
+
+For example, consider a node with these pods and PDBs:
+- Pod A: Matches PDB-1 (maxUnavailable: 0) and PDB-2 (maxUnavailable: 1)
+- Pod B: Matches PDB-3 (minAvailable: 100%)
+- Pod C: No PDB
+
+In this scenario, Karpenter cannot voluntary disrupt the node because:
+1. Pod A is blocked by PDB-1 even though PDB-2 would allow disruption
+2. Pod B is blocked by PDB-3's requirement for 100% availability
+
+As seen in this example, the more PDBs there are affecting a Node, the more difficult it will be for Karpenter to find an opportunity to perform voluntary disruption actions. 
+
+Secondly, you can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt: "true"` annotation to the pod.
 You can treat this annotation as a single-pod, permanently blocking PDB.
 This has the following consequences:
 - Nodes with `karpenter.sh/do-not-disrupt` pods will be excluded from [Consolidation]({{<ref "#consolidation" >}}), and conditionally excluded from [Drift]({{<ref "#drift" >}}).
   - If the Node's owning NodeClaim has a [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) configured, it will still be eligible for disruption via drift.
-- Like pods with a blocking PDB, pods with the `karpenter.sh/do-not-disrupt` annotation will **not** be gracefully evicted by the [Termination Controller]({{ref "#terminationcontroller"}}).
+- Like pods with a blocking PDB, pods with the `karpenter.sh/do-not-disrupt` annotation will **not** be gracefully evicted by the [Termination Controller]({{<ref "#terminationcontroller">}}).
   Karpenter will not be able to complete termination of the node until one of the following conditions is met:
   - All pods with the `karpenter.sh/do-not-disrupt` annotation are removed.
   - All pods with the `karpenter.sh/do-not-disrupt` annotation have entered a [terminal phase](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) (`Succeeded` or `Failed`).
