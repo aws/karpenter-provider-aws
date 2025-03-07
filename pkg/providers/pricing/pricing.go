@@ -211,11 +211,22 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 
 	err := multierr.Append(onDemandErr, onDemandMetalErr)
 	if err != nil {
-		return fmt.Errorf("retreiving on-demand pricing data, %w", err)
+		return fmt.Errorf("retrieving on-demand pricing data, %w", err)
 	}
 
 	if len(onDemandPrices) == 0 || len(onDemandMetalPrices) == 0 {
 		return fmt.Errorf("no on-demand pricing found")
+	}
+
+	extraHourlyCost := options.FromContext(ctx).ExtraHourlyCostPerHost
+
+	// Adjust on-demand prices to include the extra hourly cost
+	for instanceType, price := range onDemandPrices {
+		onDemandPrices[instanceType] = price + extraHourlyCost
+	}
+
+	for instanceType, price := range onDemandMetalPrices {
+		onDemandMetalPrices[instanceType] = price + extraHourlyCost
 	}
 
 	p.onDemandPrices = lo.Assign(onDemandPrices, onDemandMetalPrices)

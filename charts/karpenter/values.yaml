@@ -181,6 +181,8 @@ settings:
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html
   reservedENIs: "0"
+  # -- The additional hourly cost per host, added to the total instance cost, is useful for accounting for extra expenses such as Datadog Infrastructure or APM per-host charges.
+  extraHourlyCostPerHost: 0.0
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features
   featureGates:
