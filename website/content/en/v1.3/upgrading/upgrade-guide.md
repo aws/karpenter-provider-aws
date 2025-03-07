@@ -45,6 +45,7 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 {{% /alert %}}
 
 * `karpenter_ignored_pod_count` alpha metric had its name changed to `karpenter_scheduler_ignored_pod_count`
+* With the `ReservedCapacity` feature flag, Karpenter introduces a new `karpenter.sh/capacity-type` value (`reserved`). This means any applications that explicitly select on `on-demand` with a `nodeSelector` and want to utilize ODCR capacity may need to update their requirements to use `nodeAffinity` to opt-in to using both `reserved` and `on-demand` capacity.
 
 ### Upgrading to `1.2.0`+
 
