@@ -334,7 +334,23 @@ Duration and Schedule must be defined together. When omitted, the budget is alwa
 
 ### Pod-Level Controls
 
-You can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt: "true"` annotation to the pod.
+Pods with PDBs will not be evicted by the [Termination Controller]({{<ref "#termination-controller">}}) or be considered for voluntary disruption actions. When multiple pods on a node have different PDBs, none of the PDBs may be blocking for Karpenter to voluntary disrupt a node. This can create complex eviction scenarios:
+  - If a pod matches multiple PDBs (via label selectors), ALL of these PDBs must allow for disruption
+  - When different pods on the same node belong to different PDBs, ALL PDBs must simultaneously permit eviction
+  - A single blocking PDB can prevent the entire node from being voluntary disrupted
+
+For example, consider a node with these pods and PDBs:
+- Pod A: Matches PDB-1 (maxUnavailable: 0) and PDB-2 (maxUnavailable: 1)
+- Pod B: Matches PDB-3 (minAvailable: 100%)
+- Pod C: No PDB
+
+In this scenario, Karpenter cannot voluntary disrupt the node because:
+1. Pod A is blocked by PDB-1 even though PDB-2 would allow disruption
+2. Pod B is blocked by PDB-3's requirement for 100% availability
+
+As seen in this example, the more PDBs there are affecting a Node, the more difficult it will be for Karpenter to find an opportunity to perform voluntary disruption actions. 
+
+Secondly, you can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt: "true"` annotation to the pod.
 You can treat this annotation as a single-pod, permanently blocking PDB.
 This has the following consequences:
 - Nodes with `karpenter.sh/do-not-disrupt` pods will be excluded from [Consolidation]({{<ref "#consolidation" >}}), and conditionally excluded from [Drift]({{<ref "#drift" >}}).
@@ -357,22 +373,6 @@ spec:
       annotations:
         karpenter.sh/do-not-disrupt: "true"
 ```
-
-Pods with PDBs will not be gracefully evicted by the [Termination Controller]({{<ref "#termination-controller">}}) or be considerd for consolidation. When multiple pods on a node have different PDBs, all PDB constraints must be satisfied simultaneously for Karpenter to consolidate the node. This can create complex eviction scenarios:
-  - If a pod matches multiple PDBs (via label selectors), ALL of these PDBs must allow for disruption
-  - When different pods on the same node belong to different PDBs, ALL PDBs must simultaneously permit eviction
-  - A single blocking PDB can prevent the entire node from being consolidated
-
-For example, consider a node with these pods and PDBs:
-- Pod A: Matches PDB-1 (maxUnavailable: 0) and PDB-2 (maxUnavailable: 1)
-- Pod B: Matches PDB-3 (minAvailable: 100%)
-- Pod C: No PDB
-
-In this scenario, Karpenter cannot consolidate the node because:
-1. Pod A is blocked by PDB-1 even though PDB-2 would allow disruption
-2. Pod B is blocked by PDB-3's requirement for 100% availability
-
-Karpenter will not be able to complete consolidation and termination of the node until all blocking PDBs allow for pod eviction or the pods are removed through other means.
 
 {{% alert title="Note" color="primary" %}}
 The `karpenter.sh/do-not-disrupt` annotation does **not** exclude nodes from the forceful disruption methods: [Expiration]({{<ref "#expiration" >}}), [Interruption]({{<ref "#interruption" >}}), [Node Repair](<ref "#node-repair" >), and manual deletion (e.g. `kubectl delete node ...`).
