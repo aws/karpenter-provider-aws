@@ -69,7 +69,7 @@ params:
   links:
     developer:
       - name: GitHub
-        url: "https://github.com/aws/karpenter-provider-aws"
+        url: "https://github.com/kubernetes-sigs/karpenter"
         icon: fab fa-github
         desc: Development takes place here!
       - name: Slack
@@ -89,7 +89,7 @@ menu:
   main:
     - name: GitHub
       weight: 99
-      url: "https://github.com/aws/karpenter-provider-aws"
+      url: "https://github.com/kubernetes-sigs/karpenter"
       pre: <i class='fab fa-github'></i>
     - name: Docs
       weight: 20
