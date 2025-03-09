@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/operatorpkg/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/samber/lo"
 
@@ -96,5 +97,229 @@ var _ = Describe("InstanceProfile Generation", func() {
 		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionUnknown})
 		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeValidationSucceeded, Status: metav1.ConditionUnknown})
 		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionUnknown})
+	})
+
+	Context("NodeClass IAM Tests", func() {
+		var (
+			testRoleName string
+			customAMI    string
+		)
+
+		BeforeEach(func() {
+
+			testRoleName = "MockNodeRole"
+			customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+
+		})
+
+		It("Should detect a deleted Instance Profile", func() {
+			nodeClass = &v1.EC2NodeClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "deleted-profile-test",
+				},
+				Spec: v1.EC2NodeClassSpec{
+					InstanceProfile:            lo.ToPtr(nodeClass.InstanceProfileName(env.ClusterName, env.Region)),
+					AMIFamily:                  aws.String("AL2023"),
+					AMISelectorTerms:           []v1.AMISelectorTerm{{ID: customAMI}},
+					SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
+					SubnetSelectorTerms:        []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
+				},
+			}
+
+			env.ExpectCreated(nodeClass)
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, InstanceProfileReady=False"})
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionFalse, Reason: "InstanceProfileNotFound"})
+		})
+		It("Should detect a deleted Node Role", func() {
+			_, err := env.IAMAPI.PutRolePolicy(env.Context, &iam.PutRolePolicyInput{
+				RoleName:   lo.ToPtr(fmt.Sprintf("%s-karpenter", env.ClusterName)),
+				PolicyName: lo.ToPtr("allowpassrole"),
+				PolicyDocument: aws.String(`{
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Action": "iam:PassRole",
+							"Resource": "arn:aws:iam::376129878705:role/MockNodeRole"
+						}
+					]
+				}`),
+			})
+			Expect(err).To(BeNil())
+			DeferCleanup(func() {
+				_, err := env.IAMAPI.DeleteRolePolicy(env.Context, &iam.DeleteRolePolicyInput{
+					RoleName:   lo.ToPtr(fmt.Sprintf("%s-karpenter", env.ClusterName)),
+					PolicyName: lo.ToPtr("allowpassrole"),
+				})
+				Expect(err).To(BeNil())
+			})
+			nodeClass = &v1.EC2NodeClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "deleted-node-role",
+				},
+				Spec: v1.EC2NodeClassSpec{
+					Role:                       testRoleName,
+					AMIFamily:                  aws.String("AL2023"),
+					AMISelectorTerms:           []v1.AMISelectorTerm{{ID: customAMI}},
+					SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
+					SubnetSelectorTerms:        []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
+				},
+			}
+
+			env.ExpectCreated(nodeClass)
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, InstanceProfileReady=False"})
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionFalse, Reason: "NodeRoleNotFound"})
+		})
+		It("Should succeed if the node role exists", func() {
+			_, err := env.IAMAPI.PutRolePolicy(env.Context, &iam.PutRolePolicyInput{
+				RoleName:   lo.ToPtr(fmt.Sprintf("%s-karpenter", env.ClusterName)),
+				PolicyName: lo.ToPtr("allowpassrole"),
+				PolicyDocument: aws.String(`{
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Action": "iam:PassRole",
+							"Resource": "arn:aws:iam::376129878705:role/MockNodeRole"
+						}
+					]
+				}`),
+			})
+			Expect(err).To(BeNil())
+			_, err = env.IAMAPI.CreateRole(env.Context, &iam.CreateRoleInput{
+				RoleName: aws.String(testRoleName),
+				AssumeRolePolicyDocument: aws.String(`{
+						"Version": "2012-10-17",
+						"Statement": [
+							{
+								"Effect": "Allow",
+								"Principal": {
+									"Service": "ec2.amazonaws.com"
+								},
+								"Action": "sts:AssumeRole"
+							}
+						]
+					}`),
+			})
+			Expect(err).To(BeNil())
+			DeferCleanup(func() {
+				_, err := env.IAMAPI.DeleteRolePolicy(env.Context, &iam.DeleteRolePolicyInput{
+					RoleName:   lo.ToPtr(fmt.Sprintf("%s-karpenter", env.ClusterName)),
+					PolicyName: lo.ToPtr("allowpassrole"),
+				})
+				Expect(err).To(BeNil())
+
+				//Delete the role
+				_, err = env.IAMAPI.DeleteRole(env.Context, &iam.DeleteRoleInput{
+					RoleName: aws.String(nodeClass.Spec.Role),
+				})
+				Expect(err).To(BeNil())
+			})
+
+			Eventually(func(g Gomega) {
+				_, err := env.IAMAPI.GetRole(env.Context, &iam.GetRoleInput{
+					RoleName: &testRoleName,
+				})
+				g.Expect(err).To(BeNil())
+			}, "30s", "5s").Should(Succeed())
+
+			nodeClass = &v1.EC2NodeClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "node-role",
+				},
+				Spec: v1.EC2NodeClassSpec{
+					Role:                       testRoleName,
+					AMIFamily:                  aws.String(v1.AMIFamilyAL2023),
+					AMISelectorTerms:           []v1.AMISelectorTerm{{ID: customAMI}},
+					SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
+					SubnetSelectorTerms:        []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
+				},
+			}
+
+			env.ExpectCreated(nodeClass)
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionTrue})
+
+		})
+		It("Should succeed if the instance profile exists", func() {
+			instanceProfileName := fmt.Sprintf("%s-instance-profile", env.ClusterName)
+
+			// Create instance profile
+			_, err := env.IAMAPI.CreateInstanceProfile(env.Context, &iam.CreateInstanceProfileInput{
+				InstanceProfileName: aws.String(instanceProfileName),
+			})
+			Expect(err).To(BeNil())
+
+			// Create role for the instance profile
+			_, err = env.IAMAPI.CreateRole(env.Context, &iam.CreateRoleInput{
+				RoleName: aws.String(testRoleName),
+				AssumeRolePolicyDocument: aws.String(`{
+				"Version": "2012-10-17",
+				"Statement": [
+					{
+						"Effect": "Allow",
+						"Principal": {
+							"Service": "ec2.amazonaws.com"
+						},
+						"Action": "sts:AssumeRole"
+					}
+				]
+			}`),
+			})
+			Expect(err).To(BeNil())
+
+			// Add role to instance profile
+			_, err = env.IAMAPI.AddRoleToInstanceProfile(env.Context, &iam.AddRoleToInstanceProfileInput{
+				InstanceProfileName: aws.String(instanceProfileName),
+				RoleName:            aws.String(testRoleName),
+			})
+			Expect(err).To(BeNil())
+
+			DeferCleanup(func() {
+				// Remove role from instance profile
+				_, err := env.IAMAPI.RemoveRoleFromInstanceProfile(env.Context, &iam.RemoveRoleFromInstanceProfileInput{
+					InstanceProfileName: aws.String(instanceProfileName),
+					RoleName:            aws.String(testRoleName),
+				})
+				Expect(err).To(BeNil())
+
+				// Delete instance profile
+				_, err = env.IAMAPI.DeleteInstanceProfile(env.Context, &iam.DeleteInstanceProfileInput{
+					InstanceProfileName: aws.String(instanceProfileName),
+				})
+				Expect(err).To(BeNil())
+
+				// Delete the role
+				_, err = env.IAMAPI.DeleteRole(env.Context, &iam.DeleteRoleInput{
+					RoleName: aws.String(testRoleName),
+				})
+				Expect(err).To(BeNil())
+			})
+
+			// Verify instance profile creation
+			Eventually(func(g Gomega) {
+				_, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
+					InstanceProfileName: aws.String(instanceProfileName),
+				})
+				g.Expect(err).To(BeNil())
+			}, "30s", "5s").Should(Succeed())
+
+			nodeClass = &v1.EC2NodeClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "instance-profile-test",
+				},
+				Spec: v1.EC2NodeClassSpec{
+					InstanceProfile:            lo.ToPtr(instanceProfileName),
+					AMIFamily:                  aws.String("AL2023"),
+					AMISelectorTerms:           []v1.AMISelectorTerm{{ID: customAMI}},
+					SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
+					SubnetSelectorTerms:        []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
+				},
+			}
+
+			env.ExpectCreated(nodeClass)
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionTrue})
+		})
 	})
 })
