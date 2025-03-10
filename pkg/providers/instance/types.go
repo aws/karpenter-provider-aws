@@ -15,12 +15,14 @@ limitations under the License.
 package instance
 
 import (
+	"context"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/operator/options"
 )
 
 // Instance is an internal data representation of either an ec2.Instance or an ec2.FleetInstance
@@ -40,7 +42,7 @@ type Instance struct {
 	EFAEnabled            bool
 }
 
-func NewInstance(out ec2types.Instance) *Instance {
+func NewInstance(ctx context.Context, out ec2types.Instance) *Instance {
 	return &Instance{
 		LaunchTime: lo.FromPtr(out.LaunchTime),
 		State:      out.State.Name,
@@ -49,9 +51,13 @@ func NewInstance(out ec2types.Instance) *Instance {
 		Type:       out.InstanceType,
 		Zone:       lo.FromPtr(out.Placement.AvailabilityZone),
 		CapacityType: lo.If(out.SpotInstanceRequestId != nil, karpv1.CapacityTypeSpot).
-			ElseIf(out.CapacityReservationId != nil, karpv1.CapacityTypeReserved).
+			ElseIf(out.CapacityReservationId != nil && options.FromContext(ctx).FeatureGates.ReservedCapacity, karpv1.CapacityTypeReserved).
 			Else(karpv1.CapacityTypeOnDemand),
-		CapacityReservationID: lo.FromPtr(out.CapacityReservationId),
+		CapacityReservationID: lo.Ternary(
+			options.FromContext(ctx).FeatureGates.ReservedCapacity,
+			lo.FromPtr(out.CapacityReservationId),
+			"",
+		),
 		SecurityGroupIDs: lo.Map(out.SecurityGroups, func(securitygroup ec2types.GroupIdentifier, _ int) string {
 			return lo.FromPtr(securitygroup.GroupId)
 		}),

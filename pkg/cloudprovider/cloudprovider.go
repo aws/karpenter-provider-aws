@@ -385,7 +385,10 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 
 	if instanceType != nil {
 		for key, req := range instanceType.Requirements {
-			if req.Len() == 1 {
+			// Only add the label if there is a single possible value. Counter examples include zone and reservation id. We need
+			// an explicit check for reservation id because even if there is a single value, if we launched into spot or OD it
+			// won't be used.
+			if req.Len() == 1 && req.Key != cloudprovider.ReservationIDLabel {
 				labels[key] = req.Values()[0]
 			}
 		}
