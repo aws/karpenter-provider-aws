@@ -26,6 +26,7 @@ import (
 
 	"github.com/awslabs/operatorpkg/object"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -63,15 +64,17 @@ import (
 	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 )
 
-var ctx context.Context
-var stop context.CancelFunc
-var env *coretest.Environment
-var awsEnv *test.Environment
-var prov *provisioning.Provisioner
-var cloudProvider *cloudprovider.CloudProvider
-var cluster *state.Cluster
-var fakeClock *clock.FakeClock
-var recorder events.Recorder
+var (
+	ctx           context.Context
+	stop          context.CancelFunc
+	env           *coretest.Environment
+	awsEnv        *test.Environment
+	prov          *provisioning.Provisioner
+	cloudProvider *cloudprovider.CloudProvider
+	cluster       *state.Cluster
+	fakeClock     *clock.FakeClock
+	recorder      events.Recorder
+)
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -120,7 +123,7 @@ var _ = Describe("CloudProvider", func() {
 	var nodeClass *v1.EC2NodeClass
 	var nodePool *karpv1.NodePool
 	var nodeClaim *karpv1.NodeClaim
-	var _ = BeforeEach(func() {
+	_ = BeforeEach(func() {
 		nodeClass = test.EC2NodeClass(
 			v1.EC2NodeClass{
 				Status: v1.EC2NodeClassStatus{
@@ -380,14 +383,18 @@ var _ = Describe("CloudProvider", func() {
 			// 2 pods are created with resources such that both fit together only in one of the 2 InstanceTypes created above.
 			pod1 := coretest.UnschedulablePod(
 				coretest.PodOptions{
-					ResourceRequirements: corev1.ResourceRequirements{Requests: corev1.ResourceList{
-						corev1.ResourceCPU: resource.MustParse("0.9")},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("0.9"),
+						},
 					},
 				})
 			pod2 := coretest.UnschedulablePod(
 				coretest.PodOptions{
-					ResourceRequirements: corev1.ResourceRequirements{Requests: corev1.ResourceList{
-						corev1.ResourceCPU: resource.MustParse("0.9")},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("0.9"),
+						},
 					},
 				})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
@@ -478,14 +485,18 @@ var _ = Describe("CloudProvider", func() {
 			// 2 pods are created with resources such that both fit together only in one of the 2 InstanceTypes created above.
 			pod1 := coretest.UnschedulablePod(
 				coretest.PodOptions{
-					ResourceRequirements: corev1.ResourceRequirements{Requests: corev1.ResourceList{
-						corev1.ResourceCPU: resource.MustParse("0.9")},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("0.9"),
+						},
 					},
 				})
 			pod2 := coretest.UnschedulablePod(
 				coretest.PodOptions{
-					ResourceRequirements: corev1.ResourceRequirements{Requests: corev1.ResourceList{
-						corev1.ResourceCPU: resource.MustParse("0.9")},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("0.9"),
+						},
 					},
 				})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
@@ -584,14 +595,18 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod1 := coretest.UnschedulablePod(
 				coretest.PodOptions{
-					ResourceRequirements: corev1.ResourceRequirements{Requests: corev1.ResourceList{
-						corev1.ResourceCPU: resource.MustParse("0.9")},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("0.9"),
+						},
 					},
 				})
 			pod2 := coretest.UnschedulablePod(
 				coretest.PodOptions{
-					ResourceRequirements: corev1.ResourceRequirements{Requests: corev1.ResourceList{
-						corev1.ResourceCPU: resource.MustParse("0.9")},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("0.9"),
+						},
 					},
 				})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
@@ -1181,10 +1196,14 @@ var _ = Describe("CloudProvider", func() {
 		It("should launch instances into subnet with the most available IP addresses", func() {
 			awsEnv.SubnetCache.Flush()
 			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
-				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
-					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
-				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(100),
-					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
+				{
+					SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}},
+				},
+				{
+					SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(100),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}},
+				},
 			}})
 			controller := nodeclass.NewController(ctx, awsEnv.Clock, env.Client, recorder, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1198,10 +1217,14 @@ var _ = Describe("CloudProvider", func() {
 		It("should launch instances into subnet with the most available IP addresses in-between cache refreshes", func() {
 			awsEnv.SubnetCache.Flush()
 			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
-				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
-					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
-				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(11),
-					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
+				{
+					SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}},
+				},
+				{
+					SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(11),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}},
+				},
 			}})
 			controller := nodeclass.NewController(ctx, awsEnv.Clock, env.Client, recorder, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache)
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
@@ -1226,8 +1249,10 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should update in-flight IPs when a CreateFleet error occurs", func() {
 			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
-				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int32(10),
-					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
+				{
+					SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}},
+				},
 			}})
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod1)
@@ -1237,10 +1262,14 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should launch instances into subnets that are excluded by another NodePool", func() {
 			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
-				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
-					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
-				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(100),
-					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
+				{
+					SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}},
+				},
+				{
+					SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(100),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}},
+				},
 			}})
 			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1433,6 +1462,22 @@ var _ = Describe("CloudProvider", func() {
 			Expect(ncs).To(HaveLen(1))
 			Expect(ncs[0].Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
 			Expect(ncs[0].Labels).To(HaveKeyWithValue(corecloudprovider.ReservationIDLabel, reservationID))
+		})
+	})
+	Context("NodeClass Termination", func() {
+		It("should return error when NodeClass is not found", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			ExpectDeleted(ctx, env.Client, nodeClass)
+			_, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.IsNotFound(err)).To(BeTrue())
+		})
+		It("should return empty instance types when NodeClass is terminating", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			ExpectDeletionTimestampSet(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).To(BeEmpty())
 		})
 	})
 })

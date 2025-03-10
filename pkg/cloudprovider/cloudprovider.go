@@ -18,6 +18,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"strings"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -180,6 +181,12 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*karpv1.Nod
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.NodePool) ([]*cloudprovider.InstanceType, error) {
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
+		// Special case for terminating NodeClass: return empty list instead of error
+		if errors.IsNotFound(err) && strings.Contains(err.Error(), "is terminating") {
+			log.FromContext(ctx).V(4).Info(fmt.Sprintf("NodeClass for NodePool %s is terminating, returning empty instance types list", nodePool.Name))
+			return []*cloudprovider.InstanceType{}, nil
+		}
+
 		if errors.IsNotFound(err) {
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 		}
