@@ -256,6 +256,30 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(createFleetInput.LaunchTemplateConfigs).To(HaveLen(1))
 		Expect(createFleetInput.LaunchTemplateConfigs[0].Overrides).To(HaveLen(1))
 	})
+	It("should treat instances which launched into open ODCRs as on-demand when the ReservedCapacity gate is disabled", func() {
+		id := fake.InstanceID()
+		awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+			Reservations: []ec2types.Reservation{{
+				Instances: []ec2types.Instance{{
+					State:                 &ec2types.InstanceState{Name: ec2types.InstanceStateNameRunning},
+					PrivateDnsName:        lo.ToPtr(fake.PrivateDNSName()),
+					Placement:             &ec2types.Placement{AvailabilityZone: lo.ToPtr(fake.DefaultRegion)},
+					LaunchTime:            lo.ToPtr(time.Now().Add(-time.Minute)),
+					InstanceId:            &id,
+					InstanceType:          "m5.large",
+					CapacityReservationId: lo.ToPtr("cr-foo"),
+				}},
+			}},
+		})
+
+		coreoptions.FromContext(ctx).FeatureGates.ReservedCapacity = false
+		nodeClaims, err := cloudProvider.List(ctx)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(nodeClaims).To(HaveLen(1))
+		Expect(nodeClaims[0].Status.ProviderID).To(ContainSubstring(id))
+		Expect(nodeClaims[0].Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
+		Expect(nodeClaims[0].Labels).ToNot(HaveKey(v1.LabelCapacityReservationID))
+	})
 	It("should return all NodePool-owned instances from List", func() {
 		ids := sets.New[string]()
 		// Provision instances that have the karpenter.sh/nodepool key
