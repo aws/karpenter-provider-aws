@@ -164,7 +164,7 @@ func (p *DefaultProvider) Get(ctx context.Context, id string) (*Instance, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
 	}
-	instances, err := instancesFromOutput(out)
+	instances, err := instancesFromOutput(ctx, out)
 	if err != nil {
 		return nil, fmt.Errorf("getting instances from output, %w", err)
 	}
@@ -202,7 +202,7 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 		}
 		out.Reservations = append(out.Reservations, page.Reservations...)
 	}
-	instances, err := instancesFromOutput(out)
+	instances, err := instancesFromOutput(ctx, out)
 	return instances, cloudprovider.IgnoreNodeClaimNotFoundError(err)
 }
 
@@ -612,7 +612,7 @@ func filterExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*c
 	return instanceTypes
 }
 
-func instancesFromOutput(out *ec2.DescribeInstancesOutput) ([]*Instance, error) {
+func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) ([]*Instance, error) {
 	if len(out.Reservations) == 0 {
 		return nil, cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance not found"))
 	}
@@ -626,7 +626,7 @@ func instancesFromOutput(out *ec2.DescribeInstancesOutput) ([]*Instance, error) 
 	sort.Slice(instances, func(i, j int) bool {
 		return aws.ToString(instances[i].InstanceId) < aws.ToString(instances[j].InstanceId)
 	})
-	return lo.Map(instances, func(i ec2types.Instance, _ int) *Instance { return NewInstance(i) }), nil
+	return lo.Map(instances, func(i ec2types.Instance, _ int) *Instance { return NewInstance(ctx, i) }), nil
 }
 
 func combineFleetErrors(fleetErrs []ec2types.CreateFleetError) (errs error) {
