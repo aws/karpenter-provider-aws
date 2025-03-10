@@ -6966,7 +6966,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-gpu-count|4|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|91553|
+ |karpenter.k8s.aws/instance-gpu-memory|22888|
  |karpenter.k8s.aws/instance-gpu-name|l4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|3760|
@@ -7034,7 +7034,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-gpu-count|4|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|91553|
+ |karpenter.k8s.aws/instance-gpu-memory|22888|
  |karpenter.k8s.aws/instance-gpu-name|l4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|3760|
@@ -7068,7 +7068,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-gpu-count|8|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|183105|
+ |karpenter.k8s.aws/instance-gpu-memory|22888|
  |karpenter.k8s.aws/instance-gpu-name|l4|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|7520|
@@ -7236,7 +7236,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-gpu-count|4|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|183105|
+ |karpenter.k8s.aws/instance-gpu-memory|45776|
  |karpenter.k8s.aws/instance-gpu-name|l40s|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|3800|
@@ -7304,7 +7304,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-gpu-count|4|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|183105|
+ |karpenter.k8s.aws/instance-gpu-memory|45776|
  |karpenter.k8s.aws/instance-gpu-name|l40s|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|3800|
@@ -7338,7 +7338,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-gpu-count|8|
  |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
- |karpenter.k8s.aws/instance-gpu-memory|366211|
+ |karpenter.k8s.aws/instance-gpu-memory|45776|
  |karpenter.k8s.aws/instance-gpu-name|l40s|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|7600|
@@ -22536,6 +22536,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|5811134Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## u7i-8tb Family
 ### `u7i-8tb.112xlarge`
@@ -22564,6 +22565,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|7751000Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ## u7in-16tb Family
 ### `u7in-16tb.224xlarge`
 #### Labels
