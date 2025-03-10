@@ -50,6 +50,9 @@ func NewInstance(ctx context.Context, out ec2types.Instance) *Instance {
 		ImageID:    lo.FromPtr(out.ImageId),
 		Type:       out.InstanceType,
 		Zone:       lo.FromPtr(out.Placement.AvailabilityZone),
+		// NOTE: Only set the capacity type to reserved and assign a reservation ID if the feature gate is enabled. It's
+		// possible for these to be set if the instance launched into an open ODCR, but treating it as reserved would induce
+		// drift.
 		CapacityType: lo.If(out.SpotInstanceRequestId != nil, karpv1.CapacityTypeSpot).
 			ElseIf(out.CapacityReservationId != nil && options.FromContext(ctx).FeatureGates.ReservedCapacity, karpv1.CapacityTypeReserved).
 			Else(karpv1.CapacityTypeOnDemand),
