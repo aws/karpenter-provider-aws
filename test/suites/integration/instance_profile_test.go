@@ -104,7 +104,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionUnknown})
 	})
 
-	FContext("NodeClass IAM Tests", func() {
+	Context("NodeClass IAM Tests", func() {
 		var (
 			roleName     string
 			testRoleName string
