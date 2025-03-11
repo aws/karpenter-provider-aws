@@ -130,7 +130,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 			}, sa)).To(Succeed())
 
 			roleName = strings.Split(sa.Annotations["eks.amazonaws.com/role-arn"], "/")[1]
-			testRoleName = "MockNodeRole"
+			testRoleName = "KarpenterNodeRole-MockNodeRole"
 			customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
 
 		})
@@ -141,7 +141,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 					Name: "deleted-profile-test",
 				},
 				Spec: v1.EC2NodeClassSpec{
-					InstanceProfile:            lo.ToPtr(nodeClass.InstanceProfileName(env.ClusterName, env.Region)),
+					InstanceProfile:            lo.ToPtr(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)),
 					AMIFamily:                  aws.String("AL2023"),
 					AMISelectorTerms:           []v1.AMISelectorTerm{{ID: customAMI}},
 					SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
@@ -163,7 +163,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 						{
 							"Effect": "Allow",
 							"Action": "iam:PassRole",
-							"Resource": "arn:aws:iam::%s:role/MockNodeRole"
+							"Resource": "arn:aws:iam::%s:role/KarpenterNodeRole-MockNodeRole"
 						}
 					]
 				}`, accountID)),
@@ -203,7 +203,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 						{
 							"Effect": "Allow",
 							"Action": "iam:PassRole",
-							"Resource": "arn:aws:iam::%s:role/MockNodeRole"
+							"Resource": "arn:aws:iam::%s:role/KarpenterNodeRole-MockNodeRole"
 						}
 					]
 				}`, accountID)),
@@ -289,7 +289,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 				Expect(err).To(BeNil())
 			})
 
-			instanceProfileName := nodeClass.InstanceProfileName(env.ClusterName, env.Region)
+			instanceProfileName := fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
 
 			// Create instance profile
 			_, err = env.IAMAPI.CreateInstanceProfile(env.Context, &iam.CreateInstanceProfileInput{
