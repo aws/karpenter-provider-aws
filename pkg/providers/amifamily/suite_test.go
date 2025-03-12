@@ -85,6 +85,7 @@ var _ = BeforeEach(func() {
 					{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
+				State: ec2types.ImageStateAvailable,
 			},
 			{
 				Name:         aws.String(arm64AMI),
@@ -95,6 +96,7 @@ var _ = BeforeEach(func() {
 					{Key: aws.String("Name"), Value: aws.String(arm64AMI)},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
+				State: ec2types.ImageStateAvailable,
 			},
 			{
 				Name:         aws.String(amd64NvidiaAMI),
@@ -105,6 +107,7 @@ var _ = BeforeEach(func() {
 					{Key: aws.String("Name"), Value: aws.String(amd64NvidiaAMI)},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
+				State: ec2types.ImageStateAvailable,
 			},
 			{
 				Name:         aws.String(arm64NvidiaAMI),
@@ -115,6 +118,7 @@ var _ = BeforeEach(func() {
 					{Key: aws.String("Name"), Value: aws.String(arm64NvidiaAMI)},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
+				State: ec2types.ImageStateAvailable,
 			},
 		},
 	})
@@ -165,7 +169,7 @@ var _ = Describe("AMIProvider", func() {
 		}
 		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(amis).To(HaveLen(4))
+		Expect(amis).To(HaveLen(5))
 	})
 	It("should succeed to resolve AMIs (Windows2019)", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2019@latest"}}
@@ -228,6 +232,45 @@ var _ = Describe("AMIProvider", func() {
 		}
 		wg.Wait()
 	})
+	DescribeTable(
+		"should ignore images when image.state != available",
+		func(state ec2types.ImageState) {
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+				{
+					Name:         aws.String(coretest.RandomName()),
+					ImageId:      aws.String("ami-123"),
+					Architecture: "x86_64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+				{
+					Name:         aws.String(coretest.RandomName()),
+					ImageId:      aws.String("ami-456"),
+					Architecture: "arm64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        state,
+				},
+			}})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+				Tags: map[string]string{
+					"test": "test",
+				},
+			}}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].AmiID).To(Equal("ami-123"))
+		},
+		lo.FilterMap(ec2types.ImageState("").Values(), func(state ec2types.ImageState, _ int) (TableEntry, bool) {
+			if state == ec2types.ImageStateAvailable {
+				return TableEntry{}, false
+			}
+			return Entry(string(state), state), true
+		}),
+	)
+
 	Context("SSM Alias Missing", func() {
 		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Al2)", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
@@ -261,7 +304,7 @@ var _ = Describe("AMIProvider", func() {
 			// Only 4 of the requirements sets for the SSM aliases will resolve
 			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(amis).To(HaveLen(3))
+			Expect(amis).To(HaveLen(4))
 		})
 	})
 	Context("AMI Tag Requirements", func() {
@@ -278,6 +321,7 @@ var _ = Describe("AMIProvider", func() {
 					{Key: aws.String(corev1.LabelInstanceTypeStable), Value: aws.String("m5.large")},
 					{Key: aws.String(corev1.LabelTopologyZone), Value: aws.String("test-zone-1a")},
 				},
+				State: ec2types.ImageStateAvailable,
 			}
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []ec2types.Image{
@@ -329,6 +373,7 @@ var _ = Describe("AMIProvider", func() {
 							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
 							{Key: aws.String("foo"), Value: aws.String("bar")},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 					{
 						Name:         aws.String(amd64AMI),
@@ -339,6 +384,7 @@ var _ = Describe("AMIProvider", func() {
 							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
 							{Key: aws.String("foo"), Value: aws.String("bar")},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 				},
 			})
@@ -369,6 +415,7 @@ var _ = Describe("AMIProvider", func() {
 							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
 							{Key: aws.String("foo"), Value: aws.String("bar")},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 					{
 						Name:            aws.String(amd64AMI),
@@ -380,6 +427,7 @@ var _ = Describe("AMIProvider", func() {
 							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
 							{Key: aws.String("foo"), Value: aws.String("bar")},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 				},
 			})
@@ -411,6 +459,7 @@ var _ = Describe("AMIProvider", func() {
 							{Key: aws.String("Name"), Value: aws.String("test-ami-2")},
 							{Key: aws.String("foo"), Value: aws.String("bar")},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 					{
 						Name:            aws.String("test-ami-1"),
@@ -422,6 +471,7 @@ var _ = Describe("AMIProvider", func() {
 							{Key: aws.String("Name"), Value: aws.String("test-ami-1")},
 							{Key: aws.String("foo"), Value: aws.String("bar")},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 				},
 			})
@@ -452,6 +502,7 @@ var _ = Describe("AMIProvider", func() {
 							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
 							{Key: aws.String("foo"), Value: aws.String("bar")},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 					{
 						Name:            aws.String(amd64AMI),
@@ -463,6 +514,7 @@ var _ = Describe("AMIProvider", func() {
 							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
 							{Key: aws.String("foo"), Value: aws.String("bar")},
 						},
+						State: ec2types.ImageStateAvailable,
 					},
 				},
 			})
@@ -498,7 +550,7 @@ var _ = Describe("AMIProvider", func() {
 				{
 					Filters: []ec2types.Filter{
 						{
-							Name:   aws.String("tag:Name"),
+							Name:   lo.ToPtr("tag:Name"),
 							Values: []string{"my-ami"},
 						},
 					},
@@ -519,7 +571,7 @@ var _ = Describe("AMIProvider", func() {
 				{
 					Filters: []ec2types.Filter{
 						{
-							Name:   aws.String("name"),
+							Name:   lo.ToPtr("name"),
 							Values: []string{"my-ami"},
 						},
 					},
@@ -548,7 +600,7 @@ var _ = Describe("AMIProvider", func() {
 				{
 					Filters: []ec2types.Filter{
 						{
-							Name:   aws.String("image-id"),
+							Name:   lo.ToPtr("image-id"),
 							Values: []string{"ami-abcd1234", "ami-cafeaced"},
 						},
 					},
@@ -599,7 +651,7 @@ var _ = Describe("AMIProvider", func() {
 					Owners: []string{"0123456789"},
 					Filters: []ec2types.Filter{
 						{
-							Name:   aws.String("name"),
+							Name:   lo.ToPtr("name"),
 							Values: []string{"my-name"},
 						},
 					},
@@ -608,7 +660,7 @@ var _ = Describe("AMIProvider", func() {
 					Owners: []string{"self"},
 					Filters: []ec2types.Filter{
 						{
-							Name:   aws.String("name"),
+							Name:   lo.ToPtr("name"),
 							Values: []string{"my-name"},
 						},
 					},

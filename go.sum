@@ -72,8 +72,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/emicklei/go-restful/v3 v3.11.0 h1:rAQeMHw1c7zTmncogyy8VvRZwtkmkZ4FxERmMY4rD+g=
 github.com/emicklei/go-restful/v3 v3.11.0/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
-github.com/engedaam/karpenter-core v0.0.0-20250312181731-0802514dc452 h1:lROiePzS6+dAnAOBtkt9bRJSUuyclBvYn8VGWCeEbHI=
-github.com/engedaam/karpenter-core v0.0.0-20250312181731-0802514dc452/go.mod h1:646txj32arNTy+K4gySCqWSljYrEdemAdYoBMQmkS7o=
+github.com/engedaam/karpenter-core v0.0.0-20250312210833-4d247e0cb466 h1:FVIfyk71ExWutD8+sdJKyDw904/kVK8QyANtCSbi0ZU=
+github.com/engedaam/karpenter-core v0.0.0-20250312210833-4d247e0cb466/go.mod h1:646txj32arNTy+K4gySCqWSljYrEdemAdYoBMQmkS7o=
 github.com/evanphx/json-patch v5.7.0+incompatible h1:vgGkfT/9f8zE6tvSCe74nfpAVDQ2tG6yudJd8LBksgI=
 github.com/evanphx/json-patch v5.7.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch/v5 v5.9.0 h1:kcBlZQbplgElYIlo/n1hJbls2z/1awpXxpRi0/FOJfg=
