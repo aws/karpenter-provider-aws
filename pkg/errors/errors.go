@@ -166,7 +166,7 @@ func IsInstanceProfileNotFound(err error) bool {
 // nolint:gocyclo
 func ToReasonMessage(err error) (string, string) {
 	if strings.Contains(err.Error(), "AuthFailure.ServiceLinkedRoleCreationNotPermitted") {
-		return "SpotSLRCreationFailed", "User does not hae sufficient permission to create the Spot ServiceLinkedRole to launch spot instances"
+		return "SpotSLRCreationFailed", "User does not have sufficient permission to create the Spot ServiceLinkedRole to launch spot instances"
 	}
 	if strings.Contains(err.Error(), "UnauthorizedOperation") || strings.Contains(err.Error(), "AccessDenied") || strings.Contains(err.Error(), "AuthFailure") {
 		if strings.Contains(err.Error(), "with an explicit deny in a permissions boundary") {
