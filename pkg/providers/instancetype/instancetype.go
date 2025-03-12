@@ -52,7 +52,6 @@ import (
 
 type Provider interface {
 	List(context.Context, *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error)
-	ResolveInstanceTypes(ctx context.Context, nodeClass *v1.EC2NodeClass, amiHash uint64) []*cloudprovider.InstanceType
 }
 
 type DefaultProvider struct {
@@ -151,7 +150,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		// so that modifications to the ordering of the data don't affect the original
 		instanceTypes = item.([]*cloudprovider.InstanceType)
 	} else {
-		instanceTypes = p.ResolveInstanceTypes(ctx, nodeClass, amiHash)
+		instanceTypes = p.resolveInstanceTypes(ctx, nodeClass, amiHash)
 		p.instanceTypesCache.SetDefault(key, instanceTypes)
 	}
 	// Offerings aren't cached along with the rest of the instance type info because reserved offerings need to have up to
@@ -166,7 +165,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	), nil
 }
 
-func (p *DefaultProvider) ResolveInstanceTypes(
+func (p *DefaultProvider) resolveInstanceTypes(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
 	amiHash uint64,

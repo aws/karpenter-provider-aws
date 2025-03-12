@@ -69,6 +69,21 @@ var _ = BeforeSuite(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
+
+	controller = nodeclass.NewController(
+		awsEnv.Clock,
+		env.Client,
+		events.NewRecorder(&record.FakeRecorder{}),
+		awsEnv.SubnetProvider,
+		awsEnv.SecurityGroupProvider,
+		awsEnv.AMIProvider,
+		awsEnv.InstanceProfileProvider,
+		awsEnv.LaunchTemplateProvider,
+		awsEnv.CapacityReservationProvider,
+		awsEnv.EC2API,
+		awsEnv.ValidationCache,
+		awsEnv.AMIResolver,
+	)
 })
 
 var _ = AfterSuite(func() {
@@ -78,31 +93,7 @@ var _ = AfterSuite(func() {
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	nodeClass = test.EC2NodeClass()
-
 	awsEnv.Reset()
-
-	instanceProvider := awsEnv.InstanceTypesProvider
-
-	Expect(instanceProvider.UpdateInstanceTypes(ctx)).To(Succeed())
-	Expect(instanceProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
-
-	controller = nodeclass.NewController(
-		ctx,
-		awsEnv.Clock,
-		env.Client,
-		events.NewRecorder(&record.FakeRecorder{}),
-		awsEnv.SubnetProvider,
-		awsEnv.SecurityGroupProvider,
-		awsEnv.AMIProvider,
-		awsEnv.InstanceProfileProvider,
-		awsEnv.InstanceProvider,
-		instanceProvider,
-		awsEnv.LaunchTemplateProvider,
-		awsEnv.CapacityReservationProvider,
-		awsEnv.EC2API,
-		awsEnv.ValidationCache,
-		awsEnv.AMIResolver,
-	)
 })
 
 var _ = AfterEach(func() {
