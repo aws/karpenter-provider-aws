@@ -35,7 +35,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 	Context("Preconditions", func() {
 		var reconciler *nodeclass.Validation
 		BeforeEach(func() {
-			reconciler = nodeclass.NewValidationReconciler(awsEnv.EC2API, awsEnv.AMIProvider, awsEnv.ValidationCache)
+			reconciler = nodeclass.NewValidationReconciler(awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.LaunchTemplateProvider, awsEnv.InstanceProvider, awsEnv.InstanceTypesProvider, awsEnv.ValidationCache)
 			for _, cond := range []string{
 				v1.ConditionTypeAMIsReady,
 				v1.ConditionTypeInstanceProfileReady,

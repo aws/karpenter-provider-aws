@@ -50,7 +50,9 @@ import (
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
@@ -74,12 +76,15 @@ func NewController(
 	securityGroupProvider securitygroup.Provider,
 	amiProvider amifamily.Provider,
 	instanceProfileProvider instanceprofile.Provider,
+	instanceProvider instance.Provider,
+	instanceTypeProvider instancetype.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	capacityReservationProvider capacityreservation.Provider,
 	ec2api sdk.EC2API,
 	validationCache *cache.Cache,
+	amiResolver amifamily.Resolver,
 ) *Controller {
-	validation := NewValidationReconciler(ec2api, amiProvider, validationCache)
+	validation := NewValidationReconciler(ec2api, amiResolver, launchTemplateProvider, instanceProvider, instanceTypeProvider, validationCache)
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,

@@ -17,18 +17,20 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -36,6 +38,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
@@ -55,16 +58,22 @@ var ValidationConditionMessages = map[string]string{
 }
 
 type Validation struct {
-	ec2api      sdk.EC2API
-	amiProvider amifamily.Provider
-	cache       *cache.Cache
+	ec2api                 sdk.EC2API
+	amiResolver            amifamily.Resolver
+	launchTemplateProvider launchtemplate.Provider
+	instanceProvider       instance.Provider
+	instanceTypeProvider   instancetype.Provider
+	cache                  *cache.Cache
 }
 
-func NewValidationReconciler(ec2api sdk.EC2API, amiProvider amifamily.Provider, cache *cache.Cache) *Validation {
+func NewValidationReconciler(ec2api sdk.EC2API, amiResolver amifamily.Resolver, launchTemplateProvider launchtemplate.Provider, instanceProvider instance.Provider, instanceTypeProvider instancetype.Provider, cache *cache.Cache) *Validation {
 	return &Validation{
-		ec2api:      ec2api,
-		amiProvider: amiProvider,
-		cache:       cache,
+		ec2api:                 ec2api,
+		amiResolver:            amiResolver,
+		launchTemplateProvider: launchTemplateProvider,
+		instanceProvider:       instanceProvider,
+		instanceTypeProvider:   instanceTypeProvider,
+		cache:                  cache,
 	}
 }
 
@@ -172,7 +181,8 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
 ) (reason string, requeue bool, err error) {
-	createLaunchTemplateInput := launchtemplate.GetCreateLaunchTemplateInput(ctx, mockOptions(*nodeClaim, nodeClass, tags), corev1.IPv4Protocol, "")
+	options, err := v.mockOptions(ctx, nodeClaim, nodeClass, tags)
+	createLaunchTemplateInput := launchtemplate.GetCreateLaunchTemplateInput(ctx, options[0], corev1.IPv4Protocol, "")
 	createLaunchTemplateInput.DryRun = lo.ToPtr(true)
 	if _, err := v.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
@@ -205,26 +215,21 @@ func (v *Validation) validateRunInstancesAuthorization(
 		return "", false, fmt.Errorf("no instance profile in status")
 	}
 
-	var instanceType ec2types.InstanceType
-	requirements := scheduling.NewNodeSelectorRequirements(nodeClass.Status.AMIs[0].Requirements...)
-
-	instanceType = ec2types.InstanceTypeM6gLarge
-	if requirements.Get(corev1.LabelArchStable).Has(karpv1.ArchitectureAmd64) {
-		instanceType = ec2types.InstanceTypeM5Large
-	}
+	options, err := v.mockOptions(ctx, nodeClaim, nodeClass, tags)
+	userdata, err := options[0].UserData.Script()
 
 	runInstancesInput := &ec2.RunInstancesInput{
 		DryRun:       lo.ToPtr(true),
 		MaxCount:     lo.ToPtr[int32](1),
 		MinCount:     lo.ToPtr[int32](1),
-		InstanceType: instanceType,
+		InstanceType: ec2types.InstanceType(options[0].InstanceTypes[0].Name),
 		MetadataOptions: &ec2types.InstanceMetadataOptionsRequest{
-			HttpEndpoint:     ec2types.InstanceMetadataEndpointState(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPEndpoint)),
-			HttpTokens:       ec2types.HttpTokensState(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPTokens)),
-			HttpProtocolIpv6: ec2types.InstanceMetadataProtocolState(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPProtocolIPv6)),
+			HttpEndpoint:     ec2types.InstanceMetadataEndpointState(lo.FromPtr(options[0].MetadataOptions.HTTPEndpoint)),
+			HttpTokens:       ec2types.HttpTokensState(lo.FromPtr(options[0].MetadataOptions.HTTPTokens)),
+			HttpProtocolIpv6: ec2types.InstanceMetadataProtocolState(lo.FromPtr(options[0].MetadataOptions.HTTPProtocolIPv6)),
 			//aws sdk v2 changed this type to *int32 instead of *int64
 			//nolint: gosec
-			HttpPutResponseHopLimit: lo.ToPtr(int32(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPPutResponseHopLimit))),
+			HttpPutResponseHopLimit: lo.ToPtr(int32(lo.FromPtr(options[0].MetadataOptions.HTTPPutResponseHopLimit))),
 		},
 		Monitoring: &ec2types.RunInstancesMonitoringEnabled{
 			// Default Enabled to False if not specified
@@ -244,10 +249,12 @@ func (v *Validation) validateRunInstancesAuthorization(
 				Tags:         utils.MergeTags(tags),
 			},
 		},
-		ImageId: lo.ToPtr(nodeClass.Status.AMIs[0].ID),
+		ImageId: lo.ToPtr(options[0].AMIID),
 		IamInstanceProfile: &ec2types.IamInstanceProfileSpecification{
 			Name: lo.ToPtr(nodeClass.Status.InstanceProfile),
 		},
+		UserData:            lo.ToPtr(userdata),
+		BlockDeviceMappings: blockDeviceMappings(options[0].BlockDeviceMappings),
 		// EC2 dry-run doesn't validate the number of IPs, so it's safe to take the first subnet here
 		// even if that subnet has no more IPv4 or IPv6 addresses to give out
 		NetworkInterfaces: []ec2types.InstanceNetworkInterfaceSpecification{
@@ -258,6 +265,7 @@ func (v *Validation) validateRunInstancesAuthorization(
 				SubnetId:                 lo.ToPtr(nodeClass.Status.Subnets[0].ID),
 			},
 		},
+		SecurityGroupIds: lo.Map(nodeClass.Status.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
 	}
 
 	if _, err = v.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
@@ -338,20 +346,48 @@ func mockLaunchTemplateConfig() []ec2types.FleetLaunchTemplateConfigRequest {
 	}
 }
 
-func mockOptions(nodeClaim karpv1.NodeClaim, nodeClass *v1.EC2NodeClass, tags map[string]string) *amifamily.LaunchTemplate {
-	return &amifamily.LaunchTemplate{
-		Options: &amifamily.Options{
-			Tags:            tags,
-			InstanceProfile: nodeClass.Status.InstanceProfile,
-			SecurityGroups:  nodeClass.Status.SecurityGroups,
-		},
-		MetadataOptions: &v1.MetadataOptions{
-			HTTPEndpoint:            nodeClass.Spec.MetadataOptions.HTTPEndpoint,
-			HTTPTokens:              nodeClass.Spec.MetadataOptions.HTTPTokens,
-			HTTPProtocolIPv6:        nodeClass.Spec.MetadataOptions.HTTPProtocolIPv6,
-			HTTPPutResponseHopLimit: nodeClass.Spec.MetadataOptions.HTTPPutResponseHopLimit,
-		},
-		AMIID:               nodeClaim.Status.ImageID,
-		BlockDeviceMappings: nodeClass.Spec.BlockDeviceMappings,
+func (v *Validation) mockOptions(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass, tags map[string]string) ([]*amifamily.LaunchTemplate, error) {
+	instancetypes := v.instanceTypeProvider.ResolveInstanceTypes(ctx, nodeClass, lo.Must(hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})))
+	capacityType := v.instanceProvider.GetCapacityType(nodeClaim, instancetypes)
+	amioptions, err := v.launchTemplateProvider.CreateAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{karpv1.CapacityTypeLabelKey: capacityType}), tags)
+	if err != nil {
+		return []*amifamily.LaunchTemplate{}, err
 	}
+	return v.amiResolver.Resolve(nodeClass, nodeClaim, instancetypes, capacityType, amioptions)
+}
+
+func blockDeviceMappings(blockDeviceMappings []*v1.BlockDeviceMapping) []ec2types.BlockDeviceMapping {
+	if len(blockDeviceMappings) == 0 {
+		// The EC2 API fails with empty slices and expects nil.
+		return nil
+	}
+	var blockDeviceMappingsRequest []ec2types.BlockDeviceMapping
+	for _, blockDeviceMapping := range blockDeviceMappings {
+		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, ec2types.BlockDeviceMapping{
+			DeviceName: blockDeviceMapping.DeviceName,
+			Ebs: &ec2types.EbsBlockDevice{
+				DeleteOnTermination: blockDeviceMapping.EBS.DeleteOnTermination,
+				Encrypted:           blockDeviceMapping.EBS.Encrypted,
+				VolumeType:          ec2types.VolumeType(aws.ToString(blockDeviceMapping.EBS.VolumeType)),
+				//Lints here can be removed when we update options.EBS.IOPS and Throughput type to be int32
+				//nolint: gosec
+				Iops: lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.IOPS))),
+				//nolint: gosec
+				Throughput: lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.Throughput))),
+				KmsKeyId:   blockDeviceMapping.EBS.KMSKeyID,
+				SnapshotId: blockDeviceMapping.EBS.SnapshotID,
+				VolumeSize: volumeSize(blockDeviceMapping.EBS.VolumeSize),
+			},
+		})
+	}
+	return blockDeviceMappingsRequest
+}
+
+// volumeSize returns a GiB scaled value from a resource quantity or nil if the resource quantity passed in is nil
+func volumeSize(quantity *resource.Quantity) *int32 {
+	if quantity == nil {
+		return nil
+	}
+	// Converts the value to Gi and rounds up the value to the nearest Gi
+	return lo.ToPtr(int32(math.Ceil(quantity.AsApproximateFloat64() / math.Pow(2, 30))))
 }
