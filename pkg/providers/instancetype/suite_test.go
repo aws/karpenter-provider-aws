@@ -467,7 +467,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(generateSpotPricing(cloudProvider, nodePool))
+		awsEnv.EC2API.DescribeSpotPriceHistoryBehavior.Output.Set(generateSpotPricing(cloudProvider, nodePool))
 		Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
@@ -2156,7 +2156,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		It("should fail to launch capacity when there is no zonal availability for spot", func() {
 			now := time.Now()
-			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			awsEnv.EC2API.DescribeSpotPriceHistoryBehavior.Output.Set(&ec2.DescribeSpotPriceHistoryOutput{
 				SpotPriceHistory: []ec2types.SpotPrice{
 					{
 						AvailabilityZone: aws.String("test-zone-1a"),
@@ -2182,7 +2182,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		It("should succeed to launch spot instance when zonal availability exists", func() {
 			now := time.Now()
-			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			awsEnv.EC2API.DescribeSpotPriceHistoryBehavior.Output.Set(&ec2.DescribeSpotPriceHistoryOutput{
 				SpotPriceHistory: []ec2types.SpotPrice{
 					{
 						AvailabilityZone: aws.String("test-zone-1a"),

@@ -311,7 +311,7 @@ var _ = Describe("CloudProvider", func() {
 			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{InstanceTypes: instances})
 			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeInstanceOfferings(instances)})
 			now := time.Now()
-			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			awsEnv.EC2API.DescribeSpotPriceHistoryBehavior.Output.Set(&ec2.DescribeSpotPriceHistoryOutput{
 				SpotPriceHistory: []ec2types.SpotPrice{
 					{
 						AvailabilityZone: aws.String("test-zone-1a"),
@@ -409,7 +409,7 @@ var _ = Describe("CloudProvider", func() {
 			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{InstanceTypes: instances})
 			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeInstanceOfferings(instances)})
 			now := time.Now()
-			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			awsEnv.EC2API.DescribeSpotPriceHistoryBehavior.Output.Set(&ec2.DescribeSpotPriceHistoryOutput{
 				SpotPriceHistory: []ec2types.SpotPrice{
 					{
 						AvailabilityZone: aws.String("test-zone-1a"),
@@ -508,7 +508,7 @@ var _ = Describe("CloudProvider", func() {
 			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{InstanceTypes: uniqInstanceTypes})
 			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeInstanceOfferings(uniqInstanceTypes)})
 			now := time.Now()
-			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			awsEnv.EC2API.DescribeSpotPriceHistoryBehavior.Output.Set(&ec2.DescribeSpotPriceHistoryOutput{
 				SpotPriceHistory: []ec2types.SpotPrice{
 					{
 						AvailabilityZone: aws.String("test-zone-1a"),
