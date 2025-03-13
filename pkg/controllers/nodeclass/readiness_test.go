@@ -15,10 +15,14 @@ limitations under the License.
 package nodeclass_test
 
 import (
+	"fmt"
+
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -75,5 +79,36 @@ var _ = Describe("NodeClass Status Condition Controller", func() {
 
 		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
 		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("ValidationSucceeded=False, SecurityGroupsReady=False"))
+	})
+	It("should recover from temporary DescribeCluster failure", func() {
+		// First reconcile with API error
+		awsEnv.EKSAPI.DescribeClusterBehavior.Error.Set(fmt.Errorf("temporary AWS API error"))
+
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+
+		ExpectApplied(ctx, env.Client, nodeClass)
+
+		ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(ContainSubstring("Failed to detect the cluster CIDR"))
+
+		// Clear the error and reconcile again
+		awsEnv.EKSAPI.DescribeClusterBehavior.Error.Set(nil)
+		awsEnv.EKSAPI.DescribeClusterBehavior.Output.Set(&eks.DescribeClusterOutput{
+			Cluster: &ekstypes.Cluster{
+				Version: lo.ToPtr("1.29"),
+				KubernetesNetworkConfig: &ekstypes.KubernetesNetworkConfigResponse{
+					ServiceIpv4Cidr: lo.ToPtr("10.100.0.0/16"),
+				},
+			},
+		})
+
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		// Verify conditions are now ready
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
 	})
 })
