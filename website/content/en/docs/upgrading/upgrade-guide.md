@@ -14,6 +14,22 @@ This guide contains information needed to upgrade to the latest release of Karpe
 With the release of Karpenter v1.0.0, the Karpenter team will be dropping support for karpenter versions v0.32 and below. We recommend upgrading to the latest version of Karpenter and keeping Karpenter up-to-date for bug fixes and new features.
 {{% /alert %}}
 
+
+When upgrading Karpenter in production environments, we recommend implementing a robust CI/CD pipeline approach. Start by validating all required IAM permissions, particularly the Karpenter node role, controller role, and any webhook configurations to ensure they align with the new version's requirements. Create a staging environment to validate the upgrade process before production deployment. The pipeline should include key steps: backing up existing NodePool and NodeClass configurations, updating version tags in Helm values or manifests, and implementing automated validation tests. Configure your pipeline to first deploy to staging, run comprehensive tests including node provisioning verification, and require manual approval before proceeding to production. Include monitoring checks for controller health and provisioning functionality. Maintain a clear rollback strategy by keeping backups of your configurations and documenting the previous working version. For version-specific considerations and breaking changes, always refer to Karpenter's upgrade guid before initiating the upgrade.
+
+Possible CI/CD Pipeline Options include:
+
+GitHub Actions - Excellent for GitHub-hosted repositories with built-in Kubernetes support
+GitLab CI - Strong container-native pipeline with integrated Kubernetes functionality
+Jenkins - Highly customizable with extensive plugin ecosystem for Kubernetes
+ArgoCD - Specialized for GitOps workflows with Kubernetes
+AWS CodePipeline - Native integration with EKS and AWS services
+Spinnaker - Enterprise-grade multi-cloud deployment platform
+Tekton - Cloud-native CI/CD framework specifically built for Kubernetes
+CircleCI - Cloud-based CI/CD with strong Kubernetes support
+
+Each pipeline tool can be configured to handle the Karpenter upgrade workflow, but choose based on your existing infrastructure, team expertise, and specific requirements for automation and integration.
+
 ### CRD Upgrades
 
 Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are published:
