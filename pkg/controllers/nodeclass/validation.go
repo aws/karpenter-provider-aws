@@ -16,6 +16,7 @@ package nodeclass
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -23,12 +24,13 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -55,16 +57,18 @@ var ValidationConditionMessages = map[string]string{
 }
 
 type Validation struct {
-	ec2api      sdk.EC2API
-	amiProvider amifamily.Provider
-	cache       *cache.Cache
+	ec2api                 sdk.EC2API
+	amiResolver            amifamily.Resolver
+	launchTemplateProvider launchtemplate.Provider
+	cache                  *cache.Cache
 }
 
-func NewValidationReconciler(ec2api sdk.EC2API, amiProvider amifamily.Provider, cache *cache.Cache) *Validation {
+func NewValidationReconciler(ec2api sdk.EC2API, amiResolver amifamily.Resolver, launchTemplateProvider launchtemplate.Provider, cache *cache.Cache) *Validation {
 	return &Validation{
-		ec2api:      ec2api,
-		amiProvider: amiProvider,
-		cache:       cache,
+		ec2api:                 ec2api,
+		amiResolver:            amiResolver,
+		launchTemplateProvider: launchTemplateProvider,
+		cache:                  cache,
 	}
 }
 
@@ -172,7 +176,11 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
 ) (reason string, requeue bool, err error) {
-	createLaunchTemplateInput := launchtemplate.GetCreateLaunchTemplateInput(ctx, mockOptions(*nodeClaim, nodeClass, tags), corev1.IPv4Protocol, "")
+	opts, err := v.mockOptions(ctx, nodeClaim, nodeClass, tags)
+	if err != nil {
+		return "", false, fmt.Errorf("generating options, %w", err)
+	}
+	createLaunchTemplateInput := launchtemplate.GetCreateLaunchTemplateInput(ctx, opts[0], corev1.IPv4Protocol, "")
 	createLaunchTemplateInput.DryRun = lo.ToPtr(true)
 	if _, err := v.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
@@ -191,74 +199,37 @@ func (v *Validation) validateRunInstancesAuthorization(
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
 ) (reason string, requeue bool, err error) {
-	// NOTE: Since we've already validated the status conditions are true, these should never occur
-	if len(nodeClass.Status.AMIs) == 0 {
-		return "", false, fmt.Errorf("no resolved amis in status")
-	}
-	if len(nodeClass.Status.Subnets) == 0 {
-		return "", false, fmt.Errorf("no resolved subnets in status")
-	}
-	if len(nodeClass.Status.SecurityGroups) == 0 {
-		return "", false, fmt.Errorf("no resolved security groups in status")
-	}
-	if nodeClass.Status.InstanceProfile == "" {
-		return "", false, fmt.Errorf("no instance profile in status")
+	opts, err := v.mockOptions(ctx, nodeClaim, nodeClass, tags)
+	if err != nil {
+		return "", false, fmt.Errorf("generating options, %w", err)
 	}
 
-	var instanceType ec2types.InstanceType
-	requirements := scheduling.NewNodeSelectorRequirements(nodeClass.Status.AMIs[0].Requirements...)
-
-	instanceType = ec2types.InstanceTypeM6gLarge
-	if requirements.Get(corev1.LabelArchStable).Has(karpv1.ArchitectureAmd64) {
-		instanceType = ec2types.InstanceTypeM5Large
+	// We can directly marshal from CreateLaunchTemplate LaunchTemplate data
+	runInstancesInput := &ec2.RunInstancesInput{}
+	raw, err := json.Marshal(launchtemplate.GetCreateLaunchTemplateInput(ctx, opts[0], corev1.IPv4Protocol, "").LaunchTemplateData)
+	if err != nil {
+		return "", false, fmt.Errorf("converting launch template input to run instances input, %w", err)
+	}
+	if err = json.Unmarshal(raw, runInstancesInput); err != nil {
+		return "", false, fmt.Errorf("converting launch template input to run instances input, %w", err)
 	}
 
-	runInstancesInput := &ec2.RunInstancesInput{
-		DryRun:       lo.ToPtr(true),
-		MaxCount:     lo.ToPtr[int32](1),
-		MinCount:     lo.ToPtr[int32](1),
-		InstanceType: instanceType,
-		MetadataOptions: &ec2types.InstanceMetadataOptionsRequest{
-			HttpEndpoint:     ec2types.InstanceMetadataEndpointState(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPEndpoint)),
-			HttpTokens:       ec2types.HttpTokensState(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPTokens)),
-			HttpProtocolIpv6: ec2types.InstanceMetadataProtocolState(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPProtocolIPv6)),
-			//aws sdk v2 changed this type to *int32 instead of *int64
-			//nolint: gosec
-			HttpPutResponseHopLimit: lo.ToPtr(int32(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPPutResponseHopLimit))),
+	// Ensure we set specific values for things that are typically overridden in the CreateFleet call
+	runInstancesInput.DryRun = lo.ToPtr(true)
+	runInstancesInput.MaxCount = lo.ToPtr[int32](1)
+	runInstancesInput.MinCount = lo.ToPtr[int32](1)
+	runInstancesInput.NetworkInterfaces[0].SubnetId = lo.ToPtr(nodeClass.Status.Subnets[0].ID)
+	runInstancesInput.InstanceType = ec2types.InstanceType(opts[0].InstanceTypes[0].Name)
+	runInstancesInput.TagSpecifications = append(runInstancesInput.TagSpecifications,
+		ec2types.TagSpecification{
+			ResourceType: ec2types.ResourceTypeInstance,
+			Tags:         runInstancesInput.TagSpecifications[0].Tags,
 		},
-		Monitoring: &ec2types.RunInstancesMonitoringEnabled{
-			// Default Enabled to False if not specified
-			Enabled: lo.ToPtr(lo.FromPtr(nodeClass.Spec.DetailedMonitoring)),
+		ec2types.TagSpecification{
+			ResourceType: ec2types.ResourceTypeVolume,
+			Tags:         runInstancesInput.TagSpecifications[0].Tags,
 		},
-		TagSpecifications: []ec2types.TagSpecification{
-			{
-				ResourceType: ec2types.ResourceTypeInstance,
-				Tags:         utils.MergeTags(tags),
-			},
-			{
-				ResourceType: ec2types.ResourceTypeVolume,
-				Tags:         utils.MergeTags(tags),
-			},
-			{
-				ResourceType: ec2types.ResourceTypeNetworkInterface,
-				Tags:         utils.MergeTags(tags),
-			},
-		},
-		ImageId: lo.ToPtr(nodeClass.Status.AMIs[0].ID),
-		IamInstanceProfile: &ec2types.IamInstanceProfileSpecification{
-			Name: lo.ToPtr(nodeClass.Status.InstanceProfile),
-		},
-		// EC2 dry-run doesn't validate the number of IPs, so it's safe to take the first subnet here
-		// even if that subnet has no more IPv4 or IPv6 addresses to give out
-		NetworkInterfaces: []ec2types.InstanceNetworkInterfaceSpecification{
-			{
-				AssociatePublicIpAddress: nodeClass.Spec.AssociatePublicIPAddress,
-				DeviceIndex:              lo.ToPtr[int32](0),
-				Groups:                   lo.Map(nodeClass.Status.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
-				SubnetId:                 lo.ToPtr(nodeClass.Status.Subnets[0].ID),
-			},
-		},
-	}
+	)
 
 	if _, err = v.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
 		// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
@@ -338,20 +309,19 @@ func mockLaunchTemplateConfig() []ec2types.FleetLaunchTemplateConfigRequest {
 	}
 }
 
-func mockOptions(nodeClaim karpv1.NodeClaim, nodeClass *v1.EC2NodeClass, tags map[string]string) *amifamily.LaunchTemplate {
-	return &amifamily.LaunchTemplate{
-		Options: &amifamily.Options{
-			Tags:            tags,
-			InstanceProfile: nodeClass.Status.InstanceProfile,
-			SecurityGroups:  nodeClass.Status.SecurityGroups,
-		},
-		MetadataOptions: &v1.MetadataOptions{
-			HTTPEndpoint:            nodeClass.Spec.MetadataOptions.HTTPEndpoint,
-			HTTPTokens:              nodeClass.Spec.MetadataOptions.HTTPTokens,
-			HTTPProtocolIPv6:        nodeClass.Spec.MetadataOptions.HTTPProtocolIPv6,
-			HTTPPutResponseHopLimit: nodeClass.Spec.MetadataOptions.HTTPPutResponseHopLimit,
-		},
-		AMIID:               nodeClaim.Status.ImageID,
-		BlockDeviceMappings: nodeClass.Spec.BlockDeviceMappings,
+func (v *Validation) mockOptions(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass, tags map[string]string) ([]*amifamily.LaunchTemplate, error) {
+	amiOptions, err := v.launchTemplateProvider.CreateAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand}), tags)
+	if err != nil {
+		return nil, err
 	}
+	return v.amiResolver.Resolve(nodeClass, nodeClaim, []*cloudprovider.InstanceType{
+		{
+			Name:         "m5.large",
+			Requirements: scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64)),
+		},
+		{
+			Name:         "m6g.large",
+			Requirements: scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureArm64)),
+		},
+	}, karpv1.CapacityTypeOnDemand, amiOptions)
 }
