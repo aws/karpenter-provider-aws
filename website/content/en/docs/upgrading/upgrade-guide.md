@@ -19,14 +19,10 @@ When upgrading Karpenter in production environments, we recommend implementing a
 
 Possible CI/CD Pipeline Options include:
 
-GitHub Actions - Excellent for GitHub-hosted repositories with built-in Kubernetes support
-GitLab CI - Strong container-native pipeline with integrated Kubernetes functionality
-Jenkins - Highly customizable with extensive plugin ecosystem for Kubernetes
-ArgoCD - Specialized for GitOps workflows with Kubernetes
-AWS CodePipeline - Native integration with EKS and AWS services
-Spinnaker - Enterprise-grade multi-cloud deployment platform
-Tekton - Cloud-native CI/CD framework specifically built for Kubernetes
-CircleCI - Cloud-based CI/CD with strong Kubernetes support
+- GitHub Actions - Excellent for GitHub-hosted repositories with built-in Kubernetes support
+- GitLab CI - Strong container-native pipeline with integrated Kubernetes functionality
+- ArgoCD - Specialized for GitOps workflows with Kubernetes
+- AWS CodePipeline - Native integration with EKS and AWS services
 
 Each pipeline tool can be configured to handle the Karpenter upgrade workflow, but choose based on your existing infrastructure, team expertise, and specific requirements for automation and integration.
 
