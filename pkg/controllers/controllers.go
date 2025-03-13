@@ -27,6 +27,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/metrics"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	nodeclasshash "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/hash"
 	controllersinstancetype "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype"
@@ -97,6 +98,7 @@ func NewControllers(
 		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter"), status.EmitDeprecatedMetrics),
 		controllersversion.NewController(versionProvider, versionProvider.UpdateVersionWithValidation),
 		capacityreservation.NewController(kubeClient, cloudProvider),
+		metrics.NewController(kubeClient, cloudProvider),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsapi := servicesqs.NewFromConfig(cfg)
