@@ -14,15 +14,51 @@ This guide contains information needed to upgrade to the latest release of Karpe
 With the release of Karpenter v1.0.0, the Karpenter team will be dropping support for karpenter versions v0.32 and below. We recommend upgrading to the latest version of Karpenter and keeping Karpenter up-to-date for bug fixes and new features.
 {{% /alert %}}
 
+When upgrading Karpenter in production environments, implementing a robust CI/CD pipeline approach is crucial. Improper upgrades can lead to significant disruptions including failed node provisioning, orphaned nodes, interrupted workloads, and potential cost implications from unmanaged scaling. Given Karpenter's critical role in cluster scaling and workload management, untested upgrades could result in production outages or resource allocation issues that directly impact application availability and performance. Therefore, we recommend following these structured steps:
 
-When upgrading Karpenter in production environments, we recommend implementing a robust CI/CD pipeline approach. Start by validating all required IAM permissions, particularly the Karpenter node role, controller role, and any webhook configurations to ensure they align with the new version's requirements. Create a staging environment to validate the upgrade process before production deployment. The pipeline should include key steps: backing up existing NodePool and NodeClass configurations, updating version tags in Helm values or manifests, and implementing automated validation tests. Configure your pipeline to first deploy to staging, run comprehensive tests including node provisioning verification, and require manual approval before proceeding to production. Include monitoring checks for controller health and provisioning functionality. Maintain a clear rollback strategy by keeping backups of your configurations and documenting the previous working version. For version-specific considerations and breaking changes, always refer to Karpenter's upgrade guid before initiating the upgrade.
+#### Pre-upgrade Validation
 
-Possible CI/CD Pipeline Options include:
+- Validate all required IAM permissions (node role, controller role)
+- Check webhook configurations
+- Back up existing NodePool and NodeClass configurations
+- Document current version and settings
+
+#### Staging Environment Setup
+
+- Create or verify staging environment
+- Update version tags in Helm values or manifests
+- Configure automated validation tests
+
+#### Staging Deployment
+
+- Deploy to staging environment
+- Run comprehensive tests including node provisioning
+- Verify controller health
+- Test NodePool and NodeClass functionality
+- Monitor system behavior
+
+#### Production Approval and Deployment
+
+- Require manual approval/review
+- Schedule maintenance window if needed
+- Execute production deployment
+- Monitor deployment progress
+- Verify all components are functioning
+
+#### Post-Deployment
+
+- Monitor system health
+- Verify node provisioning
+- Keep rollback configurations accessible
+- Update documentation
+
+Here are few recommended CI/CD Pipeline Options:
 
 - GitHub Actions - Excellent for GitHub-hosted repositories with built-in Kubernetes support
 - GitLab CI - Strong container-native pipeline with integrated Kubernetes functionality
 - ArgoCD - Specialized for GitOps workflows with Kubernetes
 - AWS CodePipeline - Native integration with EKS and AWS services
+- Flux - Open-source GitOps tool for Kubernetes with automatic deployment capabilities
 
 Each pipeline tool can be configured to handle the Karpenter upgrade workflow, but choose based on your existing infrastructure, team expertise, and specific requirements for automation and integration.
 
