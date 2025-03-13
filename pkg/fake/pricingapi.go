@@ -27,27 +27,19 @@ import (
 
 type PricingAPI struct {
 	sdk.PricingAPI
-	PricingBehavior
-}
-type PricingBehavior struct {
-	NextError         AtomicError
-	GetProductsOutput AtomicPtr[pricing.GetProductsOutput]
+	GetProductsBehavior MockedFunction[pricing.GetProductsInput, pricing.GetProductsOutput]
 }
 
 func (p *PricingAPI) Reset() {
-	p.NextError.Reset()
-	p.GetProductsOutput.Reset()
+	p.GetProductsBehavior.Reset()
 }
 
-func (p *PricingAPI) GetProducts(_ context.Context, _ *pricing.GetProductsInput, _ ...func(*pricing.Options)) (*pricing.GetProductsOutput, error) {
-	if !p.NextError.IsNil() {
-		return &pricing.GetProductsOutput{}, p.NextError.Get()
-	}
-	if !p.GetProductsOutput.IsNil() {
-		return p.GetProductsOutput.Clone(), nil
-	}
-	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
-	return &pricing.GetProductsOutput{}, errors.New("no pricing data provided")
+func (p *PricingAPI) GetProducts(_ context.Context, input *pricing.GetProductsInput, _ ...func(*pricing.Options)) (*pricing.GetProductsOutput, error) {
+	return p.GetProductsBehavior.Invoke(input, func(input *pricing.GetProductsInput) (*pricing.GetProductsOutput, error) {
+		// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
+		return &pricing.GetProductsOutput{}, errors.New("no pricing data provided")
+	})
+
 }
 
 func NewOnDemandPrice(instanceType string, price float64) string {
