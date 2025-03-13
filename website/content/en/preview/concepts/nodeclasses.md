@@ -100,12 +100,13 @@ spec:
   amiSelectorTerms:
     # Select on any AMI that has both the `karpenter.sh/discovery: ${CLUSTER_NAME}`
     # AND `environment: test` tags OR any AMI with the name `my-ami` OR an AMI with
-    # ID `ami-123`
+    # ID `ami-123` OR an AMI with ID matching the value of my-custom-parameter
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}"
         environment: test
     - name: my-ami
     - id: ami-123
+    - ssmParameterName: my-custom-parameter # ssm parameter name or ARN
     # Select EKS optimized AL2023 AMIs with version `v20240703`. This term is mutually
     # exclusive and can't be specified with other terms.
     # - alias: al2023@v20240703
@@ -728,12 +729,13 @@ The example below shows how this selection logic is fulfilled.
 amiSelectorTerms:
   # Select on any AMI that has both the `karpenter.sh/discovery: ${CLUSTER_NAME}`
   # AND `environment: test` tags OR any AMI with the name `my-ami` OR an AMI with
-  # ID `ami-123`
+  # ID `ami-123` OR an AMI with ID matching the value of my-custom-parameter
   - tags:
       karpenter.sh/discovery: "${CLUSTER_NAME}"
       environment: test
   - name: my-ami
   - id: ami-123
+  - ssmParameterName: my-custom-parameter # ssm parameter name or ARN
   # Select EKS optimized AL2023 AMIs with version `v20240807`. This term is mutually
   # exclusive and can't be specified with other terms.
   # - alias: al2023@v20240807
@@ -865,6 +867,12 @@ Specify using ids:
     - id: "ami-456"
 ```
 
+Specify using custom ssm parameter name or ARN:
+```yaml
+  amiSelectorTerms:
+    - ssmParameterName: "my-custom-parameter"
+```
+
 ## spec.capacityReservationSelectorTerms
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Alpha]({{<ref "../reference/settings#feature-gates" >}})
@@ -913,7 +921,6 @@ spec:
   - tags:
       key: foo
     ownerID: 012345678901
-```
 
 ## spec.tags
 
