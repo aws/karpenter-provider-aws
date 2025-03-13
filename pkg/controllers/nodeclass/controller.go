@@ -66,7 +66,6 @@ type Controller struct {
 }
 
 func NewController(
-	ctx context.Context,
 	clk clock.Clock,
 	kubeClient client.Client,
 	recorder events.Recorder,
@@ -78,8 +77,9 @@ func NewController(
 	capacityReservationProvider capacityreservation.Provider,
 	ec2api sdk.EC2API,
 	validationCache *cache.Cache,
+	amiResolver amifamily.Resolver,
 ) *Controller {
-	validation := NewValidationReconciler(ec2api, amiProvider, validationCache)
+	validation := NewValidationReconciler(ec2api, amiResolver, launchTemplateProvider, validationCache)
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
