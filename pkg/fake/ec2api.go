@@ -53,8 +53,7 @@ type EC2Behavior struct {
 	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
 	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
-	DescribeSpotPriceHistoryInput       AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
-	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
+	DescribeSpotPriceHistoryBehavior    MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
 	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
 	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
@@ -94,8 +93,7 @@ func (e *EC2API) Reset() {
 	e.DescribeInstancesBehavior.Reset()
 	e.CalledWithCreateLaunchTemplateInput.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
-	e.DescribeSpotPriceHistoryInput.Reset()
-	e.DescribeSpotPriceHistoryOutput.Reset()
+	e.DescribeSpotPriceHistoryBehavior.Reset()
 	e.Instances.Range(func(k, v any) bool {
 		e.Instances.Delete(k)
 		return true
@@ -643,14 +641,8 @@ func (e *EC2API) DescribeInstanceTypeOfferings(_ context.Context, _ *ec2.Describ
 }
 
 func (e *EC2API) DescribeSpotPriceHistory(_ context.Context, input *ec2.DescribeSpotPriceHistoryInput, _ ...func(*ec2.Options)) (*ec2.DescribeSpotPriceHistoryOutput, error) {
-	e.DescribeSpotPriceHistoryInput.Set(input)
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	if !e.DescribeSpotPriceHistoryOutput.IsNil() {
-		return e.DescribeSpotPriceHistoryOutput.Clone(), nil
-	}
-	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
-	return nil, errors.New("no pricing data provided")
+	return e.DescribeSpotPriceHistoryBehavior.Invoke(input, func(input *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {
+		// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
+		return nil, errors.New("no pricing data provided")
+	})
 }
