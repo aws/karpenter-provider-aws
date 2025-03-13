@@ -160,6 +160,9 @@ func (v *Validation) validateCreateFleetAuthorization(
 	createFleetInput := instance.GetCreateFleetInput(nodeClass, karpv1.CapacityTypeOnDemand, tags, mockLaunchTemplateConfig())
 	createFleetInput.DryRun = lo.ToPtr(true)
 	if _, err := v.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IgnoreDryRunError(err) != nil {
+		if awserrors.IsRateLimitedError(err) {
+			return "", true, nil
+		}
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
 			// it would be an unexpected state
@@ -183,6 +186,9 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	createLaunchTemplateInput := launchtemplate.GetCreateLaunchTemplateInput(ctx, opts[0], corev1.IPv4Protocol, "")
 	createLaunchTemplateInput.DryRun = lo.ToPtr(true)
 	if _, err := v.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IgnoreDryRunError(err) != nil {
+		if awserrors.IsRateLimitedError(err) {
+			return "", true, nil
+		}
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
 			// it would be an unexpected state
@@ -234,7 +240,7 @@ func (v *Validation) validateRunInstancesAuthorization(
 	if _, err = v.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
 		// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
 		// this means there is most likely an eventual consistency issue and we just need to requeue
-		if awserrors.IsInstanceProfileNotFound(err) {
+		if awserrors.IsInstanceProfileNotFound(err) || awserrors.IsRateLimitedError(err) {
 			return "", true, nil
 		}
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {

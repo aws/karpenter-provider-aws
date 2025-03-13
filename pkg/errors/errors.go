@@ -28,6 +28,7 @@ const (
 	RunInstancesInvalidParameterValueCode = "InvalidParameterValue"
 	DryRunOperationErrorCode              = "DryRunOperation"
 	UnauthorizedOperationErrorCode        = "UnauthorizedOperation"
+	RateLimitingErrorCode                 = "RequestLimitExceeded"
 )
 
 var (
@@ -123,6 +124,23 @@ func IsUnauthorizedOperationError(err error) bool {
 }
 
 func IgnoreUnauthorizedOperationError(err error) error {
+	if IsUnauthorizedOperationError(err) {
+		return nil
+	}
+	return err
+}
+
+func IsRateLimitedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
+		return apiErr.ErrorCode() == RateLimitingErrorCode
+	}
+	return false
+}
+
+func IgnoreRateLimitedError(err error) error {
 	if IsUnauthorizedOperationError(err) {
 		return nil
 	}
