@@ -46,6 +46,9 @@ func (n Readiness) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (r
 			nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to detect the cluster CIDR")
 			return reconcile.Result{}, fmt.Errorf("failed to detect the cluster CIDR, %w", err)
 		}
+		// Ensure the ready condition is set to true once the cluster CIDR is resolved,
+		// to not stuck in Failed state indefinitely.
+		nodeClass.StatusConditions().SetTrue(status.ConditionReady)
 	}
 	return reconcile.Result{}, nil
 }
