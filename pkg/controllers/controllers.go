@@ -90,7 +90,7 @@ func NewControllers(
 		nodeclass.NewController(clk, kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider, capacityReservationProvider, ec2api, validationCache, amiResolver),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, cloudProvider, instanceProvider),
-		controllerspricing.NewController(pricingProvider),
+		controllerspricing.NewController(kubeClient, pricingProvider),
 		controllersinstancetype.NewController(instanceTypeProvider),
 		controllersinstancetypecapacity.NewController(kubeClient, cloudProvider, instanceTypeProvider),
 		ssminvalidation.NewController(ssmCache, amiProvider),
