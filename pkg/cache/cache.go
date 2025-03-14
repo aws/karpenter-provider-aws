@@ -45,6 +45,8 @@ const (
 	// DiscoveredCapacityCacheTTL is the time to drop discovered resource capacity data per-instance type
 	// if it is not updated by a node creation event or refreshed during controller reconciliation
 	DiscoveredCapacityCacheTTL = 60 * 24 * time.Hour
+	// ValidationTTL is time to check authorization errors with validation controller
+	ValidationTTL = 10 * time.Minute
 )
 
 const (
