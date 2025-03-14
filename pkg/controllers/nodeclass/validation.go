@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
@@ -159,7 +160,10 @@ func (v *Validation) validateCreateFleetAuthorization(
 ) (reason string, requeue bool, err error) {
 	createFleetInput := instance.GetCreateFleetInput(nodeClass, karpv1.CapacityTypeOnDemand, tags, mockLaunchTemplateConfig())
 	createFleetInput.DryRun = lo.ToPtr(true)
-	if _, err := v.ec2api.CreateFleet(ctx, createFleetInput); awserrors.IgnoreDryRunError(err) != nil {
+	// Adding NopRetryer to avoid aggressive retry when rate limited
+	if _, err := v.ec2api.CreateFleet(ctx, createFleetInput, func(o *ec2.Options) {
+		o.Retryer = aws.NopRetryer{}
+	}); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IsRateLimitedError(err) {
 			return "", true, nil
 		}
@@ -185,7 +189,10 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	}
 	createLaunchTemplateInput := launchtemplate.GetCreateLaunchTemplateInput(ctx, opts[0], corev1.IPv4Protocol, "")
 	createLaunchTemplateInput.DryRun = lo.ToPtr(true)
-	if _, err := v.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput); awserrors.IgnoreDryRunError(err) != nil {
+	// Adding NopRetryer to avoid aggressive retry when rate limited
+	if _, err := v.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput, func(o *ec2.Options) {
+		o.Retryer = aws.NopRetryer{}
+	}); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IsRateLimitedError(err) {
 			return "", true, nil
 		}
@@ -236,8 +243,10 @@ func (v *Validation) validateRunInstancesAuthorization(
 			Tags:         runInstancesInput.TagSpecifications[0].Tags,
 		},
 	)
-
-	if _, err = v.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
+	// Adding NopRetryer to avoid aggressive retry when rate limited
+	if _, err = v.ec2api.RunInstances(ctx, runInstancesInput, func(o *ec2.Options) {
+		o.Retryer = aws.NopRetryer{}
+	}); awserrors.IgnoreDryRunError(err) != nil {
 		// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
 		// this means there is most likely an eventual consistency issue and we just need to requeue
 		if awserrors.IsInstanceProfileNotFound(err) || awserrors.IsRateLimitedError(err) {

@@ -141,7 +141,7 @@ func IsRateLimitedError(err error) bool {
 }
 
 func IgnoreRateLimitedError(err error) error {
-	if IsUnauthorizedOperationError(err) {
+	if IsRateLimitedError(err) {
 		return nil
 	}
 	return err
