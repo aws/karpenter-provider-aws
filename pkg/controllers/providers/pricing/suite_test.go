@@ -61,7 +61,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
-	controller = controllerspricing.NewController(awsEnv.PricingProvider)
+	controller = controllerspricing.NewController(env.Client, awsEnv.PricingProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -524,6 +524,47 @@ var _ = Describe("Pricing", func() {
 				Expect(ok).To(BeTrue())
 				Expect(price).To(BeNumerically("==", elem.B))
 			}
+		})
+	})
+	
+	Context("Max Spot Prices", func() {
+		It("should respect maximum spot prices from the provider", func() {
+			// Set up pricing provider with spot prices
+			now := time.Now()
+			awsEnv.EC2API.DescribeSpotPriceHistoryBehavior.Output.Set(&ec2.DescribeSpotPriceHistoryOutput{
+				SpotPriceHistory: []ec2types.SpotPrice{
+					{
+						AvailabilityZone: aws.String("test-zone-1a"),
+						InstanceType:     "c98.large",
+						SpotPrice:        aws.String("0.8"), // Higher than max spot price
+						Timestamp:        &now,
+					},
+					{
+						AvailabilityZone: aws.String("test-zone-1a"),
+						InstanceType:     "c99.large",
+						SpotPrice:        aws.String("0.4"), // Lower than max spot price
+						Timestamp:        &now,
+					},
+				},
+			})
+			ExpectSingletonReconciled(ctx, controller)
+			
+			// Update max spot prices
+			maxSpotPrices := map[string]string{
+				"c98.large": "0.5", // Max price lower than current price
+				"c99.large": "0.5", // Max price higher than current price
+			}
+			awsEnv.PricingProvider.UpdateMaxSpotPrices(ctx, maxSpotPrices)
+			
+			// Check that instance with price higher than max is unavailable
+			price, available := awsEnv.PricingProvider.SpotPrice("c98.large", "test-zone-1a")
+			Expect(price).To(BeNumerically("==", 0.8))
+			Expect(available).To(BeFalse())
+			
+			// Check that instance with price lower than max is available
+			price, available = awsEnv.PricingProvider.SpotPrice("c99.large", "test-zone-1a")
+			Expect(price).To(BeNumerically("==", 0.4))
+			Expect(available).To(BeTrue())
 		})
 	})
 })

@@ -35,6 +35,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | MEMORY_LIMIT | \-\-memory-limit | Memory limit on the container running the controller. The GC soft memory limit is set to 90% of this value. (default = -1)|
 | METRICS_PORT | \-\-metrics-port | The port the metric endpoint binds to for operating metrics about the controller itself (default = 8080)|
 | RESERVED_ENIS | \-\-reserved-enis | Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html. (default = 0)|
+| SPOT_PRICE_MAX_CONFIGMAP | \-\-spot-price-max-configmap | The namespace/name of a ConfigMap containing custom maximum spot prices for instance types. Format: namespace/name. The ConfigMap should contain key-value pairs where keys are instance types and values are maximum price in USD.|
 | VM_MEMORY_OVERHEAD_PERCENT | \-\-vm-memory-overhead-percent | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types when cached information is unavailable. (default = 0.075)|
 
 [comment]: <> (end docs generated content from hack/docs/configuration_gen_docs.go)
@@ -94,3 +95,35 @@ This value is expressed as a string value like `10s`, `1m` or `2h45m`. The valid
 The batch max duration is the maximum period of time a batching window can be extended to. Increasing this value will allow the maximum batch window size to increase to collect more pending pods into a single batch at the expense of a longer delay from when the first pending pod was created.
 
 This value is expressed as a string value like `10s`, `1m` or `2h45m`. The valid time units are `ns`, `us` (or `µs`), `ms`, `s`, `m`, `h`.
+
+### Custom Maximum Spot Prices
+
+Karpenter can be configured to enforce maximum spot prices for instance types. This helps control costs by preventing Karpenter from provisioning spot instances when prices exceed your defined thresholds.
+
+#### Setting Up Custom Maximum Spot Prices
+
+1. Create a ConfigMap with key-value pairs where the keys are instance types and the values are maximum spot prices in USD.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spot-price-limits
+  namespace: karpenter
+data:
+  # Format: instance-type: max-price (in USD)
+  "m5.large": "0.05"
+  "m5.xlarge": "0.10"
+  "c5.large": "0.06"
+  "r5.large": "0.07"
+```
+
+2. Configure Karpenter to use this ConfigMap by setting the `--spot-price-max-configmap` flag (or the `SPOT_PRICE_MAX_CONFIGMAP` environment variable) to the namespace/name of your ConfigMap.
+
+```
+--spot-price-max-configmap=karpenter/spot-price-limits
+```
+
+3. When the current spot price for an instance type exceeds your defined maximum price, Karpenter will mark that offering as unavailable and won't provision instances of that type.
+
+> **Note**: You can update the ConfigMap at any time to adjust price limits, and Karpenter will automatically apply the changes.
