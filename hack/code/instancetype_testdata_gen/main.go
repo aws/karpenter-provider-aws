@@ -28,8 +28,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/samber/lo"
+
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 )
 
 const packageHeader = `
@@ -39,6 +40,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/samber/lo"
 )
 
 // GENERATED FILE. DO NOT EDIT DIRECTLY.
@@ -74,6 +76,7 @@ func main() {
 	fmt.Fprintln(src, string(license))
 	fmt.Fprint(src, packageHeader)
 	fmt.Fprintln(src, getDescribeInstanceTypesOutput(ctx, ec2api, instanceTypes))
+	fmt.Fprintln(src, getDescribeInstanceTypeOfferingsOutput())
 
 	// Format and print to the file
 	formatted, err := format.Source(src.Bytes())
@@ -109,6 +112,42 @@ func getDescribeInstanceTypesOutput(ctx context.Context, ec2api sdk.EC2API, inst
 		fmt.Fprintln(src, "{")
 		data := getInstanceTypeInfo(elem)
 		fmt.Fprintln(src, data)
+		fmt.Fprintln(src, "},")
+	}
+	fmt.Fprintln(src, "},")
+	fmt.Fprintln(src, "}")
+	return src.String()
+}
+
+func getDescribeInstanceTypeOfferingsOutput() string {
+	src := &bytes.Buffer{}
+	instanceTypeToZones := map[string][]string{
+		"m5.large":       {"test-zone-1a", "test-zone-1b", "test-zone-1c", "test-zone-1a-local"},
+		"m5.xlarge":      {"test-zone-1a", "test-zone-1b"},
+		"m5.2xlarge":     {"test-zone-1a"},
+		"m5.4xlarge":     {"test-zone-1a"},
+		"m5.8xlarge":     {"test-zone-1a"},
+		"p3.8xlarge":     {"test-zone-1a", "test-zone-1b"},
+		"dl1.24xlarge":   {"test-zone-1a", "test-zone-1b"},
+		"g4dn.8xlarge":   {"test-zone-1a", "test-zone-1b"},
+		"g4ad.16xlarge":  {"test-zone-1a", "test-zone-1b"},
+		"t3.large":       {"test-zone-1a", "test-zone-1b"},
+		"inf2.xlarge":    {"test-zone-1a"},
+		"inf2.24xlarge":  {"test-zone-1a"},
+		"trn1.2xlarge":   {"test-zone-1a"},
+		"c6g.large":      {"test-zone-1a"},
+		"m5.metal":       {"test-zone-1a", "test-zone-1b"},
+		"m6idn.32xlarge": {"test-zone-1a", "test-zone-1b", "test-zone-1c"},
+	}
+
+	fmt.Fprintln(src, "var defaultDescribeInstanceTypeOfferingsOutput = &ec2.DescribeInstanceTypeOfferingsOutput{")
+	fmt.Fprintln(src, "InstanceTypeOfferings: []ec2types.InstanceTypeOffering{")
+	for _, elem := range lo.Flatten(lo.MapToSlice(instanceTypeToZones, func(it string, zones []string) []lo.Tuple2[string, string] {
+		return lo.Map(zones, func(z string, _ int) lo.Tuple2[string, string] { return lo.Tuple2[string, string]{A: it, B: z} })
+	})) {
+		fmt.Fprintln(src, "{")
+		fmt.Fprintf(src, "InstanceType: \"%s\",\n", elem.A)
+		fmt.Fprintf(src, "Location: lo.ToPtr(\"%s\"),\n", elem.B)
 		fmt.Fprintln(src, "},")
 	}
 	fmt.Fprintln(src, "},")

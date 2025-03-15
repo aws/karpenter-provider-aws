@@ -12,13 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package offering
+package metrics
 
 import (
 	opmetrics "github.com/awslabs/operatorpkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
-
 	"sigs.k8s.io/karpenter/pkg/metrics"
 )
 

@@ -78,34 +78,6 @@ func (p *DefaultProvider) InjectOfferings(
 			allZones,
 			subnetZones,
 		)
-
-		reservedAvailability := map[string]bool{}
-		for _, of := range offerings {
-			// If the capacity type is reserved we need to determine if any of the reserved offerings are available. Otherwise,
-			// we can update the availability metric directly.
-			if of.CapacityType() == karpv1.CapacityTypeReserved {
-				reservedAvailability[of.Zone()] = reservedAvailability[of.Zone()] || of.Available
-			} else {
-				InstanceTypeOfferingAvailable.Set(float64(lo.Ternary(of.Available, 1, 0)), map[string]string{
-					instanceTypeLabel: it.Name,
-					capacityTypeLabel: of.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(),
-					zoneLabel:         of.Requirements.Get(corev1.LabelTopologyZone).Any(),
-				})
-			}
-			InstanceTypeOfferingPriceEstimate.Set(of.Price, map[string]string{
-				instanceTypeLabel: it.Name,
-				capacityTypeLabel: of.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(),
-				zoneLabel:         of.Requirements.Get(corev1.LabelTopologyZone).Any(),
-			})
-		}
-		for zone := range allZones {
-			InstanceTypeOfferingAvailable.Set(float64(lo.Ternary(reservedAvailability[zone], 1, 0)), map[string]string{
-				instanceTypeLabel: it.Name,
-				capacityTypeLabel: karpv1.CapacityTypeReserved,
-				zoneLabel:         zone,
-			})
-		}
-
 		// NOTE: By making this copy one level deep, we can modify the offerings without mutating the results from previous
 		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and
 		// once in the instance provider (filterReservedInstanceTypes)
