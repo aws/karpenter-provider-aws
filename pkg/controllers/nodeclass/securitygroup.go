@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 )
 
@@ -41,6 +42,10 @@ func NewSecurityGroupReconciler(securityGroupProvider securitygroup.Provider) *S
 func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	securityGroups, err := sg.securityGroupProvider.List(ctx, nodeClass)
 	if err != nil {
+		reason, message, retryable := awserrors.ClassifyError(err)
+		if !retryable {
+			nodeClass.StatusConditions().SetFalse(v1.ConditionTypeSecurityGroupsReady, reason, message)
+		}
 		return reconcile.Result{}, fmt.Errorf("getting security groups, %w", err)
 	}
 	if len(securityGroups) == 0 && len(nodeClass.Spec.SecurityGroupSelectorTerms) > 0 {
