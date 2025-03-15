@@ -237,7 +237,7 @@ Karpenter monitors nodes for the following node status conditions when initiatin
 |  KernelReady               |     False   |     30 minutes        |
 |  ContainerRuntimeReady     |     False   |     30 minutes        |
 
-To enable the drift feature flag, refer to the [Feature Gates]({{<ref "../reference/settings#feature-gates" >}}).
+To enable the NodeRepair feature flag, refer to the [Feature Gates]({{<ref "../reference/settings#feature-gates" >}}).
 
 ## Controls
 
