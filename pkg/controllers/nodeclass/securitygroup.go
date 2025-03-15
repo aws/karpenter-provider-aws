@@ -32,6 +32,12 @@ type SecurityGroup struct {
 	securityGroupProvider securitygroup.Provider
 }
 
+func NewSecurityGroupReconciler(securityGroupProvider securitygroup.Provider) *SecurityGroup {
+	return &SecurityGroup{
+		securityGroupProvider: securityGroupProvider,
+	}
+}
+
 func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	securityGroups, err := sg.securityGroupProvider.List(ctx, nodeClass)
 	if err != nil {

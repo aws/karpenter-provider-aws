@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
@@ -54,29 +55,26 @@ var _ = Describe("NodeClass IAM Permissions", func() {
 				}`, action)
 
 			deployment := &appsv1.Deployment{}
-			err := env.Client.Get(env.Context, types.NamespacedName{
+			Expect(env.Client.Get(env.Context, types.NamespacedName{
 				Namespace: "kube-system",
 				Name:      "karpenter",
-			}, deployment)
-			Expect(err).To(BeNil())
+			}, deployment)).To(Succeed())
 
 			sa := &corev1.ServiceAccount{}
-			err = env.Client.Get(env.Context, types.NamespacedName{
+			Expect(env.Client.Get(env.Context, types.NamespacedName{
 				Namespace: "kube-system",
 				Name:      deployment.Spec.Template.Spec.ServiceAccountName,
-			}, sa)
-			Expect(err).To(BeNil())
+			}, sa)).To(Succeed())
 
 			roleName = strings.Split(sa.Annotations["eks.amazonaws.com/role-arn"], "/")[1]
 			policyName = fmt.Sprintf("TestPolicy-%s", uuid.New().String())
 
-			_, err = env.IAMAPI.PutRolePolicy(env.Context, &iam.PutRolePolicyInput{
+			_, err := env.IAMAPI.PutRolePolicy(env.Context, &iam.PutRolePolicyInput{
 				RoleName:       aws.String(roleName),
 				PolicyName:     aws.String(policyName),
 				PolicyDocument: aws.String(policyDoc),
 			})
 			Expect(err).To(BeNil())
-
 			DeferCleanup(func() {
 				_, err := env.IAMAPI.DeleteRolePolicy(env.Context, &iam.DeleteRolePolicyInput{
 					RoleName:   aws.String(roleName),
@@ -87,10 +85,10 @@ var _ = Describe("NodeClass IAM Permissions", func() {
 
 			env.ExpectCreated(nodeClass)
 			Eventually(func(g Gomega) {
-				env.ExpectUpdated(nodeClass)
+				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
 				g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 				g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(expectedMessage))
-			}, "240s", "5s").Should(Succeed())
+			}).Should(Succeed())
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False"})
 		},
 		Entry("should fail when CreateFleet is denied",
@@ -107,8 +105,8 @@ var _ = Describe("NodeClass IAM Permissions", func() {
 	It("should succeed with all required permissions", func() {
 		env.ExpectCreated(nodeClass)
 		Eventually(func(g Gomega) {
-			env.ExpectUpdated(nodeClass)
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
 			g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
-		}, "60s", "5s").Should(Succeed())
+		}).Should(Succeed())
 	})
 })

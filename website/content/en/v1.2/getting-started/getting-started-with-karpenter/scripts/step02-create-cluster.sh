@@ -37,7 +37,7 @@ iamIdentityMappings:
 
 managedNodeGroups:
 - instanceType: m5.large
-  amiFamily: AmazonLinux2
+  amiFamily: AmazonLinux2023
   name: ${CLUSTER_NAME}-ng
   desiredCapacity: 2
   minSize: 1

@@ -54,31 +54,4 @@ var (
 			instanceTypeLabel,
 		},
 	)
-	InstanceTypeOfferingAvailable = opmetrics.NewPrometheusGauge(
-		crmetrics.Registry,
-		prometheus.GaugeOpts{
-			Namespace: metrics.Namespace,
-			Subsystem: cloudProviderSubsystem,
-			Name:      "instance_type_offering_available",
-			Help:      "Instance type offering availability, based on instance type, capacity type, and zone",
-		},
-		[]string{
-			instanceTypeLabel,
-			capacityTypeLabel,
-			zoneLabel,
-		},
-	)
-	InstanceTypeOfferingPriceEstimate = opmetrics.NewPrometheusGauge(
-		crmetrics.Registry,
-		prometheus.GaugeOpts{
-			Namespace: metrics.Namespace,
-			Subsystem: cloudProviderSubsystem,
-			Name:      "instance_type_offering_price_estimate",
-			Help:      "Instance type offering estimated hourly price used when making informed decisions on node cost calculation, based on instance type, capacity type, and zone.",
-		},
-		[]string{
-			instanceTypeLabel,
-			capacityTypeLabel,
-			zoneLabel,
-		})
 )

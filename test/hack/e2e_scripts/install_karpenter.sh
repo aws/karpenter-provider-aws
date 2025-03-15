@@ -18,6 +18,7 @@ helm upgrade --install karpenter "${CHART}" \
   --set settings.interruptionQueue="$CLUSTER_NAME" \
   --set settings.featureGates.spotToSpotConsolidation=true \
   --set settings.featureGates.nodeRepair=true \
+  --set settings.featureGates.reservedCapacity=true \
   --set controller.resources.requests.cpu=5 \
   --set controller.resources.requests.memory=3Gi \
   --set controller.resources.limits.cpu=5 \

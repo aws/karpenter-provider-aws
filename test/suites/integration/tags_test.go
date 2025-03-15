@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -110,7 +111,8 @@ var _ = Describe("Tags", func() {
 				g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationClusterNameTaggedCompatability, "true"))
 			}, time.Minute).Should(Succeed())
 
-			nodeInstance := instance.NewInstance(env.GetInstance(node.Name))
+			ctx := options.ToContext(env.Context, &options.Options{})
+			nodeInstance := instance.NewInstance(ctx, env.GetInstance(node.Name))
 			Expect(nodeInstance.Tags).To(HaveKeyWithValue("Name", node.Name))
 			Expect(nodeInstance.Tags).To(HaveKeyWithValue("karpenter.sh/nodeclaim", nodeClaim.Name))
 			Expect(nodeInstance.Tags).To(HaveKeyWithValue("eks:eks-cluster-name", env.ClusterName))
@@ -147,7 +149,8 @@ var _ = Describe("Tags", func() {
 				g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationClusterNameTaggedCompatability, "true"))
 			}, time.Minute).Should(Succeed())
 
-			nodeInstance := instance.NewInstance(env.GetInstance(node.Name))
+			ctx := options.ToContext(env.Context, &options.Options{})
+			nodeInstance := instance.NewInstance(ctx, env.GetInstance(node.Name))
 			Expect(nodeInstance.Tags).To(HaveKeyWithValue("Name", "custom-name"))
 			Expect(nodeInstance.Tags).To(HaveKeyWithValue("karpenter.sh/nodeclaim", nodeClaim.Name))
 			Expect(nodeInstance.Tags).To(HaveKeyWithValue("eks:eks-cluster-name", env.ClusterName))

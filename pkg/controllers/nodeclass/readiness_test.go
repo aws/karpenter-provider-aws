@@ -17,6 +17,7 @@ package nodeclass_test
 import (
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -49,13 +50,19 @@ var _ = Describe("NodeClass Status Condition Controller", func() {
 			},
 		})
 	})
-	It("should update status condition on nodeClass as Ready", func() {
-		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.Conditions).To(HaveLen(6))
-		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
-	})
+	DescribeTable(
+		"should update status condition on nodeClass as Ready",
+		func(reservedCapacity bool) {
+			coreoptions.FromContext(ctx).FeatureGates.ReservedCapacity = reservedCapacity
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.Status.Conditions).To(HaveLen(lo.Ternary(reservedCapacity, 7, 6)))
+			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
+		},
+		Entry("when reserved capacity feature flag is enabled", true),
+		Entry("when reserved capacity feature flag is disabled", false),
+	)
 	It("should update status condition as Not Ready", func() {
 		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 			{

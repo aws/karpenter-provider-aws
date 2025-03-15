@@ -32,5 +32,5 @@ spec:
          values: ["a1"]
      nodeClassRef:
       group: karpenter.k8s.aws
-      kind: EKSNodeClass
+      kind: EC2NodeClass
       name: default

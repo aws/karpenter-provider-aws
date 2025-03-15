@@ -58,6 +58,7 @@ import (
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
@@ -77,21 +78,23 @@ func init() {
 // Operator is injected into the AWS CloudProvider's factories
 type Operator struct {
 	*operator.Operator
-	Config                    aws.Config
-	UnavailableOfferingsCache *awscache.UnavailableOfferings
-	SSMCache                  *cache.Cache
-	SubnetProvider            subnet.Provider
-	SecurityGroupProvider     securitygroup.Provider
-	InstanceProfileProvider   instanceprofile.Provider
-	AMIProvider               amifamily.Provider
-	AMIResolver               amifamily.Resolver
-	LaunchTemplateProvider    launchtemplate.Provider
-	PricingProvider           pricing.Provider
-	VersionProvider           *version.DefaultProvider
-	InstanceTypesProvider     *instancetype.DefaultProvider
-	InstanceProvider          instance.Provider
-	SSMProvider               ssmp.Provider
-	EC2API                    *ec2.Client
+	Config                      aws.Config
+	UnavailableOfferingsCache   *awscache.UnavailableOfferings
+	SSMCache                    *cache.Cache
+	ValidationCache             *cache.Cache
+	SubnetProvider              subnet.Provider
+	SecurityGroupProvider       securitygroup.Provider
+	InstanceProfileProvider     instanceprofile.Provider
+	AMIProvider                 amifamily.Provider
+	AMIResolver                 amifamily.Resolver
+	LaunchTemplateProvider      launchtemplate.Provider
+	PricingProvider             pricing.Provider
+	VersionProvider             *version.DefaultProvider
+	InstanceTypesProvider       *instancetype.DefaultProvider
+	InstanceProvider            instance.Provider
+	SSMProvider                 ssmp.Provider
+	CapacityReservationProvider capacityreservation.Provider
+	EC2API                      *ec2.Client
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
@@ -141,6 +144,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	}
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
+	validationCache := cache.New(awscache.ValidationTTL, awscache.DefaultCleanupInterval)
 
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
@@ -172,12 +176,22 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		kubeDNSIP,
 		clusterEndpoint,
 	)
+	capacityReservationProvider := capacityreservation.NewProvider(
+		ec2api,
+		operator.Clock,
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.CapacityReservationAvailabilityTTL, awscache.DefaultCleanupInterval),
+	)
 	instanceTypeProvider := instancetype.NewDefaultProvider(
-		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		subnetProvider,
-		instancetype.NewDefaultResolver(cfg.Region, pricingProvider, unavailableOfferingsCache),
+		pricingProvider,
+		capacityReservationProvider,
+		unavailableOfferingsCache,
+		instancetype.NewDefaultResolver(cfg.Region),
 	)
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
@@ -186,6 +200,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		unavailableOfferingsCache,
 		subnetProvider,
 		launchTemplateProvider,
+		capacityReservationProvider,
 	)
 
 	// Setup field indexers on instanceID -- specifically for the interruption controller
@@ -193,22 +208,24 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		SetupIndexers(ctx, operator.Manager)
 	}
 	return ctx, &Operator{
-		Operator:                  operator,
-		Config:                    cfg,
-		UnavailableOfferingsCache: unavailableOfferingsCache,
-		SSMCache:                  ssmCache,
-		SubnetProvider:            subnetProvider,
-		SecurityGroupProvider:     securityGroupProvider,
-		InstanceProfileProvider:   instanceProfileProvider,
-		AMIProvider:               amiProvider,
-		AMIResolver:               amiResolver,
-		VersionProvider:           versionProvider,
-		LaunchTemplateProvider:    launchTemplateProvider,
-		PricingProvider:           pricingProvider,
-		InstanceTypesProvider:     instanceTypeProvider,
-		InstanceProvider:          instanceProvider,
-		SSMProvider:               ssmProvider,
-		EC2API:                    ec2api,
+		Operator:                    operator,
+		Config:                      cfg,
+		UnavailableOfferingsCache:   unavailableOfferingsCache,
+		SSMCache:                    ssmCache,
+		ValidationCache:             validationCache,
+		SubnetProvider:              subnetProvider,
+		SecurityGroupProvider:       securityGroupProvider,
+		InstanceProfileProvider:     instanceProfileProvider,
+		AMIProvider:                 amiProvider,
+		AMIResolver:                 amiResolver,
+		VersionProvider:             versionProvider,
+		LaunchTemplateProvider:      launchTemplateProvider,
+		PricingProvider:             pricingProvider,
+		InstanceTypesProvider:       instanceTypeProvider,
+		InstanceProvider:            instanceProvider,
+		SSMProvider:                 ssmProvider,
+		CapacityReservationProvider: capacityReservationProvider,
+		EC2API:                      ec2api,
 	}
 }
 

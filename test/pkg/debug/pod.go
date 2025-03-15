@@ -81,7 +81,7 @@ func (c *PodController) Register(_ context.Context, m manager.Manager) error {
 				},
 			},
 			predicate.NewPredicateFuncs(func(o client.Object) bool {
-				return o.GetNamespace() != "kube-system"
+				return o.GetNamespace() != "kube-system" && o.GetNamespace() != "prometheus"
 			}),
 		)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10, SkipNameValidation: lo.ToPtr(true)}).

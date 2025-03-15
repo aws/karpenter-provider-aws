@@ -20,7 +20,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | DISABLE_LEADER_ELECTION | \-\-disable-leader-election | Disable the leader election client before executing the main loop. Disable when running replicated components for high availability is not desired.|
 | EKS_CONTROL_PLANE | \-\-eks-control-plane | Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API |
 | ENABLE_PROFILING | \-\-enable-profiling | Enable the profiling on the metric endpoint|
-| FEATURE_GATES | \-\-feature-gates | Optional features can be enabled / disabled using feature gates. Current options are: SpotToSpotConsolidation (default = NodeRepair=false,SpotToSpotConsolidation=false)|
+| FEATURE_GATES | \-\-feature-gates | Optional features can be enabled / disabled using feature gates. Current options are: NodeRepair, ReservedCapacity, and SpotToSpotConsolidation (default = NodeRepair=false,ReservedCapacity=false,SpotToSpotConsolidation=false)|
 | HEALTH_PROBE_PORT | \-\-health-probe-port | The port the health probe endpoint binds to for reporting controller health (default = 8081)|
 | INTERRUPTION_QUEUE | \-\-interruption-queue | Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.|
 | ISOLATED_VPC | \-\-isolated-vpc | If true, then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS on-demand pricing endpoint.|
@@ -41,7 +41,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 
 ### Feature Gates
 
-Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features) You can enable the feature gates through the `--feature-gates` CLI environment variable or the `FEATURE_GATES` environment variable in the Karpenter deployment. For example, you can configure drift, spotToSpotConsolidation by setting the CLI argument: `--feature-gates Drift=true,SpotToSpotConsolidation=true`.
+Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features) You can enable the feature gates through the `--feature-gates` CLI environment variable or the `FEATURE_GATES` environment variable in the Karpenter deployment. For example, you can configure drift, spotToSpotConsolidation by setting the CLI argument: `--feature-gates Drift=true,SpotToSpotConsolidation=true,ReservedCapacity=true`.
 
 | Feature                 | Default | Stage  | Since   | Until   |
 |-------------------------|---------|--------|---------|---------|
@@ -49,6 +49,7 @@ Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line
 | Drift                   | true    | Beta   | v0.33.x | v0.37.x |
 | SpotToSpotConsolidation | false   | Alpha  | v0.34.x |         |
 | NodeRepair              | false   | Alpha  | v1.1.x  |         |
+| ReservedCapacity        | false   | Alpha  | v1.3.x  |         |
 
 {{% alert title="Note" color="primary" %}}
 In v1, drift has been promoted to stable and the feature gate removed. Users can continue to control drift by using disruption budgets by reason.

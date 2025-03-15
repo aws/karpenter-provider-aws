@@ -691,13 +691,13 @@ func (env *Environment) EventuallyExpectNodesUntaintedWithTimeout(timeout time.D
 	}).WithTimeout(timeout).Should(Succeed())
 }
 
-func (env *Environment) EventuallyExpectNodeClaimCount(comparator string, count int) []*karpv1.NodeClaim {
+func (env *Environment) EventuallyExpectLaunchedNodeClaimCount(comparator string, count int) []*karpv1.NodeClaim {
 	GinkgoHelper()
 	By(fmt.Sprintf("waiting for nodes to be %s to %d", comparator, count))
 	nodeClaimList := &karpv1.NodeClaimList{}
 	Eventually(func(g Gomega) {
 		g.Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count),
+		g.Expect(lo.CountBy(nodeClaimList.Items, func(nc karpv1.NodeClaim) bool { return nc.StatusConditions().IsTrue(karpv1.ConditionTypeLaunched) })).To(BeNumerically(comparator, count),
 			fmt.Sprintf("expected %d nodeclaims, had %d (%v)", count, len(nodeClaimList.Items), NodeClaimNames(lo.ToSlicePtr(nodeClaimList.Items))))
 	}).Should(Succeed())
 	return lo.ToSlicePtr(nodeClaimList.Items)

@@ -28,21 +28,28 @@ import (
 // EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
 // This will contain configuration necessary to launch instances in AWS.
 type EC2NodeClassSpec struct {
-	// SubnetSelectorTerms is a list of or subnet selector terms. The terms are ORed.
+	// SubnetSelectorTerms is a list of subnet selector terms. The terms are ORed.
 	// +kubebuilder:validation:XValidation:message="subnetSelectorTerms cannot be empty",rule="self.size() != 0"
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id']",rule="self.all(x, has(x.tags) || has(x.id))"
-	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in subnetSelectorTerms",rule="!self.all(x, has(x.id) && has(x.tags))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in a subnet selector term",rule="!self.all(x, has(x.id) && has(x.tags))"
 	// +kubebuilder:validation:MaxItems:=30
 	// +required
 	SubnetSelectorTerms []SubnetSelectorTerm `json:"subnetSelectorTerms" hash:"ignore"`
-	// SecurityGroupSelectorTerms is a list of or security group selector terms. The terms are ORed.
+	// SecurityGroupSelectorTerms is a list of security group selector terms. The terms are ORed.
 	// +kubebuilder:validation:XValidation:message="securityGroupSelectorTerms cannot be empty",rule="self.size() != 0"
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name))"
-	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in securityGroupSelectorTerms",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.name)))"
-	// +kubebuilder:validation:XValidation:message="'name' is mutually exclusive, cannot be set with a combination of other fields in securityGroupSelectorTerms",rule="!self.all(x, has(x.name) && (has(x.tags) || has(x.id)))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in a security group selector term",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.name)))"
+	// +kubebuilder:validation:XValidation:message="'name' is mutually exclusive, cannot be set with a combination of other fields in a security group selector term",rule="!self.all(x, has(x.name) && (has(x.tags) || has(x.id)))"
 	// +kubebuilder:validation:MaxItems:=30
 	// +required
 	SecurityGroupSelectorTerms []SecurityGroupSelectorTerm `json:"securityGroupSelectorTerms" hash:"ignore"`
+	// CapacityReservationSelectorTerms is a list of capacity reservation selector terms. Each term is ORed together to
+	// determine the set of eligible capacity reservations.
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id']",rule="self.all(x, has(x.tags) || has(x.id))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set along with tags in a capacity reservation selector term",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID)))"
+	// +kubebuilder:validation:MaxItems:=30
+	// +optional
+	CapacityReservationSelectorTerms []CapacityReservationSelectorTerm `json:"capacityReservationSelectorTerms" hash:"ignore"`
 	// AssociatePublicIPAddress controls if public IP addresses are assigned to instances that are launched with the nodeclass.
 	// +optional
 	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
@@ -167,6 +174,23 @@ type SecurityGroupSelectorTerm struct {
 	// Name is the security group name in EC2.
 	// This value is the name field, which is different from the name tag.
 	Name string `json:"name,omitempty"`
+}
+
+type CapacityReservationSelectorTerm struct {
+	// Tags is a map of key/value tags used to select capacity reservations.
+	// Specifying '*' for a value selects all values for a given tag key.
+	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
+	// +kubebuilder:validation:MaxProperties:=20
+	// +optional
+	Tags map[string]string `json:"tags,omitempty"`
+	// ID is the capacity reservation id in EC2
+	// +kubebuilder:validation:Pattern:="^cr-[0-9a-z]+$"
+	// +optional
+	ID string `json:"id,omitempty"`
+	// Owner is the owner id for the ami.
+	// +kubebuilder:validation:Pattern:="^[0-9]{12}$"
+	// +optional
+	OwnerID string `json:"ownerID,omitempty"`
 }
 
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.

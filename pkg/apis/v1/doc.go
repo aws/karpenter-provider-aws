@@ -22,6 +22,7 @@ import (
 	corev1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 )
@@ -33,4 +34,6 @@ func init() {
 		&EC2NodeClass{},
 		&EC2NodeClassList{},
 	)
+
+	cloudprovider.ReservationIDLabel = LabelCapacityReservationID
 }

@@ -10,6 +10,55 @@ Karpenter is a controller that runs in your cluster, but it is not tied to a spe
 Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes and keep Karpenter up to date on bug fixes and new features.
 This guide contains information needed to upgrade to the latest release of Karpenter, along with compatibility issues you need to be aware of when upgrading from earlier Karpenter versions.
 
+When upgrading Karpenter in production environments, implementing a robust CI/CD pipeline approach is crucial. Improper upgrades can lead to significant disruptions including failed node provisioning, orphaned nodes, interrupted workloads, and potential cost implications from unmanaged scaling. Given Karpenter's critical role in cluster scaling and workload management, untested upgrades could result in production outages or resource allocation issues that directly impact application availability and performance. Therefore, we recommend following these structured steps:
+
+#### Pre-upgrade Validation
+
+- Validate all required IAM permissions (node role, controller role)
+- Check webhook configurations
+- Back up existing NodePool and NodeClass configurations
+- Document current version and settings
+
+#### Staging Environment Setup
+
+- Create or verify staging environment
+- Update version tags in Helm values or manifests
+- Configure automated validation tests
+
+#### Staging Deployment
+
+- Deploy to staging environment
+- Run comprehensive tests including node provisioning
+- Verify controller health
+- Test NodePool and NodeClass functionality
+- Monitor system behavior
+
+#### Production Approval and Deployment
+
+- Require manual approval/review
+- Schedule maintenance window if needed
+- Execute production deployment
+- Monitor deployment progress
+- Verify all components are functioning
+
+#### Post-Deployment
+
+- Monitor system health
+- Verify node provisioning
+- Keep rollback configurations accessible
+- Update documentation
+
+Here are few recommended CI/CD Pipeline Options:
+
+- GitHub Actions - Excellent for GitHub-hosted repositories with built-in Kubernetes support
+- GitLab CI - Strong container-native pipeline with integrated Kubernetes functionality
+- ArgoCD - Specialized for GitOps workflows with Kubernetes
+- AWS CodePipeline - Native integration with EKS and AWS services
+- Flux - Open-source GitOps tool for Kubernetes with automatic deployment capabilities
+
+Each pipeline tool can be configured to handle the Karpenter upgrade workflow, but choose based on your existing infrastructure, team expertise, and specific requirements for automation and integration.
+
+
 ### CRD Upgrades
 
 Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are published:

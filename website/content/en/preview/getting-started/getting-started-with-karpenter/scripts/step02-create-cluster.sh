@@ -1,4 +1,4 @@
-curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/main/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml  > "${TEMPOUT}" \
+curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml  > "${TEMPOUT}" \
 && aws cloudformation deploy \
   --stack-name "Karpenter-${CLUSTER_NAME}" \
   --template-file "${TEMPOUT}" \
@@ -37,7 +37,7 @@ iamIdentityMappings:
 
 managedNodeGroups:
 - instanceType: m5.large
-  amiFamily: AmazonLinux2
+  amiFamily: AmazonLinux2023
   name: ${CLUSTER_NAME}-ng
   desiredCapacity: 2
   minSize: 1

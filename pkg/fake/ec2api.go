@@ -38,14 +38,16 @@ import (
 )
 
 type CapacityPool struct {
-	CapacityType string
-	InstanceType string
-	Zone         string
+	CapacityType  string
+	InstanceType  string
+	Zone          string
+	ReservationID string
 }
 
 // EC2Behavior must be reset between tests otherwise tests will
 // pollute each other.
 type EC2Behavior struct {
+	DescribeCapacityReservationsOutput  AtomicPtr[ec2.DescribeCapacityReservationsOutput]
 	DescribeImagesOutput                AtomicPtr[ec2.DescribeImagesOutput]
 	DescribeLaunchTemplatesOutput       AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
 	DescribeSubnetsOutput               AtomicPtr[ec2.DescribeSubnetsOutput]
@@ -53,8 +55,7 @@ type EC2Behavior struct {
 	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
 	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
-	DescribeSpotPriceHistoryInput       AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
-	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
+	DescribeSpotPriceHistoryBehavior    MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
 	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
 	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
@@ -63,9 +64,11 @@ type EC2Behavior struct {
 	CreateLaunchTemplateBehavior        MockedFunction[ec2.CreateLaunchTemplateInput, ec2.CreateLaunchTemplateOutput]
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
 	Instances                           sync.Map
-	LaunchTemplates                     sync.Map
 	InsufficientCapacityPools           atomic.Slice[CapacityPool]
 	NextError                           AtomicError
+
+	LaunchTemplates                       sync.Map
+	launchTemplatesToCapacityReservations sync.Map // map[lt-name]cr-id
 }
 
 type EC2API struct {
@@ -95,8 +98,7 @@ func (e *EC2API) Reset() {
 	e.DescribeInstancesBehavior.Reset()
 	e.CreateLaunchTemplateBehavior.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
-	e.DescribeSpotPriceHistoryInput.Reset()
-	e.DescribeSpotPriceHistoryOutput.Reset()
+	e.DescribeSpotPriceHistoryBehavior.Reset()
 	e.Instances.Range(func(k, v any) bool {
 		e.Instances.Delete(k)
 		return true
@@ -107,6 +109,11 @@ func (e *EC2API) Reset() {
 	})
 	e.InsufficientCapacityPools.Reset()
 	e.NextError.Reset()
+
+	e.launchTemplatesToCapacityReservations.Range(func(k, _ any) bool {
+		e.launchTemplatesToCapacityReservations.Delete(k)
+		return true
+	})
 }
 
 // nolint: gocyclo
@@ -126,7 +133,8 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 			return nil, fmt.Errorf("missing launch template name")
 		}
 		var instanceIds []string
-		var skippedPools []CapacityPool
+		var icedPools []CapacityPool
+		var reservationExceededPools []CapacityPool
 		var spotInstanceRequestID *string
 
 		if string(input.TargetCapacitySpecification.DefaultTargetCapacityType) == karpv1.CapacityTypeSpot {
@@ -141,7 +149,7 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 					if pool.InstanceType == string(override.InstanceType) &&
 						pool.Zone == aws.ToString(override.AvailabilityZone) &&
 						pool.CapacityType == string(input.TargetCapacitySpecification.DefaultTargetCapacityType) {
-						skippedPools = append(skippedPools, pool)
+						icedPools = append(icedPools, pool)
 						skipInstance = true
 						return false
 					}
@@ -150,7 +158,21 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 				if skipInstance {
 					continue
 				}
-				amiID := aws.String("")
+
+				if crID, ok := e.launchTemplatesToCapacityReservations.Load(*ltc.LaunchTemplateSpecification.LaunchTemplateName); ok {
+					if cr, ok := lo.Find(e.DescribeCapacityReservationsOutput.Clone().CapacityReservations, func(cr ec2types.CapacityReservation) bool {
+						return *cr.CapacityReservationId == crID.(string)
+					}); !ok || *cr.AvailableInstanceCount == 0 {
+						reservationExceededPools = append(reservationExceededPools, CapacityPool{
+							InstanceType:  string(override.InstanceType),
+							Zone:          lo.FromPtr(override.AvailabilityZone),
+							CapacityType:  karpv1.CapacityTypeReserved,
+							ReservationID: crID.(string),
+						})
+						continue
+					}
+				}
+				amiID := lo.ToPtr("")
 				if e.CreateLaunchTemplateBehavior.CalledWithInput.Len() > 0 {
 					lt := e.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
 					amiID = lt.LaunchTemplateData.ImageId
@@ -192,13 +214,24 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 				},
 			},
 		}}
-		for _, pool := range skippedPools {
+		for _, pool := range icedPools {
 			result.Errors = append(result.Errors, ec2types.CreateFleetError{
 				ErrorCode: aws.String("InsufficientInstanceCapacity"),
 				LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
 					Overrides: &ec2types.FleetLaunchTemplateOverrides{
 						InstanceType:     ec2types.InstanceType(pool.InstanceType),
 						AvailabilityZone: aws.String(pool.Zone),
+					},
+				},
+			})
+		}
+		for _, pool := range reservationExceededPools {
+			result.Errors = append(result.Errors, ec2types.CreateFleetError{
+				ErrorCode: lo.ToPtr("ReservationCapacityExceeded"),
+				LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+					Overrides: &ec2types.FleetLaunchTemplateOverrides{
+						InstanceType:     ec2types.InstanceType(pool.InstanceType),
+						AvailabilityZone: lo.ToPtr(pool.Zone),
 					},
 				},
 			})
@@ -242,6 +275,9 @@ func (e *EC2API) CreateLaunchTemplate(ctx context.Context, input *ec2.CreateLaun
 		}
 		launchTemplate := ec2types.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
 		e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
+		if crs := input.LaunchTemplateData.CapacityReservationSpecification; crs != nil && crs.CapacityReservationPreference == ec2types.CapacityReservationPreferenceCapacityReservationsOnly {
+			e.launchTemplatesToCapacityReservations.Store(*input.LaunchTemplateName, *crs.CapacityReservationTarget.CapacityReservationId)
+		}
 		return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: lo.ToPtr(launchTemplate)}, nil
 	})
 }
@@ -340,6 +376,19 @@ func filterInstances(instances []ec2types.Instance, filters []ec2types.Filter) [
 	return ret
 }
 
+func (e *EC2API) DescribeCapacityReservations(ctx context.Context, input *ec2.DescribeCapacityReservationsInput, _ ...func(*ec2.Options)) (*ec2.DescribeCapacityReservationsOutput, error) {
+	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
+		return nil, e.NextError.Get()
+	}
+	if !e.DescribeCapacityReservationsOutput.IsNil() {
+		out := e.DescribeCapacityReservationsOutput.Clone()
+		out.CapacityReservations = FilterDescribeCapacityReservations(out.CapacityReservations, input.CapacityReservationIds, input.Filters)
+		return out, nil
+	}
+	return &ec2.DescribeCapacityReservationsOutput{}, nil
+}
+
 func (e *EC2API) DescribeImages(ctx context.Context, input *ec2.DescribeImagesInput, _ ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
@@ -379,7 +428,7 @@ func (e *EC2API) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 	output := &ec2.DescribeLaunchTemplatesOutput{}
 	e.LaunchTemplates.Range(func(key, value interface{}) bool {
 		launchTemplate := value.(ec2types.LaunchTemplate)
-		if lo.Contains(input.LaunchTemplateNames, lo.FromPtr(launchTemplate.LaunchTemplateName)) || len(input.Filters) != 0 && Filter(input.Filters, aws.ToString(launchTemplate.LaunchTemplateId), aws.ToString(launchTemplate.LaunchTemplateName), launchTemplate.Tags) {
+		if lo.Contains(input.LaunchTemplateNames, lo.FromPtr(launchTemplate.LaunchTemplateName)) || len(input.Filters) != 0 && Filter(input.Filters, aws.ToString(launchTemplate.LaunchTemplateId), aws.ToString(launchTemplate.LaunchTemplateName), "", "", launchTemplate.Tags) {
 			output.LaunchTemplates = append(output.LaunchTemplates, launchTemplate)
 		}
 		return true
@@ -667,16 +716,10 @@ func (e *EC2API) DescribeInstanceTypeOfferings(_ context.Context, _ *ec2.Describ
 }
 
 func (e *EC2API) DescribeSpotPriceHistory(_ context.Context, input *ec2.DescribeSpotPriceHistoryInput, _ ...func(*ec2.Options)) (*ec2.DescribeSpotPriceHistoryOutput, error) {
-	e.DescribeSpotPriceHistoryInput.Set(input)
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	if !e.DescribeSpotPriceHistoryOutput.IsNil() {
-		return e.DescribeSpotPriceHistoryOutput.Clone(), nil
-	}
-	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
-	return nil, errors.New("no pricing data provided")
+	return e.DescribeSpotPriceHistoryBehavior.Invoke(input, func(input *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {
+		// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
+		return nil, errors.New("no pricing data provided")
+	})
 }
 
 func (e *EC2API) RunInstances(ctx context.Context, input *ec2.RunInstancesInput, optFns ...func(*ec2.Options)) (*ec2.RunInstancesOutput, error) {

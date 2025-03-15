@@ -29,6 +29,12 @@ type InstanceProfile struct {
 	instanceProfileProvider instanceprofile.Provider
 }
 
+func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider) *InstanceProfile {
+	return &InstanceProfile{
+		instanceProfileProvider: instanceProfileProvider,
+	}
+}
+
 func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if nodeClass.Spec.Role != "" {
 		name, err := ip.instanceProfileProvider.Create(ctx, nodeClass)
@@ -40,12 +46,5 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
-	return reconcile.Result{}, nil
-}
-
-func (ip *InstanceProfile) Finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	if err := ip.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
-		return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
-	}
 	return reconcile.Result{}, nil
 }

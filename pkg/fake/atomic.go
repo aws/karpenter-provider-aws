@@ -158,7 +158,14 @@ func (a *AtomicPtrSlice[T]) Pop() *T {
 
 	last := a.values[len(a.values)-1]
 	a.values = a.values[0 : len(a.values)-1]
-	return last
+	return clone(last)
+}
+
+func (a *AtomicPtrSlice[T]) At(index int) *T {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return clone(a.values[index])
 }
 
 func (a *AtomicPtrSlice[T]) ForEach(fn func(*T)) {
