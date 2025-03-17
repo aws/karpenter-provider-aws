@@ -44,7 +44,7 @@ runs:
       kubectl label ns kube-system scrape=enabled --overwrite=true
       kubectl label ns kube-system pod-security.kubernetes.io/warn=restricted --overwrite=true
   - name: login to ecr via docker
-    uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+    uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
     with:
       registry: ${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com
       logout: true

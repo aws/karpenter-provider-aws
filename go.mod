@@ -1,6 +1,6 @@
 module github.com/aws/karpenter-provider-aws
 
-go 1.24.0
+go 1.24.1
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
@@ -10,7 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.36.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.9
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.30
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.208.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.210.0
 	github.com/aws/aws-sdk-go-v2/service/eks v1.60.1
 	github.com/aws/aws-sdk-go-v2/service/fis v1.33.1
 	github.com/aws/aws-sdk-go-v2/service/iam v1.40.1
