@@ -38,6 +38,7 @@ var (
 		// i2.2xlarge has vague bandwidth information, bandwidth is High
 		// i2.4xlarge has vague bandwidth information, bandwidth is High
 		// i2.xlarge has vague bandwidth information, bandwidth is Moderate
+		// i8g.48xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// m1.large has vague bandwidth information, bandwidth is Moderate
 		// m1.medium has vague bandwidth information, bandwidth is Moderate
 		// m1.small has vague bandwidth information, bandwidth is Low
