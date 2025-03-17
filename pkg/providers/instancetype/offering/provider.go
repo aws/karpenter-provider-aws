@@ -17,6 +17,9 @@ package offering
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
@@ -44,6 +47,11 @@ type DefaultProvider struct {
 	capacityReservationProvider capacityreservation.Provider
 	unavailableOfferings        *awscache.UnavailableOfferings
 	cache                       *cache.Cache
+
+	muLastUnavailableOfferingsSeqNum sync.Mutex
+
+	// lastUnavailableOfferingsSeqNum is the most recently seen seq num of the unavailable offerings cache, used to track changes
+	lastUnavailableOfferingsSeqNum uint64
 }
 
 func NewDefaultProvider(
@@ -66,6 +74,15 @@ func (p *DefaultProvider) InjectOfferings(
 	nodeClass *v1.EC2NodeClass,
 	allZones sets.Set[string],
 ) []*cloudprovider.InstanceType {
+
+	// If unavailable offerings have changed, the availability of all cached on-demand & spot offerings must be updated
+	p.muLastUnavailableOfferingsSeqNum.Lock()
+	if seqNum := p.unavailableOfferings.SeqNum; p.lastUnavailableOfferingsSeqNum < seqNum {
+		p.updateOfferingAvailability()
+		p.lastUnavailableOfferingsSeqNum = seqNum
+	}
+	p.muLastUnavailableOfferingsSeqNum.Unlock()
+
 	subnetZones := lo.SliceToMap(nodeClass.Status.Subnets, func(s v1.Subnet) (string, string) {
 		return s.Zone, s.ZoneID
 	})
@@ -218,10 +235,39 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
 	return fmt.Sprintf(
-		"%s-%016x-%016x-%d",
+		"%s-%016x-%016x",
 		it.Name,
 		zonesHash,
 		capacityTypesHash,
-		p.unavailableOfferings.SeqNum,
 	)
+}
+
+func (p *DefaultProvider) updateOfferingAvailability() {
+	for k, v := range p.cache.Items() {
+		var updatedOfferings []*cloudprovider.Offering
+		// Extract instance type name from cache key
+		itName := strings.Split(k, "-")[0]
+		for _, offering := range v.Object.([]*cloudprovider.Offering) {
+			capacityType := offering.CapacityType()
+			// unavailableOfferings only affects on-demand & spot offerings
+			if capacityType == karpv1.CapacityTypeOnDemand || capacityType == karpv1.CapacityTypeSpot {
+				zone := offering.Zone()
+				isUnavailable := p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(itName), zone, capacityType)
+				hasPrice := offering.Price > 0.0
+				// A new offering is created to ensure that the previous offering is not modified while still in use
+				updatedOfferings = append(updatedOfferings, &cloudprovider.Offering{
+					Requirements: offering.Requirements,
+					Price:        offering.Price,
+					Available:    !isUnavailable && hasPrice,
+				})
+			} else if capacityType == karpv1.CapacityTypeReserved {
+				// Since the previous offering has not been modified, it can be reused
+				updatedOfferings = append(updatedOfferings, offering)
+			} else {
+				panic(fmt.Sprintf("invalid capacity type %q in requirements for instance type %q", capacityType, itName))
+			}
+		}
+		// The previous cache expiration time is retained
+		p.cache.Set(k, updatedOfferings, time.Duration(v.Expiration))
+	}
 }
