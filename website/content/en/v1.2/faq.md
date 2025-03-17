@@ -17,7 +17,7 @@ See [Configuring NodePools]({{< ref "./concepts/#configuring-nodepools" >}}) for
 AWS is the first cloud provider supported by Karpenter, although it is designed to be used with other cloud providers as well.
 
 ### Can I write my own cloud provider for Karpenter?
-Yes, but there is no documentation yet for it. Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter-core/tree/v1.2.3/pkg/cloudprovider) documentation to see how the AWS provider is built, but there are other sections of the code that will require changes too.
+Yes, but there is no documentation yet for it. Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter-provider-aws/tree/v1.2.3/pkg/cloudprovider) documentation to see how the AWS provider is built, but there are other sections of the code that will require changes too.
 
 ### What operating system nodes does Karpenter deploy?
 Karpenter uses the OS defined by the [AMI Family in your EC2NodeClass]({{< ref "./concepts/nodeclasses#specamifamily" >}}).
