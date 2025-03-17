@@ -15,7 +15,7 @@ limitations under the License.
 package nodeclass_test
 
 import (
-	status "github.com/awslabs/operatorpkg/status"
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 
 	"github.com/aws/smithy-go"
@@ -35,7 +35,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 	Context("Preconditions", func() {
 		var reconciler *nodeclass.Validation
 		BeforeEach(func() {
-			reconciler = nodeclass.NewValidationReconciler(awsEnv.EC2API, awsEnv.AMIProvider, awsEnv.ValidationCache)
+			reconciler = nodeclass.NewValidationReconciler(awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache)
 			for _, cond := range []string{
 				v1.ConditionTypeAMIsReady,
 				v1.ConditionTypeInstanceProfileReady,
