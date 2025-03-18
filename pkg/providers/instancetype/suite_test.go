@@ -1026,42 +1026,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(aws.ToFloat64(value)).To(BeNumerically(">", 0))
 			}
 		})
-		It("should expose availability metrics for instance types", func() {
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).To(BeNil())
-			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
-			for _, it := range instanceTypes {
-				for _, of := range it.Offerings {
-					metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_type_offering_available", map[string]string{
-						"instance_type": it.Name,
-						"capacity_type": of.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(),
-						"zone":          of.Requirements.Get(corev1.LabelTopologyZone).Any(),
-					})
-					Expect(ok).To(BeTrue())
-					Expect(metric).To(Not(BeNil()))
-					value := metric.GetGauge().Value
-					Expect(aws.ToFloat64(value)).To(BeNumerically("==", lo.Ternary(of.Available, 1, 0)))
-				}
-			}
-		})
-		It("should expose pricing metrics for instance types", func() {
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).To(BeNil())
-			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
-			for _, it := range instanceTypes {
-				for _, of := range it.Offerings {
-					metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_type_offering_price_estimate", map[string]string{
-						"instance_type": it.Name,
-						"capacity_type": of.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(),
-						"zone":          of.Requirements.Get(corev1.LabelTopologyZone).Any(),
-					})
-					Expect(ok).To(BeTrue())
-					Expect(metric).To(Not(BeNil()))
-					value := metric.GetGauge().Value
-					Expect(aws.ToFloat64(value)).To(BeNumerically("==", of.Price))
-				}
-			}
-		})
 	})
 	It("should launch instances in local zones", func() {
 		nodeClass.Status.Subnets = []v1.Subnet{

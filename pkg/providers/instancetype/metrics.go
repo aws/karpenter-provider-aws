@@ -25,8 +25,6 @@ import (
 const (
 	cloudProviderSubsystem = "cloudprovider"
 	instanceTypeLabel      = "instance_type"
-	capacityTypeLabel      = "capacity_type"
-	zoneLabel              = "zone"
 )
 
 var (
