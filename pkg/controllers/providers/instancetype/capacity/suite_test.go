@@ -136,7 +136,16 @@ var _ = Describe("CapacityCache", func() {
 					Kind:  object.GVK(nodeClass).Kind,
 					Name:  nodeClass.Name,
 				},
-				Requirements: make([]karpv1.NodeSelectorRequirementWithMinValues, 0),
+				// Set up a minimum requirement that is required by the MapToInstanceTypes without allowUndefinedKnownLabels
+				Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+					{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureAmd64},
+						},
+					},
+				},
 			},
 			Status: karpv1.NodeClaimStatus{
 				NodeName: node.Name,
@@ -173,5 +182,296 @@ var _ = Describe("CapacityCache", func() {
 		mem := resources.Quantity(fmt.Sprintf("%dMi", 8192)) // Reported memory from fake.MakeInstances()
 		mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(mem.Value())*options.FromContext(ctx).VMMemoryOverheadPercent/1024/1024)))))
 		Expect(i.Capacity.Memory().Value()).To(Equal(mem.Value()), "Expected capacity to match VMMemoryOverheadPercent calculation")
+	})
+
+	It("should properly update discovered capacity when matching AMI is first in the list", func() {
+		// Reset the provider to ensure we're testing from a clean state
+		awsEnv.InstanceTypesProvider.Reset()
+
+		// Initialize the instance types
+		err := awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)
+		Expect(err).To(BeNil())
+		err = awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)
+		Expect(err).To(BeNil())
+
+		standardAMI := v1.AMI{
+			Name: "standard-ami",
+			ID:   "ami-standard-test",
+			Requirements: []corev1.NodeSelectorRequirement{
+				{
+					Key:      corev1.LabelArchStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.ArchitectureAmd64},
+				},
+				{
+					Key:      v1.LabelInstanceGPUCount,
+					Operator: corev1.NodeSelectorOpDoesNotExist,
+				},
+			},
+		}
+
+		nvidiaAMI := v1.AMI{
+			Name: "nvidia-ami",
+			ID:   "ami-nvidia-test",
+			Requirements: []corev1.NodeSelectorRequirement{
+				{
+					Key:      corev1.LabelArchStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.ArchitectureAmd64},
+				},
+				{
+					Key:      v1.LabelInstanceGPUCount,
+					Operator: corev1.NodeSelectorOpExists,
+				},
+			},
+		}
+
+		// Define subnets once
+		subnets := []v1.Subnet{
+			{
+				ID:     "subnet-test1",
+				Zone:   "test-zone-1a",
+				ZoneID: "tstz1-1a",
+			},
+			{
+				ID:     "subnet-test2",
+				Zone:   "test-zone-1b",
+				ZoneID: "tstz1-1b",
+			},
+		}
+
+		// Create a simple node class for initial instance type discovery
+		initialNodeClass := &v1.EC2NodeClass{
+			Status: v1.EC2NodeClassStatus{
+				AMIs:    []v1.AMI{standardAMI},
+				Subnets: subnets,
+			},
+		}
+
+		// Get available instance types from the test environment
+		availableInstanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, initialNodeClass)
+		Expect(err).To(BeNil())
+		Expect(availableInstanceTypes).ToNot(BeEmpty(), "No instance types available in test environment")
+
+		// Choose the first instance type for testing
+		testInstanceType := availableInstanceTypes[0]
+		instanceTypeName := testInstanceType.Name
+
+		// Create a test node with the discovered instance type
+		memoryCapacity := resource.MustParse("4Gi")
+		node := &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-node",
+				Labels: map[string]string{
+					corev1.LabelInstanceTypeStable: instanceTypeName,
+					corev1.LabelArchStable:         karpv1.ArchitectureAmd64,
+				},
+			},
+			Status: corev1.NodeStatus{
+				Capacity: corev1.ResourceList{
+					corev1.ResourceMemory: memoryCapacity,
+				},
+			},
+		}
+
+		// Create a node claim with the same instance type
+		nodeClaim := &karpv1.NodeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-nodeclaim",
+			},
+			Spec: karpv1.NodeClaimSpec{
+				Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+					{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      corev1.LabelInstanceTypeStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{instanceTypeName},
+						},
+					},
+					{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureAmd64},
+						},
+					},
+				},
+			},
+			Status: karpv1.NodeClaimStatus{
+				// Using standard AMI
+				ImageID: "ami-standard-test",
+			},
+		}
+
+		// Create a node class with standard AMI first, followed by nvidia AMI
+		testNodeClassStandardFirst := &v1.EC2NodeClass{
+			Status: v1.EC2NodeClassStatus{
+				AMIs:    []v1.AMI{standardAMI, nvidiaAMI},
+				Subnets: subnets,
+			},
+		}
+
+		err = awsEnv.InstanceTypesProvider.UpdateInstanceTypeCapacityFromNode(ctx, node, nodeClaim, testNodeClassStandardFirst)
+		Expect(err).To(BeNil())
+
+		// Verify that the cache was updated by getting the instance types and checking the memory capacity
+		instanceTypesAfterUpdate, err := awsEnv.InstanceTypesProvider.List(ctx, testNodeClassStandardFirst)
+		Expect(err).To(BeNil())
+
+		// Find our instance type and verify its memory capacity was updated
+		found := false
+		for _, it := range instanceTypesAfterUpdate {
+			if it.Name == instanceTypeName {
+				found = true
+				// Memory capacity should now match what we set on the node
+				memValue := it.Capacity.Memory().Value()
+				Expect(memValue).To(Equal(memoryCapacity.Value()))
+			}
+		}
+		Expect(found).To(BeTrue())
+	})
+	It("should properly update discovered capacity when matching AMI is not the first in the list", func() {
+		// Reset the provider to ensure we're testing from a clean state
+		awsEnv.InstanceTypesProvider.Reset()
+
+		// Initialize the instance types
+		err := awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)
+		Expect(err).To(BeNil())
+		err = awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)
+		Expect(err).To(BeNil())
+
+		standardAMI := v1.AMI{
+			Name: "standard-ami",
+			ID:   "ami-standard-test",
+			Requirements: []corev1.NodeSelectorRequirement{
+				{
+					Key:      corev1.LabelArchStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.ArchitectureAmd64},
+				},
+				{
+					Key:      v1.LabelInstanceGPUCount,
+					Operator: corev1.NodeSelectorOpDoesNotExist,
+				},
+			},
+		}
+
+		nvidiaAMI := v1.AMI{
+			Name: "nvidia-ami",
+			ID:   "ami-nvidia-test",
+			Requirements: []corev1.NodeSelectorRequirement{
+				{
+					Key:      corev1.LabelArchStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.ArchitectureAmd64},
+				},
+				{
+					Key:      v1.LabelInstanceGPUCount,
+					Operator: corev1.NodeSelectorOpExists,
+				},
+			},
+		}
+
+		// Define subnets once
+		subnets := []v1.Subnet{
+			{
+				ID:     "subnet-test1",
+				Zone:   "test-zone-1a",
+				ZoneID: "tstz1-1a",
+			},
+			{
+				ID:     "subnet-test2",
+				Zone:   "test-zone-1b",
+				ZoneID: "tstz1-1b",
+			},
+		}
+
+		// Create a simple node class for initial instance type discovery
+		initialNodeClass := &v1.EC2NodeClass{
+			Status: v1.EC2NodeClassStatus{
+				AMIs:    []v1.AMI{standardAMI},
+				Subnets: subnets,
+			},
+		}
+
+		// Get available instance types from the test environment
+		availableInstanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, initialNodeClass)
+		Expect(err).To(BeNil())
+		Expect(availableInstanceTypes).ToNot(BeEmpty(), "No instance types available in test environment")
+
+		// Choose the first instance type for testing
+		testInstanceType := availableInstanceTypes[0]
+		instanceTypeName := testInstanceType.Name
+
+		// Create a test node with the discovered instance type
+		memoryCapacity := resource.MustParse("4Gi")
+		node := &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-node",
+				Labels: map[string]string{
+					corev1.LabelInstanceTypeStable: instanceTypeName,
+					corev1.LabelArchStable:         karpv1.ArchitectureAmd64,
+				},
+			},
+			Status: corev1.NodeStatus{
+				Capacity: corev1.ResourceList{
+					corev1.ResourceMemory: memoryCapacity,
+				},
+			},
+		}
+
+		// Create a node claim with the same instance type
+		nodeClaim := &karpv1.NodeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-nodeclaim",
+			},
+			Spec: karpv1.NodeClaimSpec{
+				Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+					{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      corev1.LabelInstanceTypeStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{instanceTypeName},
+						},
+					},
+					{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureAmd64},
+						},
+					},
+				},
+			},
+			Status: karpv1.NodeClaimStatus{
+				// Using standard AMI
+				ImageID: "ami-standard-test",
+			},
+		}
+
+		testNodeClassNvidiaFirst := &v1.EC2NodeClass{
+			Status: v1.EC2NodeClassStatus{
+				AMIs:    []v1.AMI{nvidiaAMI, standardAMI},
+				Subnets: subnets,
+			},
+		}
+
+		err = awsEnv.InstanceTypesProvider.UpdateInstanceTypeCapacityFromNode(ctx, node, nodeClaim, testNodeClassNvidiaFirst)
+		Expect(err).To(BeNil())
+		// Verify that the cache was updated by getting the instance types and checking the memory capacity
+		instanceTypesAfterUpdateReversed, err := awsEnv.InstanceTypesProvider.List(ctx, testNodeClassNvidiaFirst)
+		Expect(err).To(BeNil())
+
+		// Find our instance type and verify its memory capacity was updated
+		found := false
+		for _, it := range instanceTypesAfterUpdateReversed {
+			if it.Name == instanceTypeName {
+				found = true
+				// Memory capacity should now match what we set on the node
+				memValue := it.Capacity.Memory().Value()
+				Expect(memValue).To(Equal(memoryCapacity.Value()))
+			}
+		}
+		Expect(found).To(BeTrue())
 	})
 })
