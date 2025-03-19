@@ -55,8 +55,7 @@ type EC2Behavior struct {
 	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
 	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
-	DescribeSpotPriceHistoryInput       AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
-	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
+	DescribeSpotPriceHistoryBehavior    MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
 	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
 	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
@@ -99,8 +98,7 @@ func (e *EC2API) Reset() {
 	e.DescribeInstancesBehavior.Reset()
 	e.CreateLaunchTemplateBehavior.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
-	e.DescribeSpotPriceHistoryInput.Reset()
-	e.DescribeSpotPriceHistoryOutput.Reset()
+	e.DescribeSpotPriceHistoryBehavior.Reset()
 	e.Instances.Range(func(k, v any) bool {
 		e.Instances.Delete(k)
 		return true
@@ -595,139 +593,14 @@ func (e *EC2API) DescribeInstanceTypeOfferings(_ context.Context, _ *ec2.Describ
 	if !e.DescribeInstanceTypeOfferingsOutput.IsNil() {
 		return e.DescribeInstanceTypeOfferingsOutput.Clone(), nil
 	}
-	return &ec2.DescribeInstanceTypeOfferingsOutput{
-		InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
-			{
-				InstanceType: "m5.large",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m5.large",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "m5.large",
-				Location:     aws.String("test-zone-1c"),
-			},
-			{
-				InstanceType: "m5.large",
-				Location:     aws.String("test-zone-1a-local"),
-			},
-			{
-				InstanceType: "m5.xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m5.xlarge",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "m5.2xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m5.4xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m5.8xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "p3.8xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "p3.8xlarge",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "dl1.24xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "dl1.24xlarge",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "g4dn.8xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "g4dn.8xlarge",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "g4ad.16xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "g4ad.16xlarge",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "t3.large",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "t3.large",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "inf2.xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "inf2.24xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "trn1.2xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "c6g.large",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m5.metal",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m5.metal",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "m5.metal",
-				Location:     aws.String("test-zone-1c"),
-			},
-			{
-				InstanceType: "m6idn.32xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m6idn.32xlarge",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "m6idn.32xlarge",
-				Location:     aws.String("test-zone-1c"),
-			},
-		},
-	}, nil
+	return defaultDescribeInstanceTypeOfferingsOutput, nil
 }
 
 func (e *EC2API) DescribeSpotPriceHistory(_ context.Context, input *ec2.DescribeSpotPriceHistoryInput, _ ...func(*ec2.Options)) (*ec2.DescribeSpotPriceHistoryOutput, error) {
-	e.DescribeSpotPriceHistoryInput.Set(input)
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	if !e.DescribeSpotPriceHistoryOutput.IsNil() {
-		return e.DescribeSpotPriceHistoryOutput.Clone(), nil
-	}
-	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
-	return nil, errors.New("no pricing data provided")
+	return e.DescribeSpotPriceHistoryBehavior.Invoke(input, func(input *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {
+		// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
+		return nil, errors.New("no pricing data provided")
+	})
 }
 
 func (e *EC2API) RunInstances(ctx context.Context, input *ec2.RunInstancesInput, optFns ...func(*ec2.Options)) (*ec2.RunInstancesOutput, error) {

@@ -68,6 +68,11 @@ dnsConfig: {}
 #  options:
 #    - name: ndots
 #      value: "1"
+# -- add additional initContainers to run before karpenter container starts
+initContainers: {}
+#  - name: list-ec2-instances
+#    image: amazon/aws-cli:latest
+#    command: [ 'aws', 'ec2', 'describe-instance-types']
 # -- Node selectors to schedule the pod to nodes with labels.
 nodeSelector:
   kubernetes.io/os: linux
@@ -108,9 +113,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.3.0
+    tag: 1.3.2
     # -- SHA256 digest of the controller image.
-    digest: sha256:23876d27c39f4b99ad41ee245319fc2a2fa499183131e9cfccb550658d003045
+    digest: sha256:3fffcbbb6d0b1a2183a07bbe52c902d344fa41f8a8485de43760432ef7e2fd17
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION

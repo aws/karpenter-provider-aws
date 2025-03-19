@@ -22564,6 +22564,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|7751000Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ## u7in-16tb Family
 ### `u7in-16tb.224xlarge`
 #### Labels

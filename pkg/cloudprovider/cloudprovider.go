@@ -88,15 +88,16 @@ func New(
 }
 
 // Create a NodeClaim given the constraints.
-// nolint: gocyclo
 func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*karpv1.NodeClaim, error) {
 	nodeClass, err := c.resolveNodeClassFromNodeClaim(ctx, nodeClaim)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			// We treat a failure to resolve the NodeClass as an ICE since this means there is no capacity possibilities for this NodeClaim
 			c.recorder.Publish(cloudproviderevents.NodeClaimFailedToResolveNodeClass(nodeClaim))
+			return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving node class, %w", err))
 		}
-		// We treat a failure to resolve the NodeClass as an ICE since this means there is no capacity possibilities for this NodeClaim
-		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving node class, %w", err))
+		// Transient error when resolving the NodeClass
+		return nil, fmt.Errorf("resolving node class, %w", err)
 	}
 
 	nodeClassReady := nodeClass.StatusConditions().Get(status.ConditionReady)
@@ -181,11 +182,10 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			// If we can't resolve the NodeClass, then it's impossible for us to resolve the instance types
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
+			return nil, nil
 		}
-		// We must return an error here in the event of the node class not being found. Otherwise, users just get
-		// no instance types and a failure to schedule with no indicator pointing to a bad configuration
-		// as the cause.
 		return nil, fmt.Errorf("resolving node class, %w", err)
 	}
 	// TODO, break this coupling
@@ -229,9 +229,11 @@ func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *karpv1.NodeCla
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			// We can't determine the drift status for the NodeClaim if we can no longer resolve the NodeClass
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
+			return "", nil
 		}
-		return "", client.IgnoreNotFound(fmt.Errorf("resolving node class, %w", err))
+		return "", fmt.Errorf("resolving node class, %w", err)
 	}
 	driftReason, err := c.isNodeClassDrifted(ctx, nodeClaim, nodePool, nodeClass)
 	if err != nil {
@@ -385,7 +387,12 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 
 	if instanceType != nil {
 		for key, req := range instanceType.Requirements {
-			if req.Len() == 1 {
+			// We only want to add a label based on the instance type requirements if there is a single value for that
+			// requirement. For example, we can't add a label for zone based on this if the requirement is compatible with
+			// three. Capacity reservation IDs are a special case since we don't have a way to represent that the label may or
+			// may not exist. Since this requirement will be present regardless of the capacity type, we can't insert it here.
+			// Otherwise, you may end up with spot and on-demand NodeClaims with a reservation ID label.
+			if req.Len() == 1 && req.Key != cloudprovider.ReservationIDLabel {
 				labels[key] = req.Values()[0]
 			}
 		}
