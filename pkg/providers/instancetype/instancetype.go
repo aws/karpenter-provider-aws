@@ -286,7 +286,7 @@ func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context
 	amiMap := amifamily.MapToInstanceTypes([]*cloudprovider.InstanceType{{
 		Name:         instanceTypeName,
 		Requirements: scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...),
-	}}, nodeClass.Status.AMIs)
+	}}, nodeClass.Status.AMIs, false)
 	// Ensure NodeClaim AMI is current
 	if !lo.ContainsBy(amiMap[nodeClaim.Status.ImageID], func(i *cloudprovider.InstanceType) bool {
 		return i.Name == instanceTypeName

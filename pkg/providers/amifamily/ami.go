@@ -188,14 +188,28 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 }
 
 // MapToInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
-func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1.AMI) map[string][]*cloudprovider.InstanceType {
+func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1.AMI, allowUndefinedKnownLabels ...bool) map[string][]*cloudprovider.InstanceType {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
+	allowUndefined := true
+	if len(allowUndefinedKnownLabels) > 0 {
+		allowUndefined = allowUndefinedKnownLabels[0]
+	}
+
 	for _, instanceType := range instanceTypes {
 		for _, ami := range amis {
-			if err := instanceType.Requirements.Compatible(
-				scheduling.NewNodeSelectorRequirements(ami.Requirements...),
-				scheduling.AllowUndefinedWellKnownLabels,
-			); err == nil {
+			var err error
+			if allowUndefined {
+				err = instanceType.Requirements.Compatible(
+					scheduling.NewNodeSelectorRequirements(ami.Requirements...),
+					scheduling.AllowUndefinedWellKnownLabels,
+				)
+			} else {
+				err = instanceType.Requirements.Compatible(
+					scheduling.NewNodeSelectorRequirements(ami.Requirements...),
+				)
+			}
+
+			if err == nil {
 				amiIDs[ami.ID] = append(amiIDs[ami.ID], instanceType)
 				break
 			}
