@@ -391,7 +391,7 @@ type BlockDevice struct {
 	// is not supported for gp2, st1, sc1, or standard volumes.
 	// +optional
 	IOPS *int64 `json:"iops,omitempty"`
-	// KMSKeyID (ARN) of the symmetric Key Management Service (KMS) CMK used for encryption.
+	// Identifier (key ID, key alias, key ARN, or alias ARN) of the customer managed KMS key to use for EBS encryption.
 	// +optional
 	KMSKeyID *string `json:"kmsKeyID,omitempty"`
 	// SnapshotID is the ID of an EBS snapshot

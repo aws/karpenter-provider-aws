@@ -181,7 +181,7 @@ spec:
                             format: int64
                             type: integer
                           kmsKeyID:
-                            description: KMSKeyID (ARN) of the symmetric Key Management Service (KMS) CMK used for encryption.
+                            description: Identifier (key ID, key alias, key ARN, or alias ARN) of the customer managed KMS key to use for EBS encryption.
                             type: string
                           snapshotID:
                             description: SnapshotID is the ID of an EBS snapshot
