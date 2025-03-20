@@ -21,6 +21,8 @@ import (
 	"sync/atomic"
 
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
@@ -32,14 +34,12 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
-	"k8s.io/apimachinery/pkg/util/sets"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -157,12 +157,24 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// date capacity information. Rather than incurring a cache miss each time an instance is launched into a reserved
 	// offering (or terminated), offerings are injected to the cached instance types on each call. Note that on-demand and
 	// spot offerings are still cached - only reserved offerings are generated each time.
-	return p.offeringProvider.InjectOfferings(
+	instanceTypesWithOfferings := p.offeringProvider.InjectOfferings(
 		ctx,
 		instanceTypes,
 		nodeClass,
 		p.allZones,
-	), nil
+	)
+
+	// Filter instance types that don't have compatible AMIs to prevent architecture mismatches
+	filteredInstanceTypes := amifamily.FilterInstanceTypesByAMICompatibility(instanceTypesWithOfferings, nodeClass.Status.AMIs)
+	if len(filteredInstanceTypes) == 0 {
+		log.FromContext(ctx).WithValues(
+			"nodeclass", nodeClass.Name,
+			"ami-count", len(nodeClass.Status.AMIs),
+			"instance-type-count", len(instanceTypesWithOfferings),
+		).V(4).Info("no instance types are compatible with available AMIs, check NodePool and NodeClass architecture requirements")
+	}
+
+	return filteredInstanceTypes, nil
 }
 
 func (p *DefaultProvider) resolveInstanceTypes(
