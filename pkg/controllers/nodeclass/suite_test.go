@@ -81,8 +81,10 @@ var _ = BeforeSuite(func() {
 		awsEnv.LaunchTemplateProvider,
 		awsEnv.CapacityReservationProvider,
 		awsEnv.EC2API,
+		awsEnv.IAMAPI,
 		awsEnv.ValidationCache,
 		awsEnv.AMIResolver,
+		awsEnv.InstanceProfileCache,
 	)
 })
 
@@ -275,17 +277,16 @@ var _ = Describe("NodeClass Termination", func() {
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
 	It("should not call the IAM API when deleting a NodeClass with an instanceProfile specified", func() {
-		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
-			profileName: {
-				InstanceProfileName: aws.String("test-instance-profile"),
-				Roles: []iamtypes.Role{
-					{
-						RoleId:   aws.String(fake.RoleID()),
-						RoleName: aws.String("fake-role"),
-					},
+		instanceProfile := iamtypes.InstanceProfile{
+			InstanceProfileName: aws.String("test-instance-profile"),
+			Roles: []iamtypes.Role{
+				{
+					RoleId:   aws.String(fake.RoleID()),
+					RoleName: aws.String("fake-role"),
 				},
 			},
 		}
+		awsEnv.IAMAPI.InstanceProfiles["test-instance-profile"] = &instanceProfile
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
