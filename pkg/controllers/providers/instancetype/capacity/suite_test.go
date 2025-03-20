@@ -240,16 +240,12 @@ var _ = Describe("CapacityCache", func() {
 			},
 		}
 
-		// Create a simple node class for initial instance type discovery
-		initialNodeClass := &v1.EC2NodeClass{
-			Status: v1.EC2NodeClassStatus{
-				AMIs:    []v1.AMI{standardAMI},
-				Subnets: subnets,
-			},
-		}
+		// Update nodeClass AMIs for this test
+		nodeClass.Status.AMIs = []v1.AMI{standardAMI}
+		ExpectApplied(ctx, env.Client, nodeClass)
 
 		// Get available instance types from the test environment
-		availableInstanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, initialNodeClass)
+		availableInstanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
 		Expect(availableInstanceTypes).ToNot(BeEmpty(), "No instance types available in test environment")
 
@@ -259,9 +255,9 @@ var _ = Describe("CapacityCache", func() {
 
 		// Create a test node with the discovered instance type
 		memoryCapacity := resource.MustParse("4Gi")
-		node := &corev1.Node{
+		testNode := &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "test-node",
+				Name: "test-node-ami-first",
 				Labels: map[string]string{
 					corev1.LabelInstanceTypeStable: instanceTypeName,
 					corev1.LabelArchStable:         karpv1.ArchitectureAmd64,
@@ -273,13 +269,19 @@ var _ = Describe("CapacityCache", func() {
 				},
 			},
 		}
+		ExpectApplied(ctx, env.Client, testNode)
 
 		// Create a node claim with the same instance type
-		nodeClaim := &karpv1.NodeClaim{
+		testNodeClaim := &karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "test-nodeclaim",
+				Name: "test-nodeclaim-ami-first",
 			},
 			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
+					Group: object.GVK(nodeClass).Group,
+					Kind:  object.GVK(nodeClass).Kind,
+					Name:  nodeClass.Name,
+				},
 				Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 					{
 						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -298,10 +300,12 @@ var _ = Describe("CapacityCache", func() {
 				},
 			},
 			Status: karpv1.NodeClaimStatus{
+				NodeName: testNode.Name,
 				// Using standard AMI
 				ImageID: "ami-standard-test",
 			},
 		}
+		ExpectApplied(ctx, env.Client, testNodeClaim)
 
 		// Create a node class with standard AMI first, followed by nvidia AMI
 		testNodeClassStandardFirst := &v1.EC2NodeClass{
@@ -311,7 +315,7 @@ var _ = Describe("CapacityCache", func() {
 			},
 		}
 
-		err = awsEnv.InstanceTypesProvider.UpdateInstanceTypeCapacityFromNode(ctx, node, nodeClaim, testNodeClassStandardFirst)
+		err = awsEnv.InstanceTypesProvider.UpdateInstanceTypeCapacityFromNode(ctx, testNode, testNodeClaim, testNodeClassStandardFirst)
 		Expect(err).To(BeNil())
 
 		// Verify that the cache was updated by getting the instance types and checking the memory capacity
@@ -386,16 +390,12 @@ var _ = Describe("CapacityCache", func() {
 			},
 		}
 
-		// Create a simple node class for initial instance type discovery
-		initialNodeClass := &v1.EC2NodeClass{
-			Status: v1.EC2NodeClassStatus{
-				AMIs:    []v1.AMI{standardAMI},
-				Subnets: subnets,
-			},
-		}
+		// Update nodeClass AMIs for this test
+		nodeClass.Status.AMIs = []v1.AMI{standardAMI}
+		ExpectApplied(ctx, env.Client, nodeClass)
 
 		// Get available instance types from the test environment
-		availableInstanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, initialNodeClass)
+		availableInstanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
 		Expect(availableInstanceTypes).ToNot(BeEmpty(), "No instance types available in test environment")
 
@@ -405,9 +405,9 @@ var _ = Describe("CapacityCache", func() {
 
 		// Create a test node with the discovered instance type
 		memoryCapacity := resource.MustParse("4Gi")
-		node := &corev1.Node{
+		testNode := &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "test-node",
+				Name: "test-node-ami-second",
 				Labels: map[string]string{
 					corev1.LabelInstanceTypeStable: instanceTypeName,
 					corev1.LabelArchStable:         karpv1.ArchitectureAmd64,
@@ -419,13 +419,19 @@ var _ = Describe("CapacityCache", func() {
 				},
 			},
 		}
+		ExpectApplied(ctx, env.Client, testNode)
 
 		// Create a node claim with the same instance type
-		nodeClaim := &karpv1.NodeClaim{
+		testNodeClaim := &karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "test-nodeclaim",
+				Name: "test-nodeclaim-ami-second",
 			},
 			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
+					Group: object.GVK(nodeClass).Group,
+					Kind:  object.GVK(nodeClass).Kind,
+					Name:  nodeClass.Name,
+				},
 				Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 					{
 						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -444,10 +450,12 @@ var _ = Describe("CapacityCache", func() {
 				},
 			},
 			Status: karpv1.NodeClaimStatus{
+				NodeName: testNode.Name,
 				// Using standard AMI
 				ImageID: "ami-standard-test",
 			},
 		}
+		ExpectApplied(ctx, env.Client, testNodeClaim)
 
 		testNodeClassNvidiaFirst := &v1.EC2NodeClass{
 			Status: v1.EC2NodeClassStatus{
@@ -456,7 +464,7 @@ var _ = Describe("CapacityCache", func() {
 			},
 		}
 
-		err = awsEnv.InstanceTypesProvider.UpdateInstanceTypeCapacityFromNode(ctx, node, nodeClaim, testNodeClassNvidiaFirst)
+		err = awsEnv.InstanceTypesProvider.UpdateInstanceTypeCapacityFromNode(ctx, testNode, testNodeClaim, testNodeClassNvidiaFirst)
 		Expect(err).To(BeNil())
 		// Verify that the cache was updated by getting the instance types and checking the memory capacity
 		instanceTypesAfterUpdateReversed, err := awsEnv.InstanceTypesProvider.List(ctx, testNodeClassNvidiaFirst)
