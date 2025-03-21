@@ -249,6 +249,7 @@ var _ = Describe("CapacityCache", func() {
 		ExpectApplied(ctx, env.Client, testNode)
 
 		ExpectObjectReconciled(ctx, env.Client, controller, testNode)
+
 		// Verify that the cache was updated by getting the instance types and checking the memory capacity
 		instanceTypesAfterUpdateReversed, err := awsEnv.InstanceTypesProvider.List(ctx, testNodeClassNvidiaFirst)
 		Expect(err).To(BeNil())
@@ -262,6 +263,7 @@ var _ = Describe("CapacityCache", func() {
 				// Memory capacity should now match what we set on the node
 				memValue := it.Capacity.Memory().Value()
 				Expect(memValue).To(Equal(memoryCapacity.Value()))
+				break
 			}
 		}
 		Expect(found).To(BeTrue())
