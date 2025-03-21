@@ -83,6 +83,7 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(
 		coretest.WithCRDs(test.DisableCapacityReservationIDValidation(test.RemoveNodeClassTagValidation(apis.CRDs))...),
 		coretest.WithCRDs(v1alpha1.CRDs...),
+		coretest.WithFieldIndexers(coretest.NodePoolNodeClassRefFieldIndexer(ctx)),
 	)
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
@@ -201,6 +202,39 @@ var _ = Describe("CloudProvider", func() {
 		Expect(err).To(BeNil())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+		// Configure default AMIs so we discover AMIs with the correct requirements in the NodeClass status controller
+		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+			Images: []ec2types.Image{
+				{
+					Name:         aws.String("amd64-ami"),
+					ImageId:      aws.String("amd64-ami-id"),
+					CreationDate: aws.String(time.Time{}.Format(time.RFC3339)),
+					Architecture: "x86_64",
+					State:        ec2types.ImageStateAvailable,
+				},
+				{
+					Name:         aws.String("arm64-ami"),
+					ImageId:      aws.String("arm64-ami-id"),
+					CreationDate: aws.String(time.Time{}.Add(time.Minute).Format(time.RFC3339)),
+					Architecture: "arm64",
+					State:        ec2types.ImageStateAvailable,
+				},
+				{
+					Name:         aws.String("amd64-nvidia-ami"),
+					ImageId:      aws.String("amd64-nvidia-ami-id"),
+					CreationDate: aws.String(time.Time{}.Add(2 * time.Minute).Format(time.RFC3339)),
+					Architecture: "x86_64",
+					State:        ec2types.ImageStateAvailable,
+				},
+			},
+		})
+		version := awsEnv.VersionProvider.Get(ctx)
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):       "amd64-ami-id",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):   "amd64-nvidia-ami-id",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version): "arm64-ami-id",
+		}
 	})
 	It("should not proceed with instance creation if NodeClass is unknown", func() {
 		nodeClass.StatusConditions().SetUnknown(opstatus.ConditionReady)
@@ -1186,7 +1220,7 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(100),
 					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
-			controller := nodeclass.NewController(awsEnv.Clock, env.Client, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.AMIResolver)
+			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.AMIResolver)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
@@ -1203,7 +1237,7 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(11),
 					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
-			controller := nodeclass.NewController(awsEnv.Clock, env.Client, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.AMIResolver)
+			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.AMIResolver)
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				MaxPods: aws.Int32(1),
 			}
@@ -1242,7 +1276,7 @@ var _ = Describe("CloudProvider", func() {
 				Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}})
 			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			controller := nodeclass.NewController(awsEnv.Clock, env.Client, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.AMIResolver)
+			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.AMIResolver)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			podSubnet1 := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet1)
