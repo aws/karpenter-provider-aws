@@ -135,7 +135,6 @@ var _ = Describe("CapacityCache", func() {
 					Kind:  object.GVK(nodeClass).Kind,
 					Name:  nodeClass.Name,
 				},
-				// Set up a minimum requirement that is required by the MapToInstanceTypes without allowUndefinedKnownLabels
 				Requirements: make([]karpv1.NodeSelectorRequirementWithMinValues, 0),
 			},
 			Status: karpv1.NodeClaimStatus{
