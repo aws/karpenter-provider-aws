@@ -62,6 +62,9 @@ var nodeClass *v1.EC2NodeClass
 var nodeClaim *karpv1.NodeClaim
 var node *corev1.Node
 
+var standardAMI v1.AMI
+var nvidiaAMI v1.AMI
+
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
@@ -101,6 +104,37 @@ var _ = BeforeEach(func() {
 	})
 	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+	standardAMI = v1.AMI{
+		Name: "standard-ami",
+		ID:   "ami-standard-test",
+		Requirements: []corev1.NodeSelectorRequirement{
+			{
+				Key:      corev1.LabelArchStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.ArchitectureAmd64},
+			},
+			{
+				Key:      v1.LabelInstanceGPUCount,
+				Operator: corev1.NodeSelectorOpDoesNotExist,
+			},
+		},
+	}
+	nvidiaAMI = v1.AMI{
+		Name: "nvidia-ami",
+		ID:   "ami-nvidia-test",
+		Requirements: []corev1.NodeSelectorRequirement{
+			{
+				Key:      corev1.LabelArchStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.ArchitectureAmd64},
+			},
+			{
+				Key:      v1.LabelInstanceGPUCount,
+				Operator: corev1.NodeSelectorOpExists,
+			},
+		},
+	}
+	nodeClass.Status.AMIs = []v1.AMI{standardAMI, nvidiaAMI}
 })
 
 var _ = AfterEach(func() {
@@ -177,38 +211,6 @@ var _ = Describe("CapacityCache", func() {
 	})
 
 	It("should properly update discovered capacity when matching AMI is not the first in the list", func() {
-		standardAMI := v1.AMI{
-			Name: "standard-ami",
-			ID:   "ami-standard-test",
-			Requirements: []corev1.NodeSelectorRequirement{
-				{
-					Key:      corev1.LabelArchStable,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{karpv1.ArchitectureAmd64},
-				},
-				{
-					Key:      v1.LabelInstanceGPUCount,
-					Operator: corev1.NodeSelectorOpDoesNotExist,
-				},
-			},
-		}
-
-		nvidiaAMI := v1.AMI{
-			Name: "nvidia-ami",
-			ID:   "ami-nvidia-test",
-			Requirements: []corev1.NodeSelectorRequirement{
-				{
-					Key:      corev1.LabelArchStable,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{karpv1.ArchitectureAmd64},
-				},
-				{
-					Key:      v1.LabelInstanceGPUCount,
-					Operator: corev1.NodeSelectorOpExists,
-				},
-			},
-		}
-
 		// Update nodeClass AMIs for this test
 		nodeClass.Status.AMIs = []v1.AMI{standardAMI}
 		ExpectApplied(ctx, env.Client, nodeClass)
