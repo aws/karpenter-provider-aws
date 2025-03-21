@@ -192,11 +192,9 @@ func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1.A
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
 		for _, ami := range amis {
-			var err error
-			err = instanceType.Requirements.Compatible(
+			if err := instanceType.Requirements.Compatible(
 				scheduling.NewNodeSelectorRequirements(ami.Requirements...),
-			)
-			if err == nil {
+			); err == nil {
 				amiIDs[ami.ID] = append(amiIDs[ami.ID], instanceType)
 				break
 			}
