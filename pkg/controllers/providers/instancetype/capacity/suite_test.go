@@ -224,8 +224,6 @@ var _ = Describe("CapacityCache", func() {
 		testInstanceType := availableInstanceTypes[0]
 		instanceTypeName := testInstanceType.Name
 
-		fmt.Printf("Initial memory capacity for %s: %v\n", testInstanceType.Name, testInstanceType.Capacity.Memory().Value())
-
 		// Create a test node with the discovered instance type
 		memoryCapacity := resource.MustParse("4Gi")
 
@@ -261,7 +259,6 @@ var _ = Describe("CapacityCache", func() {
 		for _, it := range instanceTypesAfterUpdateReversed {
 			if it.Name == instanceTypeName {
 				found = true
-				fmt.Printf("Discovered memory capacity for %s: %v\n", it.Name, it.Capacity.Memory().Value())
 				// Memory capacity should now match what we set on the node
 				memValue := it.Capacity.Memory().Value()
 				Expect(memValue).To(Equal(memoryCapacity.Value()))
