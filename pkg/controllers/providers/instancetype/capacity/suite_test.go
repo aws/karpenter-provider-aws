@@ -29,6 +29,7 @@ import (
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	karpcloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	controllersinstancetypecapacity "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/capacity"
@@ -43,7 +44,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
-	"sigs.k8s.io/karpenter/pkg/utils/resources"
 	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
