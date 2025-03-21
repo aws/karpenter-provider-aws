@@ -180,12 +180,6 @@ var _ = Describe("CapacityCache", func() {
 		// Reset the provider to ensure we're testing from a clean state
 		awsEnv.InstanceTypesProvider.Reset()
 
-		// Initialize the instance types
-		err := awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)
-		Expect(err).To(BeNil())
-		err = awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)
-		Expect(err).To(BeNil())
-
 		standardAMI := v1.AMI{
 			Name: "standard-ami",
 			ID:   "ami-standard-test",
@@ -215,20 +209,6 @@ var _ = Describe("CapacityCache", func() {
 					Key:      v1.LabelInstanceGPUCount,
 					Operator: corev1.NodeSelectorOpExists,
 				},
-			},
-		}
-
-		// Define subnets once
-		subnets := []v1.Subnet{
-			{
-				ID:     "subnet-test1",
-				Zone:   "test-zone-1a",
-				ZoneID: "tstz1-1a",
-			},
-			{
-				ID:     "subnet-test2",
-				Zone:   "test-zone-1b",
-				ZoneID: "tstz1-1b",
 			},
 		}
 
@@ -302,8 +282,19 @@ var _ = Describe("CapacityCache", func() {
 		// Create a node class with standard AMI first, followed by nvidia AMI
 		testNodeClassStandardFirst := &v1.EC2NodeClass{
 			Status: v1.EC2NodeClassStatus{
-				AMIs:    []v1.AMI{standardAMI, nvidiaAMI},
-				Subnets: subnets,
+				AMIs: []v1.AMI{standardAMI, nvidiaAMI},
+				Subnets: []v1.Subnet{
+					{
+						ID:     "subnet-test1",
+						Zone:   "test-zone-1a",
+						ZoneID: "tstz1-1a",
+					},
+					{
+						ID:     "subnet-test2",
+						Zone:   "test-zone-1b",
+						ZoneID: "tstz1-1b",
+					},
+				},
 			},
 		}
 
@@ -329,12 +320,6 @@ var _ = Describe("CapacityCache", func() {
 	It("should properly update discovered capacity when matching AMI is not the first in the list", func() {
 		// Reset the provider to ensure we're testing from a clean state
 		awsEnv.InstanceTypesProvider.Reset()
-
-		// Initialize the instance types
-		err := awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)
-		Expect(err).To(BeNil())
-		err = awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)
-		Expect(err).To(BeNil())
 
 		standardAMI := v1.AMI{
 			Name: "standard-ami",
@@ -365,20 +350,6 @@ var _ = Describe("CapacityCache", func() {
 					Key:      v1.LabelInstanceGPUCount,
 					Operator: corev1.NodeSelectorOpExists,
 				},
-			},
-		}
-
-		// Define subnets once
-		subnets := []v1.Subnet{
-			{
-				ID:     "subnet-test1",
-				Zone:   "test-zone-1a",
-				ZoneID: "tstz1-1a",
-			},
-			{
-				ID:     "subnet-test2",
-				Zone:   "test-zone-1b",
-				ZoneID: "tstz1-1b",
 			},
 		}
 
@@ -451,8 +422,19 @@ var _ = Describe("CapacityCache", func() {
 
 		testNodeClassNvidiaFirst := &v1.EC2NodeClass{
 			Status: v1.EC2NodeClassStatus{
-				AMIs:    []v1.AMI{nvidiaAMI, standardAMI},
-				Subnets: subnets,
+				AMIs: []v1.AMI{nvidiaAMI, standardAMI},
+				Subnets: []v1.Subnet{
+					{
+						ID:     "subnet-test1",
+						Zone:   "test-zone-1a",
+						ZoneID: "tstz1-1a",
+					},
+					{
+						ID:     "subnet-test2",
+						Zone:   "test-zone-1b",
+						ZoneID: "tstz1-1b",
+					},
+				},
 			},
 		}
 
