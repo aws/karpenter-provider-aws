@@ -62,6 +62,9 @@ var nodeClass *v1.EC2NodeClass
 var nodeClaim *karpv1.NodeClaim
 var node *corev1.Node
 
+var standardAMI v1.AMI
+var nvidiaAMI v1.AMI
+
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
@@ -101,6 +104,37 @@ var _ = BeforeEach(func() {
 	})
 	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+	standardAMI = v1.AMI{
+		Name: "standard-ami",
+		ID:   "ami-standard-test",
+		Requirements: []corev1.NodeSelectorRequirement{
+			{
+				Key:      corev1.LabelArchStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.ArchitectureAmd64},
+			},
+			{
+				Key:      v1.LabelInstanceGPUCount,
+				Operator: corev1.NodeSelectorOpDoesNotExist,
+			},
+		},
+	}
+	nvidiaAMI = v1.AMI{
+		Name: "nvidia-ami",
+		ID:   "ami-nvidia-test",
+		Requirements: []corev1.NodeSelectorRequirement{
+			{
+				Key:      corev1.LabelArchStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.ArchitectureAmd64},
+			},
+			{
+				Key:      v1.LabelInstanceGPUCount,
+				Operator: corev1.NodeSelectorOpExists,
+			},
+		},
+	}
+	nodeClass.Status.AMIs = []v1.AMI{standardAMI, nvidiaAMI}
 })
 
 var _ = AfterEach(func() {
@@ -118,6 +152,7 @@ var _ = Describe("CapacityCache", func() {
 					corev1.LabelInstanceTypeStable:   "t3.medium",
 					karpv1.NodeRegisteredLabelKey:    "true",
 					"karpenter.k8s.aws/ec2nodeclass": nodeClass.Name,
+					corev1.LabelArchStable:           karpv1.ArchitectureAmd64,
 				},
 			},
 			Capacity: corev1.ResourceList{
@@ -173,5 +208,63 @@ var _ = Describe("CapacityCache", func() {
 		mem := resources.Quantity(fmt.Sprintf("%dMi", 8192)) // Reported memory from fake.MakeInstances()
 		mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(mem.Value())*options.FromContext(ctx).VMMemoryOverheadPercent/1024/1024)))))
 		Expect(i.Capacity.Memory().Value()).To(Equal(mem.Value()), "Expected capacity to match VMMemoryOverheadPercent calculation")
+	})
+
+	It("should properly update discovered capacity when matching AMI is not the first in the list", func() {
+		// Update nodeClass AMIs for this test
+		nodeClass.Status.AMIs = []v1.AMI{standardAMI}
+		ExpectApplied(ctx, env.Client, nodeClass)
+
+		// Get available instance types from the test environment
+		availableInstanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+		Expect(availableInstanceTypes).ToNot(BeEmpty(), "No instance types available in test environment")
+
+		// Choose the first instance type for testing
+		testInstanceType := availableInstanceTypes[0]
+		instanceTypeName := testInstanceType.Name
+
+		// Create a test node with the discovered instance type
+		memoryCapacity := resource.MustParse("4Gi")
+
+		testNodeClassNvidiaFirst := test.EC2NodeClass()
+		testNodeClassNvidiaFirst.Status.AMIs = []v1.AMI{nvidiaAMI, standardAMI}
+		ExpectApplied(ctx, env.Client, testNodeClassNvidiaFirst)
+
+		testNodeClaim := coretest.NodeClaim()
+		testNodeClaim.Spec.NodeClassRef = &karpv1.NodeClassReference{
+			Group: object.GVK(testNodeClassNvidiaFirst).Group,
+			Kind:  object.GVK(testNodeClassNvidiaFirst).Kind,
+			Name:  testNodeClassNvidiaFirst.Name,
+		}
+		testNodeClaim.Status.Capacity = corev1.ResourceList{
+			corev1.ResourceMemory: memoryCapacity,
+		}
+		testNodeClaim.Labels[corev1.LabelInstanceTypeStable] = instanceTypeName
+		testNodeClaim.Labels[corev1.LabelArchStable] = karpv1.ArchitectureAmd64
+		testNodeClaim.Status.ImageID = "ami-standard-test"
+		ExpectApplied(ctx, env.Client, testNodeClaim)
+
+		testNode := coretest.NodeClaimLinkedNode(testNodeClaim)
+		ExpectApplied(ctx, env.Client, testNode)
+
+		ExpectObjectReconciled(ctx, env.Client, controller, testNode)
+
+		// Verify that the cache was updated by getting the instance types and checking the memory capacity
+		instanceTypesAfterUpdateReversed, err := awsEnv.InstanceTypesProvider.List(ctx, testNodeClassNvidiaFirst)
+		Expect(err).To(BeNil())
+
+		// Find our instance type and verify its memory capacity was updated
+		found := false
+		for _, it := range instanceTypesAfterUpdateReversed {
+			if it.Name == instanceTypeName {
+				found = true
+				// Memory capacity should now match what we set on the node
+				memValue := it.Capacity.Memory().Value()
+				Expect(memValue).To(Equal(memoryCapacity.Value()))
+				break
+			}
+		}
+		Expect(found).To(BeTrue())
 	})
 })

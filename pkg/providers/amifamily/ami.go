@@ -194,7 +194,6 @@ func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1.A
 		for _, ami := range amis {
 			if err := instanceType.Requirements.Compatible(
 				scheduling.NewNodeSelectorRequirements(ami.Requirements...),
-				scheduling.AllowUndefinedWellKnownLabels,
 			); err == nil {
 				amiIDs[ami.ID] = append(amiIDs[ami.ID], instanceType)
 				break
