@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2025-02-10T13:11:17Z for us-east-1
+// generated at 2025-03-22T11:56:11Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -172,8 +172,8 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"i7ie.xlarge": 0.519800,
 		// i8g family
 		"i8g.12xlarge": 4.118400, "i8g.16xlarge": 5.491200, "i8g.24xlarge": 8.236800, "i8g.2xlarge": 0.686400,
-		"i8g.4xlarge": 1.372800, "i8g.8xlarge": 2.745600, "i8g.large": 0.171600, "i8g.metal-24xl": 9.060480,
-		"i8g.xlarge": 0.343200,
+		"i8g.48xlarge": 16.473600, "i8g.4xlarge": 1.372800, "i8g.8xlarge": 2.745600, "i8g.large": 0.171600,
+		"i8g.metal-24xl": 9.060480, "i8g.xlarge": 0.343200,
 		// im4gn family
 		"im4gn.16xlarge": 5.820670, "im4gn.2xlarge": 0.727580, "im4gn.4xlarge": 1.455170, "im4gn.8xlarge": 2.910340,
 		"im4gn.large": 0.181900, "im4gn.xlarge": 0.363790,
@@ -397,17 +397,17 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		// u-9tb1 family
 		"u-9tb1.112xlarge": 81.900000,
 		// u7i-12tb family
-		"u7i-12tb.224xlarge": 152.880000,
+		"u7i-12tb.224xlarge": 135.227750,
 		// u7i-6tb family
 		"u7i-6tb.112xlarge": 62.790000,
 		// u7i-8tb family
 		"u7i-8tb.112xlarge": 83.720000,
 		// u7in-16tb family
-		"u7in-16tb.224xlarge": 203.840000,
+		"u7in-16tb.224xlarge": 180.475580,
 		// u7in-24tb family
-		"u7in-24tb.224xlarge": 305.760000,
+		"u7in-24tb.224xlarge": 270.731280,
 		// u7in-32tb family
-		"u7in-32tb.224xlarge": 407.680000,
+		"u7in-32tb.224xlarge": 360.986950,
 		// vt1 family
 		"vt1.24xlarge": 5.200000, "vt1.3xlarge": 0.650000, "vt1.6xlarge": 1.300000,
 		// x1 family
