@@ -204,6 +204,28 @@ func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1.A
 	return amiIDs
 }
 
+// FilterInstanceTypesByAMICompatibility filters instance types to only include those that are compatible with at least one AMI
+// This prevents launching instances that don't have compatible AMIs available
+func FilterInstanceTypesByAMICompatibility(instanceTypes []*cloudprovider.InstanceType, amis []v1.AMI) []*cloudprovider.InstanceType {
+	if len(amis) == 0 {
+		return []*cloudprovider.InstanceType{}
+	}
+
+	compatible := []*cloudprovider.InstanceType{}
+	for _, instanceType := range instanceTypes {
+		for _, ami := range amis {
+			if err := instanceType.Requirements.Compatible(
+				scheduling.NewNodeSelectorRequirements(ami.Requirements...),
+				scheduling.AllowUndefinedWellKnownLabels,
+			); err == nil {
+				compatible = append(compatible, instanceType)
+				break
+			}
+		}
+	}
+	return compatible
+}
+
 // Compare two AMI's based on their deprecation status, creation time or name
 // If both AMIs are deprecated, compare creation time and return the one with the newer creation time
 // If both AMIs are non-deprecated, compare creation time and return the one with the newer creation time
