@@ -43,6 +43,7 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 	// Bottlerocket AMIs versions are prefixed with a v on GitHub, but not in the SSM path. We should accept both.
 	trimmedAMIVersion := strings.TrimLeft(amiVersion, "v")
 	ids := map[string][]Variant{}
+	var errs []error
 	for path, variants := range map[string][]Variant{
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion):        {VariantStandard, VariantNeuron},
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):         {VariantStandard},
@@ -54,12 +55,20 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 			IsMutable: amiVersion == v1.AliasVersionLatest,
 		})
 		if err != nil {
+			errs = append(errs, err)
 			continue
 		}
 		ids[imageID] = variants
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
 	if len(ids) == 0 {
+		if len(errs) > 0 {
+			return DescribeImageQuery{}, fmt.Errorf(
+				`failed to discover any AMIs for alias "bottlerocket@%s": one of the errors was: %w`,
+				amiVersion,
+				errs[0],
+			)
+		}
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "bottlerocket@%s"`, amiVersion)
 	}
 

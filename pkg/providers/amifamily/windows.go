@@ -52,7 +52,7 @@ func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provide
 		IsMutable: true,
 	})
 	if err != nil {
-		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "windows%s@%s"`, w.Version, amiVersion)
+		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "windows%s@%s": %w`, w.Version, amiVersion, err)
 	}
 	return DescribeImageQuery{
 		Filters: []ec2types.Filter{{

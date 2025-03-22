@@ -41,6 +41,7 @@ type AL2 struct {
 
 func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
 	ids := map[string][]Variant{}
+	var errs []error
 	for path, variants := range map[string][]Variant{
 		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/%s/image_id", k8sVersion, lo.Ternary(
 			amiVersion == v1.AliasVersionLatest,
@@ -63,12 +64,20 @@ func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k
 			IsMutable: amiVersion == v1.AliasVersionLatest,
 		})
 		if err != nil {
+			errs = append(errs, err)
 			continue
 		}
 		ids[imageID] = variants
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
 	if len(ids) == 0 {
+		if len(errs) > 0 {
+			return DescribeImageQuery{}, fmt.Errorf(
+				`failed to discover any AMIs for alias "al2@%s": one of the errors was: %w`,
+				amiVersion,
+				errs[0],
+			)
+		}
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "al2@%s"`, amiVersion)
 	}
 
