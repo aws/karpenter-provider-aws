@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2025-03-03T13:10:55Z for us-east-1
+// generated at 2025-03-24T13:14:03Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -432,6 +432,10 @@ var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 		"r6in.12xlarge": 5.026320, "r6in.16xlarge": 6.701760, "r6in.24xlarge": 10.052640, "r6in.2xlarge": 0.837720,
 		"r6in.32xlarge": 13.403520, "r6in.4xlarge": 1.675440, "r6in.8xlarge": 3.350880, "r6in.large": 0.209430,
 		"r6in.metal": 13.403520, "r6in.xlarge": 0.418860,
+		// r7g family
+		"r7g.12xlarge": 30.806400, "r7g.16xlarge": 41.075200, "r7g.2xlarge": 5.134400, "r7g.4xlarge": 10.268800,
+		"r7g.8xlarge": 20.537600, "r7g.large": 1.283600, "r7g.medium": 0.641800, "r7g.metal": 41.075200,
+		"r7g.xlarge": 2.567200,
 		// r7gd family
 		"r7gd.12xlarge": 3.925000, "r7gd.16xlarge": 5.233300, "r7gd.2xlarge": 0.654200, "r7gd.4xlarge": 1.308300,
 		"r7gd.8xlarge": 2.616600, "r7gd.large": 0.163500, "r7gd.medium": 0.081800, "r7gd.metal": 5.233300,
@@ -465,7 +469,7 @@ var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 		// u-9tb1 family
 		"u-9tb1.112xlarge": 98.150000,
 		// u7in-24tb family
-		"u7in-24tb.224xlarge": 366.422000,
+		"u7in-24tb.224xlarge": 324.443680,
 		// x1 family
 		"x1.16xlarge": 8.003000, "x1.32xlarge": 16.006000,
 		// x1e family
