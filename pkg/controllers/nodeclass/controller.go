@@ -62,6 +62,7 @@ type Controller struct {
 	launchTemplateProvider  launchtemplate.Provider
 	instanceProfileProvider instanceprofile.Provider
 	validation              *Validation
+	instanceProfile         *InstanceProfile
 	reconcilers             []reconcile.TypedReconciler[*v1.EC2NodeClass]
 }
 
@@ -76,22 +77,26 @@ func NewController(
 	launchTemplateProvider launchtemplate.Provider,
 	capacityReservationProvider capacityreservation.Provider,
 	ec2api sdk.EC2API,
+	iamapi sdk.IAMAPI,
 	validationCache *cache.Cache,
 	amiResolver amifamily.Resolver,
+	instanceProfileCache *cache.Cache,
 ) *Controller {
 	validation := NewValidationReconciler(ec2api, amiResolver, launchTemplateProvider, validationCache)
+	instanceProfile := NewInstanceProfileReconciler(instanceProfileProvider, iamapi, instanceProfileCache)
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
 		launchTemplateProvider:  launchTemplateProvider,
 		instanceProfileProvider: instanceProfileProvider,
 		validation:              validation,
+		instanceProfile:         instanceProfile,
 		reconcilers: []reconcile.TypedReconciler[*v1.EC2NodeClass]{
 			NewAMIReconciler(amiProvider),
 			NewCapacityReservationReconciler(clk, capacityReservationProvider),
 			NewSubnetReconciler(subnetProvider),
 			NewSecurityGroupReconciler(securityGroupProvider),
-			NewInstanceProfileReconciler(instanceProfileProvider),
+			instanceProfile,
 			validation,
 			NewReadinessReconciler(launchTemplateProvider),
 		},
@@ -189,6 +194,7 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		}
 	}
 	c.validation.clearCacheEntries(nodeClass)
+	c.instanceProfile.clearCacheEntries(nodeClass)
 	return reconcile.Result{}, nil
 }
 
