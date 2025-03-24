@@ -22,6 +22,7 @@ import (
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/clock"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 	"sigs.k8s.io/karpenter/pkg/operator/options"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
@@ -68,6 +69,7 @@ type Controller struct {
 func NewController(
 	clk clock.Clock,
 	kubeClient client.Client,
+	cloudProvider cloudprovider.CloudProvider,
 	recorder events.Recorder,
 	subnetProvider subnet.Provider,
 	securityGroupProvider securitygroup.Provider,
@@ -79,7 +81,7 @@ func NewController(
 	validationCache *cache.Cache,
 	amiResolver amifamily.Resolver,
 ) *Controller {
-	validation := NewValidationReconciler(ec2api, amiResolver, launchTemplateProvider, validationCache)
+	validation := NewValidationReconciler(kubeClient, cloudProvider, ec2api, amiResolver, launchTemplateProvider, validationCache)
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
