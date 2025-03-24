@@ -17,11 +17,16 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"strings"
 
+	"github.com/mitchellh/hashstructure/v2"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
@@ -29,12 +34,16 @@ import (
 
 type InstanceProfile struct {
 	instanceProfileProvider instanceprofile.Provider
+	iamapi                  sdk.IAMAPI
+	cache                   *cache.Cache
 	region                  string
 }
 
-func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider, region string) *InstanceProfile {
+func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider, iamapi sdk.IAMAPI, cache *cache.Cache, region string) *InstanceProfile {
 	return &InstanceProfile{
 		instanceProfileProvider: instanceProfileProvider,
+		iamapi:                  iamapi,
+		cache:                   cache,
 		region:                  region,
 	}
 }
@@ -64,7 +73,33 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 			return reconcile.Result{}, fmt.Errorf("getting instance profile, %w", err)
 		}
 		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
+		ip.cache.SetDefault(ip.cacheKey(nodeClass), metav1.ConditionTrue)
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
 	return reconcile.Result{}, nil
+}
+
+func (*InstanceProfile) cacheKey(nodeClass *v1.EC2NodeClass) string {
+	hash := lo.Must(hashstructure.Hash([]interface{}{
+		nodeClass.Spec.InstanceProfile,
+	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
+	return fmt.Sprintf("%s:%016x", nodeClass.Name, hash)
+}
+
+// clearCacheEntries removes all cache entries associated with the given nodeclass from the instance profile cache
+func (ip *InstanceProfile) clearCacheEntries(nodeClass *v1.EC2NodeClass) {
+	var toDelete []string
+	for key := range ip.cache.Items() {
+		parts := strings.Split(key, ":")
+		// NOTE: should never occur, indicates malformed cache key
+		if len(parts) != 2 {
+			continue
+		}
+		if parts[0] == nodeClass.Name {
+			toDelete = append(toDelete, key)
+		}
+	}
+	for _, key := range toDelete {
+		ip.cache.Delete(key)
+	}
 }

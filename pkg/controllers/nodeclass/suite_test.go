@@ -82,8 +82,10 @@ var _ = BeforeSuite(func() {
 		awsEnv.LaunchTemplateProvider,
 		awsEnv.CapacityReservationProvider,
 		awsEnv.EC2API,
+		awsEnv.IAMAPI,
 		awsEnv.ValidationCache,
 		awsEnv.AMIResolver,
+		awsEnv.InstanceProfileCache,
 	)
 })
 

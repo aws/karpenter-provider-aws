@@ -82,6 +82,7 @@ type Operator struct {
 	UnavailableOfferingsCache   *awscache.UnavailableOfferings
 	SSMCache                    *cache.Cache
 	ValidationCache             *cache.Cache
+	InstanceProfileCache        *cache.Cache
 	SubnetProvider              subnet.Provider
 	SecurityGroupProvider       securitygroup.Provider
 	InstanceProfileProvider     instanceprofile.Provider
@@ -95,6 +96,7 @@ type Operator struct {
 	SSMProvider                 ssmp.Provider
 	CapacityReservationProvider capacityreservation.Provider
 	EC2API                      *ec2.Client
+	IAMAPI                      *iam.Client
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
@@ -146,6 +148,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
 	validationCache := cache.New(awscache.ValidationTTL, awscache.DefaultCleanupInterval)
+	instanceProfileCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
@@ -214,6 +217,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		UnavailableOfferingsCache:   unavailableOfferingsCache,
 		SSMCache:                    ssmCache,
 		ValidationCache:             validationCache,
+		InstanceProfileCache:        instanceProfileCache,
 		SubnetProvider:              subnetProvider,
 		SecurityGroupProvider:       securityGroupProvider,
 		InstanceProfileProvider:     instanceProfileProvider,
@@ -227,6 +231,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		SSMProvider:                 ssmProvider,
 		CapacityReservationProvider: capacityReservationProvider,
 		EC2API:                      ec2api,
+		IAMAPI:                      iamapi,
 	}
 }
 
