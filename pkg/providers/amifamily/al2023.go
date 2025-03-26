@@ -26,6 +26,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
@@ -37,7 +38,7 @@ type AL2023 struct {
 
 func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
 	ids := map[string]Variant{}
-	var errs []error
+	var ssmErr error
 	for arch, variants := range map[string][]Variant{
 		"x86_64": {VariantStandard, VariantNvidia, VariantNeuron},
 		"arm64":  {VariantStandard},
@@ -49,7 +50,7 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 				IsMutable: amiVersion == v1.AliasVersionLatest,
 			})
 			if err != nil {
-				errs = append(errs, err)
+				ssmErr = err
 				continue
 			}
 			ids[imageID] = variant
@@ -57,14 +58,7 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
 	if len(ids) == 0 {
-		if len(errs) > 0 {
-			return DescribeImageQuery{}, fmt.Errorf(
-				`failed to discover any AMIs for alias "al2023@%s": one of the errors was: %w`,
-				amiVersion,
-				errs[0],
-			)
-		}
-		return DescribeImageQuery{}, fmt.Errorf(`failed to discover AMIs for alias "al2023@%s"`, amiVersion)
+		return DescribeImageQuery{}, awserrors.DescribeImageError(fmt.Sprintf("al2023@%s", amiVersion), ssmErr)
 	}
 
 	return DescribeImageQuery{
