@@ -331,12 +331,20 @@ func (v *Validation) mockOptions(ctx context.Context, nodeClaim *karpv1.NodeClai
 	}
 	return v.amiResolver.Resolve(nodeClass, nodeClaim, []*cloudprovider.InstanceType{
 		{
-			Name:         "m5.large",
-			Requirements: scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64)),
+			Name: "m5.large",
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
+				scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpExists),
+				scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
+			),
 		},
 		{
-			Name:         "m6g.large",
-			Requirements: scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureArm64)),
+			Name: "m6g.large",
+			Requirements: scheduling.NewRequirements(
+				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureArm64),
+				scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpExists),
+				scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
+			),
 		},
 	}, karpv1.CapacityTypeOnDemand, amiOptions)
 }
