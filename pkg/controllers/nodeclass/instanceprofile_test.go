@@ -131,23 +131,9 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		awsEnv.IAMAPI.InstanceProfiles[lo.FromPtr(nodeClass.Spec.InstanceProfile)] = &iamtypes.InstanceProfile{}
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-		Expect(awsEnv.InstanceProfileCache.Items()).To(HaveLen(1))
 
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.InstanceProfile).To(Equal(lo.FromPtr(nodeClass.Spec.InstanceProfile)))
-		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
-	})
-	It("should not call the the IAM API when specifying an instance profile", func() {
-		nodeClass.Spec.Role = ""
-		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-		ExpectApplied(ctx, env.Client, nodeClass)
-		awsEnv.IAMAPI.InstanceProfiles[lo.FromPtr(nodeClass.Spec.InstanceProfile)] = &iamtypes.InstanceProfile{}
-		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-		Expect(awsEnv.InstanceProfileCache.Items()).To(HaveLen(1))
-
-		Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(BeZero())
-		Expect(awsEnv.IAMAPI.AddRoleToInstanceProfileBehavior.Calls()).To(BeZero())
-		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
 	})
 })

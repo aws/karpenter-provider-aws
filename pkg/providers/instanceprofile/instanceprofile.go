@@ -43,6 +43,7 @@ type ResourceOwner interface {
 type Provider interface {
 	Create(context.Context, ResourceOwner) (string, error)
 	Delete(context.Context, ResourceOwner) error
+	Get(context.Context, ResourceOwner, string) (*iam.GetInstanceProfileOutput, error)
 }
 
 type DefaultProvider struct {
@@ -59,19 +60,24 @@ func NewDefaultProvider(region string, iamapi sdk.IAMAPI, cache *cache.Cache) *D
 	}
 }
 
+func (p *DefaultProvider) Get(ctx context.Context, m ResourceOwner, profileName string) (*iam.GetInstanceProfileOutput, error) {
+	// An instance profile exists for this NodeClass
+	if ip, ok := p.cache.Get(string(m.GetUID())); ok {
+		return &iam.GetInstanceProfileOutput{InstanceProfile: ip.(*iamtypes.InstanceProfile)}, nil
+	}
+	// Validate if the instance profile exists and has the correct role assigned to it
+	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{InstanceProfileName: aws.String(profileName)})
+	return out, err
+}
+
 func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, error) {
 	profileName := m.InstanceProfileName(options.FromContext(ctx).ClusterName, p.region)
 	tags := map[string]string{}
 	if len(m.InstanceProfileTags(options.FromContext(ctx).ClusterName)) != 0 {
 		tags = lo.Assign(m.InstanceProfileTags(options.FromContext(ctx).ClusterName), map[string]string{corev1.LabelTopologyRegion: p.region})
 	}
-	// An instance profile exists for this NodeClass
-	if _, ok := p.cache.Get(string(m.GetUID())); ok {
-		return profileName, nil
-	}
-	// Validate if the instance profile exists and has the correct role assigned to it
 	var instanceProfile *iamtypes.InstanceProfile
-	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{InstanceProfileName: aws.String(profileName)})
+	out, err := p.Get(ctx, m, profileName)
 	if err != nil {
 		if !awserrors.IsNotFound(err) {
 			return "", fmt.Errorf("getting instance profile %q, %w", profileName, err)
@@ -109,7 +115,7 @@ func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, 
 	}); err != nil {
 		return "", fmt.Errorf("adding role %q to instance profile %q, %w", m.InstanceProfileRole(), profileName, err)
 	}
-	p.cache.SetDefault(string(m.GetUID()), nil)
+	p.cache.SetDefault(string(m.GetUID()), instanceProfile)
 	return aws.ToString(instanceProfile.InstanceProfileName), nil
 }
 

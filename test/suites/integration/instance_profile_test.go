@@ -108,7 +108,6 @@ var _ = Describe("InstanceProfile Generation", func() {
 		var (
 			roleName     string
 			testRoleName string
-			customAMI    string
 			accountID    string
 		)
 
@@ -131,24 +130,11 @@ var _ = Describe("InstanceProfile Generation", func() {
 
 			roleName = strings.Split(sa.Annotations["eks.amazonaws.com/role-arn"], "/")[1]
 			testRoleName = "KarpenterNodeRole-MockNodeRole"
-			customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
 
 		})
 
 		It("Should detect a deleted Instance Profile", func() {
-			nodeClass = &v1.EC2NodeClass{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "deleted-profile-test",
-				},
-				Spec: v1.EC2NodeClassSpec{
-					InstanceProfile:            lo.ToPtr(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)),
-					AMIFamily:                  aws.String("AL2023"),
-					AMISelectorTerms:           []v1.AMISelectorTerm{{ID: customAMI}},
-					SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
-					SubnetSelectorTerms:        []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
-				},
-			}
-
+			nodeClass.Spec.InstanceProfile = lo.ToPtr(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName))
 			env.ExpectCreated(nodeClass)
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, InstanceProfileReady=False"})
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionFalse, Reason: "InstanceProfileNotFound"})
@@ -176,18 +162,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 				})
 				Expect(err).To(BeNil())
 			})
-			nodeClass = &v1.EC2NodeClass{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "deleted-node-role",
-				},
-				Spec: v1.EC2NodeClassSpec{
-					Role:                       testRoleName,
-					AMIFamily:                  aws.String("AL2023"),
-					AMISelectorTerms:           []v1.AMISelectorTerm{{ID: customAMI}},
-					SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
-					SubnetSelectorTerms:        []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
-				},
-			}
+			nodeClass.Spec.Role = testRoleName
 
 			env.ExpectCreated(nodeClass)
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, InstanceProfileReady=False"})
@@ -255,18 +230,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 				g.Expect(err).To(BeNil())
 			}, "30s", "5s").Should(Succeed())
 
-			nodeClass = &v1.EC2NodeClass{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "instance-profile-test",
-				},
-				Spec: v1.EC2NodeClassSpec{
-					InstanceProfile:            lo.ToPtr(instanceProfileName),
-					AMIFamily:                  aws.String("AL2023"),
-					AMISelectorTerms:           []v1.AMISelectorTerm{{ID: customAMI}},
-					SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
-					SubnetSelectorTerms:        []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "*"}}},
-				},
-			}
+			nodeClass.Spec.InstanceProfile = lo.ToPtr(instanceProfileName)
 			env.ExpectCreated(nodeClass)
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionTrue})
