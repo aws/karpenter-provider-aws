@@ -39,10 +39,9 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
-	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/samber/lo"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"sigs.k8s.io/karpenter/pkg/events"
 
@@ -101,9 +100,11 @@ func NewControllers(
 		metrics.NewController(kubeClient, cloudProvider),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
-		sqsapi := servicesqs.NewFromConfig(cfg)
-		out := lo.Must(sqsapi.GetQueueUrl(ctx, &servicesqs.GetQueueUrlInput{QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)}))
-		controllers = append(controllers, interruption.NewController(kubeClient, cloudProvider, clk, recorder, lo.Must(sqs.NewDefaultProvider(sqsapi, lo.FromPtr(out.QueueUrl))), unavailableOfferings))
+		if sqsProvider, err := sqs.GetSQSProvider(ctx, cfg); err == nil {
+			controllers = append(controllers, interruption.NewController(kubeClient, cloudProvider, clk, recorder, sqsProvider, unavailableOfferings))
+		} else {
+			log.FromContext(ctx).Error(err, "failed to create interruption controller")
+		}
 	}
 	return controllers
 }
