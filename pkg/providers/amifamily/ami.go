@@ -98,9 +98,15 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		case term.ID != "":
 			idFilter.Values = append(idFilter.Values, term.ID)
 		case term.SSMParameter != "":
-			imageID, err := p.getCustomParameter(ctx, term.SSMParameter)
+			imageID, err := p.ssmProvider.Get(ctx, ssm.Parameter{
+				Name: term.SSMParameter,
+				Type: ssm.CustomParameterType,
+			})
 			if err != nil {
-				return queries, err
+				if !errors.IsNotFound(err) {
+					return []DescribeImageQuery{}, fmt.Errorf("resolving ssm parameter, %w", err)
+				}
+				log.FromContext(ctx).WithValues("ssmParameter", term.SSMParameter).V(1).Error(err, "parameter not found")
 			}
 			idFilter.Values = append(idFilter.Values, imageID)
 		default:
@@ -139,21 +145,6 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		queries = append(queries, DescribeImageQuery{Filters: []ec2types.Filter{idFilter}})
 	}
 	return queries, nil
-}
-
-func (p *DefaultProvider) getCustomParameter(ctx context.Context, ssmParameter string) (string, error) {
-	imageID, err := p.ssmProvider.Get(ctx, ssm.Parameter{
-		Name: ssmParameter,
-		Type: ssm.CustomParameterType,
-	})
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			return "", fmt.Errorf("resolving ssm parameter, %w", err)
-		}
-		log.FromContext(ctx).WithValues("ssmParameter", ssmParameter).V(1).Error(err, "parameter not found")
-		return "", nil
-	}
-	return imageID, nil
 }
 
 //nolint:gocyclo
