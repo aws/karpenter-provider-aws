@@ -80,13 +80,11 @@ func NewController(
 	launchTemplateProvider launchtemplate.Provider,
 	capacityReservationProvider capacityreservation.Provider,
 	ec2api sdk.EC2API,
-	iamapi sdk.IAMAPI,
 	validationCache *cache.Cache,
 	amiResolver amifamily.Resolver,
-	instanceProfileCache *cache.Cache,
 ) *Controller {
 	validation := NewValidationReconciler(ec2api, amiResolver, launchTemplateProvider, validationCache)
-	instanceProfile := NewInstanceProfileReconciler(instanceProfileProvider, iamapi, instanceProfileCache)
+	instanceProfile := NewInstanceProfileReconciler(instanceProfileProvider)
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
@@ -198,7 +196,6 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		}
 	}
 	c.validation.clearCacheEntries(nodeClass)
-	c.instanceProfile.clearCacheEntries(nodeClass)
 	return reconcile.Result{}, nil
 }
 

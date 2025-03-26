@@ -2042,7 +2042,7 @@ essential = true
 				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				ExpectApplied(ctx, env.Client, nodeClass)
-				controller := nodeclass.NewController(awsEnv.Clock, env.Client, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.IAMAPI, awsEnv.ValidationCache, awsEnv.AMIResolver, awsEnv.InstanceTypeCache)
+				controller := nodeclass.NewController(awsEnv.Clock, env.Client, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.AMIResolver)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{

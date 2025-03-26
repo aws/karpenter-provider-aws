@@ -131,7 +131,6 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		awsEnv.IAMAPI.InstanceProfiles[lo.FromPtr(nodeClass.Spec.InstanceProfile)] = &iamtypes.InstanceProfile{}
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-		Expect(awsEnv.InstanceProfileCache.Items()).To(HaveLen(1))
 
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.InstanceProfile).To(Equal(lo.FromPtr(nodeClass.Spec.InstanceProfile)))
