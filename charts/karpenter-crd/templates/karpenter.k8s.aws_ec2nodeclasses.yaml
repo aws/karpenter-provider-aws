@@ -114,7 +114,7 @@ spec:
                           Owner is the owner for the ami.
                           You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
                         type: string
-                      ssmParameterName:
+                      ssmParameter:
                         description: SSMParameter is the name (or ARN) of the SSM parameter containing the Image ID.
                         type: string
                       tags:
@@ -133,8 +133,8 @@ spec:
                   minItems: 1
                   type: array
                   x-kubernetes-validations:
-                    - message: expected at least one, got none, ['tags', 'id', 'name', 'alias', 'ssmParameterName']
-                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias) || has(x.ssmParameterName))
+                    - message: expected at least one, got none, ['tags', 'id', 'name', 'alias', 'ssmParameter']
+                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias) || has(x.ssmParameter))
                     - message: '''id'' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms'
                       rule: '!self.exists(x, has(x.id) && (has(x.alias) || has(x.tags) || has(x.name) || has(x.owner)))'
                     - message: '''alias'' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms'
