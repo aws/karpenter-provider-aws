@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -31,6 +32,7 @@ import (
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
@@ -95,8 +97,12 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		switch {
 		case term.ID != "":
 			idFilter.Values = append(idFilter.Values, term.ID)
-		case term.SSMParameterName != "":
-			p.updateFilterFromCustomParameter(ctx, term.SSMParameterName, &idFilter)
+		case term.SSMParameter != "":
+			imageID, err := p.getCustomParameter(ctx, term.SSMParameter)
+			if err != nil {
+				return queries, err
+			}
+			idFilter.Values = append(idFilter.Values, imageID)
 		default:
 			query := DescribeImageQuery{
 				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{}),
@@ -135,15 +141,19 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 	return queries, nil
 }
 
-func (p *DefaultProvider) updateFilterFromCustomParameter(ctx context.Context, ssmParameterName string, idFilter *ec2types.Filter) {
-	imageID, err := p.ssmProvider.GetCustomParameter(ctx, ssm.Parameter{
-		Name: ssmParameterName,
+func (p *DefaultProvider) getCustomParameter(ctx context.Context, ssmParameter string) (string, error) {
+	imageID, err := p.ssmProvider.Get(ctx, ssm.Parameter{
+		Name: ssmParameter,
+		Type: ssm.CustomParameterType,
 	})
 	if err != nil {
-		log.FromContext(ctx).WithValues("ssmParameterName", ssmParameterName).V(1).Error(err, "parameter not found")
-	} else {
-		idFilter.Values = append(idFilter.Values, imageID)
+		if !errors.IsNotFound(err) {
+			return "", fmt.Errorf("resolving ssm parameter, %w", err)
+		}
+		log.FromContext(ctx).WithValues("ssmParameter", ssmParameter).V(1).Error(err, "parameter not found")
+		return "", nil
 	}
+	return imageID, nil
 }
 
 //nolint:gocyclo

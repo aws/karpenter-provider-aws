@@ -189,6 +189,7 @@ var _ = Describe("AMIProvider", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(1))
 	})
+
 	It("should not cause data races when calling Get() simultaneously", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
@@ -847,6 +848,33 @@ var _ = Describe("AMIProvider", func() {
 					},
 				},
 			))
+		})
+		It("should succeed to resolve AMIs that use an SSM parameter", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+				SSMParameter: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version),
+			}}
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version): amd64AMI,
+			}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].AmiID).To(Equal("amd64-ami-id"))
+			Expect(amis[0].Name).To(Equal(amd64AMI))
+		})
+		It("should succeed to resolve AMIs that use a custom SSM parameter", func() {
+			customParameter := "/my/custom/ami/parameter"
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+				SSMParameter: customParameter,
+			}}
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				customParameter: amd64AMI,
+			}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].AmiID).To(Equal("amd64-ami-id"))
+			Expect(amis[0].Name).To(Equal(amd64AMI))
 		})
 	})
 })
