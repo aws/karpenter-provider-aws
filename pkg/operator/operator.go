@@ -121,6 +121,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	}
 	ec2api := ec2.NewFromConfig(cfg)
 	eksapi := eks.NewFromConfig(cfg)
+	iamapi := iam.NewFromConfig(cfg)
 	log.FromContext(ctx).WithValues("region", cfg.Region).V(1).Info("discovered region")
 	if err := CheckEC2Connectivity(ctx, ec2api); err != nil {
 		log.FromContext(ctx).Error(err, "ec2 api connectivity check failed")
@@ -148,7 +149,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(cfg.Region, iam.NewFromConfig(cfg), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(cfg.Region, iamapi, cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
 	pricingProvider := pricing.NewDefaultProvider(
 		ctx,
 		pricing.NewAPI(cfg),
