@@ -106,7 +106,7 @@ spec:
         environment: test
     - name: my-ami
     - id: ami-123
-    - ssmParameterName: my-custom-parameter # ssm parameter name or ARN
+    - ssmParameter: my-custom-parameter # ssm parameter name or ARN
     # Select EKS optimized AL2023 AMIs with version `v20240703`. This term is mutually
     # exclusive and can't be specified with other terms.
     # - alias: al2023@v20240703
@@ -735,7 +735,7 @@ amiSelectorTerms:
       environment: test
   - name: my-ami
   - id: ami-123
-  - ssmParameterName: my-custom-parameter # ssm parameter name or ARN
+  - ssmParameter: my-custom-parameter # ssm parameter name or ARN
   # Select EKS optimized AL2023 AMIs with version `v20240807`. This term is mutually
   # exclusive and can't be specified with other terms.
   # - alias: al2023@v20240807
@@ -870,7 +870,7 @@ Specify using ids:
 Specify using custom ssm parameter name or ARN:
 ```yaml
   amiSelectorTerms:
-    - ssmParameterName: "my-custom-parameter"
+    - ssmParameter: "my-custom-parameter"
 ```
 
 ## spec.capacityReservationSelectorTerms
