@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -31,6 +32,7 @@ import (
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
@@ -95,6 +97,18 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		switch {
 		case term.ID != "":
 			idFilter.Values = append(idFilter.Values, term.ID)
+		case term.SSMParameter != "":
+			imageID, err := p.ssmProvider.Get(ctx, ssm.Parameter{
+				Name: term.SSMParameter,
+				Type: ssm.CustomParameterType,
+			})
+			if err != nil {
+				if !errors.IsNotFound(err) {
+					return []DescribeImageQuery{}, fmt.Errorf("resolving ssm parameter, %w", err)
+				}
+				log.FromContext(ctx).WithValues("ssmParameter", term.SSMParameter).V(1).Error(err, "parameter not found")
+			}
+			idFilter.Values = append(idFilter.Values, imageID)
 		default:
 			query := DescribeImageQuery{
 				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{}),

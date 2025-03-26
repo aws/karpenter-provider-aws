@@ -40,6 +40,7 @@ var (
 		"InvalidLaunchTemplateId.NotFound",
 		"QueueDoesNotExist",
 		"NoSuchEntity",
+		"ParameterNotFound",
 	)
 	alreadyExistsErrorCodes = sets.New[string](
 		"EntityAlreadyExists",
