@@ -166,7 +166,7 @@ var _ = Describe("AMI", func() {
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
-				SSMParameter: fmt.Sprintf("arn:aws:ssm:%s::parameter/%s", env.Region, ssmPath),
+				SSMParameter: fmt.Sprintf("arn:aws:ssm:%s::parameter%s", env.Region, ssmPath),
 			},
 		}
 		pod := coretest.Pod()
@@ -273,7 +273,7 @@ var _ = Describe("AMI", func() {
 		})
 		It("should have the EC2NodeClass status for AMIs using public ssm parameter ARN", func() {
 			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{SSMParameter: fmt.Sprintf("arn:aws:ssm:%s::parameter/%s", env.Region, ssmPath)}}
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{SSMParameter: fmt.Sprintf("arn:aws:ssm:%s::parameter%s", env.Region, ssmPath)}}
 			env.ExpectCreated(nodeClass)
 			nc := EventuallyExpectAMIsToExist(nodeClass)
 			Expect(len(nc.Status.AMIs)).To(BeNumerically("==", 1))
@@ -294,7 +294,7 @@ var _ = Describe("AMI", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{SSMParameter: "parameter-123"}}
 			env.ExpectCreated(nodeClass)
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeAMIsReady, Status: metav1.ConditionFalse, Message: "AMISelector did not match any AMIs"})
-			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "AMIsReady=False"})
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, AMIsReady=False"})
 		})
 	})
 
