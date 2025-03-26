@@ -876,6 +876,15 @@ var _ = Describe("AMIProvider", func() {
 			Expect(amis[0].AmiID).To(Equal("amd64-ami-id"))
 			Expect(amis[0].Name).To(Equal(amd64AMI))
 		})
+		It("should not throw an error if SSM parameter is not found", func() {
+			customParameter := "/my/custom/ami/parameter"
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+				SSMParameter: customParameter,
+			}}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(0))
+		})
 	})
 })
 
