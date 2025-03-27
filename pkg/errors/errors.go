@@ -15,6 +15,7 @@ limitations under the License.
 package errors
 
 import (
+	"fmt"
 	"strings"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -228,4 +229,11 @@ func ToReasonMessage(err error) (string, string) {
 		return "InsufficientFreeAddressesInSubnet", "There are not enough free IP addresses to launch an instance in this subnet"
 	}
 	return "LaunchFailed", "Instance launch failed"
+}
+
+func DescribeImageError(ami string, err error) error {
+	if err == nil {
+		return fmt.Errorf(`failed to discover any AMIs for alias "%s"`, ami)
+	}
+	return fmt.Errorf(`failed to discover any AMIs for alias "%s": one of the errors was: %w`, ami, err)
 }
