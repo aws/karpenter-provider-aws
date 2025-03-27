@@ -97,17 +97,23 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// Ensure that all the subnets that are returned here are unique
 	subnets := map[string]ec2types.Subnet{}
 	for _, filters := range filterSets {
-		output, err := p.ec2api.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
-		if err != nil {
-			return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
-		}
-		for i := range output.Subnets {
-			subnets[lo.FromPtr(output.Subnets[i].SubnetId)] = output.Subnets[i]
-			p.availableIPAddressCache.SetDefault(lo.FromPtr(output.Subnets[i].SubnetId), lo.FromPtr(output.Subnets[i].AvailableIpAddressCount))
-			p.associatePublicIPAddressCache.SetDefault(lo.FromPtr(output.Subnets[i].SubnetId), lo.FromPtr(output.Subnets[i].MapPublicIpOnLaunch))
-			// subnets can be leaked here, if a subnets is never called received from ec2
-			// we are accepting it for now, as this will be an insignificant amount of memory
-			delete(p.inflightIPs, lo.FromPtr(output.Subnets[i].SubnetId)) // remove any previously tracked IP addresses since we just refreshed from EC2
+		paginator := ec2.NewDescribeSubnetsPaginator(p.ec2api, &ec2.DescribeSubnetsInput{
+			Filters:    filters,
+			MaxResults: aws.Int32(500),
+		})
+		for paginator.HasMorePages() {
+			output, err := paginator.NextPage(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
+			}
+			for i := range output.Subnets {
+				subnets[lo.FromPtr(output.Subnets[i].SubnetId)] = output.Subnets[i]
+				p.availableIPAddressCache.SetDefault(lo.FromPtr(output.Subnets[i].SubnetId), lo.FromPtr(output.Subnets[i].AvailableIpAddressCount))
+				p.associatePublicIPAddressCache.SetDefault(lo.FromPtr(output.Subnets[i].SubnetId), lo.FromPtr(output.Subnets[i].MapPublicIpOnLaunch))
+				// subnets can be leaked here, if a subnets is never called received from ec2
+				// we are accepting it for now, as this will be an insignificant amount of memory
+				delete(p.inflightIPs, lo.FromPtr(output.Subnets[i].SubnetId)) // remove any previously tracked IP addresses since we just refreshed from EC2
+			}
 		}
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(subnets))

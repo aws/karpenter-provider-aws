@@ -84,12 +84,18 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]
 	}
 	securityGroups := map[string]ec2types.SecurityGroup{}
 	for _, filters := range filterSets {
-		output, err := p.ec2api.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
-		if err != nil {
-			return nil, fmt.Errorf("describing security groups %+v, %w", filterSets, err)
-		}
-		for i := range output.SecurityGroups {
-			securityGroups[lo.FromPtr(output.SecurityGroups[i].GroupId)] = output.SecurityGroups[i]
+		paginator := ec2.NewDescribeSecurityGroupsPaginator(p.ec2api, &ec2.DescribeSecurityGroupsInput{
+			MaxResults: aws.Int32(500),
+			Filters:    filters,
+		})
+		for paginator.HasMorePages() {
+			output, err := paginator.NextPage(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("describing security groups %+v, %w", filterSets, err)
+			}
+			for i := range output.SecurityGroups {
+				securityGroups[lo.FromPtr(output.SecurityGroups[i].GroupId)] = output.SecurityGroups[i]
+			}
 		}
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(securityGroups))
