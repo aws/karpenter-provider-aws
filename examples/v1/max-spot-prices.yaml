@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spot-price-limits
+  namespace: karpenter
+data:
+  # This map contains maximum spot prices for different instance types
+  # Format: instance-type: max-price (in USD)
+  # When the current spot price exceeds this limit, Karpenter won't provision these instance types
+  "m5.large": "0.05"
+  "m5.xlarge": "0.10"
+  "c5.large": "0.06"
+  "c5.xlarge": "0.12"
+  "r5.large": "0.07"
+  "r5.xlarge": "0.14"
