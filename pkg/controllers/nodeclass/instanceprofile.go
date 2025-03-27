@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 )
 
@@ -39,6 +40,10 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 	if nodeClass.Spec.Role != "" {
 		name, err := ip.instanceProfileProvider.Create(ctx, nodeClass)
 		if err != nil {
+			reason, message, retryable := awserrors.ClassifyError(err)
+			if !retryable {
+				nodeClass.StatusConditions().SetFalse(v1.ConditionTypeInstanceProfileReady, reason, message)
+			}
 			return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
 		}
 		nodeClass.Status.InstanceProfile = name
