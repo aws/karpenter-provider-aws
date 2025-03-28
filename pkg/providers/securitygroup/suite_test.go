@@ -117,7 +117,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}, securityGroups)
 	})
 	It("should discover security groups by tag", func() {
-		awsEnv.EC2API.DescribeSecurityGroupsOutput.Set(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: []ec2types.SecurityGroup{
+		awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Set(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: []ec2types.SecurityGroup{
 			{GroupName: aws.String("test-sgName-1"), GroupId: aws.String("test-sg-1"), Tags: []ec2types.Tag{{Key: aws.String("kubernetes.io/cluster/test-cluster"), Value: aws.String("test-sg-1")}}},
 			{GroupName: aws.String("test-sgName-2"), GroupId: aws.String("test-sg-2"), Tags: []ec2types.Tag{{Key: aws.String("kubernetes.io/cluster/test-cluster"), Value: aws.String("test-sg-2")}}},
 		}})
@@ -273,7 +273,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 	})
 	Context("Provider Cache", func() {
 		It("should resolve security groups from cache that are filtered by id", func() {
-			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsOutput.Clone().SecurityGroups
+			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Clone().SecurityGroups
 			for _, sg := range expectedSecurityGroups {
 				nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 					{
@@ -292,7 +292,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 			}
 		})
 		It("should resolve security groups from cache that are filtered by Name", func() {
-			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsOutput.Clone().SecurityGroups
+			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Clone().SecurityGroups
 			for _, sg := range expectedSecurityGroups {
 				nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 					{
@@ -311,7 +311,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 			}
 		})
 		It("should resolve security groups from cache that are filtered by tags", func() {
-			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsOutput.Clone().SecurityGroups
+			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Clone().SecurityGroups
 			tagSet := lo.Map(expectedSecurityGroups, func(sg ec2types.SecurityGroup, _ int) map[string]string {
 				tag, _ := lo.Find(sg.Tags, func(tag ec2types.Tag) bool {
 					return lo.FromPtr(tag.Key) == "Name"

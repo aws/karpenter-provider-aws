@@ -51,10 +51,10 @@ type EC2Behavior struct {
 	DescribeImagesOutput                AtomicPtr[ec2.DescribeImagesOutput]
 	DescribeLaunchTemplatesOutput       AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
 	DescribeSubnetsOutput               AtomicPtr[ec2.DescribeSubnetsOutput]
-	DescribeSecurityGroupsOutput        AtomicPtr[ec2.DescribeSecurityGroupsOutput]
 	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
 	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
+	DescribeSecurityGroupsBehavior      MockedFunction[ec2.DescribeSecurityGroupsInput, ec2.DescribeSecurityGroupsOutput]
 	DescribeSpotPriceHistoryBehavior    MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
 	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
@@ -89,11 +89,11 @@ func (e *EC2API) Reset() {
 	e.DescribeImagesOutput.Reset()
 	e.DescribeLaunchTemplatesOutput.Reset()
 	e.DescribeSubnetsOutput.Reset()
-	e.DescribeSecurityGroupsOutput.Reset()
 	e.DescribeInstanceTypesOutput.Reset()
 	e.DescribeInstanceTypeOfferingsOutput.Reset()
 	e.DescribeAvailabilityZonesOutput.Reset()
 	e.CreateFleetBehavior.Reset()
+	e.DescribeSecurityGroupsBehavior.Reset()
 	e.TerminateInstancesBehavior.Reset()
 	e.DescribeInstancesBehavior.Reset()
 	e.CreateLaunchTemplateBehavior.Reset()
@@ -516,46 +516,48 @@ func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsIn
 }
 
 func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSecurityGroupsInput, _ ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupsOutput, error) {
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	if !e.DescribeSecurityGroupsOutput.IsNil() {
-		describeSecurityGroupsOutput := e.DescribeSecurityGroupsOutput.Clone()
-		describeSecurityGroupsOutput.SecurityGroups = FilterDescribeSecurtyGroups(describeSecurityGroupsOutput.SecurityGroups, input.Filters)
-		return e.DescribeSecurityGroupsOutput.Clone(), nil
-	}
-	sgs := []ec2types.SecurityGroup{
-		{
-			GroupId:   aws.String("sg-test1"),
-			GroupName: aws.String("securityGroup-test1"),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-security-group-1")},
-				{Key: aws.String("foo"), Value: aws.String("bar")},
+	return e.DescribeSecurityGroupsBehavior.Invoke(input, func(input *ec2.DescribeSecurityGroupsInput) (*ec2.DescribeSecurityGroupsOutput, error) {
+		if !e.NextError.IsNil() {
+			defer e.NextError.Reset()
+			return nil, e.NextError.Get()
+		}
+		if !e.DescribeSecurityGroupsBehavior.Output.IsNil() {
+			describeSecurityGroupsOutput := e.DescribeSecurityGroupsBehavior.Output.Clone()
+			describeSecurityGroupsOutput.SecurityGroups = FilterDescribeSecurtyGroups(describeSecurityGroupsOutput.SecurityGroups, input.Filters)
+			return e.DescribeSecurityGroupsBehavior.Output.Clone(), nil
+		}
+		sgs := []ec2types.SecurityGroup{
+			{
+				GroupId:   aws.String("sg-test1"),
+				GroupName: aws.String("securityGroup-test1"),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-security-group-1")},
+					{Key: aws.String("foo"), Value: aws.String("bar")},
+				},
 			},
-		},
-		{
-			GroupId:   aws.String("sg-test2"),
-			GroupName: aws.String("securityGroup-test2"),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-security-group-2")},
-				{Key: aws.String("foo"), Value: aws.String("bar")},
+			{
+				GroupId:   aws.String("sg-test2"),
+				GroupName: aws.String("securityGroup-test2"),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-security-group-2")},
+					{Key: aws.String("foo"), Value: aws.String("bar")},
+				},
 			},
-		},
-		{
-			GroupId:   aws.String("sg-test3"),
-			GroupName: aws.String("securityGroup-test3"),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-security-group-3")},
-				{Key: aws.String("TestTag")},
-				{Key: aws.String("foo"), Value: aws.String("bar")},
+			{
+				GroupId:   aws.String("sg-test3"),
+				GroupName: aws.String("securityGroup-test3"),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-security-group-3")},
+					{Key: aws.String("TestTag")},
+					{Key: aws.String("foo"), Value: aws.String("bar")},
+				},
 			},
-		},
-	}
-	if len(input.Filters) == 0 {
-		return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
-	}
-	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: FilterDescribeSecurtyGroups(sgs, input.Filters)}, nil
+		}
+		if len(input.Filters) == 0 {
+			return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
+		}
+		return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: FilterDescribeSecurtyGroups(sgs, input.Filters)}, nil
+	})
 }
 
 func (e *EC2API) DescribeAvailabilityZones(context.Context, *ec2.DescribeAvailabilityZonesInput, ...func(*ec2.Options)) (*ec2.DescribeAvailabilityZonesOutput, error) {

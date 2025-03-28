@@ -659,7 +659,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			awsEnv.EC2API.DescribeSecurityGroupsOutput.Set(&ec2.DescribeSecurityGroupsOutput{
+			awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Set(&ec2.DescribeSecurityGroupsOutput{
 				SecurityGroups: []ec2types.SecurityGroup{
 					{
 						GroupId:   aws.String(validSecurityGroup),
