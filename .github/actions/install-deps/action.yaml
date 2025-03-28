@@ -12,7 +12,6 @@ runs:
       with:
         go-version-file: go.mod
         check-latest: true
-        cache-dependency-path: "**/go.sum"
     # Root path permission workaround for caching https://github.com/actions/cache/issues/845#issuecomment-1252594999
     - run: sudo chown "$USER" /usr/local
       shell: bash
@@ -25,6 +24,8 @@ runs:
         # Added go version to compensate for this issue with govulncheck: https://github.com/golang/go/issues/65590. Could re-evaluate if this is necessary once the
         # upstream go issue is corrected and if this is causing too many cache misses.
         key: ${{ runner.os }}-${{ inputs.k8sVersion }}-${{ steps.setup-go.outputs.go-version }}-toolchain-cache-${{ hashFiles('hack/toolchain.sh') }}
+    - shell: bash
+      run: go mod download
     - if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}
       shell: bash
       env:
