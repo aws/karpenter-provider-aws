@@ -1335,27 +1335,6 @@ var _ = Describe("CloudProvider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 		})
-		It("should handle empty pages when describing subnets", func() {
-			awsEnv.EC2API.DescribeSubnetsBehavior.OutputPages.Add(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{}})
-			awsEnv.EC2API.DescribeSubnetsBehavior.OutputPages.Add(
-				&ec2.DescribeSubnetsOutput{
-					Subnets: []ec2types.Subnet{
-						{SubnetId: aws.String("test-subnet-1000"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
-							Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1000")}},
-						},
-					},
-				},
-			)
-			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1000"}}}
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			controller := nodeclass.NewController(awsEnv.Clock, env.Client, recorder, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.AMIResolver)
-			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-			podSubnet1 := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet1)
-			ExpectScheduled(ctx, env.Client, podSubnet1)
-			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1000"))
-		})
 	})
 	Context("EFA", func() {
 		It("should include vpc.amazonaws.com/efa on a nodeclaim if it requests it", func() {

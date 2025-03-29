@@ -22,6 +22,8 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 
@@ -228,6 +230,68 @@ var _ = Describe("SubnetProvider", func() {
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
 				},
 			}, subnets)
+		})
+		It("should handle empty pages when describing subnets", func() {
+			awsEnv.EC2API.DescribeSubnetsBehavior.OutputPages.Add(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{}})
+			awsEnv.EC2API.DescribeSubnetsBehavior.OutputPages.Add(
+				&ec2.DescribeSubnetsOutput{
+					Subnets: []ec2types.Subnet{
+						{SubnetId: aws.String("test-subnet-1000"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+							Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1000")}},
+						},
+					},
+				},
+			)
+			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
+				{
+					SubnetId:                lo.ToPtr("test-subnet-1000"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
+					AvailableIpAddressCount: lo.ToPtr[int32](10),
+				},
+			}, subnets)
+			Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(2))
+		})
+		It("should not overwrite found values when handling multiple pages of subnets", func() {
+			awsEnv.EC2API.DescribeSubnetsBehavior.OutputPages.Add(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}},
+				},
+			}})
+			awsEnv.EC2API.DescribeSubnetsBehavior.OutputPages.Add(
+				&ec2.DescribeSubnetsOutput{
+					Subnets: []ec2types.Subnet{
+						{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+							Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}},
+						},
+					},
+				},
+			)
+			awsEnv.EC2API.DescribeSubnetsBehavior.OutputPages.Add(
+				&ec2.DescribeSubnetsOutput{
+					Subnets: []ec2types.Subnet{
+						{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+							Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-3")}},
+						},
+					},
+				},
+			)
+			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}},
+				},
+				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}},
+				},
+				{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-3")}},
+				},
+			}, subnets)
+			Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(3))
 		})
 	})
 	Context("Provider Cache", func() {
