@@ -402,6 +402,87 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}
 		wg.Wait()
 	})
+	It("should handle empty pages when describing security groups", func() {
+		awsEnv.EC2API.DescribeSecurityGroupsBehavior.OutputPages.Add(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: []ec2types.SecurityGroup{}})
+		awsEnv.EC2API.DescribeSecurityGroupsBehavior.OutputPages.Add(
+			&ec2.DescribeSecurityGroupsOutput{
+				SecurityGroups: []ec2types.SecurityGroup{
+					{
+						GroupId:   aws.String("test-sg-1000"),
+						GroupName: aws.String("test-sgName-1000"),
+						Tags: []ec2types.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-security-group-1000")},
+						},
+					},
+				},
+			},
+		)
+		securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+		ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{
+			{
+				GroupId:   aws.String("test-sg-1000"),
+				GroupName: aws.String("test-sgName-1000"),
+			},
+		}, securityGroups)
+		Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.Calls()).To(Equal(2))
+	})
+	It("should not overwrite found values when handling multiple pages of security groups", func() {
+		awsEnv.EC2API.DescribeSecurityGroupsBehavior.OutputPages.Add(&ec2.DescribeSecurityGroupsOutput{
+			SecurityGroups: []ec2types.SecurityGroup{
+				{
+					GroupId:   aws.String("test-sg-1"),
+					GroupName: aws.String("test-sgName-1"),
+					Tags: []ec2types.Tag{
+						{Key: aws.String("Name"), Value: aws.String("test-security-group-1")},
+					},
+				},
+			},
+		})
+		awsEnv.EC2API.DescribeSecurityGroupsBehavior.OutputPages.Add(
+			&ec2.DescribeSecurityGroupsOutput{
+				SecurityGroups: []ec2types.SecurityGroup{
+					{
+						GroupId:   aws.String("test-sg-2"),
+						GroupName: aws.String("test-sgName-2"),
+						Tags: []ec2types.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-security-group-2")},
+						},
+					},
+				},
+			},
+		)
+		awsEnv.EC2API.DescribeSecurityGroupsBehavior.OutputPages.Add(
+			&ec2.DescribeSecurityGroupsOutput{
+				SecurityGroups: []ec2types.SecurityGroup{
+					{
+						GroupId:   aws.String("test-sg-3"),
+						GroupName: aws.String("test-sgName-3"),
+						Tags: []ec2types.Tag{
+							{Key: aws.String("Name"), Value: aws.String("test-security-group-3")},
+						},
+					},
+				},
+			},
+		)
+		securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+		ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{
+			{
+				GroupId:   aws.String("test-sg-1"),
+				GroupName: aws.String("test-sgName-1"),
+			},
+			{
+				GroupId:   aws.String("test-sg-2"),
+				GroupName: aws.String("test-sgName-2"),
+			},
+			{
+				GroupId:   aws.String("test-sg-3"),
+				GroupName: aws.String("test-sgName-3"),
+			},
+		}, securityGroups)
+		Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.Calls()).To(Equal(3))
+	})
 })
 
 func ExpectConsistsOfSecurityGroups(expected, actual []ec2types.SecurityGroup) {
