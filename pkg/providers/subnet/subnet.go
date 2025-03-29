@@ -99,7 +99,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	for _, filters := range filterSets {
 		paginator := ec2.NewDescribeSubnetsPaginator(p.ec2api, &ec2.DescribeSubnetsInput{
 			Filters:    filters,
-			MaxResults: aws.Int32(500),
+			MaxResults: lo.ToPtr(int32(500)),
 		})
 		for paginator.HasMorePages() {
 			output, err := paginator.NextPage(ctx)

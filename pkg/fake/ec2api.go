@@ -50,10 +50,10 @@ type EC2Behavior struct {
 	DescribeCapacityReservationsOutput  AtomicPtr[ec2.DescribeCapacityReservationsOutput]
 	DescribeImagesOutput                AtomicPtr[ec2.DescribeImagesOutput]
 	DescribeLaunchTemplatesOutput       AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
-	DescribeSubnetsOutput               AtomicPtr[ec2.DescribeSubnetsOutput]
 	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
 	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
+	DescribeSubnetsBehavior             MockedFunction[ec2.DescribeSubnetsInput, ec2.DescribeSubnetsOutput]
 	DescribeSecurityGroupsBehavior      MockedFunction[ec2.DescribeSecurityGroupsInput, ec2.DescribeSecurityGroupsOutput]
 	DescribeSpotPriceHistoryBehavior    MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
 	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
@@ -67,6 +67,7 @@ type EC2Behavior struct {
 	InsufficientCapacityPools           atomic.Slice[CapacityPool]
 	NextError                           AtomicError
 
+	Subnets                               sync.Map
 	LaunchTemplates                       sync.Map
 	launchTemplatesToCapacityReservations sync.Map // map[lt-name]cr-id
 }
@@ -88,17 +89,21 @@ var DefaultSupportedUsageClasses = []ec2types.UsageClassType{ec2types.UsageClass
 func (e *EC2API) Reset() {
 	e.DescribeImagesOutput.Reset()
 	e.DescribeLaunchTemplatesOutput.Reset()
-	e.DescribeSubnetsOutput.Reset()
 	e.DescribeInstanceTypesOutput.Reset()
 	e.DescribeInstanceTypeOfferingsOutput.Reset()
 	e.DescribeAvailabilityZonesOutput.Reset()
-	e.CreateFleetBehavior.Reset()
+	e.DescribeSubnetsBehavior.Reset()
 	e.DescribeSecurityGroupsBehavior.Reset()
+	e.CreateFleetBehavior.Reset()
 	e.TerminateInstancesBehavior.Reset()
 	e.DescribeInstancesBehavior.Reset()
 	e.CreateLaunchTemplateBehavior.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
 	e.DescribeSpotPriceHistoryBehavior.Reset()
+	e.Subnets.Range(func(k, v any) bool {
+		e.Subnets.Delete(k)
+		return true
+	})
 	e.Instances.Range(func(k, v any) bool {
 		e.Instances.Delete(k)
 		return true
@@ -455,78 +460,74 @@ func (e *EC2API) DeleteLaunchTemplate(_ context.Context, input *ec2.DeleteLaunch
 }
 
 func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsInput, _ ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error) {
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	if !e.DescribeSubnetsOutput.IsNil() {
-		describeSubnetsOutput := e.DescribeSubnetsOutput.Clone()
-		describeSubnetsOutput.Subnets = FilterDescribeSubnets(describeSubnetsOutput.Subnets, input.Filters)
-		return describeSubnetsOutput, nil
-	}
-	subnets := []ec2types.Subnet{
-		{
-			SubnetId:                aws.String("subnet-test1"),
-			AvailabilityZone:        aws.String("test-zone-1a"),
-			AvailabilityZoneId:      aws.String("tstz1-1a"),
-			AvailableIpAddressCount: aws.Int32(100),
-			MapPublicIpOnLaunch:     aws.Bool(false),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-subnet-1")},
-				{Key: aws.String("foo"), Value: aws.String("bar")},
+	return e.DescribeSubnetsBehavior.Invoke(input, func(input *ec2.DescribeSubnetsInput) (*ec2.DescribeSubnetsOutput, error) {
+		output := &ec2.DescribeSubnetsOutput{}
+		e.Subnets.Range(func(key, value any) bool {
+			subnet := value.(ec2types.Subnet)
+			if lo.Contains(input.SubnetIds, lo.FromPtr(subnet.SubnetId)) || len(input.Filters) != 0 && len(FilterDescribeSubnets([]ec2types.Subnet{subnet}, input.Filters)) != 0 {
+				output.Subnets = append(output.Subnets, subnet)
+			}
+			return true
+		})
+		if len(output.Subnets) != 0 {
+			return output, nil
+		}
+
+		defaultSubnets := []ec2types.Subnet{
+			{
+				SubnetId:                aws.String("subnet-test1"),
+				AvailabilityZone:        aws.String("test-zone-1a"),
+				AvailabilityZoneId:      aws.String("tstz1-1a"),
+				AvailableIpAddressCount: aws.Int32(100),
+				MapPublicIpOnLaunch:     aws.Bool(false),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-subnet-1")},
+					{Key: aws.String("foo"), Value: aws.String("bar")},
+				},
 			},
-		},
-		{
-			SubnetId:                aws.String("subnet-test2"),
-			AvailabilityZone:        aws.String("test-zone-1b"),
-			AvailabilityZoneId:      aws.String("tstz1-1b"),
-			AvailableIpAddressCount: aws.Int32(100),
-			MapPublicIpOnLaunch:     aws.Bool(true),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-subnet-2")},
-				{Key: aws.String("foo"), Value: aws.String("bar")},
+			{
+				SubnetId:                aws.String("subnet-test2"),
+				AvailabilityZone:        aws.String("test-zone-1b"),
+				AvailabilityZoneId:      aws.String("tstz1-1b"),
+				AvailableIpAddressCount: aws.Int32(100),
+				MapPublicIpOnLaunch:     aws.Bool(true),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-subnet-2")},
+					{Key: aws.String("foo"), Value: aws.String("bar")},
+				},
 			},
-		},
-		{
-			SubnetId:                aws.String("subnet-test3"),
-			AvailabilityZone:        aws.String("test-zone-1c"),
-			AvailabilityZoneId:      aws.String("tstz1-1c"),
-			AvailableIpAddressCount: aws.Int32(100),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-subnet-3")},
-				{Key: aws.String("TestTag")},
-				{Key: aws.String("foo"), Value: aws.String("bar")},
+			{
+				SubnetId:                aws.String("subnet-test3"),
+				AvailabilityZone:        aws.String("test-zone-1c"),
+				AvailabilityZoneId:      aws.String("tstz1-1c"),
+				AvailableIpAddressCount: aws.Int32(100),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-subnet-3")},
+					{Key: aws.String("TestTag")},
+					{Key: aws.String("foo"), Value: aws.String("bar")},
+				},
 			},
-		},
-		{
-			SubnetId:                aws.String("subnet-test4"),
-			AvailabilityZone:        aws.String("test-zone-1a-local"),
-			AvailabilityZoneId:      aws.String("tstz1-1alocal"),
-			AvailableIpAddressCount: aws.Int32(100),
-			MapPublicIpOnLaunch:     aws.Bool(true),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-subnet-4")},
+			{
+				SubnetId:                aws.String("subnet-test4"),
+				AvailabilityZone:        aws.String("test-zone-1a-local"),
+				AvailabilityZoneId:      aws.String("tstz1-1alocal"),
+				AvailableIpAddressCount: aws.Int32(100),
+				MapPublicIpOnLaunch:     aws.Bool(true),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-subnet-4")},
+				},
 			},
-		},
-	}
-	if len(input.Filters) == 0 {
-		return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
-	}
-	return &ec2.DescribeSubnetsOutput{Subnets: FilterDescribeSubnets(subnets, input.Filters)}, nil
+		}
+		if len(input.Filters) == 0 {
+			return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
+		}
+		return &ec2.DescribeSubnetsOutput{Subnets: FilterDescribeSubnets(defaultSubnets, input.Filters)}, nil
+	})
 }
 
 func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSecurityGroupsInput, _ ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupsOutput, error) {
 	return e.DescribeSecurityGroupsBehavior.Invoke(input, func(input *ec2.DescribeSecurityGroupsInput) (*ec2.DescribeSecurityGroupsOutput, error) {
-		if !e.NextError.IsNil() {
-			defer e.NextError.Reset()
-			return nil, e.NextError.Get()
-		}
-		if !e.DescribeSecurityGroupsBehavior.Output.IsNil() {
-			describeSecurityGroupsOutput := e.DescribeSecurityGroupsBehavior.Output.Clone()
-			describeSecurityGroupsOutput.SecurityGroups = FilterDescribeSecurtyGroups(describeSecurityGroupsOutput.SecurityGroups, input.Filters)
-			return e.DescribeSecurityGroupsBehavior.Output.Clone(), nil
-		}
-		sgs := []ec2types.SecurityGroup{
+		defaultSecurityGroups := []ec2types.SecurityGroup{
 			{
 				GroupId:   aws.String("sg-test1"),
 				GroupName: aws.String("securityGroup-test1"),
@@ -556,7 +557,7 @@ func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSe
 		if len(input.Filters) == 0 {
 			return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
 		}
-		return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: FilterDescribeSecurtyGroups(sgs, input.Filters)}, nil
+		return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: FilterDescribeSecurtyGroups(defaultSecurityGroups, input.Filters)}, nil
 	})
 }
 

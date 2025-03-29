@@ -232,7 +232,7 @@ var _ = Describe("SubnetProvider", func() {
 	})
 	Context("Provider Cache", func() {
 		It("should resolve subnets from cache that are filtered by id", func() {
-			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
+			expectedSubnets := awsEnv.EC2API.DescribeSubnetsBehavior.Output.Clone().Subnets
 			for _, subnet := range expectedSubnets {
 				nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 					{
@@ -251,7 +251,7 @@ var _ = Describe("SubnetProvider", func() {
 			}
 		})
 		It("should resolve subnets from cache that are filtered by tags", func() {
-			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
+			expectedSubnets := awsEnv.EC2API.DescribeSubnetsBehavior.Output.Clone().Subnets
 			tagSet := lo.Map(expectedSubnets, func(subnet ec2types.Subnet, _ int) map[string]string {
 				tag, _ := lo.Find(subnet.Tags, func(tag ec2types.Tag) bool {
 					return lo.FromPtr(tag.Key) == "Name"
