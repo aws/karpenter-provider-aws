@@ -43,7 +43,7 @@ require (
 	k8s.io/client-go v0.32.3
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
-	sigs.k8s.io/controller-runtime v0.20.3
+	sigs.k8s.io/controller-runtime v0.20.4
 	sigs.k8s.io/karpenter v1.3.2-0.20250318160552-0117a51952c3
 	sigs.k8s.io/yaml v1.4.0
 )
