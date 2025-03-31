@@ -54,7 +54,6 @@ var (
 		// m4.4xlarge has vague bandwidth information, bandwidth is High
 		// m4.large has vague bandwidth information, bandwidth is Moderate
 		// m4.xlarge has vague bandwidth information, bandwidth is High
-		// p2.xlarge has vague bandwidth information, bandwidth is High
 		// p3.2xlarge has vague bandwidth information, bandwidth is Up to 10 Gigabit
 		// r3.2xlarge has vague bandwidth information, bandwidth is High
 		// r3.4xlarge has vague bandwidth information, bandwidth is High
