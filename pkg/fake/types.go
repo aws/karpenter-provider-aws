@@ -75,6 +75,7 @@ func (m *MockedFunction[I, O]) Invoke(input *I, defaultTransformer func(*I) (*O,
 			reflect.ValueOf(page).Elem().FieldByName("NextToken").Set(reflect.ValueOf(lo.ToPtr(token)))
 		}
 		m.pageMapping.Store(token, pageNum+1)
+		m.successfulCalls.Add(1)
 		return page, nil
 	}
 	out, err := defaultTransformer(input)
