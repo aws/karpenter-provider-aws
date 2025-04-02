@@ -225,6 +225,9 @@ status:
     - lastTransitionTime: "2024-02-02T19:54:34Z"
       status: "True"
       type: Ready
+    - lastTransitionTime: "2024-02-02T19:54:34Z"
+      status: 'True'
+      type: ClusterCIDRReady
 ```
 Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable to all providers. To explore various `EC2NodeClass` configurations, refer to the examples provided [in the Karpenter Github repository](https://github.com/aws/karpenter/blob/main/examples/v1/).
 
@@ -1655,7 +1658,8 @@ NodeClasses have the following status conditions:
 | SubnetsReady         | Subnets are discovered.                                                                                                                                                                                                           |
 | SecurityGroupsReady  | Security Groups are discovered.                                                                                                                                                                                                   |
 | InstanceProfileReady | Instance Profile is discovered.                                                                                                                                                                                                   |
-| AMIsReady            | AMIs are discovered.                                                |
+| AMIsReady            | AMIs are discovered.                                                                                                                                                                                                              |
+| ClusterCIDRReady     | Cluster CIDR is discovered (AL2023 only).                                                                                                                                                                                         |
 | Ready                | Top level condition that indicates if the nodeClass is ready. If any of the underlying conditions is `False` then this condition is set to `False` and `Message` on the condition indicates the dependency that was not resolved. |
 
 If a NodeClass is not ready, NodePools that reference it through their `nodeClassRef` will not be considered for scheduling.
