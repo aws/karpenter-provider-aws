@@ -48,7 +48,7 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 		}
 		nodeClass.Status.InstanceProfile = name
 	} else {
-		_, err := ip.instanceProfileProvider.Get(ctx, nodeClass, lo.FromPtr(nodeClass.Spec.InstanceProfile))
+		_, _, err := ip.instanceProfileProvider.Get(ctx, nodeClass, lo.FromPtr(nodeClass.Spec.InstanceProfile))
 		if err != nil {
 			if awserrors.IsNotFound(err) || awserrors.IsUnauthorizedOperationError(err) {
 				nodeClass.StatusConditions().SetFalse(v1.ConditionTypeInstanceProfileReady, "InstanceProfileNotFound", "Failed to detect the Instance Profile")

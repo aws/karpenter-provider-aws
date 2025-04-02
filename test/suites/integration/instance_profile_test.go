@@ -135,6 +135,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 
 		It("Should detect a deleted Instance Profile", func() {
 			nodeClass.Spec.InstanceProfile = lo.ToPtr(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName))
+			nodeClass.Spec.Role = ""
 			env.ExpectCreated(nodeClass)
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, InstanceProfileReady=False"})
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionFalse, Reason: "InstanceProfileNotFound"})
@@ -231,6 +232,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 			}, "30s", "5s").Should(Succeed())
 
 			nodeClass.Spec.InstanceProfile = lo.ToPtr(instanceProfileName)
+			nodeClass.Spec.Role = ""
 			env.ExpectCreated(nodeClass)
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionTrue})
