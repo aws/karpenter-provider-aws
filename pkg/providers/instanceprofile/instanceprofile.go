@@ -48,14 +48,17 @@ func NewDefaultProvider(iamapi sdk.IAMAPI, cache *cache.Cache) *DefaultProvider 
 	}
 }
 
-func (p *DefaultProvider) Get(ctx context.Context, m ResourceOwner, profileName string) (*iam.GetInstanceProfileOutput, error) {
+func (p *DefaultProvider) Get(ctx context.Context, m ResourceOwner, profileName string) (bool, *iamtypes.InstanceProfile, error) {
 	// An instance profile exists for this NodeClass
-	if ip, ok := p.cache.Get(string(m.GetUID())); ok {
-		return &iam.GetInstanceProfileOutput{InstanceProfile: ip.(*iamtypes.InstanceProfile)}, nil
+	if _, ok := p.cache.Get(string(m.GetUID())); ok {
+		return true, &iamtypes.InstanceProfile{InstanceProfileName: lo.ToPtr(profileName)}, nil
 	}
 	// Validate if the instance profile exists and has the correct role assigned to it
 	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{InstanceProfileName: aws.String(profileName)})
-	return out, err
+	if err != nil {
+		return false, nil, err
+	}
+	return false, out.InstanceProfile, err
 }
 
 func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
