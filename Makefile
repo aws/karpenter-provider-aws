@@ -80,6 +80,7 @@ e2etests: ## Run the e2e suite against your local cluster
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
 		go test \
+		-race \
 		-p 1 \
 		-count 1 \
 		-timeout 3.25h \
