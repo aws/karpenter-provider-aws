@@ -215,7 +215,7 @@ For example, an instance type may be specified using a nodeSelector in a pod spe
 
 Generally, instance types should be a list and not a single value. Leaving these requirements undefined is recommended, as it maximizes choices for efficiently placing pods.
 
-Review [AWS instance types](../reference/instance-types). Most instance types are supported with the exclusion of [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html).
+Review [AWS instance types](../../reference/instance-types). Most instance types are supported with the exclusion of [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html).
 
 #### Availability Zones
 
