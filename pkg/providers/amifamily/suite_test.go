@@ -59,10 +59,10 @@ func TestAWS(t *testing.T) {
 }
 
 const (
-	amd64AMI       = "amd64-ami-id"
-	arm64AMI       = "arm64-ami-id"
-	amd64NvidiaAMI = "amd64-nvidia-ami-id"
-	arm64NvidiaAMI = "arm64-nvidia-ami-id"
+	amd64AMI       = "ami-id-amd64"
+	arm64AMI       = "ami-id-arm64"
+	amd64NvidiaAMI = "ami-id-amd64-nvidia"
+	arm64NvidiaAMI = "ami-id-arm64-nvidia"
 )
 
 var _ = BeforeSuite(func() {
@@ -78,7 +78,7 @@ var _ = BeforeEach(func() {
 		Images: []ec2types.Image{
 			{
 				Name:         aws.String(amd64AMI),
-				ImageId:      aws.String("amd64-ami-id"),
+				ImageId:      aws.String("ami-id-amd64"),
 				CreationDate: aws.String(time.Time{}.Format(time.RFC3339)),
 				Architecture: "x86_64",
 				Tags: []ec2types.Tag{
@@ -89,7 +89,7 @@ var _ = BeforeEach(func() {
 			},
 			{
 				Name:         aws.String(arm64AMI),
-				ImageId:      aws.String("arm64-ami-id"),
+				ImageId:      aws.String("ami-id-arm64"),
 				CreationDate: aws.String(time.Time{}.Add(time.Minute).Format(time.RFC3339)),
 				Architecture: "arm64",
 				Tags: []ec2types.Tag{
@@ -100,7 +100,7 @@ var _ = BeforeEach(func() {
 			},
 			{
 				Name:         aws.String(amd64NvidiaAMI),
-				ImageId:      aws.String("amd64-nvidia-ami-id"),
+				ImageId:      aws.String("ami-id-amd64-nvidia"),
 				CreationDate: aws.String(time.Time{}.Add(2 * time.Minute).Format(time.RFC3339)),
 				Architecture: "x86_64",
 				Tags: []ec2types.Tag{
@@ -111,7 +111,7 @@ var _ = BeforeEach(func() {
 			},
 			{
 				Name:         aws.String(arm64NvidiaAMI),
-				ImageId:      aws.String("arm64-nvidia-ami-id"),
+				ImageId:      aws.String("ami-id-arm64-nvidia"),
 				CreationDate: aws.String(time.Time{}.Add(2 * time.Minute).Format(time.RFC3339)),
 				Architecture: "arm64",
 				Tags: []ec2types.Tag{
@@ -193,10 +193,10 @@ var _ = Describe("AMIProvider", func() {
 	It("should not cause data races when calling Get() simultaneously", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
-				ID: "amd64-ami-id",
+				ID: "ami-id-amd64",
 			},
 			{
-				ID: "arm64-ami-id",
+				ID: "ami-id-arm64",
 			},
 		}
 		wg := sync.WaitGroup{}
@@ -214,7 +214,7 @@ var _ = Describe("AMIProvider", func() {
 				Expect(images).To(BeEquivalentTo([]amifamily.AMI{
 					{
 						Name:         arm64AMI,
-						AmiID:        "arm64-ami-id",
+						AmiID:        "ami-id-arm64",
 						CreationDate: time.Time{}.Add(time.Minute).Format(time.RFC3339),
 						Requirements: scheduling.NewLabelRequirements(map[string]string{
 							corev1.LabelArchStable: karpv1.ArchitectureArm64,
@@ -222,7 +222,7 @@ var _ = Describe("AMIProvider", func() {
 					},
 					{
 						Name:         amd64AMI,
-						AmiID:        "amd64-ami-id",
+						AmiID:        "ami-id-amd64",
 						CreationDate: time.Time{}.Format(time.RFC3339),
 						Requirements: scheduling.NewLabelRequirements(map[string]string{
 							corev1.LabelArchStable: karpv1.ArchitectureAmd64,
@@ -313,7 +313,7 @@ var _ = Describe("AMIProvider", func() {
 		BeforeEach(func() {
 			img = ec2types.Image{
 				Name:         aws.String(amd64AMI),
-				ImageId:      aws.String("amd64-ami-id"),
+				ImageId:      aws.String("ami-id-amd64"),
 				CreationDate: aws.String(time.Now().Format(time.RFC3339)),
 				Architecture: "x86_64",
 				Tags: []ec2types.Tag{
@@ -859,7 +859,7 @@ var _ = Describe("AMIProvider", func() {
 			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(amis).To(HaveLen(1))
-			Expect(amis[0].AmiID).To(Equal("amd64-ami-id"))
+			Expect(amis[0].AmiID).To(Equal("ami-id-amd64"))
 			Expect(amis[0].Name).To(Equal(amd64AMI))
 		})
 		It("should succeed to resolve AMIs that use a custom SSM parameter", func() {
@@ -873,7 +873,7 @@ var _ = Describe("AMIProvider", func() {
 			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(amis).To(HaveLen(1))
-			Expect(amis[0].AmiID).To(Equal("amd64-ami-id"))
+			Expect(amis[0].AmiID).To(Equal("ami-id-amd64"))
 			Expect(amis[0].Name).To(Equal(amd64AMI))
 		})
 		It("should not throw an error if SSM parameter is not found", func() {
@@ -883,6 +883,16 @@ var _ = Describe("AMIProvider", func() {
 			}}
 			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(0))
+		})
+		It("should throw an error if SSM parameter returns a different error", func() {
+			customParameter := "/my/custom/ami/parameter"
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+				SSMParameter: customParameter,
+			}}
+			awsEnv.SSMAPI.WantErr = fmt.Errorf("some error")
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).To(HaveOccurred())
 			Expect(amis).To(HaveLen(0))
 		})
 	})
