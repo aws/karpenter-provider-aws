@@ -17,6 +17,7 @@ package amifamily
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -79,6 +80,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	return amis, nil
 }
 
+//nolint:gocyclo
 func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]DescribeImageQuery, error) {
 	// Aliases are mutually exclusive, both on the term level and field level within a term.
 	// This is enforced by a CEL validation, we will treat this as an invariant.
@@ -107,6 +109,11 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 					return []DescribeImageQuery{}, fmt.Errorf("resolving ssm parameter, %w", err)
 				}
 				log.FromContext(ctx).WithValues("ssmParameter", term.SSMParameter).V(1).Error(err, "parameter not found")
+				continue
+			}
+			if !strings.HasPrefix(imageID, "ami-") {
+				log.FromContext(ctx).WithValues("ssmParameter", term.SSMParameter, "id", imageID).V(1).Error(nil, "parameter value is an invalid AMI ID")
+				continue
 			}
 			idFilter.Values = append(idFilter.Values, imageID)
 		default:
