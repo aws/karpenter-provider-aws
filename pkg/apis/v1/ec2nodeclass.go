@@ -21,6 +21,7 @@ import (
 
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -491,11 +492,12 @@ func (in *EC2NodeClass) InstanceProfileRole() string {
 	return in.Spec.Role
 }
 
-func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]string {
+func (in *EC2NodeClass) InstanceProfileTags(clusterName string, region string) map[string]string {
 	return lo.Assign(in.Spec.Tags, map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", clusterName): "owned",
-		EKSClusterNameTagKey: clusterName,
-		LabelNodeClass:       in.Name,
+		EKSClusterNameTagKey:   clusterName,
+		LabelNodeClass:         in.Name,
+		v1.LabelTopologyRegion: region,
 	})
 }
 

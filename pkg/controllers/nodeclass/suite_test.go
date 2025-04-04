@@ -74,6 +74,7 @@ var _ = BeforeSuite(func() {
 		awsEnv.Clock,
 		env.Client,
 		events.NewRecorder(&record.FakeRecorder{}),
+		fake.DefaultRegion,
 		awsEnv.SubnetProvider,
 		awsEnv.SecurityGroupProvider,
 		awsEnv.AMIProvider,
