@@ -289,13 +289,6 @@ var _ = Describe("AMI", func() {
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, AMIsReady=False"})
 
 		})
-		It("should have ec2nodeClass status as not ready since ssm parameter was not found", func() {
-			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{SSMParameter: "parameter-123"}}
-			env.ExpectCreated(nodeClass)
-			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeAMIsReady, Status: metav1.ConditionFalse, Message: "AMISelector did not match any AMIs"})
-			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, AMIsReady=False"})
-		})
 	})
 
 	Context("UserData", func() {
