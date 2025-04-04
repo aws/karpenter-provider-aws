@@ -23,6 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -49,11 +50,19 @@ func ParseInstanceID(providerID string) (string, error) {
 	return "", fmt.Errorf("parsing instance id %s", providerID)
 }
 
-// MergeTags takes a variadic list of maps and merges them together into a list of
+// EC2MergeTags takes a variadic list of maps and merges them together into a list of
 // EC2 tags to be passed into EC2 API calls
-func MergeTags(tags ...map[string]string) []ec2types.Tag {
+func EC2MergeTags(tags ...map[string]string) []ec2types.Tag {
 	return lo.MapToSlice(lo.Assign(tags...), func(k, v string) ec2types.Tag {
 		return ec2types.Tag{Key: aws.String(k), Value: aws.String(v)}
+	})
+}
+
+// EC2MergeTags takes a variadic list of maps and merges them together into a list of
+// EC2 tags to be passed into EC2 API calls
+func IAMMergeTags(tags ...map[string]string) []iamtypes.Tag {
+	return lo.MapToSlice(lo.Assign(tags...), func(k, v string) iamtypes.Tag {
+		return iamtypes.Tag{Key: aws.String(k), Value: aws.String(v)}
 	})
 }
 

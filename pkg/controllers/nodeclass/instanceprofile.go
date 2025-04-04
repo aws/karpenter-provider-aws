@@ -22,26 +22,34 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 )
 
 type InstanceProfile struct {
 	instanceProfileProvider instanceprofile.Provider
+	region                  string
 }
 
-func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider) *InstanceProfile {
+func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider, region string) *InstanceProfile {
 	return &InstanceProfile{
 		instanceProfileProvider: instanceProfileProvider,
+		region:                  region,
 	}
 }
 
 func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if nodeClass.Spec.Role != "" {
-		name, err := ip.instanceProfileProvider.Create(ctx, nodeClass)
-		if err != nil {
+		profileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
+		if err := ip.instanceProfileProvider.Create(
+			ctx,
+			profileName,
+			nodeClass.InstanceProfileRole(),
+			nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
+		); err != nil {
 			return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
 		}
-		nodeClass.Status.InstanceProfile = name
+		nodeClass.Status.InstanceProfile = profileName
 	} else {
 		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}

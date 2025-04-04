@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
-	"sigs.k8s.io/karpenter/pkg/operator/options"
+	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 	"sigs.k8s.io/karpenter/pkg/utils/result"
 
@@ -48,6 +48,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
@@ -59,6 +60,7 @@ import (
 type Controller struct {
 	kubeClient              client.Client
 	recorder                events.Recorder
+	region                  string
 	launchTemplateProvider  launchtemplate.Provider
 	instanceProfileProvider instanceprofile.Provider
 	validation              *Validation
@@ -69,6 +71,7 @@ func NewController(
 	clk clock.Clock,
 	kubeClient client.Client,
 	recorder events.Recorder,
+	region string,
 	subnetProvider subnet.Provider,
 	securityGroupProvider securitygroup.Provider,
 	amiProvider amifamily.Provider,
@@ -83,6 +86,7 @@ func NewController(
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
+		region:                  region,
 		launchTemplateProvider:  launchTemplateProvider,
 		instanceProfileProvider: instanceProfileProvider,
 		validation:              validation,
@@ -91,7 +95,7 @@ func NewController(
 			NewCapacityReservationReconciler(clk, capacityReservationProvider),
 			NewSubnetReconciler(subnetProvider),
 			NewSecurityGroupReconciler(securityGroupProvider),
-			NewInstanceProfileReconciler(instanceProfileProvider),
+			NewInstanceProfileReconciler(instanceProfileProvider, region),
 			validation,
 			NewReadinessReconciler(launchTemplateProvider),
 		},
@@ -129,7 +133,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	var results []reconcile.Result
 	var errs error
 	for _, reconciler := range c.reconcilers {
-		if _, ok := reconciler.(*CapacityReservation); ok && !options.FromContext(ctx).FeatureGates.ReservedCapacity {
+		if _, ok := reconciler.(*CapacityReservation); ok && !karpoptions.FromContext(ctx).FeatureGates.ReservedCapacity {
 			continue
 		}
 		res, err := reconciler.Reconcile(ctx, nodeClass)
@@ -168,7 +172,7 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
 	if nodeClass.Spec.Role != "" {
-		if err := c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
+		if err := c.instanceProfileProvider.Delete(ctx, nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)); err != nil {
 			return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
 		}
 	}
