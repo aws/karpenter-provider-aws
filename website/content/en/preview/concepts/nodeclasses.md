@@ -921,6 +921,7 @@ spec:
   - tags:
       key: foo
     ownerID: 012345678901
+```
 
 ## spec.tags
 
