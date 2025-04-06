@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 )
 
@@ -39,10 +40,21 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 	if nodeClass.Spec.Role != "" {
 		name, err := ip.instanceProfileProvider.Create(ctx, nodeClass)
 		if err != nil {
+			//Create filters out instanceprofile not found errors so any is not found error will be referencing the role
+			if awserrors.IsNotFound(err) || awserrors.IsUnauthorizedOperationError(err) {
+				nodeClass.StatusConditions().SetFalse(v1.ConditionTypeInstanceProfileReady, "NodeRoleNotFound", "Failed to detect the NodeRole")
+			}
 			return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
 		}
 		nodeClass.Status.InstanceProfile = name
 	} else {
+		_, _, err := ip.instanceProfileProvider.Get(ctx, nodeClass, lo.FromPtr(nodeClass.Spec.InstanceProfile))
+		if err != nil {
+			if awserrors.IsNotFound(err) || awserrors.IsUnauthorizedOperationError(err) {
+				nodeClass.StatusConditions().SetFalse(v1.ConditionTypeInstanceProfileReady, "InstanceProfileNotFound", "Failed to detect the Instance Profile")
+			}
+			return reconcile.Result{}, fmt.Errorf("getting instance profile, %w", err)
+		}
 		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
