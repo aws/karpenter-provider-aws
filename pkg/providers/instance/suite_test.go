@@ -311,6 +311,8 @@ var _ = Describe("InstanceProvider", func() {
 
 		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 		Expect(err).ToNot(HaveOccurred())
+		instanceTypes, _, err = instance.FilterRejectInstanceTypes(nodeClaim, instanceTypes)
+		Expect(err).ToNot(HaveOccurred())
 		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(instance.CapacityType).To(Equal(karpv1.CapacityTypeReserved))

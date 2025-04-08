@@ -115,7 +115,8 @@ func NewDefaultProvider(
 }
 
 func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, tags map[string]string, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
-	capacityType := p.getCapacityType(nodeClaim, instanceTypes)
+	// We filter out instance type that don't have an available offering that supports the capacity type
+	capacityType := getCapacityType(nodeClaim, instanceTypes)
 	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, capacityType, instanceTypes, tags)
 	if awserrors.IsLaunchTemplateNotFound(err) {
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
@@ -312,7 +313,7 @@ func GetCreateFleetInput(nodeClass *v1.EC2NodeClass, capacityType string, tags m
 
 func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
-	if p.getCapacityType(nodeClaim, instanceTypes) != karpv1.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
+	if getCapacityType(nodeClaim, instanceTypes) != karpv1.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
 		return nil
 	}
 
@@ -471,7 +472,7 @@ func (p *DefaultProvider) getCapacityReservationIDForInstance(instance, zone str
 
 // getCapacityType selects the capacity type based on the flexibility of the NodeClaim and the available offerings.
 // Prioritization is as follows: reserved, spot, on-demand.
-func (p *DefaultProvider) getCapacityType(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) string {
+func getCapacityType(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) string {
 	for _, capacityType := range []string{karpv1.CapacityTypeReserved, karpv1.CapacityTypeSpot} {
 		requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 		if !requirements.Get(karpv1.CapacityTypeLabelKey).Has(capacityType) {
@@ -488,36 +489,44 @@ func (p *DefaultProvider) getCapacityType(nodeClaim *karpv1.NodeClaim, instanceT
 }
 
 func FilterRejectInstanceTypes(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType, error) {
-	var rejected []*cloudprovider.InstanceType
+	var err error
 	schedulingRequirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+	// We filter out non-reserved instances regardless of the min-values settings, since if the launch is eligible for
+	// reserved instances that's all we'll include in our fleet request.
+	if reqs := schedulingRequirements; reqs.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeReserved) {
+		filtered, rejected := filterRejectReservedInstanceTypes(reqs, instanceTypes)
+		if _, err = cloudprovider.InstanceTypes(filtered).SatisfiesMinValues(schedulingRequirements); err != nil {
+			return nil, nil, cloudprovider.NewCreateError(fmt.Errorf("failed to construct CreateFleet request while respecting minValues requirements, %w", err), "InstanceTypeFilteringFailed", "Failed to filter instance types while respecting minValues")
+		}
+		if len(filtered) > 0 {
+			// TODO: Support FilterReject on Truncating instance types
+			filtered, err = cloudprovider.InstanceTypes(filtered).Truncate(schedulingRequirements, maxInstanceTypes)
+			if err != nil {
+				return nil, nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeFilteringFailed", "Error truncating instance types based on the passed-in requirements")
+			}
+			return filtered, rejected, nil
+		}
+	}
 	// Only filter the instances if there are no minValues in the requirement.
+	var rejected []*cloudprovider.InstanceType
+	filtered := instanceTypes
 	if !schedulingRequirements.HasMinValues() {
 		var r []*cloudprovider.InstanceType
-		instanceTypes, r = filterRejectExoticInstanceTypes(instanceTypes)
+		filtered, r = filterRejectExoticInstanceTypes(filtered)
 		rejected = append(rejected, r...)
 		// If we could potentially launch either a spot or on-demand node, we want to filter out the spot instance types that
 		// are more expensive than the cheapest on-demand type.
-		if isMixedCapacityLaunch(nodeClaim, instanceTypes) {
-			instanceTypes, r = filterRejectUnwantedSpot(instanceTypes)
+		if isMixedCapacityLaunch(nodeClaim, filtered) {
+			filtered, r = filterRejectUnwantedSpot(filtered)
 			rejected = append(rejected, r...)
 		}
 	}
-	// We filter out non-reserved instances regardless of the min-values settings, since if the launch is eligible for
-	// reserved instances that's all we'll include in our fleet request.
-	if reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...); reqs.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeReserved) {
-		var r []*cloudprovider.InstanceType
-		instanceTypes, r = filterRejectReservedInstanceTypes(reqs, instanceTypes)
-		rejected = append(rejected, r...)
-		if _, err := cloudprovider.InstanceTypes(instanceTypes).SatisfiesMinValues(schedulingRequirements); err != nil {
-			return nil, nil, fmt.Errorf("checking minValues after filtering reserved instance types, %w", err)
-		}
-	}
 	// TODO: Support FilterReject on Truncating instance types
-	instanceTypes, err := cloudprovider.InstanceTypes(instanceTypes).Truncate(schedulingRequirements, maxInstanceTypes)
+	filtered, err = cloudprovider.InstanceTypes(filtered).Truncate(schedulingRequirements, maxInstanceTypes)
 	if err != nil {
-		return nil, nil, fmt.Errorf("truncating instance types based on passed-in requirements, %w", err)
+		return nil, nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeFilteringFailed", "Error truncating instance types based on the passed-in requirements")
 	}
-	return instanceTypes, rejected, nil
+	return filtered, rejected, nil
 }
 
 // filterReservedInstanceTypes is used to filter the provided set of instance types to only include those with
@@ -539,15 +548,13 @@ func filterRejectReservedInstanceTypes(nodeClaimRequirements scheduling.Requirem
 		}
 		if len(zonalOfferings) == 0 {
 			nonReservedInstanceTypes = append(nonReservedInstanceTypes, it)
+			continue
 		}
 		// WARNING: It is only safe to mutate the slice containing the offerings, not the offerings themselves. The individual
 		// offerings are cached, but not the slice storing them. This helps keep the launch path simple, but changes to the
 		// caching strategy employed by the InstanceType provider could result in unexpected behavior.
 		it.Offerings = lo.Values(zonalOfferings)
 		reservedInstanceTypes = append(reservedInstanceTypes, it)
-	}
-	if len(reservedInstanceTypes) == 0 {
-		return instanceTypes, nil
 	}
 	return reservedInstanceTypes, nonReservedInstanceTypes
 }
@@ -616,6 +623,7 @@ func filterRejectExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType
 		// requirement
 		if _, ok := lo.Find(it.Requirements.Get(v1.LabelInstanceSize).Values(), func(size string) bool { return strings.Contains(size, "metal") }); ok {
 			exoticInstanceTypes = append(exoticInstanceTypes, it)
+			continue
 		}
 		if !resources.IsZero(it.Capacity[v1.ResourceAWSNeuron]) ||
 			!resources.IsZero(it.Capacity[v1.ResourceAWSNeuronCore]) ||
@@ -623,6 +631,7 @@ func filterRejectExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType
 			!resources.IsZero(it.Capacity[v1.ResourceNVIDIAGPU]) ||
 			!resources.IsZero(it.Capacity[v1.ResourceHabanaGaudi]) {
 			exoticInstanceTypes = append(exoticInstanceTypes, it)
+			continue
 		}
 		genericInstanceTypes = append(genericInstanceTypes, it)
 	}
