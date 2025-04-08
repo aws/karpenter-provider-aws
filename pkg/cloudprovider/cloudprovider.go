@@ -88,6 +88,7 @@ func New(
 }
 
 // Create a NodeClaim given the constraints.
+// nolint:gocyclo
 func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*karpv1.NodeClaim, error) {
 	nodeClass, err := c.resolveNodeClassFromNodeClaim(ctx, nodeClaim)
 	if err != nil {
@@ -111,11 +112,14 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if err != nil {
 		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving instance types, %w", err), "InstanceTypeResolutionFailed", "Error resolving instance types")
 	}
-	instanceTypes, rejectedInstanceTypes, err := instance.FilterRejectInstanceTypes(nodeClaim, instanceTypes)
+	var rejectedInstanceTypes []*cloudprovider.InstanceType
+	instanceTypes, rejectedInstanceTypes, err = instance.FilterRejectInstanceTypes(nodeClaim, instanceTypes)
 	if err != nil {
-		return nil, cloudprovider.NewCreateError(fmt.Errorf("filtering instance types, %w", err), "InstanceTypeFilteringFailed", "Error filtering instance types")
+		return nil, fmt.Errorf("filtering instance types, %w", err)
 	}
-	log.FromContext(ctx).WithValues("instance-types", utils.PrettySlice(rejectedInstanceTypes, 10)).V(1).Info("filtered out instance types from launch")
+	if len(rejectedInstanceTypes) > 0 {
+		log.FromContext(ctx).WithValues("instance-types", utils.PrettySlice(lo.Map(rejectedInstanceTypes, func(i *cloudprovider.InstanceType, _ int) string { return i.Name }), 10)).V(1).Info("filtered out instance types from launch")
+	}
 	if len(instanceTypes) == 0 {
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
 	}
