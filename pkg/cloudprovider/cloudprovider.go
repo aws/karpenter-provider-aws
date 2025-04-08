@@ -111,6 +111,11 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if err != nil {
 		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving instance types, %w", err), "InstanceTypeResolutionFailed", "Error resolving instance types")
 	}
+	instanceTypes, rejectedInstanceTypes, err := instance.FilterRejectInstanceTypes(nodeClaim, instanceTypes)
+	if err != nil {
+		return nil, cloudprovider.NewCreateError(fmt.Errorf("filtering instance types, %w", err), "InstanceTypeFilteringFailed", "Error filtering instance types")
+	}
+	log.FromContext(ctx).WithValues("instance-types", utils.PrettySlice(rejectedInstanceTypes, 10)).V(1).Info("filtered out instance types from launch")
 	if len(instanceTypes) == 0 {
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
 	}
