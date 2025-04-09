@@ -8,3 +8,5 @@ ARG TARGETARCH
 COPY --from=builder /go/src/github.com/openshift/aws-karpenter-provider-aws/karpenter-provider-aws-${TARGETARCH} /usr/bin/karpenter-provider-aws
 LABEL io.k8s.display-name="Karpenter AWS provider for OpenShift" \
       io.k8s.description="Karpenter is a Kubernetes Node Autoscaler built for flexibility, performance, and simplicity."
+# the upstream image has an entrypoint set, this entrypoint is for parity so the args to the pod can be the same and they are interchangeable
+ENTRYPOINT ["/usr/bin/karpenter-provider-aws"]
