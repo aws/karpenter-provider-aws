@@ -55,6 +55,9 @@ type BottlerocketKubernetes struct {
 	MaxPods                            *int                                      `toml:"max-pods,omitempty"`
 	StaticPods                         map[string]BottlerocketStaticPod          `toml:"static-pods,omitempty"`
 	EvictionHard                       map[string]string                         `toml:"eviction-hard,omitempty"`
+	EvictionSoft                       map[string]string                         `toml:"eviction-soft,omitempty"`
+	EvictionSoftGracePeriod            map[string]string                         `toml:"eviction-soft-grace-period,omitempty"`
+	EvictionMaxPodGracePeriod          *int                                      `toml:"eviction-max-pod-grace-period,omitempty"`
 	KubeReserved                       map[string]string                         `toml:"kube-reserved,omitempty"`
 	SystemReserved                     map[string]string                         `toml:"system-reserved,omitempty"`
 	AllowedUnsafeSysctls               []string                                  `toml:"allowed-unsafe-sysctls,omitempty"`
