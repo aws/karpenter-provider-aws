@@ -309,9 +309,9 @@ func GetCreateFleetInput(nodeClass *v1.EC2NodeClass, capacityType string, tags m
 			TotalTargetCapacity: aws.Int32(1),
 		},
 		TagSpecifications: []ec2types.TagSpecification{
-			{ResourceType: ec2types.ResourceTypeInstance, Tags: utils.MergeTags(tags)},
-			{ResourceType: ec2types.ResourceTypeVolume, Tags: utils.MergeTags(tags)},
-			{ResourceType: ec2types.ResourceTypeFleet, Tags: utils.MergeTags(tags)},
+			{ResourceType: ec2types.ResourceTypeInstance, Tags: utils.EC2MergeTags(tags)},
+			{ResourceType: ec2types.ResourceTypeVolume, Tags: utils.EC2MergeTags(tags)},
+			{ResourceType: ec2types.ResourceTypeFleet, Tags: utils.EC2MergeTags(tags)},
 		},
 	}
 }

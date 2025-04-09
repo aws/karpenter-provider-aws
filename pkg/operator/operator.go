@@ -149,7 +149,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(cfg.Region, iamapi, cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
 	pricingProvider := pricing.NewDefaultProvider(
 		ctx,
 		pricing.NewAPI(cfg),
