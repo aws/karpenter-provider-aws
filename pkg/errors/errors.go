@@ -15,6 +15,7 @@ limitations under the License.
 package errors
 
 import (
+	"errors"
 	"strings"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -29,6 +30,9 @@ const (
 	DryRunOperationErrorCode              = "DryRunOperation"
 	UnauthorizedOperationErrorCode        = "UnauthorizedOperation"
 	RateLimitingErrorCode                 = "RequestLimitExceeded"
+	AccessDeniedErrorCode                 = "AccessDenied"
+	AccessDeniedExceptionErrorCode        = "AccessDeniedException"
+	LimitExceededErrorCode                = "LimitExceeded"
 )
 
 var (
@@ -228,4 +232,21 @@ func ToReasonMessage(err error) (string, string) {
 		return "InsufficientFreeAddressesInSubnet", "There are not enough free IP addresses to launch an instance in this subnet"
 	}
 	return "LaunchFailed", "Instance launch failed"
+}
+
+// ClassifyError determines whether the given error should be retried.
+// Specifically identifies 'Unauthorized' and 'LimitExceeded' as non-retryable.
+func ClassifyError(err error) (reason string, message string, retryable bool) {
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		switch apiErr.ErrorCode() {
+		case UnauthorizedOperationErrorCode, AccessDeniedErrorCode, AccessDeniedExceptionErrorCode:
+			return "Unauthorized", apiErr.ErrorMessage(), false
+		case LimitExceededErrorCode:
+			return "LimitExceeded", apiErr.ErrorMessage(), false
+		default:
+			return "", "", true
+		}
+	}
+	return "", "", true
 }
