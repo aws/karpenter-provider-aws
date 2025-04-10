@@ -166,6 +166,8 @@ var _ = Describe("AMIProvider", func() {
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version): amd64NvidiaAMI,
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", version):         arm64AMI,
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/latest/image_id", version):  arm64NvidiaAMI,
+			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-fips/x86_64/latest/image_id", version):    amd64AMI,
+			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-fips/arm64/latest/image_id", version):     arm64AMI,
 		}
 		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
