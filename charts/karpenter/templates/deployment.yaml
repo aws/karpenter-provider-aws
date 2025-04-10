@@ -120,10 +120,8 @@ spec:
             - name: CLUSTER_CA_BUNDLE
               value: "{{ . }}"
           {{- end }}
-          {{- with .Values.settings.clusterName }}
             - name: CLUSTER_NAME
-              value: "{{ . }}"
-          {{- end }}
+              value: "{{ required "Chart cannot be installed without a valid settings.clusterName!" (tpl .Values.settings.clusterName .) }}"
           {{- with .Values.settings.clusterEndpoint }}
             - name: CLUSTER_ENDPOINT
               value: "{{ . }}"
