@@ -164,6 +164,7 @@ func (c *Controller) handleMessage(ctx context.Context, msg messages.Message) (e
 	if msg.Kind() == messages.NoOpKind {
 		return nil
 	}
+	isMatchedInstance := false
 	for _, instanceID := range msg.EC2InstanceIDs() {
 		nodeClaimList := &karpv1.NodeClaimList{}
 		if e := c.kubeClient.List(ctx, nodeClaimList, client.MatchingFields{"status.instanceID": instanceID}); e != nil {
@@ -173,6 +174,7 @@ func (c *Controller) handleMessage(ctx context.Context, msg messages.Message) (e
 		if len(nodeClaimList.Items) == 0 {
 			continue
 		}
+		isMatchedInstance = true
 		for _, nodeClaim := range nodeClaimList.Items {
 			nodeList := &corev1.NodeList{}
 			if e := c.kubeClient.List(ctx, nodeList, client.MatchingFields{"spec.instanceID": instanceID}); e != nil {
@@ -188,6 +190,11 @@ func (c *Controller) handleMessage(ctx context.Context, msg messages.Message) (e
 			}
 		}
 	}
+
+	if !isMatchedInstance {
+		log.FromContext(ctx).V(1).Info("no node claim found for instance", "EC2InstanceID", msg.EC2InstanceIDs())
+	}
+
 	MessageLatency.Observe(time.Since(msg.StartTime()).Seconds(), nil)
 	if err != nil {
 		return fmt.Errorf("acting on NodeClaims, %w", err)
