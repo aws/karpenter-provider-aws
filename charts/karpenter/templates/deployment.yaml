@@ -116,6 +116,10 @@ spec:
             - name: BATCH_IDLE_DURATION
               value: "{{ . }}"
           {{- end }}
+          {{- with .Values.settings.preferencePolicy }}
+            - name: PREFERENCE_POLICY
+              value: "{{ . }}"
+          {{- end }}
           {{- with .Values.settings.clusterCABundle }}
             - name: CLUSTER_CA_BUNDLE
               value: "{{ . }}"
