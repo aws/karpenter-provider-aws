@@ -890,6 +890,10 @@ A term can specify an ID or a set of tags to select against.
 When specifying tags, it will select all capacity reservations accessible from the account with matching tags.
 This can be further restricted by specifying an owner ID.
 
+{{% alert title="Note" color="primary" %}}
+Note that the IAM role Karpenter assumes should have a permissions policy associated with it that allows the [ec2:DescribeCapacityReservations](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeCapacityReservations.html) action.
+{{% /alert %}}
+
 #### Examples
 
 Select the reservations with the given IDs:
