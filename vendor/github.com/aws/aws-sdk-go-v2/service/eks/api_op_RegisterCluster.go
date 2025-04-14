@@ -16,8 +16,8 @@ import (
 // Any Kubernetes cluster can be connected to the Amazon EKS control plane to view
 // current information about the cluster and its nodes.
 //
-// Cluster connection requires two steps. First, send a [RegisterClusterRequest]RegisterClusterRequest to
-// add it to the Amazon EKS control plane.
+// Cluster connection requires two steps. First, send a RegisterClusterRequest to add it to the Amazon
+// EKS control plane.
 //
 // Second, a [Manifest] containing the activationID and activationCode must be applied to
 // the Kubernetes cluster through it's native provider to provide visibility.
@@ -27,7 +27,6 @@ import (
 // the connected cluster will no longer be visible and must be deregistered using
 // DeregisterCluster .
 //
-// [RegisterClusterRequest]: https://docs.aws.amazon.com/eks/latest/APIReference/API_RegisterClusterRequest.html
 // [Manifest]: https://amazon-eks.s3.us-west-2.amazonaws.com/eks-connector/manifests/eks-connector/latest/eks-connector.yaml
 func (c *Client) RegisterCluster(ctx context.Context, params *RegisterClusterInput, optFns ...func(*Options)) (*RegisterClusterOutput, error) {
 	if params == nil {

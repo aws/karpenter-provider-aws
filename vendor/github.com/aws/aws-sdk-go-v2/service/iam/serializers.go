@@ -11945,16 +11945,6 @@ func awsAwsquery_serializeOpDocumentCreateSAMLProviderInput(v *CreateSAMLProvide
 	object := value.Object()
 	_ = object
 
-	if v.AddPrivateKey != nil {
-		objectKey := object.Key("AddPrivateKey")
-		objectKey.String(*v.AddPrivateKey)
-	}
-
-	if len(v.AssertionEncryptionMode) > 0 {
-		objectKey := object.Key("AssertionEncryptionMode")
-		objectKey.String(string(v.AssertionEncryptionMode))
-	}
-
 	if v.Name != nil {
 		objectKey := object.Key("Name")
 		objectKey.String(*v.Name)
@@ -14545,21 +14535,6 @@ func awsAwsquery_serializeOpDocumentUpdateRoleInput(v *UpdateRoleInput, value qu
 func awsAwsquery_serializeOpDocumentUpdateSAMLProviderInput(v *UpdateSAMLProviderInput, value query.Value) error {
 	object := value.Object()
 	_ = object
-
-	if v.AddPrivateKey != nil {
-		objectKey := object.Key("AddPrivateKey")
-		objectKey.String(*v.AddPrivateKey)
-	}
-
-	if len(v.AssertionEncryptionMode) > 0 {
-		objectKey := object.Key("AssertionEncryptionMode")
-		objectKey.String(string(v.AssertionEncryptionMode))
-	}
-
-	if v.RemovePrivateKey != nil {
-		objectKey := object.Key("RemovePrivateKey")
-		objectKey.String(*v.RemovePrivateKey)
-	}
 
 	if v.SAMLMetadataDocument != nil {
 		objectKey := object.Key("SAMLMetadataDocument")

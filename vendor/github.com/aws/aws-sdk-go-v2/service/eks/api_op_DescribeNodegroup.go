@@ -12,6 +12,7 @@ import (
 	smithytime "github.com/aws/smithy-go/time"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	smithywaiter "github.com/aws/smithy-go/waiter"
+	jmespath "github.com/jmespath/go-jmespath"
 	"time"
 )
 
@@ -317,31 +318,35 @@ func (w *NodegroupActiveWaiter) WaitForOutput(ctx context.Context, params *Descr
 func nodegroupActiveStateRetryable(ctx context.Context, input *DescribeNodegroupInput, output *DescribeNodegroupOutput, err error) (bool, error) {
 
 	if err == nil {
-		v1 := output.Nodegroup
-		var v2 types.NodegroupStatus
-		if v1 != nil {
-			v3 := v1.Status
-			v2 = v3
+		pathValue, err := jmespath.Search("nodegroup.status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
 		}
+
 		expectedValue := "CREATE_FAILED"
-		var pathValue string
-		pathValue = string(v2)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.NodegroupStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.NodegroupStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, fmt.Errorf("waiter state transitioned to Failure")
 		}
 	}
 
 	if err == nil {
-		v1 := output.Nodegroup
-		var v2 types.NodegroupStatus
-		if v1 != nil {
-			v3 := v1.Status
-			v2 = v3
+		pathValue, err := jmespath.Search("nodegroup.status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
 		}
+
 		expectedValue := "ACTIVE"
-		var pathValue string
-		pathValue = string(v2)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.NodegroupStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.NodegroupStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, nil
 		}
 	}
@@ -512,16 +517,18 @@ func (w *NodegroupDeletedWaiter) WaitForOutput(ctx context.Context, params *Desc
 func nodegroupDeletedStateRetryable(ctx context.Context, input *DescribeNodegroupInput, output *DescribeNodegroupOutput, err error) (bool, error) {
 
 	if err == nil {
-		v1 := output.Nodegroup
-		var v2 types.NodegroupStatus
-		if v1 != nil {
-			v3 := v1.Status
-			v2 = v3
+		pathValue, err := jmespath.Search("nodegroup.status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
 		}
+
 		expectedValue := "DELETE_FAILED"
-		var pathValue string
-		pathValue = string(v2)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.NodegroupStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.NodegroupStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, fmt.Errorf("waiter state transitioned to Failure")
 		}
 	}

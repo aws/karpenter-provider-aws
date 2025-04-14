@@ -182,20 +182,8 @@ var defaultPartitions = endpoints.Partitions{
 				Region: "ca-central-1",
 			}: endpoints.Endpoint{},
 			endpoints.EndpointKey{
-				Region:  "ca-central-1",
-				Variant: endpoints.FIPSVariant,
-			}: {
-				Hostname: "sqs-fips.ca-central-1.amazonaws.com",
-			},
-			endpoints.EndpointKey{
 				Region: "ca-west-1",
 			}: endpoints.Endpoint{},
-			endpoints.EndpointKey{
-				Region:  "ca-west-1",
-				Variant: endpoints.FIPSVariant,
-			}: {
-				Hostname: "sqs-fips.ca-west-1.amazonaws.com",
-			},
 			endpoints.EndpointKey{
 				Region: "eu-central-1",
 			}: endpoints.Endpoint{},
@@ -220,24 +208,6 @@ var defaultPartitions = endpoints.Partitions{
 			endpoints.EndpointKey{
 				Region: "eu-west-3",
 			}: endpoints.Endpoint{},
-			endpoints.EndpointKey{
-				Region: "fips-ca-central-1",
-			}: endpoints.Endpoint{
-				Hostname: "sqs-fips.ca-central-1.amazonaws.com",
-				CredentialScope: endpoints.CredentialScope{
-					Region: "ca-central-1",
-				},
-				Deprecated: aws.TrueTernary,
-			},
-			endpoints.EndpointKey{
-				Region: "fips-ca-west-1",
-			}: endpoints.Endpoint{
-				Hostname: "sqs-fips.ca-west-1.amazonaws.com",
-				CredentialScope: endpoints.CredentialScope{
-					Region: "ca-west-1",
-				},
-				Deprecated: aws.TrueTernary,
-			},
 			endpoints.EndpointKey{
 				Region: "fips-us-east-1",
 			}: endpoints.Endpoint{
@@ -455,27 +425,19 @@ var defaultPartitions = endpoints.Partitions{
 				Variant: endpoints.FIPSVariant,
 			}: {
 				Hostname:          "sqs-fips.{region}.csp.hci.ic.gov",
-				Protocols:         []string{"http", "https"},
+				Protocols:         []string{"https"},
 				SignatureVersions: []string{"v4"},
 			},
 			{
 				Variant: 0,
 			}: {
 				Hostname:          "sqs.{region}.csp.hci.ic.gov",
-				Protocols:         []string{"http", "https"},
+				Protocols:         []string{"https"},
 				SignatureVersions: []string{"v4"},
 			},
 		},
 		RegionRegex:    partitionRegexp.AwsIsoF,
 		IsRegionalized: true,
-		Endpoints: endpoints.Endpoints{
-			endpoints.EndpointKey{
-				Region: "us-isof-east-1",
-			}: endpoints.Endpoint{},
-			endpoints.EndpointKey{
-				Region: "us-isof-south-1",
-			}: endpoints.Endpoint{},
-		},
 	},
 	{
 		ID: "aws-us-gov",

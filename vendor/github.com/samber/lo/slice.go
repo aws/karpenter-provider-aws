@@ -4,7 +4,7 @@ import (
 	"sort"
 
 	"github.com/samber/lo/internal/constraints"
-	"github.com/samber/lo/mutable"
+	"github.com/samber/lo/internal/rand"
 )
 
 // Filter iterates over elements of collection, returning an array of all elements predicate returns truthy for.
@@ -30,21 +30,6 @@ func Map[T any, R any](collection []T, iteratee func(item T, index int) R) []R {
 		result[i] = iteratee(collection[i], i)
 	}
 
-	return result
-}
-
-// UniqMap manipulates a slice and transforms it to a slice of another type with unique values.
-func UniqMap[T any, R comparable](collection []T, iteratee func(item T, index int) R) []R {
-	result := make([]R, 0, len(collection))
-	seen := make(map[R]struct{}, len(collection))
-
-	for i, item := range collection {
-		r := iteratee(item, i)
-		if _, ok := seen[r]; !ok {
-			result = append(result, r)
-			seen[r] = struct{}{}
-		}
-	}
 	return result
 }
 
@@ -297,27 +282,33 @@ func Interleave[T any, Slice ~[]T](collections ...Slice) Slice {
 }
 
 // Shuffle returns an array of shuffled values. Uses the Fisher-Yates shuffle algorithm.
-// Play: https://go.dev/play/p/ZTGG7OUCdnp
-//
-// Deprecated: use mutable.Shuffle() instead.
+// Play: https://go.dev/play/p/Qp73bnTDnc7
 func Shuffle[T any, Slice ~[]T](collection Slice) Slice {
-	mutable.Shuffle(collection)
+	rand.Shuffle(len(collection), func(i, j int) {
+		collection[i], collection[j] = collection[j], collection[i]
+	})
+
 	return collection
 }
 
 // Reverse reverses array so that the first element becomes the last, the second element becomes the second to last, and so on.
-// Play: https://go.dev/play/p/iv2e9jslfBM
-//
-// Deprecated: use mutable.Reverse() instead.
+// Play: https://go.dev/play/p/fhUMLvZ7vS6
 func Reverse[T any, Slice ~[]T](collection Slice) Slice {
-	mutable.Reverse(collection)
+	length := len(collection)
+	half := length / 2
+
+	for i := 0; i < half; i = i + 1 {
+		j := length - 1 - i
+		collection[i], collection[j] = collection[j], collection[i]
+	}
+
 	return collection
 }
 
 // Fill fills elements of array with `initial` value.
 // Play: https://go.dev/play/p/VwR34GzqEub
-func Fill[T Clonable[T], Slice ~[]T](collection Slice, initial T) Slice {
-	result := make(Slice, 0, len(collection))
+func Fill[T Clonable[T]](collection []T, initial T) []T {
+	result := make([]T, 0, len(collection))
 
 	for range collection {
 		result = append(result, initial.Clone())
@@ -385,34 +376,6 @@ func Associate[T any, K comparable, V any](collection []T, transform func(item T
 // Play: https://go.dev/play/p/WHa2CfMO3Lr
 func SliceToMap[T any, K comparable, V any](collection []T, transform func(item T) (K, V)) map[K]V {
 	return Associate(collection, transform)
-}
-
-// FilterSliceToMap returns a map containing key-value pairs provided by transform function applied to elements of the given slice.
-// If any of two pairs would have the same key the last one gets added to the map.
-// The order of keys in returned map is not specified and is not guaranteed to be the same from the original array.
-// The third return value of the transform function is a boolean that indicates whether the key-value pair should be included in the map.
-func FilterSliceToMap[T any, K comparable, V any](collection []T, transform func(item T) (K, V, bool)) map[K]V {
-	result := make(map[K]V, len(collection))
-
-	for i := range collection {
-		k, v, ok := transform(collection[i])
-		if ok {
-			result[k] = v
-		}
-	}
-
-	return result
-}
-
-// Keyify returns a map with each unique element of the slice as a key.
-func Keyify[T comparable, Slice ~[]T](collection Slice) map[T]struct{} {
-	result := make(map[T]struct{}, len(collection))
-
-	for _, item := range collection {
-		result[item] = struct{}{}
-	}
-
-	return result
 }
 
 // Drop drops n elements from the beginning of a slice or array.

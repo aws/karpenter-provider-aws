@@ -34,8 +34,8 @@ type Queue struct {
 }
 
 // NewQueue constructs a new queue given the input pods, sorting them to optimize for bin-packing into nodes.
-func NewQueue(pods []*v1.Pod, podData map[types.UID]*PodData) *Queue {
-	sort.Slice(pods, byCPUAndMemoryDescending(pods, podData))
+func NewQueue(pods []*v1.Pod, podRequests map[types.UID]v1.ResourceList) *Queue {
+	sort.Slice(pods, byCPUAndMemoryDescending(pods, podRequests))
 	return &Queue{
 		pods:    pods,
 		lastLen: map[types.UID]int{},
@@ -73,13 +73,13 @@ func (q *Queue) List() []*v1.Pod {
 	return q.pods
 }
 
-func byCPUAndMemoryDescending(pods []*v1.Pod, podData map[types.UID]*PodData) func(i int, j int) bool {
+func byCPUAndMemoryDescending(pods []*v1.Pod, podRequests map[types.UID]v1.ResourceList) func(i int, j int) bool {
 	return func(i, j int) bool {
 		lhsPod := pods[i]
 		rhsPod := pods[j]
 
-		lhs := podData[lhsPod.UID].Requests
-		rhs := podData[rhsPod.UID].Requests
+		lhs := podRequests[lhsPod.UID]
+		rhs := podRequests[rhsPod.UID]
 
 		cpuCmp := resources.Cmp(lhs[v1.ResourceCPU], rhs[v1.ResourceCPU])
 		if cpuCmp < 0 {

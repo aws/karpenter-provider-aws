@@ -12,6 +12,7 @@ import (
 	smithytime "github.com/aws/smithy-go/time"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	smithywaiter "github.com/aws/smithy-go/waiter"
+	jmespath "github.com/jmespath/go-jmespath"
 	"time"
 )
 
@@ -462,81 +463,137 @@ func (w *CommandExecutedWaiter) WaitForOutput(ctx context.Context, params *GetCo
 func commandExecutedStateRetryable(ctx context.Context, input *GetCommandInvocationInput, output *GetCommandInvocationOutput, err error) (bool, error) {
 
 	if err == nil {
-		v1 := output.Status
+		pathValue, err := jmespath.Search("Status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
+		}
+
 		expectedValue := "Pending"
-		var pathValue string
-		pathValue = string(v1)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.CommandInvocationStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.CommandInvocationStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return true, nil
 		}
 	}
 
 	if err == nil {
-		v1 := output.Status
+		pathValue, err := jmespath.Search("Status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
+		}
+
 		expectedValue := "InProgress"
-		var pathValue string
-		pathValue = string(v1)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.CommandInvocationStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.CommandInvocationStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return true, nil
 		}
 	}
 
 	if err == nil {
-		v1 := output.Status
+		pathValue, err := jmespath.Search("Status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
+		}
+
 		expectedValue := "Delayed"
-		var pathValue string
-		pathValue = string(v1)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.CommandInvocationStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.CommandInvocationStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return true, nil
 		}
 	}
 
 	if err == nil {
-		v1 := output.Status
+		pathValue, err := jmespath.Search("Status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
+		}
+
 		expectedValue := "Success"
-		var pathValue string
-		pathValue = string(v1)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.CommandInvocationStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.CommandInvocationStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, nil
 		}
 	}
 
 	if err == nil {
-		v1 := output.Status
+		pathValue, err := jmespath.Search("Status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
+		}
+
 		expectedValue := "Cancelled"
-		var pathValue string
-		pathValue = string(v1)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.CommandInvocationStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.CommandInvocationStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, fmt.Errorf("waiter state transitioned to Failure")
 		}
 	}
 
 	if err == nil {
-		v1 := output.Status
+		pathValue, err := jmespath.Search("Status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
+		}
+
 		expectedValue := "TimedOut"
-		var pathValue string
-		pathValue = string(v1)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.CommandInvocationStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.CommandInvocationStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, fmt.Errorf("waiter state transitioned to Failure")
 		}
 	}
 
 	if err == nil {
-		v1 := output.Status
+		pathValue, err := jmespath.Search("Status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
+		}
+
 		expectedValue := "Failed"
-		var pathValue string
-		pathValue = string(v1)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.CommandInvocationStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.CommandInvocationStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, fmt.Errorf("waiter state transitioned to Failure")
 		}
 	}
 
 	if err == nil {
-		v1 := output.Status
+		pathValue, err := jmespath.Search("Status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
+		}
+
 		expectedValue := "Cancelling"
-		var pathValue string
-		pathValue = string(v1)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.CommandInvocationStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.CommandInvocationStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, fmt.Errorf("waiter state transitioned to Failure")
 		}
 	}

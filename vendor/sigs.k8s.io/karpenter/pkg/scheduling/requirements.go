@@ -176,10 +176,7 @@ func (r Requirements) Compatible(requirements Requirements, options ...option.Fu
 	opts := option.Resolve(options...)
 
 	// Custom Labels must intersect, but if not defined are denied.
-	for key := range requirements {
-		if opts.AllowUndefined.Has(key) {
-			continue
-		}
+	for key := range requirements.Keys().Difference(opts.AllowUndefined) {
 		if operator := requirements.Get(key).Operator(); r.Has(key) || operator == corev1.NodeSelectorOpNotIn || operator == corev1.NodeSelectorOpDoesNotExist {
 			continue
 		}
@@ -287,7 +284,8 @@ func (r Requirements) Intersects(requirements Requirements) (errs error) {
 	for key := range r.intersectKeys(requirements) {
 		existing := r.Get(key)
 		incoming := requirements.Get(key)
-		if !existing.HasIntersection(incoming) {
+		// There must be some value, except
+		if existing.Intersection(incoming).Len() == 0 {
 			// where the incoming requirement has operator { NotIn, DoesNotExist }
 			if operator := incoming.Operator(); operator == corev1.NodeSelectorOpNotIn || operator == corev1.NodeSelectorOpDoesNotExist {
 				// and the existing requirement has operator { NotIn, DoesNotExist }

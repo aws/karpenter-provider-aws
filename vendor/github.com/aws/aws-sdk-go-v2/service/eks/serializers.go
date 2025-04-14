@@ -2433,10 +2433,6 @@ func awsRestjson1_serializeOpHttpBindingsDescribeClusterVersionsInput(v *Describ
 		encoder.SetQuery("status").String(string(v.Status))
 	}
 
-	if len(v.VersionStatus) > 0 {
-		encoder.SetQuery("versionStatus").String(string(v.VersionStatus))
-	}
-
 	return nil
 }
 
@@ -5965,11 +5961,6 @@ func awsRestjson1_serializeDocumentNodegroupUpdateConfig(v *types.NodegroupUpdat
 	if v.MaxUnavailablePercentage != nil {
 		ok := object.Key("maxUnavailablePercentage")
 		ok.Integer(*v.MaxUnavailablePercentage)
-	}
-
-	if len(v.UpdateStrategy) > 0 {
-		ok := object.Key("updateStrategy")
-		ok.String(string(v.UpdateStrategy))
 	}
 
 	return nil

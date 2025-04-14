@@ -187,46 +187,6 @@ func (r *Requirement) Intersection(requirement *Requirement) *Requirement {
 	return &Requirement{Key: r.Key, values: values, complement: complement, greaterThan: greaterThan, lessThan: lessThan, MinValues: minValues}
 }
 
-// nolint:gocyclo
-// HasIntersection is a more efficient implementation of Intersection
-// It validates whether there is an intersection between the two requirements without actually creating the sets
-// This prevents the garbage collector from having to spend cycles cleaning up all of these created set objects
-func (r *Requirement) HasIntersection(requirement *Requirement) bool {
-	greaterThan := maxIntPtr(r.greaterThan, requirement.greaterThan)
-	lessThan := minIntPtr(r.lessThan, requirement.lessThan)
-	if greaterThan != nil && lessThan != nil && *greaterThan >= *lessThan {
-		return false
-	}
-	// Both requirements have a complement
-	if r.complement && requirement.complement {
-		return true
-	}
-	// Only one requirement has a complement
-	if r.complement && !requirement.complement {
-		for value := range requirement.values {
-			if !r.values.Has(value) && withinIntPtrs(value, greaterThan, lessThan) {
-				return true
-			}
-		}
-		return false
-	}
-	if !r.complement && requirement.complement {
-		for value := range r.values {
-			if !requirement.values.Has(value) && withinIntPtrs(value, greaterThan, lessThan) {
-				return true
-			}
-		}
-		return false
-	}
-	// Both requirements are non-complement requirements
-	for value := range r.values {
-		if requirement.values.Has(value) && withinIntPtrs(value, greaterThan, lessThan) {
-			return true
-		}
-	}
-	return false
-}
-
 func (r *Requirement) Any() string {
 	switch r.Operator() {
 	case corev1.NodeSelectorOpIn:

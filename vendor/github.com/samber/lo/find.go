@@ -241,32 +241,6 @@ func Min[T constraints.Ordered](collection []T) T {
 	return min
 }
 
-// MinIndex search the minimum value of a collection and the index of the minimum value.
-// Returns (zero value, -1) when the collection is empty.
-func MinIndex[T constraints.Ordered](collection []T) (T, int) {
-	var (
-		min   T
-		index int
-	)
-
-	if len(collection) == 0 {
-		return min, -1
-	}
-
-	min = collection[0]
-
-	for i := 1; i < len(collection); i++ {
-		item := collection[i]
-
-		if item < min {
-			min = item
-			index = i
-		}
-	}
-
-	return min, index
-}
-
 // MinBy search the minimum value of a collection using the given comparison function.
 // If several values of the collection are equal to the smallest value, returns the first such value.
 // Returns zero value when the collection is empty.
@@ -288,33 +262,6 @@ func MinBy[T any](collection []T, comparison func(a T, b T) bool) T {
 	}
 
 	return min
-}
-
-// MinIndexBy search the minimum value of a collection using the given comparison function and the index of the minimum value.
-// If several values of the collection are equal to the smallest value, returns the first such value.
-// Returns (zero value, -1) when the collection is empty.
-func MinIndexBy[T any](collection []T, comparison func(a T, b T) bool) (T, int) {
-	var (
-		min   T
-		index int
-	)
-
-	if len(collection) == 0 {
-		return min, -1
-	}
-
-	min = collection[0]
-
-	for i := 1; i < len(collection); i++ {
-		item := collection[i]
-
-		if comparison(item, min) {
-			min = item
-			index = i
-		}
-	}
-
-	return min, index
 }
 
 // Earliest search the minimum time.Time of a collection.
@@ -385,32 +332,6 @@ func Max[T constraints.Ordered](collection []T) T {
 	return max
 }
 
-// MaxIndex searches the maximum value of a collection and the index of the maximum value.
-// Returns (zero value, -1) when the collection is empty.
-func MaxIndex[T constraints.Ordered](collection []T) (T, int) {
-	var (
-		max   T
-		index int
-	)
-
-	if len(collection) == 0 {
-		return max, -1
-	}
-
-	max = collection[0]
-
-	for i := 1; i < len(collection); i++ {
-		item := collection[i]
-
-		if item > max {
-			max = item
-			index = i
-		}
-	}
-
-	return max, index
-}
-
 // MaxBy search the maximum value of a collection using the given comparison function.
 // If several values of the collection are equal to the greatest value, returns the first such value.
 // Returns zero value when the collection is empty.
@@ -432,33 +353,6 @@ func MaxBy[T any](collection []T, comparison func(a T, b T) bool) T {
 	}
 
 	return max
-}
-
-// MaxIndexBy search the maximum value of a collection using the given comparison function and the index of the maximum value.
-// If several values of the collection are equal to the greatest value, returns the first such value.
-// Returns (zero value, -1) when the collection is empty.
-func MaxIndexBy[T any](collection []T, comparison func(a T, b T) bool) (T, int) {
-	var (
-		max   T
-		index int
-	)
-
-	if len(collection) == 0 {
-		return max, -1
-	}
-
-	max = collection[0]
-
-	for i := 1; i < len(collection); i++ {
-		item := collection[i]
-
-		if comparison(item, max) {
-			max = item
-			index = i
-		}
-	}
-
-	return max, index
 }
 
 // Latest search the maximum time.Time of a collection.
@@ -547,7 +441,7 @@ func Last[T any](collection []T) (T, bool) {
 	return collection[length-1], true
 }
 
-// LastOrEmpty returns the last element of a collection or zero value if empty.
+// Returns the last element of a collection or zero value if empty.
 func LastOrEmpty[T any](collection []T) T {
 	i, _ := Last(collection)
 	return i
@@ -579,33 +473,18 @@ func Nth[T any, N constraints.Integer](collection []T, nth N) (T, error) {
 	return collection[l+n], nil
 }
 
-// randomIntGenerator is a function that should return a random integer in the range [0, n)
-// where n is the parameter passed to the randomIntGenerator.
-type randomIntGenerator func(n int) int
-
 // Sample returns a random item from collection.
 func Sample[T any](collection []T) T {
-	result := SampleBy(collection, rand.IntN)
-	return result
-}
-
-// SampleBy returns a random item from collection, using randomIntGenerator as the random index generator.
-func SampleBy[T any](collection []T, randomIntGenerator randomIntGenerator) T {
 	size := len(collection)
 	if size == 0 {
 		return Empty[T]()
 	}
-	return collection[randomIntGenerator(size)]
+
+	return collection[rand.IntN(size)]
 }
 
 // Samples returns N random unique items from collection.
 func Samples[T any, Slice ~[]T](collection Slice, count int) Slice {
-	results := SamplesBy(collection, count, rand.IntN)
-	return results
-}
-
-// SamplesBy returns N random unique items from collection, using randomIntGenerator as the random index generator.
-func SamplesBy[T any, Slice ~[]T](collection Slice, count int, randomIntGenerator randomIntGenerator) Slice {
 	size := len(collection)
 
 	copy := append(Slice{}, collection...)
@@ -615,7 +494,7 @@ func SamplesBy[T any, Slice ~[]T](collection Slice, count int, randomIntGenerato
 	for i := 0; i < size && i < count; i++ {
 		copyLength := size - i
 
-		index := randomIntGenerator(size - i)
+		index := rand.IntN(size - i)
 		results = append(results, copy[index])
 
 		// Removes element.

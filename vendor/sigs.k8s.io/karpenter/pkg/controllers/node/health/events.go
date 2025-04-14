@@ -30,7 +30,7 @@ func NodeRepairBlocked(node *corev1.Node, nodeClaim *v1.NodeClaim, nodePool *v1.
 		{
 			InvolvedObject: node,
 			Type:           corev1.EventTypeWarning,
-			Reason:         events.NodeRepairBlocked,
+			Reason:         "NodeRepairBlocked",
 			Message:        reason,
 			DedupeValues:   []string{string(node.UID)},
 			DedupeTimeout:  time.Minute * 15,
@@ -38,7 +38,7 @@ func NodeRepairBlocked(node *corev1.Node, nodeClaim *v1.NodeClaim, nodePool *v1.
 		{
 			InvolvedObject: node,
 			Type:           corev1.EventTypeWarning,
-			Reason:         events.NodeRepairBlocked,
+			Reason:         "NodeRepairBlocked",
 			Message:        reason,
 			DedupeValues:   []string{string(nodeClaim.UID)},
 			DedupeTimeout:  time.Minute * 15,
@@ -46,7 +46,7 @@ func NodeRepairBlocked(node *corev1.Node, nodeClaim *v1.NodeClaim, nodePool *v1.
 		{
 			InvolvedObject: node,
 			Type:           corev1.EventTypeWarning,
-			Reason:         events.NodeRepairBlocked,
+			Reason:         "NodeRepairBlocked",
 			Message:        reason,
 			DedupeValues:   []string{string(nodePool.UID)},
 			DedupeTimeout:  time.Minute * 15,
@@ -59,7 +59,7 @@ func NodeRepairBlockedUnmanagedNodeClaim(node *corev1.Node, nodeClaim *v1.NodeCl
 		{
 			InvolvedObject: node,
 			Type:           corev1.EventTypeWarning,
-			Reason:         events.NodeRepairBlocked,
+			Reason:         "NodeRepairBlocked",
 			Message:        reason,
 			DedupeValues:   []string{string(node.UID)},
 			DedupeTimeout:  time.Minute * 15,
@@ -67,7 +67,7 @@ func NodeRepairBlockedUnmanagedNodeClaim(node *corev1.Node, nodeClaim *v1.NodeCl
 		{
 			InvolvedObject: node,
 			Type:           corev1.EventTypeWarning,
-			Reason:         events.NodeRepairBlocked,
+			Reason:         "NodeRepairBlocked",
 			Message:        reason,
 			DedupeValues:   []string{string(nodeClaim.UID)},
 			DedupeTimeout:  time.Minute * 15,

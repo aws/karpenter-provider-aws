@@ -22,7 +22,6 @@ import (
 	"math"
 
 	"github.com/awslabs/operatorpkg/option"
-	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -33,8 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/utils/pod"
@@ -43,41 +40,31 @@ import (
 
 type Topology struct {
 	kubeClient client.Client
-	// Both the topologyGroups and inverseTopologies are maps of the hash from TopologyGroup.Hash() to the topology group
+	// Both the topologies and inverseTopologies are maps of the hash from TopologyGroup.Hash() to the topology group
 	// itself. This is used to allow us to store one topology group that tracks the topology of many pods instead of
 	// having a 1<->1 mapping between topology groups and pods owned/selected by that group.
-	topologyGroups map[uint64]*TopologyGroup
+	topologies map[uint64]*TopologyGroup
 	// Anti-affinity works both ways (if a zone has a pod foo with anti-affinity to a pod bar, we can't schedule bar to
 	// that zone, even though bar has no anti affinity terms on it. For this to work, we need to separately track the
 	// topologies of pods with anti-affinity terms, so we can prevent scheduling the pods they have anti-affinity to
 	// in some cases.
-	inverseTopologyGroups map[uint64]*TopologyGroup
+	inverseTopologies map[uint64]*TopologyGroup
 	// The universe of domains by topology key
-	domainGroups map[string]TopologyDomainGroup
+	domains map[string]sets.Set[string]
 	// excludedPods are the pod UIDs of pods that are excluded from counting.  This is used so we can simulate
 	// moving pods to prevent them from being double counted.
 	excludedPods sets.Set[string]
 	cluster      *state.Cluster
-	stateNodes   []*state.StateNode
 }
 
-func NewTopology(
-	ctx context.Context,
-	kubeClient client.Client,
-	cluster *state.Cluster,
-	stateNodes []*state.StateNode,
-	nodePools []*v1.NodePool,
-	instanceTypes map[string][]*cloudprovider.InstanceType,
-	pods []*corev1.Pod,
-) (*Topology, error) {
+func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.Cluster, domains map[string]sets.Set[string], pods []*corev1.Pod) (*Topology, error) {
 	t := &Topology{
-		kubeClient:            kubeClient,
-		cluster:               cluster,
-		stateNodes:            stateNodes,
-		domainGroups:          buildDomainGroups(nodePools, instanceTypes),
-		topologyGroups:        map[uint64]*TopologyGroup{},
-		inverseTopologyGroups: map[uint64]*TopologyGroup{},
-		excludedPods:          sets.New[string](),
+		kubeClient:        kubeClient,
+		cluster:           cluster,
+		domains:           domains,
+		topologies:        map[uint64]*TopologyGroup{},
+		inverseTopologies: map[uint64]*TopologyGroup{},
+		excludedPods:      sets.New[string](),
 	}
 
 	// these are the pods that we intend to schedule, so if they are currently in the cluster we shouldn't count them for
@@ -94,46 +81,6 @@ func NewTopology(
 		return nil, errs
 	}
 	return t, nil
-}
-
-func buildDomainGroups(nodePools []*v1.NodePool, instanceTypes map[string][]*cloudprovider.InstanceType) map[string]TopologyDomainGroup {
-	nodePoolIndex := lo.SliceToMap(nodePools, func(np *v1.NodePool) (string, *v1.NodePool) {
-		return np.Name, np
-	})
-	domainGroups := map[string]TopologyDomainGroup{}
-	for npName, its := range instanceTypes {
-		np := nodePoolIndex[npName]
-		for _, it := range its {
-			// We need to intersect the instance type requirements with the current nodePool requirements.  This
-			// ensures that something like zones from an instance type don't expand the universe of valid domains.
-			requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
-			requirements.Add(scheduling.NewLabelRequirements(np.Spec.Template.Labels).Values()...)
-			requirements.Add(it.Requirements.Values()...)
-
-			for topologyKey, requirement := range requirements {
-				if _, ok := domainGroups[topologyKey]; !ok {
-					domainGroups[topologyKey] = NewTopologyDomainGroup()
-				}
-				for _, domain := range requirement.Values() {
-					domainGroups[topologyKey].Insert(domain, np.Spec.Template.Spec.Taints...)
-				}
-			}
-		}
-
-		requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
-		requirements.Add(scheduling.NewLabelRequirements(np.Spec.Template.Labels).Values()...)
-		for key, requirement := range requirements {
-			if requirement.Operator() == corev1.NodeSelectorOpIn {
-				if _, ok := domainGroups[key]; !ok {
-					domainGroups[key] = NewTopologyDomainGroup()
-				}
-				for _, value := range requirement.Values() {
-					domainGroups[key].Insert(value, np.Spec.Template.Spec.Taints...)
-				}
-			}
-		}
-	}
-	return domainGroups
 }
 
 // topologyError allows lazily generating the error string in the topology error.  If a pod fails to schedule, most often
@@ -154,7 +101,7 @@ func (t topologyError) Error() string {
 // relaxation of a preference to properly break the topology <-> owner relationship so that the preferred topology will
 // no longer influence scheduling.
 func (t *Topology) Update(ctx context.Context, p *corev1.Pod) error {
-	for _, topology := range t.topologyGroups {
+	for _, topology := range t.topologies {
 		topology.RemoveOwner(p.UID)
 	}
 
@@ -173,11 +120,11 @@ func (t *Topology) Update(ctx context.Context, p *corev1.Pod) error {
 	for _, tg := range append(topologies, affinities...) {
 		hash := tg.Hash()
 		// Avoid recomputing topology counts if we've already seen this group
-		if existing, ok := t.topologyGroups[hash]; !ok {
+		if existing, ok := t.topologies[hash]; !ok {
 			if err := t.countDomains(ctx, tg); err != nil {
 				return err
 			}
-			t.topologyGroups[hash] = tg
+			t.topologies[hash] = tg
 		} else {
 			tg = existing
 		}
@@ -187,27 +134,27 @@ func (t *Topology) Update(ctx context.Context, p *corev1.Pod) error {
 }
 
 // Record records the topology changes given that pod p schedule on a node with the given requirements
-func (t *Topology) Record(p *corev1.Pod, taints []corev1.Taint, requirements scheduling.Requirements, compatabilityOptions ...option.Function[scheduling.CompatibilityOptions]) {
+func (t *Topology) Record(p *corev1.Pod, requirements scheduling.Requirements, compatabilityOptions ...option.Function[scheduling.CompatibilityOptions]) {
 	// once we've committed to a domain, we record the usage in every topology that cares about it
-	for _, tg := range t.topologyGroups {
-		if tg.Counts(p, taints, requirements, compatabilityOptions...) {
-			domains := requirements.Get(tg.Key)
-			if tg.Type == TopologyTypePodAntiAffinity {
+	for _, tc := range t.topologies {
+		if tc.Counts(p, requirements, compatabilityOptions...) {
+			domains := requirements.Get(tc.Key)
+			if tc.Type == TopologyTypePodAntiAffinity {
 				// for anti-affinity topologies we need to block out all possible domains that the pod could land in
-				tg.Record(domains.Values()...)
+				tc.Record(domains.Values()...)
 			} else {
 				// but for affinity & topology spread, we can only record the domain if we know the specific domain we land in
 				if domains.Len() == 1 {
-					tg.Record(domains.Values()[0])
+					tc.Record(domains.Values()[0])
 				}
 			}
 		}
 	}
 	// for anti-affinities, we record where the pods could be, even if
 	// requirements haven't collapsed to a single value.
-	for _, tg := range t.inverseTopologyGroups {
-		if tg.IsOwnedBy(p.UID) {
-			tg.Record(requirements.Get(tg.Key).Values()...)
+	for _, tc := range t.inverseTopologies {
+		if tc.IsOwnedBy(p.UID) {
+			tc.Record(requirements.Get(tc.Key).Values()...)
 		}
 	}
 }
@@ -216,9 +163,9 @@ func (t *Topology) Record(p *corev1.Pod, taints []corev1.Taint, requirements sch
 // affinities, anti-affinities or inverse anti-affinities.  The nodeHostname is the hostname that we are currently considering
 // placing the pod on.  It returns these newly tightened requirements, or an error in the case of a set of requirements that
 // cannot be satisfied.
-func (t *Topology) AddRequirements(p *corev1.Pod, taints []corev1.Taint, podRequirements, nodeRequirements scheduling.Requirements, compatabilityOptions ...option.Function[scheduling.CompatibilityOptions]) (scheduling.Requirements, error) {
+func (t *Topology) AddRequirements(podRequirements, nodeRequirements scheduling.Requirements, p *corev1.Pod, compatabilityOptions ...option.Function[scheduling.CompatibilityOptions]) (scheduling.Requirements, error) {
 	requirements := scheduling.NewRequirements(nodeRequirements.Values()...)
-	for _, topology := range t.getMatchingTopologies(p, taints, nodeRequirements, compatabilityOptions...) {
+	for _, topology := range t.getMatchingTopologies(p, nodeRequirements, compatabilityOptions...) {
 		podDomains := scheduling.NewRequirement(topology.Key, corev1.NodeSelectorOpExists)
 		if podRequirements.Has(topology.Key) {
 			podDomains = podRequirements.Get(topology.Key)
@@ -242,26 +189,26 @@ func (t *Topology) AddRequirements(p *corev1.Pod, taints []corev1.Taint, podRequ
 
 // Register is used to register a domain as available across topologies for the given topology key.
 func (t *Topology) Register(topologyKey string, domain string) {
-	for _, tg := range t.topologyGroups {
-		if tg.Key == topologyKey {
-			tg.Register(domain)
+	for _, topology := range t.topologies {
+		if topology.Key == topologyKey {
+			topology.Register(domain)
 		}
 	}
-	for _, tg := range t.inverseTopologyGroups {
-		if tg.Key == topologyKey {
-			tg.Register(domain)
+	for _, topology := range t.inverseTopologies {
+		if topology.Key == topologyKey {
+			topology.Register(domain)
 		}
 	}
 }
 
 // Unregister is used to unregister a domain as available across topologies for the given topology key.
 func (t *Topology) Unregister(topologyKey string, domain string) {
-	for _, topology := range t.topologyGroups {
+	for _, topology := range t.topologies {
 		if topology.Key == topologyKey {
 			topology.Unregister(domain)
 		}
 	}
-	for _, topology := range t.inverseTopologyGroups {
+	for _, topology := range t.inverseTopologies {
 		if topology.Key == topologyKey {
 			topology.Unregister(domain)
 		}
@@ -298,11 +245,11 @@ func (t *Topology) updateInverseAntiAffinity(ctx context.Context, pod *corev1.Po
 			return err
 		}
 
-		tg := NewTopologyGroup(TopologyTypePodAntiAffinity, term.TopologyKey, pod, namespaces, term.LabelSelector, math.MaxInt32, nil, nil, nil, t.domainGroups[term.TopologyKey])
+		tg := NewTopologyGroup(TopologyTypePodAntiAffinity, term.TopologyKey, pod, namespaces, term.LabelSelector, math.MaxInt32, nil, t.domains[term.TopologyKey])
 
 		hash := tg.Hash()
-		if existing, ok := t.inverseTopologyGroups[hash]; !ok {
-			t.inverseTopologyGroups[hash] = tg
+		if existing, ok := t.inverseTopologies[hash]; !ok {
+			t.inverseTopologies[hash] = tg
 		} else {
 			tg = existing
 		}
@@ -329,29 +276,6 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 			return fmt.Errorf("listing pods, %w", err)
 		}
 		pods = append(pods, podList.Items...)
-	}
-
-	// capture new domain values from existing nodes that may not have any pods selected by the topology group
-	// scheduled to them already
-	// Note: long term we should handle this when constructing the domain groups, but that would require domain groups
-	// to handle affinity in addition to taints / tolerations.
-	for _, n := range t.stateNodes {
-		// ignore state nodes which are tracking in-flight NodeClaims
-		if n.Node == nil {
-			continue
-		}
-		// ignore the node if it doesn't match the topology group
-		if !tg.nodeFilter.Matches(n.Node.Spec.Taints, scheduling.NewLabelRequirements(n.Node.Labels)) {
-			continue
-		}
-		domain, exists := n.Labels()[tg.Key]
-		if !exists {
-			continue
-		}
-		if _, ok := tg.domains[domain]; !ok {
-			tg.domains[domain] = 0
-			tg.emptyDomains.Insert(domain)
-		}
 	}
 
 	for i, p := range pods {
@@ -388,7 +312,7 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 		}
 		// nodes may or may not be considered for counting purposes for topology spread constraints depending on if they
 		// are selected by the pod's node selectors and required node affinities.  If these are unset, the node always counts.
-		if !tg.nodeFilter.Matches(node.Spec.Taints, scheduling.NewLabelRequirements(node.Labels)) {
+		if !tg.nodeFilter.Matches(node) {
 			continue
 		}
 		tg.Record(domain)
@@ -398,28 +322,8 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 
 func (t *Topology) newForTopologies(p *corev1.Pod) []*TopologyGroup {
 	var topologyGroups []*TopologyGroup
-	for _, tsc := range p.Spec.TopologySpreadConstraints {
-		for _, key := range tsc.MatchLabelKeys {
-			if value, ok := p.Labels[key]; ok {
-				tsc.LabelSelector.MatchExpressions = append(tsc.LabelSelector.MatchExpressions, metav1.LabelSelectorRequirement{
-					Key:      key,
-					Operator: metav1.LabelSelectorOpIn,
-					Values:   []string{value},
-				})
-			}
-		}
-		topologyGroups = append(topologyGroups, NewTopologyGroup(
-			TopologyTypeSpread,
-			tsc.TopologyKey,
-			p,
-			sets.New(p.Namespace),
-			tsc.LabelSelector,
-			tsc.MaxSkew,
-			tsc.MinDomains,
-			tsc.NodeTaintsPolicy,
-			tsc.NodeAffinityPolicy,
-			t.domainGroups[tsc.TopologyKey],
-		))
+	for _, cs := range p.Spec.TopologySpreadConstraints {
+		topologyGroups = append(topologyGroups, NewTopologyGroup(TopologyTypeSpread, cs.TopologyKey, p, sets.New(p.Namespace), cs.LabelSelector, cs.MaxSkew, cs.MinDomains, t.domains[cs.TopologyKey]))
 	}
 	return topologyGroups
 }
@@ -456,7 +360,7 @@ func (t *Topology) newForAffinities(ctx context.Context, p *corev1.Pod) ([]*Topo
 			if err != nil {
 				return nil, err
 			}
-			topologyGroups = append(topologyGroups, NewTopologyGroup(topologyType, term.TopologyKey, p, namespaces, term.LabelSelector, math.MaxInt32, nil, nil, nil, t.domainGroups[term.TopologyKey]))
+			topologyGroups = append(topologyGroups, NewTopologyGroup(topologyType, term.TopologyKey, p, namespaces, term.LabelSelector, math.MaxInt32, nil, t.domains[term.TopologyKey]))
 		}
 	}
 	return topologyGroups, nil
@@ -489,16 +393,16 @@ func (t *Topology) buildNamespaceList(ctx context.Context, namespace string, nam
 
 // getMatchingTopologies returns a sorted list of topologies that either control the scheduling of pod p, or for which
 // the topology selects pod p and the scheduling of p affects the count per topology domain
-func (t *Topology) getMatchingTopologies(p *corev1.Pod, taints []corev1.Taint, requirements scheduling.Requirements, compatabilityOptions ...option.Function[scheduling.CompatibilityOptions]) []*TopologyGroup {
+func (t *Topology) getMatchingTopologies(p *corev1.Pod, requirements scheduling.Requirements, compatabilityOptions ...option.Function[scheduling.CompatibilityOptions]) []*TopologyGroup {
 	var matchingTopologies []*TopologyGroup
-	for _, tg := range t.topologyGroups {
-		if tg.IsOwnedBy(p.UID) {
-			matchingTopologies = append(matchingTopologies, tg)
+	for _, tc := range t.topologies {
+		if tc.IsOwnedBy(p.UID) {
+			matchingTopologies = append(matchingTopologies, tc)
 		}
 	}
-	for _, tg := range t.inverseTopologyGroups {
-		if tg.Counts(p, taints, requirements, compatabilityOptions...) {
-			matchingTopologies = append(matchingTopologies, tg)
+	for _, tc := range t.inverseTopologies {
+		if tc.Counts(p, requirements, compatabilityOptions...) {
+			matchingTopologies = append(matchingTopologies, tc)
 		}
 	}
 	return matchingTopologies

@@ -70,8 +70,7 @@ type ListPodIdentityAssociationsOutput struct {
 	// The list of summarized descriptions of the associations that are in the cluster
 	// and match any filters that you provided.
 	//
-	// Each summary is simplified by removing these fields compared to the full [PodIdentityAssociation]
-	// PodIdentityAssociation :
+	// Each summary is simplified by removing these fields compared to the full PodIdentityAssociation:
 	//
 	//   - The IAM role: roleArn
 	//
@@ -80,8 +79,6 @@ type ListPodIdentityAssociationsOutput struct {
 	//   - The most recent timestamp that the association was modified at:. modifiedAt
 	//
 	//   - The tags on the association: tags
-	//
-	// [PodIdentityAssociation]: https://docs.aws.amazon.com/eks/latest/APIReference/API_PodIdentityAssociation.html
 	Associations []types.PodIdentityAssociationSummary
 
 	// The nextToken value to include in a future ListPodIdentityAssociations request.
