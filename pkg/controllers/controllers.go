@@ -26,7 +26,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	nodeclass "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	nodeclasshash "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/hash"
 	controllersinstancetype "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype"
@@ -64,7 +63,6 @@ func NewControllers(
 	mgr manager.Manager,
 	cfg aws.Config,
 	clk clock.Clock,
-	ec2api sdk.EC2API,
 	kubeClient client.Client,
 	recorder events.Recorder,
 	unavailableOfferings *awscache.UnavailableOfferings,
@@ -81,7 +79,7 @@ func NewControllers(
 	instanceTypeProvider *instancetype.DefaultProvider) []controller.Controller {
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient),
-		nodeclass.NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider, ec2api),
+		nodeclass.NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, cloudProvider, instanceProvider),
 		controllerspricing.NewController(pricingProvider),

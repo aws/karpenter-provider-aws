@@ -73,7 +73,6 @@ var _ = BeforeSuite(func() {
 		awsEnv.AMIProvider,
 		awsEnv.InstanceProfileProvider,
 		awsEnv.LaunchTemplateProvider,
-		awsEnv.EC2API,
 	)
 })
 

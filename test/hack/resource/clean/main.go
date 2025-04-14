@@ -18,7 +18,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -27,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 
 	"github.com/aws/karpenter-provider-aws/test/hack/resource/pkg/metrics"
 	"github.com/aws/karpenter-provider-aws/test/hack/resource/pkg/resourcetypes"

@@ -169,7 +169,7 @@ var _ = Describe("AMIProvider", func() {
 		}
 		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(amis).To(HaveLen(4))
+		Expect(amis).To(HaveLen(5))
 	})
 	It("should succeed to resolve AMIs (Windows2019)", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2019@latest"}}
@@ -304,7 +304,7 @@ var _ = Describe("AMIProvider", func() {
 			// Only 4 of the requirements sets for the SSM aliases will resolve
 			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(amis).To(HaveLen(3))
+			Expect(amis).To(HaveLen(4))
 		})
 	})
 	Context("AMI Tag Requirements", func() {

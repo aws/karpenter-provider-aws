@@ -25,7 +25,6 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Cloud Posse, LLC | Karpenter ships out-of-the-box in our Terraform Blueprint for EKS and is offered as part of our comprehensive multi-account [AWS reference architecture](https://cloudposse.com/reference-architecture/). Everything is Open Source (APACHE2). | `@osterman` | [Karpenter : The Cloud Posse Developer Hub](https://docs.cloudposse.com/components/catalog/aws/eks/karpenter/) |
 | Codefresh | Juggling workloads for the SAAS CD/GitOps offering | `@Yonatan Koren`, `@Ilia Medvedev` | [Codefresh](https://codefresh.io/) |
 | Conveyor | Using karpenter to scale our customers data pipelines on EKS | `@stijndehaes` | [Conveyor](https://conveyordata.com/) |
-| Coralogix   | Using Karpenter on all of our EKS K8S Clusters in multi-tenant high scale production environments | `@doryer` | [Coralogix](https://coralogix.com/) |
 | Cordial   | Using Karpenter to scale multiple EKS clusters quickly | `@dschaaff` | [Cordial](https://cordial.com) |
 | Dig Security | Protecting our customers data - Using Karpenter to manage production and development workloads on EKS, We are using only Spot Instances in production. | `@Shahar Danus` | [Dig Security](https://dig.security/) |
 | Docker | Using Karpenter to scale Docker Hub on our EKS clusters | N/A | [Docker](https://www.docker.com) |
@@ -38,6 +37,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Kaltura | Using karpenter to deliver video to millions of end users | `@Ido Ziv` | [Homepage](https://corp.kaltura.com/) |
 | Livspace | Replacement for cluster autoscaler on production and staging EKS clusters | `@praveen-livspace` | [Homepage](https://www.livspace.com) |
 | Nexxiot | Easier, Safer, Cleaner Global Transportation - Using Karpenter to manage EKS nodes | `@Alex Berger` | [Homepage](https://nexxiot.com/) |
+| Nirvana Money | Building healthy, happy financial lives - Using Karpenter to manage all-Spot clusters | `@DWSR` | [Homepage](https://www.nirvana.money/) |
 | OccMundial | Using karpenter to manage our production workloads, using the dynamic scaling according to workload that needs to scale.  | `@parraletz` | [Homepage](https://www.occ.com.mx) |
 | Omaze | Intelligently using Karpenter's autoscaling to power our platforms | `@devopsidiot` | [Homepage](https://www.omaze.com/) |
 | PITS Global Data Recovery Services | Used to manage continuous integration and continuous delivery/deployment workflows. | N/A | [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/) |

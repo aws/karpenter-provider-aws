@@ -79,6 +79,7 @@ type BottlerocketKubernetes struct {
 	ClusterDomain                      *string                                   `toml:"cluster-domain,omitempty"`
 	SeccompDefault                     *bool                                     `toml:"seccomp-default,omitempty"`
 	PodPidsLimit                       *int                                      `toml:"pod-pids-limit,omitempty"`
+	DeviceOwnershipFromSecurityContext *bool                                     `toml:"device-ownership-from-security-context,omitempty"`
 }
 
 type BottlerocketStaticPod struct {

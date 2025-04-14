@@ -16,13 +16,13 @@ package resourcetypes
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	"golang.org/x/exp/slices"
 )
 
 type LaunchTemplate struct {

@@ -23,8 +23,6 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	clock "k8s.io/utils/clock/testing"
-	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -41,7 +39,6 @@ import (
 	ssmp "github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
-	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -217,35 +214,5 @@ func (env *Environment) Reset() {
 				}
 			}
 		}
-	}
-}
-
-func NodeInstanceIDFieldIndexer(ctx context.Context) func(ctrlcache.Cache) error {
-	return func(c ctrlcache.Cache) error {
-		return c.IndexField(ctx, &corev1.Node{}, "spec.instanceID", func(obj client.Object) []string {
-			if obj.(*corev1.Node).Spec.ProviderID == "" {
-				return nil
-			}
-			id, e := utils.ParseInstanceID(obj.(*corev1.Node).Spec.ProviderID)
-			if e != nil || id == "" {
-				return nil
-			}
-			return []string{id}
-		})
-	}
-}
-
-func NodeClaimInstanceIDFieldIndexer(ctx context.Context) func(ctrlcache.Cache) error {
-	return func(c ctrlcache.Cache) error {
-		return c.IndexField(ctx, &karpv1.NodeClaim{}, "status.instanceID", func(obj client.Object) []string {
-			if obj.(*karpv1.NodeClaim).Status.ProviderID == "" {
-				return nil
-			}
-			id, e := utils.ParseInstanceID(obj.(*karpv1.NodeClaim).Status.ProviderID)
-			if e != nil || id == "" {
-				return nil
-			}
-			return []string{id}
-		})
 	}
 }

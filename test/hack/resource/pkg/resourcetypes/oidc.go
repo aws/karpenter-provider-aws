@@ -16,7 +16,6 @@ package resourcetypes
 
 import (
 	"context"
-	"slices"
 	"strings"
 	"time"
 
@@ -25,6 +24,7 @@ import (
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	"golang.org/x/exp/slices"
 )
 
 type OIDC struct {

@@ -38,7 +38,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/samber/lo"
-	"github.com/samber/lo/mutable"
 
 	"github.com/aws/karpenter-provider-aws/pkg/errors"
 
@@ -108,8 +107,7 @@ var _ = Describe("Persistent Volumes", func() {
 		})
 		It("should run a pod with a pre-bound persistent volume while respecting topology constraints", func() {
 			subnets := env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName})
-			shuffledAZs := lo.Keys(subnets)
-			mutable.Shuffle(shuffledAZs)
+			shuffledAZs := lo.Shuffle(lo.Keys(subnets))
 
 			pvc := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{
 				StorageClassName: lo.ToPtr("non-existent-storage-class"),
@@ -179,8 +177,7 @@ var _ = Describe("Persistent Volumes", func() {
 		})
 		It("should run a pod with a dynamic persistent volume while respecting allowed topologies", func() {
 			subnets := env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName})
-			shuffledAZs := lo.Keys(subnets)
-			mutable.Shuffle(shuffledAZs)
+			shuffledAZs := lo.Shuffle(lo.Keys(subnets))
 
 			storageClass.AllowedTopologies = []corev1.TopologySelectorTerm{{
 				MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{{
@@ -264,8 +261,7 @@ var _ = Describe("Stateful workloads", func() {
 
 		numPods = 1
 		subnets := env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName})
-		shuffledAZs := lo.Keys(subnets)
-		mutable.Shuffle(shuffledAZs)
+		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
 
 		storageClass = test.StorageClass(test.StorageClassOptions{
 			ObjectMeta: metav1.ObjectMeta{

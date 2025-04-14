@@ -703,9 +703,9 @@ kind: EC2NodeClass
 spec:
   amiSelectorTerms:
   - name: my-name1
-    owner: "123456789"
+    owner: 123456789
   - name: my-name2
-    owner: "123456789"
+    owner: 123456789
   - name: my-name1
     owner: amazon
   - name: my-name2

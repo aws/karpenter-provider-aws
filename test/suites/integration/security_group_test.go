@@ -90,7 +90,7 @@ var _ = Describe("SecurityGroups", func() {
 		}
 		env.ExpectCreated(nodeClass)
 		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeSecurityGroupsReady, Status: metav1.ConditionFalse, Message: "SecurityGroupSelector did not match any SecurityGroups"})
-		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, SecurityGroupsReady=False"})
+		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "SecurityGroupsReady=False"})
 	})
 })
 
