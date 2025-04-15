@@ -23,20 +23,17 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
-	"go.uber.org/multierr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
-	"sigs.k8s.io/karpenter/pkg/utils/nodepool"
+	nodepoolutils "sigs.k8s.io/karpenter/pkg/utils/nodepool"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/klog/v2"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -45,6 +42,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
@@ -68,6 +66,7 @@ type Validation struct {
 	cloudProvider          cloudprovider.CloudProvider
 	ec2api                 sdk.EC2API
 	amiResolver            amifamily.Resolver
+	instanceTypeProvider   instancetype.Provider
 	launchTemplateProvider launchtemplate.Provider
 	cache                  *cache.Cache
 }
@@ -77,6 +76,7 @@ func NewValidationReconciler(
 	cloudProvider cloudprovider.CloudProvider,
 	ec2api sdk.EC2API,
 	amiResolver amifamily.Resolver,
+	instanceTypeProvider instancetype.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	cache *cache.Cache,
 ) *Validation {
@@ -85,6 +85,7 @@ func NewValidationReconciler(
 		cloudProvider:          cloudProvider,
 		ec2api:                 ec2api,
 		amiResolver:            amiResolver,
+		instanceTypeProvider:   instanceTypeProvider,
 		launchTemplateProvider: launchTemplateProvider,
 		cache:                  cache,
 	}
@@ -427,20 +428,17 @@ func (v *Validation) mockLaunchTemplateOptions(
 // requirements of linked NodePools. If no NodePools exist for the given NodeClass, this function returns two default
 // instance types (one x86_64 and one arm64).
 func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	nodePools, err := nodepool.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepool.ForNodeClass(nodeClass))
+	instanceTypes, err := v.instanceTypeProvider.List(ctx, nodeClass)
+	if err != nil {
+		return nil, fmt.Errorf("listing instance types for nodeclass, %w", err)
+	}
+	nodePools, err := nodepoolutils.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepoolutils.ForNodeClass(nodeClass))
 	if err != nil {
 		return nil, fmt.Errorf("listing nodepools for nodeclass, %w", err)
 	}
-
 	var compatibleInstanceTypes []*cloudprovider.InstanceType
-	var errors []error
 	names := sets.New[string]()
 	for _, np := range nodePools {
-		instanceTypes, err := v.cloudProvider.GetInstanceTypes(ctx, np)
-		if err != nil {
-			errors = append(errors, err)
-			continue
-		}
 		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
 		if np.Spec.Template.ObjectMeta.Labels != nil {
 			reqs.Add(lo.Values(scheduling.NewLabelRequirements(np.Spec.Template.ObjectMeta.Labels))...)
@@ -452,15 +450,9 @@ func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass
 			if names.Has(it.Name) {
 				continue
 			}
-			log.FromContext(ctx).WithValues("nodepool", klog.KObj(np), "nodeclass", klog.KObj(nodeClass), "instance-type", it.Name).Info("discovered compatible instance type")
 			names.Insert(it.Name)
 			compatibleInstanceTypes = append(compatibleInstanceTypes, it)
 		}
-	}
-	if len(compatibleInstanceTypes) == 0 && len(errors) != 0 {
-		// Errors encountered when listing instance types are typically transient, we should retry rather than fallback to the
-		// default instance types.
-		return nil, fmt.Errorf("getting compatible instance types for nodeclass, %w", multierr.Combine(errors...))
 	}
 	return compatibleInstanceTypes, nil
 }

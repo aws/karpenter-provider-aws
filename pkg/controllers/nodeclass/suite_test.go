@@ -85,6 +85,7 @@ var _ = BeforeSuite(func() {
 		awsEnv.SecurityGroupProvider,
 		awsEnv.AMIProvider,
 		awsEnv.InstanceProfileProvider,
+		awsEnv.InstanceTypesProvider,
 		awsEnv.LaunchTemplateProvider,
 		awsEnv.CapacityReservationProvider,
 		awsEnv.EC2API,
@@ -101,6 +102,8 @@ var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	nodeClass = test.EC2NodeClass()
 	awsEnv.Reset()
+	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 })
 
 var _ = AfterEach(func() {
