@@ -873,6 +873,10 @@ Specify using custom ssm parameter name or ARN:
     - ssmParameter: "my-custom-parameter"
 ```
 
+{{% alert title="Note" color="primary" %}}
+When using a custom SSM parameter, you'll need to expand the `ssm:GetParameter` permissions on the Karpenter IAM role to include your custom parameter, as the default policy only allows access to the AWS public parameters.
+{{% /alert %}}
+
 ## spec.capacityReservationSelectorTerms
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Alpha]({{<ref "../reference/settings#feature-gates" >}})
