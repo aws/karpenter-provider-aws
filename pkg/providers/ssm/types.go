@@ -15,12 +15,19 @@ limitations under the License.
 package ssm
 
 import (
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/samber/lo"
 )
 
+const (
+	CustomParameterType = "custom"
+)
+
 type Parameter struct {
 	Name string
+	Type string
 	// IsMutable indicates if the value associated with an SSM parameter is expected to change. An example of a mutable
 	// parameter would be any of the "latest" or "recommended" AMI parameters which are updated each time a new AMI is
 	// released. On the otherhand, we would consider a parameter parameter for a specific AMI version to be immutable.
@@ -35,6 +42,14 @@ func (p *Parameter) GetParameterInput() *ssm.GetParameterInput {
 
 func (p *Parameter) CacheKey() string {
 	return p.Name
+}
+
+// GetCacheDuration returns the appropriate cache duration based on the parameter type
+func (p Parameter) GetCacheDuration() time.Duration {
+	if p.Type == CustomParameterType {
+		return 5 * time.Minute
+	}
+	return 24 * time.Hour
 }
 
 type CacheEntry struct {
