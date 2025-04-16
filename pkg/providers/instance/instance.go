@@ -25,6 +25,7 @@ import (
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/awslabs/operatorpkg/aws/middleware"
 	"github.com/awslabs/operatorpkg/serrors"
+	"sigs.k8s.io/karpenter/pkg/events"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -82,6 +83,7 @@ type Provider interface {
 
 type DefaultProvider struct {
 	region                      string
+	recorder                    events.Recorder
 	ec2api                      sdk.EC2API
 	unavailableOfferings        *cache.UnavailableOfferings
 	subnetProvider              subnet.Provider
@@ -93,6 +95,7 @@ type DefaultProvider struct {
 func NewDefaultProvider(
 	ctx context.Context,
 	region string,
+	recorder events.Recorder,
 	ec2api sdk.EC2API,
 	unavailableOfferings *cache.UnavailableOfferings,
 	subnetProvider subnet.Provider,
@@ -101,6 +104,7 @@ func NewDefaultProvider(
 ) *DefaultProvider {
 	return &DefaultProvider{
 		region:                      region,
+		recorder:                    recorder,
 		ec2api:                      ec2api,
 		unavailableOfferings:        unavailableOfferings,
 		subnetProvider:              subnetProvider,
@@ -287,7 +291,7 @@ func (p *DefaultProvider) launchInstance(
 		}
 		return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w", err), reason, fmt.Sprintf("Error creating fleet request: %s", message))
 	}
-	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, instanceTypes)
+	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, nodeClaim, instanceTypes)
 	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
 		requestID, _ := awsmiddleware.GetRequestIDMetadata(createFleetOutput.ResultMetadata)
 		return ec2types.CreateFleetInstance{}, serrors.Wrap(
@@ -432,12 +436,17 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	ctx context.Context,
 	errs []ec2types.CreateFleetError,
 	capacityType string,
+	nodeClaim *karpv1.NodeClaim,
 	instanceTypes []*cloudprovider.InstanceType,
 ) {
 	if capacityType != karpv1.CapacityTypeReserved {
 		for _, err := range errs {
 			if awserrors.IsUnfulfillableCapacity(err) {
 				p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, err, capacityType)
+			}
+			if awserrors.IsServiceLinkedRoleCreationNotPermitted(err) {
+				p.unavailableOfferings.MarkCapacityTypeUnavailable(karpv1.CapacityTypeSpot)
+				p.recorder.Publish(SpotServiceLinkedRoleCreationFailure(nodeClaim))
 			}
 		}
 		return
@@ -645,7 +654,9 @@ func combineFleetErrors(fleetErrs []ec2types.CreateFleetError) (errs error) {
 		errs = multierr.Append(errs, errors.New(errorCode))
 	}
 	// If all the Fleet errors are ICE errors then we should wrap the combined error in the generic ICE error
-	iceErrorCount := lo.CountBy(fleetErrs, func(err ec2types.CreateFleetError) bool { return awserrors.IsUnfulfillableCapacity(err) })
+	iceErrorCount := lo.CountBy(fleetErrs, func(err ec2types.CreateFleetError) bool {
+		return awserrors.IsUnfulfillableCapacity(err) || awserrors.IsServiceLinkedRoleCreationNotPermitted(err)
+	})
 	if iceErrorCount == len(fleetErrs) {
 		return cloudprovider.NewInsufficientCapacityError(fmt.Errorf("with fleet error(s), %w", errs))
 	}

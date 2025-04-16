@@ -24,11 +24,12 @@ import (
 )
 
 const (
-	launchTemplateNameNotFoundCode        = "InvalidLaunchTemplateName.NotFoundException"
-	RunInstancesInvalidParameterValueCode = "InvalidParameterValue"
-	DryRunOperationErrorCode              = "DryRunOperation"
-	UnauthorizedOperationErrorCode        = "UnauthorizedOperation"
-	RateLimitingErrorCode                 = "RequestLimitExceeded"
+	launchTemplateNameNotFoundCode                 = "InvalidLaunchTemplateName.NotFoundException"
+	RunInstancesInvalidParameterValueCode          = "InvalidParameterValue"
+	DryRunOperationErrorCode                       = "DryRunOperation"
+	UnauthorizedOperationErrorCode                 = "UnauthorizedOperation"
+	RateLimitingErrorCode                          = "RequestLimitExceeded"
+	ServiceLinkedRoleCreationNotPermittedErrorCode = "AuthFailure.ServiceLinkedRoleCreationNotPermitted"
 )
 
 var (
@@ -152,6 +153,10 @@ func IgnoreRateLimitedError(err error) error {
 // could be due to account limits, insufficient ec2 capacity, etc.
 func IsUnfulfillableCapacity(err ec2types.CreateFleetError) bool {
 	return unfulfillableCapacityErrorCodes.Has(*err.ErrorCode)
+}
+
+func IsServiceLinkedRoleCreationNotPermitted(err ec2types.CreateFleetError) bool {
+	return *err.ErrorCode == ServiceLinkedRoleCreationNotPermittedErrorCode
 }
 
 // IsReservationCapacityExceeded returns true if the fleet error means there is no remaining capacity for the provided
