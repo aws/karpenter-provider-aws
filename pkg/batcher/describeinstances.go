@@ -93,6 +93,7 @@ func execDescribeInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.DescribeIns
 									ReservationId: r.ReservationId,
 									Instances:     []ec2types.Instance{inst},
 								}},
+								ResultMetadata: output.ResultMetadata,
 							}}
 						}
 					}
