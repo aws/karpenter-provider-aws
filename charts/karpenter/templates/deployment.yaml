@@ -63,16 +63,29 @@ spec:
       containers:
         - name: {{ include "karpenter.controller.containerName" . }}
           securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
             runAsUser: 65532
             runAsGroup: 65532
-            runAsNonRoot: true
-            seccompProfile:
-              type: RuntimeDefault
-            allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
-            readOnlyRootFilesystem: true
+          {{- with .Values.controller.securityContext }}
+          {{- with .appArmorProfile }}
+            appArmorProfile:
+              {{- toYaml . | nindent 14}}
+          {{- end }}
+          {{- with .seLinuxOptions }}
+            seLinuxOptions:
+              {{- toYaml . | nindent 14}}
+          {{- end }}
+          {{- with .seccompProfile }}
+            seccompProfile:
+              {{- toYaml . | nindent 14}}
+          {{- end }}
+          {{- end }}
           image: {{ include "karpenter.controller.image" . }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
@@ -114,6 +127,10 @@ spec:
           {{- end }}
           {{- with .Values.settings.batchIdleDuration }}
             - name: BATCH_IDLE_DURATION
+              value: "{{ . }}"
+          {{- end }}
+          {{- with .Values.settings.preferencePolicy }}
+            - name: PREFERENCE_POLICY
               value: "{{ . }}"
           {{- end }}
           {{- with .Values.settings.clusterCABundle }}
