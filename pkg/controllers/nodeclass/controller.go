@@ -64,7 +64,6 @@ type Controller struct {
 	launchTemplateProvider  launchtemplate.Provider
 	instanceProfileProvider instanceprofile.Provider
 	validation              *Validation
-	instanceProfile         *InstanceProfile
 	reconcilers             []reconcile.TypedReconciler[*v1.EC2NodeClass]
 }
 
@@ -84,7 +83,6 @@ func NewController(
 	amiResolver amifamily.Resolver,
 ) *Controller {
 	validation := NewValidationReconciler(ec2api, amiResolver, launchTemplateProvider, validationCache)
-	instanceProfile := NewInstanceProfileReconciler(instanceProfileProvider)
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
@@ -92,7 +90,6 @@ func NewController(
 		launchTemplateProvider:  launchTemplateProvider,
 		instanceProfileProvider: instanceProfileProvider,
 		validation:              validation,
-		instanceProfile:         instanceProfile,
 		reconcilers: []reconcile.TypedReconciler[*v1.EC2NodeClass]{
 			NewAMIReconciler(amiProvider),
 			NewCapacityReservationReconciler(clk, capacityReservationProvider),

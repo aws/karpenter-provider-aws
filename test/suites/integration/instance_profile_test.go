@@ -140,7 +140,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, InstanceProfileReady=False"})
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionFalse, Reason: "InstanceProfileNotFound"})
 		})
-		It("Should detect a deleted Node Role", func() {
+		It("should set the InstanceProfileReady status condition to false when the role is not found", func() {
 			_, err := env.IAMAPI.PutRolePolicy(env.Context, &iam.PutRolePolicyInput{
 				RoleName:   lo.ToPtr(roleName),
 				PolicyName: lo.ToPtr("allowpassrole"),
@@ -156,6 +156,13 @@ var _ = Describe("InstanceProfile Generation", func() {
 				}`, accountID)),
 			})
 			Expect(err).To(BeNil())
+			Eventually(func() error {
+				_, err := env.IAMAPI.GetRolePolicy(env.Context, &iam.GetRolePolicyInput{
+					RoleName:   lo.ToPtr(roleName),
+					PolicyName: lo.ToPtr("allowpassrole"),
+				})
+				return err
+			}, 300*time.Second, 60*time.Second).Should(BeNil())
 			DeferCleanup(func() {
 				_, err := env.IAMAPI.DeleteRolePolicy(env.Context, &iam.DeleteRolePolicyInput{
 					RoleName:   lo.ToPtr(roleName),
@@ -164,40 +171,23 @@ var _ = Describe("InstanceProfile Generation", func() {
 				Expect(err).To(BeNil())
 			})
 			nodeClass.Spec.Role = testRoleName
-
 			env.ExpectCreated(nodeClass)
-			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, InstanceProfileReady=False"})
-			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionFalse, Reason: "NodeRoleNotFound"})
+			ExpectStatusConditions(env, env.Client, 2*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, InstanceProfileReady=False"})
+			ExpectStatusConditions(env, env.Client, 2*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionFalse, Reason: "NodeRoleNotFound"})
 		})
-		It("Should succeed if the instance profile exists", func() {
-			_, err := env.IAMAPI.PutRolePolicy(env.Context, &iam.PutRolePolicyInput{
-				RoleName:   lo.ToPtr(roleName),
-				PolicyName: lo.ToPtr("allowpassrole"),
-				PolicyDocument: aws.String(fmt.Sprintf(`{
-					"Version": "2012-10-17",
-					"Statement": [
-						{
-							"Effect": "Allow",
-							"Action": "iam:PassRole",
-							"Resource": "arn:aws:iam::%s:role/%s"
-						}
-					]
-				}`, accountID, roleName)),
-			})
-			Expect(err).To(BeNil())
+		It("should set the InstanceProfileReady status condition to false when not authorized", func() {
+			nodeClass.Spec.Role = testRoleName
+			env.ExpectCreated(nodeClass)
+			ExpectStatusConditions(env, env.Client, 2*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, InstanceProfileReady=False"})
+			ExpectStatusConditions(env, env.Client, 2*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionFalse, Reason: "NodeRoleAuthFailure"})
+		})
+		It("should set the InstanceProfileReady status condition to true when the user-specified instance profile exists", func() {
 
-			DeferCleanup(func() {
-				_, err := env.IAMAPI.DeleteRolePolicy(env.Context, &iam.DeleteRolePolicyInput{
-					RoleName:   lo.ToPtr(roleName),
-					PolicyName: lo.ToPtr("allowpassrole"),
-				})
-				Expect(err).To(BeNil())
-			})
-
+			roleName = fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
 			instanceProfileName := fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
 
 			// Create instance profile
-			_, err = env.IAMAPI.CreateInstanceProfile(env.Context, &iam.CreateInstanceProfileInput{
+			_, err := env.IAMAPI.CreateInstanceProfile(env.Context, &iam.CreateInstanceProfileInput{
 				InstanceProfileName: aws.String(instanceProfileName),
 			})
 			Expect(err).To(BeNil())

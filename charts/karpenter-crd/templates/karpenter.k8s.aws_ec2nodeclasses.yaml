@@ -6,7 +6,7 @@ metadata:
     {{- with .Values.additionalAnnotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-    controller-gen.kubebuilder.io/version: v0.17.3
+    controller-gen.kubebuilder.io/version: v0.17.2
   name: ec2nodeclasses.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws

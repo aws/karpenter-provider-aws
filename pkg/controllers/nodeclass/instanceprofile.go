@@ -17,6 +17,7 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -49,17 +50,23 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 			nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
 		); err != nil {
 			//Create filters out instanceprofile not found errors so any is not found error will be referencing the role
-			if awserrors.IsNotFound(err) || awserrors.IsUnauthorizedOperationError(err) {
+			if awserrors.IsNotFound(err) {
 				nodeClass.StatusConditions().SetFalse(v1.ConditionTypeInstanceProfileReady, "NodeRoleNotFound", "Failed to detect the NodeRole")
+				return reconcile.Result{RequeueAfter: time.Minute}, nil
+			} else if awserrors.IsUnauthorizedOperationError(err) {
+				nodeClass.StatusConditions().SetFalse(v1.ConditionTypeInstanceProfileReady, "NodeRoleAuthFailure", "Failed to detect the NodeRole")
+				return reconcile.Result{RequeueAfter: time.Minute}, nil
 			}
 			return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
 		}
 		nodeClass.Status.InstanceProfile = profileName
 	} else {
-		_, _, err := ip.instanceProfileProvider.Get(ctx, nodeClass, lo.FromPtr(nodeClass.Spec.InstanceProfile))
+		_, err := ip.instanceProfileProvider.Get(ctx, lo.FromPtr(nodeClass.Spec.InstanceProfile))
 		if err != nil {
-			if awserrors.IsNotFound(err) || awserrors.IsUnauthorizedOperationError(err) {
+			if awserrors.IsNotFound(err) {
 				nodeClass.StatusConditions().SetFalse(v1.ConditionTypeInstanceProfileReady, "InstanceProfileNotFound", "Failed to detect the Instance Profile")
+			} else if awserrors.IsUnauthorizedOperationError(err) {
+				nodeClass.StatusConditions().SetFalse(v1.ConditionTypeInstanceProfileReady, "InstanceProfileAuthFailure", "Failed to detect the Instance Profile")
 			}
 			return reconcile.Result{}, fmt.Errorf("getting instance profile, %w", err)
 		}

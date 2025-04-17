@@ -33,7 +33,6 @@ type Provider interface {
 	Get(context.Context, string) (*iamtypes.InstanceProfile, error)
 	Create(context.Context, string, string, map[string]string) error
 	Delete(context.Context, string) error
-	Get(context.Context, ResourceOwner, string) (bool, *iamtypes.InstanceProfile, error)
 }
 
 type DefaultProvider struct {
@@ -46,19 +45,6 @@ func NewDefaultProvider(iamapi sdk.IAMAPI, cache *cache.Cache) *DefaultProvider 
 		iamapi: iamapi,
 		cache:  cache,
 	}
-}
-
-func (p *DefaultProvider) Get(ctx context.Context, m ResourceOwner, profileName string) (bool, *iamtypes.InstanceProfile, error) {
-	// An instance profile exists for this NodeClass
-	if _, ok := p.cache.Get(string(m.GetUID())); ok {
-		return true, &iamtypes.InstanceProfile{InstanceProfileName: lo.ToPtr(profileName)}, nil
-	}
-	// Validate if the instance profile exists and has the correct role assigned to it
-	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{InstanceProfileName: aws.String(profileName)})
-	if err != nil {
-		return false, nil, err
-	}
-	return false, out.InstanceProfile, err
 }
 
 func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
