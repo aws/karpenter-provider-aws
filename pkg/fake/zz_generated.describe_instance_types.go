@@ -940,15 +940,15 @@ var defaultDescribeInstanceTypeOfferingsOutput = &ec2.DescribeInstanceTypeOfferi
 			Location:     lo.ToPtr("test-zone-1a"),
 		},
 		{
-			InstanceType: "m5.large",
-			Location:     lo.ToPtr("test-zone-1a-local"),
+			InstanceType: "p3.8xlarge",
+			Location:     lo.ToPtr("test-zone-1b"),
 		},
 		{
-			InstanceType: "m5.xlarge",
+			InstanceType: "dl1.24xlarge",
 			Location:     lo.ToPtr("test-zone-1a"),
 		},
 		{
-			InstanceType: "m5.xlarge",
+			InstanceType: "dl1.24xlarge",
 			Location:     lo.ToPtr("test-zone-1b"),
 		},
 		{
@@ -998,10 +998,6 @@ var defaultDescribeInstanceTypeOfferingsOutput = &ec2.DescribeInstanceTypeOfferi
 		{
 			InstanceType: "m5.xlarge",
 			Location:     lo.ToPtr("test-zone-1b"),
-		},
-		{
-			InstanceType: "m6idn.32xlarge",
-			Location:     lo.ToPtr("test-zone-1c"),
 		},
 	},
 }
