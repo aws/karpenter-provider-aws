@@ -124,6 +124,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	capacityReservationAvailabilityCache := cache.New(24*time.Hour, awscache.DefaultCleanupInterval)
 	validationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
+	eventRecorder := coretest.NewEventRecorder()
 
 	// Providers
 	pricingProvider := pricing.NewDefaultProvider(ctx, fakePricingAPI, ec2api, fake.DefaultRegion)
@@ -157,6 +158,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		"",
+		eventRecorder,
 		ec2api,
 		unavailableOfferingsCache,
 		subnetProvider,
