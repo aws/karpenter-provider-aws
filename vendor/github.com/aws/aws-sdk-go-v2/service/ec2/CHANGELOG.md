@@ -1,32 +1,3 @@
-# v1.202.4 (2025-02-05)
-
-* **Dependency Update**: Updated to the latest SDK module versions
-
-# v1.202.3 (2025-02-04)
-
-* No change notes available for this release.
-
-# v1.202.2 (2025-01-31)
-
-* **Dependency Update**: Updated to the latest SDK module versions
-
-# v1.202.1 (2025-01-30)
-
-* **Dependency Update**: Updated to the latest SDK module versions
-
-# v1.202.0 (2025-01-28)
-
-* **Feature**: This release changes the CreateFleet CLI and SDK's such that if you do not specify a client token, a randomly generated token is used for the request to ensure idempotency.
-
-# v1.201.1 (2025-01-24)
-
-* **Dependency Update**: Updated to the latest SDK module versions
-* **Dependency Update**: Upgrade to smithy-go v1.22.2.
-
-# v1.201.0 (2025-01-23)
-
-* **Feature**: Added "future" allocation type for future dated capacity reservation
-
 # v1.200.0 (2025-01-17)
 
 * **Feature**: Release u7i-6tb.112xlarge, u7i-8tb.112xlarge, u7inh-32tb.480xlarge, p5e.48xlarge, p5en.48xlarge, f2.12xlarge, f2.48xlarge, trn2.48xlarge instance types.

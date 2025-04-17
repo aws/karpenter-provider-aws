@@ -13,8 +13,8 @@ import (
 
 // Enables the management of privileged root user credentials across member
 // accounts in your organization. When you enable root credentials management for [centralized root access]
-// , the management account and the delegated administrator for IAM can manage root
-// user credentials for member accounts in your organization.
+// , the management account and the delegated admininstrator for IAM can manage
+// root user credentials for member accounts in your organization.
 //
 // Before you enable centralized root access, you must have an account configured
 // with the following settings:
@@ -26,7 +26,7 @@ import (
 //
 // [Organizations]: https://docs.aws.amazon.com/organizations/latest/userguide/orgs_introduction.html
 // [centralized root access]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_root-user.html#id_root-user-access-management
-// [IAM and Organizations]: https://docs.aws.amazon.com/organizations/latest/userguide/services-that-can-integrate-iam.html
+// [IAM and Organizations]: https://docs.aws.amazon.com/organizations/latest/userguide/services-that-can-integrate-ra.html
 func (c *Client) EnableOrganizationsRootCredentialsManagement(ctx context.Context, params *EnableOrganizationsRootCredentialsManagementInput, optFns ...func(*Options)) (*EnableOrganizationsRootCredentialsManagementOutput, error) {
 	if params == nil {
 		params = &EnableOrganizationsRootCredentialsManagementInput{}

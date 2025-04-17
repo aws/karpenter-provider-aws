@@ -47,8 +47,8 @@ type SendCommandInput struct {
 	AlarmConfiguration *types.AlarmConfiguration
 
 	// Enables Amazon Web Services Systems Manager to send Run Command output to
-	// Amazon CloudWatch Logs. Run Command is a tool in Amazon Web Services Systems
-	// Manager.
+	// Amazon CloudWatch Logs. Run Command is a capability of Amazon Web Services
+	// Systems Manager.
 	CloudWatchOutputConfig *types.CloudWatchOutputConfig
 
 	// User-specified information about the command, such as a brief description of

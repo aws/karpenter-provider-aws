@@ -57,10 +57,7 @@ type StartSessionInput struct {
 	DocumentName *string
 
 	// The values you want to specify for the parameters defined in the Session
-	// document. For more information about these parameters, see [Create a Session Manager preferences document]in the Amazon Web
-	// Services Systems Manager User Guide.
-	//
-	// [Create a Session Manager preferences document]: https://docs.aws.amazon.com/systems-manager/latest/userguide/getting-started-create-preferences-cli.html
+	// document.
 	Parameters map[string][]string
 
 	// The reason for connecting to the instance. This value is included in the

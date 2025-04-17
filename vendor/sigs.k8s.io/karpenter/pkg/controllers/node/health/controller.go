@@ -136,15 +136,9 @@ func (c *Controller) deleteNodeClaim(ctx context.Context, nodeClaim *v1.NodeClai
 	// The deletion timestamp has successfully been set for the Node, update relevant metrics.
 	log.FromContext(ctx).V(1).Info("deleting unhealthy node")
 	metrics.NodeClaimsDisruptedTotal.Inc(map[string]string{
-		metrics.ReasonLabel:       metrics.UnhealthyReason,
+		metrics.ReasonLabel:       pretty.ToSnakeCase(string(unhealthyNodeCondition.Type)),
 		metrics.NodePoolLabel:     node.Labels[v1.NodePoolLabelKey],
 		metrics.CapacityTypeLabel: node.Labels[v1.CapacityTypeLabelKey],
-	})
-	NodeClaimsUnhealthyDisruptedTotal.Inc(map[string]string{
-		Condition:                 pretty.ToSnakeCase(string(unhealthyNodeCondition.Type)),
-		metrics.NodePoolLabel:     node.Labels[v1.NodePoolLabelKey],
-		metrics.CapacityTypeLabel: node.Labels[v1.CapacityTypeLabelKey],
-		ImageID:                   nodeClaim.Status.ImageID,
 	})
 	return reconcile.Result{}, nil
 }
@@ -232,6 +226,6 @@ func (c *Controller) publishNodePoolHealthEvent(ctx context.Context, node *corev
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: npName}, np); err != nil {
 		return client.IgnoreNotFound(err)
 	}
-	c.recorder.Publish(NodeRepairBlocked(node, nodeClaim, np, fmt.Sprintf("more than %s nodes are unhealthy in the nodepool", allowedUnhealthyPercent.String()))...)
+	c.recorder.Publish(NodeRepairBlocked(node, nodeClaim, np, fmt.Sprintf("more then %s nodes are unhealthy in the nodepool", allowedUnhealthyPercent.String()))...)
 	return nil
 }

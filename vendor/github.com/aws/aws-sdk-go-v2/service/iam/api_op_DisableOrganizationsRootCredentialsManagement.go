@@ -13,7 +13,7 @@ import (
 
 // Disables the management of privileged root user credentials across member
 // accounts in your organization. When you disable this feature, the management
-// account and the delegated administrator for IAM can no longer manage root user
+// account and the delegated admininstrator for IAM can no longer manage root user
 // credentials for member accounts in your organization.
 func (c *Client) DisableOrganizationsRootCredentialsManagement(ctx context.Context, params *DisableOrganizationsRootCredentialsManagementInput, optFns ...func(*Options)) (*DisableOrganizationsRootCredentialsManagementOutput, error) {
 	if params == nil {

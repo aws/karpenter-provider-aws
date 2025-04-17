@@ -53,14 +53,12 @@ type EC2Behavior struct {
 	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
 	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
-	DescribeSpotPriceHistoryInput       AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
-	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
+	DescribeSpotPriceHistoryBehavior    MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
 	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
 	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
 	CreateTagsBehavior                  MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
-	RunInstancesBehavior                MockedFunction[ec2.RunInstancesInput, ec2.RunInstancesOutput]
-	CreateLaunchTemplateBehavior        MockedFunction[ec2.CreateLaunchTemplateInput, ec2.CreateLaunchTemplateOutput]
+	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
@@ -93,10 +91,9 @@ func (e *EC2API) Reset() {
 	e.CreateFleetBehavior.Reset()
 	e.TerminateInstancesBehavior.Reset()
 	e.DescribeInstancesBehavior.Reset()
-	e.CreateLaunchTemplateBehavior.Reset()
+	e.CalledWithCreateLaunchTemplateInput.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
-	e.DescribeSpotPriceHistoryInput.Reset()
-	e.DescribeSpotPriceHistoryOutput.Reset()
+	e.DescribeSpotPriceHistoryBehavior.Reset()
 	e.Instances.Range(func(k, v any) bool {
 		e.Instances.Delete(k)
 		return true
@@ -111,16 +108,6 @@ func (e *EC2API) Reset() {
 
 // nolint: gocyclo
 func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ ...func(*ec2.Options)) (*ec2.CreateFleetOutput, error) {
-	if input.DryRun != nil && *input.DryRun {
-		err := e.CreateFleetBehavior.Error.Get()
-		if err == nil {
-			return &ec2.CreateFleetOutput{}, &smithy.GenericAPIError{
-				Code:    "DryRunOperation",
-				Message: "Request would have succeeded, but DryRun flag is set",
-			}
-		}
-		return nil, err
-	}
 	return e.CreateFleetBehavior.Invoke(input, func(input *ec2.CreateFleetInput) (*ec2.CreateFleetOutput, error) {
 		if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 			return nil, fmt.Errorf("missing launch template name")
@@ -151,10 +138,10 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 					continue
 				}
 				amiID := aws.String("")
-				if e.CreateLaunchTemplateBehavior.CalledWithInput.Len() > 0 {
-					lt := e.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+				if e.CalledWithCreateLaunchTemplateInput.Len() > 0 {
+					lt := e.CalledWithCreateLaunchTemplateInput.Pop()
 					amiID = lt.LaunchTemplateData.ImageId
-					e.CreateLaunchTemplateBehavior.CalledWithInput.Add(lt)
+					e.CalledWithCreateLaunchTemplateInput.Add(lt)
 				}
 				instanceState := ec2types.InstanceStateNameRunning
 				for ; fulfilled < int(*input.TargetCapacitySpecification.TotalTargetCapacity); fulfilled++ {
@@ -223,27 +210,15 @@ func (e *EC2API) TerminateInstances(_ context.Context, input *ec2.TerminateInsta
 	})
 }
 
-// Then modify the CreateLaunchTemplate method:
-func (e *EC2API) CreateLaunchTemplate(ctx context.Context, input *ec2.CreateLaunchTemplateInput, _ ...func(*ec2.Options)) (*ec2.CreateLaunchTemplateOutput, error) {
-	if input.DryRun != nil && *input.DryRun {
-		err := e.CreateLaunchTemplateBehavior.Error.Get()
-		if err == nil {
-			return &ec2.CreateLaunchTemplateOutput{}, &smithy.GenericAPIError{
-				Code:    "DryRunOperation",
-				Message: "Request would have succeeded, but DryRun flag is set",
-			}
-		}
-		return nil, err
+func (e *EC2API) CreateLaunchTemplate(_ context.Context, input *ec2.CreateLaunchTemplateInput, _ ...func(*ec2.Options)) (*ec2.CreateLaunchTemplateOutput, error) {
+	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
+		return nil, e.NextError.Get()
 	}
-	return e.CreateLaunchTemplateBehavior.Invoke(input, func(input *ec2.CreateLaunchTemplateInput) (*ec2.CreateLaunchTemplateOutput, error) {
-		if !e.NextError.IsNil() {
-			defer e.NextError.Reset()
-			return nil, e.NextError.Get()
-		}
-		launchTemplate := ec2types.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
-		e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
-		return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: lo.ToPtr(launchTemplate)}, nil
-	})
+	e.CalledWithCreateLaunchTemplateInput.Add(input)
+	launchTemplate := ec2types.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
+	e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
+	return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: lo.ToPtr(launchTemplate)}, nil
 }
 
 func (e *EC2API) CreateTags(_ context.Context, input *ec2.CreateTagsInput, _ ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error) {
@@ -340,7 +315,7 @@ func filterInstances(instances []ec2types.Instance, filters []ec2types.Filter) [
 	return ret
 }
 
-func (e *EC2API) DescribeImages(ctx context.Context, input *ec2.DescribeImagesInput, _ ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
+func (e *EC2API) DescribeImages(_ context.Context, input *ec2.DescribeImagesInput, _ ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
@@ -348,11 +323,10 @@ func (e *EC2API) DescribeImages(ctx context.Context, input *ec2.DescribeImagesIn
 	e.CalledWithDescribeImagesInput.Add(input)
 	if !e.DescribeImagesOutput.IsNil() {
 		describeImagesOutput := e.DescribeImagesOutput.Clone()
-
 		describeImagesOutput.Images = FilterDescribeImages(describeImagesOutput.Images, input.Filters)
 		return describeImagesOutput, nil
 	}
-	if input.Filters != nil && input.Filters[0].Values[0] == "invalid" {
+	if input.Filters[0].Values[0] == "invalid" {
 		return &ec2.DescribeImagesOutput{}, nil
 	}
 	return &ec2.DescribeImagesOutput{
@@ -379,7 +353,7 @@ func (e *EC2API) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 	output := &ec2.DescribeLaunchTemplatesOutput{}
 	e.LaunchTemplates.Range(func(key, value interface{}) bool {
 		launchTemplate := value.(ec2types.LaunchTemplate)
-		if lo.Contains(input.LaunchTemplateNames, lo.FromPtr(launchTemplate.LaunchTemplateName)) || len(input.Filters) != 0 && Filter(input.Filters, aws.ToString(launchTemplate.LaunchTemplateId), aws.ToString(launchTemplate.LaunchTemplateName), launchTemplate.Tags) {
+		if lo.Contains(aws.StringSlice(input.LaunchTemplateNames), launchTemplate.LaunchTemplateName) || len(input.Filters) != 0 && Filter(input.Filters, aws.ToString(launchTemplate.LaunchTemplateId), aws.ToString(launchTemplate.LaunchTemplateName), launchTemplate.Tags) {
 			output.LaunchTemplates = append(output.LaunchTemplates, launchTemplate)
 		}
 		return true
@@ -667,45 +641,8 @@ func (e *EC2API) DescribeInstanceTypeOfferings(_ context.Context, _ *ec2.Describ
 }
 
 func (e *EC2API) DescribeSpotPriceHistory(_ context.Context, input *ec2.DescribeSpotPriceHistoryInput, _ ...func(*ec2.Options)) (*ec2.DescribeSpotPriceHistoryOutput, error) {
-	e.DescribeSpotPriceHistoryInput.Set(input)
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	if !e.DescribeSpotPriceHistoryOutput.IsNil() {
-		return e.DescribeSpotPriceHistoryOutput.Clone(), nil
-	}
-	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
-	return nil, errors.New("no pricing data provided")
-}
-
-func (e *EC2API) RunInstances(ctx context.Context, input *ec2.RunInstancesInput, optFns ...func(*ec2.Options)) (*ec2.RunInstancesOutput, error) {
-	if input.DryRun != nil && *input.DryRun {
-		err := e.RunInstancesBehavior.Error.Get()
-		if err == nil {
-			return &ec2.RunInstancesOutput{}, &smithy.GenericAPIError{
-				Code:    "DryRunOperation",
-				Message: "Request would have succeeded, but DryRun flag is set",
-			}
-		}
-		return nil, err
-	}
-	return e.RunInstancesBehavior.Invoke(input, func(input *ec2.RunInstancesInput) (*ec2.RunInstancesOutput, error) {
-		if !e.NextError.IsNil() {
-			defer e.NextError.Reset()
-			return nil, e.NextError.Get()
-		}
-
-		// Default implementation
-		instance := ec2types.Instance{
-			InstanceId:   aws.String(test.RandomName()),
-			InstanceType: input.InstanceType,
-			State:        &ec2types.InstanceState{Name: ec2types.InstanceStateNameRunning},
-			// Add other required fields
-		}
-
-		return &ec2.RunInstancesOutput{
-			Instances: []ec2types.Instance{instance},
-		}, nil
+	return e.DescribeSpotPriceHistoryBehavior.Invoke(input, func(input *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {
+		// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
+		return nil, errors.New("no pricing data provided")
 	})
 }

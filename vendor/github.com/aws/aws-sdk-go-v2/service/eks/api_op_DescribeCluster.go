@@ -12,6 +12,7 @@ import (
 	smithytime "github.com/aws/smithy-go/time"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	smithywaiter "github.com/aws/smithy-go/waiter"
+	jmespath "github.com/jmespath/go-jmespath"
 	"time"
 )
 
@@ -321,46 +322,52 @@ func (w *ClusterActiveWaiter) WaitForOutput(ctx context.Context, params *Describ
 func clusterActiveStateRetryable(ctx context.Context, input *DescribeClusterInput, output *DescribeClusterOutput, err error) (bool, error) {
 
 	if err == nil {
-		v1 := output.Cluster
-		var v2 types.ClusterStatus
-		if v1 != nil {
-			v3 := v1.Status
-			v2 = v3
+		pathValue, err := jmespath.Search("cluster.status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
 		}
+
 		expectedValue := "DELETING"
-		var pathValue string
-		pathValue = string(v2)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.ClusterStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.ClusterStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, fmt.Errorf("waiter state transitioned to Failure")
 		}
 	}
 
 	if err == nil {
-		v1 := output.Cluster
-		var v2 types.ClusterStatus
-		if v1 != nil {
-			v3 := v1.Status
-			v2 = v3
+		pathValue, err := jmespath.Search("cluster.status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
 		}
+
 		expectedValue := "FAILED"
-		var pathValue string
-		pathValue = string(v2)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.ClusterStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.ClusterStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, fmt.Errorf("waiter state transitioned to Failure")
 		}
 	}
 
 	if err == nil {
-		v1 := output.Cluster
-		var v2 types.ClusterStatus
-		if v1 != nil {
-			v3 := v1.Status
-			v2 = v3
+		pathValue, err := jmespath.Search("cluster.status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
 		}
+
 		expectedValue := "ACTIVE"
-		var pathValue string
-		pathValue = string(v2)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.ClusterStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.ClusterStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, nil
 		}
 	}
@@ -531,46 +538,52 @@ func (w *ClusterDeletedWaiter) WaitForOutput(ctx context.Context, params *Descri
 func clusterDeletedStateRetryable(ctx context.Context, input *DescribeClusterInput, output *DescribeClusterOutput, err error) (bool, error) {
 
 	if err == nil {
-		v1 := output.Cluster
-		var v2 types.ClusterStatus
-		if v1 != nil {
-			v3 := v1.Status
-			v2 = v3
+		pathValue, err := jmespath.Search("cluster.status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
 		}
+
 		expectedValue := "ACTIVE"
-		var pathValue string
-		pathValue = string(v2)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.ClusterStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.ClusterStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, fmt.Errorf("waiter state transitioned to Failure")
 		}
 	}
 
 	if err == nil {
-		v1 := output.Cluster
-		var v2 types.ClusterStatus
-		if v1 != nil {
-			v3 := v1.Status
-			v2 = v3
+		pathValue, err := jmespath.Search("cluster.status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
 		}
+
 		expectedValue := "CREATING"
-		var pathValue string
-		pathValue = string(v2)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.ClusterStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.ClusterStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, fmt.Errorf("waiter state transitioned to Failure")
 		}
 	}
 
 	if err == nil {
-		v1 := output.Cluster
-		var v2 types.ClusterStatus
-		if v1 != nil {
-			v3 := v1.Status
-			v2 = v3
+		pathValue, err := jmespath.Search("cluster.status", output)
+		if err != nil {
+			return false, fmt.Errorf("error evaluating waiter state: %w", err)
 		}
+
 		expectedValue := "PENDING"
-		var pathValue string
-		pathValue = string(v2)
-		if pathValue == expectedValue {
+		value, ok := pathValue.(types.ClusterStatus)
+		if !ok {
+			return false, fmt.Errorf("waiter comparator expected types.ClusterStatus value, got %T", pathValue)
+		}
+
+		if string(value) == expectedValue {
 			return false, fmt.Errorf("waiter state transitioned to Failure")
 		}
 	}

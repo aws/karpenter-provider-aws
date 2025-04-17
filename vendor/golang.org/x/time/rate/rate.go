@@ -405,15 +405,8 @@ func (limit Limit) durationFromTokens(tokens float64) time.Duration {
 	if limit <= 0 {
 		return InfDuration
 	}
-
-	duration := (tokens / float64(limit)) * float64(time.Second)
-
-	// Cap the duration to the maximum representable int64 value, to avoid overflow.
-	if duration > float64(math.MaxInt64) {
-		return InfDuration
-	}
-
-	return time.Duration(duration)
+	seconds := tokens / float64(limit)
+	return time.Duration(float64(time.Second) * seconds)
 }
 
 // tokensFromDuration is a unit conversion function from a time duration to the number of tokens

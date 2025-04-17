@@ -64,9 +64,9 @@ func NewNodeClaim(nodeClaimTemplate *NodeClaimTemplate, topology *Topology, daem
 	}
 }
 
-func (n *NodeClaim) Add(pod *v1.Pod, podData *PodData) error {
+func (n *NodeClaim) Add(pod *v1.Pod, podRequests v1.ResourceList) error {
 	// Check Taints
-	if err := scheduling.Taints(n.Spec.Taints).ToleratesPod(pod); err != nil {
+	if err := scheduling.Taints(n.Spec.Taints).Tolerates(pod); err != nil {
 		return err
 	}
 
@@ -76,15 +76,22 @@ func (n *NodeClaim) Add(pod *v1.Pod, podData *PodData) error {
 		return fmt.Errorf("checking host port usage, %w", err)
 	}
 	nodeClaimRequirements := scheduling.NewRequirements(n.Requirements.Values()...)
+	podRequirements := scheduling.NewPodRequirements(pod)
 
 	// Check NodeClaim Affinity Requirements
-	if err := nodeClaimRequirements.Compatible(podData.Requirements, scheduling.AllowUndefinedWellKnownLabels); err != nil {
+	if err := nodeClaimRequirements.Compatible(podRequirements, scheduling.AllowUndefinedWellKnownLabels); err != nil {
 		return fmt.Errorf("incompatible requirements, %w", err)
 	}
-	nodeClaimRequirements.Add(podData.Requirements.Values()...)
+	nodeClaimRequirements.Add(podRequirements.Values()...)
 
+	strictPodRequirements := podRequirements
+	if scheduling.HasPreferredNodeAffinity(pod) {
+		// strictPodRequirements is important as it ensures we don't inadvertently restrict the possible pod domains by a
+		// preferred node affinity.  Only required node affinities can actually reduce pod domains.
+		strictPodRequirements = scheduling.NewStrictPodRequirements(pod)
+	}
 	// Check Topology Requirements
-	topologyRequirements, err := n.topology.AddRequirements(pod, n.NodeClaimTemplate.Spec.Taints, podData.StrictRequirements, nodeClaimRequirements, scheduling.AllowUndefinedWellKnownLabels)
+	topologyRequirements, err := n.topology.AddRequirements(strictPodRequirements, nodeClaimRequirements, pod, scheduling.AllowUndefinedWellKnownLabels)
 	if err != nil {
 		return err
 	}
@@ -94,21 +101,22 @@ func (n *NodeClaim) Add(pod *v1.Pod, podData *PodData) error {
 	nodeClaimRequirements.Add(topologyRequirements.Values()...)
 
 	// Check instance type combinations
-	requests := resources.Merge(n.Spec.Resources.Requests, podData.Requests)
+	requests := resources.Merge(n.Spec.Resources.Requests, podRequests)
 
-	remaining, err := filterInstanceTypesByRequirements(n.InstanceTypeOptions, nodeClaimRequirements, podData.Requests, n.daemonResources, requests)
-	if err != nil {
-		// We avoid wrapping this err because calling String() on InstanceTypeFilterError is an expensive operation
-		// due to calls to resources.Merge and stringifying the nodeClaimRequirements
-		return err
+	filtered := filterInstanceTypesByRequirements(n.InstanceTypeOptions, nodeClaimRequirements, requests)
+
+	if len(filtered.remaining) == 0 {
+		// log the total resources being requested (daemonset + the pod)
+		cumulativeResources := resources.Merge(n.daemonResources, podRequests)
+		return fmt.Errorf("no instance type satisfied resources %s and requirements %s (%s)", resources.String(cumulativeResources), nodeClaimRequirements, filtered.FailureReason())
 	}
 
 	// Update node
 	n.Pods = append(n.Pods, pod)
-	n.InstanceTypeOptions = remaining
+	n.InstanceTypeOptions = filtered.remaining
 	n.Spec.Resources.Requests = requests
 	n.Requirements = nodeClaimRequirements
-	n.topology.Record(pod, n.NodeClaim.Spec.Taints, nodeClaimRequirements, scheduling.AllowUndefinedWellKnownLabels)
+	n.topology.Record(pod, nodeClaimRequirements, scheduling.AllowUndefinedWellKnownLabels)
 	n.hostPortUsage.Add(pod, hostPorts)
 	return nil
 }
@@ -151,7 +159,8 @@ func InstanceTypeList(instanceTypeOptions []*cloudprovider.InstanceType) string 
 	return itSb.String()
 }
 
-type InstanceTypeFilterError struct {
+type filterResults struct {
+	remaining cloudprovider.InstanceTypes
 	// Each of these three flags indicates if that particular criteria was met by at least one instance type
 	requirementsMet bool
 	fits            bool
@@ -164,74 +173,81 @@ type InstanceTypeFilterError struct {
 	// fitsAndOffering indicates if a single instance type had enough resources and was a required offering
 	fitsAndOffering          bool
 	minValuesIncompatibleErr error
-
-	// We capture requirements so that we can know what the requirements were when evaluating instance type compatibility
-	requirements scheduling.Requirements
-	// We capture podRequests here since when a pod can't schedule due to requests, it's because the pod
-	// was on its own on the simulated Node and exceeded the available resources for any instance type for this NodePool
-	podRequests v1.ResourceList
-	// We capture daemonRequests since this contributes to the resources that are required to schedule to this NodePool
-	daemonRequests v1.ResourceList
+	requests                 v1.ResourceList
 }
 
+// FailureReason returns a presentable string explaining why all instance types were filtered out
+//
 //nolint:gocyclo
-func (e InstanceTypeFilterError) Error() string {
-	// minValues is specified in the requirements and is not met
-	if e.minValuesIncompatibleErr != nil {
-		return fmt.Sprintf("%s, requirements=%s, resources=%s", e.minValuesIncompatibleErr.Error(), e.requirements, resources.String(resources.Merge(e.daemonRequests, e.podRequests)))
+func (r filterResults) FailureReason() string {
+	if len(r.remaining) > 0 {
+		return ""
 	}
+
+	// minValues is specified in the requirements and is not met
+	if r.minValuesIncompatibleErr != nil {
+		return r.minValuesIncompatibleErr.Error()
+	}
+
 	// no instance type met any of the three criteria, meaning each criteria was enough to completely prevent
 	// this pod from scheduling
-	if !e.requirementsMet && !e.fits && !e.hasOffering {
-		return fmt.Sprintf("no instance type met the scheduling requirements or had enough resources or had a required offering, requirements=%s, resources=%s", e.requirements, resources.String(resources.Merge(e.daemonRequests, e.podRequests)))
+	if !r.requirementsMet && !r.fits && !r.hasOffering {
+		return "no instance type met the scheduling requirements or had enough resources or had a required offering"
 	}
+
 	// check the other pairwise criteria
-	if !e.requirementsMet && !e.fits {
-		return fmt.Sprintf("no instance type met the scheduling requirements or had enough resources, requirements=%s, resources=%s", e.requirements, resources.String(resources.Merge(e.daemonRequests, e.podRequests)))
+	if !r.requirementsMet && !r.fits {
+		return "no instance type met the scheduling requirements or had enough resources"
 	}
-	if !e.requirementsMet && !e.hasOffering {
-		return fmt.Sprintf("no instance type met the scheduling requirements or had a required offering, requirements=%s, resources=%s", e.requirements, resources.String(resources.Merge(e.daemonRequests, e.podRequests)))
+
+	if !r.requirementsMet && !r.hasOffering {
+		return "no instance type met the scheduling requirements or had a required offering"
 	}
-	if !e.fits && !e.hasOffering {
-		return fmt.Sprintf("no instance type had enough resources or had a required offering, requirements=%s, resources=%s", e.requirements, resources.String(resources.Merge(e.daemonRequests, e.podRequests)))
+
+	if !r.fits && !r.hasOffering {
+		return "no instance type had enough resources or had a required offering"
 	}
+
 	// and then each individual criteria. These are sort of the same as above in that each one indicates that no
 	// instance type matched that criteria at all, so it was enough to exclude all instance types.  I think it's
 	// helpful to have these separate, since we can report the multiple excluding criteria above.
-	if !e.requirementsMet {
-		return fmt.Sprintf("no instance type met all requirements, requirements=%s, resources=%s", e.requirements, resources.String(resources.Merge(e.daemonRequests, e.podRequests)))
+	if !r.requirementsMet {
+		return "no instance type met all requirements"
 	}
-	if !e.fits {
-		msg := fmt.Sprintf("no instance type has enough resources, requirements=%s, resources=%s", e.requirements, resources.String(resources.Merge(e.daemonRequests, e.podRequests)))
+
+	if !r.fits {
+		msg := "no instance type has enough resources"
 		// special case for a user typo I saw reported once
-		if e.podRequests.Cpu().Cmp(resource.MustParse("1M")) >= 0 {
+		if r.requests.Cpu().Cmp(resource.MustParse("1M")) >= 0 {
 			msg += " (CPU request >= 1 Million, m vs M typo?)"
 		}
 		return msg
 	}
-	if !e.hasOffering {
-		return fmt.Sprintf("no instance type has the required offering, requirements=%s, resources=%s", e.requirements, resources.String(resources.Merge(e.daemonRequests, e.podRequests)))
+
+	if !r.hasOffering {
+		return "no instance type has the required offering"
 	}
+
 	// see if any pair of criteria was enough to exclude all instances
-	if e.requirementsAndFits {
-		return fmt.Sprintf("no instance type which met the scheduling requirements and had enough resources, had a required offering, requirements=%s, resources=%s", e.requirements, resources.String(resources.Merge(e.daemonRequests, e.podRequests)))
+	if r.requirementsAndFits {
+		return "no instance type which met the scheduling requirements and had enough resources, had a required offering"
 	}
-	if e.fitsAndOffering {
-		return fmt.Sprintf("no instance type which had enough resources and the required offering met the scheduling requirements, requirements=%s, resources=%s", e.requirements, resources.String(resources.Merge(e.daemonRequests, e.podRequests)))
+	if r.fitsAndOffering {
+		return "no instance type which had enough resources and the required offering met the scheduling requirements"
 	}
-	if e.requirementsAndOffering {
-		return fmt.Sprintf("no instance type which met the scheduling requirements and the required offering had the required resources, requirements=%s, resources=%s", e.requirements, resources.String(resources.Merge(e.daemonRequests, e.podRequests)))
+	if r.requirementsAndOffering {
+		return "no instance type which met the scheduling requirements and the required offering had the required resources"
 	}
+
 	// finally all instances were filtered out, but we had at least one instance that met each criteria, and met each
 	// pairwise set of criteria, so the only thing that remains is no instance which met all three criteria simultaneously
-	return fmt.Sprintf("no instance type met the requirements/resources/offering tuple, requirements=%s, resources=%s", e.requirements, resources.String(resources.Merge(e.daemonRequests, e.podRequests)))
+	return "no instance type met the requirements/resources/offering tuple"
 }
 
 //nolint:gocyclo
-func filterInstanceTypesByRequirements(instanceTypes []*cloudprovider.InstanceType, requirements scheduling.Requirements, podRequests, daemonRequests, totalRequests v1.ResourceList) (cloudprovider.InstanceTypes, error) {
-	// We hold the results of our scheduling simulation inside of this InstanceTypeFilterError struct
-	// to reduce the CPU load of having to generate the error string for a failed scheduling simulation
-	err := InstanceTypeFilterError{
+func filterInstanceTypesByRequirements(instanceTypes []*cloudprovider.InstanceType, requirements scheduling.Requirements, requests v1.ResourceList) filterResults {
+	results := filterResults{
+		requests:        requests,
 		requirementsMet: false,
 		fits:            false,
 		hasOffering:     false,
@@ -239,57 +255,41 @@ func filterInstanceTypesByRequirements(instanceTypes []*cloudprovider.InstanceTy
 		requirementsAndFits:     false,
 		requirementsAndOffering: false,
 		fitsAndOffering:         false,
-
-		podRequests:    podRequests,
-		daemonRequests: daemonRequests,
 	}
-	remaining := cloudprovider.InstanceTypes{}
 
 	for _, it := range instanceTypes {
-		// the tradeoff to not short-circuiting on the filtering is that we can report much better error messages
+		// the tradeoff to not short circuiting on the filtering is that we can report much better error messages
 		// about why scheduling failed
 		itCompat := compatible(it, requirements)
-		itFits := fits(it, totalRequests)
-
-		// By using this iterative approach vs. the Available() function it prevents allocations
-		// which have to be garbage collected and slow down Karpenter's scheduling algorithm
-		itHasOffering := false
-		for _, of := range it.Offerings {
-			if of.Available && requirements.IsCompatible(of.Requirements, scheduling.AllowUndefinedWellKnownLabels) {
-				itHasOffering = true
-				break
-			}
-		}
+		itFits := fits(it, requests)
+		itHasOffering := it.Offerings.Available().HasCompatible(requirements)
 
 		// track if any single instance type met a single criteria
-		err.requirementsMet = err.requirementsMet || itCompat
-		err.fits = err.fits || itFits
-		err.hasOffering = err.hasOffering || itHasOffering
+		results.requirementsMet = results.requirementsMet || itCompat
+		results.fits = results.fits || itFits
+		results.hasOffering = results.hasOffering || itHasOffering
 
 		// track if any single instance type met the three pairs of criteria
-		err.requirementsAndFits = err.requirementsAndFits || (itCompat && itFits && !itHasOffering)
-		err.requirementsAndOffering = err.requirementsAndOffering || (itCompat && itHasOffering && !itFits)
-		err.fitsAndOffering = err.fitsAndOffering || (itFits && itHasOffering && !itCompat)
+		results.requirementsAndFits = results.requirementsAndFits || (itCompat && itFits && !itHasOffering)
+		results.requirementsAndOffering = results.requirementsAndOffering || (itCompat && itHasOffering && !itFits)
+		results.fitsAndOffering = results.fitsAndOffering || (itFits && itHasOffering && !itCompat)
 
 		// and if it met all criteria, we keep the instance type and continue filtering.  We now won't be reporting
 		// any errors.
 		if itCompat && itFits && itHasOffering {
-			remaining = append(remaining, it)
+			results.remaining = append(results.remaining, it)
 		}
 	}
 
 	if requirements.HasMinValues() {
 		// We don't care about the minimum number of instance types that meet our requirements here, we only care if they meet our requirements.
-		_, err.minValuesIncompatibleErr = remaining.SatisfiesMinValues(requirements)
-		if err.minValuesIncompatibleErr != nil {
+		_, results.minValuesIncompatibleErr = results.remaining.SatisfiesMinValues(requirements)
+		if results.minValuesIncompatibleErr != nil {
 			// If minValues is NOT met for any of the requirement across InstanceTypes, then return empty InstanceTypeOptions as we cannot launch with the remaining InstanceTypes.
-			remaining = nil
+			results.remaining = nil
 		}
 	}
-	if len(remaining) == 0 {
-		return nil, err
-	}
-	return remaining, nil
+	return results
 }
 
 func compatible(instanceType *cloudprovider.InstanceType, requirements scheduling.Requirements) bool {

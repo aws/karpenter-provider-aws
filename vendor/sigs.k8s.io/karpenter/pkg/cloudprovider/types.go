@@ -57,9 +57,7 @@ type CloudProvider interface {
 	// Create launches a NodeClaim with the given resource requests and requirements and returns a hydrated
 	// NodeClaim back with resolved NodeClaim labels for the launched NodeClaim
 	Create(context.Context, *v1.NodeClaim) (*v1.NodeClaim, error)
-	// Delete removes a NodeClaim from the cloudprovider by its provider id. Delete should return
-	// NodeClaimNotFoundError if the cloudProvider instance is already terminated and nil if deletion was triggered.
-	// Karpenter will keep retrying until Delete returns a NodeClaimNotFound error.
+	// Delete removes a NodeClaim from the cloudprovider by its provider id
 	Delete(context.Context, *v1.NodeClaim) error
 	// Get retrieves a NodeClaim from the cloudprovider by its provider id
 	Get(context.Context, string) (*v1.NodeClaim, error)
@@ -113,7 +111,7 @@ func (i *InstanceType) precompute() {
 
 func (i *InstanceType) Allocatable() corev1.ResourceList {
 	i.once.Do(i.precompute)
-	return i.allocatable
+	return i.allocatable.DeepCopy()
 }
 
 func (its InstanceTypes) OrderByPrice(reqs scheduling.Requirements) InstanceTypes {
@@ -326,10 +324,6 @@ func (e *NodeClaimNotFoundError) Error() string {
 	return fmt.Sprintf("nodeclaim not found, %s", e.error)
 }
 
-func (e *NodeClaimNotFoundError) Unwrap() error {
-	return e.error
-}
-
 func IsNodeClaimNotFoundError(err error) bool {
 	if err == nil {
 		return false
@@ -360,10 +354,6 @@ func (e *InsufficientCapacityError) Error() string {
 	return fmt.Sprintf("insufficient capacity, %s", e.error)
 }
 
-func (e *InsufficientCapacityError) Unwrap() error {
-	return e.error
-}
-
 func IsInsufficientCapacityError(err error) bool {
 	if err == nil {
 		return false
@@ -387,10 +377,6 @@ func (e *NodeClassNotReadyError) Error() string {
 	return fmt.Sprintf("NodeClassRef not ready, %s", e.error)
 }
 
-func (e *NodeClassNotReadyError) Unwrap() error {
-	return e.error
-}
-
 func IsNodeClassNotReadyError(err error) bool {
 	if err == nil {
 		return false
@@ -412,12 +398,4 @@ func NewCreateError(err error, reason, message string) *CreateError {
 		ConditionReason:  reason,
 		ConditionMessage: message,
 	}
-}
-
-func (e *CreateError) Error() string {
-	return fmt.Sprintf("creating nodeclaim, %s", e.error)
-}
-
-func (e *CreateError) Unwrap() error {
-	return e.error
 }

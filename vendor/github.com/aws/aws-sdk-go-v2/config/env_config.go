@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -20,63 +21,63 @@ const CredentialsSourceName = "EnvConfigCredentials"
 
 // Environment variables that will be read for configuration values.
 const (
-	awsAccessKeyIDEnv = "AWS_ACCESS_KEY_ID"
-	awsAccessKeyEnv   = "AWS_ACCESS_KEY"
+	awsAccessKeyIDEnvVar = "AWS_ACCESS_KEY_ID"
+	awsAccessKeyEnvVar   = "AWS_ACCESS_KEY"
 
-	awsSecretAccessKeyEnv = "AWS_SECRET_ACCESS_KEY"
-	awsSecretKeyEnv       = "AWS_SECRET_KEY"
+	awsSecretAccessKeyEnvVar = "AWS_SECRET_ACCESS_KEY"
+	awsSecretKeyEnvVar       = "AWS_SECRET_KEY"
 
-	awsSessionTokenEnv = "AWS_SESSION_TOKEN"
+	awsSessionTokenEnvVar = "AWS_SESSION_TOKEN"
 
-	awsContainerCredentialsFullURIEnv     = "AWS_CONTAINER_CREDENTIALS_FULL_URI"
-	awsContainerCredentialsRelativeURIEnv = "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
-	awsContainerAuthorizationTokenEnv     = "AWS_CONTAINER_AUTHORIZATION_TOKEN"
+	awsContainerCredentialsEndpointEnvVar     = "AWS_CONTAINER_CREDENTIALS_FULL_URI"
+	awsContainerCredentialsRelativePathEnvVar = "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
+	awsContainerPProviderAuthorizationEnvVar  = "AWS_CONTAINER_AUTHORIZATION_TOKEN"
 
-	awsRegionEnv        = "AWS_REGION"
-	awsDefaultRegionEnv = "AWS_DEFAULT_REGION"
+	awsRegionEnvVar        = "AWS_REGION"
+	awsDefaultRegionEnvVar = "AWS_DEFAULT_REGION"
 
-	awsProfileEnv        = "AWS_PROFILE"
-	awsDefaultProfileEnv = "AWS_DEFAULT_PROFILE"
+	awsProfileEnvVar        = "AWS_PROFILE"
+	awsDefaultProfileEnvVar = "AWS_DEFAULT_PROFILE"
 
-	awsSharedCredentialsFileEnv = "AWS_SHARED_CREDENTIALS_FILE"
+	awsSharedCredentialsFileEnvVar = "AWS_SHARED_CREDENTIALS_FILE"
 
-	awsConfigFileEnv = "AWS_CONFIG_FILE"
+	awsConfigFileEnvVar = "AWS_CONFIG_FILE"
 
-	awsCABundleEnv = "AWS_CA_BUNDLE"
+	awsCustomCABundleEnvVar = "AWS_CA_BUNDLE"
 
-	awsWebIdentityTokenFileEnv = "AWS_WEB_IDENTITY_TOKEN_FILE"
+	awsWebIdentityTokenFilePathEnvVar = "AWS_WEB_IDENTITY_TOKEN_FILE"
 
-	awsRoleARNEnv         = "AWS_ROLE_ARN"
-	awsRoleSessionNameEnv = "AWS_ROLE_SESSION_NAME"
+	awsRoleARNEnvVar         = "AWS_ROLE_ARN"
+	awsRoleSessionNameEnvVar = "AWS_ROLE_SESSION_NAME"
 
-	awsEnableEndpointDiscoveryEnv = "AWS_ENABLE_ENDPOINT_DISCOVERY"
+	awsEnableEndpointDiscoveryEnvVar = "AWS_ENABLE_ENDPOINT_DISCOVERY"
 
-	awsS3UseARNRegionEnv = "AWS_S3_USE_ARN_REGION"
+	awsS3UseARNRegionEnvVar = "AWS_S3_USE_ARN_REGION"
 
-	awsEc2MetadataServiceEndpointModeEnv = "AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE"
+	awsEc2MetadataServiceEndpointModeEnvVar = "AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE"
 
-	awsEc2MetadataServiceEndpointEnv = "AWS_EC2_METADATA_SERVICE_ENDPOINT"
+	awsEc2MetadataServiceEndpointEnvVar = "AWS_EC2_METADATA_SERVICE_ENDPOINT"
 
-	awsEc2MetadataDisabledEnv   = "AWS_EC2_METADATA_DISABLED"
-	awsEc2MetadataV1DisabledEnv = "AWS_EC2_METADATA_V1_DISABLED"
+	awsEc2MetadataDisabled         = "AWS_EC2_METADATA_DISABLED"
+	awsEc2MetadataV1DisabledEnvVar = "AWS_EC2_METADATA_V1_DISABLED"
 
-	awsS3DisableMultiRegionAccessPointsEnv = "AWS_S3_DISABLE_MULTIREGION_ACCESS_POINTS"
+	awsS3DisableMultiRegionAccessPointEnvVar = "AWS_S3_DISABLE_MULTIREGION_ACCESS_POINTS"
 
-	awsUseDualStackEndpointEnv = "AWS_USE_DUALSTACK_ENDPOINT"
+	awsUseDualStackEndpoint = "AWS_USE_DUALSTACK_ENDPOINT"
 
-	awsUseFIPSEndpointEnv = "AWS_USE_FIPS_ENDPOINT"
+	awsUseFIPSEndpoint = "AWS_USE_FIPS_ENDPOINT"
 
-	awsDefaultsModeEnv = "AWS_DEFAULTS_MODE"
+	awsDefaultMode = "AWS_DEFAULTS_MODE"
 
-	awsMaxAttemptsEnv = "AWS_MAX_ATTEMPTS"
-	awsRetryModeEnv   = "AWS_RETRY_MODE"
-	awsSdkUaAppIDEnv  = "AWS_SDK_UA_APP_ID"
+	awsRetryMaxAttempts = "AWS_MAX_ATTEMPTS"
+	awsRetryMode        = "AWS_RETRY_MODE"
+	awsSdkAppID         = "AWS_SDK_UA_APP_ID"
 
-	awsIgnoreConfiguredEndpointURLEnv = "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS"
-	awsEndpointURLEnv                 = "AWS_ENDPOINT_URL"
+	awsIgnoreConfiguredEndpoints = "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS"
+	awsEndpointURL               = "AWS_ENDPOINT_URL"
 
-	awsDisableRequestCompressionEnv      = "AWS_DISABLE_REQUEST_COMPRESSION"
-	awsRequestMinCompressionSizeBytesEnv = "AWS_REQUEST_MIN_COMPRESSION_SIZE_BYTES"
+	awsDisableRequestCompression      = "AWS_DISABLE_REQUEST_COMPRESSION"
+	awsRequestMinCompressionSizeBytes = "AWS_REQUEST_MIN_COMPRESSION_SIZE_BYTES"
 
 	awsS3DisableExpressSessionAuthEnv = "AWS_S3_DISABLE_EXPRESS_SESSION_AUTH"
 
@@ -89,20 +90,20 @@ const (
 
 var (
 	credAccessEnvKeys = []string{
-		awsAccessKeyIDEnv,
-		awsAccessKeyEnv,
+		awsAccessKeyIDEnvVar,
+		awsAccessKeyEnvVar,
 	}
 	credSecretEnvKeys = []string{
-		awsSecretAccessKeyEnv,
-		awsSecretKeyEnv,
+		awsSecretAccessKeyEnvVar,
+		awsSecretKeyEnvVar,
 	}
 	regionEnvKeys = []string{
-		awsRegionEnv,
-		awsDefaultRegionEnv,
+		awsRegionEnvVar,
+		awsDefaultRegionEnvVar,
 	}
 	profileEnvKeys = []string{
-		awsProfileEnv,
-		awsDefaultProfileEnv,
+		awsProfileEnvVar,
+		awsDefaultProfileEnvVar,
 	}
 )
 
@@ -324,79 +325,79 @@ func NewEnvConfig() (EnvConfig, error) {
 	setStringFromEnvVal(&creds.SecretAccessKey, credSecretEnvKeys)
 	if creds.HasKeys() {
 		creds.AccountID = os.Getenv(awsAccountIDEnv)
-		creds.SessionToken = os.Getenv(awsSessionTokenEnv)
+		creds.SessionToken = os.Getenv(awsSessionTokenEnvVar)
 		cfg.Credentials = creds
 	}
 
-	cfg.ContainerCredentialsEndpoint = os.Getenv(awsContainerCredentialsFullURIEnv)
-	cfg.ContainerCredentialsRelativePath = os.Getenv(awsContainerCredentialsRelativeURIEnv)
-	cfg.ContainerAuthorizationToken = os.Getenv(awsContainerAuthorizationTokenEnv)
+	cfg.ContainerCredentialsEndpoint = os.Getenv(awsContainerCredentialsEndpointEnvVar)
+	cfg.ContainerCredentialsRelativePath = os.Getenv(awsContainerCredentialsRelativePathEnvVar)
+	cfg.ContainerAuthorizationToken = os.Getenv(awsContainerPProviderAuthorizationEnvVar)
 
 	setStringFromEnvVal(&cfg.Region, regionEnvKeys)
 	setStringFromEnvVal(&cfg.SharedConfigProfile, profileEnvKeys)
 
-	cfg.SharedCredentialsFile = os.Getenv(awsSharedCredentialsFileEnv)
-	cfg.SharedConfigFile = os.Getenv(awsConfigFileEnv)
+	cfg.SharedCredentialsFile = os.Getenv(awsSharedCredentialsFileEnvVar)
+	cfg.SharedConfigFile = os.Getenv(awsConfigFileEnvVar)
 
-	cfg.CustomCABundle = os.Getenv(awsCABundleEnv)
+	cfg.CustomCABundle = os.Getenv(awsCustomCABundleEnvVar)
 
-	cfg.WebIdentityTokenFilePath = os.Getenv(awsWebIdentityTokenFileEnv)
+	cfg.WebIdentityTokenFilePath = os.Getenv(awsWebIdentityTokenFilePathEnvVar)
 
-	cfg.RoleARN = os.Getenv(awsRoleARNEnv)
-	cfg.RoleSessionName = os.Getenv(awsRoleSessionNameEnv)
+	cfg.RoleARN = os.Getenv(awsRoleARNEnvVar)
+	cfg.RoleSessionName = os.Getenv(awsRoleSessionNameEnvVar)
 
-	cfg.AppID = os.Getenv(awsSdkUaAppIDEnv)
+	cfg.AppID = os.Getenv(awsSdkAppID)
 
-	if err := setBoolPtrFromEnvVal(&cfg.DisableRequestCompression, []string{awsDisableRequestCompressionEnv}); err != nil {
+	if err := setBoolPtrFromEnvVal(&cfg.DisableRequestCompression, []string{awsDisableRequestCompression}); err != nil {
 		return cfg, err
 	}
-	if err := setInt64PtrFromEnvVal(&cfg.RequestMinCompressSizeBytes, []string{awsRequestMinCompressionSizeBytesEnv}, smithyrequestcompression.MaxRequestMinCompressSizeBytes); err != nil {
-		return cfg, err
-	}
-
-	if err := setEndpointDiscoveryTypeFromEnvVal(&cfg.EnableEndpointDiscovery, []string{awsEnableEndpointDiscoveryEnv}); err != nil {
+	if err := setInt64PtrFromEnvVal(&cfg.RequestMinCompressSizeBytes, []string{awsRequestMinCompressionSizeBytes}, smithyrequestcompression.MaxRequestMinCompressSizeBytes); err != nil {
 		return cfg, err
 	}
 
-	if err := setBoolPtrFromEnvVal(&cfg.S3UseARNRegion, []string{awsS3UseARNRegionEnv}); err != nil {
+	if err := setEndpointDiscoveryTypeFromEnvVal(&cfg.EnableEndpointDiscovery, []string{awsEnableEndpointDiscoveryEnvVar}); err != nil {
 		return cfg, err
 	}
 
-	setEC2IMDSClientEnableState(&cfg.EC2IMDSClientEnableState, []string{awsEc2MetadataDisabledEnv})
-	if err := setEC2IMDSEndpointMode(&cfg.EC2IMDSEndpointMode, []string{awsEc2MetadataServiceEndpointModeEnv}); err != nil {
-		return cfg, err
-	}
-	cfg.EC2IMDSEndpoint = os.Getenv(awsEc2MetadataServiceEndpointEnv)
-	if err := setBoolPtrFromEnvVal(&cfg.EC2IMDSv1Disabled, []string{awsEc2MetadataV1DisabledEnv}); err != nil {
+	if err := setBoolPtrFromEnvVal(&cfg.S3UseARNRegion, []string{awsS3UseARNRegionEnvVar}); err != nil {
 		return cfg, err
 	}
 
-	if err := setBoolPtrFromEnvVal(&cfg.S3DisableMultiRegionAccessPoints, []string{awsS3DisableMultiRegionAccessPointsEnv}); err != nil {
+	setEC2IMDSClientEnableState(&cfg.EC2IMDSClientEnableState, []string{awsEc2MetadataDisabled})
+	if err := setEC2IMDSEndpointMode(&cfg.EC2IMDSEndpointMode, []string{awsEc2MetadataServiceEndpointModeEnvVar}); err != nil {
+		return cfg, err
+	}
+	cfg.EC2IMDSEndpoint = os.Getenv(awsEc2MetadataServiceEndpointEnvVar)
+	if err := setBoolPtrFromEnvVal(&cfg.EC2IMDSv1Disabled, []string{awsEc2MetadataV1DisabledEnvVar}); err != nil {
 		return cfg, err
 	}
 
-	if err := setUseDualStackEndpointFromEnvVal(&cfg.UseDualStackEndpoint, []string{awsUseDualStackEndpointEnv}); err != nil {
+	if err := setBoolPtrFromEnvVal(&cfg.S3DisableMultiRegionAccessPoints, []string{awsS3DisableMultiRegionAccessPointEnvVar}); err != nil {
 		return cfg, err
 	}
 
-	if err := setUseFIPSEndpointFromEnvVal(&cfg.UseFIPSEndpoint, []string{awsUseFIPSEndpointEnv}); err != nil {
+	if err := setUseDualStackEndpointFromEnvVal(&cfg.UseDualStackEndpoint, []string{awsUseDualStackEndpoint}); err != nil {
 		return cfg, err
 	}
 
-	if err := setDefaultsModeFromEnvVal(&cfg.DefaultsMode, []string{awsDefaultsModeEnv}); err != nil {
+	if err := setUseFIPSEndpointFromEnvVal(&cfg.UseFIPSEndpoint, []string{awsUseFIPSEndpoint}); err != nil {
 		return cfg, err
 	}
 
-	if err := setIntFromEnvVal(&cfg.RetryMaxAttempts, []string{awsMaxAttemptsEnv}); err != nil {
-		return cfg, err
-	}
-	if err := setRetryModeFromEnvVal(&cfg.RetryMode, []string{awsRetryModeEnv}); err != nil {
+	if err := setDefaultsModeFromEnvVal(&cfg.DefaultsMode, []string{awsDefaultMode}); err != nil {
 		return cfg, err
 	}
 
-	setStringFromEnvVal(&cfg.BaseEndpoint, []string{awsEndpointURLEnv})
+	if err := setIntFromEnvVal(&cfg.RetryMaxAttempts, []string{awsRetryMaxAttempts}); err != nil {
+		return cfg, err
+	}
+	if err := setRetryModeFromEnvVal(&cfg.RetryMode, []string{awsRetryMode}); err != nil {
+		return cfg, err
+	}
 
-	if err := setBoolPtrFromEnvVal(&cfg.IgnoreConfiguredEndpoints, []string{awsIgnoreConfiguredEndpointURLEnv}); err != nil {
+	setStringFromEnvVal(&cfg.BaseEndpoint, []string{awsEndpointURL})
+
+	if err := setBoolPtrFromEnvVal(&cfg.IgnoreConfiguredEndpoints, []string{awsIgnoreConfiguredEndpoints}); err != nil {
 		return cfg, err
 	}
 
@@ -646,7 +647,7 @@ func (c EnvConfig) getCustomCABundle(context.Context) (io.Reader, bool, error) {
 		return nil, false, nil
 	}
 
-	b, err := os.ReadFile(c.CustomCABundle)
+	b, err := ioutil.ReadFile(c.CustomCABundle)
 	if err != nil {
 		return nil, false, err
 	}
@@ -670,7 +671,7 @@ func (c EnvConfig) getBaseEndpoint(context.Context) (string, bool, error) {
 // GetServiceBaseEndpoint is used to retrieve a normalized SDK ID for use
 // with configured endpoints.
 func (c EnvConfig) GetServiceBaseEndpoint(ctx context.Context, sdkID string) (string, bool, error) {
-	if endpt := os.Getenv(fmt.Sprintf("%s_%s", awsEndpointURLEnv, normalizeEnv(sdkID))); endpt != "" {
+	if endpt := os.Getenv(fmt.Sprintf("%s_%s", awsEndpointURL, normalizeEnv(sdkID))); endpt != "" {
 		return endpt, true, nil
 	}
 	return "", false, nil

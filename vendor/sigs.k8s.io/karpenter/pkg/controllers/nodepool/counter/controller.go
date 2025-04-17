@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -116,12 +115,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		Named("nodepool.counter").
 		For(&v1.NodePool{}, builder.WithPredicates(nodepoolutils.IsManagedPredicateFuncs(c.cloudProvider))).
-		Watches(&v1.NodeClaim{}, nodepoolutils.NodeClaimEventHandler(), builder.WithPredicates(predicate.NewPredicateFuncs(func(o client.Object) bool {
-			// Add a predicate here to filter out NodeClaims triggering reconciliation if they haven't resolved their
-			// providerID (and therefore, their resources)
-			nc := o.(*v1.NodeClaim)
-			return nc.Status.ProviderID != ""
-		}))).
+		Watches(&v1.NodeClaim{}, nodepoolutils.NodeClaimEventHandler()).
 		Watches(&corev1.Node{}, nodepoolutils.NodeEventHandler()).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
 		Complete(reconcile.AsReconciler(m.GetClient(), c))

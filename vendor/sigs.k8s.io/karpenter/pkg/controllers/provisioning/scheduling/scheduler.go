@@ -62,7 +62,7 @@ func NewScheduler(ctx context.Context, kubeClient client.Client, nodePools []*v1
 	// Pre-filter instance types eligible for NodePools to reduce work done during scheduling loops for pods
 	templates := lo.FilterMap(nodePools, func(np *v1.NodePool, _ int) (*NodeClaimTemplate, bool) {
 		nct := NewNodeClaimTemplate(np)
-		nct.InstanceTypeOptions, _ = filterInstanceTypesByRequirements(instanceTypes[np.Name], nct.Requirements, corev1.ResourceList{}, corev1.ResourceList{}, corev1.ResourceList{})
+		nct.InstanceTypeOptions = filterInstanceTypesByRequirements(instanceTypes[np.Name], nct.Requirements, corev1.ResourceList{}).remaining
 		if len(nct.InstanceTypeOptions) == 0 {
 			recorder.Publish(NoCompatibleInstanceTypes(np))
 			log.FromContext(ctx).WithValues("NodePool", klog.KRef("", np.Name)).Info("skipping, nodepool requirements filtered out all instance types")
@@ -77,7 +77,7 @@ func NewScheduler(ctx context.Context, kubeClient client.Client, nodePools []*v1
 		topology:           topology,
 		cluster:            cluster,
 		daemonOverhead:     getDaemonOverhead(templates, daemonSetPods),
-		cachedPodData:      map[types.UID]*PodData{}, // cache pod data to avoid having to continually recompute it
+		cachedPodRequests:  map[types.UID]corev1.ResourceList{}, // cache pod requests to avoid having to continually recompute this total
 		recorder:           recorder,
 		preferences:        &Preferences{ToleratePreferNoSchedule: toleratePreferNoSchedule},
 		remainingResources: lo.SliceToMap(nodePools, func(np *v1.NodePool) (string, corev1.ResourceList) {
@@ -89,12 +89,6 @@ func NewScheduler(ctx context.Context, kubeClient client.Client, nodePools []*v1
 	return s
 }
 
-type PodData struct {
-	Requests           corev1.ResourceList
-	Requirements       scheduling.Requirements
-	StrictRequirements scheduling.Requirements
-}
-
 type Scheduler struct {
 	id                 types.UID // Unique UUID attached to this scheduling loop
 	newNodeClaims      []*NodeClaim
@@ -102,7 +96,7 @@ type Scheduler struct {
 	nodeClaimTemplates []*NodeClaimTemplate
 	remainingResources map[string]corev1.ResourceList // (NodePool name) -> remaining resources for that NodePool
 	daemonOverhead     map[*NodeClaimTemplate]corev1.ResourceList
-	cachedPodData      map[types.UID]*PodData // (Pod Namespace/Name) -> pre-computed data for pods to avoid re-computation and memory usage
+	cachedPodRequests  map[types.UID]corev1.ResourceList // (Pod Namespace/Name) -> calculated resource requests for the pod
 	preferences        *Preferences
 	topology           *Topology
 	cluster            *state.Cluster
@@ -154,7 +148,7 @@ func (r Results) Record(ctx context.Context, recorder events.Recorder, cluster *
 	if existingCount == 0 {
 		return
 	}
-	log.FromContext(ctx).WithValues("nodes", inflightCount, "pods", existingCount).Info("computed unready node(s) will fit pod(s)")
+	log.FromContext(ctx).Info(fmt.Sprintf("computed %d unready node(s) will fit %d pod(s)", inflightCount, existingCount))
 }
 
 // AllNonPendingPodsScheduled returns true if all pods scheduled.
@@ -223,9 +217,9 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*corev1.Pod) Results {
 	UnschedulablePodsCount.DeletePartialMatch(map[string]string{ControllerLabel: injection.GetControllerName(ctx)})
 	QueueDepth.DeletePartialMatch(map[string]string{ControllerLabel: injection.GetControllerName(ctx)})
 	for _, p := range pods {
-		s.updateCachedPodData(p)
+		s.cachedPodRequests[p.UID] = resources.RequestsForPods(p)
 	}
-	q := NewQueue(pods, s.cachedPodData)
+	q := NewQueue(pods, s.cachedPodRequests)
 
 	startTime := s.clock.Now()
 	lastLogTime := s.clock.Now()
@@ -235,7 +229,7 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*corev1.Pod) Results {
 		QueueDepth.Set(float64(len(q.pods)), map[string]string{ControllerLabel: injection.GetControllerName(ctx), schedulingIDLabel: string(s.id)})
 
 		if s.clock.Since(lastLogTime) > time.Minute {
-			log.FromContext(ctx).WithValues("pods-scheduled", batchSize-len(q.pods), "pods-remaining", len(q.pods), "existing-nodes", len(s.existingNodes), "simulated-nodes", len(s.newNodeClaims), "duration", s.clock.Since(startTime).Truncate(time.Second), "scheduling-id", string(s.id)).Info("computing pod scheduling...")
+			log.FromContext(ctx).WithValues("pods-scheduled", batchSize-len(q.pods), "pods-remaining", len(q.pods), "duration", s.clock.Since(startTime).Truncate(time.Second), "scheduling-id", string(s.id)).Info("computing pod scheduling...")
 			lastLogTime = s.clock.Now()
 		}
 		// Try the next pod
@@ -257,8 +251,6 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*corev1.Pod) Results {
 			if err := s.topology.Update(ctx, pod); err != nil {
 				log.FromContext(ctx).Error(err, "failed updating topology")
 			}
-			// Update the cached podData since the pod was relaxed and it could have changed its requirement set
-			s.updateCachedPodData(pod)
 		}
 	}
 	UnfinishedWorkSeconds.Delete(map[string]string{ControllerLabel: injection.GetControllerName(ctx), schedulingIDLabel: string(s.id)})
@@ -273,25 +265,10 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*corev1.Pod) Results {
 	}
 }
 
-func (s *Scheduler) updateCachedPodData(p *corev1.Pod) {
-	requirements := scheduling.NewPodRequirements(p)
-	strictRequirements := requirements
-	if scheduling.HasPreferredNodeAffinity(p) {
-		// strictPodRequirements is important as it ensures we don't inadvertently restrict the possible pod domains by a
-		// preferred node affinity.  Only required node affinities can actually reduce pod domains.
-		strictRequirements = scheduling.NewStrictPodRequirements(p)
-	}
-	s.cachedPodData[p.UID] = &PodData{
-		Requests:           resources.RequestsForPods(p),
-		Requirements:       requirements,
-		StrictRequirements: strictRequirements,
-	}
-}
-
 func (s *Scheduler) add(ctx context.Context, pod *corev1.Pod) error {
 	// first try to schedule against an in-flight real node
 	for _, node := range s.existingNodes {
-		if err := node.Add(ctx, s.kubeClient, pod, s.cachedPodData[pod.UID]); err == nil {
+		if err := node.Add(ctx, s.kubeClient, pod, s.cachedPodRequests[pod.UID]); err == nil {
 			return nil
 		}
 	}
@@ -301,7 +278,7 @@ func (s *Scheduler) add(ctx context.Context, pod *corev1.Pod) error {
 
 	// Pick existing node that we are about to create
 	for _, nodeClaim := range s.newNodeClaims {
-		if err := nodeClaim.Add(pod, s.cachedPodData[pod.UID]); err == nil {
+		if err := nodeClaim.Add(pod, s.cachedPodRequests[pod.UID]); err == nil {
 			return nil
 		}
 	}
@@ -322,7 +299,7 @@ func (s *Scheduler) add(ctx context.Context, pod *corev1.Pod) error {
 			}
 		}
 		nodeClaim := NewNodeClaim(nodeClaimTemplate, s.topology, s.daemonOverhead[nodeClaimTemplate], instanceTypes)
-		if err := nodeClaim.Add(pod, s.cachedPodData[pod.UID]); err != nil {
+		if err := nodeClaim.Add(pod, s.cachedPodRequests[pod.UID]); err != nil {
 			nodeClaim.Destroy() // Ensure we cleanup any changes that we made while mocking out a NodeClaim
 			errs = multierr.Append(errs, fmt.Errorf("incompatible with nodepool %q, daemonset overhead=%s, %w",
 				nodeClaimTemplate.NodePoolName,
@@ -345,7 +322,7 @@ func (s *Scheduler) calculateExistingNodeClaims(stateNodes []*state.StateNode, d
 		taints := node.Taints()
 		var daemons []*corev1.Pod
 		for _, p := range daemonSetPods {
-			if err := scheduling.Taints(taints).ToleratesPod(p); err != nil {
+			if err := scheduling.Taints(taints).Tolerates(p); err != nil {
 				continue
 			}
 			if err := scheduling.NewLabelRequirements(node.Labels()).Compatible(scheduling.NewPodRequirements(p)); err != nil {
@@ -388,7 +365,7 @@ func isDaemonPodCompatible(nodeClaimTemplate *NodeClaimTemplate, pod *corev1.Pod
 	preferences := &Preferences{}
 	// Add a toleration for PreferNoSchedule since a daemon pod shouldn't respect the preference
 	_ = preferences.toleratePreferNoScheduleTaints(pod)
-	if err := scheduling.Taints(nodeClaimTemplate.Spec.Taints).ToleratesPod(pod); err != nil {
+	if err := scheduling.Taints(nodeClaimTemplate.Spec.Taints).Tolerates(pod); err != nil {
 		return false
 	}
 	for {

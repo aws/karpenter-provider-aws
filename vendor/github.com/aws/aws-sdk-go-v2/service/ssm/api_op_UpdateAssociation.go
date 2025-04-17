@@ -87,8 +87,8 @@ type UpdateAssociationInput struct {
 
 	// Choose the parameter that will define how your automation will branch out. This
 	// target is required for associations that use an Automation runbook and target
-	// resources by using rate controls. Automation is a tool in Amazon Web Services
-	// Systems Manager.
+	// resources by using rate controls. Automation is a capability of Amazon Web
+	// Services Systems Manager.
 	AutomationTargetParameterName *string
 
 	// The names or Amazon Resource Names (ARNs) of the Change Calendar type documents
@@ -180,8 +180,8 @@ type UpdateAssociationInput struct {
 	OutputLocation *types.InstanceAssociationOutputLocation
 
 	// The parameters you want to update for the association. If you create a
-	// parameter using Parameter Store, a tool in Amazon Web Services Systems Manager,
-	// you can reference the parameter using {{ssm:parameter-name}} .
+	// parameter using Parameter Store, a capability of Amazon Web Services Systems
+	// Manager, you can reference the parameter using {{ssm:parameter-name}} .
 	Parameters map[string][]string
 
 	// The cron expression used to schedule the association that you want to update.
@@ -207,9 +207,9 @@ type UpdateAssociationInput struct {
 	// successfully, the association is NON-COMPLIANT .
 	//
 	// In MANUAL mode, you must specify the AssociationId as a parameter for the PutComplianceItems API
-	// operation. In this case, compliance data isn't managed by State Manager, a tool
-	// in Amazon Web Services Systems Manager. It is managed by your direct call to the
-	// PutComplianceItemsAPI operation.
+	// operation. In this case, compliance data isn't managed by State Manager, a
+	// capability of Amazon Web Services Systems Manager. It is managed by your direct
+	// call to the PutComplianceItemsAPI operation.
 	//
 	// By default, all associations use AUTO mode.
 	SyncCompliance types.AssociationSyncCompliance

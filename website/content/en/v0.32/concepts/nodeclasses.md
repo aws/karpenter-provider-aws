@@ -459,7 +459,7 @@ Select by name and owner:
     - name: my-ami
       owner: self
     - name: my-ami
-      owner: "0123456789"
+      owner: 0123456789
 ```
 
 Select by name using a wildcard:

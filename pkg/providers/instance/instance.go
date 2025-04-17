@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
-	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -45,6 +44,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -174,21 +174,19 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
-	out, err := p.Get(ctx, id)
-	if err != nil {
-		return err
-	}
-	// Check if the instance is already shutting-down to reduce the number of terminate-instance calls we make thereby
-	// reducing our overall QPS. Due to EC2's eventual consistency model, the result of the terminate-instance or
-	// describe-instance call may return a not found error even when the instance is not terminated -
-	// https://docs.aws.amazon.com/ec2/latest/devguide/eventual-consistency.html. In this case, the instance will get
-	// picked up by the garbage collection controller and will be cleaned up eventually.
-	if out.State != ec2types.InstanceStateNameShuttingDown {
-		if _, err := p.ec2Batcher.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
-			InstanceIds: []string{id},
-		}); err != nil {
-			return err
+	if _, err := p.ec2Batcher.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
+		InstanceIds: []string{id},
+	}); err != nil {
+		if awserrors.IsNotFound(err) {
+			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance already terminated"))
 		}
+		if _, e := p.Get(ctx, id); e != nil {
+			if cloudprovider.IsNodeClaimNotFoundError(e) {
+				return e
+			}
+			err = multierr.Append(err, e)
+		}
+		return fmt.Errorf("terminating instance, %w", err)
 	}
 	return nil
 }
@@ -226,38 +224,7 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
 	}
 	// Create fleet
-	createFleetInput := GetCreateFleetInput(nodeClass, capacityType, tags, launchTemplateConfigs)
-	if capacityType == karpv1.CapacityTypeSpot {
-		createFleetInput.SpotOptions = &ec2types.SpotOptionsRequest{AllocationStrategy: ec2types.SpotAllocationStrategyPriceCapacityOptimized}
-	} else {
-		createFleetInput.OnDemandOptions = &ec2types.OnDemandOptionsRequest{AllocationStrategy: ec2types.FleetOnDemandAllocationStrategyLowestPrice}
-	}
-
-	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
-	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, lo.Values(zonalSubnets), capacityType)
-	if err != nil {
-		reason, message := awserrors.ToReasonMessage(err)
-		if awserrors.IsLaunchTemplateNotFound(err) {
-			for _, lt := range launchTemplateConfigs {
-				p.launchTemplateProvider.InvalidateCache(ctx, aws.ToString(lt.LaunchTemplateSpecification.LaunchTemplateName), aws.ToString(lt.LaunchTemplateSpecification.LaunchTemplateId))
-			}
-			return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("launch templates not found when creating fleet request, %w", err), reason, fmt.Sprintf("Launch templates not found when creating fleet request: %s", message))
-		}
-		var reqErr *awshttp.ResponseError
-		if errors.As(err, &reqErr) {
-			return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w (%v)", err, reqErr.ServiceRequestID()), reason, fmt.Sprintf("Error creating fleet request: %s", message))
-		}
-		return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w", err), reason, fmt.Sprintf("Error creating fleet request: %s", message))
-	}
-	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType)
-	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
-		return ec2types.CreateFleetInstance{}, combineFleetErrors(createFleetOutput.Errors)
-	}
-	return createFleetOutput.Instances[0], nil
-}
-
-func GetCreateFleetInput(nodeClass *v1.EC2NodeClass, capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) *ec2.CreateFleetInput {
-	return &ec2.CreateFleetInput{
+	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  ec2types.FleetTypeInstant,
 		Context:               nodeClass.Spec.Context,
 		LaunchTemplateConfigs: launchTemplateConfigs,
@@ -271,6 +238,33 @@ func GetCreateFleetInput(nodeClass *v1.EC2NodeClass, capacityType string, tags m
 			{ResourceType: ec2types.ResourceTypeFleet, Tags: utils.MergeTags(tags)},
 		},
 	}
+	if capacityType == karpv1.CapacityTypeSpot {
+		createFleetInput.SpotOptions = &ec2types.SpotOptionsRequest{AllocationStrategy: ec2types.SpotAllocationStrategyPriceCapacityOptimized}
+	} else {
+		createFleetInput.OnDemandOptions = &ec2types.OnDemandOptionsRequest{AllocationStrategy: ec2types.FleetOnDemandAllocationStrategyLowestPrice}
+	}
+
+	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
+	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, lo.Values(zonalSubnets), capacityType)
+	if err != nil {
+		if awserrors.IsLaunchTemplateNotFound(err) {
+			for _, lt := range launchTemplateConfigs {
+				p.launchTemplateProvider.InvalidateCache(ctx, aws.ToString(lt.LaunchTemplateSpecification.LaunchTemplateName), aws.ToString(lt.LaunchTemplateSpecification.LaunchTemplateId))
+			}
+			return ec2types.CreateFleetInstance{}, fmt.Errorf("creating fleet %w", err)
+		}
+		reason, message := awserrors.ToReasonMessage(err)
+		var reqErr *awshttp.ResponseError
+		if errors.As(err, &reqErr) {
+			return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w (%v)", err, reqErr.ServiceRequestID()), reason, fmt.Sprintf("Error creating fleet request: %s", message))
+		}
+		return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w", err), reason, fmt.Sprintf("Error creating fleet request: %s", message))
+	}
+	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType)
+	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
+		return ec2types.CreateFleetInstance{}, combineFleetErrors(createFleetOutput.Errors)
+	}
+	return createFleetOutput.Instances[0], nil
 }
 
 func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) error {

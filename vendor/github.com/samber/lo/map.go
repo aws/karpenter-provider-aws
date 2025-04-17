@@ -247,36 +247,6 @@ func Assign[K comparable, V any, Map ~map[K]V](maps ...Map) Map {
 	return out
 }
 
-// ChunkEntries splits a map into an array of elements in groups of a length equal to its size. If the map cannot be split evenly,
-// the final chunk will contain the remaining elements.
-func ChunkEntries[K comparable, V any](m map[K]V, size int) []map[K]V {
-	if size <= 0 {
-		panic("The chunk size must be greater than 0")
-	}
-
-	count := len(m)
-	if count == 0 {
-		return []map[K]V{}
-	}
-
-	chunksNum := count / size
-	if count%size != 0 {
-		chunksNum += 1
-	}
-
-	result := make([]map[K]V, 0, chunksNum)
-
-	for k, v := range m {
-		if len(result) == 0 || len(result[len(result)-1]) == size {
-			result = append(result, make(map[K]V, size))
-		}
-
-		result[len(result)-1][k] = v
-	}
-
-	return result
-}
-
 // MapKeys manipulates a map keys and transforms it to a map of another type.
 // Play: https://go.dev/play/p/9_4WPIqOetJ
 func MapKeys[K comparable, V any, R comparable](in map[K]V, iteratee func(value V, key K) R) map[R]V {

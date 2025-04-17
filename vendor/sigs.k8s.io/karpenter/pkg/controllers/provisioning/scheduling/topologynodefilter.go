@@ -18,7 +18,7 @@ package scheduling
 
 import (
 	"github.com/awslabs/operatorpkg/option"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
@@ -28,67 +28,43 @@ import (
 // included for topology counting purposes. This is only used with topology spread constraints as affinities/anti-affinities
 // always count across all nodes. A nil or zero-value TopologyNodeFilter behaves well and the filter returns true for
 // all nodes.
-type TopologyNodeFilter struct {
-	Requirements   []scheduling.Requirements
-	TaintPolicy    corev1.NodeInclusionPolicy
-	AffinityPolicy corev1.NodeInclusionPolicy
-	Tolerations    []corev1.Toleration
-}
+type TopologyNodeFilter []scheduling.Requirements
 
-func MakeTopologyNodeFilter(p *corev1.Pod, taintPolicy corev1.NodeInclusionPolicy, affinityPolicy corev1.NodeInclusionPolicy) TopologyNodeFilter {
+func MakeTopologyNodeFilter(p *v1.Pod) TopologyNodeFilter {
 	nodeSelectorRequirements := scheduling.NewLabelRequirements(p.Spec.NodeSelector)
 	// if we only have a label selector, that's the only requirement that must match
 	if p.Spec.Affinity == nil || p.Spec.Affinity.NodeAffinity == nil || p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
-		return TopologyNodeFilter{
-			Requirements:   []scheduling.Requirements{nodeSelectorRequirements},
-			TaintPolicy:    taintPolicy,
-			AffinityPolicy: affinityPolicy,
-			Tolerations:    p.Spec.Tolerations,
-		}
+		return TopologyNodeFilter{nodeSelectorRequirements}
 	}
 
 	// otherwise, we need to match the combination of label selector and any term of the required node affinities since
 	// those terms are OR'd together
-	filter := TopologyNodeFilter{
-		TaintPolicy:    taintPolicy,
-		AffinityPolicy: affinityPolicy,
-		Tolerations:    p.Spec.Tolerations,
-	}
+	var filter TopologyNodeFilter
 	for _, term := range p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
 		requirements := scheduling.NewRequirements()
 		requirements.Add(nodeSelectorRequirements.Values()...)
 		requirements.Add(scheduling.NewNodeSelectorRequirements(term.MatchExpressions...).Values()...)
-		filter.Requirements = append(filter.Requirements, requirements)
+		filter = append(filter, requirements)
 	}
 
 	return filter
 }
 
 // Matches returns true if the TopologyNodeFilter doesn't prohibit node from the participating in the topology
-func (t TopologyNodeFilter) Matches(taints []corev1.Taint, requirements scheduling.Requirements, compatibilityOptions ...option.Function[scheduling.CompatibilityOptions]) bool {
-	matchesAffinity := true
-	if t.AffinityPolicy == corev1.NodeInclusionPolicyHonor {
-		matchesAffinity = t.matchesRequirements(requirements)
-	}
-	matchesTaints := true
-	if t.TaintPolicy == corev1.NodeInclusionPolicyHonor {
-		if err := scheduling.Taints(taints).Tolerates(t.Tolerations); err != nil {
-			matchesTaints = false
-		}
-	}
-	return matchesAffinity && matchesTaints
+func (t TopologyNodeFilter) Matches(node *v1.Node) bool {
+	return t.MatchesRequirements(scheduling.NewLabelRequirements(node.Labels))
 }
 
 // MatchesRequirements returns true if the TopologyNodeFilter doesn't prohibit a node with the requirements from
 // participating in the topology. This method allows checking the requirements from a scheduling.NodeClaim to see if the
 // node we will soon create participates in this topology.
-func (t TopologyNodeFilter) matchesRequirements(requirements scheduling.Requirements, compatabilityOptions ...option.Function[scheduling.CompatibilityOptions]) bool {
+func (t TopologyNodeFilter) MatchesRequirements(requirements scheduling.Requirements, compatabilityOptions ...option.Function[scheduling.CompatibilityOptions]) bool {
 	// no requirements, so it always matches
-	if len(t.Requirements) == 0 || t.AffinityPolicy == corev1.NodeInclusionPolicyIgnore {
+	if len(t) == 0 {
 		return true
 	}
 	// these are an OR, so if any passes the filter passes
-	for _, req := range t.Requirements {
+	for _, req := range t {
 		if err := requirements.Compatible(req, compatabilityOptions...); err == nil {
 			return true
 		}

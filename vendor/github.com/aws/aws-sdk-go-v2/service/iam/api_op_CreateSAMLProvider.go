@@ -75,14 +75,6 @@ type CreateSAMLProviderInput struct {
 	// This member is required.
 	SAMLMetadataDocument *string
 
-	// The private key generated from your external identity provider. The private key
-	// must be a .pem file that uses AES-GCM or AES-CBC encryption algorithm to decrypt
-	// SAML assertions.
-	AddPrivateKey *string
-
-	// Specifies the encryption setting for the SAML provider.
-	AssertionEncryptionMode types.AssertionEncryptionModeType
-
 	// A list of tags that you want to attach to the new IAM SAML provider. Each tag
 	// consists of a key name and an associated value. For more information about
 	// tagging, see [Tagging IAM resources]in the IAM User Guide.

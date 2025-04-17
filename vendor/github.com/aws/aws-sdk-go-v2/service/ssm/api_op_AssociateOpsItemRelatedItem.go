@@ -12,7 +12,8 @@ import (
 
 // Associates a related item to a Systems Manager OpsCenter OpsItem. For example,
 // you can associate an Incident Manager incident or analysis with an OpsItem.
-// Incident Manager and OpsCenter are tools in Amazon Web Services Systems Manager.
+// Incident Manager and OpsCenter are capabilities of Amazon Web Services Systems
+// Manager.
 func (c *Client) AssociateOpsItemRelatedItem(ctx context.Context, params *AssociateOpsItemRelatedItemInput, optFns ...func(*Options)) (*AssociateOpsItemRelatedItemOutput, error) {
 	if params == nil {
 		params = &AssociateOpsItemRelatedItemInput{}

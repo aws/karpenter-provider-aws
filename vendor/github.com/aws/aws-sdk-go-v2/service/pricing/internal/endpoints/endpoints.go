@@ -308,9 +308,6 @@ var defaultPartitions = endpoints.Partitions{
 				Hostname:          "api.pricing-fips.{region}.csp.hci.ic.gov",
 				Protocols:         []string{"https"},
 				SignatureVersions: []string{"v4"},
-				CredentialScope: endpoints.CredentialScope{
-					Service: "pricing",
-				},
 			},
 			{
 				Variant: 0,
@@ -318,18 +315,10 @@ var defaultPartitions = endpoints.Partitions{
 				Hostname:          "api.pricing.{region}.csp.hci.ic.gov",
 				Protocols:         []string{"https"},
 				SignatureVersions: []string{"v4"},
-				CredentialScope: endpoints.CredentialScope{
-					Service: "pricing",
-				},
 			},
 		},
 		RegionRegex:    partitionRegexp.AwsIsoF,
 		IsRegionalized: true,
-		Endpoints: endpoints.Endpoints{
-			endpoints.EndpointKey{
-				Region: "us-isof-south-1",
-			}: endpoints.Endpoint{},
-		},
 	},
 	{
 		ID: "aws-us-gov",

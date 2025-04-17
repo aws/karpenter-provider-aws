@@ -42,17 +42,12 @@ var KnownEphemeralTaints = []corev1.Taint{
 // Taints is a decorated alias type for []corev1.Taint
 type Taints []corev1.Taint
 
-// ToleratesPod returns true if the pod tolerates all taints.
-func (ts Taints) ToleratesPod(pod *corev1.Pod) error {
-	return ts.Tolerates(pod.Spec.Tolerations)
-}
-
-// Tolerates returns true if the toleration slice tolerate all taints.
-func (ts Taints) Tolerates(tolerations []corev1.Toleration) (errs error) {
+// Tolerates returns true if the pod tolerates all taints.
+func (ts Taints) Tolerates(pod *corev1.Pod) (errs error) {
 	for i := range ts {
 		taint := ts[i]
 		tolerates := false
-		for _, t := range tolerations {
+		for _, t := range pod.Spec.Tolerations {
 			tolerates = tolerates || t.ToleratesTaint(&taint)
 		}
 		if !tolerates {

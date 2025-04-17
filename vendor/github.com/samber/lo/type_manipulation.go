@@ -8,11 +8,6 @@ func IsNil(x any) bool {
 	return x == nil || reflect.ValueOf(x).IsNil()
 }
 
-// IsNotNil checks if a value is not nil or if it's not a reference type with a nil underlying value.
-func IsNotNil(x any) bool {
-	return !IsNil(x)
-}
-
 // ToPtr returns a pointer copy of value.
 func ToPtr[T any](x T) *T {
 	return &x
@@ -74,8 +69,7 @@ func FromSlicePtr[T any](collection []*T) []T {
 	})
 }
 
-// FromSlicePtrOr returns a slice with the pointer values or the fallback value.
-// Play: https://go.dev/play/p/lbunFvzlUDX
+// FromSlicePtr returns a slice with the pointer values or the fallback value.
 func FromSlicePtrOr[T any](collection []*T, fallback T) []T {
 	return Map(collection, func(x *T, _ int) T {
 		if x == nil {
@@ -111,7 +105,7 @@ func FromAnySlice[T any](in []any) (out []T, ok bool) {
 	return result, true
 }
 
-// Empty returns the zero value (https://go.dev/ref/spec#The_zero_value).
+// Empty returns an empty value.
 func Empty[T any]() T {
 	var zero T
 	return zero
@@ -146,44 +140,4 @@ func Coalesce[T comparable](values ...T) (result T, ok bool) {
 func CoalesceOrEmpty[T comparable](v ...T) T {
 	result, _ := Coalesce(v...)
 	return result
-}
-
-// CoalesceSlice returns the first non-zero slice.
-func CoalesceSlice[T any](v ...[]T) ([]T, bool) {
-	for i := range v {
-		if v[i] != nil && len(v[i]) > 0 {
-			return v[i], true
-		}
-	}
-	return []T{}, false
-}
-
-// CoalesceSliceOrEmpty returns the first non-zero slice.
-func CoalesceSliceOrEmpty[T any](v ...[]T) []T {
-	for i := range v {
-		if v[i] != nil && len(v[i]) > 0 {
-			return v[i]
-		}
-	}
-	return []T{}
-}
-
-// CoalesceMap returns the first non-zero map.
-func CoalesceMap[K comparable, V any](v ...map[K]V) (map[K]V, bool) {
-	for i := range v {
-		if v[i] != nil && len(v[i]) > 0 {
-			return v[i], true
-		}
-	}
-	return map[K]V{}, false
-}
-
-// CoalesceMapOrEmpty returns the first non-zero map.
-func CoalesceMapOrEmpty[K comparable, V any](v ...map[K]V) map[K]V {
-	for i := range v {
-		if v[i] != nil && len(v[i]) > 0 {
-			return v[i]
-		}
-	}
-	return map[K]V{}
 }

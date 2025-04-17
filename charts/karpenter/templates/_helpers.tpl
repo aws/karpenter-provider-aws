@@ -75,12 +75,6 @@ Karpenter image to use
 {{- end }}
 {{- end }}
 
-{{/*
-Karpenter controller container name
-*/}}
-{{- define "karpenter.controller.containerName" -}}
-{{- .Values.controller.containerName | default "controller" -}}
-{{- end -}}
 
 {{/* Get PodDisruptionBudget API Version */}}
 {{- define "karpenter.pdb.apiVersion" -}}

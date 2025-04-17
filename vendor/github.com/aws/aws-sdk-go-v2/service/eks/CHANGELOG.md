@@ -1,30 +1,3 @@
-# v1.58.0 (2025-02-07)
-
-* **Feature**: Introduce versionStatus field to take place of status field in EKS DescribeClusterVersions API
-
-# v1.57.4 (2025-02-05)
-
-* **Dependency Update**: Updated to the latest SDK module versions
-
-# v1.57.3 (2025-02-04)
-
-* No change notes available for this release.
-
-# v1.57.2 (2025-01-31)
-
-* **Dependency Update**: Switch to code-generated waiter matchers, removing the dependency on go-jmespath.
-* **Dependency Update**: Updated to the latest SDK module versions
-
-# v1.57.1 (2025-01-30)
-
-* **Dependency Update**: Updated to the latest SDK module versions
-
-# v1.57.0 (2025-01-24)
-
-* **Feature**: Adds support for UpdateStrategies in EKS Managed Node Groups.
-* **Dependency Update**: Updated to the latest SDK module versions
-* **Dependency Update**: Upgrade to smithy-go v1.22.2.
-
 # v1.56.5 (2025-01-17)
 
 * **Bug Fix**: Fix bug where credentials weren't refreshed during retry loop.

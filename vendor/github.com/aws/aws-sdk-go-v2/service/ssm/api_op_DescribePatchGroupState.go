@@ -91,8 +91,8 @@ type DescribePatchGroupStateOutput struct {
 	InstancesWithSecurityNonCompliantPatches *int32
 
 	// The number of managed nodes with NotApplicable patches beyond the supported
-	// limit, which aren't reported by name to Inventory. Inventory is a tool in Amazon
-	// Web Services Systems Manager.
+	// limit, which aren't reported by name to Inventory. Inventory is a capability of
+	// Amazon Web Services Systems Manager.
 	InstancesWithUnreportedNotApplicablePatches *int32
 
 	// Metadata pertaining to the operation's result.

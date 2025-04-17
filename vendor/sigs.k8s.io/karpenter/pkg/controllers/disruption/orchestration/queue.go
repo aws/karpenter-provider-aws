@@ -106,7 +106,7 @@ func IsUnrecoverableError(err error) bool {
 }
 
 type Queue struct {
-	workqueue.TypedRateLimitingInterface[*Command]
+	workqueue.RateLimitingInterface
 
 	mu                  sync.RWMutex
 	providerIDToCommand map[string]*Command // providerID -> command, maps a candidate to its command
@@ -125,9 +125,9 @@ func NewQueue(kubeClient client.Client, recorder events.Recorder, cluster *state
 	queue := &Queue{
 		// nolint:staticcheck
 		// We need to implement a deprecated interface since Command currently doesn't implement "comparable"
-		TypedRateLimitingInterface: workqueue.NewTypedRateLimitingQueueWithConfig(
-			workqueue.NewTypedItemExponentialFailureRateLimiter[*Command](queueBaseDelay, queueMaxDelay),
-			workqueue.TypedRateLimitingQueueConfig[*Command]{
+		RateLimitingInterface: workqueue.NewRateLimitingQueueWithConfig(
+			workqueue.NewItemExponentialFailureRateLimiter(queueBaseDelay, queueMaxDelay),
+			workqueue.RateLimitingQueueConfig{
 				Name: "disruption.workqueue",
 			}),
 		providerIDToCommand: map[string]*Command{},
@@ -171,10 +171,11 @@ func (q *Queue) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	}
 
 	// Get command from queue. This waits until queue is non-empty.
-	cmd, shutdown := q.TypedRateLimitingInterface.Get()
+	item, shutdown := q.RateLimitingInterface.Get()
 	if shutdown {
 		panic("unexpected failure, disruption queue has shut down")
 	}
+	cmd := item.(*Command)
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("command-id", string(cmd.id)))
 
 	if err := q.waitOrTerminate(ctx, cmd); err != nil {
@@ -183,8 +184,8 @@ func (q *Queue) Reconcile(ctx context.Context) (reconcile.Result, error) {
 			// store the error that is causing us to fail, so we can bubble it up later if this times out.
 			cmd.lastError = err
 			// mark this item as done processing. This is necessary so that the RLI is able to add the item back in.
-			q.TypedRateLimitingInterface.Done(cmd)
-			q.TypedRateLimitingInterface.AddRateLimited(cmd)
+			q.RateLimitingInterface.Done(cmd)
+			q.RateLimitingInterface.AddRateLimited(cmd)
 			return reconcile.Result{RequeueAfter: singleton.RequeueImmediately}, nil
 		}
 		// If the command failed, bail on the action.
@@ -297,7 +298,7 @@ func (q *Queue) Add(cmd *Command) error {
 		q.providerIDToCommand[candidate.ProviderID()] = cmd
 	}
 	q.mu.Unlock()
-	q.TypedRateLimitingInterface.Add(cmd)
+	q.RateLimitingInterface.Add(cmd)
 	return nil
 }
 
@@ -317,8 +318,8 @@ func (q *Queue) HasAny(ids ...string) bool {
 // Remove fully clears the queue of all references of a hash/command
 func (q *Queue) Remove(cmd *Command) {
 	// mark this item as done processing. This is necessary so that the RLI is able to add the item back in.
-	q.TypedRateLimitingInterface.Done(cmd)
-	q.TypedRateLimitingInterface.Forget(cmd)
+	q.RateLimitingInterface.Done(cmd)
+	q.RateLimitingInterface.Forget(cmd)
 	q.cluster.UnmarkForDeletion(lo.Map(cmd.candidates, func(s *state.StateNode, _ int) string { return s.ProviderID() })...)
 	// Remove all candidates linked to the command
 	q.mu.Lock()

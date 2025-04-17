@@ -193,8 +193,8 @@ type AssociationDescription struct {
 
 	// Choose the parameter that will define how your automation will branch out. This
 	// target is required for associations that use an Automation runbook and target
-	// resources by using rate controls. Automation is a tool in Amazon Web Services
-	// Systems Manager.
+	// resources by using rate controls. Automation is a capability of Amazon Web
+	// Services Systems Manager.
 	AutomationTargetParameterName *string
 
 	// The names or Amazon Resource Names (ARNs) of the Change Calendar type documents
@@ -284,9 +284,9 @@ type AssociationDescription struct {
 	// successfully, the association is NON-COMPLIANT .
 	//
 	// In MANUAL mode, you must specify the AssociationId as a parameter for the PutComplianceItems API
-	// operation. In this case, compliance data isn't managed by State Manager, a tool
-	// in Amazon Web Services Systems Manager. It is managed by your direct call to the
-	// PutComplianceItemsAPI operation.
+	// operation. In this case, compliance data isn't managed by State Manager, a
+	// capability of Amazon Web Services Systems Manager. It is managed by your direct
+	// call to the PutComplianceItemsAPI operation.
 	//
 	// By default, all associations use AUTO mode.
 	SyncCompliance AssociationSyncCompliance
@@ -565,9 +565,9 @@ type AssociationVersionInfo struct {
 	// successfully, the association is NON-COMPLIANT .
 	//
 	// In MANUAL mode, you must specify the AssociationId as a parameter for the PutComplianceItems API
-	// operation. In this case, compliance data isn't managed by State Manager, a tool
-	// in Amazon Web Services Systems Manager. It is managed by your direct call to the
-	// PutComplianceItemsAPI operation.
+	// operation. In this case, compliance data isn't managed by State Manager, a
+	// capability of Amazon Web Services Systems Manager. It is managed by your direct
+	// call to the PutComplianceItemsAPI operation.
 	//
 	// By default, all associations use AUTO mode.
 	SyncCompliance AssociationSyncCompliance
@@ -1134,9 +1134,9 @@ type Command struct {
 	// The date and time the command was requested.
 	RequestedDateTime *time.Time
 
-	// The Identity and Access Management (IAM) service role that Run Command, a tool
-	// in Amazon Web Services Systems Manager, uses to act on your behalf when sending
-	// notifications about command status changes.
+	// The Identity and Access Management (IAM) service role that Run Command, a
+	// capability of Amazon Web Services Systems Manager, uses to act on your behalf
+	// when sending notifications about command status changes.
 	ServiceRole *string
 
 	// The status of the command.
@@ -1341,9 +1341,10 @@ type CommandInvocation struct {
 	// The time and date the request was sent to this managed node.
 	RequestedDateTime *time.Time
 
-	// The Identity and Access Management (IAM) service role that Run Command, a tool
-	// in Amazon Web Services Systems Manager, uses to act on your behalf when sending
-	// notifications about command status changes on a per managed node basis.
+	// The Identity and Access Management (IAM) service role that Run Command, a
+	// capability of Amazon Web Services Systems Manager, uses to act on your behalf
+	// when sending notifications about command status changes on a per managed node
+	// basis.
 	ServiceRole *string
 
 	// The URL to the plugin's StdErr file in Amazon Simple Storage Service (Amazon
@@ -1712,7 +1713,7 @@ type CreateAssociationBatchRequestEntry struct {
 
 	// Specify the target for the association. This target is required for
 	// associations that use an Automation runbook and target resources by using rate
-	// controls. Automation is a tool in Amazon Web Services Systems Manager.
+	// controls. Automation is a capability of Amazon Web Services Systems Manager.
 	AutomationTargetParameterName *string
 
 	// The names or Amazon Resource Names (ARNs) of the Change Calendar type documents
@@ -1802,9 +1803,9 @@ type CreateAssociationBatchRequestEntry struct {
 	// successfully, the association is NON-COMPLIANT .
 	//
 	// In MANUAL mode, you must specify the AssociationId as a parameter for the PutComplianceItems API
-	// operation. In this case, compliance data isn't managed by State Manager, a tool
-	// in Amazon Web Services Systems Manager. It is managed by your direct call to the
-	// PutComplianceItemsAPI operation.
+	// operation. In this case, compliance data isn't managed by State Manager, a
+	// capability of Amazon Web Services Systems Manager. It is managed by your direct
+	// call to the PutComplianceItemsAPI operation.
 	//
 	// By default, all associations use AUTO mode.
 	SyncCompliance AssociationSyncCompliance
@@ -2812,8 +2813,8 @@ type InstancePatchState struct {
 	SnapshotId *string
 
 	// The number of patches beyond the supported limit of NotApplicableCount that
-	// aren't reported by name to Inventory. Inventory is a tool in Amazon Web Services
-	// Systems Manager.
+	// aren't reported by name to Inventory. Inventory is a capability of Amazon Web
+	// Services Systems Manager.
 	UnreportedNotApplicableCount *int32
 
 	noSmithyDocumentSerde
@@ -4579,8 +4580,8 @@ type ParameterInlinePolicy struct {
 	// The JSON text of the policy.
 	PolicyText *string
 
-	// The type of policy. Parameter Store, a tool in Amazon Web Services Systems
-	// Manager, supports the following policy types: Expiration,
+	// The type of policy. Parameter Store, a capability of Amazon Web Services
+	// Systems Manager, supports the following policy types: Expiration,
 	// ExpirationNotification, and NoChangeNotification.
 	PolicyType *string
 
@@ -5826,7 +5827,7 @@ type Tag struct {
 //
 // Supported formats include the following.
 //
-// For all Systems Manager tools:
+// For all Systems Manager capabilities:
 //
 //   - Key=tag-key,Values=tag-value-1,tag-value-2
 //

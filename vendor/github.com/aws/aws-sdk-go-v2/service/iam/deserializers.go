@@ -24608,74 +24608,6 @@ func awsAwsquery_deserializeDocumentPosition(v **types.Position, decoder smithyx
 	return nil
 }
 
-func awsAwsquery_deserializeDocumentPrivateKeyList(v *[]types.SAMLPrivateKey, decoder smithyxml.NodeDecoder) error {
-	if v == nil {
-		return fmt.Errorf("unexpected nil of type %T", v)
-	}
-	var sv []types.SAMLPrivateKey
-	if *v == nil {
-		sv = make([]types.SAMLPrivateKey, 0)
-	} else {
-		sv = *v
-	}
-
-	originalDecoder := decoder
-	for {
-		t, done, err := decoder.Token()
-		if err != nil {
-			return err
-		}
-		if done {
-			break
-		}
-		switch {
-		case strings.EqualFold("member", t.Name.Local):
-			var col types.SAMLPrivateKey
-			nodeDecoder := smithyxml.WrapNodeDecoder(decoder.Decoder, t)
-			destAddr := &col
-			if err := awsAwsquery_deserializeDocumentSAMLPrivateKey(&destAddr, nodeDecoder); err != nil {
-				return err
-			}
-			col = *destAddr
-			sv = append(sv, col)
-
-		default:
-			err = decoder.Decoder.Skip()
-			if err != nil {
-				return err
-			}
-
-		}
-		decoder = originalDecoder
-	}
-	*v = sv
-	return nil
-}
-
-func awsAwsquery_deserializeDocumentPrivateKeyListUnwrapped(v *[]types.SAMLPrivateKey, decoder smithyxml.NodeDecoder) error {
-	var sv []types.SAMLPrivateKey
-	if *v == nil {
-		sv = make([]types.SAMLPrivateKey, 0)
-	} else {
-		sv = *v
-	}
-
-	switch {
-	default:
-		var mv types.SAMLPrivateKey
-		t := decoder.StartEl
-		_ = t
-		nodeDecoder := smithyxml.WrapNodeDecoder(decoder.Decoder, t)
-		destAddr := &mv
-		if err := awsAwsquery_deserializeDocumentSAMLPrivateKey(&destAddr, nodeDecoder); err != nil {
-			return err
-		}
-		mv = *destAddr
-		sv = append(sv, mv)
-	}
-	*v = sv
-	return nil
-}
 func awsAwsquery_deserializeDocumentReportGenerationLimitExceededException(v **types.ReportGenerationLimitExceededException, decoder smithyxml.NodeDecoder) error {
 	if v == nil {
 		return fmt.Errorf("unexpected nil of type %T", v)
@@ -25508,72 +25440,6 @@ func awsAwsquery_deserializeDocumentRoleUsageType(v **types.RoleUsageType, decod
 			nodeDecoder := smithyxml.WrapNodeDecoder(decoder.Decoder, t)
 			if err := awsAwsquery_deserializeDocumentArnListType(&sv.Resources, nodeDecoder); err != nil {
 				return err
-			}
-
-		default:
-			// Do nothing and ignore the unexpected tag element
-			err = decoder.Decoder.Skip()
-			if err != nil {
-				return err
-			}
-
-		}
-		decoder = originalDecoder
-	}
-	*v = sv
-	return nil
-}
-
-func awsAwsquery_deserializeDocumentSAMLPrivateKey(v **types.SAMLPrivateKey, decoder smithyxml.NodeDecoder) error {
-	if v == nil {
-		return fmt.Errorf("unexpected nil of type %T", v)
-	}
-	var sv *types.SAMLPrivateKey
-	if *v == nil {
-		sv = &types.SAMLPrivateKey{}
-	} else {
-		sv = *v
-	}
-
-	for {
-		t, done, err := decoder.Token()
-		if err != nil {
-			return err
-		}
-		if done {
-			break
-		}
-		originalDecoder := decoder
-		decoder = smithyxml.WrapNodeDecoder(originalDecoder.Decoder, t)
-		switch {
-		case strings.EqualFold("KeyId", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.KeyId = ptr.String(xtv)
-			}
-
-		case strings.EqualFold("Timestamp", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				t, err := smithytime.ParseDateTime(xtv)
-				if err != nil {
-					return err
-				}
-				sv.Timestamp = ptr.Time(t)
 			}
 
 		default:
@@ -30530,19 +30396,6 @@ func awsAwsquery_deserializeOpDocumentGetSAMLProviderOutput(v **GetSAMLProviderO
 		originalDecoder := decoder
 		decoder = smithyxml.WrapNodeDecoder(originalDecoder.Decoder, t)
 		switch {
-		case strings.EqualFold("AssertionEncryptionMode", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.AssertionEncryptionMode = types.AssertionEncryptionModeType(xtv)
-			}
-
 		case strings.EqualFold("CreateDate", t.Name.Local):
 			val, err := decoder.Value()
 			if err != nil {
@@ -30560,12 +30413,6 @@ func awsAwsquery_deserializeOpDocumentGetSAMLProviderOutput(v **GetSAMLProviderO
 				sv.CreateDate = ptr.Time(t)
 			}
 
-		case strings.EqualFold("PrivateKeyList", t.Name.Local):
-			nodeDecoder := smithyxml.WrapNodeDecoder(decoder.Decoder, t)
-			if err := awsAwsquery_deserializeDocumentPrivateKeyList(&sv.PrivateKeyList, nodeDecoder); err != nil {
-				return err
-			}
-
 		case strings.EqualFold("SAMLMetadataDocument", t.Name.Local):
 			val, err := decoder.Value()
 			if err != nil {
@@ -30577,19 +30424,6 @@ func awsAwsquery_deserializeOpDocumentGetSAMLProviderOutput(v **GetSAMLProviderO
 			{
 				xtv := string(val)
 				sv.SAMLMetadataDocument = ptr.String(xtv)
-			}
-
-		case strings.EqualFold("SAMLProviderUUID", t.Name.Local):
-			val, err := decoder.Value()
-			if err != nil {
-				return err
-			}
-			if val == nil {
-				break
-			}
-			{
-				xtv := string(val)
-				sv.SAMLProviderUUID = ptr.String(xtv)
 			}
 
 		case strings.EqualFold("Tags", t.Name.Local):

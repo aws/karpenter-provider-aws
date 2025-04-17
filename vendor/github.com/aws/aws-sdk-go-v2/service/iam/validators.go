@@ -5334,6 +5334,9 @@ func validateOpUpdateSAMLProviderInput(v *UpdateSAMLProviderInput) error {
 		return nil
 	}
 	invalidParams := smithy.InvalidParamsError{Context: "UpdateSAMLProviderInput"}
+	if v.SAMLMetadataDocument == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("SAMLMetadataDocument"))
+	}
 	if v.SAMLProviderArn == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("SAMLProviderArn"))
 	}
