@@ -58,6 +58,10 @@ var (
 		"InsufficientFreeAddressesInSubnet",
 		reservationCapacityExceededErrorCode,
 	)
+	UnauthorizedOperationErrorCodes = sets.New[string](
+		"UnauthorizedOperation",
+		"AccessDenied",
+	)
 )
 
 // IsNotFound returns true if the err is an AWS error (even if it's
@@ -119,7 +123,7 @@ func IsUnauthorizedOperationError(err error) bool {
 		return false
 	}
 	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
-		return apiErr.ErrorCode() == UnauthorizedOperationErrorCode
+		return UnauthorizedOperationErrorCodes.Has(apiErr.ErrorCode())
 	}
 	return false
 }
