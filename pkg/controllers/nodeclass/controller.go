@@ -22,6 +22,7 @@ import (
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/clock"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
@@ -52,6 +53,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
@@ -70,19 +72,21 @@ type Controller struct {
 func NewController(
 	clk clock.Clock,
 	kubeClient client.Client,
+	cloudProvider cloudprovider.CloudProvider,
 	recorder events.Recorder,
 	region string,
 	subnetProvider subnet.Provider,
 	securityGroupProvider securitygroup.Provider,
 	amiProvider amifamily.Provider,
 	instanceProfileProvider instanceprofile.Provider,
+	instanceTypeProvider instancetype.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	capacityReservationProvider capacityreservation.Provider,
 	ec2api sdk.EC2API,
 	validationCache *cache.Cache,
 	amiResolver amifamily.Resolver,
 ) *Controller {
-	validation := NewValidationReconciler(ec2api, amiResolver, launchTemplateProvider, validationCache)
+	validation := NewValidationReconciler(kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache)
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
