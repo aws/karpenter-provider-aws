@@ -892,7 +892,7 @@ This can be further restricted by specifying an owner ID.
 
 {{% alert title="Note" color="primary" %}}
 Note that the IAM role Karpenter assumes should have a permissions policy associated with it that grants it permissions to use the [ec2:DescribeCapacityReservations](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-DescribeCapacityReservations) action to discover capacity reservations and the [ec2:RunInstances](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-RunInstances) action to run instances in those capacity reservations.
-{{% /alert %}}s
+{{% /alert %}}
 
 #### Examples
 
