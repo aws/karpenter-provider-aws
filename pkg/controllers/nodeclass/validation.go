@@ -268,6 +268,7 @@ func (*Validation) requiredConditions() []string {
 		v1.ConditionTypeInstanceProfileReady,
 		v1.ConditionTypeSecurityGroupsReady,
 		v1.ConditionTypeSubnetsReady,
+		v1.ConditionTypeClusterCIDRReady,
 	}
 }
 
