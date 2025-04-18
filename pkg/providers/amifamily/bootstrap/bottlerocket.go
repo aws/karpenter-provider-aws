@@ -63,6 +63,18 @@ func (b Bottlerocket) Script() (string, error) {
 		if b.KubeletConfig.EvictionHard != nil {
 			s.Settings.Kubernetes.EvictionHard = b.KubeletConfig.EvictionHard
 		}
+		if b.KubeletConfig.EvictionSoft != nil {
+			s.Settings.Kubernetes.EvictionSoft = b.KubeletConfig.EvictionSoft
+		}
+		if b.KubeletConfig.EvictionSoftGracePeriod != nil {
+			s.Settings.Kubernetes.EvictionSoftGracePeriod = map[string]string{}
+			for k, v := range b.KubeletConfig.EvictionSoftGracePeriod {
+				s.Settings.Kubernetes.EvictionSoftGracePeriod[k] = v.Duration.String()
+			}
+		}
+		if b.KubeletConfig.EvictionMaxPodGracePeriod != nil {
+			s.Settings.Kubernetes.EvictionMaxPodGracePeriod = aws.Int(int(lo.FromPtr(b.KubeletConfig.EvictionMaxPodGracePeriod)))
+		}
 		if b.KubeletConfig.ImageGCHighThresholdPercent != nil {
 			s.Settings.Kubernetes.ImageGCHighThresholdPercent = lo.ToPtr(strconv.FormatInt(int64(*b.KubeletConfig.ImageGCHighThresholdPercent), 10))
 		}
