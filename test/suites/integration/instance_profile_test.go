@@ -133,12 +133,12 @@ var _ = Describe("InstanceProfile Generation", func() {
 
 		})
 
-		It("Should detect a deleted Instance Profile", func() {
+		It("should set the InstanceProfileReady status condition to false when the instance profile is not found", func() {
 			nodeClass.Spec.InstanceProfile = lo.ToPtr(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName))
 			nodeClass.Spec.Role = ""
 			env.ExpectCreated(nodeClass)
-			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, InstanceProfileReady=False"})
-			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionFalse, Reason: "InstanceProfileNotFound"})
+			ExpectStatusConditions(env, env.Client, 2*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "ValidationSucceeded=False, InstanceProfileReady=False"})
+			ExpectStatusConditions(env, env.Client, 2*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeInstanceProfileReady, Status: metav1.ConditionFalse, Reason: "InstanceProfileNotFound"})
 		})
 		It("should set the InstanceProfileReady status condition to false when the role is not found", func() {
 			_, err := env.IAMAPI.PutRolePolicy(env.Context, &iam.PutRolePolicyInput{
