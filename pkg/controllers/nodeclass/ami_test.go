@@ -135,13 +135,14 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/nvidia/recommended/image_id", k8sVersion):   "ami-amd64-nvidia",
 				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/neuron/recommended/image_id", k8sVersion):   "ami-amd64-neuron",
 				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", k8sVersion):  "ami-arm64-standard",
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/nvidia/recommended/image_id", k8sVersion):    "ami-arm64-nvidia",
 			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-			Expect(len(nodeClass.Status.AMIs)).To(Equal(4))
+			Expect(len(nodeClass.Status.AMIs)).To(Equal(5))
 			Expect(nodeClass.Status.AMIs).To(ContainElements([]v1.AMI{
 				{
 					Name: "amd64-standard",
@@ -208,6 +209,21 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						{
 							Key:      v1.LabelInstanceAcceleratorCount,
 							Operator: corev1.NodeSelectorOpDoesNotExist,
+						},
+					},
+				},
+				{
+					Name: "arm64-nvidia",
+					ID:   "ami-arm64-nvidia",
+					Requirements: []corev1.NodeSelectorRequirement{
+						{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureArm64},
+						},
+						{
+							Key:      v1.LabelInstanceGPUCount,
+							Operator: corev1.NodeSelectorOpExists,
 						},
 					},
 				},

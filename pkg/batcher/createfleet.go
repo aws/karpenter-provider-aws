@@ -88,6 +88,7 @@ func execCreateFleetBatch(ec2api sdk.EC2API) BatchExecutor[ec2.CreateFleetInput,
 								Platform:                   reservation.Platform,
 							},
 						},
+						ResultMetadata: output.ResultMetadata,
 					},
 				})
 			}
@@ -103,7 +104,8 @@ func execCreateFleetBatch(ec2api sdk.EC2API) BatchExecutor[ec2.CreateFleetInput,
 			for i := requestIdx + 1; i < len(inputs); i++ {
 				results = append(results, Result[ec2.CreateFleetOutput]{
 					Output: &ec2.CreateFleetOutput{
-						Errors: output.Errors,
+						Errors:         output.Errors,
+						ResultMetadata: output.ResultMetadata,
 					}})
 			}
 		}

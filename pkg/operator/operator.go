@@ -25,13 +25,14 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/middleware"
+	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/awslabs/operatorpkg/aws/middleware"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/aws/smithy-go"
@@ -114,6 +115,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	}
 
 	cfg := prometheusv2.WithPrometheusMetrics(WithUserAgent(lo.Must(config.LoadDefaultConfig(ctx))), crmetrics.Registry)
+	cfg.APIOptions = append(cfg.APIOptions, middleware.StructuredErrorHandler)
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
 		region := lo.Must(imds.NewFromConfig(cfg).GetRegion(ctx, nil))
@@ -233,7 +235,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 func WithUserAgent(cfg aws.Config) aws.Config {
 	userAgent := fmt.Sprintf("karpenter.sh-%s", operator.Version)
 	cfg.APIOptions = append(cfg.APIOptions,
-		middleware.AddUserAgentKey(userAgent),
+		awsmiddleware.AddUserAgentKey(userAgent),
 	)
 	return cfg
 }

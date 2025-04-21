@@ -100,12 +100,13 @@ spec:
   amiSelectorTerms:
     # Select on any AMI that has both the `karpenter.sh/discovery: ${CLUSTER_NAME}`
     # AND `environment: test` tags OR any AMI with the name `my-ami` OR an AMI with
-    # ID `ami-123`
+    # ID `ami-123` OR an AMI with ID matching the value of my-custom-parameter
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}"
         environment: test
     - name: my-ami
     - id: ami-123
+    - ssmParameter: my-custom-parameter # ssm parameter name or ARN
     # Select EKS optimized AL2023 AMIs with version `v20240703`. This term is mutually
     # exclusive and can't be specified with other terms.
     # - alias: al2023@v20240703
@@ -717,12 +718,13 @@ The example below shows how this selection logic is fulfilled.
 amiSelectorTerms:
   # Select on any AMI that has both the `karpenter.sh/discovery: ${CLUSTER_NAME}`
   # AND `environment: test` tags OR any AMI with the name `my-ami` OR an AMI with
-  # ID `ami-123`
+  # ID `ami-123` OR an AMI with ID matching the value of my-custom-parameter
   - tags:
       karpenter.sh/discovery: "${CLUSTER_NAME}"
       environment: test
   - name: my-ami
   - id: ami-123
+  - ssmParameter: my-custom-parameter # ssm parameter name or ARN
   # Select EKS optimized AL2023 AMIs with version `v20240807`. This term is mutually
   # exclusive and can't be specified with other terms.
   # - alias: al2023@v20240807
@@ -853,6 +855,16 @@ Specify using ids:
     - id: "ami-123"
     - id: "ami-456"
 ```
+
+Specify using custom ssm parameter name or ARN:
+```yaml
+  amiSelectorTerms:
+    - ssmParameter: "my-custom-parameter"
+```
+
+{{% alert title="Note" color="primary" %}}
+When using a custom SSM parameter, you'll need to expand the `ssm:GetParameter` permissions on the Karpenter IAM role to include your custom parameter, as the default policy only allows access to the AWS public parameters.
+{{% /alert %}}
 
 ## spec.capacityReservationSelectorTerms
 

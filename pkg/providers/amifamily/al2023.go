@@ -39,7 +39,7 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 	ids := map[string]Variant{}
 	for arch, variants := range map[string][]Variant{
 		"x86_64": {VariantStandard, VariantNvidia, VariantNeuron},
-		"arm64":  {VariantStandard},
+		"arm64":  {VariantStandard, VariantNvidia},
 	} {
 		for _, variant := range variants {
 			path := a.resolvePath(arch, string(variant), k8sVersion, amiVersion)

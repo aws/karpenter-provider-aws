@@ -22,11 +22,14 @@ import (
 	"sort"
 	"strings"
 
+	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
+	"github.com/awslabs/operatorpkg/aws/middleware"
+	"github.com/awslabs/operatorpkg/serrors"
+
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
@@ -282,15 +285,19 @@ func (p *DefaultProvider) launchInstance(
 			}
 			return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("launch templates not found when creating fleet request, %w", err), reason, fmt.Sprintf("Launch templates not found when creating fleet request: %s", message))
 		}
-		var reqErr *awshttp.ResponseError
-		if errors.As(err, &reqErr) {
-			return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w (%v)", err, reqErr.ServiceRequestID()), reason, fmt.Sprintf("Error creating fleet request: %s", message))
-		}
 		return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w", err), reason, fmt.Sprintf("Error creating fleet request: %s", message))
 	}
 	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, instanceTypes)
 	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
-		return ec2types.CreateFleetInstance{}, combineFleetErrors(createFleetOutput.Errors)
+		requestID, _ := awsmiddleware.GetRequestIDMetadata(createFleetOutput.ResultMetadata)
+		return ec2types.CreateFleetInstance{}, serrors.Wrap(
+			combineFleetErrors(createFleetOutput.Errors),
+			middleware.AWSRequestIDLogKey, requestID,
+			middleware.AWSOperationNameLogKey, "CreateFleet",
+			middleware.AWSServiceNameLogKey, "EC2",
+			middleware.AWSStatusCodeLogKey, 200,
+			middleware.AWSErrorCodeLogKey, "UnfulfillableCapacity",
+		)
 	}
 	return createFleetOutput.Instances[0], nil
 }

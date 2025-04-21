@@ -71,10 +71,13 @@ var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("AMI", func() {
+	var ssmPath string
 	var customAMI string
 	var deprecatedAMI string
+
 	BeforeEach(func() {
-		customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+		ssmPath = fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion())
+		customAMI = env.GetAMIBySSMPath(ssmPath)
 		deprecatedAMI = env.GetDeprecatedAMI(customAMI, "AL2023")
 	})
 
@@ -149,6 +152,21 @@ var _ = Describe("AMI", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
 				ID: customAMI,
+			},
+		}
+		pod := coretest.Pod()
+
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
+	})
+	It("should support ssm parameters by ARN", func() {
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+			{
+				SSMParameter: fmt.Sprintf("arn:aws:ssm:%s::parameter%s", env.Region, ssmPath),
 			},
 		}
 		pod := coretest.Pod()
@@ -246,6 +264,16 @@ var _ = Describe("AMI", func() {
 		It("should have the EC2NodeClass status for AMIs using tags", func() {
 			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: customAMI}}
+			env.ExpectCreated(nodeClass)
+			nc := EventuallyExpectAMIsToExist(nodeClass)
+			Expect(len(nc.Status.AMIs)).To(BeNumerically("==", 1))
+			Expect(nc.Status.AMIs[0].ID).To(Equal(customAMI))
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeAMIsReady, Status: metav1.ConditionTrue})
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
+		})
+		It("should have the EC2NodeClass status for AMIs using public ssm parameter ARN", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{SSMParameter: fmt.Sprintf("arn:aws:ssm:%s::parameter%s", env.Region, ssmPath)}}
 			env.ExpectCreated(nodeClass)
 			nc := EventuallyExpectAMIsToExist(nodeClass)
 			Expect(len(nc.Status.AMIs)).To(BeNumerically("==", 1))
