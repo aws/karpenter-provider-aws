@@ -159,7 +159,7 @@ make setup
 ```
 
 ## Profiling
-Karpenter exposes a pprof endpoint on its metrics port when [profiling](https://karpenter.sh/docs/reference/settings/) is enabled.
+Karpenter exposes a pprof endpoint on its metrics port when [profiling]({{< relref "../reference/settings" >}}) is enabled.
 
 Learn about profiling with pprof: https://jvns.ca/blog/2017/09/24/profiling-go-with-pprof/
 
