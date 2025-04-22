@@ -10,8 +10,8 @@ github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPd
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5/go.mod h1:wHh0iHkYZB8zMSxRWpUBQtwG5a7fFgvEO+odwuTv2gs=
 github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHSxpiH9JdtuBj0=
 github.com/avast/retry-go v3.0.0+incompatible/go.mod h1:XtSnn+n/sHqQIpZ10K1qAevBhOOCWBLXXy3hyiqqBrY=
-github.com/aws/amazon-vpc-resource-controller-k8s v1.7.0 h1:1YtrbYvO99pPNPATtEJGoUrSegDtUsUDMjWl5OeXEjE=
-github.com/aws/amazon-vpc-resource-controller-k8s v1.7.0/go.mod h1:ogGkF8rx7BJPe6NaIN7XM7+nP5tUNd4HAs0Ivvva3lo=
+github.com/aws/amazon-vpc-resource-controller-k8s v1.7.1 h1:sNzvPSIWU8pB+ZBXAG0VkL1EhkF90NWeeiSBv2GXEbk=
+github.com/aws/amazon-vpc-resource-controller-k8s v1.7.1/go.mod h1:8RgxJ/xU7gzdzlIciySLPVtON/W1UcCtHDV83cjdvr0=
 github.com/aws/aws-sdk-go-v2 v1.36.3 h1:mJoei2CxPutQVxaATCzDUjcZEjVRdpsiiXi2o38yqWM=
 github.com/aws/aws-sdk-go-v2 v1.36.3/go.mod h1:LLXuLpgzEbD766Z5ECcRmi8AzSwfZItDtmABVkRLGzg=
 github.com/aws/aws-sdk-go-v2/config v1.29.14 h1:f+eEi/2cKCg9pqKBoAIwRGzVb70MRKqWX4dg1BDcSJM=
@@ -28,8 +28,8 @@ github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 h1:bIqFDwgGXXN1Kpp99pDOdKMTTb5d
 github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3/go.mod h1:H5O/EsxDWyU+LP/V8i5sm8cxoZgc2fdNR9bxlOFrQTo=
 github.com/aws/aws-sdk-go-v2/service/ec2 v1.211.3 h1:4dPHqFVVvFG+ntkVUXrMrY55+E5dzFfEpjFWdkdSxnc=
 github.com/aws/aws-sdk-go-v2/service/ec2 v1.211.3/go.mod h1:ouvGEfHbLaIlWwpDpOVWPWR+YwO0HDv3vm5tYLq8ImY=
-github.com/aws/aws-sdk-go-v2/service/eks v1.63.2 h1:ymoK/RrNf6SAzWCPUk9EdyUAshlmBeF6ZWe6GcS8XBg=
-github.com/aws/aws-sdk-go-v2/service/eks v1.63.2/go.mod h1:v1xXy6ea0PHtWkjFUvAUh6B/5wv7UF909Nru0dOIJDk=
+github.com/aws/aws-sdk-go-v2/service/eks v1.64.0 h1:EYeOThTRysemFtC6J6h6b7dNg3jN03QuO5cg92ojIQE=
+github.com/aws/aws-sdk-go-v2/service/eks v1.64.0/go.mod h1:v1xXy6ea0PHtWkjFUvAUh6B/5wv7UF909Nru0dOIJDk=
 github.com/aws/aws-sdk-go-v2/service/fis v1.33.2 h1:XGjI4EWC1sR1voaYJU2gGK96WjKIYV9K0YrSDk1P8n0=
 github.com/aws/aws-sdk-go-v2/service/fis v1.33.2/go.mod h1:2kPhevhXIbi6WFuc+ss9krg2bNAuRqzBGZQX+7TMD/o=
 github.com/aws/aws-sdk-go-v2/service/iam v1.41.1 h1:Kq3R+K49y23CGC5UQF3Vpw5oZEQk5gF/nn+MekPD0ZY=
