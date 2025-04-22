@@ -607,20 +607,16 @@ func (e *EC2API) DescribeSpotPriceHistory(_ context.Context, input *ec2.Describe
 }
 
 func (e *EC2API) RunInstances(ctx context.Context, input *ec2.RunInstancesInput, optFns ...func(*ec2.Options)) (*ec2.RunInstancesOutput, error) {
-	if input.DryRun != nil && *input.DryRun {
-		err := e.RunInstancesBehavior.Error.Get()
-		if err == nil {
-			return &ec2.RunInstancesOutput{}, &smithy.GenericAPIError{
-				Code:    "DryRunOperation",
-				Message: "Request would have succeeded, but DryRun flag is set",
-			}
-		}
-		return nil, err
-	}
 	return e.RunInstancesBehavior.Invoke(input, func(input *ec2.RunInstancesInput) (*ec2.RunInstancesOutput, error) {
 		if !e.NextError.IsNil() {
 			defer e.NextError.Reset()
 			return nil, e.NextError.Get()
+		}
+		if lo.FromPtr(input.DryRun) {
+			return &ec2.RunInstancesOutput{}, &smithy.GenericAPIError{
+				Code:    "DryRunOperation",
+				Message: "Request would have succeeded, but DryRun flag is set",
+			}
 		}
 
 		// Default implementation
