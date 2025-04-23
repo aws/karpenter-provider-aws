@@ -1431,7 +1431,7 @@ var _ = Describe("CloudProvider", func() {
 				CapacityReservations: []ec2types.CapacityReservation{cr},
 			})
 			nodeClass.Status.CapacityReservations = []v1.CapacityReservation{
-				lo.Must(nodeclass.CapacityReservationFromEC2(&cr)),
+				lo.Must(v1.CapacityReservationFromEC2(fakeClock, &cr)),
 			}
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 				Key:      karpv1.CapacityTypeLabelKey,
