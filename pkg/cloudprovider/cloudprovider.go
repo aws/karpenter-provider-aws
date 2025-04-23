@@ -119,7 +119,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, fmt.Errorf("creating instance, %w", err)
 	}
 	if instance.CapacityType == karpv1.CapacityTypeReserved {
-		c.capacityReservationProvider.MarkLaunched(instance.CapacityReservationID)
+		c.capacityReservationProvider.MarkLaunched(*instance.CapacityReservationID)
 	}
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return i.Name == string(instance.Type)
@@ -386,7 +386,10 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 			// three. Capacity reservation IDs are a special case since we don't have a way to represent that the label may or
 			// may not exist. Since this requirement will be present regardless of the capacity type, we can't insert it here.
 			// Otherwise, you may end up with spot and on-demand NodeClaims with a reservation ID label.
-			if req.Len() == 1 && req.Key != cloudprovider.ReservationIDLabel {
+			if req.Len() == 1 && !lo.Contains([]string{
+				cloudprovider.ReservationIDLabel,
+				v1.LabelCapacityReservationType,
+			}, req.Key) {
 				labels[key] = req.Values()[0]
 			}
 		}
@@ -418,7 +421,8 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	}
 	labels[karpv1.CapacityTypeLabelKey] = i.CapacityType
 	if i.CapacityType == karpv1.CapacityTypeReserved {
-		labels[cloudprovider.ReservationIDLabel] = i.CapacityReservationID
+		labels[cloudprovider.ReservationIDLabel] = *i.CapacityReservationID
+		labels[v1.LabelCapacityReservationType] = string(*i.CapacityReservationType)
 	}
 	if v, ok := i.Tags[karpv1.NodePoolLabelKey]; ok {
 		labels[karpv1.NodePoolLabelKey] = v

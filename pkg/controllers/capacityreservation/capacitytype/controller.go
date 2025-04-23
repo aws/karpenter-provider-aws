@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package capacityreservation
+package capacitytype
 
 import (
 	"context"
@@ -50,7 +50,7 @@ func NewController(kubeClient client.Client, cp cloudprovider.CloudProvider) *Co
 }
 
 func (*Controller) Name() string {
-	return "nodeclaim.capacityreservation"
+	return "capacityreservation.capacitytype"
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

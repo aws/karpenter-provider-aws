@@ -21,11 +21,9 @@ import (
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -73,7 +71,7 @@ func (c *CapacityReservation) Reconcile(ctx context.Context, nc *v1.EC2NodeClass
 	errors := []error{}
 	nc.Status.CapacityReservations = []v1.CapacityReservation{}
 	for _, r := range reservations {
-		reservation, err := CapacityReservationFromEC2(r)
+		reservation, err := v1.CapacityReservationFromEC2(c.clk, r)
 		if err != nil {
 			errors = append(errors, err)
 			continue
@@ -88,30 +86,6 @@ func (c *CapacityReservation) Reconcile(ctx context.Context, nc *v1.EC2NodeClass
 	}
 	nc.StatusConditions().SetTrue(v1.ConditionTypeCapacityReservationsReady)
 	return reconcile.Result{RequeueAfter: c.requeueAfter(reservations...)}, nil
-}
-
-func CapacityReservationFromEC2(cr *ec2types.CapacityReservation) (v1.CapacityReservation, error) {
-	// Guard against new instance match criteria added in the future. See https://github.com/kubernetes-sigs/karpenter/issues/806
-	// for a similar issue.
-	if !lo.Contains([]ec2types.InstanceMatchCriteria{
-		ec2types.InstanceMatchCriteriaOpen,
-		ec2types.InstanceMatchCriteriaTargeted,
-	}, cr.InstanceMatchCriteria) {
-		return v1.CapacityReservation{}, serrors.Wrap(fmt.Errorf("capacity reservation has an unsupported instance match criteria"), "capacity-reservation-id", *cr.CapacityReservationId, "instance-match-criteria", cr.InstanceMatchCriteria)
-	}
-	var endTime *metav1.Time
-	if cr.EndDate != nil {
-		endTime = lo.ToPtr(metav1.NewTime(*cr.EndDate))
-	}
-
-	return v1.CapacityReservation{
-		AvailabilityZone:      *cr.AvailabilityZone,
-		EndTime:               endTime,
-		ID:                    *cr.CapacityReservationId,
-		InstanceMatchCriteria: string(cr.InstanceMatchCriteria),
-		InstanceType:          *cr.InstanceType,
-		OwnerID:               *cr.OwnerId,
-	}, nil
 }
 
 // requeueAfter determines the duration until the next target reconciliation time based on the provided reservations. If

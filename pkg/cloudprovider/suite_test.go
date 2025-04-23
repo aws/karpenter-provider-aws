@@ -915,11 +915,17 @@ var _ = Describe("CloudProvider", func() {
 					InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
 					InstanceType:          "m5.large",
 					OwnerID:               "012345678901",
+					State:                 v1.CapacityReservationStateActive,
+					ReservationType:       v1.CapacityReservationTypeDefault,
 				},
 			}
 			setReservationID := func(id string) {
 				out := awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
+				out.Reservations[0].Instances[0].SpotInstanceRequestId = nil
 				out.Reservations[0].Instances[0].CapacityReservationId = lo.ToPtr(id)
+				out.Reservations[0].Instances[0].CapacityReservationSpecification = &ec2types.CapacityReservationSpecificationResponse{
+					CapacityReservationPreference: ec2types.CapacityReservationPreferenceCapacityReservationsOnly,
+				}
 				awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(out)
 			}
 			setReservationID("cr-foo")
@@ -1414,25 +1420,30 @@ var _ = Describe("CloudProvider", func() {
 		})
 	})
 	Context("Capacity Reservations", func() {
-		var reservationID string
+		const reservationCapacity = 10
+		var crs []ec2types.CapacityReservation
 		BeforeEach(func() {
-			reservationID = "cr-m5.large-1a-1"
-			cr := ec2types.CapacityReservation{
-				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
-				InstanceType:           lo.ToPtr("m5.large"),
-				OwnerId:                lo.ToPtr("012345678901"),
-				InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
-				CapacityReservationId:  lo.ToPtr(reservationID),
-				AvailableInstanceCount: lo.ToPtr[int32](10),
-				State:                  ec2types.CapacityReservationStateActive,
-			}
-			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(reservationID, 10)
-			awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
-				CapacityReservations: []ec2types.CapacityReservation{cr},
+			crs = lo.Map(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) ec2types.CapacityReservation {
+				return ec2types.CapacityReservation{
+					AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+					InstanceType:           lo.ToPtr("m5.large"),
+					OwnerId:                lo.ToPtr("012345678901"),
+					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+					CapacityReservationId:  lo.ToPtr(fmt.Sprintf("cr-m5.large-1a-%s", string(crt))),
+					AvailableInstanceCount: lo.ToPtr[int32](reservationCapacity),
+					State:                  ec2types.CapacityReservationStateActive,
+					ReservationType:        ec2types.CapacityReservationType(crt),
+				}
 			})
-			nodeClass.Status.CapacityReservations = []v1.CapacityReservation{
-				lo.Must(nodeclass.CapacityReservationFromEC2(&cr)),
+			for _, cr := range crs {
+				awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(*cr.CapacityReservationId, 10)
 			}
+			awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
+				CapacityReservations: crs,
+			})
+			nodeClass.Status.CapacityReservations = lo.Map(crs, func(cr ec2types.CapacityReservation, _ int) v1.CapacityReservation {
+				return lo.Must(v1.CapacityReservationFromEC2(awsEnv.Clock, &cr))
+			})
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 				Key:      karpv1.CapacityTypeLabelKey,
 				Operator: corev1.NodeSelectorOpIn,
@@ -1444,7 +1455,9 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod)
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(reservationID)).To(Equal(9))
+			ncs := ExpectNodeClaims(ctx, env.Client)
+			Expect(ncs).To(HaveLen(1))
+			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(ncs[0].Labels[corecloudprovider.ReservationIDLabel])).To(Equal(9))
 		})
 		It("should mark capacity reservations as terminated", func() {
 			pod := coretest.UnschedulablePod()
@@ -1457,24 +1470,38 @@ var _ = Describe("CloudProvider", func() {
 			// Attempt the first delete - since the instance still exists we shouldn't increment the availability count
 			err := cloudProvider.Delete(ctx, ncs[0])
 			Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeFalse())
-			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(reservationID)).To(Equal(9))
+			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(ncs[0].Labels[corecloudprovider.ReservationIDLabel])).To(Equal(9))
 
 			// Attempt again after clearing the instance from the EC2 output. Now that we get a NotFound error, expect
 			// availability to be incremented.
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{})
 			err = cloudProvider.Delete(ctx, ncs[0])
 			Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
-			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(reservationID)).To(Equal(10))
+			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(ncs[0].Labels[corecloudprovider.ReservationIDLabel])).To(Equal(10))
 		})
-		It("should include capacity reservation labels", func() {
-			pod := coretest.UnschedulablePod()
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod)
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			ncs := ExpectNodeClaims(ctx, env.Client)
-			Expect(ncs).To(HaveLen(1))
-			Expect(ncs[0].Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
-			Expect(ncs[0].Labels).To(HaveKeyWithValue(corecloudprovider.ReservationIDLabel, reservationID))
-		})
+		DescribeTable(
+			"should include capacity reservation labels",
+			func(crt v1.CapacityReservationType) {
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					NodeSelector: map[string]string{
+						v1.LabelCapacityReservationType: string(crt),
+					},
+				})
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod)
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				ncs := ExpectNodeClaims(ctx, env.Client)
+				Expect(ncs).To(HaveLen(1))
+				Expect(ncs[0].Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
+				Expect(ncs[0].Labels).To(HaveKeyWithValue(corecloudprovider.ReservationIDLabel, *lo.Must(lo.Find(crs, func(cr ec2types.CapacityReservation) bool {
+					return string(cr.ReservationType) == string(crt)
+
+				})).CapacityReservationId))
+				Expect(ncs[0].Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(crt)))
+			},
+			lo.Map(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) TableEntry {
+				return Entry(fmt.Sprintf("when the capacity reservation type is %q", string(crt)), crt)
+			}),
+		)
 	})
 })
