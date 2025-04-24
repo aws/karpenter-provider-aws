@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -76,7 +77,7 @@ func NewVariant(v string) (Variant, error) {
 	var wellKnownVariants = sets.New(VariantStandard, VariantNvidia, VariantNeuron)
 	variant := Variant(v)
 	if !wellKnownVariants.Has(variant) {
-		return variant, fmt.Errorf("%q is not a well-known variant", variant)
+		return variant, serrors.Wrap(fmt.Errorf("variant is not well-known"), "variant", variant)
 	}
 	return variant, nil
 }

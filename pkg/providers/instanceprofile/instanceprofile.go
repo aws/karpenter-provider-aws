@@ -21,6 +21,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 
@@ -65,14 +66,14 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 	instanceProfile, err := p.Get(ctx, instanceProfileName)
 	if err != nil {
 		if !awserrors.IsNotFound(err) {
-			return fmt.Errorf("getting instance profile %q, %w", instanceProfileName, err)
+			return serrors.Wrap(fmt.Errorf("getting instance profile, %w", err), "instance-profile", instanceProfileName)
 		}
 		o, err := p.iamapi.CreateInstanceProfile(ctx, &iam.CreateInstanceProfileInput{
 			InstanceProfileName: lo.ToPtr(instanceProfileName),
 			Tags:                utils.IAMMergeTags(tags),
 		})
 		if err != nil {
-			return fmt.Errorf("creating instance profile %q, %w", instanceProfileName, err)
+			return serrors.Wrap(fmt.Errorf("creating instance profile, %w", err), "instance-profile", instanceProfileName)
 		}
 		instanceProfile = o.InstanceProfile
 	}
@@ -86,7 +87,7 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 			InstanceProfileName: lo.ToPtr(instanceProfileName),
 			RoleName:            instanceProfile.Roles[0].RoleName,
 		}); err != nil {
-			return fmt.Errorf("removing role %q for instance profile %q, %w", lo.FromPtr(instanceProfile.Roles[0].RoleName), instanceProfileName, err)
+			return serrors.Wrap(fmt.Errorf("removing role for instance profile, %w", err), "role", lo.FromPtr(instanceProfile.Roles[0].RoleName), "instance-profile", instanceProfileName)
 		}
 	}
 	// If the role has a path, ignore the path and take the role name only since AddRoleToInstanceProfile
@@ -96,7 +97,7 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 		InstanceProfileName: lo.ToPtr(instanceProfileName),
 		RoleName:            lo.ToPtr(roleName),
 	}); err != nil {
-		return fmt.Errorf("adding role %q to instance profile %q, %w", roleName, instanceProfileName, err)
+		return serrors.Wrap(fmt.Errorf("adding role to instance profile, %w", err), "role", roleName, "instance-profile", instanceProfileName)
 	}
 	instanceProfile.Roles = []iamtypes.Role{{
 		RoleName: lo.ToPtr(roleName),
@@ -110,7 +111,7 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 		InstanceProfileName: lo.ToPtr(instanceProfileName),
 	})
 	if err != nil {
-		return awserrors.IgnoreNotFound(fmt.Errorf("getting instance profile %q, %w", instanceProfileName, err))
+		return awserrors.IgnoreNotFound(serrors.Wrap(fmt.Errorf("getting instance profile, %w", err), "instance-profile", instanceProfileName))
 	}
 	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
 	// https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html
@@ -119,13 +120,13 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 			InstanceProfileName: lo.ToPtr(instanceProfileName),
 			RoleName:            out.InstanceProfile.Roles[0].RoleName,
 		}); err != nil {
-			return fmt.Errorf("removing role %q from instance profile %q, %w", lo.FromPtr(out.InstanceProfile.Roles[0].RoleName), instanceProfileName, err)
+			return serrors.Wrap(fmt.Errorf("removing role from instance profile, %w", err), "role", lo.FromPtr(out.InstanceProfile.Roles[0].RoleName), "instance-profile", instanceProfileName)
 		}
 	}
 	if _, err = p.iamapi.DeleteInstanceProfile(ctx, &iam.DeleteInstanceProfileInput{
 		InstanceProfileName: lo.ToPtr(instanceProfileName),
 	}); err != nil {
-		return awserrors.IgnoreNotFound(fmt.Errorf("deleting instance profile %q, %w", instanceProfileName, err))
+		return awserrors.IgnoreNotFound(serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", instanceProfileName))
 	}
 	return nil
 }

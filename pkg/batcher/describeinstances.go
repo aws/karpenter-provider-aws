@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -48,7 +49,7 @@ func NewDescribeInstancesBatcher(ctx context.Context, ec2api sdk.EC2API) *Descri
 
 func (b *DescribeInstancesBatcher) DescribeInstances(ctx context.Context, describeInstancesInput *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
 	if len(describeInstancesInput.InstanceIds) != 1 {
-		return nil, fmt.Errorf("expected to receive a single instance only, found %d", len(describeInstancesInput.InstanceIds))
+		return nil, serrors.Wrap(fmt.Errorf("expected to receive a single instance only"), "instance-count", len(describeInstancesInput.InstanceIds))
 	}
 	result := b.batcher.Add(ctx, describeInstancesInput)
 	return result.Output, result.Err
