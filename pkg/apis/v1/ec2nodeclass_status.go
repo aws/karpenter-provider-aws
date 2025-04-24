@@ -15,9 +15,16 @@ limitations under the License.
 package v1
 
 import (
+	"fmt"
+	"time"
+
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/awslabs/operatorpkg/status"
+	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/clock"
 )
 
 var (
@@ -95,7 +102,37 @@ type CapacityReservation struct {
 	// +kubebuilder:validation:Pattern:="^[0-9]{12}$"
 	// +required
 	OwnerID string `json:"ownerID"`
+	// The type of capacity reservation.
+	// +kubebuilder:validation:Enum:={default,capacity-block}
+	// +optional
+	ReservationType CapacityReservationType `json:"reservationType"`
+	// The state of the capacity reservation. A capacity reservation is considered to be expiring if it is within the EC2
+	// reclaimation window. Only capacity-block reservations may be in this state.
+	// +kubebuilder:validation:Enum:={active,expiring}
+	// +optional
+	State CapacityReservationState `json:"state"`
 }
+
+type CapacityReservationType string
+
+const (
+	CapacityReservationTypeDefault       CapacityReservationType = "default"
+	CapacityReservationTypeCapacityBlock CapacityReservationType = "capacity-block"
+)
+
+func (CapacityReservationType) Values() []CapacityReservationType {
+	return []CapacityReservationType{
+		CapacityReservationTypeDefault,
+		CapacityReservationTypeCapacityBlock,
+	}
+}
+
+type CapacityReservationState string
+
+const (
+	CapacityReservationStateActive   CapacityReservationState = "active"
+	CapacityReservationStateExpiring CapacityReservationState = "expiring"
+)
 
 // EC2NodeClassStatus contains the resolved state of the EC2NodeClass
 type EC2NodeClassStatus struct {
@@ -143,4 +180,57 @@ func (in *EC2NodeClass) GetConditions() []status.Condition {
 
 func (in *EC2NodeClass) SetConditions(conditions []status.Condition) {
 	in.Status.Conditions = conditions
+}
+
+func CapacityReservationTypeFromEC2(capacityReservationType ec2types.CapacityReservationType) (CapacityReservationType, error) {
+	resolvedType, ok := lo.Find(CapacityReservationType("").Values(), func(crt CapacityReservationType) bool {
+		return string(crt) == string(capacityReservationType)
+	})
+	if !ok {
+		return "", serrors.Wrap(
+			fmt.Errorf("received capacity reservation with unsupported reservation type from ec2"),
+			"reservation-type", string(capacityReservationType),
+		)
+	}
+	return resolvedType, nil
+}
+
+func CapacityReservationFromEC2(clk clock.Clock, cr *ec2types.CapacityReservation) (CapacityReservation, error) {
+	const capacityReservationExpirationPeriod = time.Minute * 40
+	// Guard against new instance match criteria added in the future. See https://github.com/kubernetes-sigs/karpenter/issues/806
+	// for a similar issue.
+	if !lo.Contains([]ec2types.InstanceMatchCriteria{
+		ec2types.InstanceMatchCriteriaOpen,
+		ec2types.InstanceMatchCriteriaTargeted,
+	}, cr.InstanceMatchCriteria) {
+		return CapacityReservation{}, serrors.Wrap(
+			fmt.Errorf("received capacity reservation with unsupported instance match criteria from ec2"),
+			"capacity-reservation", *cr.CapacityReservationId,
+			"instance-match-criteria", cr.InstanceMatchCriteria,
+		)
+	}
+	reservationType, err := CapacityReservationTypeFromEC2(cr.ReservationType)
+	if err != nil {
+		return CapacityReservation{}, serrors.Wrap(err, "capacity-reservation", *cr.CapacityReservationId)
+	}
+	var endTime *metav1.Time
+	if cr.EndDate != nil {
+		endTime = lo.ToPtr(metav1.NewTime(*cr.EndDate))
+	}
+	var state CapacityReservationState
+	if cr.ReservationType == ec2types.CapacityReservationTypeDefault || clk.Now().Before(endTime.Add(-capacityReservationExpirationPeriod)) {
+		state = CapacityReservationStateActive
+	} else {
+		state = CapacityReservationStateExpiring
+	}
+	return CapacityReservation{
+		AvailabilityZone:      *cr.AvailabilityZone,
+		EndTime:               endTime,
+		ID:                    *cr.CapacityReservationId,
+		InstanceMatchCriteria: string(cr.InstanceMatchCriteria),
+		InstanceType:          *cr.InstanceType,
+		OwnerID:               *cr.OwnerId,
+		ReservationType:       reservationType,
+		State:                 state,
+	}, nil
 }
