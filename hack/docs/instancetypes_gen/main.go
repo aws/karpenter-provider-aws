@@ -144,7 +144,7 @@ below are the resources available with some assumptions and after the instance o
 				cfg.Region,
 			),
 			nil,
-			awscache.NewUnavailableOfferings(),
+			awscache.NewUnavailableOfferings(ctx),
 			instancetype.NewDefaultResolver(
 				region,
 			),

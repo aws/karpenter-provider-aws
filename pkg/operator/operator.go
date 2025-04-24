@@ -144,7 +144,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	} else {
 		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
 	}
-	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
+	unavailableOfferingsCache := awscache.NewUnavailableOfferings(ctx)
 	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
 	validationCache := cache.New(awscache.ValidationTTL, awscache.DefaultCleanupInterval)
 

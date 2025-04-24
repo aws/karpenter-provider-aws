@@ -18,9 +18,11 @@ import (
 	"context"
 	"fmt"
 	"sync/atomic"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/samber/lo"
 
 	"github.com/patrickmn/go-cache"
@@ -37,7 +39,8 @@ type UnavailableOfferings struct {
 	SeqNum            uint64
 }
 
-func NewUnavailableOfferings() *UnavailableOfferings {
+func NewUnavailableOfferings(ctx context.Context) *UnavailableOfferings {
+	UnavailableOfferingsTTL := time.Duration(int64(options.FromContext(ctx).UnavailableOfferingsTTL)) * time.Second
 	uo := &UnavailableOfferings{
 		offeringCache:     cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
 		capacityTypeCache: cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
@@ -61,6 +64,7 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType,
 
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
 func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason string, instanceType ec2types.InstanceType, zone, capacityType string) {
+	UnavailableOfferingsTTL := time.Duration(int64(options.FromContext(ctx).UnavailableOfferingsTTL)) * time.Second
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	log.FromContext(ctx).WithValues(
 		"reason", unavailableReason,
