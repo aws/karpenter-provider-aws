@@ -26,6 +26,7 @@ func (o Options) Validate() error {
 		o.validateEndpoint(),
 		o.validateVMMemoryOverheadPercent(),
 		o.validateReservedENIs(),
+		o.validateUnavailableOfferingsTTL(),
 		o.validateRequiredFields(),
 	)
 }
@@ -53,6 +54,13 @@ func (o Options) validateVMMemoryOverheadPercent() error {
 func (o Options) validateReservedENIs() error {
 	if o.ReservedENIs < 0 {
 		return fmt.Errorf("reserved-enis cannot be negative")
+	}
+	return nil
+}
+
+func (o Options) validateUnavailableOfferingsTTL() error {
+	if o.UnavailableOfferingsTTL < 0 {
+		return fmt.Errorf("unavailable-offerings-ttl cannot be negative")
 	}
 	return nil
 }

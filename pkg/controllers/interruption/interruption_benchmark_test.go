@@ -107,7 +107,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 	// Load all the fundamental components before setting up the controllers
 	recorder := coretest.NewEventRecorder()
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
+	unavailableOfferingsCache = awscache.NewUnavailableOfferings(ctx)
 
 	// Set-up the controllers
 	interruptionController := interruption.NewController(env.Client, fakeClock, recorder, providers.sqsProvider, unavailableOfferingsCache)

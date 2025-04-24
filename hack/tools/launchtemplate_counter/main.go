@@ -71,7 +71,7 @@ func main() {
 			cfg.Region,
 		),
 		nil,
-		awscache.NewUnavailableOfferings(),
+		awscache.NewUnavailableOfferings(ctx),
 		instancetype.NewDefaultResolver(
 			region,
 		),

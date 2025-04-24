@@ -112,7 +112,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	instanceTypeCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	offeringCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	discoveredCapacityCache := cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval)
-	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
+	unavailableOfferingsCache := awscache.NewUnavailableOfferings(ctx)
 	launchTemplateCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	subnetCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	availableIPAdressCache := cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval)
