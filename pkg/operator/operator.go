@@ -198,6 +198,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		cfg.Region,
+		operator.EventRecorder,
 		ec2api,
 		unavailableOfferingsCache,
 		subnetProvider,
