@@ -54,6 +54,11 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 )
 
+const (
+	// The maximum number of instance types to include in a Create request
+	maxInstanceTypes = 60
+)
+
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 
 type CloudProvider struct {
@@ -326,20 +331,30 @@ func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *kar
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}
+	rejectedInstanceTypes := map[string][]*cloudprovider.InstanceType{}
 	reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
-	instanceTypes = lo.Filter(instanceTypes, func(i *cloudprovider.InstanceType, _ int) bool {
-		return reqs.Compatible(i.Requirements, scheduling.AllowUndefinedWellKnownLabels) == nil &&
-			len(i.Offerings.Compatible(reqs).Available()) > 0 &&
-			resources.Fits(nodeClaim.Spec.Resources.Requests, i.Allocatable())
-	})
-	// Filter out exotic instance types, spot instance types more expensive than the cheapest on-demand instance type, etc.
-	var rejectedInstanceTypes []*cloudprovider.InstanceType
-	instanceTypes, rejectedInstanceTypes, err = instance.FilterRejectInstanceTypes(nodeClaim, instanceTypes)
-	if err != nil {
-		return nil, fmt.Errorf("filtering instance types, %w", err)
+	compatibleAvailableFilter := instance.CompatibleAvailableFilter(reqs, nodeClaim.Spec.Resources.Requests)
+	for _, filter := range []instance.Filter{
+		compatibleAvailableFilter,
+		instance.ReservedOfferingFilter(reqs),
+		instance.ExoticInstanceTypeFilter(reqs),
+		instance.SpotInstanceFilter(reqs),
+	} {
+		remaining, rejected := filter.FilterReject(instanceTypes)
+		if len(remaining) == 0 {
+			return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
+		}
+		if len(rejected) != 0 && filter.Name() != compatibleAvailableFilter.Name() {
+			rejectedInstanceTypes[filter.Name()] = rejected
+		}
+		instanceTypes = remaining
 	}
-	if len(rejectedInstanceTypes) > 0 {
-		log.FromContext(ctx).WithValues("instance-types", utils.PrettySlice(lo.Map(rejectedInstanceTypes, func(i *cloudprovider.InstanceType, _ int) string { return i.Name }), 10)).V(1).Info("filtered out instance types from launch")
+	for filterName, its := range rejectedInstanceTypes {
+		log.FromContext(ctx).WithValues("filter", filterName, "instance-types", utils.PrettySlice(lo.Map(its, func(i *cloudprovider.InstanceType, _ int) string { return i.Name }), 10)).V(1).Info("filtered out instance types from launch")
+	}
+	instanceTypes, err = cloudprovider.InstanceTypes(instanceTypes).Truncate(reqs, maxInstanceTypes)
+	if err != nil {
+		return nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeFilteringFailed", "Error truncating instance types based on the passed-in requirements")
 	}
 	return instanceTypes, nil
 }
