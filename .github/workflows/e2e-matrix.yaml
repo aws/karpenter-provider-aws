@@ -63,31 +63,44 @@ jobs:
         suite:
           - name: IPv6
             region: ${{ inputs.region }}
+            source: aws_provider
           - name: AMI
             region: ${{ inputs.region }}
+            source: aws_provider
           - name: Scheduling
             region: ${{ inputs.region }}
+            source: aws_provider
           - name: Storage
             region: ${{ inputs.region }}
+            source: aws_provider
           - name: Integration
             region: ${{ inputs.region }}
+            source: aws_provider
           - name: NodeClaim
             region: ${{ inputs.region }}
+            source: aws_provider
           - name: Consolidation
             region: ${{ inputs.region }}
+            source: aws_provider
           - name: Interruption
             region: ${{ inputs.region }}
+            source: aws_provider
           - name: Drift
             region: ${{ inputs.region }}
+            source: aws_provider
           - name: Expiration
             region: ${{ inputs.region }}
+            source: aws_provider
           - name: Chaos
             region: ${{ inputs.region }}
+            source: aws_provider
           - name: Termination
             region: ${{ inputs.region }}
+            source: aws_provider
           - name: LocalZone
             # LAX is the only local zone available in the CI account, therefore only use us-west-2
             region: us-west-2
+            source: aws_provider
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite.name }}
