@@ -164,7 +164,7 @@ If interruption-handling is enabled, Karpenter will watch for upcoming involunta
 
 When Karpenter detects one of these events will occur to your nodes, it automatically taints, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
 
-For Spot interruptions, the NodePool will start a new node as soon as it sees the Spot interruption warning. Spot interruptions have a __2 minute notice__ before Amazon EC2 reclaims the instance. Karpenter's average node startup time means that, generally, there is sufficient time for the new node to become ready and to move the pods to the new node before the NodeClaim is reclaimed.
+For Spot interruptions, the NodePool will start a new node as soon as it sees the Spot interruption warning. Spot interruptions have a __2 minute notice__ before Amazon EC2 reclaims the instance. Once Karpenter has received this warning it will begin draining the node while in parallel provisioning a new node. Karpenter's average node startup time means that, generally, there is sufficient time for the new node to become ready before EC2 initiates termination for the spot instance.
 
 {{% alert title="Note" color="primary" %}}
 Karpenter publishes Kubernetes events to the node for all events listed above in addition to [__Spot Rebalance Recommendations__](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html). Karpenter does not currently support taint, drain, and terminate logic for Spot Rebalance Recommendations.
@@ -180,7 +180,23 @@ To enable interruption handling, configure the `--interruption-queue` CLI argume
 
 ### Pod-Level Controls
 
-You can block Karpenter from voluntarily choosing to disrupt certain pods by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the pod. This is useful for pods that you want to run from start to finish without disruption. By opting pods out of this disruption, you are telling Karpenter that it should not voluntarily remove a node containing this pod.
+Pods with blocking PDBs will not be evicted by the [Termination Controller]({{<ref "#termination-controller">}}) or be considered for voluntary disruption actions. When multiple pods on a node have different PDBs, none of the PDBs may be blocking for Karpenter to voluntary disrupt a node. This can create complex eviction scenarios:
+  - If a pod matches multiple PDBs (via label selectors), ALL of these PDBs must allow for disruption
+  - When different pods on the same node belong to different PDBs, ALL PDBs must simultaneously permit eviction
+  - A single blocking PDB can prevent the entire node from being voluntary disrupted
+
+For example, consider a node with these pods and PDBs:
+- Pod A: Matches PDB-1 (maxUnavailable: 0) and PDB-2 (maxUnavailable: 1)
+- Pod B: Matches PDB-3 (minAvailable: 100%)
+- Pod C: No PDB
+
+In this scenario, Karpenter cannot voluntary disrupt the node because:
+1. Pod A is blocked by PDB-1 even though PDB-2 would allow disruption
+2. Pod B is blocked by PDB-3's requirement for 100% availability
+
+As seen in this example, the more PDBs there are affecting a Node, the more difficult it will be for Karpenter to find an opportunity to perform voluntary disruption actions. 
+
+Secondly, you can block Karpenter from voluntarily choosing to disrupt certain pods by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the pod. This is useful for pods that you want to run from start to finish without disruption. By opting pods out of this disruption, you are telling Karpenter that it should not voluntarily remove a node containing this pod.
 
 Examples of pods that you might want to opt-out of disruption include an interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
 

@@ -547,7 +547,7 @@ func ExpectCapacityReservationCreated(
 		InstanceMatchCriteria: ec2types.InstanceMatchCriteriaTargeted,
 		TagSpecifications: lo.Ternary(len(tags) != 0, []ec2types.TagSpecification{{
 			ResourceType: ec2types.ResourceTypeCapacityReservation,
-			Tags:         utils.MergeTags(tags),
+			Tags:         utils.EC2MergeTags(tags),
 		}}, nil),
 	})
 	Expect(err).ToNot(HaveOccurred())

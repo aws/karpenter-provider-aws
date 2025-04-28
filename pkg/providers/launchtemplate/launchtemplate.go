@@ -60,6 +60,7 @@ type Provider interface {
 	DeleteAll(context.Context, *v1.EC2NodeClass) error
 	InvalidateCache(context.Context, string, string)
 	ResolveClusterCIDR(context.Context) error
+	CreateAMIOptions(context.Context, *v1.EC2NodeClass, map[string]string, map[string]string) (*amifamily.Options, error)
 }
 type LaunchTemplate struct {
 	Name                  string
@@ -122,7 +123,7 @@ func (p *DefaultProvider) EnsureAll(
 ) ([]*LaunchTemplate, error) {
 	p.Lock()
 	defer p.Unlock()
-	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{karpv1.CapacityTypeLabelKey: capacityType}), tags)
+	options, err := p.CreateAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{karpv1.CapacityTypeLabelKey: capacityType}), tags)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +161,7 @@ func (p *DefaultProvider) InvalidateCache(ctx context.Context, ltName string, lt
 func LaunchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf("%s/%d", v1.LaunchTemplateNamePrefix, lo.Must(hashstructure.Hash(options, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})))
 }
-func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
+func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
 	// Remove any labels passed into userData that are prefixed with "node-restriction.kubernetes.io" or "kops.k8s.io" since the kubelet can't
 	// register the node with any labels from this domain: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#noderestriction
 	for k := range labels {
@@ -250,10 +251,10 @@ func GetCreateLaunchTemplateInput(
 	userData string,
 ) *ec2.CreateLaunchTemplateInput {
 	launchTemplateDataTags := []ec2types.LaunchTemplateTagSpecificationRequest{
-		{ResourceType: ec2types.ResourceTypeNetworkInterface, Tags: utils.MergeTags(options.Tags)},
+		{ResourceType: ec2types.ResourceTypeNetworkInterface, Tags: utils.EC2MergeTags(options.Tags)},
 	}
 	if options.CapacityType == karpv1.CapacityTypeSpot {
-		launchTemplateDataTags = append(launchTemplateDataTags, ec2types.LaunchTemplateTagSpecificationRequest{ResourceType: ec2types.ResourceTypeSpotInstancesRequest, Tags: utils.MergeTags(options.Tags)})
+		launchTemplateDataTags = append(launchTemplateDataTags, ec2types.LaunchTemplateTagSpecificationRequest{ResourceType: ec2types.ResourceTypeSpotInstancesRequest, Tags: utils.EC2MergeTags(options.Tags)})
 	}
 	networkInterfaces := generateNetworkInterfaces(options, ClusterIPFamily)
 	lt := &ec2.CreateLaunchTemplateInput{
@@ -290,7 +291,7 @@ func GetCreateLaunchTemplateInput(
 		TagSpecifications: []ec2types.TagSpecification{
 			{
 				ResourceType: ec2types.ResourceTypeLaunchTemplate,
-				Tags:         utils.MergeTags(options.Tags),
+				Tags:         utils.EC2MergeTags(options.Tags),
 			},
 		},
 	}

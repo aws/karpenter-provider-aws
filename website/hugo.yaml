@@ -69,19 +69,19 @@ params:
   links:
     developer:
       - name: GitHub
-        url: "https://github.com/aws/karpenter-provider-aws"
+        url: "https://github.com/kubernetes-sigs/karpenter"
         icon: fab fa-github
         desc: Development takes place here!
       - name: Slack
         url: "https://slack.k8s.io/"
         icon: fab fa-slack
         desc: "Chat with us on Slack in the #aws-provider channel"
-  latest_release_version: "1.3.0"
+  latest_release_version: "1.4.0"
   latest_k8s_version: "1.32"
   versions:
+    - v1.4
     - v1.3
     - v1.2
-    - v1.1
     - v1.0
     - v0.32
     - preview
@@ -89,7 +89,7 @@ menu:
   main:
     - name: GitHub
       weight: 99
-      url: "https://github.com/aws/karpenter-provider-aws"
+      url: "https://github.com/kubernetes-sigs/karpenter"
       pre: <i class='fab fa-github'></i>
     - name: Docs
       weight: 20

@@ -219,7 +219,7 @@ var _ = Describe("TaggingController", func() {
 				v1.EKSClusterNameTagKey: options.FromContext(ctx).ClusterName,
 			}
 			ec2Instance := lo.Must(awsEnv.EC2API.Instances.Load(*ec2Instance.InstanceId)).(ec2types.Instance)
-			instanceTags := instance.NewInstance(ec2Instance).Tags
+			instanceTags := instance.NewInstance(ctx, ec2Instance).Tags
 
 			for tag, value := range expectedTags {
 				if lo.Contains(customTags, tag) {

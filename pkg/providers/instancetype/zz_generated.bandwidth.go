@@ -30,6 +30,18 @@ var (
 		// c4.4xlarge has vague bandwidth information, bandwidth is High
 		// c4.large has vague bandwidth information, bandwidth is Moderate
 		// c4.xlarge has vague bandwidth information, bandwidth is High
+		// c8gd.12xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// c8gd.16xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// c8gd.24xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// c8gd.2xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// c8gd.48xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// c8gd.4xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// c8gd.8xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// c8gd.large is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// c8gd.medium is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// c8gd.metal-24xl is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// c8gd.metal-48xl is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// c8gd.xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// d2.2xlarge has vague bandwidth information, bandwidth is High
 		// d2.4xlarge has vague bandwidth information, bandwidth is High
 		// d2.xlarge has vague bandwidth information, bandwidth is Moderate
@@ -53,7 +65,6 @@ var (
 		// m4.4xlarge has vague bandwidth information, bandwidth is High
 		// m4.large has vague bandwidth information, bandwidth is Moderate
 		// m4.xlarge has vague bandwidth information, bandwidth is High
-		// p2.xlarge has vague bandwidth information, bandwidth is High
 		// p3.2xlarge has vague bandwidth information, bandwidth is Up to 10 Gigabit
 		// r3.2xlarge has vague bandwidth information, bandwidth is High
 		// r3.4xlarge has vague bandwidth information, bandwidth is High
@@ -745,6 +756,7 @@ var (
 		"g6.24xlarge":          50000,
 		"i3en.12xlarge":        50000,
 		"i7ie.24xlarge":        50000,
+		"i7ie.metal-24xl":      50000,
 		"im4gn.8xlarge":        50000,
 		"inf2.24xlarge":        50000,
 		"is4gen.8xlarge":       50000,
@@ -794,6 +806,7 @@ var (
 		"x8g.48xlarge":         50000,
 		"x8g.metal-48xl":       50000,
 		"i4i.24xlarge":         56250,
+		"i8g.48xlarge":         56250,
 		"c6gn.12xlarge":        75000,
 		"c6in.12xlarge":        75000,
 		"d3en.12xlarge":        75000,
@@ -825,6 +838,7 @@ var (
 		"i3en.24xlarge":        100000,
 		"i3en.metal":           100000,
 		"i7ie.48xlarge":        100000,
+		"i7ie.metal-48xl":      100000,
 		"im4gn.16xlarge":       100000,
 		"inf1.24xlarge":        100000,
 		"inf2.48xlarge":        100000,

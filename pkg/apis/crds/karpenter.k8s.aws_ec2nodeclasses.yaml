@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.17.2
+    controller-gen.kubebuilder.io/version: v0.17.3
   name: ec2nodeclasses.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws
@@ -111,6 +111,9 @@ spec:
                           Owner is the owner for the ami.
                           You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
                         type: string
+                      ssmParameter:
+                        description: SSMParameter is the name (or ARN) of the SSM parameter containing the Image ID.
+                        type: string
                       tags:
                         additionalProperties:
                           type: string
@@ -127,8 +130,8 @@ spec:
                   minItems: 1
                   type: array
                   x-kubernetes-validations:
-                    - message: expected at least one, got none, ['tags', 'id', 'name', 'alias']
-                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias))
+                    - message: expected at least one, got none, ['tags', 'id', 'name', 'alias', 'ssmParameter']
+                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias) || has(x.ssmParameter))
                     - message: '''id'' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms'
                       rule: '!self.exists(x, has(x.id) && (has(x.alias) || has(x.tags) || has(x.name) || has(x.owner)))'
                     - message: '''alias'' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms'
@@ -181,7 +184,7 @@ spec:
                             format: int64
                             type: integer
                           kmsKeyID:
-                            description: KMSKeyID (ARN) of the symmetric Key Management Service (KMS) CMK used for encryption.
+                            description: Identifier (key ID, key alias, key ARN, or alias ARN) of the customer managed KMS key to use for EBS encryption.
                             type: string
                           snapshotID:
                             description: SnapshotID is the ID of an EBS snapshot

@@ -193,7 +193,7 @@ If interruption-handling is enabled, Karpenter will watch for upcoming involunta
 
 When Karpenter detects one of these events will occur to your nodes, it automatically taints, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
 
-For Spot interruptions, the NodePool will start a new node as soon as it sees the Spot interruption warning. Spot interruptions have a __2 minute notice__ before Amazon EC2 reclaims the instance. Karpenter's average node startup time means that, generally, there is sufficient time for the new node to become ready and to move the pods to the new node before the NodeClaim is reclaimed.
+For Spot interruptions, the NodePool will start a new node as soon as it sees the Spot interruption warning. Spot interruptions have a __2 minute notice__ before Amazon EC2 reclaims the instance. Once Karpenter has received this warning it will begin draining the node while in parallel provisioning a new node. Karpenter's average node startup time means that, generally, there is sufficient time for the new node to become ready before EC2 initiates termination for the spot instance.
 
 {{% alert title="Note" color="primary" %}}
 Karpenter publishes Kubernetes events to the node for all events listed above in addition to [__Spot Rebalance Recommendations__](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html). Karpenter does not currently support taint, drain, and terminate logic for Spot Rebalance Recommendations.
@@ -237,7 +237,7 @@ Karpenter monitors nodes for the following node status conditions when initiatin
 |  KernelReady               |     False   |     30 minutes        |
 |  ContainerRuntimeReady     |     False   |     30 minutes        |
 
-To enable the drift feature flag, refer to the [Feature Gates]({{<ref "../reference/settings#feature-gates" >}}).
+To enable the NodeRepair feature flag, refer to the [Feature Gates]({{<ref "../reference/settings#feature-gates" >}}).
 
 ## Controls
 
@@ -249,7 +249,7 @@ Changes to the [`spec.template.spec.terminationGracePeriod`]({{<ref "../concepts
 
 Once a node is disrupted, via either a [graceful](#automated-graceful-methods) or [forceful](#automated-forceful-methods) disruption method, Karpenter will being draining the node.
 At this point, the countdown for `terminationGracePeriod` begins.
-Once the `terminationGracePeriod` elapses, remaining pods will be forcibly deleted and the unerlying instance will be terminated.
+Once the `terminationGracePeriod` elapses, remaining pods will be forcibly deleted and the underlying instance will be terminated.
 A node may be terminated before the `terminationGracePeriod` has elapsed if all disruptable pods have been drained.
 
 In conjunction with `expireAfter`, `terminationGracePeriod` can be used to enforce an absolute maximum node lifetime.
@@ -281,7 +281,7 @@ Karpenter allows specifying if a budget applies to any of `Drifted`, `Underutili
 #### Nodes
 When calculating if a budget will block nodes from disruption, Karpenter lists the total number of nodes owned by a NodePool, subtracting out the nodes owned by that NodePool that are currently being deleted and nodes that are NotReady. If the number of nodes being deleted by Karpenter or any other processes is greater than the number of allowed disruptions, disruption for this node will not proceed.
 
-If the budget is configured with a percentage value, such as `20%`, Karpenter will calculate the number of allowed disruptions as `allowed_disruptions = roundup(total * percentage) - total_deleting - total_notready`. If otherwise defined as a non-percentage value, Karpenter will simply subtract the number of nodes from the total `(total - non_percentage_value) - total_deleting - total_notready`. For multiple budgets in a NodePool, Karpenter will take the minimum value (most restrictive) of each of the budgets.
+If the budget is configured with a percentage value, such as `20%`, Karpenter will calculate the number of allowed disruptions as `allowed_disruptions = roundup(total * percentage) - total_deleting - total_notready`. If otherwise defined as a non-percentage value, Karpenter will simply use that number as a static ceiling `non_percentage_value - total_deleting - total_notready`. For multiple budgets in a NodePool, Karpenter will take the minimum value (most restrictive) of each of the budgets.
 
 For example, the following NodePool with three budgets defines the following requirements:
 - The first budget will only allow 20% of nodes owned by that NodePool to be disrupted if it's empty or drifted. For instance, if there were 19 nodes owned by the NodePool, 4 empty or drifted nodes could be disrupted, rounding up from `19 * .2 = 3.8`.
@@ -334,12 +334,28 @@ Duration and Schedule must be defined together. When omitted, the budget is alwa
 
 ### Pod-Level Controls
 
-You can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt: "true"` annotation to the pod.
+Pods with blocking PDBs will not be evicted by the [Termination Controller]({{<ref "#termination-controller">}}) or be considered for voluntary disruption actions. When multiple pods on a node have different PDBs, none of the PDBs may be blocking for Karpenter to voluntary disrupt a node. This can create complex eviction scenarios:
+  - If a pod matches multiple PDBs (via label selectors), ALL of these PDBs must allow for disruption
+  - When different pods on the same node belong to different PDBs, ALL PDBs must simultaneously permit eviction
+  - A single blocking PDB can prevent the entire node from being voluntary disrupted
+
+For example, consider a node with these pods and PDBs:
+- Pod A: Matches PDB-1 (maxUnavailable: 0) and PDB-2 (maxUnavailable: 1)
+- Pod B: Matches PDB-3 (minAvailable: 100%)
+- Pod C: No PDB
+
+In this scenario, Karpenter cannot voluntary disrupt the node because:
+1. Pod A is blocked by PDB-1 even though PDB-2 would allow disruption
+2. Pod B is blocked by PDB-3's requirement for 100% availability
+
+As seen in this example, the more PDBs there are affecting a Node, the more difficult it will be for Karpenter to find an opportunity to perform voluntary disruption actions. 
+
+Secondly, you can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt: "true"` annotation to the pod.
 You can treat this annotation as a single-pod, permanently blocking PDB.
 This has the following consequences:
 - Nodes with `karpenter.sh/do-not-disrupt` pods will be excluded from [Consolidation]({{<ref "#consolidation" >}}), and conditionally excluded from [Drift]({{<ref "#drift" >}}).
   - If the Node's owning NodeClaim has a [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) configured, it will still be eligible for disruption via drift.
-- Like pods with a blocking PDB, pods with the `karpenter.sh/do-not-disrupt` annotation will **not** be gracefully evicted by the [Termination Controller]({{ref "#terminationcontroller"}}).
+- Like pods with a blocking PDB, pods with the `karpenter.sh/do-not-disrupt` annotation will **not** be gracefully evicted by the [Termination Controller]({{<ref "#terminationcontroller">}}).
   Karpenter will not be able to complete termination of the node until one of the following conditions is met:
   - All pods with the `karpenter.sh/do-not-disrupt` annotation are removed.
   - All pods with the `karpenter.sh/do-not-disrupt` annotation have entered a [terminal phase](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) (`Succeeded` or `Failed`).

@@ -92,6 +92,7 @@ func execTerminateInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.TerminateI
 									CurrentState:  instanceStateChanges.CurrentState,
 									PreviousState: instanceStateChanges.PreviousState,
 								}},
+								ResultMetadata: output.ResultMetadata,
 							},
 						}
 					}

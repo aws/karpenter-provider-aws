@@ -472,7 +472,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(generateSpotPricing(cloudProvider, nodePool))
+		awsEnv.EC2API.DescribeSpotPriceHistoryBehavior.Output.Set(generateSpotPricing(cloudProvider, nodePool))
 		Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
@@ -1024,42 +1024,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(metric).To(Not(BeNil()))
 				value := metric.GetGauge().Value
 				Expect(aws.ToFloat64(value)).To(BeNumerically(">", 0))
-			}
-		})
-		It("should expose availability metrics for instance types", func() {
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).To(BeNil())
-			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
-			for _, it := range instanceTypes {
-				for _, of := range it.Offerings {
-					metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_type_offering_available", map[string]string{
-						"instance_type": it.Name,
-						"capacity_type": of.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(),
-						"zone":          of.Requirements.Get(corev1.LabelTopologyZone).Any(),
-					})
-					Expect(ok).To(BeTrue())
-					Expect(metric).To(Not(BeNil()))
-					value := metric.GetGauge().Value
-					Expect(aws.ToFloat64(value)).To(BeNumerically("==", lo.Ternary(of.Available, 1, 0)))
-				}
-			}
-		})
-		It("should expose pricing metrics for instance types", func() {
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).To(BeNil())
-			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
-			for _, it := range instanceTypes {
-				for _, of := range it.Offerings {
-					metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_type_offering_price_estimate", map[string]string{
-						"instance_type": it.Name,
-						"capacity_type": of.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(),
-						"zone":          of.Requirements.Get(corev1.LabelTopologyZone).Any(),
-					})
-					Expect(ok).To(BeTrue())
-					Expect(metric).To(Not(BeNil()))
-					value := metric.GetGauge().Value
-					Expect(aws.ToFloat64(value)).To(BeNumerically("==", of.Price))
-				}
 			}
 		})
 	})
@@ -1883,7 +1847,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("shouldn't report more resources than are actually available on instances", func() {
-			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{
 				Subnets: []ec2types.Subnet{
 					{
 						AvailabilityZone: aws.String("us-west-2a"),
@@ -2219,7 +2183,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		It("should fail to launch capacity when there is no zonal availability for spot", func() {
 			now := time.Now()
-			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			awsEnv.EC2API.DescribeSpotPriceHistoryBehavior.Output.Set(&ec2.DescribeSpotPriceHistoryOutput{
 				SpotPriceHistory: []ec2types.SpotPrice{
 					{
 						AvailabilityZone: aws.String("test-zone-1a"),
@@ -2245,7 +2209,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		It("should succeed to launch spot instance when zonal availability exists", func() {
 			now := time.Now()
-			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			awsEnv.EC2API.DescribeSpotPriceHistoryBehavior.Output.Set(&ec2.DescribeSpotPriceHistoryOutput{
 				SpotPriceHistory: []ec2types.SpotPrice{
 					{
 						AvailabilityZone: aws.String("test-zone-1a"),
@@ -2381,6 +2345,33 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(lo.FromPtr(ltInput.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit)).To(Equal(int32(1)))
 				Expect(ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2types.LaunchTemplateHttpTokensStateOptional))
 			})
+		})
+	})
+	Context("Offerings", func() {
+		It("should create a single offering per instance pool", func() {
+			ExpectApplied(ctx, env.Client, nodeClass)
+			// Test twice to ensure we get the same result for a cache miss and hit
+			for range 2 {
+				instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+				Expect(err).ToNot(HaveOccurred())
+				type instancePool struct {
+					instanceType string
+					zone         string
+					capacityType string
+				}
+				pools := sets.New[instancePool]()
+				for _, it := range instanceTypes {
+					for _, o := range it.Offerings {
+						pool := instancePool{
+							instanceType: it.Name,
+							zone:         o.Zone(),
+							capacityType: o.CapacityType(),
+						}
+						Expect(pools.Has(pool)).To(BeFalse())
+						pools.Insert(pool)
+					}
+				}
+			}
 		})
 	})
 	Context("Provider Cache", func() {

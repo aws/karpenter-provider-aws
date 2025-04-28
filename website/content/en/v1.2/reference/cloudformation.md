@@ -17,7 +17,7 @@ These descriptions should allow you to understand:
 To download a particular version of `cloudformation.yaml`, set the version and use `curl` to pull the file to your local system:
 
 ```bash
-export KARPENTER_VERSION="1.2.2"
+export KARPENTER_VERSION="1.2.3"
 curl https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > cloudformation.yaml
 ```
 
@@ -66,7 +66,7 @@ KarpenterNodeRole:
     ManagedPolicyArns:
       - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKS_CNI_Policy"
       - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-      - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+      - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly"
       - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
 ```
 
@@ -74,7 +74,7 @@ The role created here includes several AWS managed policies, which are designed 
 
 * [AmazonEKS_CNI_Policy](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonEKS_CNI_Policy.html): Provides the permissions that the Amazon VPC CNI Plugin needs to configure EKS worker nodes.
 * [AmazonEKSWorkerNodePolicy](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonEKSWorkerNodePolicy.html): Lets Amazon EKS worker nodes connect to EKS Clusters.
-* [AmazonEC2ContainerRegistryReadOnly](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonEC2ContainerRegistryReadOnly.html): Allows read-only access to repositories in the Amazon EC2 Container Registry.
+* [AmazonEC2ContainerRegistryPullOnly](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonEC2ContainerRegistryPullOnly.html): Allows pulling images from repositories in the Amazon EC2 Container Registry.
 * [AmazonSSMManagedInstanceCore](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonSSMManagedInstanceCore.html): Adds AWS Systems Manager service core functions for Amazon EC2.
 
 If you were to use a node role from an existing cluster, you could skip this provisioning step and pass this node role to any EC2NodeClasses that you create. Additionally, you would ensure that the [Controller Policy]({{< relref "#controllerpolicy" >}}) has `iam:PassRole` permission to the role attached to the generated instance profiles.

@@ -78,6 +78,7 @@ func main() {
 			op.VersionProvider,
 			op.InstanceTypesProvider,
 			op.CapacityReservationProvider,
+			op.AMIResolver,
 		)...).
 		Start(ctx)
 }

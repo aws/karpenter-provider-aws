@@ -173,8 +173,11 @@ func (p *DefaultProvider) resolveInstanceTypes(
 	zonesToZoneIDs := lo.SliceToMap(nodeClass.Status.Subnets, func(s v1.Subnet) (string, string) {
 		return s.Zone, s.ZoneID
 	})
-	return lo.Map(p.instanceTypesInfo, func(info ec2types.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
+	return lo.FilterMap(p.instanceTypesInfo, func(info ec2types.InstanceTypeInfo, _ int) (*cloudprovider.InstanceType, bool) {
 		it := p.instanceTypesResolver.Resolve(ctx, info, p.instanceTypesOfferings[string(info.InstanceType)].UnsortedList(), zonesToZoneIDs, nodeClass)
+		if it == nil {
+			return nil, false
+		}
 		if cached, ok := p.discoveredCapacityCache.Get(fmt.Sprintf("%s-%016x", it.Name, amiHash)); ok {
 			it.Capacity[corev1.ResourceMemory] = cached.(resource.Quantity)
 		}
@@ -184,7 +187,7 @@ func (p *DefaultProvider) resolveInstanceTypes(
 		InstanceTypeMemory.Set(float64(lo.FromPtr(info.MemoryInfo.SizeInMiB)*1024*1024), map[string]string{
 			instanceTypeLabel: string(info.InstanceType),
 		})
-		return it
+		return it, true
 	})
 }
 
@@ -282,7 +285,7 @@ func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context
 	instanceTypeName := node.Labels[corev1.LabelInstanceTypeStable]
 	amiMap := amifamily.MapToInstanceTypes([]*cloudprovider.InstanceType{{
 		Name:         instanceTypeName,
-		Requirements: scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...),
+		Requirements: scheduling.NewLabelRequirements(node.Labels),
 	}}, nodeClass.Status.AMIs)
 	// Ensure NodeClaim AMI is current
 	if !lo.ContainsBy(amiMap[nodeClaim.Status.ImageID], func(i *cloudprovider.InstanceType) bool {

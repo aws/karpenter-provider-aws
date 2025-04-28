@@ -90,7 +90,11 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(test.DisableCapacityReservationIDValidation(apis.CRDs)...), coretest.WithCRDs(v1alpha1.CRDs...))
+	env = coretest.NewEnvironment(
+		coretest.WithCRDs(test.DisableCapacityReservationIDValidation(apis.CRDs)...),
+		coretest.WithCRDs(v1alpha1.CRDs...),
+		coretest.WithFieldIndexers(coretest.NodePoolNodeClassRefFieldIndexer(ctx)),
+	)
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
@@ -2042,7 +2046,7 @@ essential = true
 				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				ExpectApplied(ctx, env.Client, nodeClass)
-				controller := nodeclass.NewController(ctx, awsEnv.Clock, env.Client, recorder, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache)
+				controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.AMIResolver)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{

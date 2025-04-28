@@ -16,9 +16,14 @@ package fake
 
 import (
 	"context"
+	"fmt"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/pricing"
 	"github.com/awslabs/operatorpkg/status"
-
+	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -92,4 +97,26 @@ func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
 
 func (c *CloudProvider) RepairPolicies() []corecloudprovider.RepairPolicy {
 	return []corecloudprovider.RepairPolicy{}
+}
+
+// GenerateDefaultPriceOutput generates default output that can be set on the pricing provider
+// if a test needs pricing data and is just using the default instance types
+func GenerateDefaultPriceOutput() (*ec2.DescribeSpotPriceHistoryOutput, *pricing.GetProductsOutput) {
+	var priceList []string
+	odPrice := map[ec2types.InstanceType]float64{}
+	for _, elem := range defaultDescribeInstanceTypesOutput.InstanceTypes {
+		odPrice[elem.InstanceType] = float64(int64(lo.FromPtr[int32](elem.VCpuInfo.DefaultVCpus)) + lo.FromPtr[int64](elem.MemoryInfo.SizeInMiB))
+		priceList = append(priceList, NewOnDemandPrice(string(elem.InstanceType), odPrice[elem.InstanceType]))
+	}
+	var spotPriceHistory []ec2types.SpotPrice
+	for _, elem := range defaultDescribeInstanceTypeOfferingsOutput.InstanceTypeOfferings {
+		spotPriceHistory = append(spotPriceHistory, ec2types.SpotPrice{
+			InstanceType:     elem.InstanceType,
+			AvailabilityZone: elem.Location,
+			// Model spot pricing as 70% of OD pricing
+			SpotPrice: lo.ToPtr(fmt.Sprint(odPrice[elem.InstanceType] * 0.7)),
+			Timestamp: lo.ToPtr(time.Now()),
+		})
+	}
+	return &ec2.DescribeSpotPriceHistoryOutput{SpotPriceHistory: spotPriceHistory}, &pricing.GetProductsOutput{PriceList: priceList}
 }
