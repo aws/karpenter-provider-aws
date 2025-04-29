@@ -25,7 +25,6 @@ import (
 	clock "k8s.io/utils/clock/testing"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -56,7 +55,8 @@ func init() {
 
 type Environment struct {
 	// Mock
-	Clock *clock.FakeClock
+	Clock         *clock.FakeClock
+	EventRecorder *coretest.EventRecorder
 
 	// API
 	EC2API     *fake.EC2API
@@ -124,6 +124,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	capacityReservationAvailabilityCache := cache.New(24*time.Hour, awscache.DefaultCleanupInterval)
 	validationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
+	eventRecorder := coretest.NewEventRecorder()
 
 	// Providers
 	pricingProvider := pricing.NewDefaultProvider(ctx, fakePricingAPI, ec2api, fake.DefaultRegion)
@@ -157,6 +158,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		"",
+		eventRecorder,
 		ec2api,
 		unavailableOfferingsCache,
 		subnetProvider,
@@ -165,7 +167,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	)
 
 	return &Environment{
-		Clock: clock,
+		Clock:         clock,
+		EventRecorder: eventRecorder,
 
 		EC2API:     ec2api,
 		EKSAPI:     eksapi,
