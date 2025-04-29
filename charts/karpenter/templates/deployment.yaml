@@ -110,7 +110,7 @@ spec:
               value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }}"
           {{- with .Values.settings.batchMaxDuration }}
             - name: BATCH_MAX_DURATION
-              value: "{{ tpl . $ }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.batchIdleDuration }}
             - name: BATCH_IDLE_DURATION
