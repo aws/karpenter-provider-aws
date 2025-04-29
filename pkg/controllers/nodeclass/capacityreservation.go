@@ -21,6 +21,7 @@ import (
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -96,7 +97,7 @@ func CapacityReservationFromEC2(cr *ec2types.CapacityReservation) (v1.CapacityRe
 		ec2types.InstanceMatchCriteriaOpen,
 		ec2types.InstanceMatchCriteriaTargeted,
 	}, cr.InstanceMatchCriteria) {
-		return v1.CapacityReservation{}, fmt.Errorf("capacity reservation %s has an unsupported instance match criteria %q", *cr.CapacityReservationId, cr.InstanceMatchCriteria)
+		return v1.CapacityReservation{}, serrors.Wrap(fmt.Errorf("capacity reservation has an unsupported instance match criteria"), "capacity-reservation-id", *cr.CapacityReservationId, "instance-match-criteria", cr.InstanceMatchCriteria)
 	}
 	var endTime *metav1.Time
 	if cr.EndDate != nil {
