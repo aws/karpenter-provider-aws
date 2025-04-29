@@ -6,7 +6,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/aws/amazon-vpc-resource-controller-k8s v1.7.2
+	github.com/aws/amazon-vpc-resource-controller-k8s v1.7.1
 	github.com/aws/aws-sdk-go-v2 v1.36.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.14
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.30
@@ -22,7 +22,7 @@ require (
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
 	github.com/aws/smithy-go v1.22.3
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
-	github.com/awslabs/operatorpkg v0.0.0-20250415205441-a0c5d2f39e72
+	github.com/awslabs/operatorpkg v0.0.0-20250425180727-b22281cd8057
 	github.com/awslabs/operatorpkg/aws v0.0.0-20250414225955-b47cd315ffe9
 	github.com/go-logr/zapr v1.3.0
 	github.com/google/uuid v1.6.0
@@ -45,7 +45,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	sigs.k8s.io/controller-runtime v0.20.4
-	sigs.k8s.io/karpenter v1.4.1-0.20250423234030-fc274d1c9c74
+	sigs.k8s.io/karpenter v1.4.1-0.20250429212154-445d515b2cc0
 	sigs.k8s.io/yaml v1.4.0
 )
 
