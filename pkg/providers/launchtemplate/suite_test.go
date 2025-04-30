@@ -196,6 +196,34 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
+	It("should not add the do not sync taints label to nodes when AMI type is custom", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("Custom", make(map[string]string))
+		Expect(labels).To(HaveLen(0))
+	})
+
+	It("should add the do not sync taints label to nodes when AMI type is al2", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("AL2", make(map[string]string))
+		Expect(labels).To(HaveLen(1))
+		Expect(labels).Should(HaveKeyWithValue(karpv1.NodeDoNotSyncTaintsLabelKey, "true"))
+	})
+
+	It("should add the do not sync taints label to nodes when AMI type is al2023", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("AL2023", make(map[string]string))
+		Expect(labels).To(HaveLen(1))
+		Expect(labels).Should(HaveKeyWithValue(karpv1.NodeDoNotSyncTaintsLabelKey, "true"))
+	})
+
+	It("should add the do not sync taints label to nodes when AMI type is br", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("Bottlerocket", make(map[string]string))
+		Expect(labels).To(HaveLen(1))
+		Expect(labels).Should(HaveKeyWithValue(karpv1.NodeDoNotSyncTaintsLabelKey, "true"))
+	})
+
+	It("should add the do not sync taints label to nodes when AMI type is windows", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("Windows", make(map[string]string))
+		Expect(labels).To(HaveLen(1))
+		Expect(labels).Should(HaveKeyWithValue(karpv1.NodeDoNotSyncTaintsLabelKey, "true"))
+	})
 	It("should create unique launch templates for multiple identical nodeClasses", func() {
 		nodeClass2 := test.EC2NodeClass(v1.EC2NodeClass{
 			Status: v1.EC2NodeClassStatus{

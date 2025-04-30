@@ -445,9 +445,9 @@ var _ = Describe("AMIProvider", func() {
 				),
 			}))
 		})
-		It("should priortize the non-deprecated ami with deprecation time when both have same creation time and different name", func() {
+		It("should prioritize the non-deprecated ami with deprecation time when both have same creation time and different name", func() {
 			// Here we have two AMIs one which is deprecated and one which is non-deprecated both with the same creation time but with different names
-			// List operation will priortize the non-deprecated AMI
+			// List operation will prioritize the non-deprecated AMI
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []ec2types.Image{
 					{
@@ -489,7 +489,7 @@ var _ = Describe("AMIProvider", func() {
 				),
 			}))
 		})
-		It("should priortize the newer ami if both are deprecated", func() {
+		It("should prioritize the newer ami if both are deprecated", func() {
 			//Both amis are deprecated and have the same deprecation time
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []ec2types.Image{
