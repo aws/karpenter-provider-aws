@@ -267,7 +267,7 @@ func (v *Validation) validateRunInstancesAuthorization(
 	}); awserrors.IgnoreDryRunError(err) != nil {
 		// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
 		// this means there is most likely an eventual consistency issue and we just need to requeue
-		if awserrors.IsInstanceProfileNotFound(err) || awserrors.IsRateLimitedError(err) {
+		if (awserrors.IsInstanceProfileNotFound(err) && nodeClass.Spec.InstanceProfile == nil) || awserrors.IsRateLimitedError(err) {
 			return "", true, nil
 		}
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
