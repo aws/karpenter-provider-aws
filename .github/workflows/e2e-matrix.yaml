@@ -63,44 +63,44 @@ jobs:
         suite:
           - name: IPv6
             region: ${{ inputs.region }}
-            source: aws_provider
+            source: aws
           - name: AMI
             region: ${{ inputs.region }}
-            source: aws_provider
+            source: aws
           - name: Scheduling
             region: ${{ inputs.region }}
-            source: aws_provider
+            source: aws
           - name: Storage
             region: ${{ inputs.region }}
-            source: aws_provider
+            source: aws
           - name: Integration
             region: ${{ inputs.region }}
-            source: aws_provider
+            source: aws
           - name: NodeClaim
             region: ${{ inputs.region }}
-            source: aws_provider
+            source: aws
           - name: Consolidation
             region: ${{ inputs.region }}
-            source: aws_provider
+            source: aws
           - name: Interruption
             region: ${{ inputs.region }}
-            source: aws_provider
+            source: aws
           - name: Drift
             region: ${{ inputs.region }}
-            source: aws_provider
+            source: aws
           - name: Expiration
             region: ${{ inputs.region }}
-            source: aws_provider
+            source: aws
           - name: Chaos
             region: ${{ inputs.region }}
-            source: aws_provider
+            source: aws
           - name: Termination
             region: ${{ inputs.region }}
-            source: aws_provider
+            source: aws
           - name: LocalZone
             # LAX is the only local zone available in the CI account, therefore only use us-west-2
             region: us-west-2
-            source: aws_provider
+            source: aws
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite.name }}
@@ -117,7 +117,7 @@ jobs:
       statuses: write # ./.github/actions/commit-status/start
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      from_git_ref: 93da43860fdf966100fef3e6c76eef3508733521
+      from_git_ref: ad7153002b8be9a472b07cfb11dc11c225682720
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}

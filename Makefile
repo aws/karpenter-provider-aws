@@ -98,7 +98,7 @@ upstream-e2etests:
 		-timeout 3.25h \
 		-v \
 		$(KARPENTER_CORE_DIR)/test/suites/... \
-		--ginkgo.focus="${TEST_SUITE}" \
+		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.timeout=3h \
 		--ginkgo.grace-period=5m \
 		--ginkgo.vv \

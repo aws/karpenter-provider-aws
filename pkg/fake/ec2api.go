@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -293,7 +294,7 @@ func (e *EC2API) CreateTags(_ context.Context, input *ec2.CreateTagsInput, _ ...
 		for _, id := range input.Resources {
 			raw, ok := e.Instances.Load(id)
 			if !ok {
-				return nil, fmt.Errorf("instance with id '%s' does not exist", id)
+				return nil, serrors.Wrap(fmt.Errorf("instance does not exist"), "instance-id", id)
 			}
 			instance := raw.(ec2types.Instance)
 
