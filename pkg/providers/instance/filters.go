@@ -34,6 +34,8 @@ type Filter interface {
 	Name() string
 }
 
+// CompatibleAvailableFilter removes instance types which do not have any compatible, available offerings. Other filters
+// should not be used without first using this filter.
 func CompatibleAvailableFilter(requirements scheduling.Requirements, requests corev1.ResourceList) Filter {
 	return compatibleAvailableFilter{
 		requirements: requirements,
@@ -65,7 +67,9 @@ func (compatibleAvailableFilter) Name() string {
 	return "compatible-available-filter"
 }
 
-// ReservedOfferingFilter creates a Filter which
+// ReservedOfferingFilter creates a Filter which ensures there's only a single reserved offering per zone. This
+// addresses a limitation of the CreateFleet API, which limits calls to specifying a single offering per pool. If there
+// are multiple offerings in the same pool, the offering with the greatest capacity will be selected.
 func ReservedOfferingFilter(requirements scheduling.Requirements) Filter {
 	return reservedOfferingFilter{
 		requirements: requirements,
@@ -83,11 +87,11 @@ func (f reservedOfferingFilter) FilterReject(instanceTypes []*cloudprovider.Inst
 
 	var remaining, rejected []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
-		// We only want to include a single offering per pool (instance type / AZ combo). This is due to a limitation in the
-		// CreateFleet API, which limits calls to specifying a single override per pool. We'll choose to launch into the pool
-		// with the most capacity.
 		zonalOfferings := map[string]*cloudprovider.Offering{}
 		for _, o := range it.Offerings.Available().Compatible(f.requirements) {
+			if o.CapacityType() != karpv1.CapacityTypeReserved {
+				continue
+			}
 			if current, ok := zonalOfferings[o.Zone()]; !ok || o.ReservationCapacity > current.ReservationCapacity {
 				zonalOfferings[o.Zone()] = o
 			}
@@ -112,6 +116,9 @@ func (reservedOfferingFilter) Name() string {
 	return "reserved-offering-filter"
 }
 
+// ExoticInstanceTypeFilter will remove instances with GPUs and accelerators, along with metal instances, if doing so
+// doesn't filter out all instance types. This ensures Karpenter only launches these instances if the NodeClaim
+// explicitly requests them or all other compatible instance types are unavailable.
 func ExoticInstanceTypeFilter(requirements scheduling.Requirements) Filter {
 	return exoticInstanceFilter{
 		requirements: requirements,
@@ -126,50 +133,41 @@ func (f exoticInstanceFilter) FilterReject(instanceTypes []*cloudprovider.Instan
 	if f.requirements.HasMinValues() {
 		return instanceTypes, nil
 	}
-	var genericInstanceTypes []*cloudprovider.InstanceType
-	var exoticInstanceTypes []*cloudprovider.InstanceType
-	for _, it := range instanceTypes {
-		// deprioritize metal even if our opinionated filter isn't applied due to something like an instance family
-		// requirement
-		if _, ok := lo.Find(it.Requirements.Get(v1.LabelInstanceSize).Values(), func(size string) bool {
-			return strings.Contains(size, "metal")
-		}); ok {
-			exoticInstanceTypes = append(exoticInstanceTypes, it)
-			continue
-		}
 
-		if f.isExotic(it) {
-			exoticInstanceTypes = append(exoticInstanceTypes, it)
-		} else {
-			genericInstanceTypes = append(genericInstanceTypes, it)
+	genericInstanceTypes, exoticInstanceTypes := lo.FilterReject(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
+		if lo.ContainsBy(it.Requirements.Get(v1.LabelInstanceSize).Values(), func(size string) bool {
+			return strings.Contains(size, "metal")
+		}) {
+			return false
 		}
+		for _, resource := range []corev1.ResourceName{
+			v1.ResourceAWSNeuron,
+			v1.ResourceAWSNeuronCore,
+			v1.ResourceAMDGPU,
+			v1.ResourceNVIDIAGPU,
+			v1.ResourceHabanaGaudi,
+		} {
+			if !resources.IsZero(it.Capacity[resource]) {
+				return false
+			}
+		}
+		return true
+	})
+	// If there are no available, compatible reserved instance types Karpenter should fallback to exotic instance types
+	if len(genericInstanceTypes) == 0 {
+		return instanceTypes, nil
 	}
-	// if we got some subset of instance types, then prefer to use those
-	if len(genericInstanceTypes) != 0 {
-		return genericInstanceTypes, exoticInstanceTypes
-	}
-	return instanceTypes, nil
+	return genericInstanceTypes, exoticInstanceTypes
 }
 
 func (exoticInstanceFilter) Name() string {
 	return "exotic-instance-filter"
 }
 
-func (exoticInstanceFilter) isExotic(it *cloudprovider.InstanceType) bool {
-	for _, resource := range []corev1.ResourceName{
-		v1.ResourceAWSNeuron,
-		v1.ResourceAWSNeuronCore,
-		v1.ResourceAMDGPU,
-		v1.ResourceNVIDIAGPU,
-		v1.ResourceHabanaGaudi,
-	} {
-		if !resources.IsZero(it.Capacity[resource]) {
-			return true
-		}
-	}
-	return false
-}
-
+// SpotInstanceFilter removes all instances with spot offerings which are more expensive than the cheapest compatible
+// and available on-demand offering. This ensures we don't launch with a more expensive spot instance for a mixed-launch
+// NodeClaim. Note that instance types with available, compatible reserved offerings will not be filtered out.
+// NOTE: This filter assumes all provided instance types have compatible and available offerings
 func SpotInstanceFilter(requirements scheduling.Requirements) Filter {
 	return spotInstanceFilter{
 		requirements: requirements,
@@ -189,7 +187,6 @@ func (f spotInstanceFilter) FilterReject(instanceTypes []*cloudprovider.Instance
 		return instanceTypes, nil
 	}
 
-	// Check that we have both spot and on-demand offerings available, and get the cheapest on-demand offering
 	cheapestOnDemand := math.MaxFloat64
 	hasSpotOfferings := false
 	hasODOfferings := false
@@ -205,7 +202,6 @@ func (f spotInstanceFilter) FilterReject(instanceTypes []*cloudprovider.Instance
 			}
 		}
 	}
-	// If we don't have both spot and on-demand offerings, we shouldn't filter out any instances
 	if !hasODOfferings || !hasSpotOfferings {
 		return instanceTypes, nil
 	}
@@ -213,20 +209,22 @@ func (f spotInstanceFilter) FilterReject(instanceTypes []*cloudprovider.Instance
 	// Filter out any types where the cheapest spot offering is more expensive than the cheapest on-demand instance type
 	// that would have worked. This prevents us from getting a larger, more-expensive spot instance type compared to the
 	// cheapest sufficiently large on-demand instance type.
-	return lo.FilterReject(instanceTypes, func(item *cloudprovider.InstanceType, index int) bool {
-		available := item.Offerings.Available()
-		if len(available) == 0 {
-			return false
-		}
-		for _, o := range available {
-			if o.CapacityType() != karpv1.CapacityTypeSpot {
-				continue
+	return lo.FilterReject(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
+		var hasSpotOffering bool
+		for _, o := range it.Offerings.Available() {
+			// Always include instance types which have compatible, available reserved offerings since they're modeled as free
+			if o.CapacityType() == karpv1.CapacityTypeReserved {
+				return true
 			}
-			if o.Price > cheapestOnDemand {
-				return false
+			// If the offering is spot and cheaper than the cheapest on-demand instance type, include the instance type
+			if o.CapacityType() == karpv1.CapacityTypeSpot {
+				hasSpotOffering = true
+				if o.Price <= cheapestOnDemand {
+					return true
+				}
 			}
 		}
-		return true
+		return !hasSpotOffering
 	})
 }
 
