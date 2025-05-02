@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -47,7 +48,7 @@ func NewTerminateInstancesBatcher(ctx context.Context, ec2api sdk.EC2API) *Termi
 
 func (b *TerminateInstancesBatcher) TerminateInstances(ctx context.Context, terminateInstancesInput *ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
 	if len(terminateInstancesInput.InstanceIds) != 1 {
-		return nil, fmt.Errorf("expected to receive a single instance only, found %d", len(terminateInstancesInput.InstanceIds))
+		return nil, serrors.Wrap(fmt.Errorf("expected to receive a single instance only"), "instance-count", len(terminateInstancesInput.InstanceIds))
 	}
 	result := b.batcher.Add(ctx, terminateInstancesInput)
 	return result.Output, result.Err

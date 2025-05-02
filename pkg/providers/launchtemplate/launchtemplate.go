@@ -24,6 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"go.uber.org/multierr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -218,7 +219,7 @@ func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *ami
 	} else if err != nil {
 		return ec2types.LaunchTemplate{}, fmt.Errorf("describing launch templates, %w", err)
 	} else if len(output.LaunchTemplates) != 1 {
-		return ec2types.LaunchTemplate{}, fmt.Errorf("expected to find one launch template, but found %d", len(output.LaunchTemplates))
+		return ec2types.LaunchTemplate{}, serrors.Wrap(fmt.Errorf("expected to find one launch template"), "launch-template-count", len(output.LaunchTemplates))
 	} else {
 		if p.cm.HasChanged("launchtemplate-"+name, name) {
 			log.FromContext(ctx).V(1).Info("discovered launch template")

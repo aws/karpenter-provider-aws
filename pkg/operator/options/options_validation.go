@@ -18,10 +18,11 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"go.uber.org/multierr"
 )
 
-func (o Options) Validate() error {
+func (o *Options) Validate() error {
 	return multierr.Combine(
 		o.validateEndpoint(),
 		o.validateVMMemoryOverheadPercent(),
@@ -30,7 +31,7 @@ func (o Options) Validate() error {
 	)
 }
 
-func (o Options) validateEndpoint() error {
+func (o *Options) validateEndpoint() error {
 	if o.ClusterEndpoint == "" {
 		return nil
 	}
@@ -38,26 +39,26 @@ func (o Options) validateEndpoint() error {
 	// url.Parse() will accept a lot of input without error; make
 	// sure it's a real URL
 	if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
-		return fmt.Errorf("%q is not a valid cluster-endpoint URL", o.ClusterEndpoint)
+		return serrors.Wrap(fmt.Errorf("cluster endpoint URL is not valid"), "cluster-endpoint", o.ClusterEndpoint)
 	}
 	return nil
 }
 
-func (o Options) validateVMMemoryOverheadPercent() error {
+func (o *Options) validateVMMemoryOverheadPercent() error {
 	if o.VMMemoryOverheadPercent < 0 {
 		return fmt.Errorf("vm-memory-overhead-percent cannot be negative")
 	}
 	return nil
 }
 
-func (o Options) validateReservedENIs() error {
+func (o *Options) validateReservedENIs() error {
 	if o.ReservedENIs < 0 {
 		return fmt.Errorf("reserved-enis cannot be negative")
 	}
 	return nil
 }
 
-func (o Options) validateRequiredFields() error {
+func (o *Options) validateRequiredFields() error {
 	if o.ClusterName == "" {
 		return fmt.Errorf("missing field, cluster-name")
 	}

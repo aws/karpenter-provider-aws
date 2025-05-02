@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/serrors"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 
@@ -45,7 +46,7 @@ func NewCreateFleetBatcher(ctx context.Context, ec2api sdk.EC2API) *CreateFleetB
 }
 func (b *CreateFleetBatcher) CreateFleet(ctx context.Context, createFleetInput *ec2.CreateFleetInput) (*ec2.CreateFleetOutput, error) {
 	if createFleetInput.TargetCapacitySpecification != nil && *createFleetInput.TargetCapacitySpecification.TotalTargetCapacity != 1 {
-		return nil, fmt.Errorf("expected to receive a single instance only, found %d", *createFleetInput.TargetCapacitySpecification.TotalTargetCapacity)
+		return nil, serrors.Wrap(fmt.Errorf("expected to receive a single instance only"), "instance-count", *createFleetInput.TargetCapacitySpecification.TotalTargetCapacity)
 	}
 	result := b.batcher.Add(ctx, createFleetInput)
 	return result.Output, result.Err
@@ -72,7 +73,7 @@ func execCreateFleetBatch(ec2api sdk.EC2API) BatchExecutor[ec2.CreateFleetInput,
 			for _, instanceID := range reservation.InstanceIds {
 				requestIdx++
 				if requestIdx >= len(inputs) {
-					log.FromContext(ctx).Error(fmt.Errorf("received more instances than requested, ignoring instance %s", instanceID), "received error while batching")
+					log.FromContext(ctx).Error(serrors.Wrap(fmt.Errorf("received more instances than requested, ignoring instance"), "instance-id", instanceID), "received error while batching")
 					continue
 				}
 				results = append(results, Result[ec2.CreateFleetOutput]{

@@ -123,11 +123,11 @@ spec:
               value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }}"
           {{- with .Values.settings.batchMaxDuration }}
             - name: BATCH_MAX_DURATION
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.batchIdleDuration }}
             - name: BATCH_IDLE_DURATION
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.preferencePolicy }}
             - name: PREFERENCE_POLICY
@@ -135,35 +135,33 @@ spec:
           {{- end }}
           {{- with .Values.settings.clusterCABundle }}
             - name: CLUSTER_CA_BUNDLE
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
-          {{- with .Values.settings.clusterName }}
             - name: CLUSTER_NAME
-              value: "{{ . }}"
-          {{- end }}
+              value: "{{ required "Chart cannot be installed without a valid settings.clusterName!" (tpl .Values.settings.clusterName .) }}"
           {{- with .Values.settings.clusterEndpoint }}
             - name: CLUSTER_ENDPOINT
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.isolatedVPC }}
             - name: ISOLATED_VPC
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.eksControlPlane }}
             - name: EKS_CONTROL_PLANE
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.vmMemoryOverheadPercent }}
             - name: VM_MEMORY_OVERHEAD_PERCENT
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.interruptionQueue }}
             - name: INTERRUPTION_QUEUE
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.reservedENIs }}
             - name: RESERVED_ENIS
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
