@@ -50,6 +50,9 @@ on:
         default: false
       codebuild_region:
         type: string
+      source:
+        type: string
+        default: "aws" 
   workflow_call:
     inputs:
       git_ref:
