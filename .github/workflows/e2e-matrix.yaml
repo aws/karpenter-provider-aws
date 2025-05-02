@@ -90,7 +90,7 @@ jobs:
             source: aws
           - name: Expiration
             region: ${{ inputs.region }}
-            source: aws
+            source: upstream
           - name: Chaos
             region: ${{ inputs.region }}
             source: aws
