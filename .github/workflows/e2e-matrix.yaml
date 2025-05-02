@@ -93,7 +93,7 @@ jobs:
             source: aws
           - name: Chaos
             region: ${{ inputs.region }}
-            source: aws
+            source: upstream
           - name: Termination
             region: ${{ inputs.region }}
             source: aws
