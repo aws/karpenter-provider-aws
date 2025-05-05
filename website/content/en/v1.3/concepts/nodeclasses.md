@@ -1090,7 +1090,7 @@ spec:
     "memory.available" = "20%"
 ```
 
-This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your key file) : 
+This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your public key file) : 
 
 {{% alert title="Note" color="primary" %}}
 Instead of using SSH as set up in this example, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell access to Karpenter nodes.
