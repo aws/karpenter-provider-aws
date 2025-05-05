@@ -50,9 +50,14 @@ on:
         default: false
       codebuild_region:
         type: string
+      source:
+        type: string
+        default: "aws" 
   workflow_call:
     inputs:
       git_ref:
+        type: string
+      source:
         type: string
       region:
         type: string
@@ -105,6 +110,7 @@ jobs:
           aws-region: ${{ inputs.region }}
           role-duration-seconds: 21600
       - name: add jitter on cluster setup
+        if: github.repository == 'aws/karpenter-provider-aws'
         run: |
           # Creating jitter so that we can stagger cluster creation to avoid throttling
           sleep $(( RANDOM % 300 + 1 ))
@@ -169,16 +175,22 @@ jobs:
         env:
           SUITE: ${{ inputs.suite }}
           ENABLE_METRICS: ${{ inputs.enable_metrics }}
+          SOURCE: ${{ inputs.source }}
         run: |
           aws eks update-kubeconfig --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           # Clean up the cluster before running all tests
           kubectl delete nodepool --all
           kubectl delete ec2nodeclass --all
           kubectl delete deployment --all
-
-          TEST_SUITE="$SUITE" ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
-            CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
-            INTERRUPTION_QUEUE="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make e2etests
+          
+          if [[ "$SOURCE" == 'aws' ]]; then
+            TEST_SUITE="$SUITE" ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
+              CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
+              INTERRUPTION_QUEUE="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make e2etests
+          elif [[ "$SOURCE" == 'upstream' ]]; then
+            FOCUS="$SUITE" GIT_REF="$(git rev-parse HEAD)" \
+              CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make upstream-e2etests
+          fi
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
         if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'versionCompatibility'

@@ -63,31 +63,44 @@ jobs:
         suite:
           - name: IPv6
             region: ${{ inputs.region }}
+            source: aws
           - name: AMI
             region: ${{ inputs.region }}
+            source: aws
           - name: Scheduling
             region: ${{ inputs.region }}
+            source: aws
           - name: Storage
             region: ${{ inputs.region }}
+            source: aws
           - name: Integration
             region: ${{ inputs.region }}
+            source: aws
           - name: NodeClaim
             region: ${{ inputs.region }}
+            source: aws
           - name: Consolidation
             region: ${{ inputs.region }}
+            source: aws
           - name: Interruption
             region: ${{ inputs.region }}
+            source: aws
           - name: Drift
             region: ${{ inputs.region }}
+            source: aws
           - name: Expiration
             region: ${{ inputs.region }}
+            source: upstream
           - name: Chaos
             region: ${{ inputs.region }}
+            source: upstream
           - name: Termination
             region: ${{ inputs.region }}
+            source: aws
           - name: LocalZone
             # LAX is the only local zone available in the CI account, therefore only use us-west-2
             region: us-west-2
+            source: aws
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite.name }}
@@ -96,6 +109,7 @@ jobs:
       k8s_version: ${{ inputs.k8s_version }}
       cleanup: ${{ inputs.cleanup }}
       workflow_trigger: ${{ inputs.workflow_trigger }}
+      source: ${{ matrix.suite.source }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   e2e-upgrade:
