@@ -1119,7 +1119,8 @@ spec:
     chown -R ec2-user ~ec2-user/.ssh
 ```
 
-Instead of insertFile, You can also update userdata to have SSM parameter-store and upload your public key in parameter using below command.
+Alternatively, you can save the [key in the parameter store](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-create-console.html) and use the get-parameter command mentioned below to retrieve the key for authorized_keys.
+
 ```
 aws ssm get-parameter --name "<parameter-name>" --region <region> --with-decryption --query "Parameter.Value" --output text > /home/ec2-user/.ssh/authorized_keys
 ```
