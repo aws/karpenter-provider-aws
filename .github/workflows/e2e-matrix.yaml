@@ -124,5 +124,6 @@ jobs:
       k8s_version: ${{ inputs.k8s_version }}
       cleanup: ${{ inputs.cleanup }}
       workflow_trigger: ${{ inputs.workflow_trigger }}
+      source: aws
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

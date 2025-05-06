@@ -59,6 +59,7 @@ on:
         type: string
       source:
         type: string
+        default: "aws" 
       region:
         type: string
         default: "us-east-2"
