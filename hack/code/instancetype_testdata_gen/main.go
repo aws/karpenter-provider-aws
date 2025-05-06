@@ -142,8 +142,10 @@ func getDescribeInstanceTypeOfferingsOutput() string {
 
 	fmt.Fprintln(src, "var defaultDescribeInstanceTypeOfferingsOutput = &ec2.DescribeInstanceTypeOfferingsOutput{")
 	fmt.Fprintln(src, "InstanceTypeOfferings: []ec2types.InstanceTypeOffering{")
-	for _, elem := range lo.Flatten(lo.MapToSlice(instanceTypeToZones, func(it string, zones []string) []lo.Tuple2[string, string] {
-		return lo.Map(zones, func(z string, _ int) lo.Tuple2[string, string] { return lo.Tuple2[string, string]{A: it, B: z} })
+	instanceTypes := lo.Keys(instanceTypeToZones)
+	sort.Strings(instanceTypes)
+	for _, elem := range lo.Flatten(lo.Map(instanceTypes, func(it string, _ int) []lo.Tuple2[string, string] {
+		return lo.Map(instanceTypeToZones[it], func(z string, _ int) lo.Tuple2[string, string] { return lo.Tuple2[string, string]{A: it, B: z} })
 	})) {
 		fmt.Fprintln(src, "{")
 		fmt.Fprintf(src, "InstanceType: \"%s\",\n", elem.A)
