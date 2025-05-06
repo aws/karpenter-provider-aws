@@ -355,6 +355,9 @@ var _ = Describe("AMI", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(actualUserData)).To(ContainSubstring("kube-api-qps = 30"))
 			Expect(string(actualUserData)).To(ContainSubstring("'karpenter.sh/do-not-sync-taints' = 'true'"))
+			Expect(string(actualUserData)).To(ContainSubstring("eviction-max-pod-grace-period = 40"))
+			Expect(string(actualUserData)).To(ContainSubstring("[settings.kubernetes.eviction-soft]\n'memory.available' = '100Mi'"))
+			Expect(string(actualUserData)).To(ContainSubstring("[settings.kubernetes.eviction-soft-grace-period]\n'memory.available' = '30s'"))
 		})
 		// Windows tests are can flake due to the instance types that are used in testing.
 		// The VPC Resource controller will need to support the instance types that are used.
