@@ -312,6 +312,7 @@ var _ = Describe("AMI", func() {
 			// Since the node has joined the cluster, we know our bootstrapping was correct.
 			// Just verify if the UserData contains our custom content too, rather than doing a byte-wise comparison.
 			Expect(string(actualUserData)).To(ContainSubstring("Running custom user data script"))
+			Expect(string(actualUserData)).To(ContainSubstring("karpenter.sh/do-not-sync-taints=true"))
 		})
 		It("should merge non-MIME UserData contents for AL2 AMIFamily", func() {
 			content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.sh")
@@ -333,6 +334,7 @@ var _ = Describe("AMI", func() {
 			// Since the node has joined the cluster, we know our bootstrapping was correct.
 			// Just verify if the UserData contains our custom content too, rather than doing a byte-wise comparison.
 			Expect(string(actualUserData)).To(ContainSubstring("Running custom user data script"))
+			Expect(string(actualUserData)).To(ContainSubstring("karpenter.sh/do-not-sync-taints=true"))
 		})
 		It("should merge UserData contents for Bottlerocket AMIFamily", func() {
 			content, err := os.ReadFile("testdata/br_userdata_input.sh")
@@ -352,6 +354,7 @@ var _ = Describe("AMI", func() {
 			actualUserData, err := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(actualUserData)).To(ContainSubstring("kube-api-qps = 30"))
+			Expect(string(actualUserData)).To(ContainSubstring("'karpenter.sh/do-not-sync-taints' = 'true'"))
 		})
 		// Windows tests are can flake due to the instance types that are used in testing.
 		// The VPC Resource controller will need to support the instance types that are used.
@@ -399,6 +402,7 @@ var _ = Describe("AMI", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(actualUserData)).To(ContainSubstring("Write-Host \"Running custom user data script\""))
 			Expect(string(actualUserData)).To(ContainSubstring("[string]$EKSBootstrapScriptFile = \"$env:ProgramFiles\\Amazon\\EKS\\Start-EKSBootstrap.ps1\""))
+			Expect(string(actualUserData)).To(ContainSubstring("karpenter.sh/do-not-sync-taints=true"))
 		})
 	})
 })
