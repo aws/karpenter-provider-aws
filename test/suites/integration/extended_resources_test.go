@@ -339,10 +339,10 @@ var _ = Describe("Extended Resources", func() {
 				},
 				ResourceRequirements: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
-						"vpc.amazonaws.com/efa": resource.MustParse("2"),
+						"vpc.amazonaws.com/efa": resource.MustParse("1"),
 					},
 					Limits: corev1.ResourceList{
-						"vpc.amazonaws.com/efa": resource.MustParse("2"),
+						"vpc.amazonaws.com/efa": resource.MustParse("1"),
 					},
 				},
 			},
