@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -120,7 +121,7 @@ func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, 
 		nc.Labels[karpv1.CapacityTypeLabelKey] = karpv1.CapacityTypeOnDemand
 		delete(nc.Labels, cloudprovider.ReservationIDLabel)
 		if err := c.kubeClient.Patch(ctx, nc, client.MergeFrom(stored)); client.IgnoreNotFound(err) != nil {
-			return false, fmt.Errorf("patching nodeclaim %q, %w", nc.Name, err)
+			return false, serrors.Wrap(fmt.Errorf("patching nodeclaim, %w", err), "NodeClaim", klog.KObj(nc))
 		}
 		updated = true
 	}
@@ -130,7 +131,7 @@ func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, 
 	// straightforward than handling the duplicate error.
 	nodes, err := nodeclaimutils.AllNodesForNodeClaim(ctx, c.kubeClient, nc)
 	if err != nil {
-		return false, fmt.Errorf("listing nodes for nodeclaim %q, %w", nc.Name, err)
+		return false, serrors.Wrap(fmt.Errorf("listing nodes for nodeclaim, %w", err), "NodeClaim", klog.KObj(nc))
 	}
 	for _, n := range nodes {
 		if !n.DeletionTimestamp.IsZero() {
@@ -148,7 +149,7 @@ func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, 
 		n.Labels[karpv1.CapacityTypeLabelKey] = karpv1.CapacityTypeOnDemand
 		delete(n.Labels, cloudprovider.ReservationIDLabel)
 		if err := c.kubeClient.Patch(ctx, n, client.MergeFrom(stored)); client.IgnoreNotFound(err) != nil {
-			return false, fmt.Errorf("patching node %q, %w", n.Name, err)
+			return false, serrors.Wrap(fmt.Errorf("patching node, %w", err), "Node", klog.KObj(n))
 		}
 		updated = true
 	}
