@@ -2241,7 +2241,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 				{
 					DeviceName: aws.String("/dev/xvda"),
 					EBS: &v1.BlockDevice{
-						SnapshotID: aws.String("snap-xxxxxxxx"),
+						SnapshotID:               aws.String("snap-xxxxxxxx"),
+						VolumeInitializationRate: aws.Int32(100),
 					},
 				},
 			}
@@ -2265,6 +2266,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/xvda"))
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeInitializationRate).To(Equal(int32(100)))
 			})
 		})
 		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for AL2 Root volume", func() {
@@ -2278,6 +2280,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/xvda"))
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeInitializationRate).To(Equal(int32(100)))
 			})
 		})
 		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for AL2023 Root volume", func() {
@@ -2294,6 +2297,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/xvda"))
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeInitializationRate).To(Equal(int32(100)))
 			})
 		})
 		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for Bottlerocket Root volume", func() {
@@ -2310,6 +2314,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/xvdb"))
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeInitializationRate).To(Equal(int32(100)))
 			})
 		})
 	})
