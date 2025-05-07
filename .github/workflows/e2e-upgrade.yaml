@@ -29,6 +29,9 @@ on:
         required: true
         default: true
         type: boolean
+      source:
+        type: string
+        default: "aws" 
   workflow_call:
     inputs:
       from_git_ref:
@@ -47,6 +50,9 @@ on:
         type: boolean
       workflow_trigger:
         type: string
+      source:
+        type: string
+        default: "aws" 
     secrets:
       SLACK_WEBHOOK_URL:
         required: true
@@ -128,6 +134,14 @@ jobs:
         run: |
           aws eks update-kubeconfig --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           CLUSTER_NAME=${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} INTERRUPTION_QUEUE=${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" TEST_SUITE="Integration" make e2etests
+
+          if [[ "$SOURCE" == 'aws' ]]; then
+            TEST_SUITE="Integration" ENABLE_METRICS=$ENABLE_METRICS \
+              CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
+              INTERRUPTION_QUEUE="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make e2etests
+          elif [[ "$SOURCE" == 'upstream' ]]; then
+            FOCUS="Integration" CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make upstream-e2etests
+          fi
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
         if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'versionCompatibility'

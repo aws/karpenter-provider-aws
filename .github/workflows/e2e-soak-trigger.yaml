@@ -48,5 +48,6 @@ jobs:
       cluster_name: ${{ matrix.cluster_name }}
       cleanup: ${{ matrix.cluster_cleanup }}
       git_ref: ${{ matrix.git_ref }}
+      source: aws
     secrets:
       SLACK_WEBHOOK_SOAK_URL: ${{ secrets.SLACK_WEBHOOK_SOAK_URL }}
