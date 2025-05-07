@@ -888,6 +888,54 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 var defaultDescribeInstanceTypeOfferingsOutput = &ec2.DescribeInstanceTypeOfferingsOutput{
 	InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
 		{
+			InstanceType: "c6g.large",
+			Location:     lo.ToPtr("test-zone-1a"),
+		},
+		{
+			InstanceType: "dl1.24xlarge",
+			Location:     lo.ToPtr("test-zone-1a"),
+		},
+		{
+			InstanceType: "dl1.24xlarge",
+			Location:     lo.ToPtr("test-zone-1b"),
+		},
+		{
+			InstanceType: "g4ad.16xlarge",
+			Location:     lo.ToPtr("test-zone-1a"),
+		},
+		{
+			InstanceType: "g4ad.16xlarge",
+			Location:     lo.ToPtr("test-zone-1b"),
+		},
+		{
+			InstanceType: "g4dn.8xlarge",
+			Location:     lo.ToPtr("test-zone-1a"),
+		},
+		{
+			InstanceType: "g4dn.8xlarge",
+			Location:     lo.ToPtr("test-zone-1b"),
+		},
+		{
+			InstanceType: "inf2.24xlarge",
+			Location:     lo.ToPtr("test-zone-1a"),
+		},
+		{
+			InstanceType: "inf2.xlarge",
+			Location:     lo.ToPtr("test-zone-1a"),
+		},
+		{
+			InstanceType: "m5.2xlarge",
+			Location:     lo.ToPtr("test-zone-1a"),
+		},
+		{
+			InstanceType: "m5.4xlarge",
+			Location:     lo.ToPtr("test-zone-1a"),
+		},
+		{
+			InstanceType: "m5.8xlarge",
+			Location:     lo.ToPtr("test-zone-1a"),
+		},
+		{
 			InstanceType: "m5.large",
 			Location:     lo.ToPtr("test-zone-1a"),
 		},
@@ -904,52 +952,12 @@ var defaultDescribeInstanceTypeOfferingsOutput = &ec2.DescribeInstanceTypeOfferi
 			Location:     lo.ToPtr("test-zone-1a-local"),
 		},
 		{
-			InstanceType: "m5.4xlarge",
+			InstanceType: "m5.metal",
 			Location:     lo.ToPtr("test-zone-1a"),
 		},
 		{
-			InstanceType: "t3.large",
-			Location:     lo.ToPtr("test-zone-1a"),
-		},
-		{
-			InstanceType: "t3.large",
+			InstanceType: "m5.metal",
 			Location:     lo.ToPtr("test-zone-1b"),
-		},
-		{
-			InstanceType: "inf2.24xlarge",
-			Location:     lo.ToPtr("test-zone-1a"),
-		},
-		{
-			InstanceType: "c6g.large",
-			Location:     lo.ToPtr("test-zone-1a"),
-		},
-		{
-			InstanceType: "p3.8xlarge",
-			Location:     lo.ToPtr("test-zone-1a"),
-		},
-		{
-			InstanceType: "p3.8xlarge",
-			Location:     lo.ToPtr("test-zone-1b"),
-		},
-		{
-			InstanceType: "dl1.24xlarge",
-			Location:     lo.ToPtr("test-zone-1a"),
-		},
-		{
-			InstanceType: "dl1.24xlarge",
-			Location:     lo.ToPtr("test-zone-1b"),
-		},
-		{
-			InstanceType: "g4ad.16xlarge",
-			Location:     lo.ToPtr("test-zone-1a"),
-		},
-		{
-			InstanceType: "g4ad.16xlarge",
-			Location:     lo.ToPtr("test-zone-1b"),
-		},
-		{
-			InstanceType: "inf2.xlarge",
-			Location:     lo.ToPtr("test-zone-1a"),
 		},
 		{
 			InstanceType: "m5.xlarge",
@@ -972,32 +980,24 @@ var defaultDescribeInstanceTypeOfferingsOutput = &ec2.DescribeInstanceTypeOfferi
 			Location:     lo.ToPtr("test-zone-1c"),
 		},
 		{
-			InstanceType: "m5.2xlarge",
+			InstanceType: "p3.8xlarge",
 			Location:     lo.ToPtr("test-zone-1a"),
 		},
 		{
-			InstanceType: "m5.8xlarge",
+			InstanceType: "p3.8xlarge",
+			Location:     lo.ToPtr("test-zone-1b"),
+		},
+		{
+			InstanceType: "t3.large",
 			Location:     lo.ToPtr("test-zone-1a"),
 		},
 		{
-			InstanceType: "g4dn.8xlarge",
-			Location:     lo.ToPtr("test-zone-1a"),
-		},
-		{
-			InstanceType: "g4dn.8xlarge",
+			InstanceType: "t3.large",
 			Location:     lo.ToPtr("test-zone-1b"),
 		},
 		{
 			InstanceType: "trn1.2xlarge",
 			Location:     lo.ToPtr("test-zone-1a"),
-		},
-		{
-			InstanceType: "m5.metal",
-			Location:     lo.ToPtr("test-zone-1a"),
-		},
-		{
-			InstanceType: "m5.metal",
-			Location:     lo.ToPtr("test-zone-1b"),
 		},
 	},
 }

@@ -327,11 +327,21 @@ func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *kar
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}
 	reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
-	return lo.Filter(instanceTypes, func(i *cloudprovider.InstanceType, _ int) bool {
+	instanceTypes = lo.Filter(instanceTypes, func(i *cloudprovider.InstanceType, _ int) bool {
 		return reqs.Compatible(i.Requirements, scheduling.AllowUndefinedWellKnownLabels) == nil &&
 			len(i.Offerings.Compatible(reqs).Available()) > 0 &&
 			resources.Fits(nodeClaim.Spec.Resources.Requests, i.Allocatable())
-	}), nil
+	})
+	// Filter out exotic instance types, spot instance types more expensive than the cheapest on-demand instance type, etc.
+	var rejectedInstanceTypes []*cloudprovider.InstanceType
+	instanceTypes, rejectedInstanceTypes, err = instance.FilterRejectInstanceTypes(nodeClaim, instanceTypes)
+	if err != nil {
+		return nil, fmt.Errorf("filtering instance types, %w", err)
+	}
+	if len(rejectedInstanceTypes) > 0 {
+		log.FromContext(ctx).WithValues("instance-types", utils.PrettySlice(lo.Map(rejectedInstanceTypes, func(i *cloudprovider.InstanceType, _ int) string { return i.Name }), 10)).V(1).Info("filtered out instance types from launch")
+	}
+	return instanceTypes, nil
 }
 
 func (c *CloudProvider) resolveInstanceTypeFromInstance(ctx context.Context, instance *instance.Instance) (*cloudprovider.InstanceType, error) {

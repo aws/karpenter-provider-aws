@@ -26,6 +26,7 @@ import (
 	"github.com/samber/lo"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 )
 
 type Provider interface {
@@ -101,4 +102,12 @@ func (p *DefaultProvider) DeleteSQSMessage(ctx context.Context, msg *sqstypes.Me
 		return fmt.Errorf("deleting messages from sqs queue, %w", err)
 	}
 	return nil
+}
+
+func NewSQSProvider(ctx context.Context, sqsapi *sqs.Client) (Provider, error) {
+	out, err := sqsapi.GetQueueUrl(ctx, &sqs.GetQueueUrlInput{QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)})
+	if err != nil {
+		return nil, err
+	}
+	return NewDefaultProvider(sqsapi, lo.FromPtr(out.QueueUrl))
 }

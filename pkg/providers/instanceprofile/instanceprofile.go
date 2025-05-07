@@ -19,122 +19,114 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
-// ResourceOwner is an object that manages an instance profile
-type ResourceOwner interface {
-	GetUID() types.UID
-	InstanceProfileName(string, string) string
-	InstanceProfileRole() string
-	InstanceProfileTags(string) map[string]string
-}
-
 type Provider interface {
-	Create(context.Context, ResourceOwner) (string, error)
-	Delete(context.Context, ResourceOwner) error
+	Get(context.Context, string) (*iamtypes.InstanceProfile, error)
+	Create(context.Context, string, string, map[string]string) error
+	Delete(context.Context, string) error
 }
 
 type DefaultProvider struct {
-	region string
 	iamapi sdk.IAMAPI
-	cache  *cache.Cache
+	cache  *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
 }
 
-func NewDefaultProvider(region string, iamapi sdk.IAMAPI, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(iamapi sdk.IAMAPI, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
-		region: region,
 		iamapi: iamapi,
 		cache:  cache,
 	}
 }
 
-func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, error) {
-	profileName := m.InstanceProfileName(options.FromContext(ctx).ClusterName, p.region)
-	tags := map[string]string{}
-	if len(m.InstanceProfileTags(options.FromContext(ctx).ClusterName)) != 0 {
-		tags = lo.Assign(m.InstanceProfileTags(options.FromContext(ctx).ClusterName), map[string]string{corev1.LabelTopologyRegion: p.region})
+func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
+	if instanceProfile, ok := p.cache.Get(instanceProfileName); ok {
+		return instanceProfile.(*iamtypes.InstanceProfile), nil
 	}
-	// An instance profile exists for this NodeClass
-	if _, ok := p.cache.Get(string(m.GetUID())); ok {
-		return profileName, nil
+	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
+		InstanceProfileName: lo.ToPtr(instanceProfileName),
+	})
+	if err != nil {
+		return nil, err
 	}
-	// Validate if the instance profile exists and has the correct role assigned to it
-	var instanceProfile *iamtypes.InstanceProfile
-	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{InstanceProfileName: aws.String(profileName)})
+	p.cache.SetDefault(instanceProfileName, out.InstanceProfile)
+	return out.InstanceProfile, nil
+}
+
+func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string, roleName string, tags map[string]string) error {
+	instanceProfile, err := p.Get(ctx, instanceProfileName)
 	if err != nil {
 		if !awserrors.IsNotFound(err) {
-			return "", fmt.Errorf("getting instance profile %q, %w", profileName, err)
+			return serrors.Wrap(fmt.Errorf("getting instance profile, %w", err), "instance-profile", instanceProfileName)
 		}
 		o, err := p.iamapi.CreateInstanceProfile(ctx, &iam.CreateInstanceProfileInput{
-			InstanceProfileName: aws.String(profileName),
-			Tags:                lo.MapToSlice(tags, func(k, v string) iamtypes.Tag { return iamtypes.Tag{Key: aws.String(k), Value: aws.String(v)} }),
+			InstanceProfileName: lo.ToPtr(instanceProfileName),
+			Tags:                utils.IAMMergeTags(tags),
 		})
 		if err != nil {
-			return "", fmt.Errorf("creating instance profile %q, %w", profileName, err)
+			return serrors.Wrap(fmt.Errorf("creating instance profile, %w", err), "instance-profile", instanceProfileName)
 		}
 		instanceProfile = o.InstanceProfile
-	} else {
-		instanceProfile = out.InstanceProfile
 	}
 	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
 	// https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html
 	if len(instanceProfile.Roles) == 1 {
-		if aws.ToString(instanceProfile.Roles[0].RoleName) == m.InstanceProfileRole() {
-			return profileName, nil
+		if lo.FromPtr(instanceProfile.Roles[0].RoleName) == roleName {
+			return nil
 		}
 		if _, err = p.iamapi.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
-			InstanceProfileName: aws.String(profileName),
+			InstanceProfileName: lo.ToPtr(instanceProfileName),
 			RoleName:            instanceProfile.Roles[0].RoleName,
 		}); err != nil {
-			return "", fmt.Errorf("removing role %q for instance profile %q, %w", aws.ToString(instanceProfile.Roles[0].RoleName), profileName, err)
+			return serrors.Wrap(fmt.Errorf("removing role for instance profile, %w", err), "role", lo.FromPtr(instanceProfile.Roles[0].RoleName), "instance-profile", instanceProfileName)
 		}
 	}
 	// If the role has a path, ignore the path and take the role name only since AddRoleToInstanceProfile
 	// does not support paths in the role name.
-	instanceProfileRoleName := lo.LastOr(strings.Split(m.InstanceProfileRole(), "/"), m.InstanceProfileRole())
+	roleName = lo.LastOr(strings.Split(roleName, "/"), roleName)
 	if _, err = p.iamapi.AddRoleToInstanceProfile(ctx, &iam.AddRoleToInstanceProfileInput{
-		InstanceProfileName: aws.String(profileName),
-		RoleName:            aws.String(instanceProfileRoleName),
+		InstanceProfileName: lo.ToPtr(instanceProfileName),
+		RoleName:            lo.ToPtr(roleName),
 	}); err != nil {
-		return "", fmt.Errorf("adding role %q to instance profile %q, %w", m.InstanceProfileRole(), profileName, err)
+		return serrors.Wrap(fmt.Errorf("adding role to instance profile, %w", err), "role", roleName, "instance-profile", instanceProfileName)
 	}
-	p.cache.SetDefault(string(m.GetUID()), nil)
-	return aws.ToString(instanceProfile.InstanceProfileName), nil
+	instanceProfile.Roles = []iamtypes.Role{{
+		RoleName: lo.ToPtr(roleName),
+	}}
+	p.cache.SetDefault(instanceProfileName, instanceProfile)
+	return nil
 }
 
-func (p *DefaultProvider) Delete(ctx context.Context, m ResourceOwner) error {
-	profileName := m.InstanceProfileName(options.FromContext(ctx).ClusterName, p.region)
+func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string) error {
 	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
-		InstanceProfileName: aws.String(profileName),
+		InstanceProfileName: lo.ToPtr(instanceProfileName),
 	})
 	if err != nil {
-		return awserrors.IgnoreNotFound(fmt.Errorf("getting instance profile %q, %w", profileName, err))
+		return awserrors.IgnoreNotFound(serrors.Wrap(fmt.Errorf("getting instance profile, %w", err), "instance-profile", instanceProfileName))
 	}
 	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
 	// https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html
 	if len(out.InstanceProfile.Roles) == 1 {
 		if _, err = p.iamapi.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
-			InstanceProfileName: aws.String(profileName),
+			InstanceProfileName: lo.ToPtr(instanceProfileName),
 			RoleName:            out.InstanceProfile.Roles[0].RoleName,
 		}); err != nil {
-			return fmt.Errorf("removing role %q from instance profile %q, %w", aws.ToString(out.InstanceProfile.Roles[0].RoleName), profileName, err)
+			return serrors.Wrap(fmt.Errorf("removing role from instance profile, %w", err), "role", lo.FromPtr(out.InstanceProfile.Roles[0].RoleName), "instance-profile", instanceProfileName)
 		}
 	}
 	if _, err = p.iamapi.DeleteInstanceProfile(ctx, &iam.DeleteInstanceProfileInput{
-		InstanceProfileName: aws.String(profileName),
+		InstanceProfileName: lo.ToPtr(instanceProfileName),
 	}); err != nil {
-		return awserrors.IgnoreNotFound(fmt.Errorf("deleting instance profile %q, %w", profileName, err))
+		return awserrors.IgnoreNotFound(serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", instanceProfileName))
 	}
 	return nil
 }

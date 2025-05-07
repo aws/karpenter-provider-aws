@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2025-03-31T13:14:23Z for us-east-1
+// generated at 2025-04-28T13:22:31Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -106,6 +106,10 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"c8g.12xlarge": 1.914240, "c8g.16xlarge": 2.552320, "c8g.24xlarge": 3.828480, "c8g.2xlarge": 0.319040,
 		"c8g.48xlarge": 7.656960, "c8g.4xlarge": 0.638080, "c8g.8xlarge": 1.276160, "c8g.large": 0.079760,
 		"c8g.medium": 0.039880, "c8g.metal-24xl": 4.211330, "c8g.metal-48xl": 7.656960, "c8g.xlarge": 0.159520,
+		// c8gd family
+		"c8gd.12xlarge": 2.351520, "c8gd.16xlarge": 3.135360, "c8gd.24xlarge": 4.703040, "c8gd.2xlarge": 0.391920,
+		"c8gd.48xlarge": 9.406080, "c8gd.4xlarge": 0.783840, "c8gd.8xlarge": 1.567680, "c8gd.large": 0.097980,
+		"c8gd.medium": 0.048990, "c8gd.metal-24xl": 5.173340, "c8gd.metal-48xl": 9.406080, "c8gd.xlarge": 0.195960,
 		// cr1 family
 		"cr1.8xlarge": 3.500000,
 		// d2 family
@@ -166,10 +170,14 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"i4i.12xlarge": 4.118000, "i4i.16xlarge": 5.491000, "i4i.24xlarge": 8.236800, "i4i.2xlarge": 0.686000,
 		"i4i.32xlarge": 10.982400, "i4i.4xlarge": 1.373000, "i4i.8xlarge": 2.746000, "i4i.large": 0.172000,
 		"i4i.metal": 10.982000, "i4i.xlarge": 0.343000,
+		// i7i family
+		"i7i.12xlarge": 4.530200, "i7i.16xlarge": 6.040300, "i7i.24xlarge": 9.060500, "i7i.2xlarge": 0.755000,
+		"i7i.48xlarge": 18.121000, "i7i.4xlarge": 1.510100, "i7i.8xlarge": 3.020200, "i7i.large": 0.188800,
+		"i7i.metal-24xl": 9.620400, "i7i.metal-48xl": 19.240800, "i7i.xlarge": 0.377500,
 		// i7ie family
 		"i7ie.12xlarge": 6.237600, "i7ie.18xlarge": 9.356400, "i7ie.24xlarge": 12.475200, "i7ie.2xlarge": 1.039600,
 		"i7ie.3xlarge": 1.559400, "i7ie.48xlarge": 24.950400, "i7ie.6xlarge": 3.118800, "i7ie.large": 0.259900,
-		"i7ie.xlarge": 0.519800,
+		"i7ie.metal-24xl": 13.284400, "i7ie.metal-48xl": 26.568700, "i7ie.xlarge": 0.519800,
 		// i8g family
 		"i8g.12xlarge": 4.118400, "i8g.16xlarge": 5.491200, "i8g.24xlarge": 8.236800, "i8g.2xlarge": 0.686400,
 		"i8g.48xlarge": 16.473600, "i8g.4xlarge": 1.372800, "i8g.8xlarge": 2.745600, "i8g.large": 0.171600,
@@ -270,6 +278,11 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"m8g.12xlarge": 2.154240, "m8g.16xlarge": 2.872320, "m8g.24xlarge": 4.308480, "m8g.2xlarge": 0.359040,
 		"m8g.48xlarge": 8.616960, "m8g.4xlarge": 0.718080, "m8g.8xlarge": 1.436160, "m8g.large": 0.089760,
 		"m8g.medium": 0.044880, "m8g.metal-24xl": 4.739330, "m8g.metal-48xl": 8.616960, "m8g.xlarge": 0.179520,
+		// m8gd family
+		"m8gd.12xlarge": 2.767680, "m8gd.16xlarge": 3.690240, "m8gd.24xlarge": 5.535360, "m8gd.2xlarge": 0.461280,
+		"m8gd.48xlarge": 11.070720, "m8gd.4xlarge": 0.922560, "m8gd.8xlarge": 1.845120, "m8gd.large": 0.115320,
+		"m8gd.medium": 0.057660, "m8gd.metal-24xl": 6.088900, "m8gd.metal-48xl": 11.070720,
+		"m8gd.xlarge": 0.230640,
 		// p2 family
 		"p2.16xlarge": 14.400000, "p2.8xlarge": 7.200000, "p2.xlarge": 0.900000,
 		// p3 family
@@ -368,6 +381,11 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"r8g.12xlarge": 2.827680, "r8g.16xlarge": 3.770240, "r8g.24xlarge": 5.655360, "r8g.2xlarge": 0.471280,
 		"r8g.48xlarge": 11.310720, "r8g.4xlarge": 0.942560, "r8g.8xlarge": 1.885120, "r8g.large": 0.117820,
 		"r8g.medium": 0.058910, "r8g.metal-24xl": 6.220900, "r8g.metal-48xl": 11.310720, "r8g.xlarge": 0.235640,
+		// r8gd family
+		"r8gd.12xlarge": 3.527040, "r8gd.16xlarge": 4.702720, "r8gd.24xlarge": 7.054080, "r8gd.2xlarge": 0.587840,
+		"r8gd.48xlarge": 14.108160, "r8gd.4xlarge": 1.175680, "r8gd.8xlarge": 2.351360, "r8gd.large": 0.146960,
+		"r8gd.medium": 0.073480, "r8gd.metal-24xl": 7.759490, "r8gd.metal-48xl": 14.108160,
+		"r8gd.xlarge": 0.293920,
 		// t1 family
 		"t1.micro": 0.020000,
 		// t2 family

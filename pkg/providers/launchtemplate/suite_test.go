@@ -90,7 +90,11 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(test.DisableCapacityReservationIDValidation(apis.CRDs)...), coretest.WithCRDs(v1alpha1.CRDs...))
+	env = coretest.NewEnvironment(
+		coretest.WithCRDs(test.DisableCapacityReservationIDValidation(apis.CRDs)...),
+		coretest.WithCRDs(v1alpha1.CRDs...),
+		coretest.WithFieldIndexers(coretest.NodePoolNodeClassRefFieldIndexer(ctx)),
+	)
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
@@ -1533,6 +1537,46 @@ essential = true
 					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
 				})
 			})
+			It("should override soft eviction values in user data", func() {
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					EvictionSoft: map[string]string{"memory.available": "10%"},
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"memory.available": {Duration: time.Minute},
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+				ExpectLaunchTemplatesCreatedWithUserDataContaining(`
+[settings.kubernetes.eviction-soft]
+'memory.available' = '10%'
+
+[settings.kubernetes.eviction-soft-grace-period]
+'memory.available' = '1m0s'
+`)
+			})
+			It("should override max pod grace period in user data", func() {
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					MaxPods:                   aws.Int32(35),
+					EvictionMaxPodGracePeriod: aws.Int32(10),
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
+				ExpectLaunchTemplatesCreatedWithUserDataContaining(`
+[settings.kubernetes]
+api-server = 'https://test-cluster'
+cluster-certificate = 'ca-bundle'
+cluster-name = 'test-cluster'
+cluster-dns-ip = '10.0.100.10'
+max-pods = 35
+eviction-max-pod-grace-period = 10
+`)
+			})
 			It("should override kube reserved values in user data", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					EvictionHard: map[string]string{
@@ -2042,7 +2086,7 @@ essential = true
 				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				ExpectApplied(ctx, env.Client, nodeClass)
-				controller := nodeclass.NewController(awsEnv.Clock, env.Client, recorder, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.AMIResolver)
+				controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.AMIResolver)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{

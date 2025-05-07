@@ -21,6 +21,7 @@ import (
 
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -54,7 +55,7 @@ type EC2NodeClassSpec struct {
 	// +optional
 	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
 	// AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
-	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name', 'alias']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias))"
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name', 'alias', 'ssmParameter']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias) || has(x.ssmParameter))"
 	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.exists(x, has(x.id) && (has(x.alias) || has(x.tags) || has(x.name) || has(x.owner)))"
 	// +kubebuilder:validation:XValidation:message="'alias' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.exists(x, has(x.alias) && (has(x.id) || has(x.tags) || has(x.name) || has(x.owner)))"
 	// +kubebuilder:validation:XValidation:message="'alias' is mutually exclusive, cannot be set with a combination of other amiSelectorTerms",rule="!(self.exists(x, has(x.alias)) && self.size() != 1)"
@@ -226,6 +227,9 @@ type AMISelectorTerm struct {
 	// You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
 	// +optional
 	Owner string `json:"owner,omitempty"`
+	//SSMParameter is the name (or ARN) of the SSM parameter containing the Image ID.
+	// +optional
+	SSMParameter string `json:"ssmParameter,omitempty"`
 }
 
 // KubeletConfiguration defines args to be used when configuring kubelet on provisioned nodes.
@@ -491,11 +495,12 @@ func (in *EC2NodeClass) InstanceProfileRole() string {
 	return in.Spec.Role
 }
 
-func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]string {
+func (in *EC2NodeClass) InstanceProfileTags(clusterName string, region string) map[string]string {
 	return lo.Assign(in.Spec.Tags, map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", clusterName): "owned",
-		EKSClusterNameTagKey: clusterName,
-		LabelNodeClass:       in.Name,
+		EKSClusterNameTagKey:   clusterName,
+		LabelNodeClass:         in.Name,
+		v1.LabelTopologyRegion: region,
 	})
 }
 

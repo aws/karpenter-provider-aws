@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -82,7 +83,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.Node
 		return instType.Name == nodeClaim.Labels[corev1.LabelInstanceTypeStable]
 	})
 	if !found {
-		return "", fmt.Errorf(`finding node instance type "%s"`, nodeClaim.Labels[corev1.LabelInstanceTypeStable])
+		return "", serrors.Wrap(fmt.Errorf("finding node instance type"), "instance-type", nodeClaim.Labels[corev1.LabelInstanceTypeStable])
 	}
 	if len(nodeClass.Status.AMIs) == 0 {
 		return "", fmt.Errorf("no amis exist given constraints")
