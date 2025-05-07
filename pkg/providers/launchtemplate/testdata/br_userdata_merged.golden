@@ -11,6 +11,7 @@ max-pods = 110
 custom-node-label = 'custom'
 'karpenter.k8s.aws/ec2nodeclass' = '%s'
 'karpenter.sh/capacity-type' = 'on-demand'
+'karpenter.sh/do-not-sync-taints' = 'true'
 '%s' = '%s'
 'testing/cluster' = 'unspecified'
 
