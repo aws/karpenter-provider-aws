@@ -203,6 +203,8 @@ spec:
                               predictable and consistent rate after creation. Only allowed if SnapshotID is set.
                               Valid Range: Minimum value of 100. Maximum value of 300.
                             format: int32
+                            maximum: 300
+                            minimum: 100
                             type: integer
                           volumeSize:
                             description: |-
@@ -237,6 +239,8 @@ spec:
                         x-kubernetes-validations:
                           - message: snapshotID or volumeSize must be defined
                             rule: has(self.snapshotID) || has(self.volumeSize)
+                          - message: snapshotID must be set when volumeInitializationRate is set
+                            rule: '!has(self.volumeInitializationRate) || (has(self.snapshotID) && self.snapshotID != '''')'
                       rootVolume:
                         description: |-
                           RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can

@@ -357,6 +357,7 @@ type BlockDeviceMapping struct {
 	DeviceName *string `json:"deviceName,omitempty"`
 	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
 	// +kubebuilder:validation:XValidation:message="snapshotID or volumeSize must be defined",rule="has(self.snapshotID) || has(self.volumeSize)"
+	// +kubebuilder:validation:XValidation:message="snapshotID must be set when volumeInitializationRate is set",rule="!has(self.volumeInitializationRate) || (has(self.snapshotID) && self.snapshotID != '')"
 	// +optional
 	EBS *BlockDevice `json:"ebs,omitempty"`
 	// RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
@@ -410,9 +411,10 @@ type BlockDevice struct {
 	// initialization. Specifying a volume initialization rate ensures that the volume is initialized at a
 	// predictable and consistent rate after creation. Only allowed if SnapshotID is set.
 	// Valid Range: Minimum value of 100. Maximum value of 300.
+	// +kubebuilder:validation:Minimum:=100
+	// +kubebuilder:validation:Maximum:=300
 	// +optional
 	VolumeInitializationRate *int32 `json:"volumeInitializationRate,omitempty"`
-
 	// VolumeSize in `Gi`, `G`, `Ti`, or `T`. You must specify either a snapshot ID or
 	// a volume size. The following are the supported volumes sizes for each volume
 	// type:
