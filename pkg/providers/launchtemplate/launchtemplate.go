@@ -368,10 +368,11 @@ func blockDeviceMappings(blockDeviceMappings []*v1.BlockDeviceMapping) []ec2type
 				//nolint: gosec
 				Iops: lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.IOPS))),
 				//nolint: gosec
-				Throughput: lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.Throughput))),
-				KmsKeyId:   blockDeviceMapping.EBS.KMSKeyID,
-				SnapshotId: blockDeviceMapping.EBS.SnapshotID,
-				VolumeSize: volumeSize(blockDeviceMapping.EBS.VolumeSize),
+				Throughput:               lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.Throughput))),
+				KmsKeyId:                 blockDeviceMapping.EBS.KMSKeyID,
+				SnapshotId:               blockDeviceMapping.EBS.SnapshotID,
+				VolumeInitializationRate: blockDeviceMapping.EBS.VolumeInitializationRate,
+				VolumeSize:               volumeSize(blockDeviceMapping.EBS.VolumeSize),
 			},
 		})
 	}
