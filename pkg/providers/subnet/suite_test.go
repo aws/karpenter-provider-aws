@@ -114,14 +114,14 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
 					VpcId:                   lo.ToPtr("vpc-test1"),
-					CidrBlock:               lo.ToPtr("/24"),
+					CidrBlock:               lo.ToPtr("10.0.1.0/24"),
 				},
 			}, subnets)
 		})
-		It("should discover subnet by CIDR", func() {
+		It("should discover subnet by CidrBlock", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 				{
-					CIDR: "/24",
+					CidrBlock: "10.0.1.0/24",
 				},
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
@@ -132,7 +132,25 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
-					CidrBlock:               lo.ToPtr("/24"),
+					CidrBlock:               lo.ToPtr("10.0.1.0/24"),
+				},
+			}, subnets)
+		})
+		It("should discover subnet by CidrBlock with wildcards", func() {
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
+				{
+					CidrBlock: "10.0.*",
+				},
+			}
+			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
+				{
+					SubnetId:                lo.ToPtr("subnet-test1"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
+					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					CidrBlock:               lo.ToPtr("10.0.1.0/24"),
 				},
 			}, subnets)
 		})
@@ -154,7 +172,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
 					VpcId:                   lo.ToPtr("vpc-test1"),
-					CidrBlock:               lo.ToPtr("/24"),
+					CidrBlock:               lo.ToPtr("10.0.1.0/24"),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
@@ -162,7 +180,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
 					VpcId:                   lo.ToPtr("vpc-test1"),
-					CidrBlock:               lo.ToPtr("/25"),
+					CidrBlock:               lo.ToPtr("10.0.2.0/24"),
 				},
 			}, subnets)
 		})
@@ -186,7 +204,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
 					VpcId:                   lo.ToPtr("vpc-test1"),
-					CidrBlock:               lo.ToPtr("/24"),
+					CidrBlock:               lo.ToPtr("10.0.1.0/24"),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
@@ -194,7 +212,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
 					VpcId:                   lo.ToPtr("vpc-test1"),
-					CidrBlock:               lo.ToPtr("/25"),
+					CidrBlock:               lo.ToPtr("10.0.2.0/24"),
 				},
 			}, subnets)
 		})
@@ -213,7 +231,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
 					VpcId:                   lo.ToPtr("vpc-test1"),
-					CidrBlock:               lo.ToPtr("/24"),
+					CidrBlock:               lo.ToPtr("10.0.1.0/24"),
 				},
 			}, subnets)
 		})
@@ -235,7 +253,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
 					VpcId:                   lo.ToPtr("vpc-test1"),
-					CidrBlock:               lo.ToPtr("/24"),
+					CidrBlock:               lo.ToPtr("10.0.1.0/24"),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
@@ -243,7 +261,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
 					VpcId:                   lo.ToPtr("vpc-test1"),
-					CidrBlock:               lo.ToPtr("/25"),
+					CidrBlock:               lo.ToPtr("10.0.2.0/24"),
 				},
 			}, subnets)
 		})
@@ -263,7 +281,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
 					VpcId:                   lo.ToPtr("vpc-test1"),
-					CidrBlock:               lo.ToPtr("/25"),
+					CidrBlock:               lo.ToPtr("10.0.2.0/24"),
 				},
 			}, subnets)
 		})
@@ -277,7 +295,7 @@ var _ = Describe("SubnetProvider", func() {
 							AvailabilityZone:        aws.String("test-zone-1a"),
 							AvailabilityZoneId:      aws.String("tstz1-1a"),
 							AvailableIpAddressCount: aws.Int32(10),
-							CidrBlock:               aws.String("/25"),
+							CidrBlock:               lo.ToPtr("10.0.5.0/24"),
 							Tags:                    []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1000")}},
 						},
 					},
@@ -292,7 +310,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](10),
 					VpcId:                   lo.ToPtr("vpc-test-1"),
-					CidrBlock:               lo.ToPtr("/25"),
+					CidrBlock:               lo.ToPtr("10.0.5.0/24"),
 				},
 			}, subnets)
 			Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(2))
@@ -512,7 +530,7 @@ var _ = Describe("SubnetProvider", func() {
 						AvailableIpAddressCount: lo.ToPtr[int32](100),
 						SubnetId:                lo.ToPtr("subnet-test1"),
 						MapPublicIpOnLaunch:     lo.ToPtr(false),
-						CidrBlock:               lo.ToPtr("/24"),
+						CidrBlock:               lo.ToPtr("10.0.1.0/24"),
 						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
@@ -530,8 +548,8 @@ var _ = Describe("SubnetProvider", func() {
 						AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 						AvailableIpAddressCount: lo.ToPtr[int32](100),
 						MapPublicIpOnLaunch:     lo.ToPtr(true),
-						CidrBlock:               lo.ToPtr("/25"),
 						SubnetId:                lo.ToPtr("subnet-test2"),
+						CidrBlock:               lo.ToPtr("10.0.1.0/24"),
 
 						Tags: []ec2types.Tag{
 							{
@@ -549,8 +567,8 @@ var _ = Describe("SubnetProvider", func() {
 						AvailabilityZone:        lo.ToPtr("test-zone-1c"),
 						AvailabilityZoneId:      lo.ToPtr("tstz1-1c"),
 						AvailableIpAddressCount: lo.ToPtr[int32](100),
-						CidrBlock:               lo.ToPtr("/25"),
 						SubnetId:                lo.ToPtr("subnet-test3"),
+						CidrBlock:               lo.ToPtr("10.0.1.0/24"),
 						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
@@ -571,8 +589,8 @@ var _ = Describe("SubnetProvider", func() {
 						AvailabilityZoneId:      lo.ToPtr("tstz1-1alocal"),
 						AvailableIpAddressCount: lo.ToPtr[int32](100),
 						SubnetId:                lo.ToPtr("subnet-test4"),
-						CidrBlock:               lo.ToPtr("/25"),
 						MapPublicIpOnLaunch:     lo.ToPtr(true),
+						CidrBlock:               lo.ToPtr("10.0.1.0/24"),
 						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),

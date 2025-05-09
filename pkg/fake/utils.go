@@ -16,6 +16,7 @@ package fake
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
@@ -88,7 +89,7 @@ func SubnetsFromFleetRequest(createFleetInput *ec2.CreateFleetInput) []string {
 // Filters are chained with a logical "AND"
 func FilterDescribeSecurtyGroups(sgs []ec2types.SecurityGroup, filters []ec2types.Filter) []ec2types.SecurityGroup {
 	return lo.Filter(sgs, func(group ec2types.SecurityGroup, _ int) bool {
-		return Filter(filters, *group.GroupId, *group.GroupName, "", "", group.Tags)
+		return Filter(filters, *group.GroupId, *group.GroupName, "", "", "", group.Tags)
 	})
 }
 
@@ -96,7 +97,11 @@ func FilterDescribeSecurtyGroups(sgs []ec2types.SecurityGroup, filters []ec2type
 // Filters are chained with a logical "AND"
 func FilterDescribeSubnets(subnets []ec2types.Subnet, filters []ec2types.Filter) []ec2types.Subnet {
 	return lo.Filter(subnets, func(subnet ec2types.Subnet, _ int) bool {
-		return Filter(filters, *subnet.SubnetId, "", "", "", subnet.Tags)
+		cidrBlock := ""
+		if subnet.CidrBlock != nil {
+			cidrBlock = *subnet.CidrBlock
+		}
+		return Filter(filters, aws.ToString(subnet.SubnetId), "", "", "", cidrBlock, subnet.Tags)
 	})
 }
 
@@ -112,12 +117,12 @@ func FilterDescribeCapacityReservations(crs []ec2types.CapacityReservation, ids 
 
 func FilterDescribeImages(images []ec2types.Image, filters []ec2types.Filter) []ec2types.Image {
 	return lo.Filter(images, func(image ec2types.Image, _ int) bool {
-		return Filter(filters, *image.ImageId, *image.Name, "", string(image.State), image.Tags)
+		return Filter(filters, *image.ImageId, *image.Name, "", string(image.State), "", image.Tags)
 	})
 }
 
 //nolint:gocyclo
-func Filter(filters []ec2types.Filter, id, name, owner, state string, tags []ec2types.Tag) bool {
+func Filter(filters []ec2types.Filter, id, name, owner, state, cidrBlock string, tags []ec2types.Tag) bool {
 	return lo.EveryBy(filters, func(filter ec2types.Filter) bool {
 		switch filterName := aws.ToString(filter.Name); {
 		case filterName == "state":
@@ -141,6 +146,12 @@ func Filter(filters []ec2types.Filter, id, name, owner, state string, tags []ec2
 		case filterName == "owner-id":
 			for _, val := range filter.Values {
 				if owner == val {
+					return true
+				}
+			}
+		case filterName == "cidr-block":
+			for _, pattern := range filter.Values {
+				if match, _ := path.Match(pattern, cidrBlock); match {
 					return true
 				}
 			}

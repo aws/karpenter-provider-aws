@@ -158,9 +158,9 @@ type SubnetSelectorTerm struct {
 	// +kubebuilder:validation:Pattern="subnet-[0-9a-z]+"
 	// +optional
 	ID string `json:"id,omitempty"`
-	// CIDR is the CIDR of the subnet
+	// CidrBlock is the CidrBlock of the subnet
 	// +optional
-	CIDR string `json:"cidr,omitempty"`
+	CidrBlock string `json:"cidrBlock,omitempty"`
 }
 
 // SecurityGroupSelectorTerm defines selection logic for a security group used by Karpenter to launch nodes.
