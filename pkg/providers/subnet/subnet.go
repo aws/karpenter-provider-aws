@@ -265,6 +265,8 @@ func getFilterSets(terms []v1.SubnetSelectorTerm) (res [][]ec2types.Filter) {
 		switch {
 		case term.ID != "":
 			idFilter.Values = append(idFilter.Values, term.ID)
+		case term.CIDR != "":
+			idFilter.Values = append(idFilter.Values, term.CIDR)
 		default:
 			var filters []ec2types.Filter
 			for k, v := range term.Tags {

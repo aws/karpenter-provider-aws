@@ -483,6 +483,7 @@ func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsIn
 				AvailabilityZoneId:      aws.String("tstz1-1a"),
 				AvailableIpAddressCount: aws.Int32(100),
 				MapPublicIpOnLaunch:     aws.Bool(false),
+				CidrBlock:               aws.String("/24"),
 				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String("test-subnet-1")},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
@@ -495,6 +496,7 @@ func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsIn
 				AvailabilityZoneId:      aws.String("tstz1-1b"),
 				AvailableIpAddressCount: aws.Int32(100),
 				MapPublicIpOnLaunch:     aws.Bool(true),
+				CidrBlock:               aws.String("/25"),
 				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String("test-subnet-2")},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
@@ -506,6 +508,7 @@ func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsIn
 				AvailabilityZone:        aws.String("test-zone-1c"),
 				AvailabilityZoneId:      aws.String("tstz1-1c"),
 				AvailableIpAddressCount: aws.Int32(100),
+				CidrBlock:               aws.String("/25"),
 				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String("test-subnet-3")},
 					{Key: aws.String("TestTag")},
@@ -519,6 +522,7 @@ func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsIn
 				AvailabilityZoneId:      aws.String("tstz1-1alocal"),
 				AvailableIpAddressCount: aws.Int32(100),
 				MapPublicIpOnLaunch:     aws.Bool(true),
+				CidrBlock:               aws.String("/25"),
 				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String("test-subnet-4")},
 				},
