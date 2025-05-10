@@ -403,9 +403,9 @@ You can configure Karpenter to disrupt Nodes through your NodePool in multiple w
 
 ## spec.limits
 
-The NodePool spec includes a limits section (`spec.limits`), which constrains the maximum amount of resources that the NodePool will manage.
+The NodePool spec includes a limits section (`spec.limits`), which constrains the maximum amount of resources that the NodePool can consume.
 
-Karpenter supports limits of any resource type reported by your cloudprovider. It limits instance types when scheduling to those that will not exceed the specified limits.  If a limit has been exceeded, nodes provisioning is prevented until some nodes have been terminated.
+If the `NodePool.spec.limits` section is unspecified, it means that there is no default limitation on resource allocation. In this case, the maximum resource consumption is governed by the quotas set by your cloud provider. If a limit has been exceeded, nodes provisioning is prevented until some nodes have been terminated.
 
 ```yaml
 apiVersion: karpenter.sh/v1beta1
