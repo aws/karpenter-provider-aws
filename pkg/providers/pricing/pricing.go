@@ -48,6 +48,8 @@ type Provider interface {
 	SpotPrice(ec2types.InstanceType, string) (float64, bool)
 	UpdateOnDemandPricing(context.Context) error
 	UpdateSpotPricing(context.Context) error
+	UpdateMaxSpotPrices(context.Context, map[string]string)
+	GetMaxSpotPrice(ec2types.InstanceType) (float64, bool)
 }
 
 // DefaultProvider provides actual pricing data to the AWS cloud provider to allow it to make more informed decisions
@@ -68,6 +70,9 @@ type DefaultProvider struct {
 	muSpot             sync.RWMutex
 	spotPrices         map[ec2types.InstanceType]zonal
 	spotPricingUpdated bool
+	
+	muMaxSpotPrices sync.RWMutex
+	maxSpotPrices   map[ec2types.InstanceType]float64
 }
 
 // zonalPricing is used to capture the per-zone price
@@ -119,10 +124,11 @@ func NewAPI(cfg aws.Config) *pricing.Client {
 
 func NewDefaultProvider(_ context.Context, pricing sdk.PricingAPI, ec2Api sdk.EC2API, region string) *DefaultProvider {
 	p := &DefaultProvider{
-		region:  region,
-		ec2:     ec2Api,
-		pricing: pricing,
-		cm:      pretty.NewChangeMonitor(),
+		region:        region,
+		ec2:           ec2Api,
+		pricing:       pricing,
+		cm:            pretty.NewChangeMonitor(),
+		maxSpotPrices: make(map[ec2types.InstanceType]float64),
 	}
 	// sets the pricing data from the static default state for the provider
 	p.Reset()
@@ -156,14 +162,26 @@ func (p *DefaultProvider) OnDemandPrice(instanceType ec2types.InstanceType) (flo
 func (p *DefaultProvider) SpotPrice(instanceType ec2types.InstanceType, zone string) (float64, bool) {
 	p.muSpot.RLock()
 	defer p.muSpot.RUnlock()
+	
 	if val, ok := p.spotPrices[instanceType]; ok {
+		var price float64
+		var priceAvailable bool
+		
 		if !p.spotPricingUpdated {
-			return val.defaultPrice, true
+			price, priceAvailable = val.defaultPrice, true
+		} else if zonePrice, ok := p.spotPrices[instanceType].prices[zone]; ok {
+			price, priceAvailable = zonePrice, true
+		} else {
+			return 0.0, false
 		}
-		if price, ok := p.spotPrices[instanceType].prices[zone]; ok {
-			return price, true
+		
+		// Check if a max spot price is configured for this instance type
+		if maxPrice, hasMaxPrice := p.GetMaxSpotPrice(instanceType); hasMaxPrice && price > maxPrice {
+			// If current price exceeds max price, mark as unavailable
+			return price, false
 		}
-		return 0.0, false
+		
+		return price, priceAvailable
 	}
 	return 0.0, false
 }
@@ -426,6 +444,48 @@ func populateInitialSpotPricing(pricing map[ec2types.InstanceType]float64) map[e
 		m[it] = newZonalPricing(price)
 	}
 	return m
+}
+
+// UpdateMaxSpotPrices updates the map of instance types to maximum spot prices
+// from the provided ConfigMap data.
+func (p *DefaultProvider) UpdateMaxSpotPrices(ctx context.Context, data map[string]string) {
+	p.muMaxSpotPrices.Lock()
+	defer p.muMaxSpotPrices.Unlock()
+	
+	// Clear current max spot prices
+	p.maxSpotPrices = make(map[ec2types.InstanceType]float64)
+	
+	// Parse and add the new max spot prices
+	for instanceTypeStr, maxPriceStr := range data {
+		instanceType := ec2types.InstanceType(instanceTypeStr)
+		maxPrice, err := strconv.ParseFloat(maxPriceStr, 64)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Failed to parse max spot price", 
+				"instanceType", instanceTypeStr, "value", maxPriceStr)
+			continue
+		}
+		if maxPrice <= 0 {
+			log.FromContext(ctx).V(1).Info("Ignoring non-positive max spot price",
+				"instanceType", instanceTypeStr, "value", maxPrice)
+			continue
+		}
+		p.maxSpotPrices[instanceType] = maxPrice
+	}
+	
+	if p.cm.HasChanged("max-spot-prices", p.maxSpotPrices) {
+		log.FromContext(ctx).WithValues("instance-type-count", len(p.maxSpotPrices)).
+			V(1).Info("updated max spot prices from ConfigMap")
+	}
+}
+
+// GetMaxSpotPrice returns the configured maximum spot price for an instance type,
+// or zero if none is configured.
+func (p *DefaultProvider) GetMaxSpotPrice(instanceType ec2types.InstanceType) (float64, bool) {
+	p.muMaxSpotPrices.RLock()
+	defer p.muMaxSpotPrices.RUnlock()
+	
+	maxPrice, ok := p.maxSpotPrices[instanceType]
+	return maxPrice, ok
 }
 
 func (p *DefaultProvider) Reset() {
