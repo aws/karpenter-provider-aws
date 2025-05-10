@@ -18,15 +18,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
-	"strings"
 
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/awslabs/operatorpkg/aws/middleware"
 	"github.com/awslabs/operatorpkg/serrors"
 	"sigs.k8s.io/karpenter/pkg/events"
-	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -57,7 +54,6 @@ import (
 
 const (
 	instanceTypeFlexibilityThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
-	maxInstanceTypes                 = 60
 )
 
 var (
@@ -486,160 +482,6 @@ func getCapacityType(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider
 		}
 	}
 	return karpv1.CapacityTypeOnDemand
-}
-
-func FilterRejectInstanceTypes(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType, error) {
-	var err error
-	schedulingRequirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
-	// We filter out non-reserved instances regardless of the min-values settings, since if the launch is eligible for
-	// reserved instances that's all we'll include in our fleet request.
-	if reqs := schedulingRequirements; reqs.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeReserved) {
-		filtered, rejected := filterRejectReservedInstanceTypes(reqs, instanceTypes)
-		if _, err = cloudprovider.InstanceTypes(filtered).SatisfiesMinValues(schedulingRequirements); err != nil {
-			return nil, nil, cloudprovider.NewCreateError(fmt.Errorf("failed to construct CreateFleet request while respecting minValues requirements, %w", err), "InstanceTypeFilteringFailed", "Failed to filter instance types while respecting minValues")
-		}
-		if len(filtered) > 0 {
-			// TODO: Support FilterReject on Truncating instance types
-			filtered, err = cloudprovider.InstanceTypes(filtered).Truncate(schedulingRequirements, maxInstanceTypes)
-			if err != nil {
-				return nil, nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeFilteringFailed", "Error truncating instance types based on the passed-in requirements")
-			}
-			return filtered, rejected, nil
-		}
-	}
-	// Only filter the instances if there are no minValues in the requirement.
-	var rejected []*cloudprovider.InstanceType
-	filtered := instanceTypes
-	if !schedulingRequirements.HasMinValues() {
-		var r []*cloudprovider.InstanceType
-		filtered, r = filterRejectExoticInstanceTypes(filtered)
-		rejected = append(rejected, r...)
-		// If we could potentially launch either a spot or on-demand node, we want to filter out the spot instance types that
-		// are more expensive than the cheapest on-demand type.
-		if isMixedCapacityLaunch(nodeClaim, filtered) {
-			filtered, r = filterRejectUnwantedSpot(filtered)
-			rejected = append(rejected, r...)
-		}
-	}
-	// TODO: Support FilterReject on Truncating instance types
-	filtered, err = cloudprovider.InstanceTypes(filtered).Truncate(schedulingRequirements, maxInstanceTypes)
-	if err != nil {
-		return nil, nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeFilteringFailed", "Error truncating instance types based on the passed-in requirements")
-	}
-	return filtered, rejected, nil
-}
-
-// filterReservedInstanceTypes is used to filter the provided set of instance types to only include those with
-// available reserved offerings if the nodeclaim is compatible. If there are no available reserved offerings, no
-// filtering is applied.
-func filterRejectReservedInstanceTypes(nodeClaimRequirements scheduling.Requirements, instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
-	nodeClaimRequirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, karpv1.CapacityTypeReserved)
-	var reservedInstanceTypes []*cloudprovider.InstanceType
-	var nonReservedInstanceTypes []*cloudprovider.InstanceType
-	for _, it := range instanceTypes {
-		// We only want to include a single offering per pool (instance type / AZ combo). This is due to a limitation in the
-		// CreateFleet API, which limits calls to specifying a single override per pool. We'll choose to launch into the pool
-		// with the most capacity.
-		zonalOfferings := map[string]*cloudprovider.Offering{}
-		for _, o := range it.Offerings.Available().Compatible(nodeClaimRequirements) {
-			if current, ok := zonalOfferings[o.Zone()]; !ok || o.ReservationCapacity > current.ReservationCapacity {
-				zonalOfferings[o.Zone()] = o
-			}
-		}
-		if len(zonalOfferings) == 0 {
-			nonReservedInstanceTypes = append(nonReservedInstanceTypes, it)
-			continue
-		}
-		// WARNING: It is only safe to mutate the slice containing the offerings, not the offerings themselves. The individual
-		// offerings are cached, but not the slice storing them. This helps keep the launch path simple, but changes to the
-		// caching strategy employed by the InstanceType provider could result in unexpected behavior.
-		it.Offerings = lo.Values(zonalOfferings)
-		reservedInstanceTypes = append(reservedInstanceTypes, it)
-	}
-	return reservedInstanceTypes, nonReservedInstanceTypes
-}
-
-// isMixedCapacityLaunch returns true if nodepools and available offerings could potentially allow either a spot or
-// and on-demand node to launch
-func isMixedCapacityLaunch(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) bool {
-	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
-	// requirements must allow both
-	if !requirements.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) ||
-		!requirements.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeOnDemand) {
-		return false
-	}
-	hasSpotOfferings := false
-	hasODOffering := false
-	if requirements.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
-		for _, instanceType := range instanceTypes {
-			for _, offering := range instanceType.Offerings.Available() {
-				if requirements.Compatible(offering.Requirements, scheduling.AllowUndefinedWellKnownLabels) != nil {
-					continue
-				}
-				if offering.Requirements.Get(karpv1.CapacityTypeLabelKey).Any() == karpv1.CapacityTypeSpot {
-					hasSpotOfferings = true
-				} else {
-					hasODOffering = true
-				}
-			}
-		}
-	}
-	return hasSpotOfferings && hasODOffering
-}
-
-// filterUnwantedSpot is used to filter out spot types that are more expensive than the cheapest on-demand type that we
-// could launch during mixed capacity-type launches
-func filterRejectUnwantedSpot(instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
-	cheapestOnDemand := math.MaxFloat64
-	// first, find the price of our cheapest available on-demand instance type that could support this node
-	for _, it := range instanceTypes {
-		for _, o := range it.Offerings.Available() {
-			if o.Requirements.Get(karpv1.CapacityTypeLabelKey).Any() == karpv1.CapacityTypeOnDemand && o.Price < cheapestOnDemand {
-				cheapestOnDemand = o.Price
-			}
-		}
-	}
-
-	// Filter out any types where the cheapest offering, which should be spot, is more expensive than the cheapest
-	// on-demand instance type that would have worked. This prevents us from getting a larger more-expensive spot
-	// instance type compared to the cheapest sufficiently large on-demand instance type
-	return lo.FilterReject(instanceTypes, func(item *cloudprovider.InstanceType, index int) bool {
-		available := item.Offerings.Available()
-		if len(available) == 0 {
-			return false
-		}
-		return available.Cheapest().Price <= cheapestOnDemand
-	})
-}
-
-// filterRejectExoticInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
-// a set of more appropriate instance types would work. If a set of more desirable instance types is not found, then the original slice
-// of instance types are returned.
-func filterRejectExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
-	var genericInstanceTypes []*cloudprovider.InstanceType
-	var exoticInstanceTypes []*cloudprovider.InstanceType
-	for _, it := range instanceTypes {
-		// deprioritize metal even if our opinionated filter isn't applied due to something like an instance family
-		// requirement
-		if _, ok := lo.Find(it.Requirements.Get(v1.LabelInstanceSize).Values(), func(size string) bool { return strings.Contains(size, "metal") }); ok {
-			exoticInstanceTypes = append(exoticInstanceTypes, it)
-			continue
-		}
-		if !resources.IsZero(it.Capacity[v1.ResourceAWSNeuron]) ||
-			!resources.IsZero(it.Capacity[v1.ResourceAWSNeuronCore]) ||
-			!resources.IsZero(it.Capacity[v1.ResourceAMDGPU]) ||
-			!resources.IsZero(it.Capacity[v1.ResourceNVIDIAGPU]) ||
-			!resources.IsZero(it.Capacity[v1.ResourceHabanaGaudi]) {
-			exoticInstanceTypes = append(exoticInstanceTypes, it)
-			continue
-		}
-		genericInstanceTypes = append(genericInstanceTypes, it)
-	}
-	// if we got some subset of instance types, then prefer to use those
-	if len(genericInstanceTypes) != 0 {
-		return genericInstanceTypes, exoticInstanceTypes
-	}
-	return instanceTypes, nil
 }
 
 func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) ([]*Instance, error) {
