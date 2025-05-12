@@ -485,6 +485,7 @@ func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsIn
 					{Key: aws.String("Name"), Value: aws.String("test-subnet-1")},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
+				VpcId: aws.String("vpc-test1"),
 			},
 			{
 				SubnetId:                aws.String("subnet-test2"),
@@ -496,6 +497,7 @@ func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsIn
 					{Key: aws.String("Name"), Value: aws.String("test-subnet-2")},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
+				VpcId: aws.String("vpc-test1"),
 			},
 			{
 				SubnetId:                aws.String("subnet-test3"),
@@ -507,6 +509,7 @@ func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsIn
 					{Key: aws.String("TestTag")},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
+				VpcId: aws.String("vpc-test1"),
 			},
 			{
 				SubnetId:                aws.String("subnet-test4"),
@@ -517,6 +520,7 @@ func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsIn
 				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String("test-subnet-4")},
 				},
+				VpcId: aws.String("vpc-test1"),
 			},
 		}
 		if len(input.Filters) == 0 {

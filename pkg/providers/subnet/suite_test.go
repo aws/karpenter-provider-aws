@@ -113,6 +113,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 			}, subnets)
 		})
@@ -133,12 +134,14 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 			}, subnets)
 		})
@@ -161,12 +164,14 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 			}, subnets)
 		})
@@ -184,6 +189,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 			}, subnets)
 		})
@@ -204,12 +210,14 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 			}, subnets)
 		})
@@ -228,6 +236,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 			}, subnets)
 		})
@@ -250,6 +259,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](10),
+					VpcId:                   lo.ToPtr("vpc-test-1"),
 				},
 			}, subnets)
 			Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(2))
@@ -264,7 +274,8 @@ var _ = Describe("SubnetProvider", func() {
 				&ec2.DescribeSubnetsOutput{
 					Subnets: []ec2types.Subnet{
 						{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
-							Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}},
+							Tags:  []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}},
+							VpcId: lo.ToPtr("vpc-test1"),
 						},
 					},
 				},
@@ -273,7 +284,8 @@ var _ = Describe("SubnetProvider", func() {
 				&ec2.DescribeSubnetsOutput{
 					Subnets: []ec2types.Subnet{
 						{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
-							Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-3")}},
+							Tags:  []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-3")}},
+							VpcId: lo.ToPtr("vpc-test1"),
 						},
 					},
 				},
@@ -282,13 +294,16 @@ var _ = Describe("SubnetProvider", func() {
 			Expect(err).To(BeNil())
 			ExpectConsistsOfSubnets([]ec2types.Subnet{
 				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
-					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}},
+					Tags:  []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}},
+					VpcId: lo.ToPtr("vpc-test1"),
 				},
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
-					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}},
+					Tags:  []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}},
+					VpcId: lo.ToPtr("vpc-test1"),
 				},
 				{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
-					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-3")}},
+					Tags:  []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-3")}},
+					VpcId: lo.ToPtr("vpc-test1"),
 				},
 			}, subnets)
 			Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(3))
@@ -375,6 +390,7 @@ var _ = Describe("SubnetProvider", func() {
 								Value: lo.ToPtr("bar"),
 							},
 						},
+						VpcId: lo.ToPtr("vpc-test1"),
 					},
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1b"),
@@ -393,6 +409,7 @@ var _ = Describe("SubnetProvider", func() {
 								Value: lo.ToPtr("bar"),
 							},
 						},
+						VpcId: lo.ToPtr("vpc-test1"),
 					},
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1c"),
@@ -412,6 +429,7 @@ var _ = Describe("SubnetProvider", func() {
 								Value: lo.ToPtr("bar"),
 							},
 						},
+						VpcId: lo.ToPtr("vpc-test1"),
 					},
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1a-local"),
@@ -425,6 +443,7 @@ var _ = Describe("SubnetProvider", func() {
 								Value: lo.ToPtr("test-subnet-4"),
 							},
 						},
+						VpcId: lo.ToPtr("vpc-test1"),
 					},
 				}))
 			}()
