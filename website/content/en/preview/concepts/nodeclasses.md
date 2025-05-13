@@ -1095,11 +1095,13 @@ spec:
     "memory.available" = "20%"
 ```
 
-This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your key file):
+This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your public key file):
 
 {{% alert title="Note" color="primary" %}}
 Instead of using SSH as set up in this example, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell access to Karpenter nodes.
 See [Node NotReady]({{< ref "../troubleshooting/#node-notready" >}}) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
+
+Also, **my-authorized_key** key is the public key. See [Retrieve the public key material](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/describe-keys.html#retrieving-the-public-key).
 {{% /alert %}}
 
 ```yaml
@@ -1119,6 +1121,12 @@ spec:
     EOF
     chmod -R go-w ~ec2-user/.ssh/authorized_keys
     chown -R ec2-user ~ec2-user/.ssh
+```
+
+Alternatively, you can save the [key in your SSM Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-create-console.html) and use the get-parameter command mentioned below to retrieve the key for authorized_keys.
+
+```
+aws ssm get-parameter --name "<parameter-name>" --region <region> --with-decryption --query "Parameter.Value" --output text > /home/ec2-user/.ssh/authorized_keys
 ```
 
 For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/v1).
