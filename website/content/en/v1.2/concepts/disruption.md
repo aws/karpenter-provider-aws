@@ -247,7 +247,7 @@ To configure a maximum termination duration, `terminationGracePeriod` should be 
 It is configured through a NodePool's [`spec.template.spec.terminationGracePeriod`]({{<ref "../concepts/nodepools/#spectemplatespecterminationgraceperiod" >}}) field, and is persisted to created NodeClaims (`spec.terminationGracePeriod`).
 Changes to the [`spec.template.spec.terminationGracePeriod`]({{<ref "../concepts/nodepools/#spectemplatespecterminationgraceperiod" >}}) field on the NodePool will not result in a change for existing NodeClaims - it will induce NodeClaim drift and the replacements will have the updated `terminationGracePeriod`.
 
-Once a node is disrupted, via either a [graceful](#automated-graceful-methods) or [forceful](#automated-forceful-methods) disruption method, Karpenter will being draining the node.
+Once a node is disrupted, via either a [graceful](#automated-graceful-methods) or [forceful](#automated-forceful-methods) disruption method, Karpenter will begin draining the node.
 At this point, the countdown for `terminationGracePeriod` begins.
 Once the `terminationGracePeriod` elapses, remaining pods will be forcibly deleted and the underlying instance will be terminated.
 A node may be terminated before the `terminationGracePeriod` has elapsed if all disruptable pods have been drained.
@@ -348,7 +348,7 @@ In this scenario, Karpenter cannot voluntary disrupt the node because:
 1. Pod A is blocked by PDB-1 even though PDB-2 would allow disruption
 2. Pod B is blocked by PDB-3's requirement for 100% availability
 
-As seen in this example, the more PDBs there are affecting a Node, the more difficult it will be for Karpenter to find an opportunity to perform voluntary disruption actions. 
+As seen in this example, the more PDBs there are affecting a Node, the more difficult it will be for Karpenter to find an opportunity to perform voluntary disruption actions.
 
 Secondly, you can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt: "true"` annotation to the pod.
 You can treat this annotation as a single-pod, permanently blocking PDB.
