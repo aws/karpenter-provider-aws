@@ -128,5 +128,6 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 	}); err != nil {
 		return awserrors.IgnoreNotFound(serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", instanceProfileName))
 	}
+	p.cache.Delete(instanceProfileName)
 	return nil
 }
