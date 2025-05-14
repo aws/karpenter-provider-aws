@@ -182,7 +182,7 @@ jobs:
           kubectl delete nodepool --all
           kubectl delete ec2nodeclass --all
           kubectl delete deployment --all
-          
+
           if [[ "$SOURCE" == 'aws' ]]; then
             TEST_SUITE="$SUITE" ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
               CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
