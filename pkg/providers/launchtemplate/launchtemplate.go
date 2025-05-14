@@ -171,6 +171,7 @@ func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC
 			delete(labels, k)
 		}
 	}
+	labels = InjectDoNotSyncTaintsLabel(nodeClass.AMIFamily(), labels)
 	// Relying on the status rather than an API call means that Karpenter is subject to a race
 	// condition where EC2NodeClass spec changes haven't propagated to the status once a node
 	// has launched.
@@ -367,10 +368,11 @@ func blockDeviceMappings(blockDeviceMappings []*v1.BlockDeviceMapping) []ec2type
 				//nolint: gosec
 				Iops: lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.IOPS))),
 				//nolint: gosec
-				Throughput: lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.Throughput))),
-				KmsKeyId:   blockDeviceMapping.EBS.KMSKeyID,
-				SnapshotId: blockDeviceMapping.EBS.SnapshotID,
-				VolumeSize: volumeSize(blockDeviceMapping.EBS.VolumeSize),
+				Throughput:               lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.Throughput))),
+				KmsKeyId:                 blockDeviceMapping.EBS.KMSKeyID,
+				SnapshotId:               blockDeviceMapping.EBS.SnapshotID,
+				VolumeInitializationRate: blockDeviceMapping.EBS.VolumeInitializationRate,
+				VolumeSize:               volumeSize(blockDeviceMapping.EBS.VolumeSize),
 			},
 		})
 	}
@@ -497,4 +499,17 @@ func (p *DefaultProvider) ResolveClusterCIDR(ctx context.Context) error {
 		return nil
 	}
 	return fmt.Errorf("no CIDR found in DescribeCluster response")
+}
+
+// InjectDoNotSyncTaintsLabel adds a label for all non-custom AMI families. It is exported just for ease
+// of testing.
+// This label is to tell karpenter that it should *not* sync taints. This is to work around a race condition.
+// By default, this label is not added to the custom AMI family as users may still want their taints synced. Startup
+// taints will be racy for custom AMIs if they do not add this label, however.
+// https://github.com/kubernetes-sigs/karpenter/issues/1772
+func InjectDoNotSyncTaintsLabel(amiFamilyName string, labels map[string]string) map[string]string {
+	if amiFamilyName != v1.AMIFamilyCustom {
+		return lo.Assign(labels, map[string]string{karpv1.NodeDoNotSyncTaintsLabelKey: "true"})
+	}
+	return labels
 }

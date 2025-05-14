@@ -196,6 +196,34 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
+	It("should not add the do not sync taints label to nodes when AMI type is custom", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("Custom", make(map[string]string))
+		Expect(labels).To(HaveLen(0))
+	})
+
+	It("should add the do not sync taints label to nodes when AMI type is al2", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("AL2", make(map[string]string))
+		Expect(labels).To(HaveLen(1))
+		Expect(labels).Should(HaveKeyWithValue(karpv1.NodeDoNotSyncTaintsLabelKey, "true"))
+	})
+
+	It("should add the do not sync taints label to nodes when AMI type is al2023", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("AL2023", make(map[string]string))
+		Expect(labels).To(HaveLen(1))
+		Expect(labels).Should(HaveKeyWithValue(karpv1.NodeDoNotSyncTaintsLabelKey, "true"))
+	})
+
+	It("should add the do not sync taints label to nodes when AMI type is br", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("Bottlerocket", make(map[string]string))
+		Expect(labels).To(HaveLen(1))
+		Expect(labels).Should(HaveKeyWithValue(karpv1.NodeDoNotSyncTaintsLabelKey, "true"))
+	})
+
+	It("should add the do not sync taints label to nodes when AMI type is windows", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("Windows", make(map[string]string))
+		Expect(labels).To(HaveLen(1))
+		Expect(labels).Should(HaveKeyWithValue(karpv1.NodeDoNotSyncTaintsLabelKey, "true"))
+	})
 	It("should create unique launch templates for multiple identical nodeClasses", func() {
 		nodeClass2 := test.EC2NodeClass(v1.EC2NodeClass{
 			Status: v1.EC2NodeClassStatus{
@@ -1536,6 +1564,46 @@ essential = true
 					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
 					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
 				})
+			})
+			It("should override soft eviction values in user data", func() {
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					EvictionSoft: map[string]string{"memory.available": "10%"},
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"memory.available": {Duration: time.Minute},
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+				ExpectLaunchTemplatesCreatedWithUserDataContaining(`
+[settings.kubernetes.eviction-soft]
+'memory.available' = '10%'
+
+[settings.kubernetes.eviction-soft-grace-period]
+'memory.available' = '1m0s'
+`)
+			})
+			It("should override max pod grace period in user data", func() {
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					MaxPods:                   aws.Int32(35),
+					EvictionMaxPodGracePeriod: aws.Int32(10),
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
+				ExpectLaunchTemplatesCreatedWithUserDataContaining(`
+[settings.kubernetes]
+api-server = 'https://test-cluster'
+cluster-certificate = 'ca-bundle'
+cluster-name = 'test-cluster'
+cluster-dns-ip = '10.0.100.10'
+max-pods = 35
+eviction-max-pod-grace-period = 10
+`)
 			})
 			It("should override kube reserved values in user data", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{

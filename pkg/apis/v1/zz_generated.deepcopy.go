@@ -117,6 +117,11 @@ func (in *BlockDevice) DeepCopyInto(out *BlockDevice) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.VolumeInitializationRate != nil {
+		in, out := &in.VolumeInitializationRate, &out.VolumeInitializationRate
+		*out = new(int32)
+		**out = **in
+	}
 	if in.VolumeSize != nil {
 		in, out := &in.VolumeSize, &out.VolumeSize
 		x := (*in).DeepCopy()

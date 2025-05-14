@@ -41,6 +41,7 @@ jobs:
       region: ${{ inputs.region || 'us-west-2' }}
       enable_metrics: ${{ inputs.enable_metrics || true }}
       workflow_trigger: "scale"
+      source: aws
       # Default to true unless using a workflow_dispatch
       cleanup: ${{ github.event_name != 'workflow_dispatch' && true || inputs.cleanup }}
     secrets:

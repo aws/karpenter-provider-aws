@@ -15,5 +15,6 @@ jobs:
       workflow_trigger: "private_cluster"
       cleanup: true
       codebuild_region: US_EAST_1
+      source: aws
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

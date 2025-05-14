@@ -29,6 +29,9 @@ on:
         required: true
         default: true
         type: boolean
+      source:
+        type: string
+        default: "aws" 
   workflow_call:
     inputs:
       from_git_ref:
@@ -47,6 +50,9 @@ on:
         type: boolean
       workflow_trigger:
         type: string
+      source:
+        type: string
+        default: "aws" 
     secrets:
       SLACK_WEBHOOK_URL:
         required: true
@@ -72,7 +78,7 @@ jobs:
         with:
           ref: ${{ inputs.from_git_ref }}
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+        uses: aws-actions/configure-aws-credentials@f24d7193d98baebaeacc7e2227925dd47cc267f5 # v4.2.0
         with:
           role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
           aws-region: ${{ inputs.region }}
@@ -128,6 +134,14 @@ jobs:
         run: |
           aws eks update-kubeconfig --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           CLUSTER_NAME=${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} INTERRUPTION_QUEUE=${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" TEST_SUITE="Integration" make e2etests
+
+          if [[ "$SOURCE" == 'aws' ]]; then
+            TEST_SUITE="Integration" ENABLE_METRICS=$ENABLE_METRICS \
+              CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
+              INTERRUPTION_QUEUE="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make e2etests
+          elif [[ "$SOURCE" == 'upstream' ]]; then
+            FOCUS="Integration" CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make upstream-e2etests
+          fi
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
         if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'versionCompatibility'
