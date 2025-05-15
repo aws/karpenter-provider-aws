@@ -51,7 +51,6 @@ func main() {
 	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 		ClusterName:     lo.ToPtr("docs-gen"),
 		ClusterEndpoint: lo.ToPtr("https://docs-gen.aws"),
-		IsolatedVPC:     lo.ToPtr(true), // disable pricing lookup
 	}))
 
 	region := "us-west-2"
@@ -65,10 +64,10 @@ func main() {
 		ec2api,
 		subnetProvider,
 		pricing.NewDefaultProvider(
-			ctx,
 			pricing.NewAPI(cfg),
 			ec2api,
 			cfg.Region,
+			true,
 		),
 		nil,
 		awscache.NewUnavailableOfferings(),

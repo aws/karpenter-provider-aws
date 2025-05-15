@@ -19,10 +19,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	stdlog "log"
 	"net"
-	"os"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
@@ -33,6 +30,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/awslabs/operatorpkg/aws/middleware"
+	"github.com/awslabs/operatorpkg/option"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/aws/smithy-go"
@@ -44,7 +42,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	clinetconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
@@ -53,8 +50,8 @@ import (
 
 	prometheusv2 "github.com/jonathan-innis/aws-sdk-go-prometheus/v2"
 
-	"sigs.k8s.io/karpenter/pkg/apis"
-
+	kwokec2 "github.com/aws/karpenter-provider-aws/kwok/ec2"
+	"github.com/aws/karpenter-provider-aws/kwok/strategy"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -95,25 +92,10 @@ type Operator struct {
 	InstanceProvider            instance.Provider
 	SSMProvider                 ssmp.Provider
 	CapacityReservationProvider capacityreservation.Provider
-	EC2API                      *ec2.Client
+	EC2API                      *kwokec2.Client
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
-	kubeletCompatibilityAnnotationKey := fmt.Sprintf("%s/%s", apis.CompatibilityGroup, "v1beta1-kubelet-conversion")
-	// we are going to panic if any of the customer nodepools contain
-	// compatibility.karpenter.sh/v1beta1-kubelet-conversion
-	restConfig := clinetconfig.GetConfigOrDie()
-	kubeClient := lo.Must(client.New(restConfig, client.Options{}))
-	nodePoolList := &karpv1.NodePoolList{}
-	lo.Must0(kubeClient.List(ctx, nodePoolList))
-	npNames := lo.FilterMap(nodePoolList.Items, func(np karpv1.NodePool, _ int) (string, bool) {
-		_, ok := np.Annotations[kubeletCompatibilityAnnotationKey]
-		return np.Name, ok
-	})
-	if len(npNames) != 0 {
-		stdlog.Fatalf("The kubelet compatibility annotation, %s, is not supported on Karpenter v1.1+. Please refer to the upgrade guide in the docs. The following NodePools still have the compatibility annotation: %s", kubeletCompatibilityAnnotationKey, strings.Join(npNames, ", "))
-	}
-
 	cfg := prometheusv2.WithPrometheusMetrics(WithUserAgent(lo.Must(config.LoadDefaultConfig(ctx))), crmetrics.Registry)
 	cfg.APIOptions = append(cfg.APIOptions, middleware.StructuredErrorHandler)
 	if cfg.Region == "" {
@@ -121,20 +103,12 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		region := lo.Must(imds.NewFromConfig(cfg).GetRegion(ctx, nil))
 		cfg.Region = region.Region
 	}
-	ec2api := ec2.NewFromConfig(cfg)
+	ec2api := kwokec2.NewClient(cfg.Region, option.MustGetEnv("SYSTEM_NAMESPACE"), ec2.NewFromConfig(cfg), kwokec2.NewNopRateLimiterProvider(), strategy.NewLowestPrice(pricing.NewAPI(cfg), ec2.NewFromConfig(cfg), cfg.Region), operator.GetClient(), operator.Clock, operator.GetConfig())
+
 	eksapi := eks.NewFromConfig(cfg)
-	if err := CheckEC2Connectivity(ctx, ec2api); err != nil {
-		log.FromContext(ctx).Error(err, "ec2 api connectivity check failed")
-		os.Exit(1)
-	}
 	log.FromContext(ctx).WithValues("region", cfg.Region).V(1).Info("discovered region")
-	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eksapi)
-	if err != nil {
-		log.FromContext(ctx).Error(err, "failed detecting cluster endpoint")
-		os.Exit(1)
-	} else {
-		log.FromContext(ctx).WithValues("cluster-endpoint", clusterEndpoint).V(1).Info("discovered cluster endpoint")
-	}
+	clusterEndpoint := lo.Must(ResolveClusterEndpoint(ctx, eksapi))
+	log.FromContext(ctx).WithValues("cluster-endpoint", clusterEndpoint).V(1).Info("discovered cluster endpoint")
 	kubeDNSIP, err := KubeDNSIP(ctx, operator.KubernetesInterface)
 	if err != nil {
 		// If we fail to get the kube-dns IP, we don't want to crash because this causes issues with custom DNS setups
@@ -154,7 +128,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		pricing.NewAPI(cfg),
 		ec2api,
 		cfg.Region,
-		options.FromContext(ctx).IsolatedVPC,
+		false,
 	)
 	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, eksapi)
 	// Ensure we're able to hydrate the version before starting any reliant controllers.

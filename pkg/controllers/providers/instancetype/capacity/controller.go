@@ -58,7 +58,7 @@ func (c *Controller) Reconcile(ctx context.Context, node *corev1.Node) (reconcil
 	}
 	nodeClaim, err := nodeutils.NodeClaimForNode(ctx, c.kubeClient, node)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("failed to get nodeclaim for node, %w", err)
+		return reconcile.Result{}, nodeutils.IgnoreNodeClaimNotFoundError(fmt.Errorf("failed to get nodeclaim for node, %w", err))
 	}
 
 	nodeClass := &v1.EC2NodeClass{}

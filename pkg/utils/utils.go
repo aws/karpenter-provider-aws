@@ -33,7 +33,7 @@ import (
 )
 
 var (
-	instanceIDRegex = regexp.MustCompile(`aws:///(?P<AZ>.*)/(?P<InstanceID>.*)`)
+	instanceIDRegex = regexp.MustCompile(`(?P<Provider>.*):///(?P<AZ>.*)/(?P<InstanceID>.*)`)
 )
 
 // ParseInstanceID parses the provider ID stored on the node to get the instance ID
