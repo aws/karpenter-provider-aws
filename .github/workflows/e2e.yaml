@@ -30,7 +30,6 @@ on:
       k8s_version:
         type: choice
         options:
-          - "1.25"
           - "1.26"
           - "1.27"
           - "1.28"

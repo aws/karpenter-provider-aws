@@ -40,7 +40,7 @@ const (
 	// Karpenter's supported version of Kubernetes
 	// If a user runs a karpenter image on a k8s version outside the min and max,
 	// One error message will be fired to notify
-	MinK8sVersion = "1.25"
+	MinK8sVersion = "1.26"
 	MaxK8sVersion = "1.32"
 )
 
