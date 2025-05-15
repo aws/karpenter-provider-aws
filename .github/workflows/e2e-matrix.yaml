@@ -78,7 +78,7 @@ jobs:
             source: aws
           - name: NodeClaim
             region: ${{ inputs.region }}
-            source: aws
+            source: all
           - name: Consolidation
             region: ${{ inputs.region }}
             source: aws
