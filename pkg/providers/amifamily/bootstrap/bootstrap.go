@@ -15,6 +15,8 @@ limitations under the License.
 package bootstrap
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"sort"
 	"strings"
@@ -115,4 +117,29 @@ func joinParameterArgs[K comparable, V any](name string, m map[K]V, separator st
 // Examples are the Bottlerocket config and the eks-bootstrap script
 type Bootstrapper interface {
 	Script() (string, error)
+}
+
+// userDataMaxBytes is the maximum size in bytes allowed for EC2 user data BEFORE it is base64-encoded.
+// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html
+const userDataMaxBytes = 16 * 1024
+
+// tryToCompress will GZIP the user data if it exceeds the size limit,
+// returning an error if the size limit is still breached
+func tryToCompress(userData []byte) ([]byte, error) {
+	if len(userData) <= userDataMaxBytes {
+		return userData, nil
+	}
+	var buf bytes.Buffer
+	writer := lo.Must(gzip.NewWriterLevel(&buf, gzip.BestCompression))
+	n := lo.Must(writer.Write(userData))
+	if n != len(userData) {
+		// TODO: panic? this should never happen
+		return nil, fmt.Errorf("data written to GZIP writer doesn't match input (%d): %d", len(userData), n)
+	}
+	lo.Must0(writer.Close())
+	compressed := buf.Bytes()
+	if len(compressed) > userDataMaxBytes {
+		return nil, fmt.Errorf("compressed user data exceeds size limit (%d): %d", userDataMaxBytes, len(compressed))
+	}
+	return compressed, nil
 }
