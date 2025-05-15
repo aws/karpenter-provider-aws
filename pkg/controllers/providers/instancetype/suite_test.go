@@ -16,6 +16,7 @@ package instancetype_test
 
 import (
 	"context"
+	"sort"
 	"testing"
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
@@ -109,6 +110,12 @@ var _ = Describe("InstanceType", func() {
 			},
 		})
 		Expect(err).To(BeNil())
+		sort.Slice(instanceTypes, func(i, j int) bool {
+			return instanceTypes[i].Name < instanceTypes[j].Name
+		})
+		sort.Slice(ec2InstanceTypes, func(i, j int) bool {
+			return ec2InstanceTypes[i].InstanceType < ec2InstanceTypes[j].InstanceType
+		})
 		for i := range instanceTypes {
 			Expect(instanceTypes[i].Name).To(Equal(string(ec2InstanceTypes[i].InstanceType)))
 		}
