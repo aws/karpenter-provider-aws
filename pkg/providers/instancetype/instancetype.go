@@ -162,6 +162,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		instanceTypes,
 		nodeClass,
 		p.allZones,
+		key,
 	), nil
 }
 

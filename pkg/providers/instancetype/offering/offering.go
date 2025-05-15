@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -65,6 +64,7 @@ func (p *DefaultProvider) InjectOfferings(
 	instanceTypes []*cloudprovider.InstanceType,
 	nodeClass *v1.EC2NodeClass,
 	allZones sets.Set[string],
+	instanceTypesCacheKey string,
 ) []*cloudprovider.InstanceType {
 	subnetZones := lo.SliceToMap(nodeClass.Status.Subnets, func(s v1.Subnet) (string, string) {
 		return s.Zone, s.ZoneID
@@ -77,6 +77,7 @@ func (p *DefaultProvider) InjectOfferings(
 			nodeClass,
 			allZones,
 			subnetZones,
+			instanceTypesCacheKey,
 		)
 		// NOTE: By making this copy one level deep, we can modify the offerings without mutating the results from previous
 		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and
@@ -99,11 +100,12 @@ func (p *DefaultProvider) createOfferings(
 	nodeClass *v1.EC2NodeClass,
 	allZones sets.Set[string],
 	subnetZones map[string]string,
+	instanceTypesCacheKey string,
 ) cloudprovider.Offerings {
 	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
 
-	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it)); ok {
+	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it, instanceTypesCacheKey)); ok {
 		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
 	} else {
 		var cachedOfferings []*cloudprovider.Offering
@@ -139,7 +141,7 @@ func (p *DefaultProvider) createOfferings(
 				cachedOfferings = append(cachedOfferings, offering)
 			}
 		}
-		p.cache.SetDefault(p.cacheKeyFromInstanceType(it), cachedOfferings)
+		p.cache.SetDefault(p.cacheKeyFromInstanceType(it, instanceTypesCacheKey), cachedOfferings)
 		offerings = append(offerings, cachedOfferings...)
 	}
 	if !options.FromContext(ctx).FeatureGates.ReservedCapacity {
@@ -178,22 +180,14 @@ func (p *DefaultProvider) createOfferings(
 	return offerings
 }
 
-func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceType) string {
-	zonesHash, _ := hashstructure.Hash(
-		it.Requirements.Get(corev1.LabelTopologyZone).Values(),
-		hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true},
-	)
-	capacityTypesHash, _ := hashstructure.Hash(
-		it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values(),
-		hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true},
-	)
+func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceType, instanceTypesCacheKey string) string {
 	return fmt.Sprintf(
-		"%s-%016x-%016x-%d",
+		"%s-%s-%d",
 		it.Name,
-		zonesHash,
-		capacityTypesHash,
+		// NOTE: Generated offerings are dependent on the zone and capacity type requirements for the instance types. Rather
+		// than computing a hash per instance type based on that info, we will reuse the cache key from the instance types
+		// cache. This may result in duplicate cache entries, but is worth the performance tradeoff.
+		instanceTypesCacheKey,
 		p.unavailableOfferings.SeqNum,
 	)
 }
