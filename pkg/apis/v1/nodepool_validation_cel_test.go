@@ -32,9 +32,6 @@ var _ = Describe("CEL/Validation", func() {
 	var nodePool *karpv1.NodePool
 
 	BeforeEach(func() {
-		if env.Version.Minor() < 25 {
-			Skip("CEL Validation is for 1.25>")
-		}
 		nodePool = &karpv1.NodePool{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 			Spec: karpv1.NodePoolSpec{

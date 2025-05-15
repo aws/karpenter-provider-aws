@@ -39,9 +39,6 @@ var _ = Describe("CEL/Validation", func() {
 	var nc *v1.EC2NodeClass
 
 	BeforeEach(func() {
-		if env.Version.Minor() < 25 {
-			Skip("CEL Validation is for 1.25>")
-		}
 		nc = &v1.EC2NodeClass{
 			ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 			Spec: v1.EC2NodeClassSpec{
