@@ -359,6 +359,25 @@ var _ = Describe("AMI", func() {
 			Expect(string(actualUserData)).To(ContainSubstring("[settings.kubernetes.eviction-soft]\n'memory.available' = '100Mi'"))
 			Expect(string(actualUserData)).To(ContainSubstring("[settings.kubernetes.eviction-soft-grace-period]\n'memory.available' = '30s'"))
 		})
+		It("should compress UserData contents for Bottlerocket AMIFamily", func() {
+			content, err := os.ReadFile("testdata/br_userdata_input_big.sh")
+			Expect(err).ToNot(HaveOccurred())
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.UserData = awssdk.String(string(content))
+			nodePool.Spec.Template.Spec.Taints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
+			nodePool.Spec.Template.Spec.StartupTaints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
+			pod := coretest.Pod(coretest.PodOptions{Tolerations: []corev1.Toleration{{Key: "example.com", Operator: corev1.TolerationOpExists}}})
+
+			env.ExpectCreated(pod, nodeClass, nodePool)
+			env.EventuallyExpectHealthy(pod)
+			Expect(env.GetNode(pod.Spec.NodeName).Spec.Taints).To(ContainElements(
+				corev1.Taint{Key: "example.com", Value: "value", Effect: "NoExecute"},
+				corev1.Taint{Key: "example.com", Value: "value", Effect: "NoSchedule"},
+			))
+			actualUserData, err := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(actualUserData)).To(ContainSubstring(string(content)))
+		})
 		// Windows tests are can flake due to the instance types that are used in testing.
 		// The VPC Resource controller will need to support the instance types that are used.
 		// If the instance type is not supported by the controller resource `vpc.amazonaws.com/PrivateIPv4Address` will not register.
