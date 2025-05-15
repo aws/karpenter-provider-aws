@@ -32,7 +32,7 @@ import (
 type EC2NodeClassSpec struct {
 	// SubnetSelectorTerms is a list of subnet selector terms. The terms are ORed.
 	// +kubebuilder:validation:XValidation:message="subnetSelectorTerms cannot be empty",rule="self.size() != 0"
-	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'cidr']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.cidr))"
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'cidrBlock']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.cidrBlock))"
 	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in a subnet selector term",rule="!self.all(x, has(x.id) && has(x.tags))"
 	// +kubebuilder:validation:MaxItems:=30
 	// +required
