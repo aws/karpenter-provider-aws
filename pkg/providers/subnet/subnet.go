@@ -95,6 +95,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// Ensure that all the subnets that are returned here are unique
 	subnets := map[string]ec2types.Subnet{}
 	for _, filters := range filterSets {
+		log.FromContext(ctx).V(1).Info("sending subnet filters to AWS", "filters", filters)
 		paginator := ec2.NewDescribeSubnetsPaginator(p.ec2api, &ec2.DescribeSubnetsInput{
 			Filters:    filters,
 			MaxResults: lo.ToPtr(int32(500)),

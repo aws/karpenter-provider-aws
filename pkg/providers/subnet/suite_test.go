@@ -136,10 +136,13 @@ var _ = Describe("SubnetProvider", func() {
 				},
 			}, subnets)
 		})
-		It("should discover subnet by CidrBlock with wildcards", func() {
+		It("should discover subnet by CidrBlocks", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 				{
-					CidrBlock: "10.0.*",
+					CidrBlock: "10.0.1.0/24",
+				},
+				{
+					CidrBlock: "10.0.2.0/24",
 				},
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
@@ -151,6 +154,13 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
 					CidrBlock:               lo.ToPtr("10.0.1.0/24"),
+				},
+				{
+					SubnetId:                lo.ToPtr("subnet-test2"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
+					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					CidrBlock:               lo.ToPtr("10.0.2.0/24"),
 				},
 			}, subnets)
 		})
@@ -549,7 +559,7 @@ var _ = Describe("SubnetProvider", func() {
 						AvailableIpAddressCount: lo.ToPtr[int32](100),
 						MapPublicIpOnLaunch:     lo.ToPtr(true),
 						SubnetId:                lo.ToPtr("subnet-test2"),
-						CidrBlock:               lo.ToPtr("10.0.1.0/24"),
+						CidrBlock:               lo.ToPtr("10.0.2.0/24"),
 
 						Tags: []ec2types.Tag{
 							{
@@ -568,7 +578,7 @@ var _ = Describe("SubnetProvider", func() {
 						AvailabilityZoneId:      lo.ToPtr("tstz1-1c"),
 						AvailableIpAddressCount: lo.ToPtr[int32](100),
 						SubnetId:                lo.ToPtr("subnet-test3"),
-						CidrBlock:               lo.ToPtr("10.0.1.0/24"),
+						CidrBlock:               lo.ToPtr("10.0.3.0/24"),
 						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
@@ -590,7 +600,7 @@ var _ = Describe("SubnetProvider", func() {
 						AvailableIpAddressCount: lo.ToPtr[int32](100),
 						SubnetId:                lo.ToPtr("subnet-test4"),
 						MapPublicIpOnLaunch:     lo.ToPtr(true),
-						CidrBlock:               lo.ToPtr("10.0.1.0/24"),
+						CidrBlock:               lo.ToPtr("10.0.4.0/24"),
 						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
