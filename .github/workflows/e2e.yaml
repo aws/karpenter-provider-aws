@@ -191,6 +191,12 @@ jobs:
           elif [[ "$SOURCE" == 'upstream' ]]; then
             FOCUS="$SUITE" GIT_REF="$(git rev-parse HEAD)" \
               CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make upstream-e2etests
+          elif [[ "$SOURCE" == 'all' ]]; then
+            TEST_SUITE="$SUITE" ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
+              CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
+              INTERRUPTION_QUEUE="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make e2etests
+            FOCUS="$SUITE" GIT_REF="$(git rev-parse HEAD)" \
+              CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make upstream-e2etests
           fi
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
