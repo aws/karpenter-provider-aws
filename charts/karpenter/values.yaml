@@ -32,7 +32,7 @@ serviceMonitor:
   additionalLabels: {}
   # -- Configuration on `http-metrics` endpoint for the ServiceMonitor.
   # Not to be used to add additional endpoints.
-  # See the Prometheus operator documentation for configurable fields https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint
+  # See the Prometheus operator documentation for configurable fields https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#endpoint
   endpointConfig: {}
 # -- Number of replicas.
 replicas: 2
