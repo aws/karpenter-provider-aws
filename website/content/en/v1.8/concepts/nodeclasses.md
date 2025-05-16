@@ -71,7 +71,7 @@ spec:
         karpenter.sh/discovery: "${CLUSTER_NAME}"
         environment: test
     - id: subnet-09fa4a0a8f233a921
-    - cidr: "10.0.1.0/24"
+    - cidrBlock: "10.0.1.0/24"
 
   # Required, discovers security groups to attach to instances
   # Each term in the array of securityGroupSelectorTerms is ORed together
