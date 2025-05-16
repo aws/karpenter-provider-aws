@@ -30,7 +30,6 @@ import (
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
-	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -52,11 +51,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
-)
-
-const (
-	// The maximum number of instance types to include in a Create request
-	maxInstanceTypes = 60
 )
 
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
@@ -112,16 +106,13 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if nodeClassReady.IsUnknown() {
 		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving NodeClass readiness, NodeClass is in Ready=Unknown, %s", nodeClassReady.Message), "NodeClassReadinessUnknown", "NodeClass is in Ready=Unknown")
 	}
-	instanceTypes, err := c.resolveInstanceTypes(ctx, nodeClaim, nodeClass)
-	if err != nil {
-		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving instance types, %w", err), "InstanceTypeResolutionFailed", "Error resolving instance types")
-	}
-	if len(instanceTypes) == 0 {
-		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
-	}
 	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
 	if err != nil {
 		return nil, cloudprovider.NewNodeClassNotReadyError(err)
+	}
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
+	if err != nil {
+		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving instance types, %w", err), "InstanceTypeResolutionFailed", "Error resolving instance types")
 	}
 	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
 	if err != nil {
@@ -324,39 +315,6 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 		return nil, newTerminatingNodeClassError(nodeClass.Name)
 	}
 	return nodeClass, nil
-}
-
-func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
-	if err != nil {
-		return nil, fmt.Errorf("getting instance types, %w", err)
-	}
-	rejectedInstanceTypes := map[string][]*cloudprovider.InstanceType{}
-	reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
-	compatibleAvailableFilter := instance.CompatibleAvailableFilter(reqs, nodeClaim.Spec.Resources.Requests)
-	for _, filter := range []instance.Filter{
-		compatibleAvailableFilter,
-		instance.ReservedOfferingFilter(reqs),
-		instance.ExoticInstanceTypeFilter(reqs),
-		instance.SpotInstanceFilter(reqs),
-	} {
-		remaining, rejected := filter.FilterReject(instanceTypes)
-		if len(remaining) == 0 {
-			return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
-		}
-		if len(rejected) != 0 && filter.Name() != compatibleAvailableFilter.Name() {
-			rejectedInstanceTypes[filter.Name()] = rejected
-		}
-		instanceTypes = remaining
-	}
-	for filterName, its := range rejectedInstanceTypes {
-		log.FromContext(ctx).WithValues("filter", filterName, "instance-types", utils.PrettySlice(lo.Map(its, func(i *cloudprovider.InstanceType, _ int) string { return i.Name }), 10)).V(1).Info("filtered out instance types from launch")
-	}
-	instanceTypes, err = cloudprovider.InstanceTypes(instanceTypes).Truncate(reqs, maxInstanceTypes)
-	if err != nil {
-		return nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeFilteringFailed", "Error truncating instance types based on the passed-in requirements")
-	}
-	return instanceTypes, nil
 }
 
 func (c *CloudProvider) resolveInstanceTypeFromInstance(ctx context.Context, instance *instance.Instance) (*cloudprovider.InstanceType, error) {

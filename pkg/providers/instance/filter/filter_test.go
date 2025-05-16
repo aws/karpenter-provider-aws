@@ -12,9 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package instance_test
+package filter_test
 
 import (
+	"context"
+	"testing"
+
 	"github.com/awslabs/operatorpkg/option"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -23,24 +26,34 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
+
+	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 )
+
+var ctx context.Context
+
+func TestAWS(t *testing.T) {
+	ctx = TestContextWithLogger(t)
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "FilterTest")
+}
 
 var _ = Describe("InstanceFiltersTest", func() {
 	Context("CompatibleAvailableFilter", func() {
 		It("should filter compatible instances (by requirements)", func() {
-			filter := instance.CompatibleAvailableFilter(scheduling.NewRequirements(scheduling.NewRequirement(
+			f := filter.CompatibleAvailableFilter(scheduling.NewRequirements(scheduling.NewRequirement(
 				corev1.LabelTopologyZone,
 				corev1.NodeSelectorOpIn,
 				"zone-1a",
 			)), corev1.ResourceList{
 				corev1.ResourceCPU: resource.MustParse("1000m"),
 			})
-			kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType(
 					"compatible-instance",
 					withRequirements(scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, "zone-1a")),
@@ -58,14 +71,14 @@ var _ = Describe("InstanceFiltersTest", func() {
 			expectInstanceTypes(rejected, "incompatible-instance")
 		})
 		It("should filter compatible instances (by requests)", func() {
-			filter := instance.CompatibleAvailableFilter(scheduling.NewRequirements(scheduling.NewRequirement(
+			f := filter.CompatibleAvailableFilter(scheduling.NewRequirements(scheduling.NewRequirement(
 				corev1.LabelTopologyZone,
 				corev1.NodeSelectorOpIn,
 				"zone-1a",
 			)), corev1.ResourceList{
 				corev1.ResourceCPU: resource.MustParse("1000m"),
 			})
-			kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType(
 					"compatible-instance",
 					withRequirements(scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, "zone-1a")),
@@ -83,14 +96,14 @@ var _ = Describe("InstanceFiltersTest", func() {
 			expectInstanceTypes(rejected, "incompatible-instance")
 		})
 		It("should filter available instances", func() {
-			filter := instance.CompatibleAvailableFilter(scheduling.NewRequirements(scheduling.NewRequirement(
+			f := filter.CompatibleAvailableFilter(scheduling.NewRequirements(scheduling.NewRequirement(
 				corev1.LabelTopologyZone,
 				corev1.NodeSelectorOpIn,
 				"zone-1a",
 			)), corev1.ResourceList{
 				corev1.ResourceCPU: resource.MustParse("1000m"),
 			})
-			kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType(
 					"available-instance",
 					withRequirements(scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, "zone-1a")),
@@ -113,16 +126,16 @@ var _ = Describe("InstanceFiltersTest", func() {
 		})
 	})
 	Context("ReservedOfferingFilter", func() {
-		var filter instance.Filter
+		var f filter.Filter
 		BeforeEach(func() {
-			filter = instance.ReservedOfferingFilter(scheduling.NewRequirements(scheduling.NewRequirement(
+			f = filter.ReservedOfferingFilter(scheduling.NewRequirements(scheduling.NewRequirement(
 				karpv1.CapacityTypeLabelKey,
 				corev1.NodeSelectorOpExists,
 			)))
 		})
 
 		It("shouldn't filter instance types if there are no available reserved offerings", func() {
-			kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType("non-reserved-instance", withOfferings(
 					makeOffering(karpv1.CapacityTypeOnDemand, true),
 					makeOffering(karpv1.CapacityTypeSpot, true),
@@ -137,7 +150,7 @@ var _ = Describe("InstanceFiltersTest", func() {
 			Expect(rejected).To(BeEmpty())
 		})
 		It("should only include one reserved offering per instance pool", func() {
-			kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType("non-reserved-instance", withOfferings(
 					makeOffering(karpv1.CapacityTypeOnDemand, true),
 					makeOffering(karpv1.CapacityTypeSpot, true),
@@ -170,12 +183,12 @@ var _ = Describe("InstanceFiltersTest", func() {
 			}
 		})
 		It("shouldn't filter instance types if the requirements are not compatible with reserved offerings", func() {
-			filter = instance.ReservedOfferingFilter(scheduling.NewRequirements(scheduling.NewRequirement(
+			f = filter.ReservedOfferingFilter(scheduling.NewRequirements(scheduling.NewRequirement(
 				karpv1.CapacityTypeLabelKey,
 				corev1.NodeSelectorOpNotIn,
 				karpv1.CapacityTypeReserved,
 			)))
-			kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType("non-reserved-instance", withOfferings(
 					makeOffering(karpv1.CapacityTypeOnDemand, true),
 					makeOffering(karpv1.CapacityTypeSpot, true),
@@ -194,15 +207,15 @@ var _ = Describe("InstanceFiltersTest", func() {
 		})
 	})
 	Context("ExoticInstanceFilter", func() {
-		var filter instance.Filter
+		var f filter.Filter
 		BeforeEach(func() {
-			filter = instance.ExoticInstanceTypeFilter(scheduling.NewRequirements())
+			f = filter.ExoticInstanceTypeFilter(scheduling.NewRequirements())
 		})
 
 		DescribeTable(
 			"should reject instance types with exotic resources",
 			func(resourceName corev1.ResourceName) {
-				kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+				kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 					makeInstanceType("generic-instance-type"),
 					makeInstanceType("exotic-instance-type", withResource(resourceName, resource.MustParse("1"))),
 				})
@@ -216,7 +229,7 @@ var _ = Describe("InstanceFiltersTest", func() {
 		DescribeTable(
 			"should not reject instance types with normal resources",
 			func(resourceName corev1.ResourceName) {
-				kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+				kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 					makeInstanceType("generic-instance-type", withResource(resourceName, resource.MustParse("1"))),
 					makeInstanceType("exotic-instance-type", withResource(v1.WellKnownExoticResources.UnsortedList()[0], resource.MustParse("1"))),
 				})
@@ -228,7 +241,7 @@ var _ = Describe("InstanceFiltersTest", func() {
 			}),
 		)
 		It("should reject metal instance types", func() {
-			kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType("generic-instance-type"),
 				makeInstanceType("generic-instance-type-metal", withRequirements(scheduling.NewRequirement(
 					v1.LabelInstanceSize,
@@ -240,7 +253,7 @@ var _ = Describe("InstanceFiltersTest", func() {
 			expectInstanceTypes(rejected, "generic-instance-type-metal")
 		})
 		It("should include metal instance types and those with exotic resources if there are no other options", func() {
-			kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType("exotic-instance-type", withResource(v1.WellKnownExoticResources.UnsortedList()[0], resource.MustParse("1"))),
 				makeInstanceType("generic-instance-type-metal", withRequirements(scheduling.NewRequirement(
 					v1.LabelInstanceSize,
@@ -252,12 +265,12 @@ var _ = Describe("InstanceFiltersTest", func() {
 			Expect(rejected).To(BeEmpty())
 		})
 		It("should include instance types with exotic resources if minValues is set", func() {
-			filter = instance.ExoticInstanceTypeFilter(scheduling.NewRequirements(scheduling.NewRequirementWithFlexibility(
+			f = filter.ExoticInstanceTypeFilter(scheduling.NewRequirements(scheduling.NewRequirementWithFlexibility(
 				corev1.LabelInstanceTypeStable,
 				corev1.NodeSelectorOpExists,
 				lo.ToPtr(2),
 			)))
-			kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType("generic-instance-type"),
 				makeInstanceType("exotic-instance-type", withResource(v1.WellKnownExoticResources.UnsortedList()[0], resource.MustParse("1"))),
 			})
@@ -267,11 +280,11 @@ var _ = Describe("InstanceFiltersTest", func() {
 	})
 	Context("SpotInstanceFilter", func() {
 		It("should reject spot instances whose cheapest offering is more expensive than the cheapest on-demand offering", func() {
-			filter := instance.SpotInstanceFilter(scheduling.NewRequirements(scheduling.NewRequirement(
+			f := filter.SpotInstanceFilter(scheduling.NewRequirements(scheduling.NewRequirement(
 				karpv1.CapacityTypeLabelKey,
 				corev1.NodeSelectorOpExists,
 			)))
-			kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				// Include an expensive on-demand offering to ensure we're comparing against the cheapest. On-demand instances
 				// should always be kept.
 				makeInstanceType("expensive-od-instance", withOfferings(
@@ -308,7 +321,7 @@ var _ = Describe("InstanceFiltersTest", func() {
 			expectInstanceTypes(rejected, "mixed-unavailable-spot-instance", "expensive-spot-instance")
 		})
 		It("should not reject spot instances whose cheapest offering is more expensive than the cheapest on-demand offering if it is only compatible with spot", func() {
-			filter := instance.SpotInstanceFilter(scheduling.NewRequirements(
+			f := filter.SpotInstanceFilter(scheduling.NewRequirements(
 				scheduling.NewRequirement(
 					karpv1.CapacityTypeLabelKey,
 					corev1.NodeSelectorOpExists,
@@ -374,17 +387,17 @@ var _ = Describe("InstanceFiltersTest", func() {
 				)),
 			}
 
-			kept, rejected := filter.FilterReject(lo.Flatten([][]*cloudprovider.InstanceType{keptInstanceTypes, rejectedInstanceTypes}))
+			kept, rejected := f.FilterReject(lo.Flatten([][]*cloudprovider.InstanceType{keptInstanceTypes, rejectedInstanceTypes}))
 			expectInstanceTypes(kept, lo.Map(keptInstanceTypes, func(it *cloudprovider.InstanceType, _ int) string { return it.Name })...)
 			expectInstanceTypes(rejected, lo.Map(rejectedInstanceTypes, func(it *cloudprovider.InstanceType, _ int) string { return it.Name })...)
 		})
 		It("should not reject instances if the nodeclaim is only compatible with spot", func() {
-			filter := instance.SpotInstanceFilter(scheduling.NewRequirements(scheduling.NewRequirement(
+			f := filter.SpotInstanceFilter(scheduling.NewRequirements(scheduling.NewRequirement(
 				karpv1.CapacityTypeLabelKey,
 				corev1.NodeSelectorOpIn,
 				karpv1.CapacityTypeSpot,
 			)))
-			kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType("od-instance", withOfferings(
 					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(5.0)),
 				)),
@@ -399,7 +412,7 @@ var _ = Describe("InstanceFiltersTest", func() {
 			Expect(rejected).To(BeEmpty())
 		})
 		It("should not reject instances if minValues is set", func() {
-			filter := instance.SpotInstanceFilter(scheduling.NewRequirements(
+			f := filter.SpotInstanceFilter(scheduling.NewRequirements(
 				scheduling.NewRequirement(
 					karpv1.CapacityTypeLabelKey,
 					corev1.NodeSelectorOpExists,
@@ -410,7 +423,7 @@ var _ = Describe("InstanceFiltersTest", func() {
 					lo.ToPtr(2),
 				),
 			))
-			kept, rejected := filter.FilterReject([]*cloudprovider.InstanceType{
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType("od-instance", withOfferings(
 					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(5.0)),
 				)),

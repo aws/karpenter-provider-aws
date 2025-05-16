@@ -45,6 +45,7 @@ import (
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	instancefilter "github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 
@@ -53,7 +54,10 @@ import (
 )
 
 const (
-	instanceTypeFlexibilityThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
+	// falling back to on-demand without flexibility risks insufficient capacity errors
+	instanceTypeFlexibilityThreshold = 5
+	// The maximum number of instance types to include in a Create request
+	maxInstanceTypes = 60
 )
 
 var (
@@ -111,7 +115,10 @@ func NewDefaultProvider(
 }
 
 func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, tags map[string]string, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
-	// We filter out instance type that don't have an available offering that supports the capacity type
+	instanceTypes, err := p.filterInstanceTypes(ctx, instanceTypes, nodeClaim)
+	if err != nil {
+		return nil, err
+	}
 	capacityType := getCapacityType(nodeClaim, instanceTypes)
 	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, capacityType, instanceTypes, tags)
 	if awserrors.IsLaunchTemplateNotFound(err) {
@@ -227,6 +234,34 @@ func (p *DefaultProvider) CreateTags(ctx context.Context, id string, tags map[st
 		return fmt.Errorf("tagging instance, %w", err)
 	}
 	return nil
+}
+
+func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes []*cloudprovider.InstanceType, nodeClaim *karpv1.NodeClaim) ([]*cloudprovider.InstanceType, error) {
+	rejectedInstanceTypes := map[string][]*cloudprovider.InstanceType{}
+	reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+	for _, filter := range []instancefilter.Filter{
+		instancefilter.CompatibleAvailableFilter(reqs, nodeClaim.Spec.Resources.Requests),
+		instancefilter.ReservedOfferingFilter(reqs),
+		instancefilter.ExoticInstanceTypeFilter(reqs),
+		instancefilter.SpotInstanceFilter(reqs),
+	} {
+		remaining, rejected := filter.FilterReject(instanceTypes)
+		if len(remaining) == 0 {
+			return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
+		}
+		if len(rejected) != 0 && filter.Name() != "compatible-available-filter" {
+			rejectedInstanceTypes[filter.Name()] = rejected
+		}
+		instanceTypes = remaining
+	}
+	for filterName, its := range rejectedInstanceTypes {
+		log.FromContext(ctx).WithValues("filter", filterName, "instance-types", utils.PrettySlice(lo.Map(its, func(i *cloudprovider.InstanceType, _ int) string { return i.Name }), 10)).V(1).Info("filtered out instance types from launch")
+	}
+	instanceTypes, err := cloudprovider.InstanceTypes(instanceTypes).Truncate(reqs, maxInstanceTypes)
+	if err != nil {
+		return nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeFilteringFailed", "Error truncating instance types based on the passed-in requirements")
+	}
+	return instanceTypes, nil
 }
 
 func (p *DefaultProvider) launchInstance(
