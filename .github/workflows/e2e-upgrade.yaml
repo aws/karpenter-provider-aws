@@ -130,6 +130,8 @@ jobs:
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
       - name: run the Upgrade test suite
+        env:
+          SOURCE: ${{ inputs.source }}
         run: |
           aws eks update-kubeconfig --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           CLUSTER_NAME=${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} INTERRUPTION_QUEUE=${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" TEST_SUITE="Integration" make e2etests
