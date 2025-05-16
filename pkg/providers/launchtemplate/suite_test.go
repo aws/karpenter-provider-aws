@@ -2415,7 +2415,7 @@ eviction-max-pod-grace-period = 10
 			CapacityReservations: crs,
 		})
 		for _, cr := range crs {
-			nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, lo.Must(nodeclass.CapacityReservationFromEC2(&cr)))
+			nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, lo.Must(v1.CapacityReservationFromEC2(fakeClock, &cr)))
 			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(*cr.CapacityReservationId, int(*cr.AvailableInstanceCount))
 		}
 
