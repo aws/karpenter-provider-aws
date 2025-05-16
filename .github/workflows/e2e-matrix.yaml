@@ -86,7 +86,7 @@ jobs:
             source: aws
           - name: Drift
             region: ${{ inputs.region }}
-            source: aws
+            source: all
           - name: Expiration
             region: ${{ inputs.region }}
             source: upstream
