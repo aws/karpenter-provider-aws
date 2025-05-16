@@ -241,6 +241,7 @@ func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes
 	reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	for _, filter := range []instancefilter.Filter{
 		instancefilter.CompatibleAvailableFilter(reqs, nodeClaim.Spec.Resources.Requests),
+		instancefilter.CapacityReservationTypeFilter(reqs),
 		instancefilter.ReservedOfferingFilter(reqs),
 		instancefilter.ExoticInstanceTypeFilter(reqs),
 		instancefilter.SpotInstanceFilter(reqs),

@@ -722,12 +722,14 @@ spec:
                         pattern: ^[0-9]{12}$
                         type: string
                       reservationType:
+                        default: default
                         description: The type of capacity reservation.
                         enum:
                           - default
                           - capacity-block
                         type: string
                       state:
+                        default: active
                         description: |-
                           The state of the capacity reservation. A capacity reservation is considered to be expiring if it is within the EC2
                           reclaimation window. Only capacity-block reservations may be in this state.

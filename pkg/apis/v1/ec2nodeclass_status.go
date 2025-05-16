@@ -104,11 +104,13 @@ type CapacityReservation struct {
 	OwnerID string `json:"ownerID"`
 	// The type of capacity reservation.
 	// +kubebuilder:validation:Enum:={default,capacity-block}
+	// +kubebuilder:default=default
 	// +optional
 	ReservationType CapacityReservationType `json:"reservationType"`
 	// The state of the capacity reservation. A capacity reservation is considered to be expiring if it is within the EC2
 	// reclaimation window. Only capacity-block reservations may be in this state.
 	// +kubebuilder:validation:Enum:={active,expiring}
+	// +kubebuilder:default=active
 	// +optional
 	State CapacityReservationState `json:"state"`
 }
