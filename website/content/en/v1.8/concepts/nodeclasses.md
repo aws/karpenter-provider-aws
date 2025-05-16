@@ -66,12 +66,10 @@ spec:
   subnetSelectorTerms:
     # Select on any subnet that has the "karpenter.sh/discovery: ${CLUSTER_NAME}"
     # AND the "environment: test" tag OR any subnet with ID "subnet-09fa4a0a8f233a921"
-    # OR a subnet with the CIDR "10.0.1.0/24"
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}"
         environment: test
     - id: subnet-09fa4a0a8f233a921
-    - cidrBlock: "10.0.1.0/24"
 
   # Required, discovers security groups to attach to instances
   # Each term in the array of securityGroupSelectorTerms is ORed together
@@ -547,7 +545,6 @@ subnetSelectorTerms:
       karpenter.sh/discovery: "${CLUSTER_NAME}"
       environment: test
   - id: subnet-09fa4a0a8f233a921
-  - cidrBlock: "10.0.1.0/24"
 ```
 
 {{% alert title="Tip" color="secondary" %}}
@@ -599,14 +596,6 @@ spec:
     - id: "subnet-09fa4a0a8f233a921"
     - id: "subnet-0471ca205b8a129ae"
 ```
-
-Select all with a specified CIDR:
-```yaml
-spec:
-  subnetSelectorTerms:
-    - cidrBlock: "10.0.1.0/20"
-```
-
 
 ## spec.securityGroupSelectorTerms
 
