@@ -188,7 +188,7 @@ If you have a lot of nodes or workloads you may want to slowly scale down your n
 As nodegroup nodes are drained you can verify that Karpenter is creating nodes for your workloads.
 
 ```bash
-kubectl logs -f -n karpenter -c controller -l app.kubernetes.io/name=karpenter
+kubectl logs -f -n "${KARPENTER_NAMESPACE}" -l app.kubernetes.io/name=karpenter -c controller
 ```
 
 You should also see new nodes created in your cluster as the old nodes are removed
