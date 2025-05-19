@@ -952,6 +952,7 @@ var (
 		"p5.48xlarge":          3200000,
 		"p5e.48xlarge":         3200000,
 		"p5en.48xlarge":        3200000,
+		"p6-b200.48xlarge":     3200000,
 		"trn2.48xlarge":        3200000,
 		"trn2u.48xlarge":       3200000,
 	}
