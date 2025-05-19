@@ -185,6 +185,9 @@ func (in *EC2NodeClass) SetConditions(conditions []status.Condition) {
 }
 
 func CapacityReservationTypeFromEC2(capacityReservationType ec2types.CapacityReservationType) (CapacityReservationType, error) {
+	if capacityReservationType == "" {
+		return CapacityReservationTypeDefault, nil
+	}
 	resolvedType, ok := lo.Find(CapacityReservationType("").Values(), func(crt CapacityReservationType) bool {
 		return string(crt) == string(capacityReservationType)
 	})
@@ -220,7 +223,7 @@ func CapacityReservationFromEC2(clk clock.Clock, cr *ec2types.CapacityReservatio
 		endTime = lo.ToPtr(metav1.NewTime(*cr.EndDate))
 	}
 	var state CapacityReservationState
-	if cr.ReservationType == ec2types.CapacityReservationTypeDefault || clk.Now().Before(endTime.Add(-capacityReservationExpirationPeriod)) {
+	if reservationType == CapacityReservationTypeDefault || endTime == nil || clk.Now().Before(endTime.Add(-capacityReservationExpirationPeriod)) {
 		state = CapacityReservationStateActive
 	} else {
 		state = CapacityReservationStateExpiring

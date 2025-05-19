@@ -69,15 +69,16 @@ type Options struct {
 // LaunchTemplate holds the dynamically generated launch template parameters
 type LaunchTemplate struct {
 	*Options
-	UserData              bootstrap.Bootstrapper
-	BlockDeviceMappings   []*v1.BlockDeviceMapping
-	MetadataOptions       *v1.MetadataOptions
-	AMIID                 string
-	InstanceTypes         []*cloudprovider.InstanceType `hash:"ignore"`
-	DetailedMonitoring    bool
-	EFACount              int
-	CapacityType          string
-	CapacityReservationID string
+	UserData                bootstrap.Bootstrapper
+	BlockDeviceMappings     []*v1.BlockDeviceMapping
+	MetadataOptions         *v1.MetadataOptions
+	AMIID                   string
+	InstanceTypes           []*cloudprovider.InstanceType `hash:"ignore"`
+	DetailedMonitoring      bool
+	EFACount                int
+	CapacityType            string
+	CapacityReservationID   string
+	CapacityReservationType v1.CapacityReservationType
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -145,9 +146,24 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 			efaCount int
 			maxPods  int
 			// reservationIDs is encoded as a string rather than a slice to ensure this type is comparable for use by `lo.GroupBy`.
-			reservationIDs string
+			reservationIDs  string
+			reservationType v1.CapacityReservationType
 		}
 		paramsToInstanceTypes := lo.GroupBy(instanceTypes, func(it *cloudprovider.InstanceType) launchTemplateParams {
+			var reservationType v1.CapacityReservationType
+			var reservationIDs []string
+			if capacityType == karpv1.CapacityTypeReserved {
+				for _, o := range it.Offerings {
+					if o.CapacityType() != karpv1.CapacityTypeReserved {
+						continue
+					}
+					reservationIDs = append(reservationIDs, o.ReservationID())
+					// Offerings are prefiltered such that there is only a single reservation type
+					if reservationType == "" {
+						reservationType = v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any())
+					}
+				}
+			}
 			return launchTemplateParams{
 				efaCount: lo.Ternary(
 					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA),
@@ -158,19 +174,14 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 				// If we're dealing with reserved instances, there's only going to be a single instance per group. This invariant
 				// is due to reservation IDs not being shared across instance types. Because of this, we don't need to worry about
 				// ordering in this string.
-				reservationIDs: lo.Ternary(
-					capacityType == karpv1.CapacityTypeReserved,
-					strings.Join(lo.FilterMap(it.Offerings, func(o *cloudprovider.Offering, _ int) (string, bool) {
-						return o.ReservationID(), o.CapacityType() == karpv1.CapacityTypeReserved
-					}), ","),
-					"",
-				),
+				reservationIDs:  strings.Join(reservationIDs, ","),
+				reservationType: reservationType,
 			}
 		})
 
 		for params, instanceTypes := range paramsToInstanceTypes {
 			reservationIDs := strings.Split(params.reservationIDs, ",")
-			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, options)...)
+			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, options)...)
 		}
 	}
 	return resolvedTemplates, nil
@@ -229,6 +240,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	maxPods int,
 	efaCount int,
 	capacityReservationIDs []string,
+	capacityReservationType v1.CapacityReservationType,
 	options *Options,
 ) []*LaunchTemplate {
 	kubeletConfig := &v1.KubeletConfiguration{}
@@ -270,14 +282,15 @@ func (r DefaultResolver) resolveLaunchTemplates(
 				nodeClass.Spec.UserData,
 				options.InstanceStorePolicy,
 			),
-			BlockDeviceMappings:   nodeClass.Spec.BlockDeviceMappings,
-			MetadataOptions:       nodeClass.Spec.MetadataOptions,
-			DetailedMonitoring:    aws.ToBool(nodeClass.Spec.DetailedMonitoring),
-			AMIID:                 amiID,
-			InstanceTypes:         instanceTypes,
-			EFACount:              efaCount,
-			CapacityType:          capacityType,
-			CapacityReservationID: id,
+			BlockDeviceMappings:     nodeClass.Spec.BlockDeviceMappings,
+			MetadataOptions:         nodeClass.Spec.MetadataOptions,
+			DetailedMonitoring:      aws.ToBool(nodeClass.Spec.DetailedMonitoring),
+			AMIID:                   amiID,
+			InstanceTypes:           instanceTypes,
+			EFACount:                efaCount,
+			CapacityType:            capacityType,
+			CapacityReservationID:   id,
+			CapacityReservationType: capacityReservationType,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
