@@ -223,7 +223,7 @@ func CapacityReservationFromEC2(clk clock.Clock, cr *ec2types.CapacityReservatio
 		endTime = lo.ToPtr(metav1.NewTime(*cr.EndDate))
 	}
 	var state CapacityReservationState
-	if reservationType == CapacityReservationTypeDefault || endTime == nil || clk.Now().Before(endTime.Add(-capacityReservationExpirationPeriod)) {
+	if reservationType != CapacityReservationTypeCapacityBlock || endTime == nil || clk.Now().Before(endTime.Add(-capacityReservationExpirationPeriod)) {
 		state = CapacityReservationStateActive
 	} else {
 		state = CapacityReservationStateExpiring

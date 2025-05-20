@@ -128,10 +128,7 @@ func NewInstanceFromFleet(
 	return resolved
 }
 
-type createFleetInputOpts struct {
-}
-
-type createFleetInputBuilder struct {
+type CreateFleetInputBuilder struct {
 	capacityType          string
 	tagSpecifications     []ec2types.TagSpecification
 	launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest
@@ -140,13 +137,13 @@ type createFleetInputBuilder struct {
 	capacityReservationType v1.CapacityReservationType
 }
 
-func CreateFleetInputBuilder(capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) *createFleetInputBuilder {
+func NewCreateFleetInputBuilder(capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) *CreateFleetInputBuilder {
 	var taggedResources = []ec2types.ResourceType{
 		ec2types.ResourceTypeInstance,
 		ec2types.ResourceTypeVolume,
 		ec2types.ResourceTypeFleet,
 	}
-	return &createFleetInputBuilder{
+	return &CreateFleetInputBuilder{
 		capacityType: capacityType,
 		tagSpecifications: lo.Map(taggedResources, func(resource ec2types.ResourceType, _ int) ec2types.TagSpecification {
 			return ec2types.TagSpecification{ResourceType: resource, Tags: utils.EC2MergeTags(tags)}
@@ -155,12 +152,12 @@ func CreateFleetInputBuilder(capacityType string, tags map[string]string, launch
 	}
 }
 
-func (b *createFleetInputBuilder) WithContextID(contextID string) *createFleetInputBuilder {
+func (b *CreateFleetInputBuilder) WithContextID(contextID string) *CreateFleetInputBuilder {
 	b.contextID = &contextID
 	return b
 }
 
-func (b *createFleetInputBuilder) WithCapacityReservationType(crt v1.CapacityReservationType) *createFleetInputBuilder {
+func (b *CreateFleetInputBuilder) WithCapacityReservationType(crt v1.CapacityReservationType) *CreateFleetInputBuilder {
 	if b.capacityType != karpv1.CapacityTypeReserved {
 		panic("can not specify capacity reservation type when capacity type is not reserved")
 	}
@@ -168,7 +165,7 @@ func (b *createFleetInputBuilder) WithCapacityReservationType(crt v1.CapacityRes
 	return b
 }
 
-func (b *createFleetInputBuilder) defaultTargetCapacityType() ec2types.DefaultTargetCapacityType {
+func (b *CreateFleetInputBuilder) defaultTargetCapacityType() ec2types.DefaultTargetCapacityType {
 	switch b.capacityType {
 	case karpv1.CapacityTypeReserved:
 		if b.capacityReservationType == v1.CapacityReservationTypeCapacityBlock {
@@ -179,10 +176,10 @@ func (b *createFleetInputBuilder) defaultTargetCapacityType() ec2types.DefaultTa
 	case karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeSpot:
 		return ec2types.DefaultTargetCapacityType(b.capacityType)
 	}
-	panic(fmt.Sprintf("invalid capacity type %q provided to create fleet input"))
+	panic(fmt.Sprintf("invalid capacity type %q provided to create fleet input", b.capacityType))
 }
 
-func (b *createFleetInputBuilder) Build() *ec2.CreateFleetInput {
+func (b *CreateFleetInputBuilder) Build() *ec2.CreateFleetInput {
 	input := &ec2.CreateFleetInput{
 		Type:                  ec2types.FleetTypeInstant,
 		Context:               b.contextID,

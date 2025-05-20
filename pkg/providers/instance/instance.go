@@ -269,6 +269,7 @@ func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes
 	return instanceTypes, nil
 }
 
+//nolint:gocyclo
 func (p *DefaultProvider) launchInstance(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
@@ -292,11 +293,11 @@ func (p *DefaultProvider) launchInstance(
 		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
 	}
 
-	cfiBuilder := CreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs)
+	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs)
 	if nodeClass.Spec.Context != nil {
 		cfiBuilder.WithContextID(*nodeClass.Spec.Context)
 	}
-	if capacityType == karpv1.CapacityTypeReserved  {
+	if capacityType == karpv1.CapacityTypeReserved {
 		crt := getCapacityReservationType(instanceTypes)
 		if crt == nil {
 			panic(fmt.Sprintf("%s label isn't set for instance types in reserved launch", v1.LabelCapacityReservationType))
