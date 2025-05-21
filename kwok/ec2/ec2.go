@@ -867,6 +867,9 @@ func toNode(instanceID, nodePoolName string, instanceType *cloudprovider.Instanc
 	return &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
+			Annotations: map[string]string{
+				v1alpha1.KwokLabelKey: v1alpha1.KwokLabelValue,
+			},
 			// TODO: We can eventually add all the labels from the userData but for now we just add the NodePool labels
 			Labels: map[string]string{
 				corev1.LabelInstanceTypeStable: instanceType.Name,
