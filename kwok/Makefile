@@ -1,5 +1,7 @@
 KARPENTER_NAMESPACE ?= kube-system
 KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/kwok-karpenter
+CPU_RESOURCES ?= "2"
+MEMORY_RESOURCES ?= "4Gi"
 
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
@@ -9,15 +11,17 @@ KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-ka
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
       		--set settings.clusterName=${CLUSTER_NAME} \
 			--set settings.interruptionQueue=${CLUSTER_NAME} \
-			--set controller.resources.requests.cpu=2 \
-			--set controller.resources.requests.memory=4Gi \
-			--set controller.resources.limits.cpu=2 \
-			--set controller.resources.limits.memory=4Gi \
+			--set controller.resources.requests.cpu=${CPU_RESOURCES} \
+			--set controller.resources.requests.memory=${MEMORY_RESOURCES} \
+			--set controller.resources.limits.cpu=${CPU_RESOURCES} \
+			--set controller.resources.limits.memory=${MEMORY_RESOURCES} \
 			--set settings.featureGates.nodeRepair=true \
 			--set settings.featureGates.reservedCapacity=true \
 			--set settings.featureGates.spotToSpotConsolidation=true \
 			--set settings.preferencePolicy=Ignore \
 			--create-namespace
+
+KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)
 
 .PHONY: image
 image: ## Build the KWOK controller images using ko build
@@ -27,7 +31,7 @@ image: ## Build the KWOK controller images using ko build
 	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
 
 .PHONY: apply
-apply: image ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
+apply: image
 	kubectl apply -f ../pkg/apis/crds/
 	KARPENTER_NAMESPACE=$(KARPENTER_NAMESPACE) envsubst < ./manifests/clusterrole.yaml | kubectl apply -f -
 	helm upgrade --install kwok-karpenter ../charts/karpenter --namespace ${KARPENTER_NAMESPACE} \
@@ -38,3 +42,18 @@ apply: image ## Deploy the controller from the current state of your git reposit
         --set controller.image.digest=$(IMG_DIGEST) \
         --set-string controller.env[0].name=ENABLE_PROFILING \
         --set-string controller.env[0].value=true
+
+.PHONY: delete
+delete:
+	helm uninstall karpenter --namespace ${KARPENTER_NAMESPACE}
+
+.PHONY: apply-kwok
+apply-kwok:
+	chmod +x $(KARPENTER_CORE_DIR)/hack/install-kwok.sh
+	UNINSTALL_KWOK=false $(KARPENTER_CORE_DIR)/hack/install-kwok.sh
+
+.PHONY: delete-kwok
+delete-kwok:
+	chmod +x $(KARPENTER_CORE_DIR)/hack/install-kwok.sh
+	UNINSTALL_KWOK=true $(KARPENTER_CORE_DIR)/hack/install-kwok.sh
+
