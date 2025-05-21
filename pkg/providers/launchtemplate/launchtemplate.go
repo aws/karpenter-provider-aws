@@ -471,7 +471,7 @@ func (p *DefaultProvider) DeleteAll(ctx context.Context, nodeClass *v1.EC2NodeCl
 		deleteErr = multierr.Append(deleteErr, err)
 	}
 	if len(ltNames) > 0 {
-		log.FromContext(ctx).WithValues("launchTemplates", utils.PrettySlice(ltNames, 5)).V(1).Info("deleted launch templates")
+		log.FromContext(ctx).WithValues("launchTemplates", utils.PrettySlice(lo.FromSlicePtr(ltNames), 5)).V(1).Info("deleted launch templates")
 	}
 	if deleteErr != nil {
 		return fmt.Errorf("deleting launch templates, %w", deleteErr)
