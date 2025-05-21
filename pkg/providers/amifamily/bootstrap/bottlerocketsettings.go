@@ -83,6 +83,7 @@ type BottlerocketKubernetes struct {
 	SeccompDefault                     *bool                                     `toml:"seccomp-default,omitempty"`
 	PodPidsLimit                       *int                                      `toml:"pod-pids-limit,omitempty"`
 	DeviceOwnershipFromSecurityContext *bool                                     `toml:"device-ownership-from-security-context,omitempty"`
+	SingleProcessOOMKill               *bool                                     `toml:"single-process-oom-kill"`
 }
 
 type BottlerocketStaticPod struct {
