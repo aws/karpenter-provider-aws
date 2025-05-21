@@ -15,7 +15,6 @@ limitations under the License.
 package fake
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -26,7 +25,6 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 )
 
@@ -186,10 +184,9 @@ func matchTags(tags []ec2types.Tag, filter ec2types.Filter) bool {
 
 func MakeInstances() []ec2types.InstanceTypeInfo {
 	var instanceTypes []ec2types.InstanceTypeInfo
-	ctx := options.ToContext(context.Background(), &options.Options{IsolatedVPC: true})
 	// Use keys from the static pricing data so that we guarantee pricing for the data
 	// Create uniform instance data so all of them schedule for a given pod
-	for _, it := range pricing.NewDefaultProvider(ctx, nil, nil, "us-east-1").InstanceTypes() {
+	for _, it := range pricing.NewDefaultProvider(nil, nil, "us-east-1", true).InstanceTypes() {
 		instanceTypes = append(instanceTypes, ec2types.InstanceTypeInfo{
 			InstanceType: it,
 			ProcessorInfo: &ec2types.ProcessorInfo{

@@ -24,6 +24,7 @@ require (
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
 	github.com/awslabs/operatorpkg v0.0.0-20250425180727-b22281cd8057
 	github.com/awslabs/operatorpkg/aws v0.0.0-20250414225955-b47cd315ffe9
+	github.com/docker/docker v28.1.1+incompatible
 	github.com/go-logr/zapr v1.3.0
 	github.com/google/uuid v1.6.0
 	github.com/imdario/mergo v0.3.16
