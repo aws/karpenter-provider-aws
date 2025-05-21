@@ -30,6 +30,12 @@ serviceMonitor:
   enabled: false
   # -- Additional labels for the ServiceMonitor.
   additionalLabels: {}
+  # -- Relabelings for the `http-metrics` endpoint on the ServiceMonitor.
+  # For more details on relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+  relabelings: []
+  # -- Metric relabelings for the `http-metrics` endpoint on the ServiceMonitor.
+  # For more details on metric relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#metric_relabel_configs
+  metricRelabelings: []
   # -- Configuration on `http-metrics` endpoint for the ServiceMonitor.
   # Not to be used to add additional endpoints.
   # See the Prometheus operator documentation for configurable fields https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint
