@@ -351,7 +351,11 @@ func (v *Validation) mockLaunchTemplateOptions(
 	amiOptions, err := v.launchTemplateProvider.CreateAMIOptions(
 		ctx,
 		nodeClass,
-		lo.Assign(nodeClaim.Labels, map[string]string{karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand}),
+		lo.Assign(
+			nodeClaim.Labels,
+			scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Labels(), // Inject single-value requirements into userData
+			map[string]string{karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand},
+		),
 		tags,
 	)
 	if err != nil {

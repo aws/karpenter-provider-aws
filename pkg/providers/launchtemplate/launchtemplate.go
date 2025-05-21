@@ -27,6 +27,7 @@ import (
 	"github.com/awslabs/operatorpkg/serrors"
 	"go.uber.org/multierr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -124,11 +125,16 @@ func (p *DefaultProvider) EnsureAll(
 ) ([]*LaunchTemplate, error) {
 	p.Lock()
 	defer p.Unlock()
-	options, err := p.CreateAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{karpv1.CapacityTypeLabelKey: capacityType}), tags)
+
+	opts, err := p.CreateAMIOptions(ctx, nodeClass, lo.Assign(
+		nodeClaim.Labels,
+		scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Labels(), // Inject single-value requirements into userData
+		map[string]string{karpv1.CapacityTypeLabelKey: capacityType},
+	), tags)
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, options)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, opts)
 	if err != nil {
 		return nil, err
 	}

@@ -1402,6 +1402,15 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				corev1.LabelNamespaceNodeRestriction + "/custom-label":                "custom-value",
 				"subdomain." + corev1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
 			})
+			nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(nodePool.Spec.Template.Labels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
+				return karpv1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      k,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{v},
+					},
+				}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1720,6 +1729,52 @@ eviction-max-pod-grace-period = 10
 					Expect(*config.Settings.Kubernetes.CPUCFSQuota).To(BeFalse())
 				})
 			})
+			It("should specify labels in the Kubelet flags when specified in NodePool", func() {
+				desiredLabels := map[string]string{
+					"test-label-1": "value-1",
+					"test-label-2": "value-2",
+				}
+				nodePool.Spec.Template.Labels = desiredLabels
+
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					for k, v := range desiredLabels {
+						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
+					}
+				}
+			})
+			It("should specify labels in the Kubelet flags when single value requirements are specified in NodePool", func() {
+				desiredLabels := map[string]string{
+					"test-label-1": "value-1",
+					"test-label-2": "value-2",
+				}
+				nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(desiredLabels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
+					return karpv1.NodeSelectorRequirementWithMinValues{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      k,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{v},
+						},
+					}
+				})
+
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					for k, v := range desiredLabels {
+						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
+					}
+				}
+			})
 		})
 		Context("AL2 Custom UserData", func() {
 			BeforeEach(func() {
@@ -1824,6 +1879,37 @@ eviction-max-pod-grace-period = 10
 						"test-label-2": "value-2",
 					}
 					nodePool.Spec.Template.Labels = desiredLabels
+
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod()
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+						configs := ExpectUserDataCreatedWithNodeConfigs(userData)
+						Expect(len(configs)).To(Equal(1))
+						labelFlag, ok := lo.Find(configs[0].Spec.Kubelet.Flags, func(flag string) bool {
+							return strings.HasPrefix(flag, "--node-labels")
+						})
+						Expect(ok).To(BeTrue())
+						for label, value := range desiredLabels {
+							Expect(labelFlag).To(ContainSubstring(fmt.Sprintf("%s=%s", label, value)))
+						}
+					}
+				})
+				It("should specify labels in the Kubelet flags when single value requirements are specified in NodePool", func() {
+					desiredLabels := map[string]string{
+						"test-label-1": "value-1",
+						"test-label-2": "value-2",
+					}
+					nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(desiredLabels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
+						return karpv1.NodeSelectorRequirementWithMinValues{
+							NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+								Key:      k,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{v},
+							},
+						}
+					})
 
 					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 					pod := coretest.UnschedulablePod()
