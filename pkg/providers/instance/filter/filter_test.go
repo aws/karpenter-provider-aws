@@ -259,6 +259,60 @@ var _ = Describe("InstanceFiltersTest", func() {
 		})
 	})
 
+	Context("CapacityBlockFilter", func() {
+		It("should select the instance type with the cheapest capacity-block offering", func() {
+			f := filter.CapacityBlockFilter(scheduling.NewRequirements(scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpExists)))
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
+				makeInstanceType("cheap-instance", withOfferings(
+					makeOffering(karpv1.CapacityTypeReserved, true, withPrice(1.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock)),
+					makeOffering(karpv1.CapacityTypeReserved, true, withPrice(10.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock)),
+				)),
+				makeInstanceType("expensive-instance", withOfferings(
+					makeOffering(karpv1.CapacityTypeReserved, true, withPrice(2.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock)),
+					makeOffering(karpv1.CapacityTypeReserved, true, withPrice(10.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock)),
+				)),
+			})
+			expectInstanceTypes(kept, "cheap-instance")
+			expectInstanceTypes(rejected, "expensive-instance")
+		})
+		DescribeTable(
+			"shouldn't filter instance types when the capacity reservation type is not capacity-block",
+			func(crt v1.CapacityReservationType) {
+				f := filter.CapacityBlockFilter(scheduling.NewRequirements(scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpExists)))
+				kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
+					makeInstanceType("cheap-instance", withOfferings(
+						makeOffering(karpv1.CapacityTypeReserved, true, withPrice(1.0), withCapacityReservationType(crt)),
+						makeOffering(karpv1.CapacityTypeReserved, true, withPrice(10.0), withCapacityReservationType(crt)),
+					)),
+					makeInstanceType("expensive-instance", withOfferings(
+						makeOffering(karpv1.CapacityTypeReserved, true, withPrice(2.0), withCapacityReservationType(crt)),
+						makeOffering(karpv1.CapacityTypeReserved, true, withPrice(10.0), withCapacityReservationType(crt)),
+					)),
+				})
+				expectInstanceTypes(kept, "cheap-instance", "expensive-instance")
+				Expect(rejected).To(BeEmpty())
+			},
+			lo.FilterMap(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) (TableEntry, bool) {
+				return Entry(fmt.Sprintf("when the capacity reservation type is %q", string(crt)), crt), crt != v1.CapacityReservationTypeCapacityBlock
+			}),
+		)
+		It("shouldn't filter instance types when the requirements aren't compatible with capacity type reserved", func() {
+			f := filter.CapacityBlockFilter(scheduling.NewRequirements(scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpNotIn, karpv1.CapacityTypeReserved)))
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
+				makeInstanceType("cheap-instance", withOfferings(
+					makeOffering(karpv1.CapacityTypeReserved, true, withPrice(1.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock)),
+					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(1.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock)),
+				)),
+				makeInstanceType("expensive-instance", withOfferings(
+					makeOffering(karpv1.CapacityTypeReserved, true, withPrice(2.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock)),
+					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(2.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock)),
+				)),
+			})
+			expectInstanceTypes(kept, "cheap-instance", "expensive-instance")
+			Expect(rejected).To(BeEmpty())
+		})
+	})
+
 	Context("ReservedOfferingFilter", func() {
 		var f filter.Filter
 		BeforeEach(func() {

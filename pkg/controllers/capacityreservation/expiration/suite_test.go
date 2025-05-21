@@ -29,6 +29,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
@@ -55,7 +56,7 @@ var controller *expiration.Controller
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "SSM Invalidation Controller")
+	RunSpecs(t, "CapacityReservationExpiration")
 }
 
 var _ = BeforeSuite(func() {
@@ -73,6 +74,16 @@ var _ = BeforeSuite(func() {
 var _ = AfterSuite(func() {
 	stop()
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
+})
+
+var _ = BeforeEach(func() {
+	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
+	ctx = options.ToContext(ctx, test.Options())
+	awsEnv.Reset()
+})
+
+var _ = AfterEach(func() {
+	ExpectCleanedUp(ctx, env.Client)
 })
 
 var _ = Describe("Capacity Reservation Expiration Controller", func() {

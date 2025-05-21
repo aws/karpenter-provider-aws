@@ -138,7 +138,6 @@ func (f capacityReservationTypeFilter) Partition(instanceTypes []*cloudprovider.
 		}
 	}
 	for _, it := range instanceTypes {
-
 		for _, o := range it.Offerings.Available().Compatible(f.requirements) {
 			if o.CapacityType() != karpv1.CapacityTypeReserved {
 				continue
@@ -203,7 +202,7 @@ func (f capacityBlockFilter) FilterReject(instanceTypes []*cloudprovider.Instanc
 }
 
 func (f capacityBlockFilter) shouldFilter(instanceTypes []*cloudprovider.InstanceType) bool {
-	if f.requirements.Get(karpv1.CapacityTypeLabelKey).Any() != karpv1.CapacityTypeReserved {
+	if !f.requirements.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeReserved) {
 		return false
 	}
 	for _, it := range instanceTypes {

@@ -91,6 +91,9 @@ var _ = Describe("Capacity Reservation Capacity Type Controller", func() {
 			},
 			InstanceId:            lo.ToPtr(fake.InstanceID()),
 			CapacityReservationId: &reservationID,
+			CapacityReservationSpecification: &ec2types.CapacityReservationSpecificationResponse{
+				CapacityReservationPreference: ec2types.CapacityReservationPreferenceCapacityReservationsOnly,
+			},
 			Placement: &ec2types.Placement{
 				AvailabilityZone: lo.ToPtr("test-zone-1a"),
 			},

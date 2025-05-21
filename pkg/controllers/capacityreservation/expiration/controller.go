@@ -39,6 +39,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 )
