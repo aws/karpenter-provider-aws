@@ -16,6 +16,7 @@ package v1
 
 import (
 	"github.com/awslabs/operatorpkg/status"
+	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -143,4 +144,16 @@ func (in *EC2NodeClass) GetConditions() []status.Condition {
 
 func (in *EC2NodeClass) SetConditions(conditions []status.Condition) {
 	in.Status.Conditions = conditions
+}
+
+func (in *EC2NodeClass) ZoneIDMap() map[string]string {
+	return lo.SliceToMap(in.Status.Subnets, func(s Subnet) (string, string) {
+		return s.Zone, s.ZoneID
+	})
+}
+
+func (in *EC2NodeClass) Zones() []string {
+	return lo.Map(in.Status.Subnets, func(s Subnet, _ int) string {
+		return s.Zone
+	})
 }

@@ -94,10 +94,10 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		if errors.IsNotFound(err) {
 			// We treat a failure to resolve the NodeClass as an ICE since this means there is no capacity possibilities for this NodeClaim
 			c.recorder.Publish(cloudproviderevents.NodeClaimFailedToResolveNodeClass(nodeClaim))
-			return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving node class, %w", err))
+			return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving nodeclass, %w", err))
 		}
 		// Transient error when resolving the NodeClass
-		return nil, fmt.Errorf("resolving node class, %w", err)
+		return nil, fmt.Errorf("resolving nodeclass, %w", err)
 	}
 
 	nodeClassReady := nodeClass.StatusConditions().Get(status.ConditionReady)
@@ -142,16 +142,16 @@ func (c *CloudProvider) List(ctx context.Context) ([]*karpv1.NodeClaim, error) {
 		return nil, fmt.Errorf("listing instances, %w", err)
 	}
 	var nodeClaims []*karpv1.NodeClaim
-	for _, instance := range instances {
-		instanceType, err := c.resolveInstanceTypeFromInstance(ctx, instance)
+	for _, it := range instances {
+		instanceType, err := c.resolveInstanceTypeFromInstance(ctx, it)
 		if err != nil {
 			return nil, fmt.Errorf("resolving instance type, %w", err)
 		}
-		nc, err := c.resolveNodeClassFromInstance(ctx, instance)
+		nc, err := c.resolveNodeClassFromInstance(ctx, it)
 		if client.IgnoreNotFound(err) != nil {
 			return nil, fmt.Errorf("resolving nodeclass, %w", err)
 		}
-		nodeClaims = append(nodeClaims, c.instanceToNodeClaim(instance, instanceType, nc))
+		nodeClaims = append(nodeClaims, c.instanceToNodeClaim(it, instanceType, nc))
 	}
 	return nodeClaims, nil
 }
@@ -186,7 +186,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 			return nil, nil
 		}
-		return nil, fmt.Errorf("resolving node class, %w", err)
+		return nil, fmt.Errorf("resolving nodeclass, %w", err)
 	}
 	// TODO, break this coupling
 	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
@@ -194,6 +194,20 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 		return nil, err
 	}
 	return instanceTypes, nil
+}
+
+// getInstanceType returns a specific instance type to avoid re-constructing all InstanceTypes
+func (c *CloudProvider) getInstanceType(ctx context.Context, nodePool *karpv1.NodePool, name ec2types.InstanceType) (*cloudprovider.InstanceType, error) {
+	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// If we can't resolve the NodeClass, then it's impossible for us to resolve the instance types
+			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
+			return nil, nil
+		}
+		return nil, fmt.Errorf("resolving nodeclass, %w", err)
+	}
+	return c.instanceTypeProvider.Get(ctx, nodeClass, name)
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim) error {
@@ -233,7 +247,7 @@ func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *karpv1.NodeCla
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 			return "", nil
 		}
-		return "", fmt.Errorf("resolving node class, %w", err)
+		return "", fmt.Errorf("resolving nodeclass, %w", err)
 	}
 	driftReason, err := c.isNodeClassDrifted(ctx, nodeClaim, nodePool, nodeClass)
 	if err != nil {
@@ -350,14 +364,11 @@ func (c *CloudProvider) resolveInstanceTypeFromInstance(ctx context.Context, ins
 		// If we can't resolve the NodePool, we fall back to not getting instance type info
 		return nil, client.IgnoreNotFound(fmt.Errorf("resolving nodepool, %w", err))
 	}
-	instanceTypes, err := c.GetInstanceTypes(ctx, nodePool)
+	instanceType, err := c.getInstanceType(ctx, nodePool, instance.Type)
 	if err != nil {
 		// If we can't resolve the NodePool, we fall back to not getting instance type info
-		return nil, client.IgnoreNotFound(fmt.Errorf("resolving nodeclass, %w", err))
+		return nil, client.IgnoreNotFound(fmt.Errorf("resolving instance type, %w", err))
 	}
-	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
-		return i.Name == string(instance.Type)
-	})
 	return instanceType, nil
 }
 
