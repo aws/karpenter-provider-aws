@@ -16,7 +16,6 @@ package instancetype_test
 
 import (
 	"context"
-	"sort"
 	"testing"
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
@@ -110,14 +109,10 @@ var _ = Describe("InstanceType", func() {
 			},
 		})
 		Expect(err).To(BeNil())
-		sort.Slice(instanceTypes, func(i, j int) bool {
-			return instanceTypes[i].Name < instanceTypes[j].Name
-		})
-		sort.Slice(ec2InstanceTypes, func(i, j int) bool {
-			return ec2InstanceTypes[i].InstanceType < ec2InstanceTypes[j].InstanceType
-		})
-		for i := range instanceTypes {
-			Expect(instanceTypes[i].Name).To(Equal(string(ec2InstanceTypes[i].InstanceType)))
+
+		Expect(instanceTypes).To(HaveLen(len(ec2InstanceTypes)))
+		for _, it := range instanceTypes {
+			Expect(lo.ContainsBy(ec2InstanceTypes, func(i ec2types.InstanceTypeInfo) bool { return string(i.InstanceType) == it.Name })).To(BeTrue())
 		}
 	})
 	It("should update instance type offering date with response from the DescribeInstanceTypesOfferings API", func() {

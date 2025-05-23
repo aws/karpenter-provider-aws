@@ -94,10 +94,10 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		if errors.IsNotFound(err) {
 			// We treat a failure to resolve the NodeClass as an ICE since this means there is no capacity possibilities for this NodeClaim
 			c.recorder.Publish(cloudproviderevents.NodeClaimFailedToResolveNodeClass(nodeClaim))
-			return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving node class, %w", err))
+			return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving nodeclass, %w", err))
 		}
 		// Transient error when resolving the NodeClass
-		return nil, fmt.Errorf("resolving node class, %w", err)
+		return nil, fmt.Errorf("resolving nodeclass, %w", err)
 	}
 
 	nodeClassReady := nodeClass.StatusConditions().Get(status.ConditionReady)
@@ -186,7 +186,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 			return nil, nil
 		}
-		return nil, fmt.Errorf("resolving node class, %w", err)
+		return nil, fmt.Errorf("resolving nodeclass, %w", err)
 	}
 	// TODO, break this coupling
 	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
@@ -205,7 +205,7 @@ func (c *CloudProvider) getInstanceType(ctx context.Context, nodePool *karpv1.No
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 			return nil, nil
 		}
-		return nil, fmt.Errorf("resolving node class, %w", err)
+		return nil, fmt.Errorf("resolving nodeclass, %w", err)
 	}
 	return c.instanceTypeProvider.Get(ctx, nodeClass, name)
 }
@@ -247,7 +247,7 @@ func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *karpv1.NodeCla
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 			return "", nil
 		}
-		return "", fmt.Errorf("resolving node class, %w", err)
+		return "", fmt.Errorf("resolving nodeclass, %w", err)
 	}
 	driftReason, err := c.isNodeClassDrifted(ctx, nodeClaim, nodePool, nodeClass)
 	if err != nil {

@@ -176,13 +176,11 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1.EC2NodeClass, n
 	}
 	var instanceType *cloudprovider.InstanceType
 	if item, ok := p.instanceTypesCache.Get(p.cacheKey(nodeClass)); ok {
-		instanceType, ok = lo.Find(item.([]*cloudprovider.InstanceType), func(i *cloudprovider.InstanceType) bool {
+		instanceType, _ = lo.Find(item.([]*cloudprovider.InstanceType), func(i *cloudprovider.InstanceType) bool {
 			return ec2types.InstanceType(i.Name) == name
 		})
-		if !ok {
-			return nil, fmt.Errorf("instance type %s not found", name)
-		}
-	} else {
+	}
+	if instanceType == nil {
 		var err error
 		instanceType, err = p.get(ctx, nodeClass, nodeClass.ZoneIDMap(), name)
 		if err != nil {
