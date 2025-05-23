@@ -6,7 +6,7 @@ metadata:
     {{- with .Values.additionalAnnotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-    controller-gen.kubebuilder.io/version: v0.17.2
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: nodepools.karpenter.sh
 spec:
   group: karpenter.sh
