@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package capacityreservation_test
+package capacitytype_test
 
 import (
 	"context"
@@ -32,7 +32,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
-	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclaim/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/capacityreservation/capacitytype"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -50,7 +50,7 @@ var ctx context.Context
 var stop context.CancelFunc
 var env *coretest.Environment
 var awsEnv *test.Environment
-var controller *capacityreservation.Controller
+var controller *capacitytype.Controller
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -67,7 +67,7 @@ var _ = BeforeSuite(func() {
 
 	cloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider)
-	controller = capacityreservation.NewController(env.Client, cloudProvider)
+	controller = capacitytype.NewController(env.Client, cloudProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -75,7 +75,7 @@ var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
-var _ = Describe("Capacity Reservation NodeClaim Controller", func() {
+var _ = Describe("Capacity Reservation Capacity Type Controller", func() {
 	var nodeClaim *karpv1.NodeClaim
 	var node *corev1.Node
 	var reservationID string
@@ -91,6 +91,9 @@ var _ = Describe("Capacity Reservation NodeClaim Controller", func() {
 			},
 			InstanceId:            lo.ToPtr(fake.InstanceID()),
 			CapacityReservationId: &reservationID,
+			CapacityReservationSpecification: &ec2types.CapacityReservationSpecificationResponse{
+				CapacityReservationPreference: ec2types.CapacityReservationPreferenceCapacityReservationsOnly,
+			},
 			Placement: &ec2types.Placement{
 				AvailabilityZone: lo.ToPtr("test-zone-1a"),
 			},

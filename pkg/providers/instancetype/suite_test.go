@@ -269,6 +269,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(karpv1.WellKnownLabels.Difference(sets.New(
 			// TODO: add back to test with a preconfigured reserved instance type
 			v1.LabelCapacityReservationID,
+			v1.LabelCapacityReservationType,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		var pods []*corev1.Pod
@@ -325,6 +326,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			append(
 				karpv1.WellKnownLabels.Difference(sets.New(
 					v1.LabelCapacityReservationID,
+					v1.LabelCapacityReservationType,
 					v1.LabelInstanceAcceleratorCount,
 					v1.LabelInstanceAcceleratorName,
 					v1.LabelInstanceAcceleratorManufacturer,
@@ -376,6 +378,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		// Ensure that we're exercising all well known labels except for the gpu, nvme and capacity reservation id labels
 		expectedLabels := append(karpv1.WellKnownLabels.Difference(sets.New(
 			v1.LabelCapacityReservationID,
+			v1.LabelCapacityReservationType,
 			v1.LabelInstanceGPUCount,
 			v1.LabelInstanceGPUName,
 			v1.LabelInstanceGPUManufacturer,
