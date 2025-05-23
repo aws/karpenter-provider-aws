@@ -1,0 +1,14 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  amiFamily: AL2023
+  subnetSelectorTerms:
+    - id: subnet-1234567890abcdefg
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: $CLUSTER_NAME
+  role: KarpenterNodeRole-$CLUSTER_NAME
+  amiSelectorTerms:
+    - alias: al2023@latest
