@@ -36,6 +36,7 @@ KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)
 # TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" against
 TEST_SUITE ?= "..."
 TMPFILE := $(shell mktemp)
+INVALIDFILE := $(shell mktemp)
 
 # Filename when building the binary controller only
 GOARCH ?= $(shell go env GOARCH)
@@ -93,6 +94,7 @@ e2etests: ## Run the e2e suite against your local cluster
 
 upstream-e2etests: tidy download
 	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/default_ec2nodeclass.yaml > ${TMPFILE}
+	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/invalid_ec2nodeclass.yaml > ${INVALIDFILE}
 	go test \
 		-count 1 \
 		-timeout 3.25h \
@@ -103,6 +105,7 @@ upstream-e2etests: tidy download
 		--ginkgo.grace-period=5m \
 		--ginkgo.vv \
 		--default-nodeclass="$(TMPFILE)"\
+		--invalid-nodeclass="$(INVALIDFILE)" \
 		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml"
 
 e2etests-deflake: ## Run the e2e suite against your local cluster
