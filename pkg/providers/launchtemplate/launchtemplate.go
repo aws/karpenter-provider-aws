@@ -27,6 +27,7 @@ import (
 	"github.com/awslabs/operatorpkg/option"
 	"github.com/awslabs/operatorpkg/serrors"
 	"go.uber.org/multierr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
@@ -284,9 +285,10 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 				Groups:          lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
 				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
 				// with a single EFA network interface, and we should support those use cases. Launch failures with multiple enis should be considered user misconfiguration.
-				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
-				PrimaryIpv6:              lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
-				Ipv6AddressCount:         lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+				AssociatePublicIpAddress:        options.AssociatePublicIPAddress,
+				PrimaryIpv6:                     lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
+				Ipv6AddressCount:                lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+				ConnectionTrackingSpecification: generateConnTrackSpec(options.ConnectionTracking),
 			}
 		})
 	}
@@ -300,9 +302,29 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 			Groups: lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string {
 				return s.ID
 			}),
-			PrimaryIpv6:      lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
-			Ipv6AddressCount: lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+			PrimaryIpv6:                     lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
+			Ipv6AddressCount:                lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+			ConnectionTrackingSpecification: generateConnTrackSpec(options.ConnectionTracking),
 		},
+	}
+}
+
+func generateConnTrackSpec(connTrack *v1.ConnectionTracking) *ec2types.ConnectionTrackingSpecificationRequest {
+	if connTrack == nil {
+		return nil
+	}
+
+	toAWS := func(d *metav1.Duration) *int32 {
+		if d == nil {
+			return nil
+		}
+		return aws.Int32(int32(d.Seconds()))
+	}
+
+	return &ec2types.ConnectionTrackingSpecificationRequest{
+		TcpEstablishedTimeout: toAWS(connTrack.TCPEstablishedTimeout),
+		UdpStreamTimeout:      toAWS(connTrack.UDPStreamTimeout),
+		UdpTimeout:            toAWS(connTrack.UDPTimeout),
 	}
 }
 

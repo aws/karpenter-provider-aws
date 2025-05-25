@@ -85,6 +85,7 @@ type LaunchTemplate struct {
 	CapacityType            string
 	CapacityReservationID   string
 	CapacityReservationType v1.CapacityReservationType
+	ConnectionTracking      *v1.ConnectionTracking
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -308,6 +309,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			CapacityType:            capacityType,
 			CapacityReservationID:   id,
 			CapacityReservationType: capacityReservationType,
+			ConnectionTracking:      nodeClass.Spec.ConnectionTracking,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
