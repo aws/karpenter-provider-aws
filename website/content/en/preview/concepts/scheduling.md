@@ -95,7 +95,7 @@ Refer to general [Kubernetes GPU](https://kubernetes.io/docs/tasks/manage-gpus/s
 * `nvidia.com/gpu`: [NVIDIA device plugin for Kubernetes](https://github.com/NVIDIA/k8s-device-plugin)
 * `amd.com/gpu`: [AMD GPU device plugin for Kubernetes](https://github.com/RadeonOpenCompute/k8s-device-plugin)
 * `aws.amazon.com/neuron`/`aws.amazon.com/neuroncore`: [AWS Neuron device plugin for Kubernetes](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/containers/kubernetes-getting-started.html#neuron-device-plugin)
-* `habana.ai/gaudi`: [Habana device plugin for Kubernetes](https://docs.habana.ai/en/latest/Orchestration/Gaudi_Kubernetes/Habana_Device_Plugin_for_Kubernetes.html)
+* `habana.ai/gaudi`: [Habana device plugin for Kubernetes](https://github.com/HabanaAI/habanalabs-k8s-device-plugin)
   {{% /alert %}}
 
 #### AWS Neuron Resources
