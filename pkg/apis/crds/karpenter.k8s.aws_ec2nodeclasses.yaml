@@ -287,10 +287,10 @@ spec:
                   maxItems: 30
                   type: array
                   x-kubernetes-validations:
-                    - message: expected at least one, got none, ['tags', 'id']
-                      rule: self.all(x, has(x.tags) || has(x.id))
-                    - message: '''id'' is mutually exclusive, cannot be set along with tags in a capacity reservation selector term'
-                      rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID)))'
+                    - message: expected at least one, got none, ['tags', 'id', 'instanceMatchCriteria']
+                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.instanceMatchCriteria))
+                    - message: '''id'' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term'
+                      rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))'
                 connectionTracking:
                   description: |-
                     ConnectionTracking configures per-instance idle connection tracking timeouts
@@ -305,7 +305,7 @@ spec:
                       type: string
                     udpStreamTimeout:
                       description: |-
-                        UDPStreamTimeout is the timeout for idle UDP “stream” flows that have
+                        UDPStreamTimeout is the timeout for idle UDP "stream" flows that have
                         seen more than one request-response transaction.
                         Value must be between 60 and 180 seconds.
                       type: string
@@ -316,6 +316,13 @@ spec:
                         Value must be between 30 seconds and 60 seconds.
                       type: string
                   type: object
+                  x-kubernetes-validations:
+                    - message: tcpEstablishedTimeout must be between 60s and 432000s (5 days)
+                      rule: '!has(self.tcpEstablishedTimeout) || (duration(self.tcpEstablishedTimeout) >= duration(''60s'') && duration(self.tcpEstablishedTimeout) <= duration(''432000s''))'
+                    - message: udpStreamTimeout must be between 60s and 180s
+                      rule: '!has(self.udpStreamTimeout) || (duration(self.udpStreamTimeout) >= duration(''60s'') && duration(self.udpStreamTimeout) <= duration(''180s''))'
+                    - message: udpTimeout must be between 30s and 60s
+                      rule: '!has(self.udpTimeout) || (duration(self.udpTimeout) >= duration(''30s'') && duration(self.udpTimeout) <= duration(''60s''))'
                 context:
                   description: |-
                     Context is a Reserved field in EC2 APIs

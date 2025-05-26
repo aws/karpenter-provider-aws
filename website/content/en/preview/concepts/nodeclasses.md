@@ -130,7 +130,7 @@ spec:
   # Optional, configures ENI Connection Tracking timeouts.
   connectionTracking:
     # Optional, configures timeout for idle TCP connections.
-    tcpEstablishedTimeout: 5d
+    tcpEstablishedTimeout: 432000s # 5 days
     # Optional, configures timeout for idle UDP stream flows.
     udpStreamTimeout: 180s
     # Optional, configures timeout for idle UDP stream flows.
