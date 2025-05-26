@@ -290,10 +290,35 @@ spec:
                   maxItems: 30
                   type: array
                   x-kubernetes-validations:
-                    - message: expected at least one, got none, ['tags', 'id', 'instanceMatchCriteria']
-                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.instanceMatchCriteria))
-                    - message: '''id'' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term'
-                      rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))'
+                    - message: expected at least one, got none, ['tags', 'id']
+                      rule: self.all(x, has(x.tags) || has(x.id))
+                    - message: '''id'' is mutually exclusive, cannot be set along with tags in a capacity reservation selector term'
+                      rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID)))'
+                connectionTracking:
+                  description: |-
+                    ConnectionTracking configures per-instance idle connection tracking timeouts
+                    for AWS Elastic Network Interfaces. Idle connections left too long can
+                    exhaust the security group’s connection tracking table and lead to dropped packets.
+                  properties:
+                    tcpEstablishedTimeout:
+                      description: |-
+                        TCPEstablishedTimeout is the timeout for idle TCP connections in an established
+                        state.
+                        Value must be between 60 seconds and 432,000 seconds (5 days).
+                      type: string
+                    udpStreamTimeout:
+                      description: |-
+                        UDPStreamTimeout is the timeout for idle UDP “stream” flows that have
+                        seen more than one request-response transaction.
+                        Value must be between 60 and 180 seconds.
+                      type: string
+                    udpTimeout:
+                      description: |-
+                        UDPTimeout is the timeout for idle UDP flows that have seen traffic only
+                        in a single direction or a single request-response transaction.
+                        Value must be between 30 seconds and 60 seconds.
+                      type: string
+                  type: object
                 context:
                   description: |-
                     Context is a Reserved field in EC2 APIs

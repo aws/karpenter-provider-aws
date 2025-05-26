@@ -127,6 +127,15 @@ spec:
     httpPutResponseHopLimit: 1 # This is changed to disable IMDS access from containers not on the host network
     httpTokens: required
 
+  # Optional, configures ENI Connection Tracking timeouts.
+  connectionTracking:
+    # Optional, configures timeout for idle TCP connections.
+    tcpEstablishedTimeout: 5d
+    # Optional, configures timeout for idle UDP stream flows.
+    udpStreamTimeout: 180s
+    # Optional, configures timeout for idle UDP stream flows.
+    udpTimeout: 30s
+
   # Optional, configures storage devices for the instance
   blockDeviceMappings:
     - deviceName: /dev/xvda
@@ -992,6 +1001,27 @@ spec:
     httpPutResponseHopLimit: 1
     httpTokens: required
 ```
+
+## spec.connectionTracking
+
+Configure [Connection Tracking Timeouts](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/security-group-connection-tracking.html#connection-tracking-timeouts)
+on the Elastic Network Interfaces for EC2 Instances launched by this EC2NodeClass. Idle connections left too long can
+exhaust the security group’s connection tracking table and lead to dropped packets.
+
+### TCP Established Timeout
+Timeout for idle TCP connections in an established state.
+Value must be between 60 and 432,000 seconds (5 days). AWS API defaults to 432,000 seconds and a lower value is recommended.
+Setting a lower timeout helps free up tracking slots sooner at the cost of tearing down longer-lived TCP flows.
+
+### UDP Stream Timeout
+UDPStreamTimeout is the timeout for idle UDP “stream” flows that have seen more than one request-response transaction.
+Value must be between 60 and 180 seconds. AWS API defaults to 180 seconds.
+Use a lower timeout to reclaim slots for true streaming traffic that stalls frequently.
+
+### UDP Timeout
+Timeout for idle UDP flows that have seen traffic only in a single direction or a single request-response transaction.
+Value must be between 30 and 60 seconds. AWS API defaults to 30 seconds.
+For high volume short-lived, stateless UDP transactions it may be preferable to use a lower timeout.
 
 ## spec.blockDeviceMappings
 

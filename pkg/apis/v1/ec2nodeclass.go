@@ -469,23 +469,19 @@ const (
 // for AWS Elastic Network Interfaces. Idle connections left too long can
 // exhaust the security group’s connection tracking table and lead to dropped packets.
 type ConnectionTracking struct {
-	// TCPEstablishedTimeout is the timeout for idle TCP connections in an
-	// established state. Value must be between 60 seconds and 432,000 seconds
-	// (5 days). Defaults to 432,000 seconds. Setting a lower value helps free
-	// tracking slots sooner at the cost of tearing down longer-lived TCP flows.
+	// TCPEstablishedTimeout is the timeout for idle TCP connections in an established
+	// state.
+	// Value must be between 60 seconds and 432,000 seconds (5 days).
 	// +optional
 	TCPEstablishedTimeout *metav1.Duration `json:"tcpEstablishedTimeout,omitempty"`
 	// UDPStreamTimeout is the timeout for idle UDP “stream” flows that have
-	// seen more than one request-response transaction. Value must be between
-	// 60 seconds and 180 seconds. Defaults to 180 seconds.
-	// Use a lower timeout to reclaim slots for true streaming traffic that
-	// stalls frequently.
+	// seen more than one request-response transaction.
+	// Value must be between 60 and 180 seconds.
 	// +optional
 	UDPStreamTimeout *metav1.Duration `json:"udpStreamTimeout,omitempty"`
 	// UDPTimeout is the timeout for idle UDP flows that have seen traffic only
-	// in a single direction or a single request-response transaction. Value
-	// must be between 30 seconds and 60 seconds. Defaults to 30 seconds.
-	// This is appropriate for simple request-response or unidirectional UDP use.
+	// in a single direction or a single request-response transaction.
+	// Value must be between 30 seconds and 60 seconds.
 	// +optional
 	UDPTimeout *metav1.Duration `json:"udpTimeout,omitempty"`
 }
