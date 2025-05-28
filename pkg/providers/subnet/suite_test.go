@@ -136,6 +136,24 @@ var _ = Describe("SubnetProvider", func() {
 				},
 			}, subnets)
 		})
+		It("should discover subnet by CidrBlock with wildcard", func() {
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
+				{
+					CidrBlock: "10.0.1.*",
+				},
+			}
+			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
+				{
+					SubnetId:                lo.ToPtr("subnet-test1"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
+					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					CidrBlock:               lo.ToPtr("10.0.1.0/24"),
+				},
+			}, subnets)
+		})
 		It("should discover subnet by CidrBlocks", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 				{
