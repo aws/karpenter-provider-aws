@@ -44,7 +44,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.19.3
-	sigs.k8s.io/karpenter v1.1.3-0.20250515211514-94c6b6bc5fd4
+	sigs.k8s.io/karpenter v1.1.3
 	sigs.k8s.io/yaml v1.4.0
 )
 
