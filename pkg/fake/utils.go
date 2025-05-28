@@ -16,7 +16,7 @@ package fake
 
 import (
 	"fmt"
-	"path"
+	"regexp"
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
@@ -97,11 +97,7 @@ func FilterDescribeSecurtyGroups(sgs []ec2types.SecurityGroup, filters []ec2type
 // Filters are chained with a logical "AND"
 func FilterDescribeSubnets(subnets []ec2types.Subnet, filters []ec2types.Filter) []ec2types.Subnet {
 	return lo.Filter(subnets, func(subnet ec2types.Subnet, _ int) bool {
-		cidrBlock := ""
-		if subnet.CidrBlock != nil {
-			cidrBlock = *subnet.CidrBlock
-		}
-		return Filter(filters, aws.ToString(subnet.SubnetId), "", "", "", cidrBlock, subnet.Tags)
+		return Filter(filters, aws.ToString(subnet.SubnetId), "", "", "", aws.ToString(subnet.CidrBlock), subnet.Tags)
 	})
 }
 
@@ -150,8 +146,8 @@ func Filter(filters []ec2types.Filter, id, name, owner, state, cidrBlock string,
 				}
 			}
 		case filterName == "cidr-block":
-			for _, pattern := range filter.Values {
-				if match, _ := path.Match(pattern, cidrBlock); match {
+			for _, val := range filter.Values {
+				if wildcardMatch(val, cidrBlock) {
 					return true
 				}
 			}
@@ -171,8 +167,12 @@ func FilterCapacityReservation(filters []ec2types.Filter, id, name, owner, state
 		if aws.ToString(filter.Name) == "instance-match-criteria" {
 			return lo.Contains(filter.Values, instanceMatchCriteria)
 		}
-		return Filter([]ec2types.Filter{filter}, id, name, owner, state, tags)
+		return Filter([]ec2types.Filter{filter}, id, name, owner, state, "", tags)
 	})
+}
+
+func wildcardMatch(pattern, text string) bool {
+	return regexp.MustCompile("^" + strings.ReplaceAll(regexp.QuoteMeta(pattern), `\*`, `.*`) + "$").MatchString(text)
 }
 
 // matchTags is a predicate that matches a slice of tags with a tag:<key> or tag-keys filter
