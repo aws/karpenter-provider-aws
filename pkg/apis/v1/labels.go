@@ -65,6 +65,26 @@ var (
 		karpv1.ArchitectureAmd64,
 		karpv1.ArchitectureArm64,
 	)
+	WellKnownResources = sets.New[corev1.ResourceName](
+		corev1.ResourceCPU,
+		corev1.ResourceMemory,
+		corev1.ResourceEphemeralStorage,
+		corev1.ResourcePods,
+		ResourceAWSPodENI,
+		ResourceNVIDIAGPU,
+		ResourceAMDGPU,
+		ResourceAWSNeuron,
+		ResourceAWSNeuronCore,
+		ResourceHabanaGaudi,
+		ResourceEFA,
+	)
+	WellKnownExoticResources = sets.New[corev1.ResourceName](
+		ResourceNVIDIAGPU,
+		ResourceAMDGPU,
+		ResourceAWSNeuron,
+		ResourceAWSNeuronCore,
+		ResourceHabanaGaudi,
+	)
 	RestrictedLabelDomains = []string{
 		apis.Group,
 	}
