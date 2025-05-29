@@ -255,7 +255,7 @@ You should still review the upgrade procedure; the sequence of operations remain
 7. We're now ready to begin the upgrade to `v1`. Set the `KARPENTER_VERSION` environment variable to the latest `v1.0.x` release.
 
     ```bash
-    export KARPENTER_VERSION="1.0.9"
+    export KARPENTER_VERSION="1.0.10"
     ```
 
 8. Attach the v1 policy to your existing NodeRole.
