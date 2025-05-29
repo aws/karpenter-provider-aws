@@ -64,7 +64,8 @@ type Client struct {
 	subnets       []ec2types.Subnet
 	strategy      strategy.Strategy
 
-	instances sync.Map
+	instances            sync.Map
+	instanceLaunchCancel sync.Map
 
 	launchTemplates        sync.Map
 	launchTemplateNameToID sync.Map
@@ -586,15 +587,27 @@ func (c *Client) CreateFleet(ctx context.Context, input *ec2.CreateFleetInput, _
 			VpcId:                    subnet.VpcId,
 		}
 		c.instances.Store(lo.FromPtr(instance.InstanceId), instance)
+		launchCtx, cancel := context.WithCancel(ctx)
+		c.instanceLaunchCancel.Store(lo.FromPtr(instance.InstanceId), cancel)
 
 		// Create the Node through the instance launch
 		// TODO: Eventually support delayed registration
 		nodePoolNameTag, _ := lo.Find(instance.Tags, func(t ec2types.Tag) bool {
 			return lo.FromPtr(t.Key) == v1.NodePoolLabelKey
 		})
-		if err := c.kubeClient.Create(ctx, toNode(lo.FromPtr(instance.InstanceId), lo.FromPtr(nodePoolNameTag.Value), it, lo.FromPtr(subnet.AvailabilityZone), v1.CapacityTypeOnDemand)); err != nil {
-			return nil, fmt.Errorf("creating node, %w", err)
-		}
+		go func() {
+			select {
+			case <-launchCtx.Done():
+				return
+			// This is meant to simulate instance startup time
+			case <-c.clock.After(30 * time.Second):
+			}
+			if err := c.kubeClient.Create(ctx, toNode(lo.FromPtr(instance.InstanceId), lo.FromPtr(nodePoolNameTag.Value), it, lo.FromPtr(subnet.AvailabilityZone), v1.CapacityTypeOnDemand)); err != nil {
+				log.FromContext(ctx).Error(err, "%q node creation failed", lo.FromPtr(instance.InstanceId))
+				c.instances.Delete(lo.FromPtr(instance.InstanceId))
+				c.instanceLaunchCancel.Delete(lo.FromPtr(instance.InstanceId))
+			}
+		}()
 		fleetInstances = append(fleetInstances, ec2types.CreateFleetInstance{
 			InstanceIds:  []string{lo.FromPtr(instance.InstanceId)},
 			InstanceType: instance.InstanceType,
@@ -644,6 +657,9 @@ func (c *Client) TerminateInstances(_ context.Context, input *ec2.TerminateInsta
 
 	for _, id := range input.InstanceIds {
 		c.instances.Delete(id)
+		if cancel, ok := c.instanceLaunchCancel.LoadAndDelete(id); ok {
+			cancel.(context.CancelFunc)()
+		}
 	}
 	return &ec2.TerminateInstancesOutput{
 		TerminatingInstances: lo.Map(input.InstanceIds, func(id string, _ int) ec2types.InstanceStateChange {
