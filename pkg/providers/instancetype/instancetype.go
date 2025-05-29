@@ -334,11 +334,14 @@ func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context
 	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	key := fmt.Sprintf("%s-%016x", instanceTypeName, amiHash)
 
-	// Update cache if non-existent or actual capacity is less than or equal to cached value
 	actualCapacity := node.Status.Capacity.Memory()
 	if cachedCapacity, ok := p.discoveredCapacityCache.Get(key); !ok || actualCapacity.Cmp(cachedCapacity.(resource.Quantity)) < 1 {
-		log.FromContext(ctx).WithValues("memory-capacity", actualCapacity, "instance-type", instanceTypeName).V(1).Info("updating discovered capacity cache")
+		// Update the capacity in the cache if it is less than or equal to the current cached capacity. We update when it's equal to refresh the TTL.
 		p.discoveredCapacityCache.SetDefault(key, *actualCapacity)
+		// Only log if we haven't discovered the capacity for the instance type yet or the discovered capacity is **less** than the cached capacity
+		if !ok || actualCapacity.Cmp(cachedCapacity.(resource.Quantity)) < 0 {
+			log.FromContext(ctx).WithValues("memory-capacity", actualCapacity, "instance-type", instanceTypeName).V(1).Info("updating discovered capacity cache")
+		}
 	}
 	return nil
 }
