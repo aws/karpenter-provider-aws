@@ -59,7 +59,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if err != nil {
 		return nil, err
 	}
-	out.Status.ProviderID = strings.ReplaceAll(out.Status.ProviderID, "aws", "kwok-aws")
+	out.Status.ProviderID = strings.Replace(out.Status.ProviderID, "aws", "kwok-aws", 1)
 	return out, nil
 }
 
@@ -69,7 +69,7 @@ func (c *CloudProvider) List(ctx context.Context) ([]*karpv1.NodeClaim, error) {
 		return nil, err
 	}
 	for _, elem := range out {
-		elem.Status.ProviderID = strings.ReplaceAll(elem.Status.ProviderID, "aws", "kwok-aws")
+		elem.Status.ProviderID = strings.Replace(elem.Status.ProviderID, "aws", "kwok-aws", 1)
 	}
 	return out, nil
 }
@@ -79,6 +79,6 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*karpv1.Nod
 	if err != nil {
 		return nil, err
 	}
-	elem.Status.ProviderID = strings.ReplaceAll(elem.Status.ProviderID, "aws", "kwok-aws")
+	elem.Status.ProviderID = strings.Replace(elem.Status.ProviderID, "aws", "kwok-aws", 1)
 	return elem, nil
 }
