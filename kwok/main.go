@@ -59,6 +59,12 @@ func main() {
 		<-op.Elected()
 		op.EC2API.StartKillNodeThread(ctx)
 	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-op.Elected()
+		op.EC2API.ReadBackup(ctx)
+	}()
 
 	op.
 		WithControllers(ctx, corecontrollers.NewControllers(

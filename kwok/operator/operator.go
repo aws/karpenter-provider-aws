@@ -103,7 +103,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		region := lo.Must(imds.NewFromConfig(cfg).GetRegion(ctx, nil))
 		cfg.Region = region.Region
 	}
-	ec2api := kwokec2.NewClient(cfg.Region, option.MustGetEnv("SYSTEM_NAMESPACE"), ec2.NewFromConfig(cfg), kwokec2.NewNopRateLimiterProvider(), strategy.NewLowestPrice(pricing.NewAPI(cfg), ec2.NewFromConfig(cfg), cfg.Region), operator.GetClient(), operator.Clock, operator.GetConfig())
+	ec2api := kwokec2.NewClient(cfg.Region, option.MustGetEnv("SYSTEM_NAMESPACE"), ec2.NewFromConfig(cfg), kwokec2.NewNopRateLimiterProvider(), strategy.NewLowestPrice(pricing.NewAPI(cfg), ec2.NewFromConfig(cfg), cfg.Region), operator.GetClient(), operator.Clock)
 
 	eksapi := eks.NewFromConfig(cfg)
 	log.FromContext(ctx).WithValues("region", cfg.Region).V(1).Info("discovered region")
