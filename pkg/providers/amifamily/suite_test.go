@@ -138,6 +138,33 @@ var _ = Describe("AMIProvider", func() {
 		version = awsEnv.VersionProvider.Get(ctx)
 		nodeClass = test.EC2NodeClass()
 	})
+	It("should fail when AL2 is used with Kubernetes version 1.33 or greater", func() {
+
+		// Test with Kubernetes 1.33
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
+		_, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, nodeClass)
+		Expect(err).To(HaveOccurred())
+
+		// Test with Kubernetes 1.34
+		_, err = awsEnv.AMIProvider.DescribeImageQueries(ctx, nodeClass)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("AL2 is no longer supported for EKS version"))
+
+		// Test with Kubernetes 1.32 (should work)
+		// awsEnv.VersionProvider.Version = "1.32.0"
+		_, err = awsEnv.AMIProvider.DescribeImageQueries(ctx, nodeClass)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Test with AL2023 and Kubernetes 1.33 (should work)
+		// awsEnv.VersionProvider.Version = "1.33.0"
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+		_, err = awsEnv.AMIProvider.DescribeImageQueries(ctx, nodeClass)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Restore the original version
+		// awsEnv.VersionProvider.Version = originalVersion
+	})
+
 	It("should succeed to resolve AMIs (AL2)", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 		awsEnv.SSMAPI.Parameters = map[string]string{
