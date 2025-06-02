@@ -49,7 +49,7 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 	amis, err := a.amiProvider.List(ctx, nodeClass)
 	if err != nil {
 		if strings.Contains(err.Error(), "AL2 is no longer supported for EKS version") {
-			return reconcile.Result{}, reconcile.TerminalError(err)
+			return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("getting amis, %w", err))
 		}
 		return reconcile.Result{}, fmt.Errorf("getting amis, %w", err)
 	}
