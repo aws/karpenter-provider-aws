@@ -89,7 +89,7 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		kubernetesVersion := p.versionProvider.Get(ctx)
 		if alias.Family == "AL2" {
 			if strings.Compare(kubernetesVersion, "1.33") >= 0 {
-				return nil, fmt.Errorf("AL2 is no longer supported for EKS versions %s + "+". Here is the deprecation notice: https://docs.aws.amazon.com/eks/latest/userguide/eks-ami-deprecation-faqs.html", kubernetesVersion)
+				return nil, fmt.Errorf("AL2 aliases are no longer supported on EKS 1.33+ (see https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions-standard.html#kubernetes-1-33)")
 			}
 		}
 		query, err := GetAMIFamily(alias.Family, nil).DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, alias.Version)
