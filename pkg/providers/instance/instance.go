@@ -333,27 +333,6 @@ func (p *DefaultProvider) launchInstance(
 	return createFleetOutput.Instances[0], nil
 }
 
-func GetCreateFleetInput(nodeClass *v1.EC2NodeClass, capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) *ec2.CreateFleetInput {
-	return &ec2.CreateFleetInput{
-		Type:                  ec2types.FleetTypeInstant,
-		Context:               nodeClass.Spec.Context,
-		LaunchTemplateConfigs: launchTemplateConfigs,
-		TargetCapacitySpecification: &ec2types.TargetCapacitySpecificationRequest{
-			DefaultTargetCapacityType: lo.Ternary(
-				capacityType == karpv1.CapacityTypeReserved,
-				ec2types.DefaultTargetCapacityType(karpv1.CapacityTypeOnDemand),
-				ec2types.DefaultTargetCapacityType(capacityType),
-			),
-			TotalTargetCapacity: aws.Int32(1),
-		},
-		TagSpecifications: []ec2types.TagSpecification{
-			{ResourceType: ec2types.ResourceTypeInstance, Tags: utils.EC2MergeTags(tags)},
-			{ResourceType: ec2types.ResourceTypeVolume, Tags: utils.EC2MergeTags(tags)},
-			{ResourceType: ec2types.ResourceTypeFleet, Tags: utils.EC2MergeTags(tags)},
-		},
-	}
-}
-
 func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
 	if getCapacityType(nodeClaim, instanceTypes) != karpv1.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
