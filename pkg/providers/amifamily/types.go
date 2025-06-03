@@ -15,6 +15,7 @@ limitations under the License.
 package amifamily
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -127,4 +128,20 @@ func (q DescribeImageQuery) RequirementsForImageWithArchitecture(image string, a
 		})
 	}
 	return []scheduling.Requirements{scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, arch))}
+}
+
+type AL2DeprecationError struct {
+	Message string
+}
+
+func (e *AL2DeprecationError) Error() string {
+	return e.Message
+}
+
+func IsAl2DeprecationError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var al2Err *AL2DeprecationError
+	return errors.As(err, &al2Err)
 }

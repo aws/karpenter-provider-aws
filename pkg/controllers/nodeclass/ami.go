@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/samber/lo"
@@ -48,7 +47,8 @@ func NewAMIReconciler(provider amifamily.Provider) *AMI {
 func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	amis, err := a.amiProvider.List(ctx, nodeClass)
 	if err != nil {
-		if strings.Contains(err.Error(), "AL2 is no longer supported for EKS version") {
+		if amifamily.IsAl2DeprecationError(err) {
+			nodeClass.StatusConditions().SetFalse(v1.ConditionTypeAMIsReady, "AL2Deprecation", err.Error())
 			return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("getting amis, %w", err))
 		}
 		return reconcile.Result{}, fmt.Errorf("getting amis, %w", err)
