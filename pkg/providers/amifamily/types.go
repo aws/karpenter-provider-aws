@@ -134,10 +134,6 @@ type AL2DeprecationError struct {
 	error
 }
 
-func (e *AL2DeprecationError) Error() string {
-	return e.Message
-}
-
 func IsAl2DeprecationError(err error) bool {
 	if err == nil {
 		return false

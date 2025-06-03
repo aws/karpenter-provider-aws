@@ -140,7 +140,7 @@ func (m *MockVersionProvider) Get(ctx context.Context) string {
 	return m.version
 }
 
-func withKubernetesVersion(version string) *amifamily.DefaultProvider {
+func mockAmiProvider(version string) *amifamily.DefaultProvider {
 	mockVersionProvider := &MockVersionProvider{version: version}
 	return amifamily.NewDefaultProvider(awsEnv.Clock, mockVersionProvider, awsEnv.SSMProvider, awsEnv.EC2API, awsEnv.EC2Cache)
 }
@@ -151,25 +151,23 @@ var _ = Describe("AMIProvider", func() {
 		version = awsEnv.VersionProvider.Get(ctx)
 		nodeClass = test.EC2NodeClass()
 	})
-	It("should fail when AL2 is used with Kubernetes version 1.33 or greater", func() {
-		amiProvider := withKubernetesVersion("1.33.0")
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
-		_, err := amiProvider.DescribeImageQueries(ctx, nodeClass)
-		Expect(err).To(HaveOccurred())
-
-		amiProvider = withKubernetesVersion("1.34.2")
-		_, err = amiProvider.DescribeImageQueries(ctx, nodeClass)
-		Expect(err).To(HaveOccurred())
-
-		amiProvider = withKubernetesVersion("1.32.0")
-		_, err = amiProvider.DescribeImageQueries(ctx, nodeClass)
-		Expect(err).ToNot(HaveOccurred())
-
-		amiProvider = withKubernetesVersion("1.33.0")
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
-		_, err = amiProvider.DescribeImageQueries(ctx, nodeClass)
-		Expect(err).ToNot(HaveOccurred())
-	})
+	DescribeTable(
+		"should fail when AL2 is used with Kubernetes version 1.33 or greater",
+		func(k8sVersion string, amiAlias string, expectError bool) {
+			amiProvider := mockAmiProvider(k8sVersion)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: amiAlias}}
+			_, err := amiProvider.DescribeImageQueries(ctx, nodeClass)
+			if expectError {
+				Expect(err).To(HaveOccurred())
+			} else {
+				Expect(err).ToNot(HaveOccurred())
+			}
+		},
+		Entry("should fail for AL2 on 1.33.0", "1.33.0", "al2@latest", true),
+		Entry("should fail for AL2 on 1.34.2", "1.34.2", "al2@latest", true),
+		Entry("should succeed for AL2 on 1.32.0", "1.32.0", "al2@latest", false),
+		Entry("should succeed for AL2023 on 1.33.0", "1.33.0", "al2023@latest", false),
+	)
 
 	It("should succeed to resolve AMIs (AL2)", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
