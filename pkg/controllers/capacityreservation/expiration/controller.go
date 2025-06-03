@@ -100,24 +100,27 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 		}
 		return expiringCRs.Has(id)
 	})
-	errs := map[*karpv1.NodeClaim]error{}
+	errs := make([]error, len(toDelete))
 	workqueue.ParallelizeUntil(ctx, 10, len(toDelete), func(i int) {
 		if err := c.kubeClient.Delete(ctx, toDelete[i]); err != nil {
 			if apierrors.IsNotFound(err) {
 				return
 			}
-			errs[ncs[i]] = err
+			errs[i] = err
 			return
 		}
 		log.FromContext(ctx).
-			WithValues("NodeClaim", klog.KObj(ncs[i]), "capacity-reservation-id", toDelete[i].Labels[v1.LabelCapacityReservationID]).
+			WithValues("NodeClaim", klog.KObj(toDelete[i]), "capacity-reservation-id", toDelete[i].Labels[v1.LabelCapacityReservationID]).
 			Info("initiating delete for capacity block expiration")
 	})
-	if len(errs) != 0 {
+	if lo.ContainsBy(errs, func(err error) bool { return err != nil }) {
 		return reconcile.Result{}, serrors.Wrap(
-			fmt.Errorf("deleting nodeclaims, %w", multierr.Combine(lo.Values(errs)...)),
-			"NodeClaims", lo.Map(lo.Keys(errs), func(nc *karpv1.NodeClaim, _ int) klog.ObjectRef {
-				return klog.KObj(nc)
+			fmt.Errorf("deleting nodeclaims, %w", multierr.Combine(errs...)),
+			"NodeClaims", lo.FilterMap(errs, func(err error, i int) (klog.ObjectRef, bool) {
+				if err == nil {
+					return klog.ObjectRef{}, false
+				}
+				return klog.KObj(toDelete[i]), true
 			}),
 		)
 	}
