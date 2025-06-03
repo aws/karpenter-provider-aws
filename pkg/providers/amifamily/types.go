@@ -131,7 +131,7 @@ func (q DescribeImageQuery) RequirementsForImageWithArchitecture(image string, a
 }
 
 type AL2DeprecationError struct {
-	Message string
+	error
 }
 
 func (e *AL2DeprecationError) Error() string {
