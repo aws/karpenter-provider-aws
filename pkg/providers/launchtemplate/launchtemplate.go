@@ -24,6 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/awslabs/operatorpkg/option"
 	"github.com/awslabs/operatorpkg/serrors"
 	"go.uber.org/multierr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -40,8 +41,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
-
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -56,23 +55,21 @@ import (
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 )
 
-type Provider interface {
-	EnsureAll(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim,
-		[]*cloudprovider.InstanceType, string, map[string]string) ([]*LaunchTemplate, error)
-	DeleteAll(context.Context, *v1.EC2NodeClass) error
-	InvalidateCache(context.Context, string, string)
-	ResolveClusterCIDR(context.Context) error
-	CreateAMIOptions(context.Context, *v1.EC2NodeClass, map[string]string, map[string]string) (*amifamily.Options, error)
+type DefaultProviderOpts = option.Function[defaultProviderOpts]
+
+type defaultProviderOpts struct {
+	launchModeProvider LaunchModeProvider
 }
-type LaunchTemplate struct {
-	Name                  string
-	InstanceTypes         []*cloudprovider.InstanceType
-	ImageID               string
-	CapacityReservationID string
+
+func WithLaunchModeProvider(provider LaunchModeProvider) DefaultProviderOpts {
+	return func(opts *defaultProviderOpts) {
+		opts.launchModeProvider = provider
+	}
 }
 
 type DefaultProvider struct {
 	sync.Mutex
+	LaunchModeProvider
 	ec2api                sdk.EC2API
 	eksapi                sdk.EKSAPI
 	amiFamily             amifamily.Resolver
@@ -87,10 +84,26 @@ type DefaultProvider struct {
 	ClusterIPFamily       corev1.IPFamily
 }
 
-func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api sdk.EC2API, eksapi sdk.EKSAPI, amiFamily amifamily.Resolver,
-	securityGroupProvider securitygroup.Provider, subnetProvider subnet.Provider,
-	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *DefaultProvider {
+func NewDefaultProvider(
+	ctx context.Context,
+	cache *cache.Cache,
+	ec2api sdk.EC2API,
+	eksapi sdk.EKSAPI,
+	amiFamily amifamily.Resolver,
+	securityGroupProvider securitygroup.Provider,
+	subnetProvider subnet.Provider,
+	caBundle *string,
+	startAsync <-chan struct{},
+	kubeDNSIP net.IP,
+	clusterEndpoint string,
+	opts ...DefaultProviderOpts,
+) *DefaultProvider {
+	resolvedOpts := option.Resolve(opts...)
+	if resolvedOpts.launchModeProvider == nil {
+		resolvedOpts.launchModeProvider = defaultLaunchModeProvider{}
+	}
 	l := &DefaultProvider{
+		LaunchModeProvider:    resolvedOpts.launchModeProvider,
 		ec2api:                ec2api,
 		eksapi:                eksapi,
 		amiFamily:             amiFamily,
@@ -165,9 +178,11 @@ func (p *DefaultProvider) InvalidateCache(ctx context.Context, ltName string, lt
 	log.FromContext(ctx).V(1).Info("invalidating launch template in the cache because it no longer exists")
 	p.cache.Delete(ltName)
 }
+
 func LaunchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf("%s/%d", v1.LaunchTemplateNamePrefix, lo.Must(hashstructure.Hash(options, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})))
 }
+
 func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
 	// Remove any labels passed into userData that are prefixed with "node-restriction.kubernetes.io" or "kops.k8s.io" since the kubelet can't
 	// register the node with any labels from this domain: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#noderestriction
@@ -242,86 +257,13 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
 	}
-	createLaunchTemplateInput := GetCreateLaunchTemplateInput(ctx, options, p.ClusterIPFamily, userData)
+	createLaunchTemplateInput := NewCreateLaunchTemplateInputBuilder(options, p.ClusterIPFamily, userData).WithLaunchModeProvider(p).Build(ctx)
 	output, err := p.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput)
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
 	}
 	log.FromContext(ctx).WithValues("id", aws.ToString(output.LaunchTemplate.LaunchTemplateId)).V(1).Info("created launch template")
 	return lo.FromPtr(output.LaunchTemplate), nil
-}
-
-// you need UserData, AmiID, tags, blockdevicemappings, instance profile,
-func GetCreateLaunchTemplateInput(
-	ctx context.Context,
-	options *amifamily.LaunchTemplate,
-	ClusterIPFamily corev1.IPFamily,
-	userData string,
-) *ec2.CreateLaunchTemplateInput {
-	launchTemplateDataTags := []ec2types.LaunchTemplateTagSpecificationRequest{
-		{ResourceType: ec2types.ResourceTypeNetworkInterface, Tags: utils.EC2MergeTags(options.Tags)},
-	}
-	if options.CapacityType == karpv1.CapacityTypeSpot {
-		launchTemplateDataTags = append(launchTemplateDataTags, ec2types.LaunchTemplateTagSpecificationRequest{ResourceType: ec2types.ResourceTypeSpotInstancesRequest, Tags: utils.EC2MergeTags(options.Tags)})
-	}
-	networkInterfaces := generateNetworkInterfaces(options, ClusterIPFamily)
-	lt := &ec2.CreateLaunchTemplateInput{
-		LaunchTemplateName: aws.String(LaunchTemplateName(options)),
-		LaunchTemplateData: &ec2types.RequestLaunchTemplateData{
-			BlockDeviceMappings: blockDeviceMappings(options.BlockDeviceMappings),
-			IamInstanceProfile: &ec2types.LaunchTemplateIamInstanceProfileSpecificationRequest{
-				Name: aws.String(options.InstanceProfile),
-			},
-			Monitoring: &ec2types.LaunchTemplatesMonitoringRequest{
-				Enabled: aws.Bool(options.DetailedMonitoring),
-			},
-			// If the network interface is defined, the security groups are defined within it
-			SecurityGroupIds: lo.Ternary(networkInterfaces != nil, nil, lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID })),
-			UserData:         aws.String(userData),
-			ImageId:          aws.String(options.AMIID),
-			MetadataOptions: &ec2types.LaunchTemplateInstanceMetadataOptionsRequest{
-				HttpEndpoint:     ec2types.LaunchTemplateInstanceMetadataEndpointState(lo.FromPtr(options.MetadataOptions.HTTPEndpoint)),
-				HttpProtocolIpv6: ec2types.LaunchTemplateInstanceMetadataProtocolIpv6(lo.FromPtr(options.MetadataOptions.HTTPProtocolIPv6)),
-				//Will be removed when we update options.MetadataOptions.HTTPPutResponseHopLimit type to be int32
-				//nolint: gosec
-				HttpPutResponseHopLimit: lo.ToPtr(int32(lo.FromPtr(options.MetadataOptions.HTTPPutResponseHopLimit))),
-				HttpTokens:              ec2types.LaunchTemplateHttpTokensState(lo.FromPtr(options.MetadataOptions.HTTPTokens)),
-				// We statically set the InstanceMetadataTags to "disabled" for all new instances since
-				// account-wide defaults can override instance defaults on metadata settings
-				// This can cause instance failure on accounts that default to instance tags since Karpenter
-				// can't support instance tags with its current tags (e.g. kubernetes.io/cluster/*, karpenter.k8s.aws/ec2nodeclass)
-				// See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-options.html#instance-metadata-options-order-of-precedence
-				InstanceMetadataTags: ec2types.LaunchTemplateInstanceMetadataTagsStateDisabled,
-			},
-			NetworkInterfaces: networkInterfaces,
-			TagSpecifications: launchTemplateDataTags,
-		},
-		TagSpecifications: []ec2types.TagSpecification{
-			{
-				ResourceType: ec2types.ResourceTypeLaunchTemplate,
-				Tags:         utils.EC2MergeTags(options.Tags),
-			},
-		},
-	}
-	// Gate this specifically since the update to CapacityReservationPreference will opt od / spot launches out of open
-	// ODCRs, which is a breaking change from the pre-native ODCR support behavior.
-	if karpoptions.FromContext(ctx).FeatureGates.ReservedCapacity {
-		lt.LaunchTemplateData.CapacityReservationSpecification = &ec2types.LaunchTemplateCapacityReservationSpecificationRequest{
-			CapacityReservationPreference: lo.Ternary(
-				options.CapacityType == karpv1.CapacityTypeReserved,
-				ec2types.CapacityReservationPreferenceCapacityReservationsOnly,
-				ec2types.CapacityReservationPreferenceNone,
-			),
-			CapacityReservationTarget: lo.Ternary(
-				options.CapacityType == karpv1.CapacityTypeReserved,
-				&ec2types.CapacityReservationTarget{
-					CapacityReservationId: &options.CapacityReservationID,
-				},
-				nil,
-			),
-		}
-	}
-	return lt
 }
 
 // generateNetworkInterfaces generates network interfaces for the launch template.
