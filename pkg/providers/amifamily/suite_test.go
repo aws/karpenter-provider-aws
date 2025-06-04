@@ -140,7 +140,7 @@ func (m *MockVersionProvider) Get(ctx context.Context) string {
 	return m.version
 }
 
-func mockAmiProvider(version string) *amifamily.DefaultProvider {
+func amiProviderWithEKSVersionOverride(version string) *amifamily.DefaultProvider {
 	mockVersionProvider := &MockVersionProvider{version: version}
 	return amifamily.NewDefaultProvider(awsEnv.Clock, mockVersionProvider, awsEnv.SSMProvider, awsEnv.EC2API, awsEnv.EC2Cache)
 }
@@ -154,7 +154,7 @@ var _ = Describe("AMIProvider", func() {
 	DescribeTable(
 		"should fail when AL2 is used with Kubernetes version 1.33 or greater",
 		func(k8sVersion string, amiAlias string, expectError bool) {
-			amiProvider := mockAmiProvider(k8sVersion)
+			amiProvider := amiProviderWithEKSVersionOverride(k8sVersion)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: amiAlias}}
 			_, err := amiProvider.DescribeImageQueries(ctx, nodeClass)
 			if expectError {

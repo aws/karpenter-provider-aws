@@ -48,7 +48,7 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 	amis, err := a.amiProvider.List(ctx, nodeClass)
 	if err != nil {
 		if amifamily.IsAl2DeprecationError(err) {
-			nodeClass.StatusConditions().SetFalse(v1.ConditionTypeAMIsReady, "AL2Deprecation", err.Error())
+			nodeClass.StatusConditions().SetFalse(v1.ConditionTypeAMIsReady, "UnsupportedAlias", err.Error())
 			return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("getting amis, %w", err))
 		}
 		return reconcile.Result{}, fmt.Errorf("getting amis, %w", err)
