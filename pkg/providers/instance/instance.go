@@ -267,7 +267,7 @@ func (p *DefaultProvider) launchInstance(
 	// Create fleet
 	createFleetInput := GetCreateFleetInput(nodeClass, capacityType, tags, launchTemplateConfigs)
 	if capacityType == karpv1.CapacityTypeSpot {
-		createFleetInput.SpotOptions = &ec2types.SpotOptionsRequest{AllocationStrategy: ec2types.SpotAllocationStrategyPriceCapacityOptimized}
+		createFleetInput.SpotOptions = &ec2types.SpotOptionsRequest{AllocationStrategy: ec2types.SpotAllocationStrategyCapacityOptimized}
 	} else {
 		createFleetInput.OnDemandOptions = &ec2types.OnDemandOptionsRequest{AllocationStrategy: ec2types.FleetOnDemandAllocationStrategyLowestPrice}
 	}
