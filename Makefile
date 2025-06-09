@@ -147,8 +147,12 @@ licenses: download ## Verifies dependency licenses
 	# TODO: remove nodeadm check once license is updated
 	! go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0' -e 'github.com/awslabs/amazon-eks-ami/nodeadm'
 
+DEBUG ?= false
+
 image: ## Build the Karpenter controller images using ko build
-	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build --bare github.com/aws/karpenter-provider-aws/cmd/controller))
+	$(eval KO_FLAGS := --bare)
+	$(eval KO_FLAGS := $(if $(filter true,$(DEBUG)),$(KO_FLAGS) --disable-optimizations --trimpath=false,$(KO_FLAGS)))
+	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build $(KO_FLAGS) github.com/aws/karpenter-provider-aws/cmd/controller))
 	$(eval IMG_REPOSITORY=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 1))
 	$(eval IMG_TAG=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 2 -s))
 	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
@@ -158,8 +162,10 @@ binary: ## Build the Karpenter controller binary using go build
 
 apply: verify image ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	kubectl apply -f ./pkg/apis/crds/
+	$(eval DEBUG_HELM_OPTS := $(if $(filter true,$(DEBUG)),--set controller.healthProbe.livenessProbeEnabled=false --set controller.healthProbe.readinessProbeEnabled=false --set disableLeaderElection=true --set replicas=1,))
 	helm upgrade --install karpenter charts/karpenter --namespace ${KARPENTER_NAMESPACE} \
         $(HELM_OPTS) \
+        $(DEBUG_HELM_OPTS) \
         --set logLevel=debug \
         --set controller.image.repository=$(IMG_REPOSITORY) \
         --set controller.image.tag=$(IMG_TAG) \

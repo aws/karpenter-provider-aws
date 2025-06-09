@@ -93,6 +93,10 @@ spec:
               value: "1.19.0-0"
             - name: KARPENTER_SERVICE
               value: {{ include "karpenter.fullname" . }}
+          {{- if .Values.disableLeaderElection }}
+            - name: DISABLE_LEADER_ELECTION
+              value: "true"
+          {{- end }}
           {{- with .Values.logLevel }}
             - name: LOG_LEVEL
               value: "{{ . }}"
@@ -177,18 +181,22 @@ spec:
             - name: http
               containerPort: {{ .Values.controller.healthProbe.port }}
               protocol: TCP
+          {{- if .Values.controller.healthProbe.livenessProbeEnabled }}
           livenessProbe:
             initialDelaySeconds: 30
             timeoutSeconds: 30
             httpGet:
               path: /healthz
               port: http
+          {{- end }}
+          {{- if .Values.controller.healthProbe.readinessProbeEnabled }}
           readinessProbe:
             initialDelaySeconds: 5
             timeoutSeconds: 30
             httpGet:
               path: /readyz
               port: http
+          {{- end }}
           {{- with .Values.controller.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

@@ -49,6 +49,9 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.5.0 \
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller container. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
+| controller.healthProbe.livenessProbeEnabled | bool | `true` | Enable or disable the liveness probe. |
+| controller.healthProbe.readinessProbeEnabled | bool | `true` | Enable or disable the readiness probe. |
+| disableLeaderElection | bool | `false` | Disable leader election for the controller |
 | controller.image.digest | string | `"sha256:339aef3f5ecdf6f94d1c7cc9d0e1d359c281b4f9b842877bdbf2acd3fa360521"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
 | controller.image.tag | string | `"1.5.0"` | Tag of the controller image. |

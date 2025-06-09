@@ -12,6 +12,8 @@ additionalAnnotations: {}
 imagePullPolicy: IfNotPresent
 # -- Image pull secrets for Docker images.
 imagePullSecrets: []
+# -- Disable leader election for the controller
+disableLeaderElection: false
 service:
   # -- Additional annotations for the Service.
   annotations: {}
@@ -164,6 +166,10 @@ controller:
   healthProbe:
     # -- The container port to use for http health probe.
     port: 8081
+    # -- Enable or disable the liveness probe
+    livenessProbeEnabled: true
+    # -- Enable or disable the readiness probe
+    readinessProbeEnabled: true
 # -- Global log level, defaults to 'info'
 logLevel: info
 # -- Log outputPaths - defaults to stdout only
