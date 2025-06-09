@@ -227,6 +227,7 @@ var _ = Describe("InstanceProvider", func() {
 					CapacityReservationId:  lo.ToPtr(targetReservationID),
 					AvailableInstanceCount: lo.ToPtr[int32](0),
 					State:                  ec2types.CapacityReservationStateActive,
+					ReservationType:        ec2types.CapacityReservationTypeDefault,
 				},
 			},
 		})
@@ -236,6 +237,8 @@ var _ = Describe("InstanceProvider", func() {
 			InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
 			InstanceType:          "m5.large",
 			OwnerID:               "012345678901",
+			State:                 v1.CapacityReservationStateActive,
+			ReservationType:       v1.CapacityReservationTypeDefault,
 		})
 		nodeClaim.Spec.Requirements = append(
 			nodeClaim.Spec.Requirements,
