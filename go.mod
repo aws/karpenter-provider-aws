@@ -125,3 +125,5 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 )
+
+replace sigs.k8s.io/karpenter => github.com/celebdor/karpenter v0.0.0-20250812093507-214a6e87d57c

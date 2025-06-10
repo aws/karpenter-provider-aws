@@ -1055,7 +1055,7 @@ sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics
 ## explicit; go 1.21
 sigs.k8s.io/json
 sigs.k8s.io/json/internal/golang/encoding/json
-# sigs.k8s.io/karpenter v1.6.1
+# sigs.k8s.io/karpenter v1.6.1 => github.com/celebdor/karpenter v0.0.0-20250812093507-214a6e87d57c
 ## explicit; go 1.24.4
 sigs.k8s.io/karpenter/kwok/apis
 sigs.k8s.io/karpenter/kwok/apis/v1alpha1
@@ -1128,3 +1128,4 @@ sigs.k8s.io/structured-merge-diff/v4/value
 ## explicit; go 1.22
 sigs.k8s.io/yaml
 sigs.k8s.io/yaml/goyaml.v2
+# sigs.k8s.io/karpenter => github.com/celebdor/karpenter v0.0.0-20250812093507-214a6e87d57c
