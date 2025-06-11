@@ -72,7 +72,7 @@ func (e EKS) eksBootstrapScript() string {
 		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
 	}
 	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
-		userData.WriteString(" \\\n--use-max-pods false")
+		userData.WriteString(fmt.Sprintf(" \\\n--use-max-pods false --max-pods-value %d", e.KubeletConfig.MaxPods))
 	}
 	if args := e.kubeletExtraArgs(); len(args) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", strings.Join(args, " ")))
