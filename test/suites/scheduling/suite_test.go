@@ -724,7 +724,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				env.EC2API,
 				ec2types.InstanceTypeM5Xlarge,
 				env.ZoneInfo[0].Zone,
-				1,
+				2,
 				nil,
 				nil,
 			)
@@ -781,6 +781,43 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.EventuallyExpectNodeClaimsReady(nc)
 			n := env.EventuallyExpectNodeCount("==", 1)[0]
 			Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(v1.CapacityReservationTypeDefault)))
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
+		})
+		// NOTE: We're not exercising capacity blocks because it isn't possible to provision them ad-hoc for the use in an
+		// integration test.
+		It("should schedule against a specific reservation type", func() {
+			selectors.Insert(v1.LabelCapacityReservationType)
+			pod := test.Pod(test.PodOptions{
+				NodeRequirements: []corev1.NodeSelectorRequirement{
+					{
+						Key:      v1.LabelCapacityReservationType,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{string(v1.CapacityReservationTypeDefault)},
+					},
+					// NOTE: Continue to select the xlarge instance to ensure we can use the large instance for the fallback test. ODCR
+					// capacity eventual consistency is inconsistent between different services (e.g. DescribeCapacityReservations and
+					// RunInstances) so we've allocated enough to ensure that each test can make use of them without overlapping.
+					{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{string(ec2types.InstanceTypeM5Xlarge)},
+					},
+				},
+			})
+			env.ExpectCreated(nodePool, nodeClass, pod)
+
+			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
+			req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
+				return req.Key == v1.LabelCapacityReservationType
+			})
+			Expect(ok).To(BeTrue())
+			Expect(req.Values).To(ConsistOf(string(v1.CapacityReservationTypeDefault)))
+
+			env.EventuallyExpectNodeClaimsReady(nc)
+			n := env.EventuallyExpectNodeCount("==", 1)[0]
+			Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(v1.CapacityReservationTypeDefault)))
 			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
 		})
 		It("should fall back when compatible capacity reservations are exhausted", func() {

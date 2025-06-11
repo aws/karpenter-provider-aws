@@ -159,6 +159,11 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 				nil,
 			),
 		}
+		if b.options.CapacityReservationType == v1.CapacityReservationTypeCapacityBlock {
+			lt.LaunchTemplateData.InstanceMarketOptions = &ec2types.LaunchTemplateInstanceMarketOptionsRequest{
+				MarketType: ec2types.MarketTypeCapacityBlock,
+			}
+		}
 	}
 	return lt
 }
