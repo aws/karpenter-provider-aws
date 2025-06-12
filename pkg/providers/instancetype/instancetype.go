@@ -23,6 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
+	"github.com/awslabs/operatorpkg/option"
+
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
@@ -55,7 +57,13 @@ type Provider interface {
 	List(context.Context, *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error)
 }
 
+type DefaultProviderOptions struct {
+	DiscoveredCapacityCacheKeyProvider
+}
+
 type DefaultProvider struct {
+	DefaultProviderOptions
+
 	ec2api                sdk.EC2API
 	subnetProvider        subnet.Provider
 	instanceTypesResolver Resolver
@@ -93,8 +101,14 @@ func NewDefaultProvider(
 	capacityReservationProvider capacityreservation.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	instanceTypesResolver Resolver,
+	opts ...option.Function[DefaultProviderOptions],
 ) *DefaultProvider {
+	resolvedOpts := option.Resolve(opts...)
+	if resolvedOpts.DiscoveredCapacityCacheKeyProvider == nil {
+		resolvedOpts.DiscoveredCapacityCacheKeyProvider = defaultDiscoveredCapacityCacheKeyProvider{}
+	}
 	return &DefaultProvider{
+		DefaultProviderOptions:  *resolvedOpts,
 		ec2api:                  ec2api,
 		subnetProvider:          subnetProvider,
 		instanceTypesInfo:       map[ec2types.InstanceType]ec2types.InstanceTypeInfo{},
@@ -199,8 +213,11 @@ func (p *DefaultProvider) get(ctx context.Context, nodeClass *v1.EC2NodeClass, z
 	if it == nil {
 		return nil, fmt.Errorf("failed to generate instance type %s", name)
 	}
-	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	if cached, ok := p.discoveredCapacityCache.Get(fmt.Sprintf("%s-%016x", it.Name, amiHash)); ok {
+	key, err := p.GetDiscoveredCapacityCacheKey(ctx, it.Name, nodeClass)
+	if err != nil {
+		return nil, fmt.Errorf("resovling discovered capacity cache key")
+	}
+	if cached, ok := p.discoveredCapacityCache.Get(key); ok {
 		it.Capacity[corev1.ResourceMemory] = cached.(resource.Quantity)
 	}
 	InstanceTypeVCPU.Set(float64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)), map[string]string{
@@ -331,9 +348,10 @@ func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context
 		return nil
 	}
 
-	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	key := fmt.Sprintf("%s-%016x", instanceTypeName, amiHash)
-
+	key, err := p.GetDiscoveredCapacityCacheKey(ctx, instanceTypeName, nodeClass)
+	if err != nil {
+		return fmt.Errorf("resolving cache key, %w", err)
+	}
 	actualCapacity := node.Status.Capacity.Memory()
 	if cachedCapacity, ok := p.discoveredCapacityCache.Get(key); !ok || actualCapacity.Cmp(cachedCapacity.(resource.Quantity)) < 1 {
 		// Update the capacity in the cache if it is less than or equal to the current cached capacity. We update when it's equal to refresh the TTL.
@@ -351,4 +369,21 @@ func (p *DefaultProvider) Reset() {
 	p.instanceTypesOfferings = map[ec2types.InstanceType]sets.Set[string]{}
 	p.instanceTypesCache.Flush()
 	p.discoveredCapacityCache.Flush()
+}
+
+type DiscoveredCapacityCacheKeyProvider interface {
+	GetDiscoveredCapacityCacheKey(ctx context.Context, instanceType string, nodeClass *v1.EC2NodeClass) (string, error)
+}
+
+type defaultDiscoveredCapacityCacheKeyProvider struct{}
+
+func (defaultDiscoveredCapacityCacheKeyProvider) GetDiscoveredCapacityCacheKey(_ context.Context, instanceType string, nodeClass *v1.EC2NodeClass) (string, error) {
+	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	return fmt.Sprintf("%s-%016x", instanceType, amiHash), nil
+}
+
+func WithDiscoveredCapacityCacheKeyProvider(provider DiscoveredCapacityCacheKeyProvider) option.Function[DefaultProviderOptions] {
+	return func(o *DefaultProviderOptions) {
+		o.DiscoveredCapacityCacheKeyProvider = provider
+	}
 }
