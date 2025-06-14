@@ -52,57 +52,83 @@ func (b *CreateFleetBatcher) CreateFleet(ctx context.Context, createFleetInput *
 	return result.Output, result.Err
 }
 
+// processInstances processes the instances from a CreateFleet output and returns the new request index
+func processInstances(ctx context.Context, output *ec2.CreateFleetOutput, totalCapacity int, results []Result[ec2.CreateFleetOutput], startIdx int) ([]Result[ec2.CreateFleetOutput], int) {
+	requestIdx := startIdx
+	if output == nil {
+		return results, requestIdx
+	}
+	for _, reservation := range output.Instances {
+		for _, instanceID := range reservation.InstanceIds {
+			if requestIdx >= totalCapacity {
+				log.FromContext(ctx).Error(serrors.Wrap(fmt.Errorf("received more instances than requested, ignoring instance"), "instance-id", instanceID), "received error while batching")
+				continue
+			}
+			fmt.Printf("instance %s\n", instanceID)
+			results = append(results, Result[ec2.CreateFleetOutput]{
+				Output: &ec2.CreateFleetOutput{
+					FleetId: output.FleetId,
+					Errors:  output.Errors,
+					Instances: []ec2types.CreateFleetInstance{
+						{
+							InstanceIds:                []string{instanceID},
+							InstanceType:               reservation.InstanceType,
+							LaunchTemplateAndOverrides: reservation.LaunchTemplateAndOverrides,
+							Lifecycle:                  reservation.Lifecycle,
+							Platform:                   reservation.Platform,
+						},
+					},
+					ResultMetadata: output.ResultMetadata,
+				},
+			})
+			requestIdx++
+		}
+	}
+	return results, requestIdx
+}
+
 func execCreateFleetBatch(ec2api sdk.EC2API) BatchExecutor[ec2.CreateFleetInput, ec2.CreateFleetOutput] {
 	return func(ctx context.Context, inputs []*ec2.CreateFleetInput) []Result[ec2.CreateFleetOutput] {
 		results := make([]Result[ec2.CreateFleetOutput], 0, len(inputs))
-		firstInput := inputs[0]
-		//nolint:gosec
-		firstInput.TargetCapacitySpecification.TotalTargetCapacity = aws.Int32(int32(len(inputs)))
-		output, err := ec2api.CreateFleet(ctx, firstInput)
-		if err != nil {
-			for range inputs {
-				results = append(results, Result[ec2.CreateFleetOutput]{Err: err})
-			}
+		if len(inputs) == 0 {
 			return results
 		}
-		// we can get partial fulfillment of a CreateFleet request, so we:
-		// 1) split out the single instance IDs and deliver to each requestor
-		// 2) deliver errors to any remaining requestors for which we don't have an instance
-		requestIdx := -1
-		for _, reservation := range output.Instances {
-			for _, instanceID := range reservation.InstanceIds {
-				requestIdx++
-				if requestIdx >= len(inputs) {
-					log.FromContext(ctx).Error(serrors.Wrap(fmt.Errorf("received more instances than requested, ignoring instance"), "instance-id", instanceID), "received error while batching")
-					continue
-				}
-				results = append(results, Result[ec2.CreateFleetOutput]{
-					Output: &ec2.CreateFleetOutput{
-						FleetId: output.FleetId,
-						Errors:  output.Errors,
-						Instances: []ec2types.CreateFleetInstance{
-							{
-								InstanceIds:                []string{instanceID},
-								InstanceType:               reservation.InstanceType,
-								LaunchTemplateAndOverrides: reservation.LaunchTemplateAndOverrides,
-								Lifecycle:                  reservation.Lifecycle,
-								Platform:                   reservation.Platform,
-							},
-						},
-						ResultMetadata: output.ResultMetadata,
-					},
-				})
+
+		maxRetries := 3
+		retryCount := 0
+		requestIdx := 0
+		var output *ec2.CreateFleetOutput
+
+		for retryCount < maxRetries && requestIdx < len(inputs) {
+			currentInput := inputs[requestIdx]
+			currentInput.TargetCapacitySpecification.TotalTargetCapacity = aws.Int32(int32(len(inputs) - requestIdx))
+			var err error
+			output, err = ec2api.CreateFleet(ctx, currentInput)
+			if err != nil {
+				log.FromContext(ctx).Error(err, "retry attempt failed", "attempt", retryCount+1)
+				retryCount++
+				continue
+			}
+
+			results, requestIdx = processInstances(ctx, output, len(inputs), results, requestIdx)
+			if requestIdx < len(inputs) {
+				retryCount++
 			}
 		}
-		if requestIdx != len(inputs) {
-			// we should receive some sort of error, but just in case
-			if len(output.Errors) == 0 {
-				output.Errors = append(output.Errors, ec2types.CreateFleetError{
-					ErrorCode:    aws.String("too few instances returned"),
-					ErrorMessage: aws.String("too few instances returned"),
-				})
+
+		// If we still have remaining requests after all retries, return errors
+		if requestIdx < len(inputs) {
+			if output == nil || len(output.Errors) == 0 {
+				output = &ec2.CreateFleetOutput{
+					Errors: []ec2types.CreateFleetError{
+						{
+							ErrorCode:    aws.String("too few instances returned after retries"),
+							ErrorMessage: aws.String(fmt.Sprintf("failed to create all instances after %d retries", maxRetries)),
+						},
+					},
+				}
 			}
-			for i := requestIdx + 1; i < len(inputs); i++ {
+			for i := requestIdx; i < len(inputs); i++ {
 				results = append(results, Result[ec2.CreateFleetOutput]{
 					Output: &ec2.CreateFleetOutput{
 						Errors:         output.Errors,
