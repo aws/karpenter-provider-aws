@@ -64,7 +64,6 @@ func processInstances(ctx context.Context, output *ec2.CreateFleetOutput, totalC
 				log.FromContext(ctx).Error(serrors.Wrap(fmt.Errorf("received more instances than requested, ignoring instance"), "instance-id", instanceID), "received error while batching")
 				continue
 			}
-			fmt.Printf("instance %s\n", instanceID)
 			results = append(results, Result[ec2.CreateFleetOutput]{
 				Output: &ec2.CreateFleetOutput{
 					FleetId: output.FleetId,
