@@ -454,6 +454,9 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 				p.unavailableOfferings.MarkCapacityTypeUnavailable(karpv1.CapacityTypeSpot)
 				p.recorder.Publish(SpotServiceLinkedRoleCreationFailure(nodeClaim))
 			}
+			if awserrors.IsInsufficientFreeAddressesInSubnet(err) {
+				p.unavailableOfferings.MarkAZUnavailable(*err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+			}
 		}
 		return
 	}
