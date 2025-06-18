@@ -35,6 +35,10 @@ var discoveryTags = map[string]string{
 	"karpenter.sh/discovery": "test",
 }
 
+var capacityBlockTags = map[string]string{
+	"reservation-type": "capacity-block",
+}
+
 var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 	BeforeEach(func() {
 		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
@@ -47,6 +51,7 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 					CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
 					AvailableInstanceCount: lo.ToPtr[int32](10),
 					State:                  ec2types.CapacityReservationStateActive,
+					ReservationType:        ec2types.CapacityReservationTypeDefault,
 				},
 				{
 					AvailabilityZone:       lo.ToPtr("test-zone-1a"),
@@ -57,6 +62,19 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 					AvailableInstanceCount: lo.ToPtr[int32](10),
 					Tags:                   utils.EC2MergeTags(discoveryTags),
 					State:                  ec2types.CapacityReservationStateActive,
+					ReservationType:        ec2types.CapacityReservationTypeDefault,
+				},
+				{
+					AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+					InstanceType:           lo.ToPtr("p5.48xlarge"),
+					OwnerId:                lo.ToPtr(altOwnerID),
+					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+					CapacityReservationId:  lo.ToPtr("cr-p5.48xlarge-1a"),
+					AvailableInstanceCount: lo.ToPtr[int32](2),
+					Tags:                   utils.EC2MergeTags(capacityBlockTags),
+					State:                  ec2types.CapacityReservationStateActive,
+					ReservationType:        ec2types.CapacityReservationTypeCapacityBlock,
+					EndDate:                lo.ToPtr(awsEnv.Clock.Now().Add(time.Hour * 24)),
 				},
 				{
 					AvailabilityZone:       lo.ToPtr("test-zone-1b"),
@@ -66,6 +84,7 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 					CapacityReservationId:  lo.ToPtr("cr-m5.large-1b-1"),
 					AvailableInstanceCount: lo.ToPtr[int32](15),
 					State:                  ec2types.CapacityReservationStateActive,
+					ReservationType:        ec2types.CapacityReservationTypeDefault,
 				},
 				{
 					AvailabilityZone:       lo.ToPtr("test-zone-1b"),
@@ -76,6 +95,7 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 					AvailableInstanceCount: lo.ToPtr[int32](15),
 					Tags:                   utils.EC2MergeTags(discoveryTags),
 					State:                  ec2types.CapacityReservationStateActive,
+					ReservationType:        ec2types.CapacityReservationTypeDefault,
 				},
 			},
 		})
@@ -97,6 +117,8 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 			InstanceType:          "m5.large",
 			AvailabilityZone:      "test-zone-1a",
 			EndTime:               nil,
+			ReservationType:       v1.CapacityReservationTypeDefault,
+			State:                 v1.CapacityReservationStateActive,
 		}))
 	})
 	It("should resolve capacity reservations by tags", func() {
@@ -171,4 +193,59 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 			return Entry(string(state), state), state != ec2types.CapacityReservationStateActive
 		}),
 	)
+	It("should discover capacity block reservations", func() {
+		nodeClass.Spec.CapacityReservationSelectorTerms = append(nodeClass.Spec.CapacityReservationSelectorTerms, v1.CapacityReservationSelectorTerm{
+			Tags: capacityBlockTags,
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeCapacityReservationsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.Status.CapacityReservations).To(HaveLen(1))
+		cr := nodeClass.Status.CapacityReservations[0]
+		Expect(cr.ID).To(Equal("cr-p5.48xlarge-1a"))
+		Expect(cr.ReservationType).To(Equal(v1.CapacityReservationTypeCapacityBlock))
+		Expect(cr.State).To(Equal(v1.CapacityReservationStateActive))
+	})
+	It("should mark capacity blocks as expiring 40 minutes prior to their endDate", func() {
+		out := awsEnv.EC2API.DescribeCapacityReservationsOutput.Clone()
+		for i := range out.CapacityReservations {
+			if out.CapacityReservations[i].ReservationType != ec2types.CapacityReservationTypeCapacityBlock {
+				continue
+			}
+			out.CapacityReservations[i].EndDate = lo.ToPtr(awsEnv.Clock.Now().Add(time.Minute * 40))
+		}
+		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(out)
+		nodeClass.Spec.CapacityReservationSelectorTerms = append(nodeClass.Spec.CapacityReservationSelectorTerms, v1.CapacityReservationSelectorTerm{
+			Tags: capacityBlockTags,
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeCapacityReservationsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.Status.CapacityReservations).To(HaveLen(1))
+		cr := nodeClass.Status.CapacityReservations[0]
+		Expect(cr.ID).To(Equal("cr-p5.48xlarge-1a"))
+		Expect(cr.ReservationType).To(Equal(v1.CapacityReservationTypeCapacityBlock))
+		Expect(cr.State).To(Equal(v1.CapacityReservationStateExpiring))
+	})
+	It("shouldn't mark default capacity reservations as expiring 40 minutes prior to their endDate", func() {
+		out := awsEnv.EC2API.DescribeCapacityReservationsOutput.Clone()
+		for i := range out.CapacityReservations {
+			out.CapacityReservations[i].EndDate = lo.ToPtr(awsEnv.Clock.Now().Add(time.Minute * 40))
+		}
+		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(out)
+		nodeClass.Spec.CapacityReservationSelectorTerms = append(nodeClass.Spec.CapacityReservationSelectorTerms, v1.CapacityReservationSelectorTerm{
+			Tags: discoveryTags,
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeCapacityReservationsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.Status.CapacityReservations).To(HaveLen(2))
+		for _, cr := range nodeClass.Status.CapacityReservations {
+			Expect(cr.ReservationType).To(Equal(v1.CapacityReservationTypeDefault))
+			Expect(cr.State).To(Equal(v1.CapacityReservationStateActive))
+		}
+	})
 })

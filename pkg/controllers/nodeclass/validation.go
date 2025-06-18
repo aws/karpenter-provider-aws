@@ -176,7 +176,7 @@ func (v *Validation) validateCreateFleetAuthorization(
 	_ *karpv1.NodeClaim,
 	tags map[string]string,
 ) (reason string, requeue bool, err error) {
-	createFleetInput := instance.GetCreateFleetInput(nodeClass, karpv1.CapacityTypeOnDemand, tags, mockLaunchTemplateConfig())
+	createFleetInput := instance.NewCreateFleetInputBuilder(karpv1.CapacityTypeOnDemand, tags, mockLaunchTemplateConfig()).Build()
 	createFleetInput.DryRun = lo.ToPtr(true)
 	// Adding NopRetryer to avoid aggressive retry when rate limited
 	if _, err := v.ec2api.CreateFleet(ctx, createFleetInput, func(o *ec2.Options) {
@@ -205,7 +205,7 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	if err != nil {
 		return "", false, fmt.Errorf("generating options, %w", err)
 	}
-	createLaunchTemplateInput := launchtemplate.GetCreateLaunchTemplateInput(ctx, opts, corev1.IPv4Protocol, "")
+	createLaunchTemplateInput := launchtemplate.NewCreateLaunchTemplateInputBuilder(opts, corev1.IPv4Protocol, "").Build(ctx)
 	createLaunchTemplateInput.DryRun = lo.ToPtr(true)
 	// Adding NopRetryer to avoid aggressive retry when rate limited
 	if _, err := v.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput, func(o *ec2.Options) {
@@ -237,7 +237,7 @@ func (v *Validation) validateRunInstancesAuthorization(
 
 	// We can directly marshal from CreateLaunchTemplate LaunchTemplate data
 	runInstancesInput := &ec2.RunInstancesInput{}
-	raw, err := json.Marshal(launchtemplate.GetCreateLaunchTemplateInput(ctx, opts, corev1.IPv4Protocol, "").LaunchTemplateData)
+	raw, err := json.Marshal(launchtemplate.NewCreateLaunchTemplateInputBuilder(opts, corev1.IPv4Protocol, "").Build(ctx).LaunchTemplateData)
 	if err != nil {
 		return "", false, fmt.Errorf("converting launch template input to run instances input, %w", err)
 	}

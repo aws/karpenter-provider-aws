@@ -67,6 +67,163 @@ func (compatibleAvailableFilter) Name() string {
 	return "compatible-available-filter"
 }
 
+// CapacityReservationTypeFilter creates a Filter which ensures there aren't instance types with offerings from multiple
+// capacity reservation types. This addresses a CreateFleet limitation, where we can only specify a single market type
+// (i.e. "on-demand" or "capacity-block").
+func CapacityReservationTypeFilter(requirements scheduling.Requirements) Filter {
+	return capacityReservationTypeFilter{
+		requirements: requirements,
+	}
+}
+
+type capacityReservationTypeFilter struct {
+	requirements scheduling.Requirements
+}
+
+func (f capacityReservationTypeFilter) FilterReject(instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
+	if !f.requirements.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeReserved) {
+		return instanceTypes, nil
+	}
+
+	// Select the partition with the cheapest instance type
+	selectedPartition := lo.MinBy(f.Partition(instanceTypes), func(i, j *capacityReservationTypePartition) bool {
+		if i.cheapestPrice != j.cheapestPrice {
+			return i.cheapestPrice < j.cheapestPrice
+		}
+		priorities := map[v1.CapacityReservationType]int{
+			v1.CapacityReservationTypeDefault:       0,
+			v1.CapacityReservationTypeCapacityBlock: 1,
+		}
+		return priorities[i.capacityReservationType] < priorities[j.capacityReservationType]
+	})
+	if len(selectedPartition.instanceTypes) == 0 {
+		return instanceTypes, nil
+	}
+
+	// Remove offerings which do not belong to the selected partition for the selected instance types
+	for _, it := range selectedPartition.instanceTypes {
+		it.Offerings = lo.Filter(it.Offerings, func(o *cloudprovider.Offering, _ int) bool {
+			if o.CapacityType() != karpv1.CapacityTypeReserved {
+				return false
+			}
+			if o.Requirements.Get(v1.LabelCapacityReservationType).Any() != string(selectedPartition.capacityReservationType) {
+				return false
+			}
+			return true
+		})
+	}
+	return lo.Values(selectedPartition.instanceTypes), lo.Reject(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
+		_, ok := selectedPartition.instanceTypes[it.Name]
+		return ok
+	})
+}
+
+func (f capacityReservationTypeFilter) Name() string {
+	return "capacity-reservation-type-filter"
+}
+
+type capacityReservationTypePartition struct {
+	capacityReservationType v1.CapacityReservationType
+	cheapestPrice           float64
+	instanceTypes           map[string]*cloudprovider.InstanceType
+}
+
+func (f capacityReservationTypeFilter) Partition(instanceTypes []*cloudprovider.InstanceType) []*capacityReservationTypePartition {
+	partitions := map[v1.CapacityReservationType]*capacityReservationTypePartition{}
+	for _, t := range v1.CapacityReservationType("").Values() {
+		partitions[t] = &capacityReservationTypePartition{
+			capacityReservationType: t,
+			cheapestPrice:           math.MaxFloat64,
+			instanceTypes:           map[string]*cloudprovider.InstanceType{},
+		}
+	}
+	for _, it := range instanceTypes {
+		for _, o := range it.Offerings.Available().Compatible(f.requirements) {
+			if o.CapacityType() != karpv1.CapacityTypeReserved {
+				continue
+			}
+			t := v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any())
+			p, ok := partitions[t]
+			if !ok {
+				panic("invalid capacity type in requirement")
+			}
+			if p.cheapestPrice > o.Price {
+				p.cheapestPrice = o.Price
+			}
+			p.instanceTypes[it.Name] = it
+		}
+	}
+	return lo.Values(partitions)
+}
+
+// CapacityBlockFilter creates a filter which selects the instance type with the cheapest capacity block offering if the
+// provided requirements are for a reserved launch and the provided instance types have a capacity block offering. This
+// filter is required because CreateFleet does not accept multiple capacity blocks in a given request.
+// Ref: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-launch-instances-capacity-blocks-walkthrough.html
+func CapacityBlockFilter(requirements scheduling.Requirements) Filter {
+	return capacityBlockFilter{
+		requirements: requirements,
+	}
+}
+
+type capacityBlockFilter struct {
+	requirements scheduling.Requirements
+}
+
+func (f capacityBlockFilter) FilterReject(instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
+	if !f.shouldFilter(instanceTypes) {
+		return instanceTypes, nil
+	}
+	var selectedInstanceType *cloudprovider.InstanceType
+	for _, it := range instanceTypes {
+		var selectedOffering *cloudprovider.Offering
+		for _, o := range it.Offerings {
+			if o.CapacityType() != karpv1.CapacityTypeReserved {
+				continue
+			}
+			if o.Requirements.Get(v1.LabelCapacityReservationType).Any() != string(v1.CapacityReservationTypeCapacityBlock) {
+				continue
+			}
+			if selectedOffering == nil || selectedOffering.Price > o.Price {
+				selectedOffering = o
+			}
+		}
+		if selectedOffering != nil && (selectedInstanceType == nil || selectedInstanceType.Offerings[0].Price > selectedOffering.Price) {
+			// WARNING: It is only safe to mutate the slice containing the offerings, not the offerings themselves. The
+			// individual offerings are cached, but not the slice storing them. This helps keep the launch path simple, but
+			// changes to the caching strategy employed by the InstanceType provider could result in unexpected behavior.
+			it.Offerings = []*cloudprovider.Offering{selectedOffering}
+			selectedInstanceType = it
+		}
+	}
+	return []*cloudprovider.InstanceType{selectedInstanceType}, lo.Reject(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
+		return it.Name == selectedInstanceType.Name
+	})
+}
+
+func (f capacityBlockFilter) shouldFilter(instanceTypes []*cloudprovider.InstanceType) bool {
+	if !f.requirements.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeReserved) {
+		return false
+	}
+	for _, it := range instanceTypes {
+		for _, o := range it.Offerings {
+			if !o.Requirements.Has(v1.LabelCapacityReservationType) {
+				continue
+			}
+			if o.Requirements.Get(v1.LabelCapacityReservationType).Any() == string(v1.CapacityReservationTypeCapacityBlock) {
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	return false
+}
+
+func (f capacityBlockFilter) Name() string {
+	return "capacity-block-filter"
+}
+
 // ReservedOfferingFilter creates a Filter which ensures there's only a single reserved offering per zone. This
 // addresses a limitation of the CreateFleet API, which limits calls to specifying a single offering per pool. If there
 // are multiple offerings in the same pool, the offering with the greatest capacity will be selected.

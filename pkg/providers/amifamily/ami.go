@@ -17,6 +17,7 @@ package amifamily
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -87,6 +88,14 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 	// This is enforced by a CEL validation, we will treat this as an invariant.
 	if alias := nodeClass.Alias(); alias != nil {
 		kubernetesVersion := p.versionProvider.Get(ctx)
+		if alias.Family == v1.AMIFamilyAL2 {
+			minorVersion, err := strconv.Atoi(strings.Split(kubernetesVersion, ".")[1])
+			if err == nil && minorVersion >= 33 {
+				return nil, &AL2DeprecationError{
+					error: fmt.Errorf("AL2 aliases are no longer supported on EKS 1.33+ (see https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions-standard.html#kubernetes-1-33)"),
+				}
+			}
+		}
 		query, err := GetAMIFamily(alias.Family, nil).DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, alias.Version)
 		if err != nil {
 			return []DescribeImageQuery{}, err

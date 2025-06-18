@@ -2505,6 +2505,7 @@ eviction-max-pod-grace-period = 10
 				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
 				AvailableInstanceCount: lo.ToPtr[int32](10),
 				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeDefault,
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
@@ -2514,6 +2515,7 @@ eviction-max-pod-grace-period = 10
 				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-2"),
 				AvailableInstanceCount: lo.ToPtr[int32](15),
 				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeDefault,
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1b"),
@@ -2523,6 +2525,7 @@ eviction-max-pod-grace-period = 10
 				CapacityReservationId:  lo.ToPtr("cr-m5.large-1b-1"),
 				AvailableInstanceCount: lo.ToPtr[int32](10),
 				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeDefault,
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1b"),
@@ -2532,13 +2535,14 @@ eviction-max-pod-grace-period = 10
 				CapacityReservationId:  lo.ToPtr("cr-m5.xlarge-1b-1"),
 				AvailableInstanceCount: lo.ToPtr[int32](15),
 				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeDefault,
 			},
 		}
 		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
 			CapacityReservations: crs,
 		})
 		for _, cr := range crs {
-			nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, lo.Must(nodeclass.CapacityReservationFromEC2(&cr)))
+			nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, lo.Must(v1.CapacityReservationFromEC2(fakeClock, &cr)))
 			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(*cr.CapacityReservationId, int(*cr.AvailableInstanceCount))
 		}
 
