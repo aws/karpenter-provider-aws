@@ -35,7 +35,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	"k8s.io/utils/set"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -259,12 +261,12 @@ func (c *Client) StartKillNodeThread(ctx context.Context) {
 		for _, node := range nodes.Items {
 			id, err := utils.ParseInstanceID(node.Spec.ProviderID)
 			if err != nil {
-				log.FromContext(ctx).Error(err, "unable to parse instance id for node %q", node.Name)
+				log.FromContext(ctx).WithValues("Node", klog.KObj(&node)).Error(err, "unable to parse instance id")
 				continue
 			}
-			if _, ok := c.instances.Load(id); !ok {
+			if _, ok := c.instances.Load(id); !ok && node.DeletionTimestamp.IsZero() {
 				if err = c.kubeClient.Delete(ctx, &node); client.IgnoreNotFound(err) != nil {
-					log.FromContext(ctx).Error(err, "unable to delete node %q due to gone instance", node.Name)
+					log.FromContext(ctx).WithValues("Node", klog.KObj(&node)).Error(err, "unable to delete due to gone instance")
 					continue
 				}
 			}
@@ -596,7 +598,9 @@ func (c *Client) CreateFleet(ctx context.Context, input *ec2.CreateFleetInput, _
 			// This is meant to simulate instance startup time
 			case <-c.clock.After(30 * time.Second):
 			}
-			if err := c.kubeClient.Create(launchCtx, c.toNode(ctx, instance)); err != nil {
+			if err := retry.OnError(retry.DefaultBackoff, func(_ error) bool { return true }, func() error {
+				return c.kubeClient.Create(launchCtx, c.toNode(ctx, instance))
+			}); err != nil {
 				c.instances.Delete(lo.FromPtr(instance.InstanceId))
 				c.instanceLaunchCancels.Delete(lo.FromPtr(instance.InstanceId))
 			}
