@@ -236,55 +236,65 @@ func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
 				continue
 			}
 			funcPkg := getFuncPackage(ce.Fun)
-			if funcPkg != "prometheus" {
+			if funcPkg != "prometheus" && funcPkg != "opmetrics" {
 				continue
 			}
 			if len(ce.Args) == 0 {
 				continue
 			}
-			arg := ce.Args[0].(*ast.CompositeLit)
-			keyValuePairs := map[string]string{}
-			for _, el := range arg.Elts {
-				kv := el.(*ast.KeyValueExpr)
-				key := fmt.Sprintf("%s", kv.Key)
-				switch key {
-				case "Namespace", "Subsystem", "Name", "Help":
-				default:
-					// skip any keys we don't care about
-					continue
-				}
-				value := ""
-				switch val := kv.Value.(type) {
-				case *ast.BasicLit:
-					value = val.Value
-				case *ast.SelectorExpr:
-					selector := fmt.Sprintf("%s.%s", val.X, val.Sel)
-					if v, err := getIdentMapping(selector); err != nil {
-						log.Fatalf("unsupported selector %s, %s", selector, err)
-					} else {
-						value = v
+
+			// Iterate over all arguments
+			for _, arg := range ce.Args {
+				// Check if the argument is a composite literal
+				if compositeLit, ok := arg.(*ast.CompositeLit); ok {
+					keyValuePairs := map[string]string{}
+					for _, el := range compositeLit.Elts {
+						// Ensure the element is a KeyValueExpr before processing
+						kv, ok := el.(*ast.KeyValueExpr)
+						if !ok {
+							continue // Skip this element if it's not a KeyValueExpr
+						}
+						key := fmt.Sprintf("%s", kv.Key)
+						switch key {
+						case "Namespace", "Subsystem", "Name", "Help" : 
+						default:
+							// skip any keys we don't care about
+							continue
+						}
+						value := ""
+						switch val := kv.Value.(type) {
+						case *ast.BasicLit:
+							value = val.Value
+						case *ast.SelectorExpr:
+							selector := fmt.Sprintf("%s.%s", val.X, val.Sel)
+							if v, err := getIdentMapping(selector); err != nil {
+								log.Fatalf("unsupported selector %s, %s", selector, err)
+							} else {
+								value = v
+							}
+						case *ast.Ident:
+							if v, err := getIdentMapping(val.String()); err != nil {
+								log.Fatal(err)
+							} else {
+								value = v
+							}
+						case *ast.BinaryExpr:
+							value = getBinaryExpr(val)
+						default:
+							log.Fatalf("unsupported value %T %v", kv.Value, kv.Value)
+						}
+						keyValuePairs[key] = strings.TrimFunc(value, func(r rune) bool {
+							return r == '"'
+						})
 					}
-				case *ast.Ident:
-					if v, err := getIdentMapping(val.String()); err != nil {
-						log.Fatal(err)
-					} else {
-						value = v
-					}
-				case *ast.BinaryExpr:
-					value = getBinaryExpr(val)
-				default:
-					log.Fatalf("unsupported value %T %v", kv.Value, kv.Value)
+					promMetrics = append(promMetrics, metricInfo{
+						namespace: keyValuePairs["Namespace"],
+						subsystem: keyValuePairs["Subsystem"],
+						name:      keyValuePairs["Name"],
+						help:      keyValuePairs["Help"],
+					})
 				}
-				keyValuePairs[key] = strings.TrimFunc(value, func(r rune) bool {
-					return r == '"'
-				})
 			}
-			promMetrics = append(promMetrics, metricInfo{
-				namespace: keyValuePairs["Namespace"],
-				subsystem: keyValuePairs["Subsystem"],
-				name:      keyValuePairs["Name"],
-				help:      keyValuePairs["Help"],
-			})
 		}
 	}
 	return promMetrics
