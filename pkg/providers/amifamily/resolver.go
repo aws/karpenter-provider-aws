@@ -292,7 +292,10 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			CapacityType:            capacityType,
 			CapacityReservationID:   id,
 			CapacityReservationType: capacityReservationType,
-			Tenancy:                 *nodeClass.Spec.Tenancy,
+			Tenancy:                 aws.ToString(nodeClass.Spec.Tenancy),
+		}
+		if resolved.Tenancy == "" {
+			resolved.Tenancy = string(ec2types.TenancyDefault)
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()

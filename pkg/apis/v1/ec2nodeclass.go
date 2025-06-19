@@ -141,11 +141,10 @@ type EC2NodeClassSpec struct {
 	// Tenancy of the instance. An instance with a tenancy of dedicated runs on single-tenant hardware.
 	//
 	// If not set, Tenancy will be set to default.
-	// Currently, Karpenter only support default and dedicated option.
+	// Currently, Karpenter only supports default and dedicated option.
 	// For more information,
 	// See the AWS::EC2::LaunchTemplate Placement Document.
 	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/dedicated-instance.html
-	// +kubebuilder:default=default
 	// +kubebuilder:validation:Enum:={default,dedicated}
 	// +optional
 	Tenancy *string `json:"tenancy,omitempty"`
