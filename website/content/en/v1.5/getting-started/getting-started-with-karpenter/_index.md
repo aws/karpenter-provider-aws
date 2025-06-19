@@ -48,7 +48,7 @@ After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
-export KARPENTER_VERSION="1.2.3"
+export KARPENTER_VERSION="1.5.1"
 export K8S_VERSION="1.32"
 ```
 
@@ -115,27 +115,19 @@ See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/
 As the OCI Helm chart is signed by [Cosign](https://github.com/sigstore/cosign) as part of the release process you can verify the chart before installing it by running the following command.
 
 ```bash
-cosign verify public.ecr.aws/karpenter/karpenter:1.2.3 \
+cosign verify public.ecr.aws/karpenter/karpenter:1.5.1 \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v1.2.3 \
-  --annotations version=1.2.3
+  --certificate-github-workflow-ref=refs/tags/v1.5.1 \
+  --annotations version=1.5.1
 ```
 
 {{% alert title="DNS Policy Notice" color="warning" %}}
 Karpenter uses the `ClusterFirst` pod DNS policy by default. This is the Kubernetes cluster default and this ensures that Karpenter can reach-out to internal Kubernetes services during its lifetime. There may be cases where you do not have the DNS service that you are using on your cluster up-and-running before Karpenter starts up. The most common case of this is you want Karpenter to manage the node capacity where your DNS service pods are running.
 
 If you need Karpenter to manage the DNS service pods' capacity, this means that DNS won't be running when Karpenter starts-up. In this case, you will need to set the pod DNS policy to `Default` with `--set dnsPolicy=Default`. This will tell Karpenter to use the host's DNS resolution instead of the internal DNS resolution, ensuring that you don't have a dependency on the DNS service pods to run. More details on this issue can be found in the following Github issues: [#2186](https://github.com/aws/karpenter-provider-aws/issues/2186) and [#4947](https://github.com/aws/karpenter-provider-aws/issues/4947).
-{{% /alert %}}
-
-{{% alert title="Common Expression Language/Webhooks Notice" color="warning" %}}
-Karpenter supports using [Kubernetes Common Expression Language](https://kubernetes.io/docs/reference/using-api/cel/) for validating its Custom Resource Definitions out-of-the-box; however, this feature is not supported on versions of Kubernetes < 1.25. If you are running an earlier version of Kubernetes, you will need to use the Karpenter admission webhooks for validation instead. You can enable these webhooks with `--set webhook.enabled=true` when applying the Karpenter Helm chart.
-{{% /alert %}}
-
-{{% alert title="Pod Identity Supports Notice" color="warning" %}}
-Karpenter now supports using [Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html) to authenticate AWS SDK to make API requests to AWS services using AWS Identity and Access Management (IAM) permissions. This feature not supported on versions of Kubernetes < 1.24.  If you are running an earlier version of Kubernetes, you will need to use the [IAM Roles for Service Accounts(IRSA)](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html) for pod authentication instead. You can enable these IRSA with `--set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}"` when applying the Karpenter Helm chart.
 {{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
