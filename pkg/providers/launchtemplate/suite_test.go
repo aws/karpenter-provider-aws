@@ -2379,7 +2379,7 @@ eviction-max-pod-grace-period = 10
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
 			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(ltInput.LaunchTemplateData.Placement.Tenancy).To(BeNil())
+				Expect(ltInput.LaunchTemplateData.Placement.Tenancy).To(Equal(ec2types.TenancyDefault))
 			})
 		})
 		It("should pass tenancy setting to the dedicated", func() {
@@ -2392,7 +2392,7 @@ eviction-max-pod-grace-period = 10
 
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
 			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(ltInput.LaunchTemplateData.Placement.Tenancy).To(Eq(ec2types.TenancyDedicated))
+				Expect(ltInput.LaunchTemplateData.Placement.Tenancy).To(Equal(ec2types.TenancyDedicated))
 			})
 		})
 	})
