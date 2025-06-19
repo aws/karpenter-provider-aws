@@ -34,6 +34,7 @@ type UnavailableOfferings struct {
 	// key: <capacityType>:<instanceType>:<zone>, value: struct{}{}
 	offeringCache     *cache.Cache
 	capacityTypeCache *cache.Cache
+	azCache           *cache.Cache
 	SeqNum            uint64
 }
 
@@ -41,6 +42,7 @@ func NewUnavailableOfferings() *UnavailableOfferings {
 	uo := &UnavailableOfferings{
 		offeringCache:     cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
 		capacityTypeCache: cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
+		azCache:           cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
 		SeqNum:            0,
 	}
 	uo.offeringCache.OnEvicted(func(_ string, _ interface{}) {
@@ -56,7 +58,8 @@ func NewUnavailableOfferings() *UnavailableOfferings {
 func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType, zone, capacityType string) bool {
 	_, offeringFound := u.offeringCache.Get(u.key(instanceType, zone, capacityType))
 	_, capacityTypeFound := u.capacityTypeCache.Get(capacityType)
-	return offeringFound || capacityTypeFound
+	_, azFound := u.azCache.Get(zone)
+	return offeringFound || capacityTypeFound || azFound
 }
 
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
@@ -83,6 +86,10 @@ func (u *UnavailableOfferings) MarkCapacityTypeUnavailable(capacityType string) 
 	atomic.AddUint64(&u.SeqNum, 1)
 }
 
+func (u *UnavailableOfferings) MarkAZUnavailable(zone string) {
+	u.azCache.SetDefault(zone, struct{}{})
+}
+
 func (u *UnavailableOfferings) Delete(instanceType ec2types.InstanceType, zone string, capacityType string) {
 	u.offeringCache.Delete(u.key(instanceType, zone, capacityType))
 }
@@ -90,6 +97,7 @@ func (u *UnavailableOfferings) Delete(instanceType ec2types.InstanceType, zone s
 func (u *UnavailableOfferings) Flush() {
 	u.offeringCache.Flush()
 	u.capacityTypeCache.Flush()
+	u.azCache.Flush()
 }
 
 // key returns the cache key for all offerings in the cache
