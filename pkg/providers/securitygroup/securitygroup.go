@@ -48,7 +48,7 @@ func NewDefaultProvider(ec2api sdk.EC2API, cache *cache.Cache) *DefaultProvider 
 	return &DefaultProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		// TODO: Remove cache cache when we utilize the security groups from the EC2NodeClass.status
+		// Cache is used as a fallback when security groups are not yet available in EC2NodeClass.status
 		cache: cache,
 	}
 }
@@ -57,7 +57,23 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	p.Lock()
 	defer p.Unlock()
 
-	// Get SecurityGroups
+	// First check if security groups are available in the EC2NodeClass.status
+	if len(nodeClass.Status.SecurityGroups) > 0 {
+		// Convert from v1.SecurityGroup to ec2types.SecurityGroup
+		securityGroups := lo.Map(nodeClass.Status.SecurityGroups, func(sg v1.SecurityGroup, _ int) ec2types.SecurityGroup {
+			return ec2types.SecurityGroup{
+				GroupId:   aws.String(sg.ID),
+				GroupName: aws.String(sg.Name),
+			}
+		})
+		securityGroupIDs := lo.Map(nodeClass.Status.SecurityGroups, func(sg v1.SecurityGroup, _ int) string { return sg.ID })
+		log.FromContext(ctx).
+			WithValues("security-groups", securityGroupIDs).
+			V(1).Info("using security groups from EC2NodeClass.status")
+		return securityGroups, nil
+	}
+
+	// Fall back to querying AWS if security groups are not in status
 	filterSets := getFilterSets(nodeClass.Spec.SecurityGroupSelectorTerms)
 	securityGroups, err := p.getSecurityGroups(ctx, filterSets)
 	if err != nil {
