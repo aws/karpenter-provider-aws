@@ -30,6 +30,7 @@ const (
 	UnauthorizedOperationErrorCode                 = "UnauthorizedOperation"
 	RateLimitingErrorCode                          = "RequestLimitExceeded"
 	ServiceLinkedRoleCreationNotPermittedErrorCode = "AuthFailure.ServiceLinkedRoleCreationNotPermitted"
+	InsufficientFreeAddressesInSubnetErrorCode     = "InsufficientFreeAddressesInSubnet"
 )
 
 var (
@@ -157,6 +158,10 @@ func IsUnfulfillableCapacity(err ec2types.CreateFleetError) bool {
 
 func IsServiceLinkedRoleCreationNotPermitted(err ec2types.CreateFleetError) bool {
 	return *err.ErrorCode == ServiceLinkedRoleCreationNotPermittedErrorCode
+}
+
+func IsInsufficientFreeAddressesInSubnet(err ec2types.CreateFleetError) bool {
+	return *err.ErrorCode == InsufficientFreeAddressesInSubnetErrorCode
 }
 
 // IsReservationCapacityExceeded returns true if the fleet error means there is no remaining capacity for the provided
