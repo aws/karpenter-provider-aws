@@ -445,6 +445,13 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	nodeClaim *karpv1.NodeClaim,
 	instanceTypes []*cloudprovider.InstanceType,
 ) {
+	for _, err := range errs {
+		zone := lo.FromPtr(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+		if awserrors.IsInsufficientFreeAddressesInSubnet(err) && zone != "" {
+			p.unavailableOfferings.MarkAZUnavailable(zone)
+		}
+	}
+
 	if capacityType != karpv1.CapacityTypeReserved {
 		for _, err := range errs {
 			if awserrors.IsUnfulfillableCapacity(err) {
@@ -453,9 +460,6 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 			if awserrors.IsServiceLinkedRoleCreationNotPermitted(err) {
 				p.unavailableOfferings.MarkCapacityTypeUnavailable(karpv1.CapacityTypeSpot)
 				p.recorder.Publish(SpotServiceLinkedRoleCreationFailure(nodeClaim))
-			}
-			if awserrors.IsInsufficientFreeAddressesInSubnet(err) {
-				p.unavailableOfferings.MarkAZUnavailable(*err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
 			}
 		}
 		return

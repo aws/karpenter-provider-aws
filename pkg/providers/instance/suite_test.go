@@ -376,7 +376,16 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
 
-		// We should have set the subnet used in the request as unavailable
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", "on-demand")).To(BeTrue())
+		// We should have set the zone used in the request as unavailable for all instance types
+		for _, instance := range instanceTypes {
+			Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable(ec2types.InstanceType(instance.Name), "test-zone-1a", "on-demand")).To(BeTrue())
+		}
+		// But we should not have set the other zones as unavailable
+		zones := []string{"test-zone-1b", "test-zone-1c"}
+		for _, zone := range zones {
+			for _, instance := range instanceTypes {
+				Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable(ec2types.InstanceType(instance.Name), zone, "on-demand")).To(BeFalse())
+			}
+		}
 	})
 })
