@@ -144,7 +144,7 @@ type EC2NodeClassSpec struct {
 	// Currently, Karpenter only support default and dedicated option.
 	// For more information,
 	// See the AWS::EC2::LaunchTemplate Placement Document.
-	// https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-placement.html
+	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/dedicated-instance.html
 	// +kubebuilder:default=default
 	// +kubebuilder:validation:Enum:={default,dedicated}
 	// +optional
