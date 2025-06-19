@@ -210,6 +210,9 @@ func ToReasonMessage(err error) (string, string) {
 	if strings.Contains(err.Error(), "InvalidAMIID.Malformed") {
 		return "InvalidAMIID", "AMI used for instance launch is invalid"
 	}
+	if strings.Contains(err.Error(), "InvalidAMIID.NotFound") {
+		return "AMINotFound", "AMI used for instance launch either does not exist or you don't have permissions to use it"
+	}
 	if strings.Contains(err.Error(), "RequestLimitExceeded") {
 		return "RequestLimitExceeded", "Request limit exceeded"
 	}
