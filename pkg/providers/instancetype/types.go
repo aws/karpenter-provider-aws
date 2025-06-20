@@ -143,7 +143,7 @@ func NewInstanceType(
 		Requirements: computeRequirements(info, region, offeringZones, subnetZonesToZoneIDs, amiFamily, capacityReservations),
 		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, maxPods, podsPerCore), ENILimitedPods(ctx, info), amiFamily, kubeReserved),
+			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, maxPods, podsPerCore), ENILimitedPods(ctx, info, true), amiFamily, kubeReserved),
 			SystemReserved:    systemReservedResources(systemReserved),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
 		},
@@ -454,7 +454,7 @@ func efas(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo) *resource.Quantity {
+func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo, ignoreReservedENI bool) *resource.Quantity {
 	// The number of pods per node is calculated using the formula:
 	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 	// https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/eni-max-pods.txt
@@ -467,6 +467,9 @@ func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo) *resour
 		return resource.NewQuantity(0, resource.DecimalSI)
 	}
 	addressesPerInterface := *info.NetworkInfo.Ipv4AddressesPerInterface
+	if ignoreReservedENI {
+		return resources.Quantity(fmt.Sprint(networkInterfaces*(addressesPerInterface-1) + 2))
+	}
 	return resources.Quantity(fmt.Sprint(usableNetworkInterfaces*(int64(addressesPerInterface)-1) + 2))
 }
 
@@ -555,7 +558,7 @@ func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifami
 	case maxPods != nil:
 		count = int64(lo.FromPtr(maxPods))
 	case amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
-		count = ENILimitedPods(ctx, info).Value()
+		count = ENILimitedPods(ctx, info, false).Value()
 	default:
 		count = 110
 
