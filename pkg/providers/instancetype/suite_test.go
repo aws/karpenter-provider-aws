@@ -1622,6 +1622,37 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
 			}
 		})
+		It("should set max-pods to user-defined value if specified but kube-reserved memory should use eniLimitedPods", func() {
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				MaxPods: lo.ToPtr(int32(10)),
+			}
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
+			Expect(err).To(BeNil())
+			t3Large, ok := lo.Find(instanceInfo.InstanceTypes, func(info ec2types.InstanceTypeInfo) bool {
+				return info.InstanceType == "t3.large"
+			})
+			Expect(ok).To(Equal(true))
+			it := instancetype.NewInstanceType(ctx,
+				t3Large,
+				fake.DefaultRegion,
+				nil,
+				nil,
+				nodeClass.Spec.BlockDeviceMappings,
+				nodeClass.Spec.InstanceStorePolicy,
+				nodeClass.Spec.Kubelet.MaxPods,
+				nodeClass.Spec.Kubelet.PodsPerCore,
+				nodeClass.Spec.Kubelet.KubeReserved,
+				nodeClass.Spec.Kubelet.SystemReserved,
+				nodeClass.Spec.Kubelet.EvictionHard,
+				nodeClass.Spec.Kubelet.EvictionSoft,
+				nodeClass.AMIFamily(),
+				nil,
+			)
+			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
+			// For AL2, kube-reserved memory calculation should be based on the eniLimitedPods that ignores the reserved ENI
+			// 11 * (3*(12-1)+2) + 255 = 640
+			Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("640Mi"))
+		})
 		It("should override max-pods value", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
@@ -1648,7 +1679,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
 			}
 		})
-		It("should reserve ENIs when aws.reservedENIs is set and is used in max-pods calculation", func() {
+		It("should reserve ENIs when aws.reservedENIs is set and use it in max-pods calculation but ignore in kube-reserved memory calculation when AMI family is AL2", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				ReservedENIs: lo.ToPtr(1),
 			}))
@@ -1683,6 +1714,49 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// (3 - 1) * (12 - 1) + 2 = 24
 			maxPods := 24
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", maxPods))
+			// For AL2, kube-reserved memory calculation should be based on the eniLimitedPods that ignores the reserved ENI
+			// 11 * (3*(12-1)+2) + 255 = 640
+			Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("640Mi"))
+		})
+		It("should reserve ENIs when aws.reservedENIs is set and use it in max-pods calculation and in kube-reserved memory calculation when AMI family is bottlerocket", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				ReservedENIs: lo.ToPtr(1),
+			}))
+
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
+			Expect(err).To(BeNil())
+			t3Large, ok := lo.Find(instanceInfo.InstanceTypes, func(info ec2types.InstanceTypeInfo) bool {
+				return info.InstanceType == "t3.large"
+			})
+			Expect(ok).To(Equal(true))
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
+			it := instancetype.NewInstanceType(ctx,
+				t3Large,
+				fake.DefaultRegion,
+				nil,
+				nil,
+				nodeClass.Spec.BlockDeviceMappings,
+				nodeClass.Spec.InstanceStorePolicy,
+				nodeClass.Spec.Kubelet.MaxPods,
+				nodeClass.Spec.Kubelet.PodsPerCore,
+				nodeClass.Spec.Kubelet.KubeReserved,
+				nodeClass.Spec.Kubelet.SystemReserved,
+				nodeClass.Spec.Kubelet.EvictionHard,
+				nodeClass.Spec.Kubelet.EvictionSoft,
+				nodeClass.AMIFamily(),
+				nil,
+			)
+			// t3.large
+			// maxInterfaces = 3
+			// maxIPv4PerInterface = 12
+			// reservedENIs = 1
+			// (3 - 1) * (12 - 1) + 2 = 24
+			maxPods := 24
+			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", maxPods))
+			// For bottlerocket, kube-reserved memory calculation should be based on the eniLimitedPods that takes reserved ENI into account
+			// 11 * ((3-1)*(12-1)+2) + 255 = 640
+			Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("519Mi"))
 		})
 		It("should reserve ENIs when aws.reservedENIs is set and not go below 0 ENIs in max-pods calculation", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
@@ -1798,7 +1872,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
-				limitedPods := instancetype.ENILimitedPods(ctx, info)
+				limitedPods := instancetype.ENILimitedPods(ctx, info, false)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})
