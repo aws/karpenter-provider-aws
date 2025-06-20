@@ -184,15 +184,25 @@ func (in *EC2NodeClass) SetConditions(conditions []status.Condition) {
 	in.Status.Conditions = conditions
 }
 
-func (in *EC2NodeClass) ZoneIDMap() map[string]string {
-	return lo.SliceToMap(in.Status.Subnets, func(s Subnet) (string, string) {
-		return s.Zone, s.ZoneID
-	})
+func (in *EC2NodeClass) AMIs() []AMI {
+	return in.Status.AMIs
 }
 
-func (in *EC2NodeClass) Zones() []string {
-	return lo.Map(in.Status.Subnets, func(s Subnet, _ int) string {
-		return s.Zone
+func (in *EC2NodeClass) CapacityReservations() []CapacityReservation {
+	return in.Status.CapacityReservations
+}
+
+type ZoneInfo struct {
+	Zone   string
+	ZoneID string
+}
+
+func (in *EC2NodeClass) ZoneInfo() []ZoneInfo {
+	return lo.Map(in.Status.Subnets, func(_ Subnet, i int) ZoneInfo {
+		return ZoneInfo{
+			Zone:   in.Status.Subnets[i].Zone,
+			ZoneID: in.Status.Subnets[i].ZoneID,
+		}
 	})
 }
 
