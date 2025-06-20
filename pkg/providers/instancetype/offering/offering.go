@@ -39,6 +39,11 @@ type Provider interface {
 	InjectOfferings(context.Context, []*cloudprovider.InstanceType, *v1.EC2NodeClass, []string) []*cloudprovider.InstanceType
 }
 
+type NodeClass interface {
+	CapacityReservations() []v1.CapacityReservation
+	ZoneInfo() []v1.ZoneInfo
+}
+
 type DefaultProvider struct {
 	pricingProvider             pricing.Provider
 	capacityReservationProvider capacityreservation.Provider
@@ -63,11 +68,11 @@ func NewDefaultProvider(
 func (p *DefaultProvider) InjectOfferings(
 	ctx context.Context,
 	instanceTypes []*cloudprovider.InstanceType,
-	nodeClass *v1.EC2NodeClass,
+	nodeClass NodeClass,
 	allZones sets.Set[string],
 ) []*cloudprovider.InstanceType {
-	subnetZones := lo.SliceToMap(nodeClass.Status.Subnets, func(s v1.Subnet) (string, string) {
-		return s.Zone, s.ZoneID
+	subnetZonesToZoneIDs := lo.SliceToMap(nodeClass.ZoneInfo(), func(info v1.ZoneInfo) (string, string) {
+		return info.Zone, info.ZoneID
 	})
 	var its []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
@@ -76,7 +81,7 @@ func (p *DefaultProvider) InjectOfferings(
 			it,
 			nodeClass,
 			allZones,
-			subnetZones,
+			subnetZonesToZoneIDs,
 		)
 		// NOTE: By making this copy one level deep, we can modify the offerings without mutating the results from previous
 		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and
@@ -96,9 +101,9 @@ func (p *DefaultProvider) InjectOfferings(
 func (p *DefaultProvider) createOfferings(
 	ctx context.Context,
 	it *cloudprovider.InstanceType,
-	nodeClass *v1.EC2NodeClass,
+	nodeClass NodeClass,
 	allZones sets.Set[string],
-	subnetZones map[string]string,
+	subnetZonesToZoneIDs map[string]string,
 ) cloudprovider.Offerings {
 	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
@@ -134,7 +139,7 @@ func (p *DefaultProvider) createOfferings(
 					Price:     price,
 					Available: !isUnavailable && hasPrice && itZones.Has(zone),
 				}
-				if id, ok := subnetZones[zone]; ok {
+				if id, ok := subnetZonesToZoneIDs[zone]; ok {
 					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
 				}
 				cachedOfferings = append(cachedOfferings, offering)
@@ -147,11 +152,12 @@ func (p *DefaultProvider) createOfferings(
 		return offerings
 	}
 
-	for i := range nodeClass.Status.CapacityReservations {
-		if nodeClass.Status.CapacityReservations[i].InstanceType != it.Name {
+	capacityReservations := nodeClass.CapacityReservations()
+	for i := range capacityReservations {
+		if capacityReservations[i].InstanceType != it.Name {
 			continue
 		}
-		reservation := &nodeClass.Status.CapacityReservations[i]
+		reservation := &capacityReservations[i]
 		price := 0.0
 		if odPrice, ok := p.pricingProvider.OnDemandPrice(ec2types.InstanceType(it.Name)); ok {
 			// Divide the on-demand price by a sufficiently large constant. This allows us to treat the reservation as "free",
@@ -172,7 +178,7 @@ func (p *DefaultProvider) createOfferings(
 			Available:           reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone),
 			ReservationCapacity: reservationCapacity,
 		}
-		if id, ok := subnetZones[reservation.AvailabilityZone]; ok {
+		if id, ok := subnetZonesToZoneIDs[reservation.AvailabilityZone]; ok {
 			offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
 		}
 		offerings = append(offerings, offering)
