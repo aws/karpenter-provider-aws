@@ -133,6 +133,9 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			},
 			NetworkInterfaces: networkInterfaces,
 			TagSpecifications: launchTemplateDataTags,
+			Placement: &ec2types.LaunchTemplatePlacementRequest{
+				Tenancy: ec2types.Tenancy(b.options.Tenancy),
+			},
 		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{

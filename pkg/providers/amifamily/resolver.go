@@ -79,6 +79,7 @@ type LaunchTemplate struct {
 	CapacityType            string
 	CapacityReservationID   string
 	CapacityReservationType v1.CapacityReservationType
+	Tenancy                 string
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -291,6 +292,10 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			CapacityType:            capacityType,
 			CapacityReservationID:   id,
 			CapacityReservationType: capacityReservationType,
+			Tenancy:                 aws.ToString(nodeClass.Spec.Tenancy),
+		}
+		if resolved.Tenancy == "" {
+			resolved.Tenancy = string(ec2types.TenancyDefault)
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()

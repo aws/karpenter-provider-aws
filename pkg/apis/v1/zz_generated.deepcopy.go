@@ -358,6 +358,11 @@ func (in *EC2NodeClassSpec) DeepCopyInto(out *EC2NodeClassSpec) {
 		*out = new(MetadataOptions)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Tenancy != nil {
+		in, out := &in.Tenancy, &out.Tenancy
+		*out = new(string)
+		**out = **in
+	}
 	if in.Context != nil {
 		in, out := &in.Context, &out.Context
 		*out = new(string)
