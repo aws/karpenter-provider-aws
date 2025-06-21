@@ -418,6 +418,7 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 		}); ok && subnet.ZoneID != "" {
 			labels[v1.LabelTopologyZoneID] = subnet.ZoneID
 		}
+		labels[v1.LabelTenancy] = string(i.Tenancy)
 	}
 	labels[karpv1.CapacityTypeLabelKey] = i.CapacityType
 	if i.CapacityType == karpv1.CapacityTypeReserved {

@@ -19,6 +19,8 @@ import (
 	"log"
 	"strings"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -538,6 +540,13 @@ func (in *EC2NodeClass) AMIFamily() string {
 	}
 	// Unreachable: validation enforces that one of the above conditions must be met
 	return AMIFamilyCustom
+}
+
+func (in *EC2NodeClass) Tenancy() ec2types.Tenancy {
+	if in.Spec.Tenancy == nil {
+		return ec2types.TenancyDefault
+	}
+	return ec2types.Tenancy(*in.Spec.Tenancy)
 }
 
 type Alias struct {

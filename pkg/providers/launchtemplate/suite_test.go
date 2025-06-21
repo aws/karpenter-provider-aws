@@ -2370,31 +2370,23 @@ eviction-max-pod-grace-period = 10
 			})
 		})
 	})
-	Context("Tenancy dedicated", func() {
-		It("should default tenancy was not set", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(ltInput.LaunchTemplateData.Placement.Tenancy).To(Equal(ec2types.TenancyDefault))
-			})
-		})
-		It("should pass tenancy setting to the dedicated", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
-			nodeClass.Spec.Tenancy = lo.ToPtr("dedicated")
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-
-			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(ltInput.LaunchTemplateData.Placement.Tenancy).To(Equal(ec2types.TenancyDedicated))
-			})
-		})
+	Context("Tenancy", func() {
+		DescribeTable("Sets tenancy on launch template",
+			func(specTenancy *string, tenancy ec2types.Tenancy) {
+				nodeClass.Spec.Tenancy = specTenancy
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					Expect(ltInput.LaunchTemplateData.Placement.Tenancy).To(Equal(tenancy))
+				})
+			},
+			Entry("nil specifiec", nil, ec2types.TenancyDefault),
+			Entry("default specified", lo.ToPtr("default"), ec2types.TenancyDefault),
+			Entry("dedicated specified", lo.ToPtr("dedicated"), ec2types.TenancyDedicated),
+		)
 	})
 	Context("Instance Metadata", func() {
 		It("should set the default instance metadata settings on instances", func() {

@@ -270,6 +270,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// TODO: add back to test with a preconfigured reserved instance type
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
+			v1.LabelTenancy,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		var pods []*corev1.Pod
@@ -331,6 +332,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					v1.LabelInstanceAcceleratorName,
 					v1.LabelInstanceAcceleratorManufacturer,
 					corev1.LabelWindowsBuild,
+					v1.LabelTenancy,
 				)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
@@ -385,6 +387,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceGPUMemory,
 			v1.LabelInstanceLocalNVME,
 			corev1.LabelWindowsBuild,
+			v1.LabelTenancy,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))
 

@@ -1504,4 +1504,21 @@ var _ = Describe("CloudProvider", func() {
 			}),
 		)
 	})
+	Context("Tenancy", func() {
+		DescribeTable("should include tenancy labels",
+			func(specTenancy *string, labelValue string) {
+				nodeClass.Spec.Tenancy = specTenancy
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+				cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(cloudProviderNodeClaim).ToNot(BeNil())
+				tenancy, ok := cloudProviderNodeClaim.GetLabels()[v1.LabelTenancy]
+				Expect(ok).To(BeTrue())
+				Expect(tenancy).To(Equal(labelValue))
+			},
+			Entry("nil", nil, "default"),
+			Entry("default", lo.ToPtr("default"), "default"),
+			Entry("dedicated", lo.ToPtr("dedicated"), "dedicated"),
+		)
+	})
 })
