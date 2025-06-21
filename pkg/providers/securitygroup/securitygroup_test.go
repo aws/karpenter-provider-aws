@@ -64,7 +64,7 @@ var _ = Describe("SecurityGroupProvider with Status", func() {
 		// Call List and verify it returns security groups from status
 		securityGroups, err := provider.List(context.Background(), nodeClassWithStatus)
 		Expect(err).To(BeNil())
-		
+
 		// Verify the returned security groups match those in status
 		Expect(securityGroups).To(HaveLen(2))
 		Expect(securityGroups).To(ContainElement(ec2types.SecurityGroup{
