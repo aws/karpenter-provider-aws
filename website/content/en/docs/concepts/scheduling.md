@@ -20,7 +20,7 @@ The final layer comes from you adding specifications to your Kubernetes pod depl
 Pod scheduling constraints must fall within a NodePool's constraints or the pods will not deploy.
 For example, if the NodePool sets limits that allow only a particular zone to be used, and a pod asks for a different zone, it will not be scheduled.
 
-Constraints you can request include:
+Constraints that your request can include:
 
 * **Resource requests**: Request that certain amount of memory or CPU be available.
 * **Node selection**: Choose to run on a node that is has a particular label (`nodeSelector`).
