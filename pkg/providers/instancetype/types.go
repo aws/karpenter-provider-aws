@@ -143,7 +143,7 @@ func NewInstanceType(
 		Requirements: computeRequirements(info, region, offeringZones, subnetZonesToZoneIDs, amiFamily, capacityReservations),
 		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, maxPods, podsPerCore), ENILimitedPods(ctx, info), amiFamily, kubeReserved),
+			KubeReserved:      kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead, ENILimitedPods(options.ToContext(ctx, &options.Options{ReservedENIs: 0}), info), pods(ctx, info, amiFamily, maxPods, podsPerCore)), kubeReserved),
 			SystemReserved:    systemReservedResources(systemReserved),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
 		},
@@ -485,10 +485,7 @@ func systemReservedResources(systemReserved map[string]string) corev1.ResourceLi
 	})
 }
 
-func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFamily amifamily.AMIFamily, kubeReserved map[string]string) corev1.ResourceList {
-	if amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead {
-		pods = eniLimitedPods
-	}
+func kubeReservedResources(cpus, pods *resource.Quantity, kubeReserved map[string]string) corev1.ResourceList {
 	resources := corev1.ResourceList{
 		corev1.ResourceMemory:           resource.MustParse(fmt.Sprintf("%dMi", (11*pods.Value())+255)),
 		corev1.ResourceEphemeralStorage: resource.MustParse("1Gi"), // default kube-reserved ephemeral-storage
