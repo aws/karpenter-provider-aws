@@ -143,7 +143,7 @@ func NewInstanceType(
 		Requirements: computeRequirements(info, region, offeringZones, subnetZonesToZoneIDs, amiFamily, capacityReservations),
 		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, maxPods, podsPerCore), ENILimitedPods(ctx, info), amiFamily, kubeReserved),
+			KubeReserved:      kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead, ENILimitedPods(ctx, info, 0), pods(ctx, info, amiFamily, maxPods, podsPerCore)), kubeReserved),
 			SystemReserved:    systemReservedResources(systemReserved),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
 		},
@@ -450,7 +450,7 @@ func efas(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo) *resource.Quantity {
+func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo, reservedENIs int) *resource.Quantity {
 	// The number of pods per node is calculated using the formula:
 	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 	// https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/eni-max-pods.txt
@@ -458,7 +458,7 @@ func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo) *resour
 	// VPC CNI only uses the default network interface
 	// https://github.com/aws/amazon-vpc-cni-k8s/blob/3294231c0dce52cfe473bf6c62f47956a3b333b6/scripts/gen_vpc_ip_limits.go#L162
 	networkInterfaces := *info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces
-	usableNetworkInterfaces := lo.Max([]int64{int64(int(networkInterfaces) - options.FromContext(ctx).ReservedENIs), 0})
+	usableNetworkInterfaces := lo.Max([]int64{int64(int(networkInterfaces) - reservedENIs), 0})
 	if usableNetworkInterfaces == 0 {
 		return resource.NewQuantity(0, resource.DecimalSI)
 	}
@@ -481,10 +481,7 @@ func systemReservedResources(systemReserved map[string]string) corev1.ResourceLi
 	})
 }
 
-func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFamily amifamily.AMIFamily, kubeReserved map[string]string) corev1.ResourceList {
-	if amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead {
-		pods = eniLimitedPods
-	}
+func kubeReservedResources(cpus, pods *resource.Quantity, kubeReserved map[string]string) corev1.ResourceList {
 	resources := corev1.ResourceList{
 		corev1.ResourceMemory:           resource.MustParse(fmt.Sprintf("%dMi", (11*pods.Value())+255)),
 		corev1.ResourceEphemeralStorage: resource.MustParse("1Gi"), // default kube-reserved ephemeral-storage
@@ -551,7 +548,7 @@ func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifami
 	case maxPods != nil:
 		count = int64(lo.FromPtr(maxPods))
 	case amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
-		count = ENILimitedPods(ctx, info).Value()
+		count = ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs).Value()
 	default:
 		count = 110
 
