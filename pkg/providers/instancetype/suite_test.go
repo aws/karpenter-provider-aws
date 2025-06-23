@@ -1856,7 +1856,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
-				limitedPods := instancetype.ENILimitedPods(ctx, info)
+				limitedPods := instancetype.ENILimitedPods(ctx, info, 0)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})
