@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2025-05-12T13:16:55Z for us-east-1
+// generated at 2025-06-23T13:18:37Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -370,6 +370,10 @@ var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 		"m6in.12xlarge": 4.183920, "m6in.16xlarge": 5.578560, "m6in.24xlarge": 8.367840, "m6in.2xlarge": 0.697320,
 		"m6in.32xlarge": 11.157120, "m6in.4xlarge": 1.394640, "m6in.8xlarge": 2.789280, "m6in.large": 0.174330,
 		"m6in.metal": 11.157120, "m6in.xlarge": 0.348660,
+		// m7g family
+		"m7g.12xlarge": 2.468200, "m7g.16xlarge": 3.290900, "m7g.2xlarge": 0.411400, "m7g.4xlarge": 0.822700,
+		"m7g.8xlarge": 1.645400, "m7g.large": 0.102800, "m7g.medium": 0.051400, "m7g.metal": 3.290900,
+		"m7g.xlarge": 0.205700,
 		// m7i-flex family
 		"m7i-flex.12xlarge": 2.896800, "m7i-flex.16xlarge": 3.862400, "m7i-flex.2xlarge": 0.482800,
 		"m7i-flex.4xlarge": 0.965600, "m7i-flex.8xlarge": 1.931200, "m7i-flex.large": 0.120700,
@@ -385,9 +389,11 @@ var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 		// p3dn family
 		"p3dn.24xlarge": 37.454000,
 		// p4d family
-		"p4d.24xlarge": 39.330000,
+		"p4d.24xlarge": 26.351100,
 		// p5 family
-		"p5.48xlarge": 117.984000,
+		"p5.48xlarge": 66.048000,
+		// p5en family
+		"p5en.48xlarge": 75.955200,
 		// r3 family
 		"r3.2xlarge": 0.798000, "r3.4xlarge": 1.596000, "r3.8xlarge": 3.192000, "r3.large": 0.200000,
 		"r3.xlarge": 0.399000,
