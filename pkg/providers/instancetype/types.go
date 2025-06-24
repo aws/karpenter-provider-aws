@@ -47,6 +47,7 @@ const (
 
 var (
 	instanceTypeScheme = regexp.MustCompile(`(^[a-z]+)(\-[0-9]+tb)?([0-9]+).*\.`)
+	tenancyTypes       = []string{string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)}
 )
 
 type ZoneData struct {
@@ -210,6 +211,7 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceHypervisor, corev1.NodeSelectorOpIn, string(info.Hypervisor)),
 		scheduling.NewRequirement(v1.LabelInstanceEncryptionInTransitSupported, corev1.NodeSelectorOpIn, fmt.Sprint(aws.ToBool(info.NetworkInfo.EncryptionInTransitSupported))),
+		scheduling.NewRequirement(v1.LabelTenancy, corev1.NodeSelectorOpIn, tenancyTypes...),
 	)
 	// Only add zone-id label when available in offerings. It may not be available if a user has upgraded from a
 	// previous version of Karpenter w/o zone-id support and the nodeclass subnet status has not yet updated.
