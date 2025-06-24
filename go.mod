@@ -122,4 +122,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.2 // indirect
 )
 
-replace sigs.k8s.io/karpenter => /Users/schalor/github.com/testing/karpenter
+replace sigs.k8s.io/karpenter => github.com/rschalo/karpenter@go-1.23.10-update
