@@ -514,6 +514,18 @@ func (in *EC2NodeClass) InstanceProfileTags(clusterName string, region string) m
 	})
 }
 
+func (in *EC2NodeClass) BlockDeviceMappings() []*BlockDeviceMapping {
+	return in.Spec.BlockDeviceMappings
+}
+
+func (in *EC2NodeClass) InstanceStorePolicy() *InstanceStorePolicy {
+	return in.Spec.InstanceStorePolicy
+}
+
+func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {
+	return in.Spec.Kubelet
+}
+
 // AMIFamily returns the family for a NodePool based on the following items, in order of precdence:
 //   - ec2nodeclass.spec.amiFamily
 //   - ec2nodeclass.spec.amiSelectorTerms[].alias
