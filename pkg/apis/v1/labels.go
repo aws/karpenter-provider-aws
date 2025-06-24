@@ -52,6 +52,7 @@ func init() {
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
 		LabelTopologyZoneID,
+		LabelTenancy,
 		corev1.LabelWindowsBuild,
 	)
 }
@@ -142,6 +143,7 @@ var (
 	LabelInstanceAcceleratorManufacturer      = apis.Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
 	LabelNodeClass                            = apis.Group + "/ec2nodeclass"
+	LabelTenancy                              = apis.Group + "/tenancy"
 
 	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
 
