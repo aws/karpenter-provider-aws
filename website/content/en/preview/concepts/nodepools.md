@@ -262,6 +262,17 @@ If there are no other possible offerings available for a higher priority capacit
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
+#### Tenancy
+
+- key: `karpenter.k8s.aws/tenancy`
+- values
+    - `default`
+    - `dedicated`
+
+Karpenter supports specifying tenancy type.
+
+If a NodeClaim requires dedicated tenancy, then it will launch on a [Dedicated Instance](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/dedicated-instance.html).  If the NodeClaim does not specify the label, or if both types are allowed, then it will launch with default tenancy.
+
 {{% alert title="Note" color="primary" %}}
 There is currently a limit of 100 on the total number of requirements on both the NodePool and the NodeClaim. It's important to note that `spec.template.metadata.labels` are also propagated as requirements on the NodeClaim when it's created, meaning that you can't have more than 100 requirements and labels combined set on your NodePool.
 {{% /alert %}}
