@@ -541,7 +541,7 @@ func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zon
 }
 
 // getTenancyType selects the tenancy for the nodeclaim.
-// If it both default and dedicated are allowed by the claim then it will select default tenancy.
+// If both default and dedicated are allowed by the claim then it will select default tenancy.
 func getTenancyType(nodeClaim *karpv1.NodeClaim) string {
 	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 
