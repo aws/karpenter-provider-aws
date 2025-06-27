@@ -12,11 +12,69 @@ Karpenter makes several metrics available in Prometheus format to allow monitori
 A metric with a constant '1' value labeled by version from which karpenter was built.
 - Stability Level: STABLE
 
-### ``
+## Nodepools Metrics
 
+### `operator_nodepool_termination_duration_seconds`
+The amount of time taken by a nodepool to terminate completely.
+- Stability Level: BETA
+
+### `operator_nodepool_termination_current_time_seconds`
+The current amount of time in seconds that a nodepool has been in terminating state.
+- Stability Level: BETA
+
+### `operator_nodepool_status_condition_transitions_total`
+The count of transitions of a nodepool, type and status.
+- Stability Level: BETA
+
+### `operator_nodepool_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning.
+- Stability Level: BETA
+
+### `operator_nodepool_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state.
+- Stability Level: BETA
+
+### `operator_nodepool_status_condition_count`
+The number of a condition for a nodepool, type and status.
+- Stability Level: BETA
+
+### `karpenter_nodepools_usage`
+The amount of resources that have been provisioned for a nodepool. Labeled by nodepool name and resource type.
+- Stability Level: ALPHA
+
+### `karpenter_nodepools_limit`
+Limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
+- Stability Level: ALPHA
+
+### `karpenter_nodepools_allowed_disruptions`
+The number of nodes for a given NodePool that can be concurrently disrupting at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
 - Stability Level: ALPHA
 
 ## Nodeclaims Metrics
+
+### `operator_nodeclaim_termination_duration_seconds`
+The amount of time taken by a nodeclaim to terminate completely.
+- Stability Level: BETA
+
+### `operator_nodeclaim_termination_current_time_seconds`
+The current amount of time in seconds that a nodeclaim has been in terminating state.
+- Stability Level: BETA
+
+### `operator_nodeclaim_status_condition_transitions_total`
+The count of transitions of a nodeclaim, type and status.
+- Stability Level: BETA
+
+### `operator_nodeclaim_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning.
+- Stability Level: BETA
+
+### `operator_nodeclaim_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state.
+- Stability Level: BETA
+
+### `operator_nodeclaim_status_condition_count`
+The number of a condition for a nodeclaim, type and status.
+- Stability Level: BETA
 
 ### `karpenter_nodeclaims_unhealthy_disrupted_total`
 Number of unhealthy nodeclaims disrupted in total by Karpenter. Labeled by condition on the node was disrupted, the owning nodepool, and the image ID.
@@ -43,6 +101,34 @@ Number of nodeclaims created in total by Karpenter. Labeled by reason the nodecl
 - Stability Level: STABLE
 
 ## Nodes Metrics
+
+### `operator_node_termination_duration_seconds`
+The amount of time taken by a node to terminate completely.
+- Stability Level: BETA
+
+### `operator_node_termination_current_time_seconds`
+The current amount of time in seconds that a node has been in terminating state.
+- Stability Level: BETA
+
+### `operator_node_status_condition_transitions_total`
+The count of transitions of a node, type and status.
+- Stability Level: BETA
+
+### `operator_node_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning.
+- Stability Level: BETA
+
+### `operator_node_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state.
+- Stability Level: BETA
+
+### `operator_node_status_condition_count`
+The number of a condition for a node, type and status.
+- Stability Level: BETA
+
+### `operator_node_event_total`
+The total number of events of a given type and reason for a node
+- Stability Level: BETA
 
 ### `karpenter_nodes_total_pod_requests`
 Node total pod requests are the resources requested by pods bound to nodes, including the DaemonSet pods.
@@ -152,29 +238,7 @@ The amount of time taken by an object to terminate completely.
 The current amount of time in seconds that an object has been in terminating state.
 - Stability Level: DEPRECATED
 
-### `operator_nodepool_termination_duration_seconds`
-The amount of time taken by a nodepool to terminate completely.
-- Stability Level: BETA
-
-### `operator_nodepool_termination_current_time_seconds`
-The current amount of time in seconds that a nodepool has been in terminating state.
-- Stability Level: BETA
-
-### `operator_nodeclaim_termination_duration_seconds`
-The amount of time taken by a nodeclaim to terminate completely.
-- Stability Level: BETA
-
-### `operator_nodeclaim_termination_current_time_seconds`
-The current amount of time in seconds that a nodeclaim has been in terminating state.
-- Stability Level: BETA
-
-### `operator_node_termination_duration_seconds`
-The amount of time taken by a node to terminate completely.
-- Stability Level: BETA
-
-### `operator_node_termination_current_time_seconds`
-The current amount of time in seconds that a node has been in terminating state.
-- Stability Level: BETA
+## Ec2nodeclass Metrics
 
 ### `operator_ec2nodeclass_termination_duration_seconds`
 The amount of time taken by a ec2nodeclass to terminate completely.
@@ -182,6 +246,22 @@ The amount of time taken by a ec2nodeclass to terminate completely.
 
 ### `operator_ec2nodeclass_termination_current_time_seconds`
 The current amount of time in seconds that a ec2nodeclass has been in terminating state.
+- Stability Level: BETA
+
+### `operator_ec2nodeclass_status_condition_transitions_total`
+The count of transitions of a ec2nodeclass, type and status.
+- Stability Level: BETA
+
+### `operator_ec2nodeclass_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning.
+- Stability Level: BETA
+
+### `operator_ec2nodeclass_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state.
+- Stability Level: BETA
+
+### `operator_ec2nodeclass_status_condition_count`
+The number of a condition for a ec2nodeclass, type and status.
 - Stability Level: BETA
 
 ## Voluntary Disruption Metrics
@@ -226,20 +306,6 @@ The number of pods currently waiting to be scheduled.
 
 ### `karpenter_scheduler_ignored_pods_count`
 Number of pods ignored during scheduling by Karpenter
-- Stability Level: ALPHA
-
-## Nodepools Metrics
-
-### `karpenter_nodepools_usage`
-The amount of resources that have been provisioned for a nodepool. Labeled by nodepool name and resource type.
-- Stability Level: ALPHA
-
-### `karpenter_nodepools_limit`
-Limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
-- Stability Level: ALPHA
-
-### `karpenter_nodepools_allowed_disruptions`
-The number of nodes for a given NodePool that can be concurrently disrupting at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
 - Stability Level: ALPHA
 
 ## Interruption Metrics
@@ -389,70 +455,6 @@ The current amount of time in seconds that a status condition has been in a spec
 ### `operator_status_condition_count`
 The number of a condition for a given object, type and status.
 - Stability Level: DEPRECATED
-
-### `operator_nodepool_status_condition_transitions_total`
-The count of transitions of a nodepool, type and status.
-- Stability Level: BETA
-
-### `operator_nodepool_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning.
-- Stability Level: BETA
-
-### `operator_nodepool_status_condition_current_status_seconds`
-The current amount of time in seconds that a status condition has been in a specific state.
-- Stability Level: BETA
-
-### `operator_nodepool_status_condition_count`
-The number of a condition for a nodepool, type and status.
-- Stability Level: BETA
-
-### `operator_nodeclaim_status_condition_transitions_total`
-The count of transitions of a nodeclaim, type and status.
-- Stability Level: BETA
-
-### `operator_nodeclaim_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning.
-- Stability Level: BETA
-
-### `operator_nodeclaim_status_condition_current_status_seconds`
-The current amount of time in seconds that a status condition has been in a specific state.
-- Stability Level: BETA
-
-### `operator_nodeclaim_status_condition_count`
-The number of a condition for a nodeclaim, type and status.
-- Stability Level: BETA
-
-### `operator_node_status_condition_transitions_total`
-The count of transitions of a node, type and status.
-- Stability Level: BETA
-
-### `operator_node_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning.
-- Stability Level: BETA
-
-### `operator_node_status_condition_current_status_seconds`
-The current amount of time in seconds that a status condition has been in a specific state.
-- Stability Level: BETA
-
-### `operator_node_status_condition_count`
-The number of a condition for a node, type and status.
-- Stability Level: BETA
-
-### `operator_ec2nodeclass_status_condition_transitions_total`
-The count of transitions of a ec2nodeclass, type and status.
-- Stability Level: BETA
-
-### `operator_ec2nodeclass_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning.
-- Stability Level: BETA
-
-### `operator_ec2nodeclass_status_condition_current_status_seconds`
-The current amount of time in seconds that a status condition has been in a specific state.
-- Stability Level: BETA
-
-### `operator_ec2nodeclass_status_condition_count`
-The number of a condition for a ec2nodeclass, type and status.
-- Stability Level: BETA
 
 ## Client Go Metrics
 

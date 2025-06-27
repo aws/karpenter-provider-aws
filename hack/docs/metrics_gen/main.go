@@ -44,7 +44,7 @@ var (
 	stableMetrics = []string{"controller_runtime", "aws_sdk_go", "client_go", "leader_election", "interruption", "cluster_state", "workqueue", "karpenter_build_info", "karpenter_nodepool_usage", "karpenter_nodepool_limit",
 		"karpenter_nodeclaims_terminated_total", "karpenter_nodeclaims_created_total", "karpenter_nodes_terminated_total", "karpenter_nodes_created_total", "karpenter_pods_startup_duration_seconds",
 		"karpenter_scheduler_scheduling_duration_seconds", "karpenter_provisioner_scheduling_duration_seconds", "karpenter_nodepool_allowed_disruptions", "karpenter_voluntary_disruption_decisions_total"}
-	betaMetrics = []string{"status_condition", "termination", "cloudprovider", "cloudprovider_batcher", "karpenter_nodeclaims_termination_duration_seconds", "karpenter_nodeclaims_instance_termination_duration_seconds",
+	betaMetrics = []string{"status_condition", "ec2nodeclass", "nodeclaim", "node", "nodepool", "cloudprovider", "cloudprovider_batcher", "karpenter_nodeclaims_termination_duration_seconds", "karpenter_nodeclaims_instance_termination_duration_seconds",
 		"karpenter_nodes_total_pod_requests", "karpenter_nodes_total_pod_limits", "karpenter_nodes_total_daemon_requests", "karpenter_nodes_total_daemon_limits", "karpenter_nodes_termination_duration_seconds",
 		"karpenter_nodes_system_overhead", "karpenter_nodes_allocatable", "karpenter_pods_state", "karpenter_scheduler_queue_depth", "karpenter_voluntary_disruption_queue_failures_total",
 		"karpenter_voluntary_disruption_decision_evaluation_duration_seconds", "karpenter_voluntary_disruption_eligible_nodes", "karpenter_voluntary_disruption_consolidation_timeouts_total"}
@@ -116,36 +116,51 @@ description: >
 	fmt.Fprintf(f, "<!-- this document is generated from hack/docs/metrics_gen_docs.go -->\n")
 	fmt.Fprintf(f, "Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. "+
 		"These metrics are available by default at `karpenter.kube-system.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)\n")
-	previousSubsystem := ""
+	previousTitle := ""
 
 	for _, metric := range allMetrics {
-		if metric.subsystem != previousSubsystem {
-			if metric.subsystem != "" {
-				subsystemTitle := strings.Join(lo.Map(strings.Split(metric.subsystem, "_"), func(s string, _ int) string {
+		var subsystemTitle string
+		subsystemMap := map[string]string{
+			"node":       "Nodes",
+			"nodes":      "Nodes",
+			"nodeclaim":  "Nodeclaims",
+			"nodeclaims": "Nodeclaims",
+			"nodepool":   "Nodepools",
+			"nodepools":  "Nodepools",
+		}
+		if metric.subsystem != "" {
+			if val, ok := subsystemMap[metric.subsystem]; ok {
+				subsystemTitle = val
+			} else {
+				subsystemTitle = strings.Join(lo.Map(strings.Split(metric.subsystem, "_"), func(s string, _ int) string {
 					if s == "sdk" || s == "aws" {
 						return strings.ToUpper(s)
 					} else {
 						return fmt.Sprintf("%s%s", strings.ToUpper(s[0:1]), s[1:])
 					}
 				}), " ")
+			}
+			if subsystemTitle != previousTitle {
 				fmt.Fprintf(f, "## %s Metrics\n", subsystemTitle)
 				fmt.Fprintln(f)
+				previousTitle = subsystemTitle
 			}
-			previousSubsystem = metric.subsystem
 		}
-		fmt.Fprintf(f, "### `%s`\n", metric.qualifiedName())
-		fmt.Fprintf(f, "%s\n", metric.help)
-		switch {
-		case slices.Contains(deprecatedMetrics, metric.subsystem) || slices.Contains(deprecatedMetrics, metric.qualifiedName()):
-			fmt.Fprintf(f, "- Stability Level: %s\n", "DEPRECATED")			
-		case slices.Contains(stableMetrics, metric.subsystem) || slices.Contains(stableMetrics, metric.qualifiedName()):
-			fmt.Fprintf(f, "- Stability Level: %s\n", "STABLE")
-		case slices.Contains(betaMetrics, metric.subsystem) || slices.Contains(betaMetrics, metric.qualifiedName()):
-			fmt.Fprintf(f, "- Stability Level: %s\n", "BETA")
-		default:
-			fmt.Fprintf(f, "- Stability Level: %s\n", "ALPHA")
+		if metric.qualifiedName() != "" {
+			fmt.Fprintf(f, "### `%s`\n", metric.qualifiedName())
+			fmt.Fprintf(f, "%s\n", metric.help)
+			switch {
+			case slices.Contains(deprecatedMetrics, metric.subsystem) || slices.Contains(deprecatedMetrics, metric.qualifiedName()):
+				fmt.Fprintf(f, "- Stability Level: %s\n", "DEPRECATED")
+			case slices.Contains(stableMetrics, metric.subsystem) || slices.Contains(stableMetrics, metric.qualifiedName()):
+				fmt.Fprintf(f, "- Stability Level: %s\n", "STABLE")
+			case slices.Contains(betaMetrics, metric.subsystem) || slices.Contains(betaMetrics, metric.qualifiedName()):
+				fmt.Fprintf(f, "- Stability Level: %s\n", "BETA")
+			default:
+				fmt.Fprintf(f, "- Stability Level: %s\n", "ALPHA")
+			}
+			fmt.Fprintln(f)
 		}
-		fmt.Fprintln(f)
 	}
 
 }
@@ -209,8 +224,11 @@ func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
 	subSystemSortOrder := map[string]int{
 		"":                 100,
 		"nodepool":         10,
+		"nodepools":        10,
 		"nodeclaims":       9,
+		"nodeclaim":        9,
 		"nodes":            8,
+		"node":             8,
 		"pods":             7,
 		"status_condition": -1,
 		"workqueue":        -1,
@@ -404,15 +422,15 @@ func addPatternBasedMetrics(allMetrics []metricInfo) []metricInfo {
 			name string
 			help string
 		}{
-			{fmt.Sprintf("transitions_total"), "The count of transitions of a " + kind + ", type and status."},
-			{fmt.Sprintf("transition_seconds"), "The amount of time a condition was in a given state before transitioning."},
-			{fmt.Sprintf("current_status_seconds"), "The current amount of time in seconds that a status condition has been in a specific state."},
-			{fmt.Sprintf("count"), "The number of a condition for a " + kind + ", type and status."},
+			{fmt.Sprintf("status_condition_transitions_total"), "The count of transitions of a " + kind + ", type and status."},
+			{fmt.Sprintf("status_condition_transition_seconds"), "The amount of time a condition was in a given state before transitioning."},
+			{fmt.Sprintf("status_condition_current_status_seconds"), "The current amount of time in seconds that a status condition has been in a specific state."},
+			{fmt.Sprintf("status_condition_count"), "The number of a condition for a " + kind + ", type and status."},
 		}
 		for _, m := range statusMetrics {
 			allMetrics = append(allMetrics, metricInfo{
-				namespace: fmt.Sprintf("operator_%s", kind),
-				subsystem: "status_condition",
+				namespace: "operator",
+				subsystem: kind,
 				name:      m.name,
 				help:      m.help,
 			})
@@ -422,15 +440,24 @@ func addPatternBasedMetrics(allMetrics []metricInfo) []metricInfo {
 			name string
 			help string
 		}{
-			{fmt.Sprintf("current_time_seconds"), "The current amount of time in seconds that a " + kind + " has been in terminating state."},
-			{fmt.Sprintf("duration_seconds"), "The amount of time taken by a " + kind + " to terminate completely."},
+			{fmt.Sprintf("termination_current_time_seconds"), "The current amount of time in seconds that a " + kind + " has been in terminating state."},
+			{fmt.Sprintf("termination_duration_seconds"), "The amount of time taken by a " + kind + " to terminate completely."},
 		}
 		for _, m := range terminationMetrics {
 			allMetrics = append(allMetrics, metricInfo{
-				namespace: fmt.Sprintf("operator_%s", kind),
-				subsystem: "termination",
+				namespace: "operator",
+				subsystem: kind,
 				name:      m.name,
 				help:      m.help,
+			})
+		}
+
+		if kind == "node" {
+			allMetrics = append(allMetrics, metricInfo{
+				namespace: "operator",
+				subsystem: "node",
+				name:      "event_total",
+				help:      "The total number of events of a given type and reason for a node",
 			})
 		}
 	}
