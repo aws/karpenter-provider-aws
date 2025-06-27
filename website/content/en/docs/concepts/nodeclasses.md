@@ -117,6 +117,10 @@ spec:
         karpenter.sh/discovery: ${CLUSTER_NAME}
     - id: cr-123
 
+  # Optional, adding enclave option allows user to specify if node launch will have nitro enclave enabled
+  enclaveOptions:
+    enabled: false
+
   # Optional, propagates tags to underlying EC2 resources
   tags:
     team: team-a
@@ -1511,7 +1515,7 @@ spec:
 ## spec.associatePublicIPAddress
 
 You can explicitly set `AssociatePublicIPAddress: false` when you are only launching into private subnets.
-Previously, Karpenter auto-set `associatePublicIPAddress` on the primary ENI to false if a user’s subnet options were all private subnets.
+Previously, Karpenter auto-set `associatePublicIPAddress` on the primary ENI to false if a user's subnet options were all private subnets.
 This value is a boolean field that controls whether instances created by Karpenter for this EC2NodeClass will have an associated public IP address. This overrides the `MapPublicIpOnLaunch` setting applied to the subnet the node is launched in. If this field is not set, the `MapPublicIpOnLaunch` field will be respected.
 
 
@@ -1519,6 +1523,140 @@ This value is a boolean field that controls whether instances created by Karpent
 If a `NodeClaim` requests `vpc.amazonaws.com/efa` resources, `spec.associatePublicIPAddress` is respected. However, if this `NodeClaim` requests **multiple** EFA resources and the value for `spec.associatePublicIPAddress` is true, the instance will fail to launch. This is due to an EC2 restriction which
 requires that the field is only set to true when configuring an instance with a single ENI at launch. When using this field, it is advised that users segregate their EFA workload to use a separate `NodePool` / `EC2NodeClass` pair.
 {{% /alert %}}
+
+## spec.enclaveOptions
+
+The `enclaveOptions` field allows you to specify whether the instance is enabled for Amazon Web Services Nitro Enclaves. Nitro Enclaves provide an isolated compute environment to protect and process highly sensitive data.
+
+### What are Nitro Enclaves?
+
+AWS Nitro Enclaves are isolated compute environments that provide a secure way to process sensitive data. They are built on the AWS Nitro System and provide:
+
+- **Isolated compute environment**: Nitro Enclaves run in a separate memory space from the parent instance
+- **Cryptographic attestation**: You can verify the enclave's identity and integrity before trusting it with sensitive data
+- **No persistent storage**: Enclaves are stateless and don't have access to persistent storage
+- **No network access**: Enclaves can only communicate with the parent instance through a local virtual socket
+
+Nitro Enclaves are particularly useful for:
+- Processing sensitive financial data
+- Running confidential computing workloads
+- Implementing secure key management
+- Compliance requirements that mandate data isolation
+
+### How to use enclaveOptions
+
+The `enclaveOptions` field accepts a single boolean parameter:
+
+```yaml
+spec:
+  enclaveOptions:
+    enabled: true  # Enable Nitro Enclaves
+```
+
+#### Example: Enable Nitro Enclaves
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: enclave-enabled
+spec:
+  # ... other configuration ...
+  enclaveOptions:
+    enabled: true
+```
+
+#### Example: Disable Nitro Enclaves (default)
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: enclave-disabled
+spec:
+  # ... other configuration ...
+  enclaveOptions:
+    enabled: false
+```
+
+#### Example: Omit enclaveOptions (defaults to disabled)
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default-enclave
+spec:
+  # ... other configuration ...
+  # enclaveOptions omitted - defaults to disabled
+```
+
+### Instance Type Requirements
+
+Not all EC2 instance types support Nitro Enclaves. The following instance types support Nitro Enclaves:
+
+- **General Purpose**: m5, m5a, m5ad, m5d, m5dn, m5n, m5zn, m6a, m6g, m6gd, m6i, m6id, m6idn, m6in, m7a, m7g, m7gd, m7i, m7id, m7idn, m7in
+- **Compute Optimized**: c5, c5a, c5ad, c5d, c5n, c6a, c6g, c6gd, c6i, c6id, c6idn, c6in, c7a, c7g, c7gd, c7i, c7id, c7idn, c7in
+- **Memory Optimized**: r5, r5a, r5ad, r5b, r5d, r5dn, r5n, r6a, r6g, r6gd, r6i, r6id, r6idn, r6in, r7a, r7g, r7gd, r7i, r7id, r7idn, r7in
+- **Storage Optimized**: i3, i3en, i4i
+- **Accelerated Computing**: g4dn, g5, g5g, inf1, p3, p3dn, p4d, p4de, trn1, trn1n
+
+{{% alert title="Note" color="primary" %}}
+When `enclaveOptions.enabled` is set to `true`, Karpenter will only consider instance types that support Nitro Enclaves during scheduling. If no compatible instance types are available, pods may remain unscheduled.
+{{% /alert %}}
+
+### Use Cases
+
+#### Financial Data Processing
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: financial-processing
+spec:
+  enclaveOptions:
+    enabled: true
+  tags:
+    workload: financial-processing
+    security: high
+```
+
+#### Confidential Computing
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: confidential-computing
+spec:
+  enclaveOptions:
+    enabled: true
+  amiSelectorTerms:
+    - alias: al2023@latest
+  kubelet:
+    maxPods: 10  # Lower pod density for security-sensitive workloads
+```
+
+### Limitations and Considerations
+
+1. **Performance Impact**: Enclaves have a small performance overhead due to the isolation layer
+2. **Memory Constraints**: Enclaves have limited memory compared to the parent instance
+3. **No Persistent Storage**: Enclaves cannot access EBS volumes or instance storage
+4. **Network Isolation**: Enclaves can only communicate with the parent instance
+5. **Instance Type Restrictions**: Only specific instance types support Nitro Enclaves
+
+### Security Best Practices
+
+When using Nitro Enclaves:
+
+1. **Verify Attestation**: Always verify the enclave's attestation before processing sensitive data
+2. **Minimal Permissions**: Use the principle of least privilege for enclave permissions
+3. **Regular Updates**: Keep enclave applications updated with security patches
+4. **Monitoring**: Monitor enclave usage and access patterns
+5. **Compliance**: Ensure enclave usage meets your compliance requirements
+
+For more information about AWS Nitro Enclaves, see the [AWS Nitro Enclaves documentation](https://docs.aws.amazon.com/enclaves/).
 
 ## status.subnets
 [`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
