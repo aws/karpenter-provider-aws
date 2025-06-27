@@ -48,6 +48,7 @@ type Instance struct {
 	EFAEnabled              bool
 	CapacityReservationID   *string
 	CapacityReservationType *v1.CapacityReservationType
+	Tenancy                 string
 }
 
 func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
@@ -79,7 +80,16 @@ func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
 		CapacityReservationType: lo.If[*v1.CapacityReservationType](capacityType != karpv1.CapacityTypeReserved, nil).
 			ElseIf(instance.InstanceLifecycle == ec2types.InstanceLifecycleTypeCapacityBlock, lo.ToPtr(v1.CapacityReservationTypeCapacityBlock)).
 			Else(lo.ToPtr(v1.CapacityReservationTypeDefault)),
+		Tenancy: tenancyFromInstance(instance),
 	}
+}
+
+func tenancyFromInstance(instance ec2types.Instance) string {
+	var tenancy = instance.Placement.Tenancy
+	if tenancy == "" {
+		tenancy = ec2types.TenancyDefault
+	}
+	return string(tenancy)
 }
 
 func capacityTypeFromInstance(ctx context.Context, instance ec2types.Instance) string {
@@ -105,6 +115,10 @@ func WithCapacityReservationDetails(id string, crt v1.CapacityReservationType) N
 
 func WithEFAEnabled() NewInstanceFromFleetOpts {
 	return func(i *Instance) { i.EFAEnabled = true }
+}
+
+func WithTenancy(tenancy string) NewInstanceFromFleetOpts {
+	return func(i *Instance) { i.Tenancy = tenancy }
 }
 
 func NewInstanceFromFleet(
