@@ -136,12 +136,12 @@ description: >
 		fmt.Fprintf(f, "### `%s`\n", metric.qualifiedName())
 		fmt.Fprintf(f, "%s\n", metric.help)
 		switch {
+		case slices.Contains(deprecatedMetrics, metric.subsystem) || slices.Contains(deprecatedMetrics, metric.qualifiedName()):
+			fmt.Fprintf(f, "- Stability Level: %s\n", "DEPRECATED")			
 		case slices.Contains(stableMetrics, metric.subsystem) || slices.Contains(stableMetrics, metric.qualifiedName()):
 			fmt.Fprintf(f, "- Stability Level: %s\n", "STABLE")
 		case slices.Contains(betaMetrics, metric.subsystem) || slices.Contains(betaMetrics, metric.qualifiedName()):
 			fmt.Fprintf(f, "- Stability Level: %s\n", "BETA")
-		case slices.Contains(deprecatedMetrics, metric.subsystem) || slices.Contains(deprecatedMetrics, metric.qualifiedName()):
-			fmt.Fprintf(f, "- Stability Level: %s\n", "DEPRECATED")
 		default:
 			fmt.Fprintf(f, "- Stability Level: %s\n", "ALPHA")
 		}

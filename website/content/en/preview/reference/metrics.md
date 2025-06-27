@@ -368,19 +368,19 @@ Total number of adds handled by workqueue
 
 ### `operator_status_condition_transitions_total`
 The count of transitions of a given object, type and status.
-- Stability Level: BETA
+- Stability Level: DEPRECATED
 
 ### `operator_status_condition_transition_seconds`
 The amount of time a condition was in a given state before transitioning.
-- Stability Level: BETA
+- Stability Level: DEPRECATED
 
 ### `operator_status_condition_current_status_seconds`
 The current amount of time in seconds that a status condition has been in a specific state.
-- Stability Level: BETA
+- Stability Level: DEPRECATED
 
 ### `operator_status_condition_count`
 The number of a condition for a given object, type and status.
-- Stability Level: BETA
+- Stability Level: DEPRECATED
 
 ### `operator_nodepool_status_condition_transitions_total`
 The count of transitions of a nodepool, type and status.
