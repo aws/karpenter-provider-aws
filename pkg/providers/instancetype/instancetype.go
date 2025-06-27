@@ -32,6 +32,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -50,9 +51,20 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
+type NodeClass interface {
+	client.Object
+	AMIFamily() string
+	AMIs() []v1.AMI
+	BlockDeviceMappings() []*v1.BlockDeviceMapping
+	CapacityReservations() []v1.CapacityReservation
+	InstanceStorePolicy() *v1.InstanceStorePolicy
+	KubeletConfiguration() *v1.KubeletConfiguration
+	ZoneInfo() []v1.ZoneInfo
+}
+
 type Provider interface {
-	Get(context.Context, *v1.EC2NodeClass, ec2types.InstanceType) (*cloudprovider.InstanceType, error)
-	List(context.Context, *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error)
+	Get(context.Context, NodeClass, ec2types.InstanceType) (*cloudprovider.InstanceType, error)
+	List(context.Context, NodeClass) ([]*cloudprovider.InstanceType, error)
 }
 
 type DefaultProvider struct {
@@ -114,7 +126,7 @@ func NewDefaultProvider(
 }
 
 //nolint:gocyclo
-func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
+func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*cloudprovider.InstanceType, error) {
 	p.muInstanceTypesInfo.RLock()
 	p.muInstanceTypesOfferings.RLock()
 	defer p.muInstanceTypesInfo.RUnlock()
@@ -126,7 +138,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	if len(p.instanceTypesOfferings) == 0 {
 		return nil, fmt.Errorf("no instance types offerings found")
 	}
-	if len(nodeClass.Status.Subnets) == 0 {
+	if len(nodeClass.ZoneInfo()) == 0 {
 		return nil, fmt.Errorf("no subnets found")
 	}
 
@@ -137,9 +149,8 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		// so that modifications to the ordering of the data don't affect the original
 		instanceTypes = item.([]*cloudprovider.InstanceType)
 	} else {
-		zonesToZoneIDs := nodeClass.ZoneIDMap()
 		instanceTypes = lo.FilterMapToSlice(p.instanceTypesInfo, func(name ec2types.InstanceType, info ec2types.InstanceTypeInfo) (*cloudprovider.InstanceType, bool) {
-			it, err := p.get(ctx, nodeClass, zonesToZoneIDs, name)
+			it, err := p.get(ctx, nodeClass, name)
 			if err != nil {
 				return nil, false
 			}
@@ -159,7 +170,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	), nil
 }
 
-func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1.EC2NodeClass, name ec2types.InstanceType) (*cloudprovider.InstanceType, error) {
+func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass, name ec2types.InstanceType) (*cloudprovider.InstanceType, error) {
 	p.muInstanceTypesInfo.RLock()
 	p.muInstanceTypesOfferings.RLock()
 	defer p.muInstanceTypesInfo.RUnlock()
@@ -171,7 +182,7 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1.EC2NodeClass, n
 	if len(p.instanceTypesOfferings) == 0 {
 		return nil, fmt.Errorf("no instance types offerings found")
 	}
-	if len(nodeClass.Status.Subnets) == 0 {
+	if len(nodeClass.ZoneInfo()) == 0 {
 		return nil, fmt.Errorf("no subnets found")
 	}
 	var instanceType *cloudprovider.InstanceType
@@ -182,7 +193,7 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1.EC2NodeClass, n
 	}
 	if instanceType == nil {
 		var err error
-		instanceType, err = p.get(ctx, nodeClass, nodeClass.ZoneIDMap(), name)
+		instanceType, err = p.get(ctx, nodeClass, name)
 		if err != nil {
 			return nil, err
 		}
@@ -190,17 +201,16 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1.EC2NodeClass, n
 	return p.offeringProvider.InjectOfferings(ctx, []*cloudprovider.InstanceType{instanceType}, nodeClass, p.allZones)[0], nil
 }
 
-func (p *DefaultProvider) get(ctx context.Context, nodeClass *v1.EC2NodeClass, zoneIDMap map[string]string, name ec2types.InstanceType) (*cloudprovider.InstanceType, error) {
+func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2types.InstanceType) (*cloudprovider.InstanceType, error) {
 	info, ok := p.instanceTypesInfo[name]
 	if !ok {
 		return nil, fmt.Errorf("instance type %s not found in cache", name)
 	}
-	it := p.instanceTypesResolver.Resolve(ctx, info, p.instanceTypesOfferings[info.InstanceType].UnsortedList(), zoneIDMap, nodeClass)
+	it := p.instanceTypesResolver.Resolve(ctx, info, p.instanceTypesOfferings[info.InstanceType].UnsortedList(), nodeClass)
 	if it == nil {
 		return nil, fmt.Errorf("failed to generate instance type %s", name)
 	}
-	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	if cached, ok := p.discoveredCapacityCache.Get(fmt.Sprintf("%s-%016x", it.Name, amiHash)); ok {
+	if cached, ok := p.discoveredCapacityCache.Get(discoveredCapacityCacheKey(it.Name, nodeClass)); ok {
 		it.Capacity[corev1.ResourceMemory] = cached.(resource.Quantity)
 	}
 	InstanceTypeVCPU.Set(float64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)), map[string]string{
@@ -212,11 +222,11 @@ func (p *DefaultProvider) get(ctx context.Context, nodeClass *v1.EC2NodeClass, z
 	return it, nil
 }
 
-func (p *DefaultProvider) cacheKey(nodeClass *v1.EC2NodeClass) string {
+func (p *DefaultProvider) cacheKey(nodeClass NodeClass) string {
 	// Compute fully initialized instance types hash key
-	subnetZonesHash, _ := hashstructure.Hash(nodeClass.Zones(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	subnetZonesHash, _ := hashstructure.Hash(nodeClass.ZoneInfo(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	// Compute hash key against node class AMIs (used to force cache rebuild when AMIs change)
-	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	amiHash, _ := hashstructure.Hash(nodeClass.AMIs(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	return fmt.Sprintf("%d-%d-%016x-%016x-%016x",
 		p.instanceTypesSeqNum,
 		p.instanceTypesOfferingsSeqNum,
@@ -317,13 +327,13 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 	return nil
 }
 
-func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context, node *corev1.Node, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) error {
+func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context, node *corev1.Node, nodeClaim *karpv1.NodeClaim, nodeClass NodeClass) error {
 	// Get mappings for most recent AMIs
 	instanceTypeName := node.Labels[corev1.LabelInstanceTypeStable]
 	amiMap := amifamily.MapToInstanceTypes([]*cloudprovider.InstanceType{{
 		Name:         instanceTypeName,
 		Requirements: scheduling.NewLabelRequirements(node.Labels),
-	}}, nodeClass.Status.AMIs)
+	}}, nodeClass.AMIs())
 	// Ensure NodeClaim AMI is current
 	if !lo.ContainsBy(amiMap[nodeClaim.Status.ImageID], func(i *cloudprovider.InstanceType) bool {
 		return i.Name == instanceTypeName
@@ -331,9 +341,7 @@ func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context
 		return nil
 	}
 
-	amiHash, _ := hashstructure.Hash(nodeClass.Status.AMIs, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	key := fmt.Sprintf("%s-%016x", instanceTypeName, amiHash)
-
+	key := discoveredCapacityCacheKey(instanceTypeName, nodeClass)
 	actualCapacity := node.Status.Capacity.Memory()
 	if cachedCapacity, ok := p.discoveredCapacityCache.Get(key); !ok || actualCapacity.Cmp(cachedCapacity.(resource.Quantity)) < 1 {
 		// Update the capacity in the cache if it is less than or equal to the current cached capacity. We update when it's equal to refresh the TTL.
@@ -351,4 +359,9 @@ func (p *DefaultProvider) Reset() {
 	p.instanceTypesOfferings = map[ec2types.InstanceType]sets.Set[string]{}
 	p.instanceTypesCache.Flush()
 	p.discoveredCapacityCache.Flush()
+}
+
+func discoveredCapacityCacheKey(instanceType string, nodeClass NodeClass) string {
+	amiHash, _ := hashstructure.Hash(nodeClass.AMIs(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	return fmt.Sprintf("%s-%016x", instanceType, amiHash)
 }
