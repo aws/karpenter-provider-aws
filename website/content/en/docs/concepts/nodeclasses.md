@@ -1528,6 +1528,8 @@ requires that the field is only set to true when configuring an instance with a 
 
 The `enclaveOptions` field allows you to specify whether the instance is enabled for Amazon Web Services Nitro Enclaves. Nitro Enclaves provide an isolated compute environment to protect and process highly sensitive data.
 
+To use Nitro Enclaves, you must use the Custom AMI family to remove system resources for the enclave. Currently, this can only be achieved with the Custom AMI family combined with systemReserve to remove resources, since the Custom AMI family doesn't translate the system reserve to the underlying node but can remove the resources from Karpenter's scheduling simulation.
+
 ### What are Nitro Enclaves?
 
 AWS Nitro Enclaves are isolated compute environments that provide a secure way to process sensitive data. They are built on the AWS Nitro System and provide:
