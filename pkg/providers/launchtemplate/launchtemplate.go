@@ -24,8 +24,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/awslabs/operatorpkg/option"
+	"github.com/awslabs/operatorpkg/serrors"
 	"go.uber.org/multierr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -52,21 +55,21 @@ import (
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 )
 
-type Provider interface {
-	EnsureAll(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim,
-		[]*cloudprovider.InstanceType, string, map[string]string) ([]*LaunchTemplate, error)
-	DeleteAll(context.Context, *v1.EC2NodeClass) error
-	InvalidateCache(context.Context, string, string)
-	ResolveClusterCIDR(context.Context) error
+type DefaultProviderOpts = option.Function[defaultProviderOpts]
+
+type defaultProviderOpts struct {
+	launchModeProvider LaunchModeProvider
 }
-type LaunchTemplate struct {
-	Name          string
-	InstanceTypes []*cloudprovider.InstanceType
-	ImageID       string
+
+func WithLaunchModeProvider(provider LaunchModeProvider) DefaultProviderOpts {
+	return func(opts *defaultProviderOpts) {
+		opts.launchModeProvider = provider
+	}
 }
 
 type DefaultProvider struct {
 	sync.Mutex
+	LaunchModeProvider
 	ec2api                sdk.EC2API
 	eksapi                sdk.EKSAPI
 	amiFamily             amifamily.Resolver
@@ -81,10 +84,26 @@ type DefaultProvider struct {
 	ClusterIPFamily       corev1.IPFamily
 }
 
-func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api sdk.EC2API, eksapi sdk.EKSAPI, amiFamily amifamily.Resolver,
-	securityGroupProvider securitygroup.Provider, subnetProvider subnet.Provider,
-	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *DefaultProvider {
+func NewDefaultProvider(
+	ctx context.Context,
+	cache *cache.Cache,
+	ec2api sdk.EC2API,
+	eksapi sdk.EKSAPI,
+	amiFamily amifamily.Resolver,
+	securityGroupProvider securitygroup.Provider,
+	subnetProvider subnet.Provider,
+	caBundle *string,
+	startAsync <-chan struct{},
+	kubeDNSIP net.IP,
+	clusterEndpoint string,
+	opts ...DefaultProviderOpts,
+) *DefaultProvider {
+	resolvedOpts := option.Resolve(opts...)
+	if resolvedOpts.launchModeProvider == nil {
+		resolvedOpts.launchModeProvider = defaultLaunchModeProvider{}
+	}
 	l := &DefaultProvider{
+		LaunchModeProvider:    resolvedOpts.launchModeProvider,
 		ec2api:                ec2api,
 		eksapi:                eksapi,
 		amiFamily:             amiFamily,
@@ -109,15 +128,26 @@ func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api sdk.EC2A
 	}()
 	return l
 }
-func (p *DefaultProvider) EnsureAll(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim,
-	instanceTypes []*cloudprovider.InstanceType, capacityType string, tags map[string]string) ([]*LaunchTemplate, error) {
+func (p *DefaultProvider) EnsureAll(
+	ctx context.Context,
+	nodeClass *v1.EC2NodeClass,
+	nodeClaim *karpv1.NodeClaim,
+	instanceTypes []*cloudprovider.InstanceType,
+	capacityType string,
+	tags map[string]string,
+) ([]*LaunchTemplate, error) {
 	p.Lock()
 	defer p.Unlock()
-	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{karpv1.CapacityTypeLabelKey: capacityType}), tags)
+
+	opts, err := p.CreateAMIOptions(ctx, nodeClass, lo.Assign(
+		nodeClaim.Labels,
+		scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Labels(), // Inject single-value requirements into userData
+		map[string]string{karpv1.CapacityTypeLabelKey: capacityType},
+	), tags)
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, options)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +158,12 @@ func (p *DefaultProvider) EnsureAll(ctx context.Context, nodeClass *v1.EC2NodeCl
 		if err != nil {
 			return nil, err
 		}
-		launchTemplates = append(launchTemplates, &LaunchTemplate{Name: *ec2LaunchTemplate.LaunchTemplateName, InstanceTypes: resolvedLaunchTemplate.InstanceTypes, ImageID: resolvedLaunchTemplate.AMIID})
+		launchTemplates = append(launchTemplates, &LaunchTemplate{
+			Name:                  *ec2LaunchTemplate.LaunchTemplateName,
+			InstanceTypes:         resolvedLaunchTemplate.InstanceTypes,
+			ImageID:               resolvedLaunchTemplate.AMIID,
+			CapacityReservationID: resolvedLaunchTemplate.CapacityReservationID,
+		})
 	}
 	return launchTemplates, nil
 }
@@ -143,10 +178,12 @@ func (p *DefaultProvider) InvalidateCache(ctx context.Context, ltName string, lt
 	log.FromContext(ctx).V(1).Info("invalidating launch template in the cache because it no longer exists")
 	p.cache.Delete(ltName)
 }
+
 func LaunchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf("%s/%d", v1.LaunchTemplateNamePrefix, lo.Must(hashstructure.Hash(options, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})))
 }
-func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
+
+func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
 	// Remove any labels passed into userData that are prefixed with "node-restriction.kubernetes.io" or "kops.k8s.io" since the kubelet can't
 	// register the node with any labels from this domain: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#noderestriction
 	for k := range labels {
@@ -155,6 +192,7 @@ func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1.EC
 			delete(labels, k)
 		}
 	}
+	labels = InjectDoNotSyncTaintsLabel(nodeClass.AMIFamily(), labels)
 	// Relying on the status rather than an API call means that Karpenter is subject to a race
 	// condition where EC2NodeClass spec changes haven't propagated to the status once a node
 	// has launched.
@@ -203,7 +241,7 @@ func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *ami
 	} else if err != nil {
 		return ec2types.LaunchTemplate{}, fmt.Errorf("describing launch templates, %w", err)
 	} else if len(output.LaunchTemplates) != 1 {
-		return ec2types.LaunchTemplate{}, fmt.Errorf("expected to find one launch template, but found %d", len(output.LaunchTemplates))
+		return ec2types.LaunchTemplate{}, serrors.Wrap(fmt.Errorf("expected to find one launch template"), "launch-template-count", len(output.LaunchTemplates))
 	} else {
 		if p.cm.HasChanged("launchtemplate-"+name, name) {
 			log.FromContext(ctx).V(1).Info("discovered launch template")
@@ -219,62 +257,13 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
 	}
-	createLaunchTemplateInput := GetCreateLaunchTemplateInput(options, p.ClusterIPFamily, userData)
+	createLaunchTemplateInput := NewCreateLaunchTemplateInputBuilder(options, p.ClusterIPFamily, userData).WithLaunchModeProvider(p).Build(ctx)
 	output, err := p.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput)
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
 	}
 	log.FromContext(ctx).WithValues("id", aws.ToString(output.LaunchTemplate.LaunchTemplateId)).V(1).Info("created launch template")
 	return lo.FromPtr(output.LaunchTemplate), nil
-}
-
-// you need UserData, AmiID, tags, blockdevicemappings, instance profile,
-func GetCreateLaunchTemplateInput(options *amifamily.LaunchTemplate, ClusterIPFamily corev1.IPFamily, userData string) *ec2.CreateLaunchTemplateInput {
-	launchTemplateDataTags := []ec2types.LaunchTemplateTagSpecificationRequest{
-		{ResourceType: ec2types.ResourceTypeNetworkInterface, Tags: utils.MergeTags(options.Tags)},
-	}
-	if options.CapacityType == karpv1.CapacityTypeSpot {
-		launchTemplateDataTags = append(launchTemplateDataTags, ec2types.LaunchTemplateTagSpecificationRequest{ResourceType: ec2types.ResourceTypeSpotInstancesRequest, Tags: utils.MergeTags(options.Tags)})
-	}
-	networkInterfaces := generateNetworkInterfaces(options, ClusterIPFamily)
-	return &ec2.CreateLaunchTemplateInput{
-		LaunchTemplateName: aws.String(LaunchTemplateName(options)),
-		LaunchTemplateData: &ec2types.RequestLaunchTemplateData{
-			BlockDeviceMappings: blockDeviceMappings(options.BlockDeviceMappings),
-			IamInstanceProfile: &ec2types.LaunchTemplateIamInstanceProfileSpecificationRequest{
-				Name: aws.String(options.InstanceProfile),
-			},
-			Monitoring: &ec2types.LaunchTemplatesMonitoringRequest{
-				Enabled: aws.Bool(options.DetailedMonitoring),
-			},
-			// If the network interface is defined, the security groups are defined within it
-			SecurityGroupIds: lo.Ternary(networkInterfaces != nil, nil, lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID })),
-			UserData:         aws.String(userData),
-			ImageId:          aws.String(options.AMIID),
-			MetadataOptions: &ec2types.LaunchTemplateInstanceMetadataOptionsRequest{
-				HttpEndpoint:     ec2types.LaunchTemplateInstanceMetadataEndpointState(lo.FromPtr(options.MetadataOptions.HTTPEndpoint)),
-				HttpProtocolIpv6: ec2types.LaunchTemplateInstanceMetadataProtocolIpv6(lo.FromPtr(options.MetadataOptions.HTTPProtocolIPv6)),
-				//Will be removed when we update options.MetadataOptions.HTTPPutResponseHopLimit type to be int32
-				//nolint: gosec
-				HttpPutResponseHopLimit: lo.ToPtr(int32(lo.FromPtr(options.MetadataOptions.HTTPPutResponseHopLimit))),
-				HttpTokens:              ec2types.LaunchTemplateHttpTokensState(lo.FromPtr(options.MetadataOptions.HTTPTokens)),
-				// We statically set the InstanceMetadataTags to "disabled" for all new instances since
-				// account-wide defaults can override instance defaults on metadata settings
-				// This can cause instance failure on accounts that default to instance tags since Karpenter
-				// can't support instance tags with its current tags (e.g. kubernetes.io/cluster/*, karpenter.k8s.aws/ec2nodeclass)
-				// See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-options.html#instance-metadata-options-order-of-precedence
-				InstanceMetadataTags: ec2types.LaunchTemplateInstanceMetadataTagsStateDisabled,
-			},
-			NetworkInterfaces: networkInterfaces,
-			TagSpecifications: launchTemplateDataTags,
-		},
-		TagSpecifications: []ec2types.TagSpecification{
-			{
-				ResourceType: ec2types.ResourceTypeLaunchTemplate,
-				Tags:         utils.MergeTags(options.Tags),
-			},
-		},
-	}
 }
 
 // generateNetworkInterfaces generates network interfaces for the launch template.
@@ -327,10 +316,11 @@ func blockDeviceMappings(blockDeviceMappings []*v1.BlockDeviceMapping) []ec2type
 				//nolint: gosec
 				Iops: lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.IOPS))),
 				//nolint: gosec
-				Throughput: lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.Throughput))),
-				KmsKeyId:   blockDeviceMapping.EBS.KMSKeyID,
-				SnapshotId: blockDeviceMapping.EBS.SnapshotID,
-				VolumeSize: volumeSize(blockDeviceMapping.EBS.VolumeSize),
+				Throughput:               lo.EmptyableToPtr(int32(lo.FromPtr(blockDeviceMapping.EBS.Throughput))),
+				KmsKeyId:                 blockDeviceMapping.EBS.KMSKeyID,
+				SnapshotId:               blockDeviceMapping.EBS.SnapshotID,
+				VolumeInitializationRate: blockDeviceMapping.EBS.VolumeInitializationRate,
+				VolumeSize:               volumeSize(blockDeviceMapping.EBS.VolumeSize),
 			},
 		})
 	}
@@ -429,7 +419,7 @@ func (p *DefaultProvider) DeleteAll(ctx context.Context, nodeClass *v1.EC2NodeCl
 		deleteErr = multierr.Append(deleteErr, err)
 	}
 	if len(ltNames) > 0 {
-		log.FromContext(ctx).WithValues("launchTemplates", utils.PrettySlice(ltNames, 5)).V(1).Info("deleted launch templates")
+		log.FromContext(ctx).WithValues("launchTemplates", utils.PrettySlice(lo.FromSlicePtr(ltNames), 5)).V(1).Info("deleted launch templates")
 	}
 	if deleteErr != nil {
 		return fmt.Errorf("deleting launch templates, %w", deleteErr)
@@ -457,4 +447,17 @@ func (p *DefaultProvider) ResolveClusterCIDR(ctx context.Context) error {
 		return nil
 	}
 	return fmt.Errorf("no CIDR found in DescribeCluster response")
+}
+
+// InjectDoNotSyncTaintsLabel adds a label for all non-custom AMI families. It is exported just for ease
+// of testing.
+// This label is to tell karpenter that it should *not* sync taints. This is to work around a race condition.
+// By default, this label is not added to the custom AMI family as users may still want their taints synced. Startup
+// taints will be racy for custom AMIs if they do not add this label, however.
+// https://github.com/kubernetes-sigs/karpenter/issues/1772
+func InjectDoNotSyncTaintsLabel(amiFamilyName string, labels map[string]string) map[string]string {
+	if amiFamilyName != v1.AMIFamilyCustom {
+		return lo.Assign(labels, map[string]string{karpv1.NodeDoNotSyncTaintsLabelKey: "true"})
+	}
+	return labels
 }

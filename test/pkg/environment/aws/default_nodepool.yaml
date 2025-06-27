@@ -25,12 +25,12 @@ spec:
          operator: In
          values: ["c", "m", "r"]
        - key: karpenter.k8s.aws/instance-generation
-         operator: In
+         operator: Gt
          values: ["2"]
        - key: karpenter.k8s.aws/instance-family
          operator: NotIn
          values: ["a1"]
      nodeClassRef:
       group: karpenter.k8s.aws
-      kind: EKSNodeClass
+      kind: EC2NodeClass
       name: default

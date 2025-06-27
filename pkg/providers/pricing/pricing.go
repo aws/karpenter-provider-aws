@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -28,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -58,10 +56,11 @@ type Provider interface {
 // fails, the previous pricing information is retained and used which may be the static initial pricing data if pricing
 // updates never succeed.
 type DefaultProvider struct {
-	ec2     sdk.EC2API
-	pricing sdk.PricingAPI
-	region  string
-	cm      *pretty.ChangeMonitor
+	ec2         sdk.EC2API
+	pricing     sdk.PricingAPI
+	region      string
+	isolatedVPC bool
+	cm          *pretty.ChangeMonitor
 
 	muOnDemand     sync.RWMutex
 	onDemandPrices map[ec2types.InstanceType]float64
@@ -78,6 +77,19 @@ type DefaultProvider struct {
 type zonal struct {
 	defaultPrice float64 // Used until we get the spot pricing data
 	prices       map[string]float64
+}
+
+func combineZonalPricing(pricingData ...zonal) zonal {
+	z := newZonalPricing(0)
+	for _, elem := range pricingData {
+		if elem.defaultPrice != 0 {
+			z.defaultPrice = elem.defaultPrice
+		}
+		for zone, price := range elem.prices {
+			z.prices[zone] = price
+		}
+	}
+	return z
 }
 
 func newZonalPricing(defaultPrice float64) zonal {
@@ -105,12 +117,13 @@ func NewAPI(cfg aws.Config) *pricing.Client {
 	return pricing.NewFromConfig(pricingCfg)
 }
 
-func NewDefaultProvider(_ context.Context, pricing sdk.PricingAPI, ec2Api sdk.EC2API, region string) *DefaultProvider {
+func NewDefaultProvider(pricing sdk.PricingAPI, ec2Api sdk.EC2API, region string, isolatedVPC bool) *DefaultProvider {
 	p := &DefaultProvider{
-		region:  region,
-		ec2:     ec2Api,
-		pricing: pricing,
-		cm:      pretty.NewChangeMonitor(),
+		region:      region,
+		ec2:         ec2Api,
+		pricing:     pricing,
+		cm:          pretty.NewChangeMonitor(),
+		isolatedVPC: isolatedVPC,
 	}
 	// sets the pricing data from the static default state for the provider
 	p.Reset()
@@ -164,7 +177,7 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 
 	// if we are in isolated vpc, skip updating on demand pricing
 	// as pricing api may not be available
-	if options.FromContext(ctx).IsolatedVPC {
+	if p.isolatedVPC {
 		if p.cm.HasChanged("on-demand-prices", nil) {
 			log.FromContext(ctx).V(1).Info("running in an isolated VPC, on-demand pricing information will not be updated")
 		}
@@ -218,7 +231,8 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 		return fmt.Errorf("no on-demand pricing found")
 	}
 
-	p.onDemandPrices = lo.Assign(onDemandPrices, onDemandMetalPrices)
+	// Maintain previously retrieved pricing data
+	p.onDemandPrices = lo.Assign(p.onDemandPrices, onDemandPrices, onDemandMetalPrices)
 	if p.cm.HasChanged("on-demand-prices", p.onDemandPrices) {
 		log.FromContext(ctx).WithValues("instance-type-count", len(p.onDemandPrices)).V(1).Info("updated on-demand pricing")
 	}
@@ -374,25 +388,24 @@ func (p *DefaultProvider) UpdateSpotPricing(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("retrieving spot pricing data, %w", err)
 		}
-		prices = lo.Assign(prices, p.spotPage(ctx, output))
+		for it, z := range p.spotPage(ctx, output) {
+			prices[it] = combineZonalPricing(prices[it], z)
+		}
 	}
 	if len(prices) == 0 {
 		return fmt.Errorf("no spot pricing found")
 	}
-
 	totalOfferings := 0
 	for it, zoneData := range prices {
-		if _, ok := p.spotPrices[it]; !ok {
-			p.spotPrices[it] = newZonalPricing(0)
-		}
-		maps.Copy(p.spotPrices[it].prices, zoneData.prices)
+		// Maintain previously retrieved pricing data
+		p.spotPrices[it] = combineZonalPricing(p.spotPrices[it], zoneData)
 		totalOfferings += len(zoneData.prices)
 	}
 
 	p.spotPricingUpdated = true
 	if p.cm.HasChanged("spot-prices", p.spotPrices) {
 		log.FromContext(ctx).WithValues(
-			"instance-type-count", len(p.onDemandPrices),
+			"instance-type-count", len(p.spotPrices),
 			"offering-count", totalOfferings).V(1).Info("updated spot pricing with instance types and offerings")
 	}
 	return nil

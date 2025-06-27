@@ -22,7 +22,7 @@ Resources:
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKS_CNI_Policy"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
   KarpenterControllerPolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -41,7 +41,8 @@ Resources:
                 "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
-                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*"
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*"
               ],
               "Action": [
                 "ec2:RunInstances",
@@ -74,7 +75,8 @@ Resources:
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:volume/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:network-interface/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*",
-                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:spot-instances-request/*"
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:spot-instances-request/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*"
               ],
               "Action": [
                 "ec2:RunInstances",
@@ -167,6 +169,7 @@ Resources:
               "Effect": "Allow",
               "Resource": "*",
               "Action": [
+                "ec2:DescribeCapacityReservations",
                 "ec2:DescribeImages",
                 "ec2:DescribeInstances",
                 "ec2:DescribeInstanceTypeOfferings",

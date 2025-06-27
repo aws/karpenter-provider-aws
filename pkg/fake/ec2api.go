@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -38,23 +39,24 @@ import (
 )
 
 type CapacityPool struct {
-	CapacityType string
-	InstanceType string
-	Zone         string
+	CapacityType  string
+	InstanceType  string
+	Zone          string
+	ReservationID string
 }
 
 // EC2Behavior must be reset between tests otherwise tests will
 // pollute each other.
 type EC2Behavior struct {
+	DescribeCapacityReservationsOutput  AtomicPtr[ec2.DescribeCapacityReservationsOutput]
 	DescribeImagesOutput                AtomicPtr[ec2.DescribeImagesOutput]
 	DescribeLaunchTemplatesOutput       AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
-	DescribeSubnetsOutput               AtomicPtr[ec2.DescribeSubnetsOutput]
-	DescribeSecurityGroupsOutput        AtomicPtr[ec2.DescribeSecurityGroupsOutput]
 	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
 	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
-	DescribeSpotPriceHistoryInput       AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
-	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
+	DescribeSubnetsBehavior             MockedFunction[ec2.DescribeSubnetsInput, ec2.DescribeSubnetsOutput]
+	DescribeSecurityGroupsBehavior      MockedFunction[ec2.DescribeSecurityGroupsInput, ec2.DescribeSecurityGroupsOutput]
+	DescribeSpotPriceHistoryBehavior    MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
 	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
 	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
@@ -63,9 +65,12 @@ type EC2Behavior struct {
 	CreateLaunchTemplateBehavior        MockedFunction[ec2.CreateLaunchTemplateInput, ec2.CreateLaunchTemplateOutput]
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
 	Instances                           sync.Map
-	LaunchTemplates                     sync.Map
 	InsufficientCapacityPools           atomic.Slice[CapacityPool]
 	NextError                           AtomicError
+
+	Subnets                               sync.Map
+	LaunchTemplates                       sync.Map
+	launchTemplatesToCapacityReservations sync.Map // map[lt-name]cr-id
 }
 
 type EC2API struct {
@@ -85,18 +90,21 @@ var DefaultSupportedUsageClasses = []ec2types.UsageClassType{ec2types.UsageClass
 func (e *EC2API) Reset() {
 	e.DescribeImagesOutput.Reset()
 	e.DescribeLaunchTemplatesOutput.Reset()
-	e.DescribeSubnetsOutput.Reset()
-	e.DescribeSecurityGroupsOutput.Reset()
 	e.DescribeInstanceTypesOutput.Reset()
 	e.DescribeInstanceTypeOfferingsOutput.Reset()
 	e.DescribeAvailabilityZonesOutput.Reset()
+	e.DescribeSubnetsBehavior.Reset()
+	e.DescribeSecurityGroupsBehavior.Reset()
 	e.CreateFleetBehavior.Reset()
 	e.TerminateInstancesBehavior.Reset()
 	e.DescribeInstancesBehavior.Reset()
 	e.CreateLaunchTemplateBehavior.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
-	e.DescribeSpotPriceHistoryInput.Reset()
-	e.DescribeSpotPriceHistoryOutput.Reset()
+	e.DescribeSpotPriceHistoryBehavior.Reset()
+	e.Subnets.Range(func(k, v any) bool {
+		e.Subnets.Delete(k)
+		return true
+	})
 	e.Instances.Range(func(k, v any) bool {
 		e.Instances.Delete(k)
 		return true
@@ -107,6 +115,11 @@ func (e *EC2API) Reset() {
 	})
 	e.InsufficientCapacityPools.Reset()
 	e.NextError.Reset()
+
+	e.launchTemplatesToCapacityReservations.Range(func(k, _ any) bool {
+		e.launchTemplatesToCapacityReservations.Delete(k)
+		return true
+	})
 }
 
 // nolint: gocyclo
@@ -126,7 +139,8 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 			return nil, fmt.Errorf("missing launch template name")
 		}
 		var instanceIds []string
-		var skippedPools []CapacityPool
+		var icedPools []CapacityPool
+		var reservationExceededPools []CapacityPool
 		var spotInstanceRequestID *string
 
 		if string(input.TargetCapacitySpecification.DefaultTargetCapacityType) == karpv1.CapacityTypeSpot {
@@ -141,7 +155,7 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 					if pool.InstanceType == string(override.InstanceType) &&
 						pool.Zone == aws.ToString(override.AvailabilityZone) &&
 						pool.CapacityType == string(input.TargetCapacitySpecification.DefaultTargetCapacityType) {
-						skippedPools = append(skippedPools, pool)
+						icedPools = append(icedPools, pool)
 						skipInstance = true
 						return false
 					}
@@ -150,7 +164,21 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 				if skipInstance {
 					continue
 				}
-				amiID := aws.String("")
+
+				if crID, ok := e.launchTemplatesToCapacityReservations.Load(*ltc.LaunchTemplateSpecification.LaunchTemplateName); ok {
+					if cr, ok := lo.Find(e.DescribeCapacityReservationsOutput.Clone().CapacityReservations, func(cr ec2types.CapacityReservation) bool {
+						return *cr.CapacityReservationId == crID.(string)
+					}); !ok || *cr.AvailableInstanceCount == 0 {
+						reservationExceededPools = append(reservationExceededPools, CapacityPool{
+							InstanceType:  string(override.InstanceType),
+							Zone:          lo.FromPtr(override.AvailabilityZone),
+							CapacityType:  karpv1.CapacityTypeReserved,
+							ReservationID: crID.(string),
+						})
+						continue
+					}
+				}
+				amiID := lo.ToPtr("")
 				if e.CreateLaunchTemplateBehavior.CalledWithInput.Len() > 0 {
 					lt := e.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
 					amiID = lt.LaunchTemplateData.ImageId
@@ -192,13 +220,24 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 				},
 			},
 		}}
-		for _, pool := range skippedPools {
+		for _, pool := range icedPools {
 			result.Errors = append(result.Errors, ec2types.CreateFleetError{
 				ErrorCode: aws.String("InsufficientInstanceCapacity"),
 				LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
 					Overrides: &ec2types.FleetLaunchTemplateOverrides{
 						InstanceType:     ec2types.InstanceType(pool.InstanceType),
 						AvailabilityZone: aws.String(pool.Zone),
+					},
+				},
+			})
+		}
+		for _, pool := range reservationExceededPools {
+			result.Errors = append(result.Errors, ec2types.CreateFleetError{
+				ErrorCode: lo.ToPtr("ReservationCapacityExceeded"),
+				LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+					Overrides: &ec2types.FleetLaunchTemplateOverrides{
+						InstanceType:     ec2types.InstanceType(pool.InstanceType),
+						AvailabilityZone: lo.ToPtr(pool.Zone),
 					},
 				},
 			})
@@ -242,6 +281,9 @@ func (e *EC2API) CreateLaunchTemplate(ctx context.Context, input *ec2.CreateLaun
 		}
 		launchTemplate := ec2types.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
 		e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
+		if crs := input.LaunchTemplateData.CapacityReservationSpecification; crs != nil && crs.CapacityReservationPreference == ec2types.CapacityReservationPreferenceCapacityReservationsOnly {
+			e.launchTemplatesToCapacityReservations.Store(*input.LaunchTemplateName, *crs.CapacityReservationTarget.CapacityReservationId)
+		}
 		return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: lo.ToPtr(launchTemplate)}, nil
 	})
 }
@@ -252,7 +294,7 @@ func (e *EC2API) CreateTags(_ context.Context, input *ec2.CreateTagsInput, _ ...
 		for _, id := range input.Resources {
 			raw, ok := e.Instances.Load(id)
 			if !ok {
-				return nil, fmt.Errorf("instance with id '%s' does not exist", id)
+				return nil, serrors.Wrap(fmt.Errorf("instance does not exist"), "instance-id", id)
 			}
 			instance := raw.(ec2types.Instance)
 
@@ -340,6 +382,19 @@ func filterInstances(instances []ec2types.Instance, filters []ec2types.Filter) [
 	return ret
 }
 
+func (e *EC2API) DescribeCapacityReservations(ctx context.Context, input *ec2.DescribeCapacityReservationsInput, _ ...func(*ec2.Options)) (*ec2.DescribeCapacityReservationsOutput, error) {
+	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
+		return nil, e.NextError.Get()
+	}
+	if !e.DescribeCapacityReservationsOutput.IsNil() {
+		out := e.DescribeCapacityReservationsOutput.Clone()
+		out.CapacityReservations = FilterDescribeCapacityReservations(out.CapacityReservations, input.CapacityReservationIds, input.Filters)
+		return out, nil
+	}
+	return &ec2.DescribeCapacityReservationsOutput{}, nil
+}
+
 func (e *EC2API) DescribeImages(ctx context.Context, input *ec2.DescribeImagesInput, _ ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
@@ -379,7 +434,7 @@ func (e *EC2API) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 	output := &ec2.DescribeLaunchTemplatesOutput{}
 	e.LaunchTemplates.Range(func(key, value interface{}) bool {
 		launchTemplate := value.(ec2types.LaunchTemplate)
-		if lo.Contains(input.LaunchTemplateNames, lo.FromPtr(launchTemplate.LaunchTemplateName)) || len(input.Filters) != 0 && Filter(input.Filters, aws.ToString(launchTemplate.LaunchTemplateId), aws.ToString(launchTemplate.LaunchTemplateName), launchTemplate.Tags) {
+		if lo.Contains(input.LaunchTemplateNames, lo.FromPtr(launchTemplate.LaunchTemplateName)) || len(input.Filters) != 0 && Filter(input.Filters, aws.ToString(launchTemplate.LaunchTemplateId), aws.ToString(launchTemplate.LaunchTemplateName), "", "", launchTemplate.Tags) {
 			output.LaunchTemplates = append(output.LaunchTemplates, launchTemplate)
 		}
 		return true
@@ -406,107 +461,109 @@ func (e *EC2API) DeleteLaunchTemplate(_ context.Context, input *ec2.DeleteLaunch
 }
 
 func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsInput, _ ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error) {
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	if !e.DescribeSubnetsOutput.IsNil() {
-		describeSubnetsOutput := e.DescribeSubnetsOutput.Clone()
-		describeSubnetsOutput.Subnets = FilterDescribeSubnets(describeSubnetsOutput.Subnets, input.Filters)
-		return describeSubnetsOutput, nil
-	}
-	subnets := []ec2types.Subnet{
-		{
-			SubnetId:                aws.String("subnet-test1"),
-			AvailabilityZone:        aws.String("test-zone-1a"),
-			AvailabilityZoneId:      aws.String("tstz1-1a"),
-			AvailableIpAddressCount: aws.Int32(100),
-			MapPublicIpOnLaunch:     aws.Bool(false),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-subnet-1")},
-				{Key: aws.String("foo"), Value: aws.String("bar")},
+	return e.DescribeSubnetsBehavior.Invoke(input, func(input *ec2.DescribeSubnetsInput) (*ec2.DescribeSubnetsOutput, error) {
+		output := &ec2.DescribeSubnetsOutput{}
+		e.Subnets.Range(func(key, value any) bool {
+			subnet := value.(ec2types.Subnet)
+			if lo.Contains(input.SubnetIds, lo.FromPtr(subnet.SubnetId)) || len(input.Filters) != 0 && len(FilterDescribeSubnets([]ec2types.Subnet{subnet}, input.Filters)) != 0 {
+				output.Subnets = append(output.Subnets, subnet)
+			}
+			return true
+		})
+		if len(output.Subnets) != 0 {
+			return output, nil
+		}
+
+		defaultSubnets := []ec2types.Subnet{
+			{
+				SubnetId:                aws.String("subnet-test1"),
+				AvailabilityZone:        aws.String("test-zone-1a"),
+				AvailabilityZoneId:      aws.String("tstz1-1a"),
+				AvailableIpAddressCount: aws.Int32(100),
+				MapPublicIpOnLaunch:     aws.Bool(false),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-subnet-1")},
+					{Key: aws.String("foo"), Value: aws.String("bar")},
+				},
+				VpcId: aws.String("vpc-test1"),
 			},
-		},
-		{
-			SubnetId:                aws.String("subnet-test2"),
-			AvailabilityZone:        aws.String("test-zone-1b"),
-			AvailabilityZoneId:      aws.String("tstz1-1b"),
-			AvailableIpAddressCount: aws.Int32(100),
-			MapPublicIpOnLaunch:     aws.Bool(true),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-subnet-2")},
-				{Key: aws.String("foo"), Value: aws.String("bar")},
+			{
+				SubnetId:                aws.String("subnet-test2"),
+				AvailabilityZone:        aws.String("test-zone-1b"),
+				AvailabilityZoneId:      aws.String("tstz1-1b"),
+				AvailableIpAddressCount: aws.Int32(100),
+				MapPublicIpOnLaunch:     aws.Bool(true),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-subnet-2")},
+					{Key: aws.String("foo"), Value: aws.String("bar")},
+				},
+				VpcId: aws.String("vpc-test1"),
 			},
-		},
-		{
-			SubnetId:                aws.String("subnet-test3"),
-			AvailabilityZone:        aws.String("test-zone-1c"),
-			AvailabilityZoneId:      aws.String("tstz1-1c"),
-			AvailableIpAddressCount: aws.Int32(100),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-subnet-3")},
-				{Key: aws.String("TestTag")},
-				{Key: aws.String("foo"), Value: aws.String("bar")},
+			{
+				SubnetId:                aws.String("subnet-test3"),
+				AvailabilityZone:        aws.String("test-zone-1c"),
+				AvailabilityZoneId:      aws.String("tstz1-1c"),
+				AvailableIpAddressCount: aws.Int32(100),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-subnet-3")},
+					{Key: aws.String("TestTag")},
+					{Key: aws.String("foo"), Value: aws.String("bar")},
+				},
+				VpcId: aws.String("vpc-test1"),
 			},
-		},
-		{
-			SubnetId:                aws.String("subnet-test4"),
-			AvailabilityZone:        aws.String("test-zone-1a-local"),
-			AvailabilityZoneId:      aws.String("tstz1-1alocal"),
-			AvailableIpAddressCount: aws.Int32(100),
-			MapPublicIpOnLaunch:     aws.Bool(true),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-subnet-4")},
+			{
+				SubnetId:                aws.String("subnet-test4"),
+				AvailabilityZone:        aws.String("test-zone-1a-local"),
+				AvailabilityZoneId:      aws.String("tstz1-1alocal"),
+				AvailableIpAddressCount: aws.Int32(100),
+				MapPublicIpOnLaunch:     aws.Bool(true),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-subnet-4")},
+				},
+				VpcId: aws.String("vpc-test1"),
 			},
-		},
-	}
-	if len(input.Filters) == 0 {
-		return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
-	}
-	return &ec2.DescribeSubnetsOutput{Subnets: FilterDescribeSubnets(subnets, input.Filters)}, nil
+		}
+		if len(input.Filters) == 0 {
+			return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
+		}
+		return &ec2.DescribeSubnetsOutput{Subnets: FilterDescribeSubnets(defaultSubnets, input.Filters)}, nil
+	})
 }
 
 func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSecurityGroupsInput, _ ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupsOutput, error) {
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	if !e.DescribeSecurityGroupsOutput.IsNil() {
-		describeSecurityGroupsOutput := e.DescribeSecurityGroupsOutput.Clone()
-		describeSecurityGroupsOutput.SecurityGroups = FilterDescribeSecurtyGroups(describeSecurityGroupsOutput.SecurityGroups, input.Filters)
-		return e.DescribeSecurityGroupsOutput.Clone(), nil
-	}
-	sgs := []ec2types.SecurityGroup{
-		{
-			GroupId:   aws.String("sg-test1"),
-			GroupName: aws.String("securityGroup-test1"),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-security-group-1")},
-				{Key: aws.String("foo"), Value: aws.String("bar")},
+	return e.DescribeSecurityGroupsBehavior.Invoke(input, func(input *ec2.DescribeSecurityGroupsInput) (*ec2.DescribeSecurityGroupsOutput, error) {
+		defaultSecurityGroups := []ec2types.SecurityGroup{
+			{
+				GroupId:   aws.String("sg-test1"),
+				GroupName: aws.String("securityGroup-test1"),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-security-group-1")},
+					{Key: aws.String("foo"), Value: aws.String("bar")},
+				},
 			},
-		},
-		{
-			GroupId:   aws.String("sg-test2"),
-			GroupName: aws.String("securityGroup-test2"),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-security-group-2")},
-				{Key: aws.String("foo"), Value: aws.String("bar")},
+			{
+				GroupId:   aws.String("sg-test2"),
+				GroupName: aws.String("securityGroup-test2"),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-security-group-2")},
+					{Key: aws.String("foo"), Value: aws.String("bar")},
+				},
 			},
-		},
-		{
-			GroupId:   aws.String("sg-test3"),
-			GroupName: aws.String("securityGroup-test3"),
-			Tags: []ec2types.Tag{
-				{Key: aws.String("Name"), Value: aws.String("test-security-group-3")},
-				{Key: aws.String("TestTag")},
-				{Key: aws.String("foo"), Value: aws.String("bar")},
+			{
+				GroupId:   aws.String("sg-test3"),
+				GroupName: aws.String("securityGroup-test3"),
+				Tags: []ec2types.Tag{
+					{Key: aws.String("Name"), Value: aws.String("test-security-group-3")},
+					{Key: aws.String("TestTag")},
+					{Key: aws.String("foo"), Value: aws.String("bar")},
+				},
 			},
-		},
-	}
-	if len(input.Filters) == 0 {
-		return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
-	}
-	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: FilterDescribeSecurtyGroups(sgs, input.Filters)}, nil
+		}
+		if len(input.Filters) == 0 {
+			return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
+		}
+		return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: FilterDescribeSecurtyGroups(defaultSecurityGroups, input.Filters)}, nil
+	})
 }
 
 func (e *EC2API) DescribeAvailabilityZones(context.Context, *ec2.DescribeAvailabilityZonesInput, ...func(*ec2.Options)) (*ec2.DescribeAvailabilityZonesOutput, error) {
@@ -544,156 +601,27 @@ func (e *EC2API) DescribeInstanceTypeOfferings(_ context.Context, _ *ec2.Describ
 	if !e.DescribeInstanceTypeOfferingsOutput.IsNil() {
 		return e.DescribeInstanceTypeOfferingsOutput.Clone(), nil
 	}
-	return &ec2.DescribeInstanceTypeOfferingsOutput{
-		InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
-			{
-				InstanceType: "m5.large",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m5.large",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "m5.large",
-				Location:     aws.String("test-zone-1c"),
-			},
-			{
-				InstanceType: "m5.large",
-				Location:     aws.String("test-zone-1a-local"),
-			},
-			{
-				InstanceType: "m5.xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m5.xlarge",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "m5.2xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m5.4xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m5.8xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "p3.8xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "p3.8xlarge",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "dl1.24xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "dl1.24xlarge",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "g4dn.8xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "g4dn.8xlarge",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "g4ad.16xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "g4ad.16xlarge",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "t3.large",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "t3.large",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "inf2.xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "inf2.24xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "trn1.2xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "c6g.large",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m5.metal",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m5.metal",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "m5.metal",
-				Location:     aws.String("test-zone-1c"),
-			},
-			{
-				InstanceType: "m6idn.32xlarge",
-				Location:     aws.String("test-zone-1a"),
-			},
-			{
-				InstanceType: "m6idn.32xlarge",
-				Location:     aws.String("test-zone-1b"),
-			},
-			{
-				InstanceType: "m6idn.32xlarge",
-				Location:     aws.String("test-zone-1c"),
-			},
-		},
-	}, nil
+	return defaultDescribeInstanceTypeOfferingsOutput, nil
 }
 
 func (e *EC2API) DescribeSpotPriceHistory(_ context.Context, input *ec2.DescribeSpotPriceHistoryInput, _ ...func(*ec2.Options)) (*ec2.DescribeSpotPriceHistoryOutput, error) {
-	e.DescribeSpotPriceHistoryInput.Set(input)
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	if !e.DescribeSpotPriceHistoryOutput.IsNil() {
-		return e.DescribeSpotPriceHistoryOutput.Clone(), nil
-	}
-	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
-	return nil, errors.New("no pricing data provided")
+	return e.DescribeSpotPriceHistoryBehavior.Invoke(input, func(input *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {
+		// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
+		return nil, errors.New("no pricing data provided")
+	})
 }
 
 func (e *EC2API) RunInstances(ctx context.Context, input *ec2.RunInstancesInput, optFns ...func(*ec2.Options)) (*ec2.RunInstancesOutput, error) {
-	if input.DryRun != nil && *input.DryRun {
-		err := e.RunInstancesBehavior.Error.Get()
-		if err == nil {
-			return &ec2.RunInstancesOutput{}, &smithy.GenericAPIError{
-				Code:    "DryRunOperation",
-				Message: "Request would have succeeded, but DryRun flag is set",
-			}
-		}
-		return nil, err
-	}
 	return e.RunInstancesBehavior.Invoke(input, func(input *ec2.RunInstancesInput) (*ec2.RunInstancesOutput, error) {
 		if !e.NextError.IsNil() {
 			defer e.NextError.Reset()
 			return nil, e.NextError.Get()
+		}
+		if lo.FromPtr(input.DryRun) {
+			return &ec2.RunInstancesOutput{}, &smithy.GenericAPIError{
+				Code:    "DryRunOperation",
+				Message: "Request would have succeeded, but DryRun flag is set",
+			}
 		}
 
 		// Default implementation

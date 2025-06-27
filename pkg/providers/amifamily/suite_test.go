@@ -59,15 +59,15 @@ func TestAWS(t *testing.T) {
 }
 
 const (
-	amd64AMI       = "amd64-ami-id"
-	arm64AMI       = "arm64-ami-id"
-	amd64NvidiaAMI = "amd64-nvidia-ami-id"
-	arm64NvidiaAMI = "arm64-nvidia-ami-id"
+	amd64AMI       = "ami-id-amd64"
+	arm64AMI       = "ami-id-arm64"
+	amd64NvidiaAMI = "ami-id-amd64-nvidia"
+	arm64NvidiaAMI = "ami-id-arm64-nvidia"
 )
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 })
@@ -78,7 +78,7 @@ var _ = BeforeEach(func() {
 		Images: []ec2types.Image{
 			{
 				Name:         aws.String(amd64AMI),
-				ImageId:      aws.String("amd64-ami-id"),
+				ImageId:      aws.String("ami-id-amd64"),
 				CreationDate: aws.String(time.Time{}.Format(time.RFC3339)),
 				Architecture: "x86_64",
 				Tags: []ec2types.Tag{
@@ -89,7 +89,7 @@ var _ = BeforeEach(func() {
 			},
 			{
 				Name:         aws.String(arm64AMI),
-				ImageId:      aws.String("arm64-ami-id"),
+				ImageId:      aws.String("ami-id-arm64"),
 				CreationDate: aws.String(time.Time{}.Add(time.Minute).Format(time.RFC3339)),
 				Architecture: "arm64",
 				Tags: []ec2types.Tag{
@@ -100,7 +100,7 @@ var _ = BeforeEach(func() {
 			},
 			{
 				Name:         aws.String(amd64NvidiaAMI),
-				ImageId:      aws.String("amd64-nvidia-ami-id"),
+				ImageId:      aws.String("ami-id-amd64-nvidia"),
 				CreationDate: aws.String(time.Time{}.Add(2 * time.Minute).Format(time.RFC3339)),
 				Architecture: "x86_64",
 				Tags: []ec2types.Tag{
@@ -111,7 +111,7 @@ var _ = BeforeEach(func() {
 			},
 			{
 				Name:         aws.String(arm64NvidiaAMI),
-				ImageId:      aws.String("arm64-nvidia-ami-id"),
+				ImageId:      aws.String("ami-id-arm64-nvidia"),
 				CreationDate: aws.String(time.Time{}.Add(2 * time.Minute).Format(time.RFC3339)),
 				Architecture: "arm64",
 				Tags: []ec2types.Tag{
@@ -132,12 +132,43 @@ var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
+type MockVersionProvider struct {
+	version string
+}
+
+func (m *MockVersionProvider) Get(ctx context.Context) string {
+	return m.version
+}
+
+func amiProviderWithEKSVersionOverride(version string) *amifamily.DefaultProvider {
+	mockVersionProvider := &MockVersionProvider{version: version}
+	return amifamily.NewDefaultProvider(awsEnv.Clock, mockVersionProvider, awsEnv.SSMProvider, awsEnv.EC2API, awsEnv.EC2Cache)
+}
+
 var _ = Describe("AMIProvider", func() {
 	var version string
 	BeforeEach(func() {
 		version = awsEnv.VersionProvider.Get(ctx)
 		nodeClass = test.EC2NodeClass()
 	})
+	DescribeTable(
+		"should fail when AL2 is used with Kubernetes version 1.33 or greater",
+		func(k8sVersion string, amiAlias string, expectError bool) {
+			amiProvider := amiProviderWithEKSVersionOverride(k8sVersion)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: amiAlias}}
+			_, err := amiProvider.DescribeImageQueries(ctx, nodeClass)
+			if expectError {
+				Expect(err).To(HaveOccurred())
+			} else {
+				Expect(err).ToNot(HaveOccurred())
+			}
+		},
+		Entry("should fail for AL2 on 1.33.0", "1.33.0", "al2@latest", true),
+		Entry("should fail for AL2 on 1.34.2", "1.34.2", "al2@latest", true),
+		Entry("should succeed for AL2 on 1.32.0", "1.32.0", "al2@latest", false),
+		Entry("should succeed for AL2023 on 1.33.0", "1.33.0", "al2023@latest", false),
+	)
+
 	It("should succeed to resolve AMIs (AL2)", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 		awsEnv.SSMAPI.Parameters = map[string]string{
@@ -189,13 +220,14 @@ var _ = Describe("AMIProvider", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(1))
 	})
+
 	It("should not cause data races when calling Get() simultaneously", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
-				ID: "amd64-ami-id",
+				ID: "ami-id-amd64",
 			},
 			{
-				ID: "arm64-ami-id",
+				ID: "ami-id-arm64",
 			},
 		}
 		wg := sync.WaitGroup{}
@@ -213,7 +245,7 @@ var _ = Describe("AMIProvider", func() {
 				Expect(images).To(BeEquivalentTo([]amifamily.AMI{
 					{
 						Name:         arm64AMI,
-						AmiID:        "arm64-ami-id",
+						AmiID:        "ami-id-arm64",
 						CreationDate: time.Time{}.Add(time.Minute).Format(time.RFC3339),
 						Requirements: scheduling.NewLabelRequirements(map[string]string{
 							corev1.LabelArchStable: karpv1.ArchitectureArm64,
@@ -221,7 +253,7 @@ var _ = Describe("AMIProvider", func() {
 					},
 					{
 						Name:         amd64AMI,
-						AmiID:        "amd64-ami-id",
+						AmiID:        "ami-id-amd64",
 						CreationDate: time.Time{}.Format(time.RFC3339),
 						Requirements: scheduling.NewLabelRequirements(map[string]string{
 							corev1.LabelArchStable: karpv1.ArchitectureAmd64,
@@ -312,7 +344,7 @@ var _ = Describe("AMIProvider", func() {
 		BeforeEach(func() {
 			img = ec2types.Image{
 				Name:         aws.String(amd64AMI),
-				ImageId:      aws.String("amd64-ami-id"),
+				ImageId:      aws.String("ami-id-amd64"),
 				CreationDate: aws.String(time.Now().Format(time.RFC3339)),
 				Architecture: "x86_64",
 				Tags: []ec2types.Tag{
@@ -358,9 +390,9 @@ var _ = Describe("AMIProvider", func() {
 				},
 			}
 		})
-		It("should priortize the older non-deprecated ami without deprecation time", func() {
+		It("should prioritize the older non-deprecated ami without deprecation time", func() {
 			// Here we have two AMIs one which is deprecated and newer and one which is older and non-deprecated without a deprecation time
-			// List operation will priortize the non-deprecated AMI without the deprecation time
+			// List operation will prioritize the non-deprecated AMI without the deprecation time
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []ec2types.Image{
 					{
@@ -400,9 +432,9 @@ var _ = Describe("AMIProvider", func() {
 				),
 			}))
 		})
-		It("should priortize the non-deprecated ami with deprecation time when both have same creation time", func() {
+		It("should prioritize the non-deprecated ami with deprecation time when both have same creation time", func() {
 			// Here we have two AMIs one which is deprecated and one which is non-deprecated both with the same creation time
-			// List operation will priortize the non-deprecated AMI
+			// List operation will prioritize the non-deprecated AMI
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []ec2types.Image{
 					{
@@ -444,9 +476,9 @@ var _ = Describe("AMIProvider", func() {
 				),
 			}))
 		})
-		It("should priortize the non-deprecated ami with deprecation time when both have same creation time and different name", func() {
+		It("should prioritize the non-deprecated ami with deprecation time when both have same creation time and different name", func() {
 			// Here we have two AMIs one which is deprecated and one which is non-deprecated both with the same creation time but with different names
-			// List operation will priortize the non-deprecated AMI
+			// List operation will prioritize the non-deprecated AMI
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []ec2types.Image{
 					{
@@ -488,7 +520,7 @@ var _ = Describe("AMIProvider", func() {
 				),
 			}))
 		})
-		It("should priortize the newer ami if both are deprecated", func() {
+		It("should prioritize the newer ami if both are deprecated", func() {
 			//Both amis are deprecated and have the same deprecation time
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []ec2types.Image{
@@ -847,6 +879,52 @@ var _ = Describe("AMIProvider", func() {
 					},
 				},
 			))
+		})
+		It("should succeed to resolve AMIs that use an SSM parameter", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+				SSMParameter: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version),
+			}}
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version): amd64AMI,
+			}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].AmiID).To(Equal("ami-id-amd64"))
+			Expect(amis[0].Name).To(Equal(amd64AMI))
+		})
+		It("should succeed to resolve AMIs that use a custom SSM parameter", func() {
+			customParameter := "/my/custom/ami/parameter"
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+				SSMParameter: customParameter,
+			}}
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				customParameter: amd64AMI,
+			}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].AmiID).To(Equal("ami-id-amd64"))
+			Expect(amis[0].Name).To(Equal(amd64AMI))
+		})
+		It("should not throw an error if SSM parameter is not found", func() {
+			customParameter := "/my/custom/ami/parameter"
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+				SSMParameter: customParameter,
+			}}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(0))
+		})
+		It("should throw an error if SSM parameter returns a different error", func() {
+			customParameter := "/my/custom/ami/parameter"
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+				SSMParameter: customParameter,
+			}}
+			awsEnv.SSMAPI.WantErr = fmt.Errorf("some error")
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).To(HaveOccurred())
+			Expect(amis).To(HaveLen(0))
 		})
 	})
 })

@@ -22,6 +22,8 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 
@@ -53,7 +55,7 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
@@ -65,7 +67,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
 	nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
 		Spec: v1.EC2NodeClassSpec{
@@ -111,6 +113,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 			}, subnets)
 		})
@@ -131,12 +134,14 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 			}, subnets)
 		})
@@ -159,12 +164,14 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 			}, subnets)
 		})
@@ -182,6 +189,7 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 			}, subnets)
 		})
@@ -202,12 +210,14 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 			}, subnets)
 		})
@@ -226,13 +236,82 @@ var _ = Describe("SubnetProvider", func() {
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
 					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int32](100),
+					VpcId:                   lo.ToPtr("vpc-test1"),
 				},
 			}, subnets)
+		})
+		It("should handle empty pages when describing subnets", func() {
+			awsEnv.EC2API.DescribeSubnetsBehavior.OutputPages.Add(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{}})
+			awsEnv.EC2API.DescribeSubnetsBehavior.OutputPages.Add(
+				&ec2.DescribeSubnetsOutput{
+					Subnets: []ec2types.Subnet{
+						{SubnetId: aws.String("test-subnet-1000"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+							Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1000")}},
+						},
+					},
+				},
+			)
+			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
+				{
+					SubnetId:                lo.ToPtr("test-subnet-1000"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
+					AvailableIpAddressCount: lo.ToPtr[int32](10),
+					VpcId:                   lo.ToPtr("vpc-test-1"),
+				},
+			}, subnets)
+			Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(2))
+		})
+		It("should not overwrite found values when handling multiple pages of subnets", func() {
+			awsEnv.EC2API.DescribeSubnetsBehavior.OutputPages.Add(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}},
+				},
+			}})
+			awsEnv.EC2API.DescribeSubnetsBehavior.OutputPages.Add(
+				&ec2.DescribeSubnetsOutput{
+					Subnets: []ec2types.Subnet{
+						{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+							Tags:  []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}},
+							VpcId: lo.ToPtr("vpc-test1"),
+						},
+					},
+				},
+			)
+			awsEnv.EC2API.DescribeSubnetsBehavior.OutputPages.Add(
+				&ec2.DescribeSubnetsOutput{
+					Subnets: []ec2types.Subnet{
+						{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+							Tags:  []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-3")}},
+							VpcId: lo.ToPtr("vpc-test1"),
+						},
+					},
+				},
+			)
+			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags:  []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}},
+					VpcId: lo.ToPtr("vpc-test1"),
+				},
+				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags:  []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}},
+					VpcId: lo.ToPtr("vpc-test1"),
+				},
+				{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(10),
+					Tags:  []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-3")}},
+					VpcId: lo.ToPtr("vpc-test1"),
+				},
+			}, subnets)
+			Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(3))
 		})
 	})
 	Context("Provider Cache", func() {
 		It("should resolve subnets from cache that are filtered by id", func() {
-			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
+			expectedSubnets := awsEnv.EC2API.DescribeSubnetsBehavior.Output.Clone().Subnets
 			for _, subnet := range expectedSubnets {
 				nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 					{
@@ -251,7 +330,7 @@ var _ = Describe("SubnetProvider", func() {
 			}
 		})
 		It("should resolve subnets from cache that are filtered by tags", func() {
-			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
+			expectedSubnets := awsEnv.EC2API.DescribeSubnetsBehavior.Output.Clone().Subnets
 			tagSet := lo.Map(expectedSubnets, func(subnet ec2types.Subnet, _ int) map[string]string {
 				tag, _ := lo.Find(subnet.Tags, func(tag ec2types.Tag) bool {
 					return lo.FromPtr(tag.Key) == "Name"
@@ -311,6 +390,7 @@ var _ = Describe("SubnetProvider", func() {
 								Value: lo.ToPtr("bar"),
 							},
 						},
+						VpcId: lo.ToPtr("vpc-test1"),
 					},
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1b"),
@@ -329,6 +409,7 @@ var _ = Describe("SubnetProvider", func() {
 								Value: lo.ToPtr("bar"),
 							},
 						},
+						VpcId: lo.ToPtr("vpc-test1"),
 					},
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1c"),
@@ -348,6 +429,7 @@ var _ = Describe("SubnetProvider", func() {
 								Value: lo.ToPtr("bar"),
 							},
 						},
+						VpcId: lo.ToPtr("vpc-test1"),
 					},
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1a-local"),
@@ -361,6 +443,7 @@ var _ = Describe("SubnetProvider", func() {
 								Value: lo.ToPtr("test-subnet-4"),
 							},
 						},
+						VpcId: lo.ToPtr("vpc-test1"),
 					},
 				}))
 			}()

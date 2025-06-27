@@ -14,6 +14,55 @@ This guide contains information needed to upgrade to the latest release of Karpe
 With the release of Karpenter v1.0.0, the Karpenter team will be dropping support for karpenter versions v0.32 and below. We recommend upgrading to the latest version of Karpenter and keeping Karpenter up-to-date for bug fixes and new features.
 {{% /alert %}}
 
+When upgrading Karpenter in production environments, implementing a robust CI/CD pipeline approach is crucial. Improper upgrades can lead to significant disruptions including failed node provisioning, orphaned nodes, interrupted workloads, and potential cost implications from unmanaged scaling. Given Karpenter's critical role in cluster scaling and workload management, untested upgrades could result in production outages or resource allocation issues that directly impact application availability and performance. Therefore, we recommend following these structured steps:
+
+#### Pre-upgrade Validation
+
+- Validate all required IAM permissions (node role, controller role)
+- Check webhook configurations
+- Back up existing NodePool and NodeClass configurations
+- Document current version and settings
+
+#### Staging Environment Setup
+
+- Create or verify staging environment
+- Update version tags in Helm values or manifests
+- Configure automated validation tests
+
+#### Staging Deployment
+
+- Deploy to staging environment
+- Run comprehensive tests including node provisioning
+- Verify controller health
+- Test NodePool and NodeClass functionality
+- Monitor system behavior
+
+#### Production Approval and Deployment
+
+- Require manual approval/review
+- Schedule maintenance window if needed
+- Execute production deployment
+- Monitor deployment progress
+- Verify all components are functioning
+
+#### Post-Deployment
+
+- Monitor system health
+- Verify node provisioning
+- Keep rollback configurations accessible
+- Update documentation
+
+Here are few recommended CI/CD Pipeline Options:
+
+- GitHub Actions - Excellent for GitHub-hosted repositories with built-in Kubernetes support
+- GitLab CI - Strong container-native pipeline with integrated Kubernetes functionality
+- ArgoCD - Specialized for GitOps workflows with Kubernetes
+- AWS CodePipeline - Native integration with EKS and AWS services
+- Flux - Open-source GitOps tool for Kubernetes with automatic deployment capabilities
+
+Each pipeline tool can be configured to handle the Karpenter upgrade workflow, but choose based on your existing infrastructure, team expertise, and specific requirements for automation and integration.
+
+
 ### CRD Upgrades
 
 Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are published:
@@ -37,6 +86,41 @@ If you get the error `invalid ownership metadata; label validation error:` while
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+### Upgrading to `1.5.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* No breaking changes 🎉
+
+Full Changelog: 
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.5.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.5.0
+
+### Upgrading to `1.4.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* No breaking changes 🎉
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.4.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.4.0
+
+### Upgrading to `1.3.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* `karpenter_ignored_pod_count` alpha metric had its name changed to `karpenter_scheduler_ignored_pod_count`
+* With the `ReservedCapacity` feature flag, Karpenter introduces a new `karpenter.sh/capacity-type` value (`reserved`). This means any applications that explicitly select on `on-demand` with a `nodeSelector` and want to utilize ODCR capacity may need to update their requirements to use `nodeAffinity` to opt-in to using both `reserved` and `on-demand` capacity.
 
 ### Upgrading to `1.2.0`+
 

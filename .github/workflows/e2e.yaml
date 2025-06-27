@@ -30,7 +30,6 @@ on:
       k8s_version:
         type: choice
         options:
-          - "1.25"
           - "1.26"
           - "1.27"
           - "1.28"
@@ -50,10 +49,16 @@ on:
         default: false
       codebuild_region:
         type: string
+      source:
+        type: string
+        default: "aws" 
   workflow_call:
     inputs:
       git_ref:
         type: string
+      source:
+        type: string
+        default: "aws" 
       region:
         type: string
         default: "us-east-2"
@@ -99,12 +104,13 @@ jobs:
           git_ref: ${{ inputs.git_ref }}
       - uses: ./.github/actions/install-deps
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df # v4.2.1
         with:
           role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
           aws-region: ${{ inputs.region }}
           role-duration-seconds: 21600
       - name: add jitter on cluster setup
+        if: github.repository == 'aws/karpenter-provider-aws'
         run: |
           # Creating jitter so that we can stagger cluster creation to avoid throttling
           sleep $(( RANDOM % 300 + 1 ))
@@ -169,6 +175,7 @@ jobs:
         env:
           SUITE: ${{ inputs.suite }}
           ENABLE_METRICS: ${{ inputs.enable_metrics }}
+          SOURCE: ${{ inputs.source }}
         run: |
           aws eks update-kubeconfig --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           # Clean up the cluster before running all tests
@@ -176,9 +183,20 @@ jobs:
           kubectl delete ec2nodeclass --all
           kubectl delete deployment --all
 
-          TEST_SUITE="$SUITE" ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
-            CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
-            INTERRUPTION_QUEUE="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make e2etests
+          if [[ "$SOURCE" == 'aws' ]]; then
+            TEST_SUITE="$SUITE" ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
+              CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
+              INTERRUPTION_QUEUE="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make e2etests
+          elif [[ "$SOURCE" == 'upstream' ]]; then
+            FOCUS="$SUITE" GIT_REF="$(git rev-parse HEAD)" \
+              CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make upstream-e2etests
+          elif [[ "$SOURCE" == 'all' ]]; then
+            TEST_SUITE="$SUITE" ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
+              CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
+              INTERRUPTION_QUEUE="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make e2etests
+            FOCUS="$SUITE" GIT_REF="$(git rev-parse HEAD)" \
+              CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make upstream-e2etests
+          fi
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
         if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'versionCompatibility'

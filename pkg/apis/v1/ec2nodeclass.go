@@ -21,6 +21,7 @@ import (
 
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -28,26 +29,33 @@ import (
 // EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
 // This will contain configuration necessary to launch instances in AWS.
 type EC2NodeClassSpec struct {
-	// SubnetSelectorTerms is a list of or subnet selector terms. The terms are ORed.
+	// SubnetSelectorTerms is a list of subnet selector terms. The terms are ORed.
 	// +kubebuilder:validation:XValidation:message="subnetSelectorTerms cannot be empty",rule="self.size() != 0"
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id']",rule="self.all(x, has(x.tags) || has(x.id))"
-	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in subnetSelectorTerms",rule="!self.all(x, has(x.id) && has(x.tags))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in a subnet selector term",rule="!self.all(x, has(x.id) && has(x.tags))"
 	// +kubebuilder:validation:MaxItems:=30
 	// +required
 	SubnetSelectorTerms []SubnetSelectorTerm `json:"subnetSelectorTerms" hash:"ignore"`
-	// SecurityGroupSelectorTerms is a list of or security group selector terms. The terms are ORed.
+	// SecurityGroupSelectorTerms is a list of security group selector terms. The terms are ORed.
 	// +kubebuilder:validation:XValidation:message="securityGroupSelectorTerms cannot be empty",rule="self.size() != 0"
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name))"
-	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in securityGroupSelectorTerms",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.name)))"
-	// +kubebuilder:validation:XValidation:message="'name' is mutually exclusive, cannot be set with a combination of other fields in securityGroupSelectorTerms",rule="!self.all(x, has(x.name) && (has(x.tags) || has(x.id)))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in a security group selector term",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.name)))"
+	// +kubebuilder:validation:XValidation:message="'name' is mutually exclusive, cannot be set with a combination of other fields in a security group selector term",rule="!self.all(x, has(x.name) && (has(x.tags) || has(x.id)))"
 	// +kubebuilder:validation:MaxItems:=30
 	// +required
 	SecurityGroupSelectorTerms []SecurityGroupSelectorTerm `json:"securityGroupSelectorTerms" hash:"ignore"`
+	// CapacityReservationSelectorTerms is a list of capacity reservation selector terms. Each term is ORed together to
+	// determine the set of eligible capacity reservations.
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id']",rule="self.all(x, has(x.tags) || has(x.id))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set along with tags in a capacity reservation selector term",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID)))"
+	// +kubebuilder:validation:MaxItems:=30
+	// +optional
+	CapacityReservationSelectorTerms []CapacityReservationSelectorTerm `json:"capacityReservationSelectorTerms" hash:"ignore"`
 	// AssociatePublicIPAddress controls if public IP addresses are assigned to instances that are launched with the nodeclass.
 	// +optional
 	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
 	// AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
-	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name', 'alias']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias))"
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name', 'alias', 'ssmParameter']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias) || has(x.ssmParameter))"
 	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.exists(x, has(x.id) && (has(x.alias) || has(x.tags) || has(x.name) || has(x.owner)))"
 	// +kubebuilder:validation:XValidation:message="'alias' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.exists(x, has(x.alias) && (has(x.id) || has(x.tags) || has(x.name) || has(x.owner)))"
 	// +kubebuilder:validation:XValidation:message="'alias' is mutually exclusive, cannot be set with a combination of other amiSelectorTerms",rule="!(self.exists(x, has(x.alias)) && self.size() != 1)"
@@ -169,6 +177,23 @@ type SecurityGroupSelectorTerm struct {
 	Name string `json:"name,omitempty"`
 }
 
+type CapacityReservationSelectorTerm struct {
+	// Tags is a map of key/value tags used to select capacity reservations.
+	// Specifying '*' for a value selects all values for a given tag key.
+	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
+	// +kubebuilder:validation:MaxProperties:=20
+	// +optional
+	Tags map[string]string `json:"tags,omitempty"`
+	// ID is the capacity reservation id in EC2
+	// +kubebuilder:validation:Pattern:="^cr-[0-9a-z]+$"
+	// +optional
+	ID string `json:"id,omitempty"`
+	// Owner is the owner id for the ami.
+	// +kubebuilder:validation:Pattern:="^[0-9]{12}$"
+	// +optional
+	OwnerID string `json:"ownerID,omitempty"`
+}
+
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.
 // If multiple fields are used for selection, the requirements are ANDed.
 type AMISelectorTerm struct {
@@ -202,6 +227,9 @@ type AMISelectorTerm struct {
 	// You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
 	// +optional
 	Owner string `json:"owner,omitempty"`
+	//SSMParameter is the name (or ARN) of the SSM parameter containing the Image ID.
+	// +optional
+	SSMParameter string `json:"ssmParameter,omitempty"`
 }
 
 // KubeletConfiguration defines args to be used when configuring kubelet on provisioned nodes.
@@ -329,6 +357,7 @@ type BlockDeviceMapping struct {
 	DeviceName *string `json:"deviceName,omitempty"`
 	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
 	// +kubebuilder:validation:XValidation:message="snapshotID or volumeSize must be defined",rule="has(self.snapshotID) || has(self.volumeSize)"
+	// +kubebuilder:validation:XValidation:message="snapshotID must be set when volumeInitializationRate is set",rule="!has(self.volumeInitializationRate) || (has(self.snapshotID) && self.snapshotID != '')"
 	// +optional
 	EBS *BlockDevice `json:"ebs,omitempty"`
 	// RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
@@ -367,7 +396,7 @@ type BlockDevice struct {
 	// is not supported for gp2, st1, sc1, or standard volumes.
 	// +optional
 	IOPS *int64 `json:"iops,omitempty"`
-	// KMSKeyID (ARN) of the symmetric Key Management Service (KMS) CMK used for encryption.
+	// Identifier (key ID, key alias, key ARN, or alias ARN) of the customer managed KMS key to use for EBS encryption.
 	// +optional
 	KMSKeyID *string `json:"kmsKeyID,omitempty"`
 	// SnapshotID is the ID of an EBS snapshot
@@ -377,6 +406,15 @@ type BlockDevice struct {
 	// Valid Range: Minimum value of 125. Maximum value of 1000.
 	// +optional
 	Throughput *int64 `json:"throughput,omitempty"`
+	// VolumeInitializationRate specifies the Amazon EBS Provisioned Rate for Volume Initialization,
+	// in MiB/s, at which to download the snapshot blocks from Amazon S3 to the volume. This is also known as volume
+	// initialization. Specifying a volume initialization rate ensures that the volume is initialized at a
+	// predictable and consistent rate after creation. Only allowed if SnapshotID is set.
+	// Valid Range: Minimum value of 100. Maximum value of 300.
+	// +kubebuilder:validation:Minimum:=100
+	// +kubebuilder:validation:Maximum:=300
+	// +optional
+	VolumeInitializationRate *int32 `json:"volumeInitializationRate,omitempty"`
 	// VolumeSize in `Gi`, `G`, `Ti`, or `T`. You must specify either a snapshot ID or
 	// a volume size. The following are the supported volumes sizes for each volume
 	// type:
@@ -467,12 +505,25 @@ func (in *EC2NodeClass) InstanceProfileRole() string {
 	return in.Spec.Role
 }
 
-func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]string {
+func (in *EC2NodeClass) InstanceProfileTags(clusterName string, region string) map[string]string {
 	return lo.Assign(in.Spec.Tags, map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", clusterName): "owned",
-		EKSClusterNameTagKey: clusterName,
-		LabelNodeClass:       in.Name,
+		EKSClusterNameTagKey:   clusterName,
+		LabelNodeClass:         in.Name,
+		v1.LabelTopologyRegion: region,
 	})
+}
+
+func (in *EC2NodeClass) BlockDeviceMappings() []*BlockDeviceMapping {
+	return in.Spec.BlockDeviceMappings
+}
+
+func (in *EC2NodeClass) InstanceStorePolicy() *InstanceStorePolicy {
+	return in.Spec.InstanceStorePolicy
+}
+
+func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {
+	return in.Spec.Kubelet
 }
 
 // AMIFamily returns the family for a NodePool based on the following items, in order of precdence:

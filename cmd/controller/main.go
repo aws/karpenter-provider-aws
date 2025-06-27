@@ -15,6 +15,7 @@ limitations under the License.
 package main
 
 import (
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers"
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
@@ -23,6 +24,7 @@ import (
 	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
+	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 )
 
 func main() {
@@ -35,9 +37,14 @@ func main() {
 		op.GetClient(),
 		op.AMIProvider,
 		op.SecurityGroupProvider,
+		op.CapacityReservationProvider,
 	)
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 	clusterState := state.NewCluster(op.Clock, op.GetClient(), cloudProvider)
+
+	if karpoptions.FromContext(ctx).FeatureGates.ReservedCapacity {
+		v1.CapacityReservationsEnabled = true
+	}
 
 	op.
 		WithControllers(ctx, corecontrollers.NewControllers(
@@ -59,6 +66,7 @@ func main() {
 			op.EventRecorder,
 			op.UnavailableOfferingsCache,
 			op.SSMCache,
+			op.ValidationCache,
 			cloudProvider,
 			op.SubnetProvider,
 			op.SecurityGroupProvider,
@@ -69,6 +77,8 @@ func main() {
 			op.LaunchTemplateProvider,
 			op.VersionProvider,
 			op.InstanceTypesProvider,
+			op.CapacityReservationProvider,
+			op.AMIResolver,
 		)...).
 		Start(ctx)
 }

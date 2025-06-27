@@ -31,6 +31,12 @@ type Readiness struct {
 	launchTemplateProvider launchtemplate.Provider
 }
 
+func NewReadinessReconciler(launchTemplateProvider launchtemplate.Provider) *Readiness {
+	return &Readiness{
+		launchTemplateProvider: launchTemplateProvider,
+	}
+}
+
 func (n Readiness) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	// A NodeClass that uses AL2023 requires the cluster CIDR for launching nodes.
 	// To allow Karpenter to be used for Non-EKS clusters, resolving the Cluster CIDR

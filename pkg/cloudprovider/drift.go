@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -32,10 +33,11 @@ import (
 )
 
 const (
-	AMIDrift           cloudprovider.DriftReason = "AMIDrift"
-	SubnetDrift        cloudprovider.DriftReason = "SubnetDrift"
-	SecurityGroupDrift cloudprovider.DriftReason = "SecurityGroupDrift"
-	NodeClassDrift     cloudprovider.DriftReason = "NodeClassDrift"
+	AMIDrift                 cloudprovider.DriftReason = "AMIDrift"
+	SubnetDrift              cloudprovider.DriftReason = "SubnetDrift"
+	SecurityGroupDrift       cloudprovider.DriftReason = "SecurityGroupDrift"
+	CapacityReservationDrift cloudprovider.DriftReason = "CapacityReservationDrift"
+	NodeClassDrift           cloudprovider.DriftReason = "NodeClassDrift"
 )
 
 func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
@@ -59,7 +61,13 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 	if err != nil {
 		return "", fmt.Errorf("calculating subnet drift, %w", err)
 	}
-	drifted := lo.FindOrElse([]cloudprovider.DriftReason{amiDrifted, securitygroupDrifted, subnetDrifted}, "", func(i cloudprovider.DriftReason) bool {
+	capacityReservationsDrifted := c.isCapacityReservationDrifted(instance, nodeClass)
+	drifted := lo.FindOrElse([]cloudprovider.DriftReason{
+		amiDrifted,
+		securitygroupDrifted,
+		subnetDrifted,
+		capacityReservationsDrifted,
+	}, "", func(i cloudprovider.DriftReason) bool {
 		return string(i) != ""
 	})
 	return drifted, nil
@@ -75,7 +83,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.Node
 		return instType.Name == nodeClaim.Labels[corev1.LabelInstanceTypeStable]
 	})
 	if !found {
-		return "", fmt.Errorf(`finding node instance type "%s"`, nodeClaim.Labels[corev1.LabelInstanceTypeStable])
+		return "", serrors.Wrap(fmt.Errorf("finding node instance type"), "instance-type", nodeClaim.Labels[corev1.LabelInstanceTypeStable])
 	}
 	if len(nodeClass.Status.AMIs) == 0 {
 		return "", fmt.Errorf("no amis exist given constraints")
@@ -117,6 +125,19 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 		return SecurityGroupDrift, nil
 	}
 	return "", nil
+}
+
+// Checks if capacity reservations are drifted, by comparing the capacity reservations persisted to the NodeClass to
+// the instance's capacity reservation.
+// NOTE: We handle drift dynamically for capacity reservations rather than relying on the offerings inducing drift since
+// a reserved instance may fall back to on-demand. Relying on offerings could result in drift occurring before fallback
+// would cancel it out.
+func (c *CloudProvider) isCapacityReservationDrifted(instance *instance.Instance, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {
+	capacityReservationIDs := sets.New(lo.Map(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation, _ int) string { return cr.ID })...)
+	if instance.CapacityReservationID != nil && !capacityReservationIDs.Has(*instance.CapacityReservationID) {
+		return CapacityReservationDrift
+	}
+	return ""
 }
 
 func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {

@@ -21,10 +21,14 @@ import (
 
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/utils/clock"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 	"sigs.k8s.io/karpenter/pkg/utils/result"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/types"
@@ -45,43 +49,60 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
 
-type nodeClassReconciler interface {
-	Reconcile(context.Context, *v1.EC2NodeClass) (reconcile.Result, error)
-}
-
 type Controller struct {
-	kubeClient             client.Client
-	recorder               events.Recorder
-	launchTemplateProvider launchtemplate.Provider
-
-	ami             *AMI
-	instanceProfile *InstanceProfile
-	subnet          *Subnet
-	securityGroup   *SecurityGroup
-	validation      *Validation
-	readiness       *Readiness //TODO : Remove this when we have sub status conditions
+	kubeClient              client.Client
+	recorder                events.Recorder
+	region                  string
+	launchTemplateProvider  launchtemplate.Provider
+	instanceProfileProvider instanceprofile.Provider
+	validation              *Validation
+	reconcilers             []reconcile.TypedReconciler[*v1.EC2NodeClass]
 }
 
-func NewController(kubeClient client.Client, recorder events.Recorder, subnetProvider subnet.Provider, securityGroupProvider securitygroup.Provider,
-	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider, ec2api sdk.EC2API) *Controller {
-
+func NewController(
+	clk clock.Clock,
+	kubeClient client.Client,
+	cloudProvider cloudprovider.CloudProvider,
+	recorder events.Recorder,
+	region string,
+	subnetProvider subnet.Provider,
+	securityGroupProvider securitygroup.Provider,
+	amiProvider amifamily.Provider,
+	instanceProfileProvider instanceprofile.Provider,
+	instanceTypeProvider instancetype.Provider,
+	launchTemplateProvider launchtemplate.Provider,
+	capacityReservationProvider capacityreservation.Provider,
+	ec2api sdk.EC2API,
+	validationCache *cache.Cache,
+	amiResolver amifamily.Resolver,
+) *Controller {
+	validation := NewValidationReconciler(kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache)
 	return &Controller{
-		kubeClient:             kubeClient,
-		recorder:               recorder,
-		launchTemplateProvider: launchTemplateProvider,
-		ami:                    NewAMIReconciler(amiProvider),
-		subnet:                 &Subnet{subnetProvider: subnetProvider},
-		securityGroup:          &SecurityGroup{securityGroupProvider: securityGroupProvider},
-		instanceProfile:        &InstanceProfile{instanceProfileProvider: instanceProfileProvider},
-		validation:             &Validation{ec2api: ec2api, amiProvider: amiProvider},
-		readiness:              &Readiness{launchTemplateProvider: launchTemplateProvider},
+		kubeClient:              kubeClient,
+		recorder:                recorder,
+		region:                  region,
+		launchTemplateProvider:  launchTemplateProvider,
+		instanceProfileProvider: instanceProfileProvider,
+		validation:              validation,
+		reconcilers: []reconcile.TypedReconciler[*v1.EC2NodeClass]{
+			NewAMIReconciler(amiProvider),
+			NewCapacityReservationReconciler(clk, capacityReservationProvider),
+			NewSubnetReconciler(subnetProvider),
+			NewSecurityGroupReconciler(securityGroupProvider),
+			NewInstanceProfileReconciler(instanceProfileProvider, region),
+			validation,
+			NewReadinessReconciler(launchTemplateProvider),
+		},
 	}
 }
 
@@ -89,6 +110,7 @@ func (c *Controller) Name() string {
 	return "nodeclass"
 }
 
+//nolint:gocyclo
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
 
@@ -114,14 +136,10 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 
 	var results []reconcile.Result
 	var errs error
-	for _, reconciler := range []nodeClassReconciler{
-		c.ami,
-		c.subnet,
-		c.securityGroup,
-		c.instanceProfile,
-		c.validation,
-		c.readiness,
-	} {
+	for _, reconciler := range c.reconcilers {
+		if _, ok := reconciler.(*CapacityReservation); ok && !karpoptions.FromContext(ctx).FeatureGates.ReservedCapacity {
+			continue
+		}
 		res, err := reconciler.Reconcile(ctx, nodeClass)
 		errs = multierr.Append(errs, err)
 		results = append(results, res)
@@ -158,8 +176,8 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
 	if nodeClass.Spec.Role != "" {
-		if _, err := c.instanceProfile.Finalize(ctx, nodeClass); err != nil {
-			return reconcile.Result{}, err
+		if err := c.instanceProfileProvider.Delete(ctx, nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)); err != nil {
+			return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
 		}
 	}
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {
@@ -178,6 +196,7 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 			return reconcile.Result{}, client.IgnoreNotFound(fmt.Errorf("removing termination finalizer, %w", err))
 		}
 	}
+	c.validation.clearCacheEntries(nodeClass)
 	return reconcile.Result{}, nil
 }
 

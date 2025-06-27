@@ -54,6 +54,24 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
 	})
+	It("should delete the instance profile from cache when the nodeClass is deleted", func() {
+		nodeClass.Spec.Role = "test-role"
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+		Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("test-role"))
+
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
+		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
+		Expect(awsEnv.InstanceProfileCache.Items()).To(HaveLen(1))
+
+		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		Expect(awsEnv.InstanceProfileCache.Items()).To(HaveLen(0))
+	})
 	It("should add the role to the instance profile when it exists without a role", func() {
 		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
 			profileName: {

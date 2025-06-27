@@ -92,7 +92,7 @@ One for your Karpenter node role and one for your existing node group.
 First set the Karpenter release you want to deploy.
 
 ```bash
-export KARPENTER_VERSION="1.0.8"
+export KARPENTER_VERSION="1.0.10"
 ```
 
 We can now generate a full Karpenter deployment yaml from the Helm chart.
@@ -132,7 +132,7 @@ Now that our deployment is ready we can create the karpenter namespace, create t
 
 ## Create default NodePool
 
-We need to create a default NodePool so Karpenter knows what types of nodes we want for unscheduled workloads. You can refer to some of the [example NodePool](https://github.com/aws/karpenter/tree/v1.0.8/examples/v1) for specific needs.
+We need to create a default NodePool so Karpenter knows what types of nodes we want for unscheduled workloads. You can refer to some of the [example NodePool](https://github.com/aws/karpenter/tree/v1.0.10/examples/v1) for specific needs.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step10-create-nodepool.sh" language="bash" %}}
 
@@ -188,7 +188,7 @@ If you have a lot of nodes or workloads you may want to slowly scale down your n
 As nodegroup nodes are drained you can verify that Karpenter is creating nodes for your workloads.
 
 ```bash
-kubectl logs -f -n karpenter -c controller -l app.kubernetes.io/name=karpenter
+kubectl logs -f -n "${KARPENTER_NAMESPACE}" -l app.kubernetes.io/name=karpenter -c controller
 ```
 
 You should also see new nodes created in your cluster as the old nodes are removed

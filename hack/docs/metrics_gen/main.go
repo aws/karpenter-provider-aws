@@ -28,6 +28,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 
 	"sigs.k8s.io/karpenter/pkg/metrics"
@@ -372,5 +373,5 @@ func getIdentMapping(identName string) (string, error) {
 	if v, ok := identMapping[identName]; ok {
 		return v, nil
 	}
-	return "", fmt.Errorf("no identifier mapping exists for %s", identName)
+	return "", serrors.Wrap(fmt.Errorf("no identifier mapping exists"), "identifier", identName)
 }

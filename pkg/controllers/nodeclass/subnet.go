@@ -32,6 +32,12 @@ type Subnet struct {
 	subnetProvider subnet.Provider
 }
 
+func NewSubnetReconciler(subnetProvider subnet.Provider) *Subnet {
+	return &Subnet{
+		subnetProvider: subnetProvider,
+	}
+}
+
 func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	subnets, err := s.subnetProvider.List(ctx, nodeClass)
 	if err != nil {

@@ -53,7 +53,7 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
@@ -67,7 +67,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv.Reset()
 })
@@ -85,14 +85,14 @@ var _ = Describe("SSM Invalidation Controller", func() {
 		_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
 		currentEntries := getSSMCacheEntries()
-		Expect(len(currentEntries)).To(Equal(4))
+		Expect(len(currentEntries)).To(Equal(5))
 		awsEnv.EC2Cache.Flush()
 		ExpectSingletonReconciled(ctx, invalidationController)
 		awsEnv.SSMAPI.Reset()
 		_, err = awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
 		updatedEntries := getSSMCacheEntries()
-		Expect(len(updatedEntries)).To(Equal(4))
+		Expect(len(updatedEntries)).To(Equal(5))
 		for parameter, amiID := range currentEntries {
 			updatedAMIID, ok := updatedEntries[parameter]
 			Expect(ok).To(BeTrue())
@@ -105,14 +105,14 @@ var _ = Describe("SSM Invalidation Controller", func() {
 		Expect(err).To(BeNil())
 		currentEntries := getSSMCacheEntries()
 		deprecateAMIs(lo.Values(currentEntries)...)
-		Expect(len(currentEntries)).To(Equal(4))
+		Expect(len(currentEntries)).To(Equal(5))
 		awsEnv.EC2Cache.Flush()
 		ExpectSingletonReconciled(ctx, invalidationController)
 		awsEnv.SSMAPI.Reset()
 		_, err = awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
 		updatedEntries := getSSMCacheEntries()
-		Expect(len(updatedEntries)).To(Equal(4))
+		Expect(len(updatedEntries)).To(Equal(5))
 		for parameter, amiID := range currentEntries {
 			updatedAMIID, ok := updatedEntries[parameter]
 			Expect(ok).To(BeTrue())
@@ -124,14 +124,14 @@ var _ = Describe("SSM Invalidation Controller", func() {
 		Expect(err).To(BeNil())
 		currentEntries := getSSMCacheEntries()
 		deprecateAMIs(lo.Values(currentEntries)...)
-		Expect(len(currentEntries)).To(Equal(4))
+		Expect(len(currentEntries)).To(Equal(5))
 		awsEnv.EC2Cache.Flush()
 		ExpectSingletonReconciled(ctx, invalidationController)
 		awsEnv.SSMAPI.Reset()
 		_, err = awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
 		updatedEntries := getSSMCacheEntries()
-		Expect(len(updatedEntries)).To(Equal(4))
+		Expect(len(updatedEntries)).To(Equal(5))
 		for parameter, amiID := range currentEntries {
 			updatedAMIID, ok := updatedEntries[parameter]
 			Expect(ok).To(BeTrue())

@@ -15,11 +15,16 @@ limitations under the License.
 package common
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"math"
+	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,8 +39,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport"
+	"k8s.io/client-go/transport/spdy"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -45,6 +53,10 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/test"
 	coreresources "sigs.k8s.io/karpenter/pkg/utils/resources"
+)
+
+var (
+	prometheusMetricRegex = regexp.MustCompile(`(?P<Name>.*){(?P<Labels>.*)} (?P<Value>\d*(?:\.\d*)?)`)
 )
 
 func (env *Environment) ExpectCreated(objects ...client.Object) {
@@ -404,6 +416,91 @@ func (env *Environment) ExpectKarpenterLeaseOwnerChanged() {
 	}).Should(Succeed())
 }
 
+func (env *Environment) ExpectPodPortForwarded(ctx context.Context, pod *corev1.Pod, podPort, localPort int) {
+	GinkgoHelper()
+
+	roundTripper, upgrader, err := spdy.RoundTripperFor(env.Config)
+	Expect(err).ToNot(HaveOccurred())
+
+	serverURL := env.KubeClient.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Namespace(pod.Namespace).
+		Name(pod.Name).
+		SubResource("portforward").URL()
+
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: roundTripper}, http.MethodPost, serverURL)
+
+	ready := make(chan struct{})
+	stop := make(chan struct{})
+	go func() {
+		GinkgoRecover()
+		<-ctx.Done()
+		close(stop)
+	}()
+	go func() {
+		fw, err := portforward.New(dialer, []string{fmt.Sprintf("%d:%d", localPort, podPort)}, stop, ready, io.Discard, io.Discard)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(fw.ForwardPorts())
+	}()
+	<-ready
+}
+
+type PrometheusMetric struct {
+	Name   string
+	Labels map[string]string
+	Value  float64
+}
+
+func (env *Environment) ExpectPodMetrics() (res []PrometheusMetric) {
+	GinkgoHelper()
+
+	ctx, cancel := context.WithCancel(env.Context)
+	defer cancel()
+
+	localPort := rand.IntnRange(1024, 49151)
+	env.ExpectPodPortForwarded(ctx, env.ExpectActiveKarpenterPod(), 8080, localPort)
+
+	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/metrics", localPort))
+	Expect(err).ToNot(HaveOccurred())
+	reader := bufio.NewReader(resp.Body)
+	defer resp.Body.Close()
+	for {
+		line, err := reader.ReadBytes('\n')
+		if err != nil {
+			//nolint:errorlint
+			if err == io.EOF {
+				break
+			}
+			continue
+		}
+		metric, err := parseMetricsLine(string(line))
+		if err != nil {
+			continue
+		}
+		res = append(res, metric)
+	}
+	return res
+}
+
+func parseMetricsLine(line string) (metric PrometheusMetric, err error) {
+	groups := prometheusMetricRegex.FindStringSubmatch(line)
+	if len(groups) != 4 {
+		return PrometheusMetric{}, fmt.Errorf("metrics line doesn't match known prometheus syntax")
+	}
+
+	elems := strings.Split(groups[2], ",")
+	l := lo.SliceToMap(elems, func(elem string) (string, string) {
+		temp := strings.Split(elem, "=")
+		k, v := temp[0], temp[1]
+		return k, strings.Trim(v, "\"")
+	})
+	v, err := strconv.ParseFloat(groups[3], 64)
+	if err != nil {
+		return PrometheusMetric{}, fmt.Errorf("converting metrics value to an integer, %w", err)
+	}
+	return PrometheusMetric{Name: groups[1], Labels: l, Value: v}, nil
+}
+
 func (env *Environment) EventuallyExpectRollout(name, namespace string) {
 	GinkgoHelper()
 	By("restarting the deployment")
@@ -691,13 +788,13 @@ func (env *Environment) EventuallyExpectNodesUntaintedWithTimeout(timeout time.D
 	}).WithTimeout(timeout).Should(Succeed())
 }
 
-func (env *Environment) EventuallyExpectNodeClaimCount(comparator string, count int) []*karpv1.NodeClaim {
+func (env *Environment) EventuallyExpectLaunchedNodeClaimCount(comparator string, count int) []*karpv1.NodeClaim {
 	GinkgoHelper()
 	By(fmt.Sprintf("waiting for nodes to be %s to %d", comparator, count))
 	nodeClaimList := &karpv1.NodeClaimList{}
 	Eventually(func(g Gomega) {
 		g.Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count),
+		g.Expect(lo.CountBy(nodeClaimList.Items, func(nc karpv1.NodeClaim) bool { return nc.StatusConditions().IsTrue(karpv1.ConditionTypeLaunched) })).To(BeNumerically(comparator, count),
 			fmt.Sprintf("expected %d nodeclaims, had %d (%v)", count, len(nodeClaimList.Items), NodeClaimNames(lo.ToSlicePtr(nodeClaimList.Items))))
 	}).Should(Succeed())
 	return lo.ToSlicePtr(nodeClaimList.Items)

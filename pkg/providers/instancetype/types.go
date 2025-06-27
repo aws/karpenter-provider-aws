@@ -29,14 +29,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -60,115 +57,93 @@ type ZoneData struct {
 
 type Resolver interface {
 	// CacheKey tells the InstanceType cache if something changes about the InstanceTypes or Offerings based on the NodeClass.
-	CacheKey(nodeClass *v1.EC2NodeClass) string
+	CacheKey(NodeClass) string
 	// Resolve generates an InstanceType based on raw InstanceTypeInfo and NodeClass setting data
-	Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zoneData []ZoneData, nodeClass *v1.EC2NodeClass) *cloudprovider.InstanceType
+	Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass NodeClass) *cloudprovider.InstanceType
 }
 
 type DefaultResolver struct {
-	region               string
-	pricingProvider      pricing.Provider
-	unavailableOfferings *awscache.UnavailableOfferings
+	region string
 }
 
-func NewDefaultResolver(region string, pricingProvider pricing.Provider, unavailableOfferingsCache *awscache.UnavailableOfferings) *DefaultResolver {
+func NewDefaultResolver(region string) *DefaultResolver {
 	return &DefaultResolver{
-		region:               region,
-		pricingProvider:      pricingProvider,
-		unavailableOfferings: unavailableOfferingsCache,
+		region: region,
 	}
 }
 
-func (d *DefaultResolver) CacheKey(nodeClass *v1.EC2NodeClass) string {
+func (d *DefaultResolver) CacheKey(nodeClass NodeClass) string {
 	kc := &v1.KubeletConfiguration{}
-	if nodeClass.Spec.Kubelet != nil {
-		kc = nodeClass.Spec.Kubelet
+	if resolved := nodeClass.KubeletConfiguration(); resolved != nil {
+		kc = resolved
 	}
 	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.Spec.BlockDeviceMappings, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	return fmt.Sprintf("%016x-%016x-%s-%s-%d",
+	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.BlockDeviceMappings(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	capacityReservationHash, _ := hashstructure.Hash(nodeClass.CapacityReservations(), hashstructure.FormatV2, nil)
+	return fmt.Sprintf(
+		"%016x-%016x-%016x-%s-%s",
 		kcHash,
 		blockDeviceMappingsHash,
-		lo.FromPtr((*string)(nodeClass.Spec.InstanceStorePolicy)),
+		capacityReservationHash,
+		lo.FromPtr((*string)(nodeClass.InstanceStorePolicy())),
 		nodeClass.AMIFamily(),
-		d.unavailableOfferings.SeqNum,
 	)
 }
 
-func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zoneData []ZoneData, nodeClass *v1.EC2NodeClass) *cloudprovider.InstanceType {
+func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass NodeClass) *cloudprovider.InstanceType {
 	// !!! Important !!!
 	// Any changes to the values passed into the NewInstanceType method will require making updates to the cache key
 	// so that Karpenter is able to cache the set of InstanceTypes based on values that alter the set of instance types
 	// !!! Important !!!
 	kc := &v1.KubeletConfiguration{}
-	if nodeClass.Spec.Kubelet != nil {
-		kc = nodeClass.Spec.Kubelet
+	if resolved := nodeClass.KubeletConfiguration(); resolved != nil {
+		kc = resolved
 	}
-	return NewInstanceType(ctx, info, d.region, nodeClass.Spec.BlockDeviceMappings, nodeClass.Spec.InstanceStorePolicy, kc.MaxPods, kc.PodsPerCore, kc.KubeReserved,
-		kc.SystemReserved, kc.EvictionHard, kc.EvictionSoft, nodeClass.AMIFamily(), d.createOfferings(ctx, info, zoneData))
+	return NewInstanceType(
+		ctx,
+		info,
+		d.region,
+		zones,
+		nodeClass.ZoneInfo(),
+		nodeClass.BlockDeviceMappings(),
+		nodeClass.InstanceStorePolicy(),
+		kc.MaxPods,
+		kc.PodsPerCore,
+		kc.KubeReserved,
+		kc.SystemReserved,
+		kc.EvictionHard,
+		kc.EvictionSoft,
+		nodeClass.AMIFamily(),
+		lo.Filter(nodeClass.CapacityReservations(), func(cr v1.CapacityReservation, _ int) bool {
+			return cr.InstanceType == string(info.InstanceType)
+		}),
+	)
 }
 
-// createOfferings creates a set of mutually exclusive offerings for a given instance type. This provider maintains an
-// invariant that each offering is mutually exclusive. Specifically, there is an offering for each permutation of zone
-// and capacity type. ZoneID is also injected into the offering requirements, when available, but there is a 1-1
-// mapping between zone and zoneID so this does not change the number of offerings.
-//
-// Each requirement on the offering is guaranteed to have a single value. To get the value for a requirement on an
-// offering, you can do the following thanks to this invariant:
-//
-//	offering.Requirements.Get(v1.TopologyLabelZone).Any()
-func (d *DefaultResolver) createOfferings(ctx context.Context, instanceType ec2types.InstanceTypeInfo, zoneData []ZoneData) []cloudprovider.Offering {
-	var offerings []cloudprovider.Offering
-	for _, zone := range zoneData {
-		// while usage classes should be a distinct set, there's no guarantee of that
-		for capacityType := range sets.New((instanceType.SupportedUsageClasses)...) {
-			// exclude any offerings that have recently seen an insufficient capacity error from EC2
-			isUnavailable := d.unavailableOfferings.IsUnavailable(instanceType.InstanceType, zone.Name, string(capacityType))
-			var price float64
-			var ok bool
-			switch capacityType {
-			case ec2types.UsageClassTypeSpot:
-				price, ok = d.pricingProvider.SpotPrice(instanceType.InstanceType, zone.Name)
-			case ec2types.UsageClassTypeOnDemand:
-				price, ok = d.pricingProvider.OnDemandPrice(instanceType.InstanceType)
-			case "capacity-block":
-				// ignore since karpenter doesn't support it yet, but do not log an unknown capacity type error
-				continue
-			default:
-				log.FromContext(ctx).WithValues("capacity-type", capacityType, "instance-type", instanceType.InstanceType).Error(fmt.Errorf("received unknown capacity type"), "failed parsing offering")
-				continue
-			}
-			available := !isUnavailable && ok && zone.Available
-			offering := cloudprovider.Offering{
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, string(capacityType)),
-					scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, zone.Name),
-				),
-				Price:     price,
-				Available: available,
-			}
-			if zone.ID != "" {
-				offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, zone.ID))
-			}
-			offerings = append(offerings, offering)
-		}
-	}
-	return offerings
-}
-
-func NewInstanceType(ctx context.Context, info ec2types.InstanceTypeInfo, region string,
-	blockDeviceMappings []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy, maxPods *int32, podsPerCore *int32,
-	kubeReserved map[string]string, systemReserved map[string]string, evictionHard map[string]string, evictionSoft map[string]string,
-	amiFamilyType string, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
-
+func NewInstanceType(
+	ctx context.Context,
+	info ec2types.InstanceTypeInfo,
+	region string,
+	offeringZones []string,
+	subnetZoneInfo []v1.ZoneInfo,
+	blockDeviceMappings []*v1.BlockDeviceMapping,
+	instanceStorePolicy *v1.InstanceStorePolicy,
+	maxPods *int32,
+	podsPerCore *int32,
+	kubeReserved map[string]string,
+	systemReserved map[string]string,
+	evictionHard map[string]string,
+	evictionSoft map[string]string,
+	amiFamilyType string,
+	capacityReservations []v1.CapacityReservation,
+) *cloudprovider.InstanceType {
 	amiFamily := amifamily.GetAMIFamily(amiFamilyType, &amifamily.Options{})
 	it := &cloudprovider.InstanceType{
 		Name:         string(info.InstanceType),
-		Requirements: computeRequirements(info, offerings, region, amiFamily),
-		Offerings:    offerings,
+		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, capacityReservations),
 		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, maxPods, podsPerCore), ENILimitedPods(ctx, info), amiFamily, kubeReserved),
+			KubeReserved:      kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead, ENILimitedPods(ctx, info, 0), pods(ctx, info, amiFamily, maxPods, podsPerCore)), kubeReserved),
 			SystemReserved:    systemReservedResources(systemReserved),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
 		},
@@ -180,21 +155,39 @@ func NewInstanceType(ctx context.Context, info ec2types.InstanceTypeInfo, region
 }
 
 //nolint:gocyclo
-func computeRequirements(info ec2types.InstanceTypeInfo, offerings cloudprovider.Offerings, region string, amiFamily amifamily.AMIFamily) scheduling.Requirements {
+func computeRequirements(
+	info ec2types.InstanceTypeInfo,
+	region string,
+	offeringZones []string,
+	subnetZoneInfo []v1.ZoneInfo,
+	amiFamily amifamily.AMIFamily,
+	capacityReservations []v1.CapacityReservation,
+) scheduling.Requirements {
+	capacityTypes := lo.FilterMap(info.SupportedUsageClasses, func(uc ec2types.UsageClassType, _ int) (string, bool) {
+		if uc != ec2types.UsageClassTypeOnDemand && uc != ec2types.UsageClassTypeSpot {
+			return "", false
+		}
+		return string(uc), true
+	})
+	if len(capacityReservations) != 0 {
+		capacityTypes = append(capacityTypes, karpv1.CapacityTypeReserved)
+	}
+
+	// Available zones is the set intersection between zones where the instance type is available, and zones which are
+	// available via the provided EC2NodeClass.
+	availableZones := sets.New(offeringZones...).Intersection(sets.New(lo.Map(subnetZoneInfo, func(info v1.ZoneInfo, _ int) string {
+		return info.Zone
+	})...))
 	requirements := scheduling.NewRequirements(
 		// Well Known Upstream
 		scheduling.NewRequirement(corev1.LabelInstanceTypeStable, corev1.NodeSelectorOpIn, string(info.InstanceType)),
 		scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, getArchitecture(info)),
 		scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, getOS(info, amiFamily)...),
-		scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string {
-			return o.Requirements.Get(corev1.LabelTopologyZone).Any()
-		})...),
+		scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, availableZones.UnsortedList()...),
 		scheduling.NewRequirement(corev1.LabelTopologyRegion, corev1.NodeSelectorOpIn, region),
 		scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpDoesNotExist),
 		// Well Known to Karpenter
-		scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string {
-			return o.Requirements.Get(karpv1.CapacityTypeLabelKey).Any()
-		})...),
+		scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityTypes...),
 		// Well Known to AWS
 		scheduling.NewRequirement(v1.LabelInstanceCPU, corev1.NodeSelectorOpIn, fmt.Sprint(lo.FromPtr(info.VCpuInfo.DefaultVCpus))),
 		scheduling.NewRequirement(v1.LabelInstanceCPUManufacturer, corev1.NodeSelectorOpDoesNotExist),
@@ -219,11 +212,24 @@ func computeRequirements(info ec2types.InstanceTypeInfo, offerings cloudprovider
 	)
 	// Only add zone-id label when available in offerings. It may not be available if a user has upgraded from a
 	// previous version of Karpenter w/o zone-id support and the nodeclass subnet status has not yet updated.
-	if zoneIDs := lo.FilterMap(offerings.Available(), func(o cloudprovider.Offering, _ int) (string, bool) {
-		zoneID := o.Requirements.Get(v1.LabelTopologyZoneID).Any()
-		return zoneID, zoneID != ""
+	if zoneIDs := lo.FilterMap(subnetZoneInfo, func(info v1.ZoneInfo, _ int) (string, bool) {
+		if !availableZones.Has(info.Zone) {
+			return "", false
+		}
+		return info.ZoneID, true
 	}); len(zoneIDs) != 0 {
 		requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, zoneIDs...))
+	}
+	if len(capacityReservations) != 0 {
+		requirements.Add(scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpIn, lo.Map(capacityReservations, func(cr v1.CapacityReservation, _ int) string {
+			return cr.ID
+		})...))
+		requirements.Add(scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpIn, lo.Map(capacityReservations, func(cr v1.CapacityReservation, _ int) string {
+			return string(cr.ReservationType)
+		})...))
+	} else {
+		requirements.Add(scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpDoesNotExist))
+		requirements.Add(scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpDoesNotExist))
 	}
 	// Instance Type Labels
 	instanceFamilyParts := instanceTypeScheme.FindStringSubmatch(string(info.InstanceType))
@@ -452,7 +458,7 @@ func efas(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo) *resource.Quantity {
+func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo, reservedENIs int) *resource.Quantity {
 	// The number of pods per node is calculated using the formula:
 	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 	// https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/eni-max-pods.txt
@@ -460,7 +466,7 @@ func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo) *resour
 	// VPC CNI only uses the default network interface
 	// https://github.com/aws/amazon-vpc-cni-k8s/blob/3294231c0dce52cfe473bf6c62f47956a3b333b6/scripts/gen_vpc_ip_limits.go#L162
 	networkInterfaces := *info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces
-	usableNetworkInterfaces := lo.Max([]int64{int64(int(networkInterfaces) - options.FromContext(ctx).ReservedENIs), 0})
+	usableNetworkInterfaces := lo.Max([]int64{int64(int(networkInterfaces) - reservedENIs), 0})
 	if usableNetworkInterfaces == 0 {
 		return resource.NewQuantity(0, resource.DecimalSI)
 	}
@@ -483,10 +489,7 @@ func systemReservedResources(systemReserved map[string]string) corev1.ResourceLi
 	})
 }
 
-func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFamily amifamily.AMIFamily, kubeReserved map[string]string) corev1.ResourceList {
-	if amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead {
-		pods = eniLimitedPods
-	}
+func kubeReservedResources(cpus, pods *resource.Quantity, kubeReserved map[string]string) corev1.ResourceList {
 	resources := corev1.ResourceList{
 		corev1.ResourceMemory:           resource.MustParse(fmt.Sprintf("%dMi", (11*pods.Value())+255)),
 		corev1.ResourceEphemeralStorage: resource.MustParse("1Gi"), // default kube-reserved ephemeral-storage
@@ -553,7 +556,7 @@ func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifami
 	case maxPods != nil:
 		count = int64(lo.FromPtr(maxPods))
 	case amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
-		count = ENILimitedPods(ctx, info).Value()
+		count = ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs).Value()
 	default:
 		count = 110
 

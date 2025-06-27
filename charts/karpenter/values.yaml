@@ -30,9 +30,15 @@ serviceMonitor:
   enabled: false
   # -- Additional labels for the ServiceMonitor.
   additionalLabels: {}
+  # -- Relabelings for the `http-metrics` endpoint on the ServiceMonitor.
+  # For more details on relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+  relabelings: []
+  # -- Metric relabelings for the `http-metrics` endpoint on the ServiceMonitor.
+  # For more details on metric relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#metric_relabel_configs
+  metricRelabelings: []
   # -- Configuration on `http-metrics` endpoint for the ServiceMonitor.
   # Not to be used to add additional endpoints.
-  # See the Prometheus operator documentation for configurable fields https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint
+  # See the Prometheus operator documentation for configurable fields https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#endpoint
   endpointConfig: {}
 # -- Number of replicas.
 replicas: 2
@@ -51,7 +57,10 @@ podDisruptionBudget:
   maxUnavailable: 1
 # -- SecurityContext for the pod.
 podSecurityContext:
+  runAsNonRoot: false
   fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
 # -- PriorityClass name for the pod.
 priorityClassName: system-cluster-critical
 # -- Override the default termination grace period for the pod.
@@ -68,6 +77,11 @@ dnsConfig: {}
 #  options:
 #    - name: ndots
 #      value: "1"
+# -- add additional initContainers to run before karpenter container starts
+initContainers: {}
+#  - name: list-ec2-instances
+#    image: amazon/aws-cli:latest
+#    command: [ 'aws', 'ec2', 'describe-instance-types']
 # -- Node selectors to schedule the pod to nodes with labels.
 nodeSelector:
   kubernetes.io/os: linux
@@ -108,15 +122,22 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.2.0
+    tag: 1.5.0
     # -- SHA256 digest of the controller image.
-    digest: sha256:24b8fe57f02b70fc4ab3cd6d5aa0d73a6f3d0c62ca5d23d7ffc8853eac01e324
+    digest: sha256:339aef3f5ecdf6f94d1c7cc9d0e1d359c281b4f9b842877bdbf2acd3fa360521
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
   #   value: eu-west-1
   envFrom: []
-  # -- Resources for the controller pod.
+  securityContext:
+    # -- AppArmor profile for the controller container.
+    appArmorProfile: {}
+    # -- SELinux options for the controller container.
+    seLinuxOptions: {}
+    # -- Seccomp profile for the controller container.
+    seccompProfile: {}
+  # -- Resources for the controller container.
   resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
@@ -128,8 +149,7 @@ controller:
   #  limits:
   #    cpu: 1
   #    memory: 1Gi
-
-  # -- Additional volumeMounts for the controller pod.
+  # -- Additional volumeMounts for the controller container.
   extraVolumeMounts: []
   # - name: aws-iam-token
   #   mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
@@ -161,32 +181,38 @@ settings:
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
+  # -- How the Karpenter scheduler should treat preferences. Preferences include preferredDuringSchedulingIgnoreDuringExecution
+  # node and pod affinities/anti-affinities and ScheduleAnyways topologySpreadConstraints. Can be one of 'Ignore' and 'Respect'
+  preferencePolicy: Respect
   # -- Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server.
   clusterCABundle: ""
   # -- Cluster name.
   clusterName: ""
-  # -- Cluster endpoint. If not set, will be discovered during startup (EKS only)
+  # -- Cluster endpoint. If not set, will be discovered during startup (EKS only).
   clusterEndpoint: ""
-  # -- If true then assume we can't reach AWS services which don't have a VPC endpoint
-  # This also has the effect of disabling look-ups to the AWS pricing endpoint
+  # -- If true then assume we can't reach AWS services which don't have a VPC endpoint.
+  # This also has the effect of disabling look-ups to the AWS pricing endpoint.
   isolatedVPC: false
-  # Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API
+  # -- Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API.
   eksControlPlane: false
   # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types. The value of `0.075` equals to 7.5%.
   vmMemoryOverheadPercent: 0.075
-  # -- Interruption queue is the name of the SQS queue used for processing interruption events from EC2
+  # -- Interruption queue is the name of the SQS queue used for processing interruption events from EC2.
   # Interruption handling is disabled if not specified. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs.
   interruptionQueue: ""
-  # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved
-  # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html
+  # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved.
+  # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.
   reservedENIs: "0"
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
-  # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features
+  # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features.
   featureGates:
-    # -- spotToSpotConsolidation is ALPHA and is disabled by default.
-    # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
-    spotToSpotConsolidation: false
     # -- nodeRepair is ALPHA and is disabled by default.
     # Setting this to true will enable node repair.
     nodeRepair: false
+    # -- reservedCapacity is ALPHA and is disabled by default.
+    # Setting this will enable native on-demand capacity reservation support.
+    reservedCapacity: false
+    # -- spotToSpotConsolidation is ALPHA and is disabled by default.
+    # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
+    spotToSpotConsolidation: false

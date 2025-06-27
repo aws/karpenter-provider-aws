@@ -78,6 +78,7 @@ func main() {
 		op.GetClient(),
 		op.AMIProvider,
 		op.SecurityGroupProvider,
+		op.CapacityReservationProvider,
 	)
 	instanceTypes := lo.Must(cloudProvider.GetInstanceTypes(ctx, nil))
 

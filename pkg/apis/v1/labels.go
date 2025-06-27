@@ -29,6 +29,8 @@ import (
 func init() {
 	karpv1.RestrictedLabelDomains = karpv1.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
 	karpv1.WellKnownLabels = karpv1.WellKnownLabels.Insert(
+		LabelCapacityReservationID,
+		LabelCapacityReservationType,
 		LabelInstanceHypervisor,
 		LabelInstanceEncryptionInTransitSupported,
 		LabelInstanceCategory,
@@ -64,6 +66,26 @@ var (
 		karpv1.ArchitectureAmd64,
 		karpv1.ArchitectureArm64,
 	)
+	WellKnownResources = sets.New[corev1.ResourceName](
+		corev1.ResourceCPU,
+		corev1.ResourceMemory,
+		corev1.ResourceEphemeralStorage,
+		corev1.ResourcePods,
+		ResourceAWSPodENI,
+		ResourceNVIDIAGPU,
+		ResourceAMDGPU,
+		ResourceAWSNeuron,
+		ResourceAWSNeuronCore,
+		ResourceHabanaGaudi,
+		ResourceEFA,
+	)
+	WellKnownExoticResources = sets.New[corev1.ResourceName](
+		ResourceNVIDIAGPU,
+		ResourceAMDGPU,
+		ResourceAWSNeuron,
+		ResourceAWSNeuronCore,
+		ResourceHabanaGaudi,
+	)
 	RestrictedLabelDomains = []string{
 		apis.Group,
 	}
@@ -97,10 +119,8 @@ var (
 	ResourcePrivateIPv4Address corev1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
 	ResourceEFA                corev1.ResourceName = "vpc.amazonaws.com/efa"
 
-	LabelNodeClass = apis.Group + "/ec2nodeclass"
-
-	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
-
+	LabelCapacityReservationID                = apis.Group + "/capacity-reservation-id"
+	LabelCapacityReservationType              = apis.Group + "/capacity-reservation-type"
 	LabelInstanceHypervisor                   = apis.Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = apis.Group + "/instance-encryption-in-transit-supported"
 	LabelInstanceCategory                     = apis.Group + "/instance-category"
@@ -121,10 +141,14 @@ var (
 	LabelInstanceAcceleratorName              = apis.Group + "/instance-accelerator-name"
 	LabelInstanceAcceleratorManufacturer      = apis.Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
-	AnnotationEC2NodeClassHash                = apis.Group + "/ec2nodeclass-hash"
-	AnnotationClusterNameTaggedCompatability  = apis.CompatibilityGroup + "/cluster-name-tagged"
-	AnnotationEC2NodeClassHashVersion         = apis.Group + "/ec2nodeclass-hash-version"
-	AnnotationInstanceTagged                  = apis.Group + "/tagged"
+	LabelNodeClass                            = apis.Group + "/ec2nodeclass"
+
+	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
+
+	AnnotationEC2NodeClassHash               = apis.Group + "/ec2nodeclass-hash"
+	AnnotationClusterNameTaggedCompatability = apis.CompatibilityGroup + "/cluster-name-tagged"
+	AnnotationEC2NodeClassHashVersion        = apis.Group + "/ec2nodeclass-hash-version"
+	AnnotationInstanceTagged                 = apis.Group + "/tagged"
 
 	NodeClaimTagKey          = coreapis.Group + "/nodeclaim"
 	NameTagKey               = "Name"

@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
@@ -54,7 +55,7 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
@@ -66,7 +67,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
 	nodeClass = test.TestNodeClass{
 		EC2NodeClass: v1.EC2NodeClass{
@@ -99,26 +100,17 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("InstanceProfileProvider", func() {
-	It("should not add any tags if InstanceProfileTags() returns empty map", func() {
-		instanceProfile, err := awsEnv.InstanceProfileProvider.Create(ctx, &nodeClass)
-		Expect(err).To(BeNil())
-		Expect(instanceProfile).ToNot(BeNil())
-		Expect(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Tags).To(HaveLen(0))
-	})
-	It("should support IAM roles without custom paths", func() {
-		nodeClass.Spec.Role = nodeRole
-		instanceProfile, err := awsEnv.InstanceProfileProvider.Create(ctx, &nodeClass)
-		Expect(err).To(BeNil())
-		Expect(instanceProfile).ToNot(BeNil())
-		Expect(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Roles).To(HaveLen(1))
-		Expect(aws.ToString(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Roles[0].RoleName)).To(Equal(nodeRole))
-	})
-	It("should support IAM roles with custom paths", func() {
-		nodeClass.Spec.Role = fmt.Sprintf("CustomPath/%s", nodeRole)
-		instanceProfile, err := awsEnv.InstanceProfileProvider.Create(ctx, &nodeClass)
-		Expect(err).To(BeNil())
-		Expect(instanceProfile).ToNot(BeNil())
-		Expect(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Roles).To(HaveLen(1))
-		Expect(aws.ToString(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Roles[0].RoleName)).To(Equal(nodeRole))
-	})
+	DescribeTable(
+		"should support IAM roles",
+		func(roleWithPath, role string) {
+			const profileName = "test-profile"
+			nodeClass.Spec.Role = roleWithPath
+			Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, role, nil)).To(Succeed())
+			Expect(profileName).ToNot(BeNil())
+			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+			Expect(aws.ToString(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName)).To(Equal(role))
+		},
+		Entry("with custom paths", fmt.Sprintf("CustomPath/%s", nodeRole), nodeRole),
+		Entry("without custom paths", nodeRole, nodeRole),
+	)
 })

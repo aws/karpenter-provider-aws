@@ -55,6 +55,9 @@ type BottlerocketKubernetes struct {
 	MaxPods                            *int                                      `toml:"max-pods,omitempty"`
 	StaticPods                         map[string]BottlerocketStaticPod          `toml:"static-pods,omitempty"`
 	EvictionHard                       map[string]string                         `toml:"eviction-hard,omitempty"`
+	EvictionSoft                       map[string]string                         `toml:"eviction-soft,omitempty"`
+	EvictionSoftGracePeriod            map[string]string                         `toml:"eviction-soft-grace-period,omitempty"`
+	EvictionMaxPodGracePeriod          *int                                      `toml:"eviction-max-pod-grace-period,omitempty"`
 	KubeReserved                       map[string]string                         `toml:"kube-reserved,omitempty"`
 	SystemReserved                     map[string]string                         `toml:"system-reserved,omitempty"`
 	AllowedUnsafeSysctls               []string                                  `toml:"allowed-unsafe-sysctls,omitempty"`
@@ -80,8 +83,10 @@ type BottlerocketKubernetes struct {
 	SeccompDefault                     *bool                                     `toml:"seccomp-default,omitempty"`
 	PodPidsLimit                       *int                                      `toml:"pod-pids-limit,omitempty"`
 	DeviceOwnershipFromSecurityContext *bool                                     `toml:"device-ownership-from-security-context,omitempty"`
+	SingleProcessOOMKill               *bool                                     `toml:"single-process-oom-kill,omitempty"`
+	ContainerLogMaxWorkers             *int                                      `toml:"container-log-max-workers,omitempty"`
+	ContainerLogMonitorInterval        *string                                   `toml:"container-log-monitor-interval,omitempty"`
 }
-
 type BottlerocketStaticPod struct {
 	Enabled  *bool   `toml:"enabled,omitempty"`
 	Manifest *string `toml:"manifest,omitempty"`

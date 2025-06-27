@@ -255,7 +255,7 @@ You should still review the upgrade procedure; the sequence of operations remain
 7. We're now ready to begin the upgrade to `v1`. Set the `KARPENTER_VERSION` environment variable to the latest `v1.0.x` release.
 
     ```bash
-    export KARPENTER_VERSION="1.0.8"
+    export KARPENTER_VERSION="1.0.10"
     ```
 
 8. Attach the v1 policy to your existing NodeRole.
@@ -297,6 +297,18 @@ You should still review the upgrade procedure; the sequence of operations remain
     {{% alert title="Note" color="primary" %}}
 <!-- Note: don't indent this line to match the indenting of the alert box. Hugo will create a code block. -->
 Karpenter has deprecated and moved a number of Helm values as part of the v1 release. Ensure that you upgrade to the newer version of these helm values during your migration to v1. You can find detail for all the settings that were moved in the [v1 Upgrade Reference]({{<ref "#helm-values" >}}).
+    {{% /alert %}}
+
+    {{% alert title="Note" color="primary" %}}
+<!-- Note: don't indent this line to match the indenting of the alert box. Hugo will create a code block. -->
+Karpenter versions 0.32.x through 0.37.x have  a number of mutating webhooks and validating webhooks that are not present
+in 1.0.x; if you are only using `helm` to generate manifests and are not using it to deploy them, you must clean up
+these webhook configurations by hand: specifically, you will need to remove the following resources:
+
+* `defaulting.webhook.karpenter.k8s.aws`
+* `validation.webhook.karpenter.sh`
+* `validation.webhook.config.karpenter.sh`
+* `validation.webhook.karpenter.k8s.aws`
     {{% /alert %}}
 
 11. Upgrade your cloudformation stack and remove the temporary `v1` controller policy.

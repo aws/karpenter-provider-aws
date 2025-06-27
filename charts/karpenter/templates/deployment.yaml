@@ -63,16 +63,29 @@ spec:
       containers:
         - name: {{ include "karpenter.controller.containerName" . }}
           securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
             runAsUser: 65532
             runAsGroup: 65532
-            runAsNonRoot: true
-            seccompProfile:
-              type: RuntimeDefault
-            allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
-            readOnlyRootFilesystem: true
+          {{- with .Values.controller.securityContext }}
+          {{- with .appArmorProfile }}
+            appArmorProfile:
+              {{- toYaml . | nindent 14}}
+          {{- end }}
+          {{- with .seLinuxOptions }}
+            seLinuxOptions:
+              {{- toYaml . | nindent 14}}
+          {{- end }}
+          {{- with .seccompProfile }}
+            seccompProfile:
+              {{- toYaml . | nindent 14}}
+          {{- end }}
+          {{- end }}
           image: {{ include "karpenter.controller.image" . }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
@@ -107,46 +120,48 @@ spec:
                   divisor: "0"
                   resource: limits.memory
             - name: FEATURE_GATES
-              value: "SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }}"
+              value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }}"
           {{- with .Values.settings.batchMaxDuration }}
             - name: BATCH_MAX_DURATION
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.batchIdleDuration }}
             - name: BATCH_IDLE_DURATION
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- with .Values.settings.preferencePolicy }}
+            - name: PREFERENCE_POLICY
               value: "{{ . }}"
           {{- end }}
           {{- with .Values.settings.clusterCABundle }}
             - name: CLUSTER_CA_BUNDLE
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
-          {{- with .Values.settings.clusterName }}
             - name: CLUSTER_NAME
-              value: "{{ . }}"
-          {{- end }}
+              value: "{{ required "Chart cannot be installed without a valid settings.clusterName!" (tpl .Values.settings.clusterName .) }}"
           {{- with .Values.settings.clusterEndpoint }}
             - name: CLUSTER_ENDPOINT
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.isolatedVPC }}
             - name: ISOLATED_VPC
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.eksControlPlane }}
             - name: EKS_CONTROL_PLANE
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.vmMemoryOverheadPercent }}
             - name: VM_MEMORY_OVERHEAD_PERCENT
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.interruptionQueue }}
             - name: INTERRUPTION_QUEUE
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.reservedENIs }}
             - name: RESERVED_ENIS
-              value: "{{ . }}"
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
@@ -196,6 +211,10 @@ spec:
             {{- end }}
           {{- end }}
         {{- end }}
+      {{- with .Values.initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

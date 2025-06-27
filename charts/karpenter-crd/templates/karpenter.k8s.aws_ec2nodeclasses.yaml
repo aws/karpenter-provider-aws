@@ -6,7 +6,7 @@ metadata:
     {{- with .Values.additionalAnnotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-    controller-gen.kubebuilder.io/version: v0.17.2
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: ec2nodeclasses.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws
@@ -114,6 +114,9 @@ spec:
                           Owner is the owner for the ami.
                           You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
                         type: string
+                      ssmParameter:
+                        description: SSMParameter is the name (or ARN) of the SSM parameter containing the Image ID.
+                        type: string
                       tags:
                         additionalProperties:
                           type: string
@@ -130,8 +133,8 @@ spec:
                   minItems: 1
                   type: array
                   x-kubernetes-validations:
-                    - message: expected at least one, got none, ['tags', 'id', 'name', 'alias']
-                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias))
+                    - message: expected at least one, got none, ['tags', 'id', 'name', 'alias', 'ssmParameter']
+                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias) || has(x.ssmParameter))
                     - message: '''id'' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms'
                       rule: '!self.exists(x, has(x.id) && (has(x.alias) || has(x.tags) || has(x.name) || has(x.owner)))'
                     - message: '''alias'' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms'
@@ -184,7 +187,7 @@ spec:
                             format: int64
                             type: integer
                           kmsKeyID:
-                            description: KMSKeyID (ARN) of the symmetric Key Management Service (KMS) CMK used for encryption.
+                            description: Identifier (key ID, key alias, key ARN, or alias ARN) of the customer managed KMS key to use for EBS encryption.
                             type: string
                           snapshotID:
                             description: SnapshotID is the ID of an EBS snapshot
@@ -194,6 +197,17 @@ spec:
                               Throughput to provision for a gp3 volume, with a maximum of 1,000 MiB/s.
                               Valid Range: Minimum value of 125. Maximum value of 1000.
                             format: int64
+                            type: integer
+                          volumeInitializationRate:
+                            description: |-
+                              VolumeInitializationRate specifies the Amazon EBS Provisioned Rate for Volume Initialization,
+                              in MiB/s, at which to download the snapshot blocks from Amazon S3 to the volume. This is also known as volume
+                              initialization. Specifying a volume initialization rate ensures that the volume is initialized at a
+                              predictable and consistent rate after creation. Only allowed if SnapshotID is set.
+                              Valid Range: Minimum value of 100. Maximum value of 300.
+                            format: int32
+                            maximum: 300
+                            minimum: 100
                             type: integer
                           volumeSize:
                             description: |-
@@ -228,6 +242,8 @@ spec:
                         x-kubernetes-validations:
                           - message: snapshotID or volumeSize must be defined
                             rule: has(self.snapshotID) || has(self.volumeSize)
+                          - message: snapshotID must be set when volumeInitializationRate is set
+                            rule: '!has(self.volumeInitializationRate) || (has(self.snapshotID) && self.snapshotID != '''')'
                       rootVolume:
                         description: |-
                           RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
@@ -239,6 +255,39 @@ spec:
                   x-kubernetes-validations:
                     - message: must have only one blockDeviceMappings with rootVolume
                       rule: self.filter(x, has(x.rootVolume)?x.rootVolume==true:false).size() <= 1
+                capacityReservationSelectorTerms:
+                  description: |-
+                    CapacityReservationSelectorTerms is a list of capacity reservation selector terms. Each term is ORed together to
+                    determine the set of eligible capacity reservations.
+                  items:
+                    properties:
+                      id:
+                        description: ID is the capacity reservation id in EC2
+                        pattern: ^cr-[0-9a-z]+$
+                        type: string
+                      ownerID:
+                        description: Owner is the owner id for the ami.
+                        pattern: ^[0-9]{12}$
+                        type: string
+                      tags:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Tags is a map of key/value tags used to select capacity reservations.
+                          Specifying '*' for a value selects all values for a given tag key.
+                        maxProperties: 20
+                        type: object
+                        x-kubernetes-validations:
+                          - message: empty tag keys or values aren't supported
+                            rule: self.all(k, k != '' && self[k] != '')
+                    type: object
+                  maxItems: 30
+                  type: array
+                  x-kubernetes-validations:
+                    - message: expected at least one, got none, ['tags', 'id']
+                      rule: self.all(x, has(x.tags) || has(x.id))
+                    - message: '''id'' is mutually exclusive, cannot be set along with tags in a capacity reservation selector term'
+                      rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID)))'
                 context:
                   description: |-
                     Context is a Reserved field in EC2 APIs
@@ -469,7 +518,7 @@ spec:
                     - message: immutable field changed
                       rule: self == oldSelf
                 securityGroupSelectorTerms:
-                  description: SecurityGroupSelectorTerms is a list of or security group selector terms. The terms are ORed.
+                  description: SecurityGroupSelectorTerms is a list of security group selector terms. The terms are ORed.
                   items:
                     description: |-
                       SecurityGroupSelectorTerm defines selection logic for a security group used by Karpenter to launch nodes.
@@ -503,12 +552,12 @@ spec:
                       rule: self.size() != 0
                     - message: expected at least one, got none, ['tags', 'id', 'name']
                       rule: self.all(x, has(x.tags) || has(x.id) || has(x.name))
-                    - message: '''id'' is mutually exclusive, cannot be set with a combination of other fields in securityGroupSelectorTerms'
+                    - message: '''id'' is mutually exclusive, cannot be set with a combination of other fields in a security group selector term'
                       rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.name)))'
-                    - message: '''name'' is mutually exclusive, cannot be set with a combination of other fields in securityGroupSelectorTerms'
+                    - message: '''name'' is mutually exclusive, cannot be set with a combination of other fields in a security group selector term'
                       rule: '!self.all(x, has(x.name) && (has(x.tags) || has(x.id)))'
                 subnetSelectorTerms:
-                  description: SubnetSelectorTerms is a list of or subnet selector terms. The terms are ORed.
+                  description: SubnetSelectorTerms is a list of subnet selector terms. The terms are ORed.
                   items:
                     description: |-
                       SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
@@ -537,7 +586,7 @@ spec:
                       rule: self.size() != 0
                     - message: expected at least one, got none, ['tags', 'id']
                       rule: self.all(x, has(x.tags) || has(x.id))
-                    - message: '''id'' is mutually exclusive, cannot be set with a combination of other fields in subnetSelectorTerms'
+                    - message: '''id'' is mutually exclusive, cannot be set with a combination of other fields in a subnet selector term'
                       rule: '!self.all(x, has(x.id) && has(x.tags))'
                 tags:
                   additionalProperties:
@@ -638,6 +687,62 @@ spec:
                     required:
                       - id
                       - requirements
+                    type: object
+                  type: array
+                capacityReservations:
+                  description: |-
+                    CapacityReservations contains the current capacity reservation values that are available to this NodeClass under the
+                    CapacityReservation selectors.
+                  items:
+                    properties:
+                      availabilityZone:
+                        description: The availability zone the capacity reservation is available in.
+                        type: string
+                      endTime:
+                        description: |-
+                          The time at which the capacity reservation expires. Once expired, the reserved capacity is released and Karpenter
+                          will no longer be able to launch instances into that reservation.
+                        format: date-time
+                        type: string
+                      id:
+                        description: The id for the capacity reservation.
+                        pattern: ^cr-[0-9a-z]+$
+                        type: string
+                      instanceMatchCriteria:
+                        description: Indicates the type of instance launches the capacity reservation accepts.
+                        enum:
+                          - open
+                          - targeted
+                        type: string
+                      instanceType:
+                        description: The instance type for the capacity reservation.
+                        type: string
+                      ownerID:
+                        description: The ID of the AWS account that owns the capacity reservation.
+                        pattern: ^[0-9]{12}$
+                        type: string
+                      reservationType:
+                        default: default
+                        description: The type of capacity reservation.
+                        enum:
+                          - default
+                          - capacity-block
+                        type: string
+                      state:
+                        default: active
+                        description: |-
+                          The state of the capacity reservation. A capacity reservation is considered to be expiring if it is within the EC2
+                          reclaimation window. Only capacity-block reservations may be in this state.
+                        enum:
+                          - active
+                          - expiring
+                        type: string
+                    required:
+                      - availabilityZone
+                      - id
+                      - instanceMatchCriteria
+                      - instanceType
+                      - ownerID
                     type: object
                   type: array
                 conditions:

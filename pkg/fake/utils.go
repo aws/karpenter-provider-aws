@@ -15,7 +15,6 @@ limitations under the License.
 package fake
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -26,7 +25,6 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 )
 
@@ -90,7 +88,7 @@ func SubnetsFromFleetRequest(createFleetInput *ec2.CreateFleetInput) []string {
 // Filters are chained with a logical "AND"
 func FilterDescribeSecurtyGroups(sgs []ec2types.SecurityGroup, filters []ec2types.Filter) []ec2types.SecurityGroup {
 	return lo.Filter(sgs, func(group ec2types.SecurityGroup, _ int) bool {
-		return Filter(filters, *group.GroupId, *group.GroupName, group.Tags)
+		return Filter(filters, *group.GroupId, *group.GroupName, "", "", group.Tags)
 	})
 }
 
@@ -98,29 +96,36 @@ func FilterDescribeSecurtyGroups(sgs []ec2types.SecurityGroup, filters []ec2type
 // Filters are chained with a logical "AND"
 func FilterDescribeSubnets(subnets []ec2types.Subnet, filters []ec2types.Filter) []ec2types.Subnet {
 	return lo.Filter(subnets, func(subnet ec2types.Subnet, _ int) bool {
-		return Filter(filters, *subnet.SubnetId, "", subnet.Tags)
+		return Filter(filters, *subnet.SubnetId, "", "", "", subnet.Tags)
+	})
+}
+
+func FilterDescribeCapacityReservations(crs []ec2types.CapacityReservation, ids []string, filters []ec2types.Filter) []ec2types.CapacityReservation {
+	idSet := sets.New[string](ids...)
+	return lo.Filter(crs, func(cr ec2types.CapacityReservation, _ int) bool {
+		if len(ids) != 0 && !idSet.Has(*cr.CapacityReservationId) {
+			return false
+		}
+		return Filter(filters, *cr.CapacityReservationId, "", *cr.OwnerId, string(cr.State), cr.Tags)
 	})
 }
 
 func FilterDescribeImages(images []ec2types.Image, filters []ec2types.Filter) []ec2types.Image {
 	return lo.Filter(images, func(image ec2types.Image, _ int) bool {
-		if stateFilter, ok := lo.Find(filters, func(f ec2types.Filter) bool {
-			return lo.FromPtr(f.Name) == "state"
-		}); ok {
-			if !lo.Contains(stateFilter.Values, string(image.State)) {
-				return false
-			}
-		}
-		return Filter(lo.Reject(filters, func(f ec2types.Filter, _ int) bool {
-			return lo.FromPtr(f.Name) == "state"
-		}), *image.ImageId, *image.Name, image.Tags)
+		return Filter(filters, *image.ImageId, *image.Name, "", string(image.State), image.Tags)
 	})
 }
 
 //nolint:gocyclo
-func Filter(filters []ec2types.Filter, id, name string, tags []ec2types.Tag) bool {
+func Filter(filters []ec2types.Filter, id, name, owner, state string, tags []ec2types.Tag) bool {
 	return lo.EveryBy(filters, func(filter ec2types.Filter) bool {
 		switch filterName := aws.ToString(filter.Name); {
+		case filterName == "state":
+			for _, val := range filter.Values {
+				if state == val {
+					return true
+				}
+			}
 		case filterName == "subnet-id" || filterName == "group-id" || filterName == "image-id":
 			for _, val := range filter.Values {
 				if id == val {
@@ -130,6 +135,12 @@ func Filter(filters []ec2types.Filter, id, name string, tags []ec2types.Tag) boo
 		case filterName == "group-name" || filterName == "name":
 			for _, val := range filter.Values {
 				if name == val {
+					return true
+				}
+			}
+		case filterName == "owner-id":
+			for _, val := range filter.Values {
+				if owner == val {
 					return true
 				}
 			}
@@ -173,10 +184,9 @@ func matchTags(tags []ec2types.Tag, filter ec2types.Filter) bool {
 
 func MakeInstances() []ec2types.InstanceTypeInfo {
 	var instanceTypes []ec2types.InstanceTypeInfo
-	ctx := options.ToContext(context.Background(), &options.Options{IsolatedVPC: true})
 	// Use keys from the static pricing data so that we guarantee pricing for the data
 	// Create uniform instance data so all of them schedule for a given pod
-	for _, it := range pricing.NewDefaultProvider(ctx, nil, nil, "us-east-1").InstanceTypes() {
+	for _, it := range pricing.NewDefaultProvider(nil, nil, "us-east-1", true).InstanceTypes() {
 		instanceTypes = append(instanceTypes, ec2types.InstanceTypeInfo{
 			InstanceType: it,
 			ProcessorInfo: &ec2types.ProcessorInfo{
