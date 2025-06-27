@@ -62,6 +62,7 @@ Here are few recommended CI/CD Pipeline Options:
 
 Each pipeline tool can be configured to handle the Karpenter upgrade workflow, but choose based on your existing infrastructure, team expertise, and specific requirements for automation and integration.
 
+
 ### CRD Upgrades
 
 Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are published:
@@ -84,6 +85,32 @@ If you get the error `invalid ownership metadata; label validation error:` while
 <!--
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
+
+### Upgrading to `1.5.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* No breaking changes 🎉
+
+Full Changelog: 
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.5.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.5.0
+
+### Upgrading to `1.4.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* No breaking changes 🎉
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.4.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.4.0
 
 ### Upgrading to `1.3.0`+
 

@@ -109,8 +109,10 @@ var _ = Describe("InstanceType", func() {
 			},
 		})
 		Expect(err).To(BeNil())
-		for i := range instanceTypes {
-			Expect(instanceTypes[i].Name).To(Equal(string(ec2InstanceTypes[i].InstanceType)))
+
+		Expect(instanceTypes).To(HaveLen(len(ec2InstanceTypes)))
+		for _, it := range instanceTypes {
+			Expect(lo.ContainsBy(ec2InstanceTypes, func(i ec2types.InstanceTypeInfo) bool { return string(i.InstanceType) == it.Name })).To(BeTrue())
 		}
 	})
 	It("should update instance type offering date with response from the DescribeInstanceTypesOfferings API", func() {

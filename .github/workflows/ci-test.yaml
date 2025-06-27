@@ -14,7 +14,7 @@ jobs:
     strategy:
         fail-fast: false
         matrix:
-          k8sVersion: ["1.25.x", "1.26.x", "1.27.x", "1.28.x", "1.29.x", "1.30.x", "1.31.x", "1.32.x"]
+          k8sVersion: ["1.26.x", "1.27.x", "1.28.x", "1.29.x", "1.30.x", "1.31.x", "1.32.x"]
     steps:
     - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
     - uses: ./.github/actions/install-deps

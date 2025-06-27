@@ -15,10 +15,20 @@ limitations under the License.
 package nodeclass_test
 
 import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
+	corev1 "k8s.io/api/core/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
@@ -27,6 +37,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
@@ -35,7 +46,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 	Context("Preconditions", func() {
 		var reconciler *nodeclass.Validation
 		BeforeEach(func() {
-			reconciler = nodeclass.NewValidationReconciler(awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache)
+			reconciler = nodeclass.NewValidationReconciler(env.Client, cloudProvider, awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache)
 			for _, cond := range []string{
 				v1.ConditionTypeAMIsReady,
 				v1.ConditionTypeInstanceProfileReady,
@@ -167,6 +178,118 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				}, fake.MaxCalls(1))
 			}, nodeclass.ConditionReasonCreateLaunchTemplateAuthFailed),
 		)
+		Context("RunInstances Validation", func() {
+			BeforeEach(func() {
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+					Images: []ec2types.Image{
+						{
+							Name:         lo.ToPtr("amd64-ami"),
+							ImageId:      lo.ToPtr("amd64-ami-id"),
+							CreationDate: lo.ToPtr(time.Time{}.Format(time.RFC3339)),
+							Architecture: "x86_64",
+							State:        ec2types.ImageStateAvailable,
+						},
+						{
+							Name:         lo.ToPtr("arm64-ami"),
+							ImageId:      lo.ToPtr("arm64-ami-id"),
+							CreationDate: lo.ToPtr(time.Time{}.Add(time.Minute).Format(time.RFC3339)),
+							Architecture: "arm64",
+							State:        ec2types.ImageStateAvailable,
+						},
+						{
+							Name:         lo.ToPtr("amd64-nvidia-ami"),
+							ImageId:      lo.ToPtr("amd64-nvidia-ami-id"),
+							CreationDate: lo.ToPtr(time.Time{}.Add(2 * time.Minute).Format(time.RFC3339)),
+							Architecture: "x86_64",
+							State:        ec2types.ImageStateAvailable,
+						},
+					},
+				})
+				version := awsEnv.VersionProvider.Get(ctx)
+				awsEnv.SSMAPI.Parameters = map[string]string{
+					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):       "amd64-ami-id",
+					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):   "amd64-nvidia-ami-id",
+					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version): "arm64-ami-id",
+				}
+				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+			})
+			DescribeTable(
+				"should fallback to static instance types when no linked NodePools exist",
+				func(expectedInstanceType ec2types.InstanceType, expectedAMIID string) {
+					// Filter out the non-target standard AMI to ensure the right instance is selected, but leave the nvidia AMI to
+					// test AMI selection.
+					awsEnv.SSMAPI.Parameters = lo.PickBy(awsEnv.SSMAPI.Parameters, func(_, amiID string) bool {
+						return amiID == expectedAMIID || strings.Contains(amiID, "nvidia")
+					})
+					Expect(len(awsEnv.SSMAPI.Parameters)).To(BeNumerically(">", 1))
+
+					ExpectApplied(ctx, env.Client, nodeClass)
+					ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+					input := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+					Expect(input.InstanceType).To(Equal(expectedInstanceType))
+					Expect(input.ImageId).To(PointTo(Equal(expectedAMIID)))
+				},
+				Entry("m5.large", ec2types.InstanceTypeM5Large, "amd64-ami-id"),
+				Entry("m6g.large", ec2types.InstanceTypeM6gLarge, "arm64-ami-id"),
+			)
+			It("should prioritize non-GPU instances", func() {
+				nodePool := coretest.NodePool(karpv1.NodePool{Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimTemplateSpec{
+						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+							{
+								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+									Key:      corev1.LabelInstanceTypeStable,
+									Operator: corev1.NodeSelectorOpIn,
+									Values: []string{
+										string(ec2types.InstanceTypeC6gLarge),
+										string(ec2types.InstanceTypeG4dn8xlarge),
+									},
+								},
+							},
+						},
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
+						},
+					},
+				}}})
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				input := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+				Expect(input.InstanceType).To(Equal(ec2types.InstanceTypeC6gLarge))
+				Expect(input.ImageId).To(PointTo(Equal("arm64-ami-id")))
+			})
+			It("should fallback to GPU instances when no non-GPU instances exist", func() {
+				nodePool := coretest.NodePool(karpv1.NodePool{Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimTemplateSpec{
+						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+							{
+								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+									Key:      corev1.LabelInstanceTypeStable,
+									Operator: corev1.NodeSelectorOpIn,
+									Values: []string{
+										string(ec2types.InstanceTypeG4dn8xlarge),
+									},
+								},
+							},
+						},
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
+						},
+					},
+				}}})
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				input := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+				Expect(input.InstanceType).To(Equal(ec2types.InstanceTypeG4dn8xlarge))
+				Expect(input.ImageId).To(PointTo(Equal("amd64-nvidia-ami-id")))
+			})
+		})
 	})
 	It("should clear the validation cache when the nodeclass is deleted", func() {
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)

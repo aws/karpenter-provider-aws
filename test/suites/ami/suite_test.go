@@ -71,10 +71,13 @@ var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("AMI", func() {
+	var ssmPath string
 	var customAMI string
 	var deprecatedAMI string
+
 	BeforeEach(func() {
-		customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+		ssmPath = fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion())
+		customAMI = env.GetAMIBySSMPath(ssmPath)
 		deprecatedAMI = env.GetDeprecatedAMI(customAMI, "AL2023")
 	})
 
@@ -149,6 +152,21 @@ var _ = Describe("AMI", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
 				ID: customAMI,
+			},
+		}
+		pod := coretest.Pod()
+
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
+	})
+	It("should support ssm parameters by ARN", func() {
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+			{
+				SSMParameter: fmt.Sprintf("arn:aws:ssm:%s::parameter%s", env.Region, ssmPath),
 			},
 		}
 		pod := coretest.Pod()
@@ -253,6 +271,16 @@ var _ = Describe("AMI", func() {
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeAMIsReady, Status: metav1.ConditionTrue})
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 		})
+		It("should have the EC2NodeClass status for AMIs using public ssm parameter ARN", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{SSMParameter: fmt.Sprintf("arn:aws:ssm:%s::parameter%s", env.Region, ssmPath)}}
+			env.ExpectCreated(nodeClass)
+			nc := EventuallyExpectAMIsToExist(nodeClass)
+			Expect(len(nc.Status.AMIs)).To(BeNumerically("==", 1))
+			Expect(nc.Status.AMIs[0].ID).To(Equal(customAMI))
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeAMIsReady, Status: metav1.ConditionTrue})
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
+		})
 		It("should have ec2nodeClass status as not ready since AMI was not resolved", func() {
 			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-123"}}
@@ -284,6 +312,7 @@ var _ = Describe("AMI", func() {
 			// Since the node has joined the cluster, we know our bootstrapping was correct.
 			// Just verify if the UserData contains our custom content too, rather than doing a byte-wise comparison.
 			Expect(string(actualUserData)).To(ContainSubstring("Running custom user data script"))
+			Expect(string(actualUserData)).To(ContainSubstring("karpenter.sh/do-not-sync-taints=true"))
 		})
 		It("should merge non-MIME UserData contents for AL2 AMIFamily", func() {
 			content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.sh")
@@ -305,6 +334,7 @@ var _ = Describe("AMI", func() {
 			// Since the node has joined the cluster, we know our bootstrapping was correct.
 			// Just verify if the UserData contains our custom content too, rather than doing a byte-wise comparison.
 			Expect(string(actualUserData)).To(ContainSubstring("Running custom user data script"))
+			Expect(string(actualUserData)).To(ContainSubstring("karpenter.sh/do-not-sync-taints=true"))
 		})
 		It("should merge UserData contents for Bottlerocket AMIFamily", func() {
 			content, err := os.ReadFile("testdata/br_userdata_input.sh")
@@ -324,6 +354,10 @@ var _ = Describe("AMI", func() {
 			actualUserData, err := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(actualUserData)).To(ContainSubstring("kube-api-qps = 30"))
+			Expect(string(actualUserData)).To(ContainSubstring("'karpenter.sh/do-not-sync-taints' = 'true'"))
+			Expect(string(actualUserData)).To(ContainSubstring("eviction-max-pod-grace-period = 40"))
+			Expect(string(actualUserData)).To(ContainSubstring("[settings.kubernetes.eviction-soft]\n'memory.available' = '100Mi'"))
+			Expect(string(actualUserData)).To(ContainSubstring("[settings.kubernetes.eviction-soft-grace-period]\n'memory.available' = '30s'"))
 		})
 		// Windows tests are can flake due to the instance types that are used in testing.
 		// The VPC Resource controller will need to support the instance types that are used.
@@ -371,6 +405,7 @@ var _ = Describe("AMI", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(actualUserData)).To(ContainSubstring("Write-Host \"Running custom user data script\""))
 			Expect(string(actualUserData)).To(ContainSubstring("[string]$EKSBootstrapScriptFile = \"$env:ProgramFiles\\Amazon\\EKS\\Start-EKSBootstrap.ps1\""))
+			Expect(string(actualUserData)).To(ContainSubstring("karpenter.sh/do-not-sync-taints=true"))
 		})
 	})
 })

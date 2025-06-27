@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
@@ -39,8 +40,8 @@ const (
 	// Karpenter's supported version of Kubernetes
 	// If a user runs a karpenter image on a k8s version outside the min and max,
 	// One error message will be fired to notify
-	MinK8sVersion = "1.25"
-	MaxK8sVersion = "1.32"
+	MinK8sVersion = "1.26"
+	MaxK8sVersion = "1.33"
 )
 
 type Provider interface {
@@ -121,7 +122,7 @@ func validateK8sVersion(v string) error {
 	// that is out of the range of the minK8sVersion and maxK8sVersion
 	if k8sVersion.LessThan(version.MustParseGeneric(MinK8sVersion)) ||
 		version.MustParseGeneric(MaxK8sVersion).LessThan(k8sVersion) {
-		return fmt.Errorf("karpenter version is not compatible with K8s version %s", k8sVersion)
+		return serrors.Wrap(fmt.Errorf("karpenter is not compatible with kubernetes version"), "version", k8sVersion)
 	}
 
 	return nil

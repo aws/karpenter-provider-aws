@@ -73,7 +73,7 @@ var _ = Describe("Capacity Reservation Provider", func() {
 				InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
 				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
 				AvailableInstanceCount: lo.ToPtr[int32](10),
-				Tags:                   utils.MergeTags(discoveryTags),
+				Tags:                   utils.EC2MergeTags(discoveryTags),
 				State:                  ec2types.CapacityReservationStateActive,
 			},
 			{
@@ -83,7 +83,7 @@ var _ = Describe("Capacity Reservation Provider", func() {
 				InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
 				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-2"),
 				AvailableInstanceCount: lo.ToPtr[int32](15),
-				Tags:                   utils.MergeTags(discoveryTags),
+				Tags:                   utils.EC2MergeTags(discoveryTags),
 				State:                  ec2types.CapacityReservationStateActive,
 			},
 		}

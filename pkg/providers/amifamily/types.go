@@ -15,6 +15,7 @@ limitations under the License.
 package amifamily
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -23,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -76,7 +78,7 @@ func NewVariant(v string) (Variant, error) {
 	var wellKnownVariants = sets.New(VariantStandard, VariantNvidia, VariantNeuron)
 	variant := Variant(v)
 	if !wellKnownVariants.Has(variant) {
-		return variant, fmt.Errorf("%q is not a well-known variant", variant)
+		return variant, serrors.Wrap(fmt.Errorf("variant is not well-known"), "variant", variant)
 	}
 	return variant, nil
 }
@@ -126,4 +128,16 @@ func (q DescribeImageQuery) RequirementsForImageWithArchitecture(image string, a
 		})
 	}
 	return []scheduling.Requirements{scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, arch))}
+}
+
+type AL2DeprecationError struct {
+	error
+}
+
+func IsAl2DeprecationError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var al2Err *AL2DeprecationError
+	return errors.As(err, &al2Err)
 }

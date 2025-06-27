@@ -90,7 +90,11 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(test.DisableCapacityReservationIDValidation(apis.CRDs)...), coretest.WithCRDs(v1alpha1.CRDs...))
+	env = coretest.NewEnvironment(
+		coretest.WithCRDs(test.DisableCapacityReservationIDValidation(apis.CRDs)...),
+		coretest.WithCRDs(v1alpha1.CRDs...),
+		coretest.WithFieldIndexers(coretest.NodePoolNodeClassRefFieldIndexer(ctx)),
+	)
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
@@ -191,6 +195,34 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		Expect(err).To(BeNil())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+	})
+	It("should not add the do not sync taints label to nodes when AMI type is custom", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("Custom", make(map[string]string))
+		Expect(labels).To(HaveLen(0))
+	})
+
+	It("should add the do not sync taints label to nodes when AMI type is al2", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("AL2", make(map[string]string))
+		Expect(labels).To(HaveLen(1))
+		Expect(labels).Should(HaveKeyWithValue(karpv1.NodeDoNotSyncTaintsLabelKey, "true"))
+	})
+
+	It("should add the do not sync taints label to nodes when AMI type is al2023", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("AL2023", make(map[string]string))
+		Expect(labels).To(HaveLen(1))
+		Expect(labels).Should(HaveKeyWithValue(karpv1.NodeDoNotSyncTaintsLabelKey, "true"))
+	})
+
+	It("should add the do not sync taints label to nodes when AMI type is br", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("Bottlerocket", make(map[string]string))
+		Expect(labels).To(HaveLen(1))
+		Expect(labels).Should(HaveKeyWithValue(karpv1.NodeDoNotSyncTaintsLabelKey, "true"))
+	})
+
+	It("should add the do not sync taints label to nodes when AMI type is windows", func() {
+		labels := launchtemplate.InjectDoNotSyncTaintsLabel("Windows", make(map[string]string))
+		Expect(labels).To(HaveLen(1))
+		Expect(labels).Should(HaveKeyWithValue(karpv1.NodeDoNotSyncTaintsLabelKey, "true"))
 	})
 	It("should create unique launch templates for multiple identical nodeClasses", func() {
 		nodeClass2 := test.EC2NodeClass(v1.EC2NodeClass{
@@ -1370,6 +1402,15 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				corev1.LabelNamespaceNodeRestriction + "/custom-label":                "custom-value",
 				"subdomain." + corev1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
 			})
+			nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(nodePool.Spec.Template.Labels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
+				return karpv1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      k,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{v},
+					},
+				}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1533,6 +1574,46 @@ essential = true
 					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
 				})
 			})
+			It("should override soft eviction values in user data", func() {
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					EvictionSoft: map[string]string{"memory.available": "10%"},
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"memory.available": {Duration: time.Minute},
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+				ExpectLaunchTemplatesCreatedWithUserDataContaining(`
+[settings.kubernetes.eviction-soft]
+'memory.available' = '10%'
+
+[settings.kubernetes.eviction-soft-grace-period]
+'memory.available' = '1m0s'
+`)
+			})
+			It("should override max pod grace period in user data", func() {
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					MaxPods:                   aws.Int32(35),
+					EvictionMaxPodGracePeriod: aws.Int32(10),
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
+				ExpectLaunchTemplatesCreatedWithUserDataContaining(`
+[settings.kubernetes]
+api-server = 'https://test-cluster'
+cluster-certificate = 'ca-bundle'
+cluster-name = 'test-cluster'
+cluster-dns-ip = '10.0.100.10'
+max-pods = 35
+eviction-max-pod-grace-period = 10
+`)
+			})
 			It("should override kube reserved values in user data", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					EvictionHard: map[string]string{
@@ -1648,6 +1729,52 @@ essential = true
 					Expect(*config.Settings.Kubernetes.CPUCFSQuota).To(BeFalse())
 				})
 			})
+			It("should specify labels in the Kubelet flags when specified in NodePool", func() {
+				desiredLabels := map[string]string{
+					"test-label-1": "value-1",
+					"test-label-2": "value-2",
+				}
+				nodePool.Spec.Template.Labels = desiredLabels
+
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					for k, v := range desiredLabels {
+						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
+					}
+				}
+			})
+			It("should specify labels in the Kubelet flags when single value requirements are specified in NodePool", func() {
+				desiredLabels := map[string]string{
+					"test-label-1": "value-1",
+					"test-label-2": "value-2",
+				}
+				nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(desiredLabels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
+					return karpv1.NodeSelectorRequirementWithMinValues{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      k,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{v},
+						},
+					}
+				})
+
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					for k, v := range desiredLabels {
+						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
+					}
+				}
+			})
 		})
 		Context("AL2 Custom UserData", func() {
 			BeforeEach(func() {
@@ -1752,6 +1879,37 @@ essential = true
 						"test-label-2": "value-2",
 					}
 					nodePool.Spec.Template.Labels = desiredLabels
+
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod()
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+						configs := ExpectUserDataCreatedWithNodeConfigs(userData)
+						Expect(len(configs)).To(Equal(1))
+						labelFlag, ok := lo.Find(configs[0].Spec.Kubelet.Flags, func(flag string) bool {
+							return strings.HasPrefix(flag, "--node-labels")
+						})
+						Expect(ok).To(BeTrue())
+						for label, value := range desiredLabels {
+							Expect(labelFlag).To(ContainSubstring(fmt.Sprintf("%s=%s", label, value)))
+						}
+					}
+				})
+				It("should specify labels in the Kubelet flags when single value requirements are specified in NodePool", func() {
+					desiredLabels := map[string]string{
+						"test-label-1": "value-1",
+						"test-label-2": "value-2",
+					}
+					nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(desiredLabels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
+						return karpv1.NodeSelectorRequirementWithMinValues{
+							NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+								Key:      k,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{v},
+							},
+						}
+					})
 
 					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 					pod := coretest.UnschedulablePod()
@@ -2042,7 +2200,7 @@ essential = true
 				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				ExpectApplied(ctx, env.Client, nodeClass)
-				controller := nodeclass.NewController(awsEnv.Clock, env.Client, recorder, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.AMIResolver)
+				controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.AMIResolver)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{
@@ -2310,6 +2468,7 @@ essential = true
 				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
 				AvailableInstanceCount: lo.ToPtr[int32](10),
 				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeDefault,
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
@@ -2319,6 +2478,7 @@ essential = true
 				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-2"),
 				AvailableInstanceCount: lo.ToPtr[int32](15),
 				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeDefault,
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1b"),
@@ -2328,6 +2488,7 @@ essential = true
 				CapacityReservationId:  lo.ToPtr("cr-m5.large-1b-1"),
 				AvailableInstanceCount: lo.ToPtr[int32](10),
 				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeDefault,
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1b"),
@@ -2337,13 +2498,14 @@ essential = true
 				CapacityReservationId:  lo.ToPtr("cr-m5.xlarge-1b-1"),
 				AvailableInstanceCount: lo.ToPtr[int32](15),
 				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeDefault,
 			},
 		}
 		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
 			CapacityReservations: crs,
 		})
 		for _, cr := range crs {
-			nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, lo.Must(nodeclass.CapacityReservationFromEC2(&cr)))
+			nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, lo.Must(v1.CapacityReservationFromEC2(fakeClock, &cr)))
 			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(*cr.CapacityReservationId, int(*cr.AvailableInstanceCount))
 		}
 

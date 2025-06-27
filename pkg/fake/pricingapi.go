@@ -38,8 +38,8 @@ func (p *PricingAPI) GetProducts(_ context.Context, input *pricing.GetProductsIn
 	return p.GetProductsBehavior.Invoke(input, func(input *pricing.GetProductsInput) (*pricing.GetProductsOutput, error) {
 		// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
 		return &pricing.GetProductsOutput{}, errors.New("no pricing data provided")
-	})
 
+	})
 }
 
 func NewOnDemandPrice(instanceType string, price float64) string {

@@ -25,7 +25,6 @@ import (
 	clock "k8s.io/utils/clock/testing"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -56,7 +55,8 @@ func init() {
 
 type Environment struct {
 	// Mock
-	Clock *clock.FakeClock
+	Clock         *clock.FakeClock
+	EventRecorder *coretest.EventRecorder
 
 	// API
 	EC2API     *fake.EC2API
@@ -95,6 +95,7 @@ type Environment struct {
 	AMIResolver                 *amifamily.DefaultResolver
 	VersionProvider             *version.DefaultProvider
 	LaunchTemplateProvider      *launchtemplate.DefaultProvider
+	SSMProvider                 *ssmp.DefaultProvider
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
@@ -124,9 +125,10 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	capacityReservationAvailabilityCache := cache.New(24*time.Hour, awscache.DefaultCleanupInterval)
 	validationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
+	eventRecorder := coretest.NewEventRecorder()
 
 	// Providers
-	pricingProvider := pricing.NewDefaultProvider(ctx, fakePricingAPI, ec2api, fake.DefaultRegion)
+	pricingProvider := pricing.NewDefaultProvider(fakePricingAPI, ec2api, fake.DefaultRegion, false)
 	subnetProvider := subnet.NewDefaultProvider(ec2api, subnetCache, availableIPAdressCache, associatePublicIPAddressCache)
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, securityGroupCache)
 	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, eksapi)
@@ -134,7 +136,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	// Version updates are hydrated asynchronously after this, in the event of a failure
 	// the previously resolved value will be used.
 	lo.Must0(versionProvider.UpdateVersion(ctx))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, instanceProfileCache)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
 	amiResolver := amifamily.NewDefaultResolver()
@@ -157,6 +159,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		"",
+		eventRecorder,
 		ec2api,
 		unavailableOfferingsCache,
 		subnetProvider,
@@ -165,7 +168,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	)
 
 	return &Environment{
-		Clock: clock,
+		Clock:         clock,
+		EventRecorder: eventRecorder,
 
 		EC2API:     ec2api,
 		EKSAPI:     eksapi,
@@ -202,6 +206,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		AMIProvider:                 amiProvider,
 		AMIResolver:                 amiResolver,
 		VersionProvider:             versionProvider,
+		SSMProvider:                 ssmProvider,
 	}
 }
 

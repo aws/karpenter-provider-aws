@@ -1,6 +1,6 @@
 # karpenter-crd
 
-![Version: 0.36.0](https://img.shields.io/badge/Version-0.36.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.36.0](https://img.shields.io/badge/AppVersion-0.36.0-informational?style=flat-square)
+![Version: 1.3.2](https://img.shields.io/badge/Version-1.3.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.3.2](https://img.shields.io/badge/AppVersion-1.3.2-informational?style=flat-square)
 
 A Helm chart for Karpenter Custom Resource Definitions (CRDs).
 
@@ -9,6 +9,12 @@ A Helm chart for Karpenter Custom Resource Definitions (CRDs).
 ## Source Code
 
 * <https://github.com/aws/karpenter/>
+
+## Values
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| additionalAnnotations | object | `{}` | Additional annotations for the custom resource definitions. |
 
 ----------------------------------------------
 

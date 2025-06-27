@@ -30,6 +30,7 @@ func init() {
 	karpv1.RestrictedLabelDomains = karpv1.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
 	karpv1.WellKnownLabels = karpv1.WellKnownLabels.Insert(
 		LabelCapacityReservationID,
+		LabelCapacityReservationType,
 		LabelInstanceHypervisor,
 		LabelInstanceEncryptionInTransitSupported,
 		LabelInstanceCategory,
@@ -65,6 +66,26 @@ var (
 		karpv1.ArchitectureAmd64,
 		karpv1.ArchitectureArm64,
 	)
+	WellKnownResources = sets.New[corev1.ResourceName](
+		corev1.ResourceCPU,
+		corev1.ResourceMemory,
+		corev1.ResourceEphemeralStorage,
+		corev1.ResourcePods,
+		ResourceAWSPodENI,
+		ResourceNVIDIAGPU,
+		ResourceAMDGPU,
+		ResourceAWSNeuron,
+		ResourceAWSNeuronCore,
+		ResourceHabanaGaudi,
+		ResourceEFA,
+	)
+	WellKnownExoticResources = sets.New[corev1.ResourceName](
+		ResourceNVIDIAGPU,
+		ResourceAMDGPU,
+		ResourceAWSNeuron,
+		ResourceAWSNeuronCore,
+		ResourceHabanaGaudi,
+	)
 	RestrictedLabelDomains = []string{
 		apis.Group,
 	}
@@ -99,6 +120,7 @@ var (
 	ResourceEFA                corev1.ResourceName = "vpc.amazonaws.com/efa"
 
 	LabelCapacityReservationID                = apis.Group + "/capacity-reservation-id"
+	LabelCapacityReservationType              = apis.Group + "/capacity-reservation-type"
 	LabelInstanceHypervisor                   = apis.Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = apis.Group + "/instance-encryption-in-transit-supported"
 	LabelInstanceCategory                     = apis.Group + "/instance-category"

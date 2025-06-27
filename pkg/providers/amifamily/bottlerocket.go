@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -60,7 +61,7 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
 	if len(ids) == 0 {
-		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "bottlerocket@%s"`, amiVersion)
+		return DescribeImageQuery{}, serrors.Wrap(fmt.Errorf(`failed to discover any AMIs for alias`), "alias", fmt.Sprintf("bottlerocket@%s", amiVersion))
 	}
 
 	return DescribeImageQuery{
@@ -126,7 +127,6 @@ func (b Bottlerocket) FeatureFlags() FeatureFlags {
 	return FeatureFlags{
 		UsesENILimitedMemoryOverhead: false,
 		PodsPerCoreEnabled:           false,
-		EvictionSoftEnabled:          false,
 		SupportsENILimitedPodDensity: true,
 	}
 }

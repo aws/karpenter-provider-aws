@@ -100,12 +100,13 @@ spec:
   amiSelectorTerms:
     # Select on any AMI that has both the `karpenter.sh/discovery: ${CLUSTER_NAME}`
     # AND `environment: test` tags OR any AMI with the name `my-ami` OR an AMI with
-    # ID `ami-123`
+    # ID `ami-123` OR an AMI with ID matching the value of my-custom-parameter
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}"
         environment: test
     - name: my-ami
     - id: ami-123
+    - ssmParameter: my-custom-parameter # ssm parameter name or ARN
     # Select EKS optimized AL2023 AMIs with version `v20240703`. This term is mutually
     # exclusive and can't be specified with other terms.
     # - alias: al2023@v20240703
@@ -140,6 +141,7 @@ spec:
         deleteOnTermination: true
         throughput: 125
         snapshotID: snap-0123456789
+        volumeInitializationRate: 100
 
   # Optional, use instance-store volumes for node ephemeral-storage
   instanceStorePolicy: RAID0
@@ -292,17 +294,6 @@ spec:
 ```
 
 Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kubelet` and `spec.userData`.
-{{% /alert %}}
-
-{{% alert title="Warning" color="warning" %}}
-The Bottlerocket AMIFamily does not support the following fields:
-
-* `evictionSoft`
-* `evictionSoftGracePeriod`
-* `evictionMaxPodGracePeriod`
-
-If any of these fields are specified on a Bottlerocket EC2NodeClass, they will be ommited from generated UserData and ignored for scheduling purposes.
-Support for these fields can be tracked via GitHub issue [#3722](https://github.com/aws/karpenter-provider-aws/issues/3722).
 {{% /alert %}}
 
 #### Pods Per Core
@@ -728,12 +719,13 @@ The example below shows how this selection logic is fulfilled.
 amiSelectorTerms:
   # Select on any AMI that has both the `karpenter.sh/discovery: ${CLUSTER_NAME}`
   # AND `environment: test` tags OR any AMI with the name `my-ami` OR an AMI with
-  # ID `ami-123`
+  # ID `ami-123` OR an AMI with ID matching the value of my-custom-parameter
   - tags:
       karpenter.sh/discovery: "${CLUSTER_NAME}"
       environment: test
   - name: my-ami
   - id: ami-123
+  - ssmParameter: my-custom-parameter # ssm parameter name or ARN
   # Select EKS optimized AL2023 AMIs with version `v20240807`. This term is mutually
   # exclusive and can't be specified with other terms.
   # - alias: al2023@v20240807
@@ -865,6 +857,16 @@ Specify using ids:
     - id: "ami-456"
 ```
 
+Specify using custom ssm parameter name or ARN:
+```yaml
+  amiSelectorTerms:
+    - ssmParameter: "my-custom-parameter"
+```
+
+{{% alert title="Note" color="primary" %}}
+When using a custom SSM parameter, you'll need to expand the `ssm:GetParameter` permissions on the Karpenter IAM role to include your custom parameter, as the default policy only allows access to the AWS public parameters.
+{{% /alert %}}
+
 ## spec.capacityReservationSelectorTerms
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Alpha]({{<ref "../reference/settings#feature-gates" >}})
@@ -877,6 +879,10 @@ This selection logic is modeled as terms.
 A term can specify an ID or a set of tags to select against.
 When specifying tags, it will select all capacity reservations accessible from the account with matching tags.
 This can be further restricted by specifying an owner ID.
+
+{{% alert title="Note" color="primary" %}}
+Note that the IAM role Karpenter assumes should have a permissions policy associated with it that grants it permissions to use the [ec2:DescribeCapacityReservations](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-DescribeCapacityReservations) action to discover capacity reservations and the [ec2:RunInstances](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-RunInstances) action to run instances in those capacity reservations.
+{{% /alert %}}
 
 #### Examples
 
@@ -1090,11 +1096,13 @@ spec:
     "memory.available" = "20%"
 ```
 
-This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your key file):
+This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your public key file):
 
 {{% alert title="Note" color="primary" %}}
 Instead of using SSH as set up in this example, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell access to Karpenter nodes.
 See [Node NotReady]({{< ref "../troubleshooting/#node-notready" >}}) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
+
+Also, **my-authorized_key** key is the public key. See [Retrieve the public key material](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/describe-keys.html#retrieving-the-public-key).
 {{% /alert %}}
 
 ```yaml
@@ -1114,6 +1122,12 @@ spec:
     EOF
     chmod -R go-w ~ec2-user/.ssh/authorized_keys
     chown -R ec2-user ~ec2-user/.ssh
+```
+
+Alternatively, you can save the [key in your SSM Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-create-console.html) and use the get-parameter command mentioned below to retrieve the key for authorized_keys.
+
+```
+aws ssm get-parameter --name "<parameter-name>" --region <region> --with-decryption --query "Parameter.Value" --output text > /home/ec2-user/.ssh/authorized_keys
 ```
 
 For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/v1).

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -39,7 +40,7 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 	ids := map[string]Variant{}
 	for arch, variants := range map[string][]Variant{
 		"x86_64": {VariantStandard, VariantNvidia, VariantNeuron},
-		"arm64":  {VariantStandard},
+		"arm64":  {VariantStandard, VariantNvidia},
 	} {
 		for _, variant := range variants {
 			path := a.resolvePath(arch, string(variant), k8sVersion, amiVersion)
@@ -55,7 +56,7 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
 	if len(ids) == 0 {
-		return DescribeImageQuery{}, fmt.Errorf(`failed to discover AMIs for alias "al2023@%s"`, amiVersion)
+		return DescribeImageQuery{}, serrors.Wrap(fmt.Errorf("failed to discover any AMIs for alias"), "alias", fmt.Sprintf("al2023@%s", amiVersion))
 	}
 
 	return DescribeImageQuery{

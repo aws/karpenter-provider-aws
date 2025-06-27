@@ -6,7 +6,7 @@ metadata:
     {{- with .Values.additionalAnnotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-    controller-gen.kubebuilder.io/version: v0.17.2
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: ec2nodeclasses.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws
@@ -114,6 +114,9 @@ spec:
                           Owner is the owner for the ami.
                           You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
                         type: string
+                      ssmParameter:
+                        description: SSMParameter is the name (or ARN) of the SSM parameter containing the Image ID.
+                        type: string
                       tags:
                         additionalProperties:
                           type: string
@@ -130,8 +133,8 @@ spec:
                   minItems: 1
                   type: array
                   x-kubernetes-validations:
-                    - message: expected at least one, got none, ['tags', 'id', 'name', 'alias']
-                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias))
+                    - message: expected at least one, got none, ['tags', 'id', 'name', 'alias', 'ssmParameter']
+                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias) || has(x.ssmParameter))
                     - message: '''id'' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms'
                       rule: '!self.exists(x, has(x.id) && (has(x.alias) || has(x.tags) || has(x.name) || has(x.owner)))'
                     - message: '''alias'' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms'
@@ -184,7 +187,7 @@ spec:
                             format: int64
                             type: integer
                           kmsKeyID:
-                            description: KMSKeyID (ARN) of the symmetric Key Management Service (KMS) CMK used for encryption.
+                            description: Identifier (key ID, key alias, key ARN, or alias ARN) of the customer managed KMS key to use for EBS encryption.
                             type: string
                           snapshotID:
                             description: SnapshotID is the ID of an EBS snapshot
@@ -194,6 +197,17 @@ spec:
                               Throughput to provision for a gp3 volume, with a maximum of 1,000 MiB/s.
                               Valid Range: Minimum value of 125. Maximum value of 1000.
                             format: int64
+                            type: integer
+                          volumeInitializationRate:
+                            description: |-
+                              VolumeInitializationRate specifies the Amazon EBS Provisioned Rate for Volume Initialization,
+                              in MiB/s, at which to download the snapshot blocks from Amazon S3 to the volume. This is also known as volume
+                              initialization. Specifying a volume initialization rate ensures that the volume is initialized at a
+                              predictable and consistent rate after creation. Only allowed if SnapshotID is set.
+                              Valid Range: Minimum value of 100. Maximum value of 300.
+                            format: int32
+                            maximum: 300
+                            minimum: 100
                             type: integer
                           volumeSize:
                             description: |-
@@ -228,6 +242,8 @@ spec:
                         x-kubernetes-validations:
                           - message: snapshotID or volumeSize must be defined
                             rule: has(self.snapshotID) || has(self.volumeSize)
+                          - message: snapshotID must be set when volumeInitializationRate is set
+                            rule: '!has(self.volumeInitializationRate) || (has(self.snapshotID) && self.snapshotID != '''')'
                       rootVolume:
                         description: |-
                           RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
@@ -704,6 +720,22 @@ spec:
                       ownerID:
                         description: The ID of the AWS account that owns the capacity reservation.
                         pattern: ^[0-9]{12}$
+                        type: string
+                      reservationType:
+                        default: default
+                        description: The type of capacity reservation.
+                        enum:
+                          - default
+                          - capacity-block
+                        type: string
+                      state:
+                        default: active
+                        description: |-
+                          The state of the capacity reservation. A capacity reservation is considered to be expiring if it is within the EC2
+                          reclaimation window. Only capacity-block reservations may be in this state.
+                        enum:
+                          - active
+                          - expiring
                         type: string
                     required:
                       - availabilityZone

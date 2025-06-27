@@ -138,6 +138,80 @@ var _ = Describe("InstanceProvider", func() {
 		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
+
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeOnDemand)).To(BeFalse())
+
+		// Try creating again for on-demand
+		instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		// Filter down to a single instance type
+		instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool { return i.Name == "m5.xlarge" })
+
+		instance, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(instance).To(BeNil())
+
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeOnDemand)).To(BeTrue())
+	})
+	It("should return an ICE error when spot instances are used and SpotSLR can't be created", func() {
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			Errors: []ec2types.CreateFleetError{
+				{
+					ErrorCode:    lo.ToPtr("AuthFailure.ServiceLinkedRoleCreationNotPermitted"),
+					ErrorMessage: lo.ToPtr("The provided credentials do not have permission to create the service-linked role for EC2 Spot Instances."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.xlarge",
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+				{
+					ErrorCode:    lo.ToPtr("AuthFailure.ServiceLinkedRoleCreationNotPermitted"),
+					ErrorMessage: lo.ToPtr("The provided credentials do not have permission to create the service-linked role for EC2 Spot Instances."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.xlarge",
+							AvailabilityZone: lo.ToPtr("test-zone-1b"),
+						},
+					},
+				},
+			},
+		})
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		// Filter down to a single instance type
+		instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool {
+			return i.Name == "m5.xlarge"
+		})
+
+		// Since all the capacity pools are ICEd. This should return back an ICE error
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(instance).To(BeNil())
+
+		// Capacity should get ICEd when this error is received
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeOnDemand)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1b", karpv1.CapacityTypeOnDemand)).To(BeFalse())
+
+		// Expect that an event is fired for Spot SLR not being created
+		awsEnv.EventRecorder.DetectedEvent(`Attempted to launch a spot instance but failed due to "AuthFailure.ServiceLinkedRoleCreationNotPermitted"`)
 	})
 	It("should return an ICE error when all attempted instance types return a ReservedCapacityReservation error", func() {
 		const targetReservationID = "cr-m5.large-1a-1"
@@ -153,6 +227,7 @@ var _ = Describe("InstanceProvider", func() {
 					CapacityReservationId:  lo.ToPtr(targetReservationID),
 					AvailableInstanceCount: lo.ToPtr[int32](0),
 					State:                  ec2types.CapacityReservationStateActive,
+					ReservationType:        ec2types.CapacityReservationTypeDefault,
 				},
 			},
 		})
@@ -162,6 +237,8 @@ var _ = Describe("InstanceProvider", func() {
 			InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
 			InstanceType:          "m5.large",
 			OwnerID:               "012345678901",
+			State:                 v1.CapacityReservationStateActive,
+			ReservationType:       v1.CapacityReservationTypeDefault,
 		})
 		nodeClaim.Spec.Requirements = append(
 			nodeClaim.Spec.Requirements,
@@ -181,80 +258,6 @@ var _ = Describe("InstanceProvider", func() {
 
 		// Ensure we marked the reservation as unavailable after encountering the error
 		Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(targetReservationID)).To(Equal(0))
-	})
-	It("should filter compatible reserved offerings such that only one offering per capacity pool is included in the CreateFleet request", func() {
-		const targetReservationID = "cr-m5.large-1a-2"
-		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
-			CapacityReservations: []ec2types.CapacityReservation{
-				{
-					AvailabilityZone:       lo.ToPtr("test-zone-1a"),
-					InstanceType:           lo.ToPtr("m5.large"),
-					OwnerId:                lo.ToPtr("012345678901"),
-					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
-					CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
-					AvailableInstanceCount: lo.ToPtr[int32](1),
-					State:                  ec2types.CapacityReservationStateActive,
-				},
-				{
-					AvailabilityZone:       lo.ToPtr("test-zone-1a"),
-					InstanceType:           lo.ToPtr("m5.large"),
-					OwnerId:                lo.ToPtr("012345678901"),
-					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
-					CapacityReservationId:  lo.ToPtr(targetReservationID),
-					AvailableInstanceCount: lo.ToPtr[int32](2),
-					State:                  ec2types.CapacityReservationStateActive,
-				},
-			},
-		})
-		awsEnv.CapacityReservationProvider.SetAvailableInstanceCount("cr-m5.large-1a-1", 1)
-		awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(targetReservationID, 2)
-		nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, []v1.CapacityReservation{
-			{
-				ID:                    "cr-m5.large-1a-1",
-				AvailabilityZone:      "test-zone-1a",
-				InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
-				InstanceType:          "m5.large",
-				OwnerID:               "012345678901",
-			},
-			{
-				ID:                    "cr-m5.large-1a-2",
-				AvailabilityZone:      "test-zone-1a",
-				InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
-				InstanceType:          "m5.large",
-				OwnerID:               "012345678901",
-			},
-		}...)
-
-		nodeClaim.Spec.Requirements = append(
-			nodeClaim.Spec.Requirements,
-			karpv1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      karpv1.CapacityTypeLabelKey,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{karpv1.CapacityTypeReserved},
-			}},
-		)
-		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
-
-		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
-		Expect(err).ToNot(HaveOccurred())
-		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(instance.CapacityType).To(Equal(karpv1.CapacityTypeReserved))
-		Expect(instance.CapacityReservationID).To(Equal(targetReservationID))
-
-		// We should have only created a single launch template, for the single capacity reservation we're attempting to launch
-		var launchTemplates []*ec2.CreateLaunchTemplateInput
-		for awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len() > 0 {
-			launchTemplates = append(launchTemplates, awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop())
-		}
-		Expect(launchTemplates).To(HaveLen(1))
-		Expect(*launchTemplates[0].LaunchTemplateData.CapacityReservationSpecification.CapacityReservationTarget.CapacityReservationId).To(Equal(targetReservationID))
-
-		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).ToNot(Equal(0))
-		createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-		Expect(createFleetInput.TargetCapacitySpecification.DefaultTargetCapacityType).To(Equal(ec2types.DefaultTargetCapacityTypeOnDemand))
-		Expect(createFleetInput.LaunchTemplateConfigs).To(HaveLen(1))
-		Expect(createFleetInput.LaunchTemplateConfigs[0].Overrides).To(HaveLen(1))
 	})
 	It("should treat instances which launched into open ODCRs as on-demand when the ReservedCapacity gate is disabled", func() {
 		id := fake.InstanceID()
@@ -347,5 +350,42 @@ var _ = Describe("InstanceProvider", func() {
 
 		retrievedIDs := sets.New[string](lo.Map(instances, func(i *instance.Instance, _ int) string { return i.ID })...)
 		Expect(ids.Equal(retrievedIDs)).To(BeTrue())
+	})
+	It("should mark subnets as unavailable when they run out of IPs", func() {
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			Errors: []ec2types.CreateFleetError{
+				{
+					ErrorCode:    lo.ToPtr("InsufficientFreeAddressesInSubnet"),
+					ErrorMessage: lo.ToPtr("There are insufficient free addresses in that subnet to run instance"),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.xlarge",
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+			},
+		})
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		// We expect to treat that error as an ICE
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(instance).To(BeNil())
+
+		// We should have set the zone used in the request as unavailable for all instance types
+		for _, instance := range instanceTypes {
+			Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable(ec2types.InstanceType(instance.Name), "test-zone-1a", "on-demand")).To(BeTrue())
+		}
+		// But we should not have set the other zones as unavailable
+		zones := []string{"test-zone-1b", "test-zone-1c"}
+		for _, zone := range zones {
+			for _, instance := range instanceTypes {
+				Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable(ec2types.InstanceType(instance.Name), zone, "on-demand")).To(BeFalse())
+			}
+		}
 	})
 })

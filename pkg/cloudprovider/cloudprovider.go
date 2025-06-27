@@ -30,7 +30,6 @@ import (
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
-	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -94,10 +93,10 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		if errors.IsNotFound(err) {
 			// We treat a failure to resolve the NodeClass as an ICE since this means there is no capacity possibilities for this NodeClaim
 			c.recorder.Publish(cloudproviderevents.NodeClaimFailedToResolveNodeClass(nodeClaim))
-			return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving node class, %w", err))
+			return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving nodeclass, %w", err))
 		}
 		// Transient error when resolving the NodeClass
-		return nil, fmt.Errorf("resolving node class, %w", err)
+		return nil, fmt.Errorf("resolving nodeclass, %w", err)
 	}
 
 	nodeClassReady := nodeClass.StatusConditions().Get(status.ConditionReady)
@@ -107,23 +106,20 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if nodeClassReady.IsUnknown() {
 		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving NodeClass readiness, NodeClass is in Ready=Unknown, %s", nodeClassReady.Message), "NodeClassReadinessUnknown", "NodeClass is in Ready=Unknown")
 	}
-	instanceTypes, err := c.resolveInstanceTypes(ctx, nodeClaim, nodeClass)
-	if err != nil {
-		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving instance types, %w", err), "InstanceTypeResolutionFailed", "Error resolving instance types")
-	}
-	if len(instanceTypes) == 0 {
-		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
-	}
 	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
 	if err != nil {
 		return nil, cloudprovider.NewNodeClassNotReadyError(err)
+	}
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
+	if err != nil {
+		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving instance types, %w", err), "InstanceTypeResolutionFailed", "Error resolving instance types")
 	}
 	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
 	if err != nil {
 		return nil, fmt.Errorf("creating instance, %w", err)
 	}
 	if instance.CapacityType == karpv1.CapacityTypeReserved {
-		c.capacityReservationProvider.MarkLaunched(instance.CapacityReservationID)
+		c.capacityReservationProvider.MarkLaunched(*instance.CapacityReservationID)
 	}
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return i.Name == string(instance.Type)
@@ -142,16 +138,16 @@ func (c *CloudProvider) List(ctx context.Context) ([]*karpv1.NodeClaim, error) {
 		return nil, fmt.Errorf("listing instances, %w", err)
 	}
 	var nodeClaims []*karpv1.NodeClaim
-	for _, instance := range instances {
-		instanceType, err := c.resolveInstanceTypeFromInstance(ctx, instance)
+	for _, it := range instances {
+		instanceType, err := c.resolveInstanceTypeFromInstance(ctx, it)
 		if err != nil {
 			return nil, fmt.Errorf("resolving instance type, %w", err)
 		}
-		nc, err := c.resolveNodeClassFromInstance(ctx, instance)
+		nc, err := c.resolveNodeClassFromInstance(ctx, it)
 		if client.IgnoreNotFound(err) != nil {
 			return nil, fmt.Errorf("resolving nodeclass, %w", err)
 		}
-		nodeClaims = append(nodeClaims, c.instanceToNodeClaim(instance, instanceType, nc))
+		nodeClaims = append(nodeClaims, c.instanceToNodeClaim(it, instanceType, nc))
 	}
 	return nodeClaims, nil
 }
@@ -186,7 +182,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 			return nil, nil
 		}
-		return nil, fmt.Errorf("resolving node class, %w", err)
+		return nil, fmt.Errorf("resolving nodeclass, %w", err)
 	}
 	// TODO, break this coupling
 	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
@@ -194,6 +190,20 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 		return nil, err
 	}
 	return instanceTypes, nil
+}
+
+// getInstanceType returns a specific instance type to avoid re-constructing all InstanceTypes
+func (c *CloudProvider) getInstanceType(ctx context.Context, nodePool *karpv1.NodePool, name ec2types.InstanceType) (*cloudprovider.InstanceType, error) {
+	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// If we can't resolve the NodeClass, then it's impossible for us to resolve the instance types
+			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
+			return nil, nil
+		}
+		return nil, fmt.Errorf("resolving nodeclass, %w", err)
+	}
+	return c.instanceTypeProvider.Get(ctx, nodeClass, name)
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim) error {
@@ -233,7 +243,7 @@ func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *karpv1.NodeCla
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 			return "", nil
 		}
-		return "", fmt.Errorf("resolving node class, %w", err)
+		return "", fmt.Errorf("resolving nodeclass, %w", err)
 	}
 	driftReason, err := c.isNodeClassDrifted(ctx, nodeClaim, nodePool, nodeClass)
 	if err != nil {
@@ -321,33 +331,17 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 	return nodeClass, nil
 }
 
-func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
-	if err != nil {
-		return nil, fmt.Errorf("getting instance types, %w", err)
-	}
-	reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
-	return lo.Filter(instanceTypes, func(i *cloudprovider.InstanceType, _ int) bool {
-		return reqs.Compatible(i.Requirements, scheduling.AllowUndefinedWellKnownLabels) == nil &&
-			len(i.Offerings.Compatible(reqs).Available()) > 0 &&
-			resources.Fits(nodeClaim.Spec.Resources.Requests, i.Allocatable())
-	}), nil
-}
-
 func (c *CloudProvider) resolveInstanceTypeFromInstance(ctx context.Context, instance *instance.Instance) (*cloudprovider.InstanceType, error) {
 	nodePool, err := c.resolveNodePoolFromInstance(ctx, instance)
 	if err != nil {
 		// If we can't resolve the NodePool, we fall back to not getting instance type info
 		return nil, client.IgnoreNotFound(fmt.Errorf("resolving nodepool, %w", err))
 	}
-	instanceTypes, err := c.GetInstanceTypes(ctx, nodePool)
+	instanceType, err := c.getInstanceType(ctx, nodePool, instance.Type)
 	if err != nil {
 		// If we can't resolve the NodePool, we fall back to not getting instance type info
-		return nil, client.IgnoreNotFound(fmt.Errorf("resolving nodeclass, %w", err))
+		return nil, client.IgnoreNotFound(fmt.Errorf("resolving instance type, %w", err))
 	}
-	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
-		return i.Name == string(instance.Type)
-	})
 	return instanceType, nil
 }
 
@@ -392,7 +386,10 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 			// three. Capacity reservation IDs are a special case since we don't have a way to represent that the label may or
 			// may not exist. Since this requirement will be present regardless of the capacity type, we can't insert it here.
 			// Otherwise, you may end up with spot and on-demand NodeClaims with a reservation ID label.
-			if req.Len() == 1 && req.Key != cloudprovider.ReservationIDLabel {
+			if req.Len() == 1 && !lo.Contains([]string{
+				cloudprovider.ReservationIDLabel,
+				v1.LabelCapacityReservationType,
+			}, req.Key) {
 				labels[key] = req.Values()[0]
 			}
 		}
@@ -424,7 +421,8 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	}
 	labels[karpv1.CapacityTypeLabelKey] = i.CapacityType
 	if i.CapacityType == karpv1.CapacityTypeReserved {
-		labels[cloudprovider.ReservationIDLabel] = i.CapacityReservationID
+		labels[cloudprovider.ReservationIDLabel] = *i.CapacityReservationID
+		labels[v1.LabelCapacityReservationType] = string(*i.CapacityReservationType)
 	}
 	if v, ok := i.Tags[karpv1.NodePoolLabelKey]; ok {
 		labels[karpv1.NodePoolLabelKey] = v

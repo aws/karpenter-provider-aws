@@ -18,15 +18,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
-	"strings"
+
+	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
+	"github.com/awslabs/operatorpkg/aws/middleware"
+	"github.com/awslabs/operatorpkg/serrors"
+	"sigs.k8s.io/karpenter/pkg/events"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
@@ -36,7 +38,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/batcher"
@@ -44,6 +45,7 @@ import (
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	instancefilter "github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 
@@ -52,8 +54,10 @@ import (
 )
 
 const (
-	instanceTypeFlexibilityThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
-	maxInstanceTypes                 = 60
+	// falling back to on-demand without flexibility risks insufficient capacity errors
+	instanceTypeFlexibilityThreshold = 5
+	// The maximum number of instance types to include in a Create request
+	maxInstanceTypes = 60
 )
 
 var (
@@ -79,6 +83,7 @@ type Provider interface {
 
 type DefaultProvider struct {
 	region                      string
+	recorder                    events.Recorder
 	ec2api                      sdk.EC2API
 	unavailableOfferings        *cache.UnavailableOfferings
 	subnetProvider              subnet.Provider
@@ -90,6 +95,7 @@ type DefaultProvider struct {
 func NewDefaultProvider(
 	ctx context.Context,
 	region string,
+	recorder events.Recorder,
 	ec2api sdk.EC2API,
 	unavailableOfferings *cache.UnavailableOfferings,
 	subnetProvider subnet.Provider,
@@ -98,6 +104,7 @@ func NewDefaultProvider(
 ) *DefaultProvider {
 	return &DefaultProvider{
 		region:                      region,
+		recorder:                    recorder,
 		ec2api:                      ec2api,
 		unavailableOfferings:        unavailableOfferings,
 		subnetProvider:              subnetProvider,
@@ -108,24 +115,11 @@ func NewDefaultProvider(
 }
 
 func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, tags map[string]string, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
-	schedulingRequirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
-	// Only filter the instances if there are no minValues in the requirement.
-	if !schedulingRequirements.HasMinValues() {
-		instanceTypes = p.filterInstanceTypes(nodeClaim, instanceTypes)
-	}
-	// We filter out non-reserved instances regardless of the min-values settings, since if the launch is eligible for
-	// reserved instances that's all we'll include in our fleet request.
-	if reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...); reqs.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeReserved) {
-		instanceTypes = p.filterReservedInstanceTypes(reqs, instanceTypes)
-		if _, err := cloudprovider.InstanceTypes(instanceTypes).SatisfiesMinValues(schedulingRequirements); err != nil {
-			return nil, cloudprovider.NewCreateError(fmt.Errorf("failed to construct CreateFleet request while respecting minValues requirements"), "CreateFleetRequestConstructionFailed", "Failed to construct CreateFleet request while respecting minValues")
-		}
-	}
-	instanceTypes, err := cloudprovider.InstanceTypes(instanceTypes).Truncate(schedulingRequirements, maxInstanceTypes)
+	instanceTypes, err := p.filterInstanceTypes(ctx, instanceTypes, nodeClaim)
 	if err != nil {
-		return nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeResolutionFailed", "Error truncating instance types based on the passed-in requirements")
+		return nil, err
 	}
-	capacityType := p.getCapacityType(nodeClaim, instanceTypes)
+	capacityType := getCapacityType(nodeClaim, instanceTypes)
 	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, capacityType, instanceTypes, tags)
 	if awserrors.IsLaunchTemplateNotFound(err) {
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
@@ -136,20 +130,23 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 		return nil, err
 	}
 
-	var capacityReservation string
+	var opts []NewInstanceFromFleetOpts
 	if capacityType == karpv1.CapacityTypeReserved {
-		capacityReservation = p.getCapacityReservationIDForInstance(
+		id, crt := p.getCapacityReservationDetailsForInstance(
 			string(fleetInstance.InstanceType),
 			*fleetInstance.LaunchTemplateAndOverrides.Overrides.AvailabilityZone,
 			instanceTypes,
 		)
+		opts = append(opts, WithCapacityReservationDetails(id, crt))
+	}
+	if lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) {
+		opts = append(opts, WithEFAEnabled())
 	}
 	return NewInstanceFromFleet(
 		fleetInstance,
-		tags,
 		capacityType,
-		capacityReservation,
-		lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA),
+		tags,
+		opts...,
 	), nil
 }
 
@@ -242,6 +239,37 @@ func (p *DefaultProvider) CreateTags(ctx context.Context, id string, tags map[st
 	return nil
 }
 
+func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes []*cloudprovider.InstanceType, nodeClaim *karpv1.NodeClaim) ([]*cloudprovider.InstanceType, error) {
+	rejectedInstanceTypes := map[string][]*cloudprovider.InstanceType{}
+	reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+	for _, filter := range []instancefilter.Filter{
+		instancefilter.CompatibleAvailableFilter(reqs, nodeClaim.Spec.Resources.Requests),
+		instancefilter.CapacityReservationTypeFilter(reqs),
+		instancefilter.CapacityBlockFilter(reqs),
+		instancefilter.ReservedOfferingFilter(reqs),
+		instancefilter.ExoticInstanceTypeFilter(reqs),
+		instancefilter.SpotInstanceFilter(reqs),
+	} {
+		remaining, rejected := filter.FilterReject(instanceTypes)
+		if len(remaining) == 0 {
+			return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
+		}
+		if len(rejected) != 0 && filter.Name() != "compatible-available-filter" {
+			rejectedInstanceTypes[filter.Name()] = rejected
+		}
+		instanceTypes = remaining
+	}
+	for filterName, its := range rejectedInstanceTypes {
+		log.FromContext(ctx).WithValues("filter", filterName, "instance-types", utils.PrettySlice(lo.Map(its, func(i *cloudprovider.InstanceType, _ int) string { return i.Name }), 5)).V(1).Info("filtered out instance types from launch")
+	}
+	instanceTypes, err := cloudprovider.InstanceTypes(instanceTypes).Truncate(reqs, maxInstanceTypes)
+	if err != nil {
+		return nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeFilteringFailed", "Error truncating instance types based on the passed-in requirements")
+	}
+	return instanceTypes, nil
+}
+
+//nolint:gocyclo
 func (p *DefaultProvider) launchInstance(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
@@ -264,13 +292,19 @@ func (p *DefaultProvider) launchInstance(
 	if err := p.checkODFallback(nodeClaim, instanceTypes, launchTemplateConfigs); err != nil {
 		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
 	}
-	// Create fleet
-	createFleetInput := GetCreateFleetInput(nodeClass, capacityType, tags, launchTemplateConfigs)
-	if capacityType == karpv1.CapacityTypeSpot {
-		createFleetInput.SpotOptions = &ec2types.SpotOptionsRequest{AllocationStrategy: ec2types.SpotAllocationStrategyPriceCapacityOptimized}
-	} else {
-		createFleetInput.OnDemandOptions = &ec2types.OnDemandOptionsRequest{AllocationStrategy: ec2types.FleetOnDemandAllocationStrategyLowestPrice}
+
+	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs)
+	if nodeClass.Spec.Context != nil {
+		cfiBuilder.WithContextID(*nodeClass.Spec.Context)
 	}
+	if capacityType == karpv1.CapacityTypeReserved {
+		crt := getCapacityReservationType(instanceTypes)
+		if crt == nil {
+			panic(fmt.Sprintf("%s label isn't set for instance types in reserved launch", v1.LabelCapacityReservationType))
+		}
+		cfiBuilder.WithCapacityReservationType(*crt)
+	}
+	createFleetInput := cfiBuilder.Build()
 
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
 	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, lo.Values(zonalSubnets), capacityType)
@@ -282,43 +316,26 @@ func (p *DefaultProvider) launchInstance(
 			}
 			return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("launch templates not found when creating fleet request, %w", err), reason, fmt.Sprintf("Launch templates not found when creating fleet request: %s", message))
 		}
-		var reqErr *awshttp.ResponseError
-		if errors.As(err, &reqErr) {
-			return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w (%v)", err, reqErr.ServiceRequestID()), reason, fmt.Sprintf("Error creating fleet request: %s", message))
-		}
 		return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w", err), reason, fmt.Sprintf("Error creating fleet request: %s", message))
 	}
-	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, instanceTypes)
+	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, nodeClaim, instanceTypes)
 	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
-		return ec2types.CreateFleetInstance{}, combineFleetErrors(createFleetOutput.Errors)
+		requestID, _ := awsmiddleware.GetRequestIDMetadata(createFleetOutput.ResultMetadata)
+		return ec2types.CreateFleetInstance{}, serrors.Wrap(
+			combineFleetErrors(createFleetOutput.Errors),
+			middleware.AWSRequestIDLogKey, requestID,
+			middleware.AWSOperationNameLogKey, "CreateFleet",
+			middleware.AWSServiceNameLogKey, "EC2",
+			middleware.AWSStatusCodeLogKey, 200,
+			middleware.AWSErrorCodeLogKey, "UnfulfillableCapacity",
+		)
 	}
 	return createFleetOutput.Instances[0], nil
 }
 
-func GetCreateFleetInput(nodeClass *v1.EC2NodeClass, capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) *ec2.CreateFleetInput {
-	return &ec2.CreateFleetInput{
-		Type:                  ec2types.FleetTypeInstant,
-		Context:               nodeClass.Spec.Context,
-		LaunchTemplateConfigs: launchTemplateConfigs,
-		TargetCapacitySpecification: &ec2types.TargetCapacitySpecificationRequest{
-			DefaultTargetCapacityType: lo.Ternary(
-				capacityType == karpv1.CapacityTypeReserved,
-				ec2types.DefaultTargetCapacityType(karpv1.CapacityTypeOnDemand),
-				ec2types.DefaultTargetCapacityType(capacityType),
-			),
-			TotalTargetCapacity: aws.Int32(1),
-		},
-		TagSpecifications: []ec2types.TagSpecification{
-			{ResourceType: ec2types.ResourceTypeInstance, Tags: utils.MergeTags(tags)},
-			{ResourceType: ec2types.ResourceTypeVolume, Tags: utils.MergeTags(tags)},
-			{ResourceType: ec2types.ResourceTypeFleet, Tags: utils.MergeTags(tags)},
-		},
-	}
-}
-
 func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
-	if p.getCapacityType(nodeClaim, instanceTypes) != karpv1.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
+	if getCapacityType(nodeClaim, instanceTypes) != karpv1.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
 		return nil
 	}
 
@@ -425,12 +442,24 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	ctx context.Context,
 	errs []ec2types.CreateFleetError,
 	capacityType string,
+	nodeClaim *karpv1.NodeClaim,
 	instanceTypes []*cloudprovider.InstanceType,
 ) {
+	for _, err := range errs {
+		zone := lo.FromPtr(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+		if awserrors.IsInsufficientFreeAddressesInSubnet(err) && zone != "" {
+			p.unavailableOfferings.MarkAZUnavailable(zone)
+		}
+	}
+
 	if capacityType != karpv1.CapacityTypeReserved {
 		for _, err := range errs {
 			if awserrors.IsUnfulfillableCapacity(err) {
 				p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, err, capacityType)
+			}
+			if awserrors.IsServiceLinkedRoleCreationNotPermitted(err) {
+				p.unavailableOfferings.MarkCapacityTypeUnavailable(karpv1.CapacityTypeSpot)
+				p.recorder.Publish(SpotServiceLinkedRoleCreationFailure(nodeClaim))
 			}
 		}
 		return
@@ -438,7 +467,7 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 
 	reservationIDs := make([]string, 0, len(errs))
 	for i := range errs {
-		id := p.getCapacityReservationIDForInstance(
+		id, _ := p.getCapacityReservationDetailsForInstance(
 			string(errs[i].LaunchTemplateAndOverrides.Overrides.InstanceType),
 			lo.FromPtr(errs[i].LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
 			instanceTypes,
@@ -454,7 +483,7 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	p.capacityReservationProvider.MarkUnavailable(reservationIDs...)
 }
 
-func (p *DefaultProvider) getCapacityReservationIDForInstance(instance, zone string, instanceTypes []*cloudprovider.InstanceType) string {
+func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zone string, instanceTypes []*cloudprovider.InstanceType) (id string, crt v1.CapacityReservationType) {
 	for _, it := range instanceTypes {
 		if it.Name != instance {
 			continue
@@ -463,7 +492,7 @@ func (p *DefaultProvider) getCapacityReservationIDForInstance(instance, zone str
 			if o.CapacityType() != karpv1.CapacityTypeReserved || o.Zone() != zone {
 				continue
 			}
-			return o.ReservationID()
+			return o.ReservationID(), v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any())
 		}
 	}
 	// note: this is an invariant that the caller must enforce, should not occur at runtime
@@ -472,7 +501,7 @@ func (p *DefaultProvider) getCapacityReservationIDForInstance(instance, zone str
 
 // getCapacityType selects the capacity type based on the flexibility of the NodeClaim and the available offerings.
 // Prioritization is as follows: reserved, spot, on-demand.
-func (p *DefaultProvider) getCapacityType(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) string {
+func getCapacityType(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) string {
 	for _, capacityType := range []string{karpv1.CapacityTypeReserved, karpv1.CapacityTypeSpot} {
 		requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 		if !requirements.Get(karpv1.CapacityTypeLabelKey).Has(capacityType) {
@@ -488,128 +517,15 @@ func (p *DefaultProvider) getCapacityType(nodeClaim *karpv1.NodeClaim, instanceT
 	return karpv1.CapacityTypeOnDemand
 }
 
-// filterReservedInstanceTypes is used to filter the provided set of instance types to only include those with
-// available reserved offerings if the nodeclaim is compatible. If there are no available reserved offerings, no
-// filtering is applied.
-func (*DefaultProvider) filterReservedInstanceTypes(nodeClaimRequirements scheduling.Requirements, instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
-	nodeClaimRequirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, karpv1.CapacityTypeReserved)
-	var reservedInstanceTypes []*cloudprovider.InstanceType
+func getCapacityReservationType(instanceTypes []*cloudprovider.InstanceType) *v1.CapacityReservationType {
 	for _, it := range instanceTypes {
-		// We only want to include a single offering per pool (instance type / AZ combo). This is due to a limitation in the
-		// CreateFleet API, which limits calls to specifying a single override per pool. We'll choose to launch into the pool
-		// with the most capacity.
-		zonalOfferings := map[string]*cloudprovider.Offering{}
-		for _, o := range it.Offerings.Available().Compatible(nodeClaimRequirements) {
-			if current, ok := zonalOfferings[o.Zone()]; !ok || o.ReservationCapacity > current.ReservationCapacity {
-				zonalOfferings[o.Zone()] = o
-			}
-		}
-		if len(zonalOfferings) == 0 {
-			continue
-		}
-		// WARNING: It is only safe to mutate the slice containing the offerings, not the offerings themselves. The individual
-		// offerings are cached, but not the slice storing them. This helps keep the launch path simple, but changes to the
-		// caching strategy employed by the InstanceType provider could result in unexpected behavior.
-		it.Offerings = lo.Values(zonalOfferings)
-		reservedInstanceTypes = append(reservedInstanceTypes, it)
-	}
-	if len(reservedInstanceTypes) == 0 {
-		return instanceTypes
-	}
-	return reservedInstanceTypes
-}
-
-// filterInstanceTypes is used to provide filtering on the list of potential instance types to further limit it to those
-// that make the most sense given our specific AWS cloudprovider.
-func (p *DefaultProvider) filterInstanceTypes(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
-	instanceTypes = filterExoticInstanceTypes(instanceTypes)
-	// If we could potentially launch either a spot or on-demand node, we want to filter out the spot instance types that
-	// are more expensive than the cheapest on-demand type.
-	if p.isMixedCapacityLaunch(nodeClaim, instanceTypes) {
-		instanceTypes = filterUnwantedSpot(instanceTypes)
-	}
-	return instanceTypes
-}
-
-// isMixedCapacityLaunch returns true if nodepools and available offerings could potentially allow either a spot or
-// and on-demand node to launch
-func (p *DefaultProvider) isMixedCapacityLaunch(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) bool {
-	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
-	// requirements must allow both
-	if !requirements.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) ||
-		!requirements.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeOnDemand) {
-		return false
-	}
-	hasSpotOfferings := false
-	hasODOffering := false
-	if requirements.Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
-		for _, instanceType := range instanceTypes {
-			for _, offering := range instanceType.Offerings.Available() {
-				if requirements.Compatible(offering.Requirements, scheduling.AllowUndefinedWellKnownLabels) != nil {
-					continue
-				}
-				if offering.Requirements.Get(karpv1.CapacityTypeLabelKey).Any() == karpv1.CapacityTypeSpot {
-					hasSpotOfferings = true
-				} else {
-					hasODOffering = true
-				}
+		for _, o := range it.Offerings {
+			if o.Requirements.Has(v1.LabelCapacityReservationType) {
+				return lo.ToPtr(v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any()))
 			}
 		}
 	}
-	return hasSpotOfferings && hasODOffering
-}
-
-// filterUnwantedSpot is used to filter out spot types that are more expensive than the cheapest on-demand type that we
-// could launch during mixed capacity-type launches
-func filterUnwantedSpot(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
-	cheapestOnDemand := math.MaxFloat64
-	// first, find the price of our cheapest available on-demand instance type that could support this node
-	for _, it := range instanceTypes {
-		for _, o := range it.Offerings.Available() {
-			if o.Requirements.Get(karpv1.CapacityTypeLabelKey).Any() == karpv1.CapacityTypeOnDemand && o.Price < cheapestOnDemand {
-				cheapestOnDemand = o.Price
-			}
-		}
-	}
-
-	// Filter out any types where the cheapest offering, which should be spot, is more expensive than the cheapest
-	// on-demand instance type that would have worked. This prevents us from getting a larger more-expensive spot
-	// instance type compared to the cheapest sufficiently large on-demand instance type
-	instanceTypes = lo.Filter(instanceTypes, func(item *cloudprovider.InstanceType, index int) bool {
-		available := item.Offerings.Available()
-		if len(available) == 0 {
-			return false
-		}
-		return available.Cheapest().Price <= cheapestOnDemand
-	})
-	return instanceTypes
-}
-
-// filterExoticInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
-// a set of more appropriate instance types would work. If a set of more desirable instance types is not found, then the original slice
-// of instance types are returned.
-func filterExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
-	var genericInstanceTypes []*cloudprovider.InstanceType
-	for _, it := range instanceTypes {
-		// deprioritize metal even if our opinionated filter isn't applied due to something like an instance family
-		// requirement
-		if _, ok := lo.Find(it.Requirements.Get(v1.LabelInstanceSize).Values(), func(size string) bool { return strings.Contains(size, "metal") }); ok {
-			continue
-		}
-		if !resources.IsZero(it.Capacity[v1.ResourceAWSNeuron]) ||
-			!resources.IsZero(it.Capacity[v1.ResourceAWSNeuronCore]) ||
-			!resources.IsZero(it.Capacity[v1.ResourceAMDGPU]) ||
-			!resources.IsZero(it.Capacity[v1.ResourceNVIDIAGPU]) ||
-			!resources.IsZero(it.Capacity[v1.ResourceHabanaGaudi]) {
-			continue
-		}
-		genericInstanceTypes = append(genericInstanceTypes, it)
-	}
-	// if we got some subset of instance types, then prefer to use those
-	if len(genericInstanceTypes) != 0 {
-		return genericInstanceTypes
-	}
-	return instanceTypes
+	return nil
 }
 
 func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) ([]*Instance, error) {
@@ -638,7 +554,9 @@ func combineFleetErrors(fleetErrs []ec2types.CreateFleetError) (errs error) {
 		errs = multierr.Append(errs, errors.New(errorCode))
 	}
 	// If all the Fleet errors are ICE errors then we should wrap the combined error in the generic ICE error
-	iceErrorCount := lo.CountBy(fleetErrs, func(err ec2types.CreateFleetError) bool { return awserrors.IsUnfulfillableCapacity(err) })
+	iceErrorCount := lo.CountBy(fleetErrs, func(err ec2types.CreateFleetError) bool {
+		return awserrors.IsUnfulfillableCapacity(err) || awserrors.IsServiceLinkedRoleCreationNotPermitted(err)
+	})
 	if iceErrorCount == len(fleetErrs) {
 		return cloudprovider.NewInsufficientCapacityError(fmt.Errorf("with fleet error(s), %w", errs))
 	}

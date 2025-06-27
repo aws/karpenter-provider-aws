@@ -193,8 +193,7 @@ If interruption-handling is enabled, Karpenter will watch for upcoming involunta
 
 When Karpenter detects one of these events will occur to your nodes, it automatically taints, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
 
-For Spot interruptions, the NodePool will start a new node as soon as it sees the Spot interruption warning. Spot interruptions have a __2 minute notice__ before Amazon EC2 reclaims the instance. Karpenter's average node startup time means that, generally, there is sufficient time for the new node to become ready and to move the pods to the new node before the NodeClaim is reclaimed.
-
+For Spot interruptions, the NodePool will start a new node as soon as it sees the Spot interruption warning. Spot interruptions have a __2 minute notice__ before Amazon EC2 reclaims the instance. Once Karpenter has received this warning it will begin draining the node while in parallel provisioning a new node. Karpenter's average node startup time means that, generally, there is sufficient time for the new node to become ready before EC2 initiates termination for the spot instance.
 {{% alert title="Note" color="primary" %}}
 Karpenter publishes Kubernetes events to the node for all events listed above in addition to [__Spot Rebalance Recommendations__](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html). Karpenter does not currently support taint, drain, and terminate logic for Spot Rebalance Recommendations.
 
@@ -213,7 +212,7 @@ To configure a maximum termination duration, `terminationGracePeriod` should be 
 It is configured through a NodePool's [`spec.template.spec.terminationGracePeriod`]({{<ref "../concepts/nodepools/#spectemplatespecterminationgraceperiod" >}}) field, and is persisted to created NodeClaims (`spec.terminationGracePeriod`).
 Changes to the [`spec.template.spec.terminationGracePeriod`]({{<ref "../concepts/nodepools/#spectemplatespecterminationgraceperiod" >}}) field on the NodePool will not result in a change for existing NodeClaims - it will induce NodeClaim drift and the replacements will have the updated `terminationGracePeriod`.
 
-Once a node is disrupted, via either a [graceful](#automated-graceful-methods) or [forceful](#automated-forceful-methods) disruption method, Karpenter will being draining the node.
+Once a node is disrupted, via either a [graceful](#automated-graceful-methods) or [forceful](#automated-forceful-methods) disruption method, Karpenter will begin draining the node.
 At this point, the countdown for `terminationGracePeriod` begins.
 Once the `terminationGracePeriod` elapses, remaining pods will be forcibly deleted and the underlying instance will be terminated.
 A node may be terminated before the `terminationGracePeriod` has elapsed if all disruptable pods have been drained.
@@ -317,7 +316,7 @@ In this scenario, Karpenter cannot voluntary disrupt the node because:
 1. Pod A is blocked by PDB-1 even though PDB-2 would allow disruption
 2. Pod B is blocked by PDB-3's requirement for 100% availability
 
-As seen in this example, the more PDBs there are affecting a Node, the more difficult it will be for Karpenter to find an opportunity to perform voluntary disruption actions. 
+As seen in this example, the more PDBs there are affecting a Node, the more difficult it will be for Karpenter to find an opportunity to perform voluntary disruption actions.
 
 Secondly, you can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt: "true"` annotation to the pod.
 You can treat this annotation as a single-pod, permanently blocking PDB.

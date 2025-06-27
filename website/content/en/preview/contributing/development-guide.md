@@ -152,14 +152,8 @@ export KO_DOCKER_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws
 aws ecr get-login-password --region "${AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin "${KO_DOCKER_REPO}"
 ```
 
-Finally, to deploy the correct IAM permissions, including the instance profile for provisioned nodes, run
-
-```bash
-make setup
-```
-
-## Profiling memory
-Karpenter exposes a pprof endpoint on its metrics port.
+## Profiling
+Karpenter exposes a pprof endpoint on its metrics port when [profiling]({{< relref "../reference/settings" >}}) is enabled.
 
 Learn about profiling with pprof: https://jvns.ca/blog/2017/09/24/profiling-go-with-pprof/
 
@@ -176,4 +170,6 @@ kubectl port-forward service/karpenter -n karpenter 8080
 open http://localhost:8080/debug/pprof/
 # Visualize the memory
 go tool pprof -http 0.0.0.0:9000 localhost:8080/debug/pprof/heap
+# Visualize CPU
+go tool pprof -http 0.0.0.0:9000 "localhost:8080/debug/pprof/profile?seconds=60"
 ```

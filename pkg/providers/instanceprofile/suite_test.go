@@ -100,26 +100,17 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("InstanceProfileProvider", func() {
-	It("should not add any tags if InstanceProfileTags() returns empty map", func() {
-		instanceProfile, err := awsEnv.InstanceProfileProvider.Create(ctx, &nodeClass)
-		Expect(err).To(BeNil())
-		Expect(instanceProfile).ToNot(BeNil())
-		Expect(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Tags).To(HaveLen(0))
-	})
-	It("should support IAM roles without custom paths", func() {
-		nodeClass.Spec.Role = nodeRole
-		instanceProfile, err := awsEnv.InstanceProfileProvider.Create(ctx, &nodeClass)
-		Expect(err).To(BeNil())
-		Expect(instanceProfile).ToNot(BeNil())
-		Expect(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Roles).To(HaveLen(1))
-		Expect(aws.ToString(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Roles[0].RoleName)).To(Equal(nodeRole))
-	})
-	It("should support IAM roles with custom paths", func() {
-		nodeClass.Spec.Role = fmt.Sprintf("CustomPath/%s", nodeRole)
-		instanceProfile, err := awsEnv.InstanceProfileProvider.Create(ctx, &nodeClass)
-		Expect(err).To(BeNil())
-		Expect(instanceProfile).ToNot(BeNil())
-		Expect(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Roles).To(HaveLen(1))
-		Expect(aws.ToString(awsEnv.IAMAPI.InstanceProfiles[instanceProfile].Roles[0].RoleName)).To(Equal(nodeRole))
-	})
+	DescribeTable(
+		"should support IAM roles",
+		func(roleWithPath, role string) {
+			const profileName = "test-profile"
+			nodeClass.Spec.Role = roleWithPath
+			Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, role, nil)).To(Succeed())
+			Expect(profileName).ToNot(BeNil())
+			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+			Expect(aws.ToString(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName)).To(Equal(role))
+		},
+		Entry("with custom paths", fmt.Sprintf("CustomPath/%s", nodeRole), nodeRole),
+		Entry("without custom paths", nodeRole, nodeRole),
+	)
 })

@@ -17,8 +17,6 @@ package integration_test
 import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -26,19 +24,6 @@ import (
 )
 
 var _ = Describe("CRD Hash", func() {
-	It("should have NodePool hash", func() {
-		env.ExpectCreated(nodeClass, nodePool)
-
-		Eventually(func(g Gomega) {
-			np := &karpv1.NodePool{}
-			err := env.Client.Get(env, client.ObjectKeyFromObject(nodePool), np)
-			g.Expect(err).ToNot(HaveOccurred())
-
-			hash, found := np.Annotations[karpv1.NodePoolHashAnnotationKey]
-			g.Expect(found).To(BeTrue())
-			g.Expect(hash).To(Equal(np.Hash()))
-		})
-	})
 	It("should have EC2NodeClass hash", func() {
 		env.ExpectCreated(nodeClass)
 
