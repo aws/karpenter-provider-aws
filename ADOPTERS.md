@@ -31,7 +31,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Docker | Using Karpenter to scale Docker Hub on our EKS clusters | N/A | [Docker](https://www.docker.com) |
 | GlobalDots | Using Karpenter to scale Kubernetes clusters for a lot of our clients & for internal needs | `@vainkop` | [GlobalDots](https://globaldots.com) |
 | Grafana Labs | Using Karpenter as our Autoscaling tool on EKS | `@paulajulve`, `@logyball` | [Homepage](https://grafana.com/) & [Blog](https://grafana.com/blog/2023/11/09/how-grafana-labs-switched-to-karpenter-to-reduce-costs-and-complexities-in-amazon-eks/) |
-| Hazelcast | Running Hazelcast Cloud workloads on EKS with Karpenter—fast provisioning, intelligent consolidation, and resilience under spiky traffic. | `@atilsensalduz`, `@taylanerden` | [Homepage](https://hazelcast.com/) |
+| Hazelcast | Running Hazelcast Cloud workloads on EKS with Karpenter—fast provisioning, intelligent consolidation, and resilience under spiky traffic. | `@atilsensalduz`, `@taylanerden` | [Hazelcast](https://hazelcast.com/) |
 | H2O.ai | Dynamically scaling CPU and GPU nodes for AI workloads  | `@Ophir Zahavi`, `@Asaf Oren` | [H2O.ai](https://h2o.ai/) |
 | HENNGE K.K. | Dynamically scaling production workloads in Tokyo region | `@furqan.habibi`, `@Hans Gunawan` | [HENNGE](https://hennge.com/global/) |
 | Homa | Using Karpenter to manage dynamically big instances and save cost effectively with disruptions | `@afreyermuth98`, `@alexbescond` | [Homa](https://www.homagames.com/) |
