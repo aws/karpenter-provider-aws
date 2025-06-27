@@ -11,7 +11,6 @@ compatibilitymatrix() {
 KARPENTER_CORE_DIR=$(go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)
 CONTROLLER_RUNTIME_DIR=$(go list -m -f '{{ .Dir }}' sigs.k8s.io/controller-runtime)
 AWS_SDK_GO_PROMETHEUS_DIR=$(go list -m -f '{{ .Dir }}' github.com/jonathan-innis/aws-sdk-go-prometheus)
-OPERATORPKG_DIR=$(go list -m -f '{{ .Dir }}' github.com/awslabs/operatorpkg)
 
 compatibilitymatrix
 go run hack/docs/metrics_gen/main.go pkg/ "${KARPENTER_CORE_DIR}/pkg" "${CONTROLLER_RUNTIME_DIR}/pkg" "${AWS_SDK_GO_PROMETHEUS_DIR}" "${OPERATORPKG_DIR}" website/content/en/preview/reference/metrics.md
