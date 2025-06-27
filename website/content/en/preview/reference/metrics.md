@@ -8,10 +8,6 @@ description: >
 ---
 <!-- this document is generated from hack/docs/metrics_gen_docs.go -->
 Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.kube-system.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)
-### `karpenter_ignored_pod_count`
-Number of pods ignored during scheduling by Karpenter
-- Stability Level: ALPHA
-
 ### `karpenter_build_info`
 A metric with a constant '1' value labeled by version from which karpenter was built.
 - Stability Level: STABLE
@@ -118,10 +114,6 @@ Pod state is the current state of pods. This metric can be used several ways as 
 The time from pod creation until the pod is running.
 - Stability Level: STABLE
 
-### `karpenter_pods_scheduling_undecided_time_seconds`
-The time from when Karpenter has seen a pod without making a scheduling decision for the pod. Note: this calculated from a point in memory, not by the pod creation timestamp.
-- Stability Level: ALPHA
-
 ### `karpenter_pods_scheduling_decision_duration_seconds`
 The time it takes for Karpenter to first try to schedule a pod after it's been seen.
 - Stability Level: ALPHA
@@ -138,12 +130,50 @@ The time from when Karpenter first thinks the pod can schedule until it binds. N
 The time from when Karpenter first thinks the pod can schedule until the pod is running. Note: this calculated from a point in memory, not by the pod creation timestamp.
 - Stability Level: ALPHA
 
+### `karpenter_pods_provisioning_scheduling_undecided_time_seconds`
+The time from when Karpenter has seen a pod without making a scheduling decision for the pod. Note: this calculated from a point in memory, not by the pod creation timestamp.
+- Stability Level: ALPHA
+
 ### `karpenter_pods_provisioning_bound_duration_seconds`
 The time from when Karpenter first thinks the pod can schedule until it binds. Note: this calculated from a point in memory, not by the pod creation timestamp.
 - Stability Level: ALPHA
 
 ### `karpenter_pods_bound_duration_seconds`
 The time from pod creation until the pod is bound.
+- Stability Level: ALPHA
+
+## Termination Metrics
+
+### `operator_termination_duration_seconds`
+The amount of time taken by an object to terminate completely.
+- Stability Level: DEPRECATED
+
+### `operator_termination_current_time_seconds`
+The current amount of time in seconds that an object has been in terminating state.
+- Stability Level: DEPRECATED
+
+### `operator_nodepool_termination_duration_seconds`
+The amount of time taken by a nodepool to terminate completely.
+- Stability Level: ALPHA
+
+### `operator_nodepool_termination_current_time_seconds`
+The current amount of time in seconds that a nodepool has been in terminating state.
+- Stability Level: ALPHA
+
+### `operator_nodeclaim_termination_duration_seconds`
+The amount of time taken by a nodeclaim to terminate completely.
+- Stability Level: ALPHA
+
+### `operator_nodeclaim_termination_current_time_seconds`
+The current amount of time in seconds that a nodeclaim has been in terminating state.
+- Stability Level: ALPHA
+
+### `operator_ec2nodeclass_termination_duration_seconds`
+The amount of time taken by a ec2nodeclass to terminate completely.
+- Stability Level: ALPHA
+
+### `operator_ec2nodeclass_termination_current_time_seconds`
+The current amount of time in seconds that a ec2nodeclass has been in terminating state.
 - Stability Level: ALPHA
 
 ## Voluntary Disruption Metrics
@@ -185,6 +215,10 @@ Duration of scheduling simulations used for deprovisioning and provisioning in s
 ### `karpenter_scheduler_queue_depth`
 The number of pods currently waiting to be scheduled.
 - Stability Level: BETA
+
+### `karpenter_scheduler_ignored_pods_count`
+Number of pods ignored during scheduling by Karpenter
+- Stability Level: ALPHA
 
 ## Nodepools Metrics
 
@@ -328,6 +362,82 @@ Current depth of workqueue
 
 ### `workqueue_adds_total`
 Total number of adds handled by workqueue
+- Stability Level: STABLE
+
+## Status Condition Metrics
+
+### `operator_status_condition_transitions_total`
+The count of transitions of a given object, type and status.
+- Stability Level: BETA
+
+### `operator_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning.
+- Stability Level: BETA
+
+### `operator_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state.
+- Stability Level: BETA
+
+### `operator_status_condition_count`
+The number of a condition for a given object, type and status.
+- Stability Level: BETA
+
+### `operator_nodepool_status_condition_transitions_total`
+The count of transitions of a nodepool, type and status.
+- Stability Level: BETA
+
+### `operator_nodepool_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning.
+- Stability Level: BETA
+
+### `operator_nodepool_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state.
+- Stability Level: BETA
+
+### `operator_nodepool_status_condition_count`
+The number of a condition for a nodepool, type and status.
+- Stability Level: BETA
+
+### `operator_nodeclaim_status_condition_transitions_total`
+The count of transitions of a nodeclaim, type and status.
+- Stability Level: BETA
+
+### `operator_nodeclaim_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning.
+- Stability Level: BETA
+
+### `operator_nodeclaim_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state.
+- Stability Level: BETA
+
+### `operator_nodeclaim_status_condition_count`
+The number of a condition for a nodeclaim, type and status.
+- Stability Level: BETA
+
+### `operator_ec2nodeclass_status_condition_transitions_total`
+The count of transitions of a ec2nodeclass, type and status.
+- Stability Level: BETA
+
+### `operator_ec2nodeclass_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning.
+- Stability Level: BETA
+
+### `operator_ec2nodeclass_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state.
+- Stability Level: BETA
+
+### `operator_ec2nodeclass_status_condition_count`
+The number of a condition for a ec2nodeclass, type and status.
+- Stability Level: BETA
+
+## Client Go Metrics
+
+### `client_go_request_total`
+Number of HTTP requests, partitioned by status code and method.
+- Stability Level: STABLE
+
+### `client_go_request_duration_seconds`
+Request latency in seconds. Broken down by verb, group, version, kind, and subresource.
 - Stability Level: STABLE
 
 ## AWS SDK Go Metrics
