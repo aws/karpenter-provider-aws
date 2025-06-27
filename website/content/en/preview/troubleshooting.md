@@ -440,6 +440,13 @@ nodeAffinity:
             values: ['us-east-1a', 'us-east-1b']
 ```
 
+### Log message of `no instance type met the scheduling requirements or had a required offering` is reported
+
+This error suggests that there is no instance type available that meets the pod's scheduling requirements. A pod may have resource requests that necessitate a minimum instance size. If the pod is confined to a Node Pool with a specific instance family and size, it might not find an instance type that aligns with its resource needs. Additionally, resource requests from daemonsets are considered when determining if an instance type is compatible with the pod.
+
+
+The phrase `had a required offering` pertains to the availability of an instance type in a specific location, such as an availability zone. This error can occur if a pod is restricted to a particular availability zone. For instance, consider a pod in a stateful set that previously had an EBS volume attached. If the subnet where the pod is scheduled changes, the pod might end up in a different availability zone than the EBS volume it needs to attach to. This mismatch in availability zones can lead to an error related to the required offering.
+
 ## Deprovisioning
 
 ### Nodes not deprovisioned
