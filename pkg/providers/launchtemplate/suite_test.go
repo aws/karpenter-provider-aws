@@ -522,12 +522,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				{DetailedMonitoring: true},
 				{EFACount: 12},
 				{CapacityType: "spot"},
+				{EnclaveOptions: &v1.EnclaveOptions{Enabled: aws.Bool(true)}},
 			}
 			launchtemplateResult := []string{}
 			for _, lt := range launchtemplates {
 				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
 			}
-			Expect(len(launchtemplateResult)).To(BeNumerically("==", 6))
+			Expect(len(launchtemplateResult)).To(BeNumerically("==", 7))
 			Expect(lo.Uniq(launchtemplateResult)).To(Equal(launchtemplateResult))
 		})
 		It("should not generate different launch template names based on instance types", func() {
@@ -2585,6 +2586,177 @@ eviction-max-pod-grace-period = 10
 		Entry("enabled", true),
 		Entry("disabled", false),
 	)
+	Context("Enclave Options", func() {
+		It("should default enclave options to disabled", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.EnclaveOptions).To(BeNil())
+			})
+		})
+		It("should enable enclave options when specified", func() {
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{
+				Enabled: aws.Bool(true),
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.EnclaveOptions).ToNot(BeNil())
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
+			})
+		})
+		It("should disable enclave options when explicitly set to false", func() {
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{
+				Enabled: aws.Bool(false),
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.EnclaveOptions).ToNot(BeNil())
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeFalse())
+			})
+		})
+		It("should generate different launch template names based on enclave options configuration", func() {
+			enclaveOptions := []*v1.EnclaveOptions{
+				nil,
+				{Enabled: aws.Bool(false)},
+				{Enabled: aws.Bool(true)},
+			}
+			launchtemplateResult := []string{}
+			for _, enclaveOpt := range enclaveOptions {
+				lt := &amifamily.LaunchTemplate{EnclaveOptions: enclaveOpt}
+				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
+			}
+			Expect(len(launchtemplateResult)).To(BeNumerically("==", 3))
+			Expect(lo.Uniq(launchtemplateResult)).To(Equal(launchtemplateResult))
+		})
+		It("should work with enclave options enabled for different AMI families", func() {
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{
+				Enabled: aws.Bool(true),
+			}
+
+			// Test with AL2
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.EnclaveOptions).ToNot(BeNil())
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
+			})
+
+			// Clean up and test with AL2023
+			ExpectCleanedUp(ctx, env.Client)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+			awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
+			awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod = coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.EnclaveOptions).ToNot(BeNil())
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
+			})
+
+			// Clean up and test with Bottlerocket
+			ExpectCleanedUp(ctx, env.Client)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod = coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.EnclaveOptions).ToNot(BeNil())
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
+			})
+		})
+		It("should work with enclave options and other launch template configurations", func() {
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{
+				Enabled: aws.Bool(true),
+			}
+			nodeClass.Spec.DetailedMonitoring = aws.Bool(true)
+			nodeClass.Spec.AssociatePublicIPAddress = aws.Bool(true)
+			nodeClass.Spec.Tags = map[string]string{
+				"test-tag": "test-value",
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				// Verify enclave options are set
+				Expect(ltInput.LaunchTemplateData.EnclaveOptions).ToNot(BeNil())
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
+
+				// Verify other configurations are also set
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.Monitoring.Enabled)).To(BeTrue())
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress)).To(BeTrue())
+
+				// Verify tags are applied
+				Expect(ltInput.TagSpecifications).To(HaveLen(1))
+				ExpectTags(ltInput.TagSpecifications[0].Tags, nodeClass.Spec.Tags)
+			})
+		})
+		It("should handle enclave options with capacity reservations", func() {
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{
+				Enabled: aws.Bool(true),
+			}
+
+			// Set up capacity reservations
+			crs := []ec2types.CapacityReservation{
+				{
+					AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+					InstanceType:           lo.ToPtr("m5.large"),
+					OwnerId:                lo.ToPtr("012345678901"),
+					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+					CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
+					AvailableInstanceCount: lo.ToPtr[int32](10),
+					State:                  ec2types.CapacityReservationStateActive,
+					ReservationType:        ec2types.CapacityReservationTypeDefault,
+				},
+			}
+			awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
+				CapacityReservations: crs,
+			})
+			for _, cr := range crs {
+				nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, lo.Must(v1.CapacityReservationFromEC2(fakeClock, &cr)))
+				awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(*cr.CapacityReservationId, int(*cr.AvailableInstanceCount))
+			}
+
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.CapacityTypeReserved},
+			}}}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			// Verify that launch templates are created with both enclave options and capacity reservation
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.EnclaveOptions).ToNot(BeNil())
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
+				Expect(ltInput.LaunchTemplateData.CapacityReservationSpecification).ToNot(BeNil())
+			})
+		})
+	})
 })
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
