@@ -154,27 +154,35 @@ The current amount of time in seconds that an object has been in terminating sta
 
 ### `operator_nodepool_termination_duration_seconds`
 The amount of time taken by a nodepool to terminate completely.
-- Stability Level: ALPHA
+- Stability Level: BETA
 
 ### `operator_nodepool_termination_current_time_seconds`
 The current amount of time in seconds that a nodepool has been in terminating state.
-- Stability Level: ALPHA
+- Stability Level: BETA
 
 ### `operator_nodeclaim_termination_duration_seconds`
 The amount of time taken by a nodeclaim to terminate completely.
-- Stability Level: ALPHA
+- Stability Level: BETA
 
 ### `operator_nodeclaim_termination_current_time_seconds`
 The current amount of time in seconds that a nodeclaim has been in terminating state.
-- Stability Level: ALPHA
+- Stability Level: BETA
+
+### `operator_node_termination_duration_seconds`
+The amount of time taken by a node to terminate completely.
+- Stability Level: BETA
+
+### `operator_node_termination_current_time_seconds`
+The current amount of time in seconds that a node has been in terminating state.
+- Stability Level: BETA
 
 ### `operator_ec2nodeclass_termination_duration_seconds`
 The amount of time taken by a ec2nodeclass to terminate completely.
-- Stability Level: ALPHA
+- Stability Level: BETA
 
 ### `operator_ec2nodeclass_termination_current_time_seconds`
 The current amount of time in seconds that a ec2nodeclass has been in terminating state.
-- Stability Level: ALPHA
+- Stability Level: BETA
 
 ## Voluntary Disruption Metrics
 
@@ -412,6 +420,22 @@ The current amount of time in seconds that a status condition has been in a spec
 
 ### `operator_nodeclaim_status_condition_count`
 The number of a condition for a nodeclaim, type and status.
+- Stability Level: BETA
+
+### `operator_node_status_condition_transitions_total`
+The count of transitions of a node, type and status.
+- Stability Level: BETA
+
+### `operator_node_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning.
+- Stability Level: BETA
+
+### `operator_node_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state.
+- Stability Level: BETA
+
+### `operator_node_status_condition_count`
+The number of a condition for a node, type and status.
 - Stability Level: BETA
 
 ### `operator_ec2nodeclass_status_condition_transitions_total`

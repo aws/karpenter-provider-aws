@@ -44,7 +44,7 @@ var (
 	stableMetrics = []string{"controller_runtime", "aws_sdk_go", "client_go", "leader_election", "interruption", "cluster_state", "workqueue", "karpenter_build_info", "karpenter_nodepool_usage", "karpenter_nodepool_limit",
 		"karpenter_nodeclaims_terminated_total", "karpenter_nodeclaims_created_total", "karpenter_nodes_terminated_total", "karpenter_nodes_created_total", "karpenter_pods_startup_duration_seconds",
 		"karpenter_scheduler_scheduling_duration_seconds", "karpenter_provisioner_scheduling_duration_seconds", "karpenter_nodepool_allowed_disruptions", "karpenter_voluntary_disruption_decisions_total"}
-	betaMetrics = []string{"status_condition", "cloudprovider", "cloudprovider_batcher", "karpenter_nodeclaims_termination_duration_seconds", "karpenter_nodeclaims_instance_termination_duration_seconds",
+	betaMetrics = []string{"status_condition", "termination", "cloudprovider", "cloudprovider_batcher", "karpenter_nodeclaims_termination_duration_seconds", "karpenter_nodeclaims_instance_termination_duration_seconds",
 		"karpenter_nodes_total_pod_requests", "karpenter_nodes_total_pod_limits", "karpenter_nodes_total_daemon_requests", "karpenter_nodes_total_daemon_limits", "karpenter_nodes_termination_duration_seconds",
 		"karpenter_nodes_system_overhead", "karpenter_nodes_allocatable", "karpenter_pods_state", "karpenter_scheduler_queue_depth", "karpenter_voluntary_disruption_queue_failures_total",
 		"karpenter_voluntary_disruption_decision_evaluation_duration_seconds", "karpenter_voluntary_disruption_eligible_nodes", "karpenter_voluntary_disruption_consolidation_timeouts_total"}
@@ -398,7 +398,7 @@ func getIdentMapping(identName string) (string, error) {
 // metrics based on known patterns and conventions used in the codebase, ensuring the documentation is complete.
 func addPatternBasedMetrics(allMetrics []metricInfo) []metricInfo {
 	// 1. operatorpkg/status metrics for CRDs with status.conditions
-	crdKinds := []string{"nodeclaim", "nodepool", "ec2nodeclass"} // Add more as needed
+	crdKinds := []string{"nodeclaim", "nodepool", "ec2nodeclass", "node"} // Add more as needed
 	for _, kind := range crdKinds {
 		statusMetrics := []struct {
 			name string
