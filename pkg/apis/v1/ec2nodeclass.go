@@ -447,7 +447,6 @@ type BlockDevice struct {
 
 type EnclaveOptions struct {
 	// Enabled indicates whether the instance is enabled for Amazon Web Services Nitro Enclaves.
-	// +kubebuilder:default=false
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
