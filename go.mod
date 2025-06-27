@@ -1,6 +1,6 @@
 module github.com/aws/karpenter-provider-aws
 
-go 1.23.6
+go 1.24.0
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
@@ -121,3 +121,5 @@ require (
 	sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.2 // indirect
 )
+
+replace sigs.k8s.io/karpenter => github.com/rschalo/karpenter v0.0.0-20250626185448-c7b67aa6bf12
