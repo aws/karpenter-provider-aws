@@ -79,6 +79,7 @@ type LaunchTemplate struct {
 	CapacityType            string
 	CapacityReservationID   string
 	CapacityReservationType v1.CapacityReservationType
+	EnclaveOptions          *v1.EnclaveOptions
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -291,6 +292,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			CapacityType:            capacityType,
 			CapacityReservationID:   id,
 			CapacityReservationType: capacityReservationType,
+			EnclaveOptions:          nodeClass.Spec.EnclaveOptions,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
