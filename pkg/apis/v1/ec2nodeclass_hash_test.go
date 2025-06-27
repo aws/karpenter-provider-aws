@@ -101,8 +101,8 @@ var _ = Describe("Hash", func() {
 		Entry("BlockDeviceMapping SnapshotID", "8031059801598053215", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
 		Entry("BlockDeviceMapping Throughput", "14410045481146650034", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
 		Entry("BlockDeviceMapping VolumeType", "9480251663542054235", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
-		Entry("EnclaveOptions Enabled", "1234567890123456789", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{EnclaveOptions: &v1.EnclaveOptions{Enabled: aws.Bool(true)}}}),
-		Entry("EnclaveOptions Disabled", "9876543210987654321", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{EnclaveOptions: &v1.EnclaveOptions{Enabled: aws.Bool(false)}}}),
+		Entry("EnclaveOptions Enabled", "13433079276006936561", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{EnclaveOptions: &v1.EnclaveOptions{Enabled: aws.Bool(true)}}}),
+		Entry("EnclaveOptions Disabled", "7413987851964879668", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{EnclaveOptions: &v1.EnclaveOptions{Enabled: aws.Bool(false)}}}),
 
 		// Behavior / Dynamic fields, expect same hash as base
 		Entry("Modified AMISelector", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Tags: map[string]string{"": "ami-test-value"}}}}}),

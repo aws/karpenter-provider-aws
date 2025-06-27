@@ -140,7 +140,6 @@ type EC2NodeClassSpec struct {
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
 	// EnclaveOptions specifies whether the instance is enabled for Amazon Web Services Nitro Enclaves.
 	// If omitted, defaults to false.
-	// +kubebuilder:default={"enabled":false}
 	// +optional
 	EnclaveOptions *EnclaveOptions `json:"enclaveOptions,omitempty"`
 	// Context is a Reserved field in EC2 APIs

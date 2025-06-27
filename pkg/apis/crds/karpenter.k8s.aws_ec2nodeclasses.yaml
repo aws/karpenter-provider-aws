@@ -294,8 +294,6 @@ spec:
                   description: DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
                   type: boolean
                 enclaveOptions:
-                  default:
-                    enabled: false
                   description: |-
                     EnclaveOptions specifies whether the instance is enabled for Amazon Web Services Nitro Enclaves.
                     If omitted, defaults to false.
