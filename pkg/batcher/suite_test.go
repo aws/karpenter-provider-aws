@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package batcher_test
+package batcher
 
 import (
 	"context"
@@ -25,7 +25,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test"
 	"sigs.k8s.io/karpenter/pkg/test/expectations"
 
-	"github.com/aws/karpenter-provider-aws/pkg/batcher"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -133,19 +132,19 @@ var _ = Describe("Batcher", func() {
 type FakeBatcher struct {
 	activeBatches    *atomic.Int64
 	completedBatches *atomic.Int64
-	batcher          *batcher.Batcher[string, string]
+	batcher          *Batcher[string, string]
 }
 
 func NewFakeBatcher(ctx context.Context, requestLength time.Duration, maxRequestWorkers int) *FakeBatcher {
 	activeBatches := &atomic.Int64{}
 	completedBatches := &atomic.Int64{}
-	options := batcher.Options[string, string]{
+	options := Options[string, string]{
 		Name:              "fake",
 		IdleTimeout:       100 * time.Millisecond,
 		MaxTimeout:        1 * time.Second,
 		MaxRequestWorkers: maxRequestWorkers,
-		RequestHasher:     batcher.DefaultHasher[string],
-		BatchExecutor: func(ctx context.Context, items []*string) []batcher.Result[string] {
+		RequestHasher:     DefaultHasher[string],
+		BatchExecutor: func(ctx context.Context, items []*string) []Result[string] {
 			// Keep a ref count of the number of batches that we are currently running
 			activeBatches.Add(1)
 			defer activeBatches.Add(-1)
@@ -158,8 +157,8 @@ func NewFakeBatcher(ctx context.Context, requestLength time.Duration, maxRequest
 			}
 
 			// Return back request responses
-			return lo.Map(items, func(i *string, _ int) batcher.Result[string] {
-				return batcher.Result[string]{
+			return lo.Map(items, func(i *string, _ int) Result[string] {
+				return Result[string]{
 					Output: lo.ToPtr[string](""),
 					Err:    nil,
 				}
@@ -169,6 +168,6 @@ func NewFakeBatcher(ctx context.Context, requestLength time.Duration, maxRequest
 	return &FakeBatcher{
 		activeBatches:    activeBatches,
 		completedBatches: completedBatches,
-		batcher:          batcher.NewBatcher(ctx, options),
+		batcher:          NewBatcher(ctx, options),
 	}
 }
