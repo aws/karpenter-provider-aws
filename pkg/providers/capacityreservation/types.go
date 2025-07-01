@@ -66,6 +66,7 @@ func (q *Query) DescribeCapacityReservationsInput() *ec2.DescribeCapacityReserva
 		return &ec2.DescribeCapacityReservationsInput{
 			Filters:                filters,
 			CapacityReservationIds: []string{q.ID},
+			MaxResults:             lo.ToPtr[int32](500),
 		}
 	}
 	if q.OwnerID != "" {
@@ -89,7 +90,8 @@ func (q *Query) DescribeCapacityReservationsInput() *ec2.DescribeCapacityReserva
 		})...)
 	}
 	return &ec2.DescribeCapacityReservationsInput{
-		Filters: filters,
+		Filters:    filters,
+		MaxResults: lo.ToPtr[int32](500),
 	}
 }
 
