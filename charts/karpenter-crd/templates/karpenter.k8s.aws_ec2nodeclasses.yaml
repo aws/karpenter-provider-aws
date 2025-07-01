@@ -569,6 +569,9 @@ spec:
                       SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
                       If multiple fields are used for selection, the requirements are ANDed.
                     properties:
+                      cidrBlock:
+                        description: CidrBlock is the CidrBlock of the subnet
+                        type: string
                       id:
                         description: ID is the subnet id in EC2
                         pattern: subnet-[0-9a-z]+
@@ -590,8 +593,8 @@ spec:
                   x-kubernetes-validations:
                     - message: subnetSelectorTerms cannot be empty
                       rule: self.size() != 0
-                    - message: expected at least one, got none, ['tags', 'id']
-                      rule: self.all(x, has(x.tags) || has(x.id))
+                    - message: expected at least one, got none, ['tags', 'id', 'cidrBlock']
+                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.cidrBlock))
                     - message: '''id'' is mutually exclusive, cannot be set with a combination of other fields in a subnet selector term'
                       rule: '!self.all(x, has(x.id) && has(x.tags))'
                 tags:
