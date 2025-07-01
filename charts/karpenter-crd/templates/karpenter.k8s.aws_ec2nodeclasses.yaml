@@ -570,7 +570,10 @@ spec:
                       If multiple fields are used for selection, the requirements are ANDed.
                     properties:
                       cidrBlock:
-                        description: CidrBlock is the CidrBlock of the subnet
+                        description: |-
+                          CidrBlock is the CidrBlock of the subnet
+                          Supports CIDR notation and wildcards (e.g., "10.0.1.0/24", "2001:db8::/32", "10.0.*", "*/24")
+                        pattern: ^[0-9a-fA-F.:/*]+$
                         type: string
                       id:
                         description: ID is the subnet id in EC2

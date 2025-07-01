@@ -159,6 +159,8 @@ type SubnetSelectorTerm struct {
 	// +optional
 	ID string `json:"id,omitempty"`
 	// CidrBlock is the CidrBlock of the subnet
+	// Supports CIDR notation and wildcards (e.g., "10.0.1.0/24", "2001:db8::/32", "10.0.*", "*/24")
+	// +kubebuilder:validation:Pattern="^[0-9a-fA-F.:/*]+$"
 	// +optional
 	CidrBlock string `json:"cidrBlock,omitempty"`
 }
