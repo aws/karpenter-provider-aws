@@ -35,12 +35,16 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 	var profileName string
 	BeforeEach(func() {
 		profileName = nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, fake.DefaultRegion)
+		//idx := strings.LastIndex(profileName, "_")
+		//profileName = profileName[:idx]
 	})
 	It("should create the instance profile when it doesn't exist", func() {
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 
+		// nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		// profileName = nodeClass.Status.InstanceProfile
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
 		Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("test-role"))
@@ -58,6 +62,8 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		// nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		// profileName = nodeClass.Status.InstanceProfile
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
@@ -73,6 +79,12 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		Expect(awsEnv.InstanceProfileCache.Items()).To(HaveLen(0))
 	})
 	It("should add the role to the instance profile when it exists without a role", func() {
+		// ExpectApplied(ctx, env.Client, nodeClass)
+		// ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		// nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		// profileName = nodeClass.Status.InstanceProfile
+		// log.Printf("RAYAN PROFILE NAME: %s", profileName)
+
 		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
 			profileName: {
 				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
@@ -80,9 +92,14 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 			},
 		}
 
+		// The issue has to do with setting spec.role causes the instance profile to change and is no longer in the created map
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		// nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		// profileName = nodeClass.Status.InstanceProfile
+
+		// log.Printf("RAYAN LEN 1: %v", awsEnv.IAMAPI.InstanceProfiles[profileName].Roles)
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
@@ -93,6 +110,8 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
 	})
 	It("should update the role for the instance profile when the wrong role exists", func() {
+		// nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		// profileName = nodeClass.Status.InstanceProfile
 		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
 			profileName: {
 				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
@@ -118,6 +137,8 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
 	})
 	It("should not call CreateInstanceProfile or AddRoleToInstanceProfile when instance profile exists with correct role", func() {
+		// nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		// profileName = nodeClass.Status.InstanceProfile
 		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
 			profileName: {
 				InstanceProfileId:   aws.String(fake.InstanceProfileID()),

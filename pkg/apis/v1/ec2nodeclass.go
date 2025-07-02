@@ -83,7 +83,6 @@ type EC2NodeClassSpec struct {
 	// This field may be made mutable in the future, assuming the correct garbage collection and drift handling is implemented
 	// for the old instance profiles on an update.
 	// +kubebuilder:validation:XValidation:rule="self != ''",message="role cannot be empty"
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="immutable field changed"
 	// +optional
 	Role string `json:"role,omitempty"`
 	// InstanceProfile is the AWS entity that instances use.
@@ -498,7 +497,10 @@ func (in *EC2NodeClass) Hash() string {
 }
 
 func (in *EC2NodeClass) InstanceProfileName(clusterName, region string) string {
-	return fmt.Sprintf("%s_%d", clusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", region, in.Name), hashstructure.FormatV2, nil)))
+	// hash := lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", region, in.Name), hashstructure.FormatV2, nil))
+	// randomID := uuid.New().String()[:8] // Use first 8 chars of UUID for brevity
+	// return fmt.Sprintf("%s_%d_%s", clusterName, hash, randomID)
+	return fmt.Sprintf("%s_%d", clusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s%s", region, in.Name, in.Spec.Role), hashstructure.FormatV2, nil)))
 }
 
 func (in *EC2NodeClass) InstanceProfileRole() string {
