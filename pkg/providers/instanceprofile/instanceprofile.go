@@ -17,6 +17,7 @@ package instanceprofile
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -25,6 +26,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 
+	// "github.com/aws/aws-sdk-go-v2/aws"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -34,6 +36,7 @@ type Provider interface {
 	Get(context.Context, string) (*iamtypes.InstanceProfile, error)
 	Create(context.Context, string, string, map[string]string) error
 	Delete(context.Context, string) error
+	ListByPrefix(context.Context, string) ([]*iamtypes.InstanceProfile, error)
 }
 
 type DefaultProvider struct {
@@ -73,8 +76,11 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 			Tags:                utils.IAMMergeTags(tags),
 		})
 		if err != nil {
+			log.Printf("CALLING CREATE FAILED")
 			return serrors.Wrap(fmt.Errorf("creating instance profile, %w", err), "instance-profile", instanceProfileName)
 		}
+		log.Printf("CALLING CREATE GOOD")
+
 		instanceProfile = o.InstanceProfile
 	}
 	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
@@ -93,6 +99,7 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 	// If the role has a path, ignore the path and take the role name only since AddRoleToInstanceProfile
 	// does not support paths in the role name.
 	roleName = lo.LastOr(strings.Split(roleName, "/"), roleName)
+	log.Printf("HERE IS ROLE NAME: %s", roleName)
 	if _, err = p.iamapi.AddRoleToInstanceProfile(ctx, &iam.AddRoleToInstanceProfileInput{
 		InstanceProfileName: lo.ToPtr(instanceProfileName),
 		RoleName:            lo.ToPtr(roleName),
@@ -130,4 +137,24 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 	}
 	p.cache.Delete(instanceProfileName)
 	return nil
+}
+
+func (p *DefaultProvider) ListByPrefix(ctx context.Context, prefix string) ([]*iamtypes.InstanceProfile, error) {
+	out, err := p.iamapi.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{
+		//PathPrefix: aws.String(prefix),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing instance profiles, %w", err)
+	}
+
+	// Convert
+	// profiles := make([]*iamtypes.InstanceProfile, len(out.InstanceProfiles))
+	var profiles []*iamtypes.InstanceProfile
+	for i := range out.InstanceProfiles {
+		if strings.HasPrefix(*out.InstanceProfiles[i].InstanceProfileName, prefix) {
+			profiles = append(profiles, &out.InstanceProfiles[i])
+		}
+		//profiles[i] = &out.InstanceProfiles[i]
+	}
+	return profiles, nil
 }
