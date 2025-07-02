@@ -128,6 +128,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
 		v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
 		v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
+		v1.AnnotationInstanceProfile:         nodeClass.Status.InstanceProfile,
 	})
 	return nc, nil
 }

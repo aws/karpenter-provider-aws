@@ -17,9 +17,12 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	//"sync"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -29,6 +32,7 @@ import (
 type InstanceProfile struct {
 	instanceProfileProvider instanceprofile.Provider
 	region                  string
+	//profileMutex            sync.Mutex
 }
 
 func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider, region string) *InstanceProfile {
@@ -40,19 +44,70 @@ func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provid
 
 func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if nodeClass.Spec.Role != "" {
-		profileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
-		if err := ip.instanceProfileProvider.Create(
-			ctx,
-			profileName,
-			nodeClass.InstanceProfileRole(),
-			nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
-		); err != nil {
-			return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
+		var currentRole string
+		var oldProfileName string
+
+		// ip.profileMutex.Lock()
+		// defer ip.profileMutex.Unlock()
+
+		// Get the current profile info if it exists
+		if nodeClass.Status.InstanceProfile != "" {
+			oldProfileName = nodeClass.Status.InstanceProfile
+			if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
+				log.Printf("PROFILE ROLES: %v", lo.FromPtr(profile.Roles[0].RoleName))
+				if len(profile.Roles) > 0 {
+					currentRole = lo.FromPtr(profile.Roles[0].RoleName)
+				}
+			}
 		}
-		nodeClass.Status.InstanceProfile = profileName
+
+		// If role has changed, create new profile
+		log.Printf("Current role: %s, new role: %s", currentRole, nodeClass.Spec.Role)
+		if currentRole != nodeClass.Spec.Role {
+			// nodeClass.StatusConditions().SetFalse(v1.ConditionTypeInstanceProfileReady, "Reconciling", "Creating a new instance profile for role change")
+
+			// Generate new profile name
+			newProfileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
+			log.Printf("Generated new profile name: %s", newProfileName)
+
+			// Create new profile
+			if err := ip.instanceProfileProvider.Create(
+				ctx,
+				newProfileName,
+				nodeClass.InstanceProfileRole(),
+				nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
+			); err != nil {
+				return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
+			}
+
+			// Track the replacement change
+			if oldProfileName != "" {
+				instanceprofile.TrackReplacement(oldProfileName)
+			}
+
+			nodeClass.Status.InstanceProfile = newProfileName
+		}
 	} else {
 		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
+	log.Printf("Reconciled instance profile: %s", nodeClass.Status.InstanceProfile)
 	return reconcile.Result{}, nil
+
+	// if nodeClass.Spec.Role != "" {
+	// 	profileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
+	// 	if err := ip.instanceProfileProvider.Create(
+	// 		ctx,
+	// 		profileName,
+	// 		nodeClass.InstanceProfileRole(),
+	// 		nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
+	// 	); err != nil {
+	// 		return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
+	// 	}
+	// 	nodeClass.Status.InstanceProfile = profileName
+	// } else {
+	// 	nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
+	// }
+	// nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
+	// return reconcile.Result{}, nil
 }

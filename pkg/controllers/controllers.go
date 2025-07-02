@@ -51,6 +51,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
 	nodeclaimgarbagecollection "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclaim/garbagecollection"
 	nodeclaimtagging "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclaim/tagging"
+	nodeclassgarbagecollection "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/garbagecollection"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
@@ -90,6 +91,7 @@ func NewControllers(
 		nodeclasshash.NewController(kubeClient),
 		nodeclass.NewController(clk, kubeClient, cloudProvider, recorder, cfg.Region, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, instanceTypeProvider, launchTemplateProvider, capacityReservationProvider, ec2api, validationCache, amiResolver),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
+		nodeclassgarbagecollection.NewController(kubeClient, cloudProvider, instanceProfileProvider),
 		nodeclaimtagging.NewController(kubeClient, cloudProvider, instanceProvider),
 		controllerspricing.NewController(pricingProvider),
 		controllersinstancetype.NewController(instanceTypeProvider),

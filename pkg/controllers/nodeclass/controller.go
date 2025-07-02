@@ -17,6 +17,8 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
 	"time"
 
 	"go.uber.org/multierr"
@@ -67,6 +69,7 @@ type Controller struct {
 	instanceProfileProvider instanceprofile.Provider
 	validation              *Validation
 	reconcilers             []reconcile.TypedReconciler[*v1.EC2NodeClass]
+	//iamapi                  sdk.IAMAPI
 }
 
 func NewController(
@@ -85,6 +88,7 @@ func NewController(
 	ec2api sdk.EC2API,
 	validationCache *cache.Cache,
 	amiResolver amifamily.Resolver,
+	//iamapi sdk.IAMAPI,
 ) *Controller {
 	validation := NewValidationReconciler(kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache)
 	return &Controller{
@@ -103,6 +107,7 @@ func NewController(
 			validation,
 			NewReadinessReconciler(launchTemplateProvider),
 		},
+		//iamapi: iamapi,
 	}
 }
 
@@ -127,6 +132,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		// Here, we are updating the finalizer list
 		if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); client.IgnoreNotFound(err) != nil {
 			if errors.IsConflict(err) {
+				log.Printf("REQUEUEING 1, conflict error: %s", err)
 				return reconcile.Result{Requeue: true}, nil
 			}
 			return reconcile.Result{}, err
@@ -151,6 +157,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		// Here, we are updating the status condition list
 		if err := c.kubeClient.Status().Patch(ctx, nodeClass, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); err != nil {
 			if errors.IsConflict(err) {
+				log.Printf("REQUEUEING 2, conflict error: %s", err)
 				return reconcile.Result{Requeue: true}, nil
 			}
 			errs = multierr.Append(errs, client.IgnoreNotFound(err))
@@ -176,9 +183,26 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
 	if nodeClass.Spec.Role != "" {
-		if err := c.instanceProfileProvider.Delete(ctx, nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)); err != nil {
-			return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
+		// Get base name pattern (everything up to the last underscore)
+		profileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
+		idx := strings.LastIndex(profileName, "_")
+		baseProfileName := profileName[:idx]
+
+		// List profiles with this prefix
+		out, err := c.instanceProfileProvider.ListByPrefix(ctx, baseProfileName)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("listing instance profiles, %w", err)
 		}
+
+		// Delete each matching profile
+		for _, profile := range out {
+			if err := c.instanceProfileProvider.Delete(ctx, *profile.InstanceProfileName); err != nil {
+				return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
+			}
+		}
+		// if err := c.instanceProfileProvider.Delete(ctx, nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)); err != nil {
+		// 	return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
+		// }
 	}
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("deleting launch templates, %w", err)

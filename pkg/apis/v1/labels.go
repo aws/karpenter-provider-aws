@@ -149,6 +149,7 @@ var (
 	AnnotationClusterNameTaggedCompatability = apis.CompatibilityGroup + "/cluster-name-tagged"
 	AnnotationEC2NodeClassHashVersion        = apis.Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                 = apis.Group + "/tagged"
+	AnnotationInstanceProfile                = apis.Group + "/instance-profile"
 
 	NodeClaimTagKey          = coreapis.Group + "/nodeclaim"
 	NameTagKey               = "Name"
