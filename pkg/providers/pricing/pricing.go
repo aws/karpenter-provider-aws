@@ -379,7 +379,8 @@ func (p *DefaultProvider) UpdateSpotPricing(ctx context.Context) error {
 			"Linux/UNIX (Amazon VPC)",
 		},
 		// get the latest spot price for each instance type
-		StartTime: aws.Time(time.Now()),
+		StartTime:  aws.Time(time.Now()),
+		MaxResults: lo.ToPtr[int32](1000),
 	}
 
 	paginator := ec2.NewDescribeSpotPriceHistoryPaginator(p.ec2, input)
