@@ -1,19 +1,20 @@
 module github.com/aws/karpenter-provider-aws/tools/kompat
 
-go 1.22
+go 1.24
 
 require (
-	github.com/Masterminds/semver/v3 v3.2.1
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/samber/lo v1.38.1
-	github.com/spf13/cobra v1.6.0
-	gopkg.in/yaml.v3 v3.0.1
+	github.com/samber/lo v1.51.0
+	github.com/spf13/cobra v1.9.1
+	go.yaml.in/yaml/v3 v3.0.4
 )
 
 require (
-	github.com/inconshreveable/mousetrap v1.0.1 // indirect
-	github.com/mattn/go-runewidth v0.0.9 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
-	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/mattn/go-runewidth v0.0.16 // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/spf13/pflag v1.0.6 // indirect
+	golang.org/x/text v0.22.0 // indirect
 )

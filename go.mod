@@ -19,7 +19,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.59.3
 	github.com/aws/aws-sdk-go-v2/service/sts v1.34.0
 	github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.31.2
-	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
+	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20250703015749-cca331bdd0f3
 	github.com/aws/smithy-go v1.22.4
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
 	github.com/awslabs/operatorpkg v0.0.0-20250616190804-f562c7d91bac
