@@ -109,6 +109,12 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 						Code: "UnauthorizedOperation",
 					}, fake.MaxCalls(1))
 				}),
+			Entry("should update status condition as NotReady when RunInstances has InvalidBlockDeviceMapping error",
+				func() {
+					awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+						Code: "InvalidBlockDeviceMapping",
+					}, fake.MaxCalls(1))
+				}),
 		)
 
 		It("should update status condition as Ready when authorized", func() {
@@ -116,6 +122,20 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
+
+		It("should set correct reason and message for InvalidBlockDeviceMapping error", func() {
+			ExpectApplied(ctx, env.Client, nodeClass)
+			awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+				Code: "InvalidBlockDeviceMapping",
+			}, fake.MaxCalls(1))
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+			condition := nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded)
+			Expect(condition.IsFalse()).To(BeTrue())
+			Expect(condition.Reason).To(Equal("InvalidBlockDeviceMapping"))
+			Expect(condition.Message).To(Equal("Block device mapping configuration is invalid"))
 		})
 	})
 })

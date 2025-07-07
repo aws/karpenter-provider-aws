@@ -150,6 +150,10 @@ func (n Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 
 	if _, err = n.ec2api.RunInstances(ctx, runInstancesInput); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
+			if awserrors.IsInvalidBlockDeviceMappingError(err) {
+				nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, "InvalidBlockDeviceMapping", "Block device mapping configuration is invalid")
+				return reconcile.Result{}, nil
+			}
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
 			// it would be an unexpected state
 			return reconcile.Result{}, fmt.Errorf("unexpected error during RunInstances validation: %w", err)

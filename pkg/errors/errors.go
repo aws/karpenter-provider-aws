@@ -24,9 +24,10 @@ import (
 )
 
 const (
-	launchTemplateNameNotFoundCode = "InvalidLaunchTemplateName.NotFoundException"
-	DryRunOperationErrorCode       = "DryRunOperation"
-	UnauthorizedOperationErrorCode = "UnauthorizedOperation"
+	launchTemplateNameNotFoundCode     = "InvalidLaunchTemplateName.NotFoundException"
+	DryRunOperationErrorCode           = "DryRunOperation"
+	UnauthorizedOperationErrorCode     = "UnauthorizedOperation"
+	InvalidBlockDeviceMappingErrorCode = "InvalidBlockDeviceMapping"
 )
 
 var (
@@ -171,6 +172,9 @@ func ToReasonMessage(err error) (string, string) {
 	if strings.Contains(err.Error(), "InvalidAMIID.Malformed") {
 		return "InvalidAMIID", "AMI used for instance launch is invalid"
 	}
+	if strings.Contains(err.Error(), "InvalidBlockDeviceMapping") {
+		return "InvalidBlockDeviceMapping", "Block device mapping configuration is invalid"
+	}
 	if strings.Contains(err.Error(), "RequestLimitExceeded") {
 		return "RequestLimitExceeded", "Request limit exceeded"
 	}
@@ -195,4 +199,15 @@ func ToReasonMessage(err error) (string, string) {
 		return "InsufficientFreeAddressesInSubnet", "There are not enough free IP addresses to launch an instance in this subnet"
 	}
 	return "LaunchFailed", "Instance launch failed"
+}
+
+func IsInvalidBlockDeviceMappingError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.ErrorCode() == InvalidBlockDeviceMappingErrorCode
+	}
+	return false
 }
