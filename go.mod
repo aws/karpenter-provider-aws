@@ -6,17 +6,17 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/aws/amazon-vpc-resource-controller-k8s v1.7.3
+	github.com/aws/amazon-vpc-resource-controller-k8s v1.7.4
 	github.com/aws/aws-sdk-go-v2 v1.36.5
 	github.com/aws/aws-sdk-go-v2/config v1.29.17
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.32
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.227.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.230.0
 	github.com/aws/aws-sdk-go-v2/service/eks v1.66.1
 	github.com/aws/aws-sdk-go-v2/service/fis v1.33.4
-	github.com/aws/aws-sdk-go-v2/service/iam v1.42.2
+	github.com/aws/aws-sdk-go-v2/service/iam v1.43.0
 	github.com/aws/aws-sdk-go-v2/service/pricing v1.34.5
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.38.8
-	github.com/aws/aws-sdk-go-v2/service/ssm v1.59.3
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.60.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.34.0
 	github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.31.2
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
@@ -24,7 +24,7 @@ require (
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
 	github.com/awslabs/operatorpkg v0.0.0-20250616190804-f562c7d91bac
 	github.com/awslabs/operatorpkg/aws v0.0.0-20250414225955-b47cd315ffe9
-	github.com/docker/docker v28.3.0+incompatible
+	github.com/docker/docker v28.3.1+incompatible
 	github.com/go-logr/zapr v1.3.0
 	github.com/google/uuid v1.6.0
 	github.com/imdario/mergo v0.3.16
