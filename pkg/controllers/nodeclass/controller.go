@@ -23,6 +23,7 @@ import (
 
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
@@ -48,6 +49,8 @@ import (
 	"github.com/awslabs/operatorpkg/reasonable"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
+
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -169,6 +172,59 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	return result.Min(results...), nil
 }
 
+func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
+	if nodeClass.Spec.Role == "" {
+		return nil
+	}
+
+	profileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
+	idx := strings.LastIndex(profileName, "_")
+	baseProfileName := profileName[:idx]
+
+	out, err := c.instanceProfileProvider.ListByPrefix(ctx, baseProfileName)
+	if err != nil {
+		return fmt.Errorf("listing instance profiles, %w", err)
+	}
+
+	clusterName := options.FromContext(ctx).ClusterName
+	for _, profile := range out {
+		if err := c.cleanupSingleProfile(ctx, profile, clusterName, nodeClass.Name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Controller) cleanupSingleProfile(ctx context.Context, profile *iamtypes.InstanceProfile, clusterName, nodeClassName string) error {
+	name := *profile.InstanceProfileName
+	tags, err := c.instanceProfileProvider.ListTags(ctx, name)
+	if err != nil {
+		klog.Errorf("failed to list tags for instance profile %s: %v", name, err)
+		return nil
+	}
+
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		tagMap[*tag.Key] = *tag.Value
+	}
+
+	clusterTag := fmt.Sprintf("kubernetes.io/cluster/%s", clusterName)
+	if tagMap[clusterTag] != "owned" {
+		return nil
+	}
+	if tagMap[v1.EKSClusterNameTagKey] != clusterName {
+		return nil
+	}
+	if tagMap[v1.LabelNodeClass] != nodeClassName {
+		return nil
+	}
+
+	if err := c.instanceProfileProvider.Delete(ctx, name); err != nil {
+		return fmt.Errorf("deleting instance profile, %w", err)
+	}
+	return nil
+}
+
 func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	stored := nodeClass.DeepCopy()
 	if !controllerutil.ContainsFinalizer(nodeClass, v1.TerminationFinalizer) {
@@ -182,28 +238,64 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaims.Items, func(nc karpv1.NodeClaim, _ int) string { return nc.Name })))
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
-	if nodeClass.Spec.Role != "" {
-		// Get base name pattern (everything up to the last underscore)
-		profileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
-		idx := strings.LastIndex(profileName, "_")
-		baseProfileName := profileName[:idx]
-
-		// List profiles with this prefix
-		out, err := c.instanceProfileProvider.ListByPrefix(ctx, baseProfileName)
-		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("listing instance profiles, %w", err)
-		}
-
-		// Delete each matching profile
-		for _, profile := range out {
-			if err := c.instanceProfileProvider.Delete(ctx, *profile.InstanceProfileName); err != nil {
-				return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
-			}
-		}
-		// if err := c.instanceProfileProvider.Delete(ctx, nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)); err != nil {
-		// 	return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
-		// }
+	if err := c.cleanupInstanceProfiles(ctx, nodeClass); err != nil {
+		return reconcile.Result{}, err
 	}
+
+	// if nodeClass.Spec.Role != "" {
+	// 	// Get base name pattern (everything up to the last underscore)
+	// 	profileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
+	// 	idx := strings.LastIndex(profileName, "_")
+	// 	baseProfileName := profileName[:idx]
+
+	// 	// List profiles with this prefix
+	// 	out, err := c.instanceProfileProvider.ListByPrefix(ctx, baseProfileName)
+	// 	if err != nil {
+	// 		return reconcile.Result{}, fmt.Errorf("listing instance profiles, %w", err)
+	// 	}
+
+	// 	clusterName := options.FromContext(ctx).ClusterName
+
+	// 	for _, profile := range out {
+	// 		if err := c.cleanupSingleProfile(ctx, profile, clusterName, nodeClass.Name); err != nil {
+	// 			return reconcile.Result{}, err
+	// 		}
+	// 		// name := *profile.InstanceProfileName
+
+	// 		// // Get tags for this profile
+	// 		// tags, err := c.instanceProfileProvider.ListTags(ctx, name)
+	// 		// if err != nil {
+	// 		// 	klog.Errorf("failed to list tags for instance profile %s: %v", name, err)
+	// 		// 	continue
+	// 		// }
+	// 		// log.Printf("PROfilE RAYAN %s", name)
+
+	// 		// log.Printf("TAGS RAYAN %d", tags)
+
+	// 		// tagMap := make(map[string]string)
+	// 		// for _, tag := range tags {
+	// 		// 	tagMap[*tag.Key] = *tag.Value
+	// 		// }
+
+	// 		// clusterTag := fmt.Sprintf("kubernetes.io/cluster/%s", clusterName)
+	// 		// if tagMap[clusterTag] != "owned" {
+	// 		// 	continue // Not managed by this cluster
+	// 		// }
+	// 		// if tagMap[v1.EKSClusterNameTagKey] != clusterName {
+	// 		// 	continue // Not managed by this cluster
+	// 		// }
+
+	// 		// if tagMap[v1.LabelNodeClass] != nodeClass.Name {
+	// 		// 	continue // Not specific to this NodeClass
+	// 		// }
+
+	// 		// // Delete each matching profile
+	// 		// if err := c.instanceProfileProvider.Delete(ctx, *profile.InstanceProfileName); err != nil {
+	// 		// 	return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
+	// 		// }
+	// 	}
+
+	// }
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("deleting launch templates, %w", err)
 	}
