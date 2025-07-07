@@ -150,105 +150,15 @@ func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles
 func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("controller", "instanceprofile.garbagecollection"))
 
-	// // Get all NodeClaims to check which profiles are still in use
-	// nodeClaims, err := nodeclaimutils.ListManaged(ctx, c.kubeClient, c.cloudProvider)
-	// if err != nil {
-	// 	return reconcile.Result{}, fmt.Errorf("listing nodeclaims, %w", err)
-	// }
-
-	// // Build set of profiles currently in use by NodeClaims
-	// activeProfiles := make(map[string]struct{})
-	// for _, nc := range nodeClaims {
-	// 	if profileName, ok := nc.Annotations[v1.AnnotationInstanceProfile]; ok {
-	// 		activeProfiles[profileName] = struct{}{}
-	// 	}
-	// }
 	activeProfiles, err := c.getActiveProfiles(ctx)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Get cluster name prefix
-	// clusterName := options.FromContext(ctx).ClusterName
-
-	// List all instance profiles with our cluster prefix
-	// profiles, err := c.instanceProfileProvider.ListByPrefix(ctx, clusterName)
-	// if err != nil {
-	// 	return reconcile.Result{}, fmt.Errorf("listing instance profiles, %w", err)
-	// }
-
 	currentProfiles, err := c.getCurrentProfiles(ctx)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-
-	// nodeClasses := &v1.EC2NodeClassList{}
-
-	// if err := c.kubeClient.List(ctx, nodeClasses); err != nil {
-	// 	return reconcile.Result{}, fmt.Errorf("listing nodeclasses, %w", err)
-	// }
-
-	// // Build set of current instance profiles from EC2NodeClasses
-	// currentProfiles := make(map[string]struct{})
-	// for _, nc := range nodeClasses.Items {
-	// 	if nc.Status.InstanceProfile != "" {
-	// 		currentProfiles[nc.Status.InstanceProfile] = struct{}{}
-	// 	}
-	// }
-
-	// for _, profile := range profiles {
-	// 	profileName := *profile.InstanceProfileName
-
-	// 	// Skip if this is a current profile in any EC2NodeClass
-	// 	if _, isCurrent := currentProfiles[profileName]; isCurrent {
-	// 		continue
-	// 	}
-
-	// 	// Get tags for this profile
-	// 	tags, err := c.instanceProfileProvider.ListTags(ctx, profileName)
-	// 	if err != nil {
-	// 		klog.Errorf("failed to list tags for instance profile %s: %v", profileName, err)
-	// 		continue
-	// 	}
-
-	// 	tagMap := make(map[string]string)
-	// 	for _, tag := range tags {
-	// 		tagMap[*tag.Key] = *tag.Value
-	// 	}
-
-	// 	clusterTag := fmt.Sprintf("kubernetes.io/cluster/%s", clusterName)
-	// 	if tagMap[clusterTag] != "owned" {
-	// 		continue // Not managed by this cluster
-	// 	}
-	// 	if tagMap[v1.EKSClusterNameTagKey] != clusterName {
-	// 		continue // Not managed by this cluster
-	// 	}
-
-	// 	creationTime, ok := instanceprofile.GetCreationTime(profileName)
-	// 	// _, current := currentProfiles[profileName]
-
-	// 	// If ok is false, means that the profileName was not in the map and this should have been due to a
-	// 	// karpenter restart. So we can be sure that no NodeClaims are in flight that use the profile.
-	// 	if !ok {
-	// 		creationTime = time.Now().Add(-GarbageCollectionDelay)
-	// 	}
-
-	// 	// Skip if not old enough
-	// 	if time.Since(creationTime) < GarbageCollectionDelay {
-	// 		continue
-	// 	}
-
-	// 	// If profile isn't active and is old enough, delete it
-	// 	if _, isActive := activeProfiles[profileName]; !isActive {
-	// 		if err := c.instanceProfileProvider.Delete(ctx, profileName); err != nil {
-	// 			klog.Errorf("failed to delete instance profile %s: %v", profileName, err)
-	// 		} else {
-	// 			klog.V(2).Infof("garbage collected instance profile %s", profileName)
-	// 			instanceprofile.DeleteTracking(profileName)
-	// 		}
-	// 	}
-
-	// }
 
 	if err := c.cleanupInactiveProfiles(ctx, activeProfiles, currentProfiles); err != nil {
 		return reconcile.Result{}, err

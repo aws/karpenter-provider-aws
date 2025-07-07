@@ -32,7 +32,6 @@ import (
 type InstanceProfile struct {
 	instanceProfileProvider instanceprofile.Provider
 	region                  string
-	//profileMutex            sync.Mutex
 }
 
 func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider, region string) *InstanceProfile {
@@ -46,9 +45,6 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 	if nodeClass.Spec.Role != "" {
 		var currentRole string
 		var oldProfileName string
-
-		// ip.profileMutex.Lock()
-		// defer ip.profileMutex.Unlock()
 
 		// Get the current profile info if it exists
 		if nodeClass.Status.InstanceProfile != "" {
@@ -93,21 +89,4 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
 	log.Printf("Reconciled instance profile: %s", nodeClass.Status.InstanceProfile)
 	return reconcile.Result{}, nil
-
-	// if nodeClass.Spec.Role != "" {
-	// 	profileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
-	// 	if err := ip.instanceProfileProvider.Create(
-	// 		ctx,
-	// 		profileName,
-	// 		nodeClass.InstanceProfileRole(),
-	// 		nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
-	// 	); err != nil {
-	// 		return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
-	// 	}
-	// 	nodeClass.Status.InstanceProfile = profileName
-	// } else {
-	// 	nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
-	// }
-	// nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
-	// return reconcile.Result{}, nil
 }
