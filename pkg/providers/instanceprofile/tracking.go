@@ -20,17 +20,12 @@ import (
 )
 
 var (
-	// replacementMap tracks instance profile replacements (old profile -> new profile)
-	// replacementMap = sync.Map{}
-
 	// creationTimeMap tracks when instance profiles were created
 	CreationTimeMap = sync.Map{}
 )
 
-// TrackReplacement records that newProfile is replacing oldProfile
+// TrackReplacement records that newProfile is replacing oldProfile and time of replacement
 func TrackReplacement(oldProfile string) {
-	// replacementMap.Store(oldProfile, newProfile)
-	//creationTimeMap.Store(newProfile, time.Now())
 	CreationTimeMap.Store(oldProfile, time.Now())
 }
 
@@ -42,16 +37,7 @@ func GetCreationTime(profileName string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-// GetReplacement returns the profile that replaced the given profile
-// func GetReplacement(profileName string) (string, bool) {
-// 	if val, ok := replacementMap.Load(profileName); ok {
-// 		return val.(string), true
-// 	}
-// 	return "", false
-// }
-
 // DeleteTracking removes tracking data for a profile
 func DeleteTracking(profileName string) {
-	//replacementMap.Delete(profileName)
 	CreationTimeMap.Delete(profileName)
 }
