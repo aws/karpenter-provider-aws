@@ -72,7 +72,6 @@ type Controller struct {
 	instanceProfileProvider instanceprofile.Provider
 	validation              *Validation
 	reconcilers             []reconcile.TypedReconciler[*v1.EC2NodeClass]
-	//iamapi                  sdk.IAMAPI
 }
 
 func NewController(
@@ -91,7 +90,6 @@ func NewController(
 	ec2api sdk.EC2API,
 	validationCache *cache.Cache,
 	amiResolver amifamily.Resolver,
-	//iamapi sdk.IAMAPI,
 ) *Controller {
 	validation := NewValidationReconciler(kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache)
 	return &Controller{
@@ -242,60 +240,6 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		return reconcile.Result{}, err
 	}
 
-	// if nodeClass.Spec.Role != "" {
-	// 	// Get base name pattern (everything up to the last underscore)
-	// 	profileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
-	// 	idx := strings.LastIndex(profileName, "_")
-	// 	baseProfileName := profileName[:idx]
-
-	// 	// List profiles with this prefix
-	// 	out, err := c.instanceProfileProvider.ListByPrefix(ctx, baseProfileName)
-	// 	if err != nil {
-	// 		return reconcile.Result{}, fmt.Errorf("listing instance profiles, %w", err)
-	// 	}
-
-	// 	clusterName := options.FromContext(ctx).ClusterName
-
-	// 	for _, profile := range out {
-	// 		if err := c.cleanupSingleProfile(ctx, profile, clusterName, nodeClass.Name); err != nil {
-	// 			return reconcile.Result{}, err
-	// 		}
-	// 		// name := *profile.InstanceProfileName
-
-	// 		// // Get tags for this profile
-	// 		// tags, err := c.instanceProfileProvider.ListTags(ctx, name)
-	// 		// if err != nil {
-	// 		// 	klog.Errorf("failed to list tags for instance profile %s: %v", name, err)
-	// 		// 	continue
-	// 		// }
-	// 		// log.Printf("PROfilE RAYAN %s", name)
-
-	// 		// log.Printf("TAGS RAYAN %d", tags)
-
-	// 		// tagMap := make(map[string]string)
-	// 		// for _, tag := range tags {
-	// 		// 	tagMap[*tag.Key] = *tag.Value
-	// 		// }
-
-	// 		// clusterTag := fmt.Sprintf("kubernetes.io/cluster/%s", clusterName)
-	// 		// if tagMap[clusterTag] != "owned" {
-	// 		// 	continue // Not managed by this cluster
-	// 		// }
-	// 		// if tagMap[v1.EKSClusterNameTagKey] != clusterName {
-	// 		// 	continue // Not managed by this cluster
-	// 		// }
-
-	// 		// if tagMap[v1.LabelNodeClass] != nodeClass.Name {
-	// 		// 	continue // Not specific to this NodeClass
-	// 		// }
-
-	// 		// // Delete each matching profile
-	// 		// if err := c.instanceProfileProvider.Delete(ctx, *profile.InstanceProfileName); err != nil {
-	// 		// 	return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
-	// 		// }
-	// 	}
-
-	// }
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("deleting launch templates, %w", err)
 	}
