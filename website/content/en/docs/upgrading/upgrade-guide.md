@@ -86,7 +86,7 @@ If you get the error `invalid ownership metadata; label validation error:` while
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
-### Upgrading to `1.5.0`+
+### Upgrading to `1.5.2`+
 
 {{% alert title="Warning" color="warning" %}}
 Karpenter `1.1.0` drops the support for `v1beta1` APIs.
@@ -96,8 +96,8 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 * No breaking changes 🎉
 
 Full Changelog: 
-* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.5.0
-* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.5.0
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.5.2
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.5.2
 
 ### Upgrading to `1.4.0`+
 
