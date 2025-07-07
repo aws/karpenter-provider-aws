@@ -37,6 +37,7 @@ type Provider interface {
 	Create(context.Context, string, string, map[string]string) error
 	Delete(context.Context, string) error
 	ListByPrefix(context.Context, string) ([]*iamtypes.InstanceProfile, error)
+	ListTags(context.Context, string) ([]iamtypes.Tag, error)
 }
 
 type DefaultProvider struct {
@@ -157,4 +158,14 @@ func (p *DefaultProvider) ListByPrefix(ctx context.Context, prefix string) ([]*i
 		//profiles[i] = &out.InstanceProfiles[i]
 	}
 	return profiles, nil
+}
+
+func (p *DefaultProvider) ListTags(ctx context.Context, instanceProfileName string) ([]iamtypes.Tag, error) {
+	out, err := p.iamapi.ListInstanceProfileTags(ctx, &iam.ListInstanceProfileTagsInput{
+		InstanceProfileName: lo.ToPtr(instanceProfileName),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing instance profile tags, %w", err)
+	}
+	return out.Tags, nil
 }
