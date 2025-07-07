@@ -17,6 +17,7 @@ package nodeclass_test
 import (
 	"context"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
@@ -195,15 +196,38 @@ var _ = Describe("NodeClass Termination", func() {
 						RoleName: aws.String(nodeClass.Spec.Role),
 					},
 				},
+				Tags: []iamtypes.Tag{
+					{
+						Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", "test-cluster")),
+						Value: aws.String("owned"),
+					},
+					{
+						Key:   aws.String("eks:eks-cluster-name"),
+						Value: aws.String("test-cluster"),
+					},
+					{
+						Key:   aws.String("karpenter.k8s.aws/ec2nodeclass"),
+						Value: aws.String(nodeClass.Name),
+					},
+				},
 			},
 		}
+		log.Printf("RECENT TEST PROFILE NAME: %s", profileName)
+		// log.Printf("RECENT ACTUAL TEST PROFILE NAME: %s", nodeClass.Status.InstanceProfile)
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 
+		log.Printf("RECENT ACTUAL TEST PROFILE NAME: %s", nodeClass.Status.InstanceProfile)
+
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		for name := range awsEnv.IAMAPI.InstanceProfiles {
+			log.Printf("Profile Name: %s", name)
+		}
+
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
@@ -211,6 +235,20 @@ var _ = Describe("NodeClass Termination", func() {
 		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
 			profileName: {
 				InstanceProfileName: aws.String(profileName),
+				Tags: []iamtypes.Tag{
+					{
+						Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", "test-cluster")),
+						Value: aws.String("owned"),
+					},
+					{
+						Key:   aws.String("eks:eks-cluster-name"),
+						Value: aws.String("test-cluster"),
+					},
+					{
+						Key:   aws.String("karpenter.k8s.aws/ec2nodeclass"),
+						Value: aws.String(nodeClass.Name),
+					},
+				},
 			},
 		}
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
@@ -254,6 +292,20 @@ var _ = Describe("NodeClass Termination", func() {
 					{
 						RoleId:   aws.String(fake.RoleID()),
 						RoleName: aws.String(nodeClass.Spec.Role),
+					},
+				},
+				Tags: []iamtypes.Tag{
+					{
+						Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", "test-cluster")),
+						Value: aws.String("owned"),
+					},
+					{
+						Key:   aws.String("eks:eks-cluster-name"),
+						Value: aws.String("test-cluster"),
+					},
+					{
+						Key:   aws.String("karpenter.k8s.aws/ec2nodeclass"),
+						Value: aws.String(nodeClass.Name),
 					},
 				},
 			},
