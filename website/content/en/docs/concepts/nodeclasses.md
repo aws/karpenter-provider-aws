@@ -981,6 +981,7 @@ spec:
         deleteOnTermination: true
         throughput: 125
         snapshotID: snap-0123456789
+        volumeInitializationRate: 100
 ```
 
 The following blockDeviceMapping defaults are used for each `AMIFamily` if no `blockDeviceMapping` overrides are specified in the `EC2NodeClass`
