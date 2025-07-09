@@ -396,6 +396,17 @@ func (env *Environment) ConsistentlyExpectHealthyPods(duration time.Duration, po
 	}, duration.String()).Should(Succeed())
 }
 
+func (env *Environment) ConsistentlyExpectPendingPods(duration time.Duration, pods ...*corev1.Pod) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting %d pods to be pending for %s", len(pods), duration))
+	Consistently(func(g Gomega) {
+		for _, pod := range pods {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+			g.Expect(pod.Status.Phase).To(Equal(corev1.PodPending))
+		}
+	}, duration.String()).Should(Succeed())
+}
+
 func (env *Environment) EventuallyExpectKarpenterRestarted() {
 	GinkgoHelper()
 	By("rolling out the new karpenter deployment")
