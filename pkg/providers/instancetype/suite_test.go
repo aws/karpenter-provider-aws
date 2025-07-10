@@ -233,6 +233,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			corev1.LabelArchStable:         "amd64",
 			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
+			v1.LabelTenancy:                              "default",
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "g",
@@ -294,6 +295,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			corev1.LabelArchStable:         "amd64",
 			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
+			v1.LabelTenancy:                              "default",
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "g",
@@ -350,6 +352,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			corev1.LabelArchStable:         "amd64",
 			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
+			v1.LabelTenancy:                              "default",
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "inf",
@@ -2041,8 +2044,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			pod.Spec.Affinity = &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
 				{
 					Weight: 1, Preference: corev1.NodeSelectorTerm{MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					}},
+					{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+				}},
 				},
 			}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2121,8 +2124,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			pod.Spec.Affinity = &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
 				{
 					Weight: 1, Preference: corev1.NodeSelectorTerm{MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					}},
+					{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+				}},
 				},
 			}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2577,6 +2580,80 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// Based on the nodeclass configuration, we expect to have 5 unique set of instance types
 			uniqueInstanceTypeList(instanceTypeResult)
 		})
+	})
+	Context("Tenancy", func() {
+		It("defaults to default tenancy", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTenancy, string(ec2types.TenancyDefault)))
+		})
+		It("uses default tenancy if nodepool is ambiguous", func() {
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      v1.LabelTenancy,
+						Operator: corev1.NodeSelectorOpIn,
+						Values: []string{
+							string(ec2types.TenancyDefault),
+							string(ec2types.TenancyDedicated),
+						},
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTenancy, string(ec2types.TenancyDefault)))
+		})
+		It("launches with default tenancy", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			pod := coretest.UnschedulablePod(coretest.PodOptions{
+				NodeSelector: map[string]string{v1.LabelTenancy: string(ec2types.TenancyDefault)},
+			})
+
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTenancy, string(ec2types.TenancyDefault)))
+		})
+		It("launches with dedicated tenancy", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			pod := coretest.UnschedulablePod(coretest.PodOptions{
+				NodeSelector: map[string]string{v1.LabelTenancy: string(ec2types.TenancyDedicated)},
+			})
+
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTenancy, string(ec2types.TenancyDedicated)))
+		})
+		DescribeTable(
+			"does not allow tenancy violations",
+			func(npTenancy string, podTenancy string) {
+				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+					{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      v1.LabelTenancy,
+							Operator: corev1.NodeSelectorOpIn,
+							Values: []string{
+								npTenancy,
+							},
+						},
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					NodeSelector: map[string]string{v1.LabelTenancy: podTenancy},
+				})
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectNotScheduled(ctx, env.Client, pod)
+			},
+			Entry("dedicated np", string(ec2types.TenancyDedicated), string(ec2types.TenancyDefault)),
+			Entry("default np", string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)),
+		)
 	})
 	It("should not cause data races when calling List() simultaneously", func() {
 		mu := sync.RWMutex{}
