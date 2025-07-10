@@ -177,6 +177,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 		capacityReservationProvider,
+		cache.New(0, 1),
 	)
 
 	// Setup field indexers on instanceID -- specifically for the interruption controller
