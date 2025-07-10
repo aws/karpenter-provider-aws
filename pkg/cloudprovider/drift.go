@@ -90,12 +90,12 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.Node
 	if len(nodeClass.Status.AMIs) == 0 {
 		return "", fmt.Errorf("no amis exist given constraints")
 	}
+	// Should never happen as ImageID is resolved when setting Launched status condition
 	if nodeClaim.Status.ImageID == "" {
 		return "", fmt.Errorf("no ami ID found in nodeClaim status")
 	}
-	imageID := nodeClaim.Status.ImageID
 	mappedAMIs := amifamily.MapToInstanceTypes([]*cloudprovider.InstanceType{nodeInstanceType}, nodeClass.Status.AMIs)
-	if !lo.Contains(lo.Keys(mappedAMIs), imageID) {
+	if !lo.Contains(lo.Keys(mappedAMIs), nodeClaim.Status.ImageID) {
 		return AMIDrift, nil
 	}
 	return "", nil

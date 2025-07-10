@@ -816,7 +816,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(drifted).To(BeEmpty())
 		})
-		It("should return drifted if the NodeClaim ImageID is not in NodeClass AMIs", func() {
+		It("should return drifted if the AMI is not valid", func() {
 			nodeClaim.Status.ImageID = fake.ImageID()
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
@@ -945,6 +945,11 @@ var _ = Describe("CloudProvider", func() {
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
+		It("should error if the NodeClaim doesn't have ImageID", func() {
+			nodeClaim.Status.ImageID = ""
+			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).To(HaveOccurred())
+		})
 		It("should error drift if NodeClaim doesn't have provider id", func() {
 			nodeClaim.Status = karpv1.NodeClaimStatus{}
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -958,7 +963,7 @@ var _ = Describe("CloudProvider", func() {
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
-		It("should return drifted if the NodeClaim ImageID differs from NodeClass AMI requirements", func() {
+		It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
 			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: amdAMIID}}
 			nodeClass.Status.AMIs = []v1.AMI{
