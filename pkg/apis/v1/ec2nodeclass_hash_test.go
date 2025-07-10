@@ -104,7 +104,8 @@ var _ = Describe("Hash", func() {
 
 		// Behavior / Dynamic fields, expect same hash as base
 		Entry("Modified AMISelector", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Tags: map[string]string{"": "ami-test-value"}}}}}),
-		Entry("Modified SubnetSelector", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{SubnetSelectorTerms: []v1.SubnetSelectorTerm{{Tags: map[string]string{"subnet-test-key": "subnet-test-value"}}}}}),
+		Entry("Modified SubnetSelector Tags", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{SubnetSelectorTerms: []v1.SubnetSelectorTerm{{Tags: map[string]string{"subnet-test-key": "subnet-test-value"}}}}}),
+		Entry("Modified SubnetSelector CidrBlock", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{SubnetSelectorTerms: []v1.SubnetSelectorTerm{{CidrBlock: "10.0.1.0/24"}}}}),
 		Entry("Modified SecurityGroupSelector", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"security-group-test-key": "security-group-test-value"}}}}}),
 	)
 	// We create a separate test for updating blockDeviceMapping volumeSize, since resource.Quantity is a struct, and mergo.WithSliceDeepCopy
@@ -173,6 +174,24 @@ var _ = Describe("Hash", func() {
 		nodeClass.Spec.Tags = map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}
 		updatedHash := nodeClass.Hash()
 		Expect(hash).To(Equal(updatedHash))
+	})
+	It("should not change hash when SubnetSelector CidrBlock is updated", func() {
+		hash := nodeClass.Hash()
+		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{
+			CidrBlock: "10.0.1.0/24",
+		}}
+		updatedHash := nodeClass.Hash()
+		Expect(hash).To(Equal(updatedHash))
+		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{
+			CidrBlock: "10.0.*",
+		}}
+		updatedHash2 := nodeClass.Hash()
+		Expect(hash).To(Equal(updatedHash2))
+		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{
+			CidrBlock: "2001:db8::/32",
+		}}
+		updatedHash3 := nodeClass.Hash()
+		Expect(hash).To(Equal(updatedHash3))
 	})
 	It("should not change hash when blockDeviceMappings are re-ordered", func() {
 		hash := nodeClass.Hash()
