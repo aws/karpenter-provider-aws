@@ -45,13 +45,16 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 	if drifted := c.areStaticFieldsDrifted(nodeClaim, nodeClass); drifted != "" {
 		return drifted, nil
 	}
+	amiDrifted, err := c.isAMIDrifted(ctx, nodeClaim, nodePool, nodeClass)
+	if err != nil {
+		return "", fmt.Errorf("calculating ami drift, %w", err)
+	}
+	if amiDrifted != "" {
+		return amiDrifted, nil
+	}
 	instance, err := c.getInstance(ctx, nodeClaim.Status.ProviderID)
 	if err != nil {
 		return "", err
-	}
-	amiDrifted, err := c.isAMIDrifted(ctx, nodeClaim, nodePool, instance, nodeClass)
-	if err != nil {
-		return "", fmt.Errorf("calculating ami drift, %w", err)
 	}
 	securitygroupDrifted, err := c.areSecurityGroupsDrifted(instance, nodeClass)
 	if err != nil {
@@ -63,7 +66,6 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 	}
 	capacityReservationsDrifted := c.isCapacityReservationDrifted(instance, nodeClass)
 	drifted := lo.FindOrElse([]cloudprovider.DriftReason{
-		amiDrifted,
 		securitygroupDrifted,
 		subnetDrifted,
 		capacityReservationsDrifted,
@@ -74,7 +76,7 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 }
 
 func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool,
-	instance *instance.Instance, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+	nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
 	instanceTypes, err := c.GetInstanceTypes(ctx, nodePool)
 	if err != nil {
 		return "", fmt.Errorf("getting instanceTypes, %w", err)
@@ -88,8 +90,12 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.Node
 	if len(nodeClass.Status.AMIs) == 0 {
 		return "", fmt.Errorf("no amis exist given constraints")
 	}
+	if nodeClaim.Status.ImageID == "" {
+		return "", fmt.Errorf("no ami ID found in nodeClaim status")
+	}
+	imageID := nodeClaim.Status.ImageID
 	mappedAMIs := amifamily.MapToInstanceTypes([]*cloudprovider.InstanceType{nodeInstanceType}, nodeClass.Status.AMIs)
-	if !lo.Contains(lo.Keys(mappedAMIs), instance.ImageID) {
+	if !lo.Contains(lo.Keys(mappedAMIs), imageID) {
 		return AMIDrift, nil
 	}
 	return "", nil

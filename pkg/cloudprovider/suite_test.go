@@ -797,6 +797,7 @@ var _ = Describe("CloudProvider", func() {
 				v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
 			})
 			nodeClaim.Status.ProviderID = fake.ProviderID(lo.FromPtr(instance.InstanceId))
+			nodeClaim.Status.ImageID = amdAMIID
 			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
 				v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
 				v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
@@ -815,12 +816,8 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(drifted).To(BeEmpty())
 		})
-		It("should return drifted if the AMI is not valid", func() {
-			// Instance is a reference to what we return in the GetInstances call
-			instance.ImageId = aws.String(fake.ImageID())
-			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
-			})
+		It("should return drifted if the NodeClaim ImageID is not in NodeClass AMIs", func() {
+			nodeClaim.Status.ImageID = fake.ImageID()
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
@@ -961,7 +958,7 @@ var _ = Describe("CloudProvider", func() {
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
-		It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
+		It("should return drifted if the NodeClaim ImageID differs from NodeClass AMI requirements", func() {
 			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: amdAMIID}}
 			nodeClass.Status.AMIs = []v1.AMI{
@@ -972,10 +969,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			}
-			instance.ImageId = aws.String(armAMIID)
-			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
-			})
+			nodeClaim.Status.ImageID = armAMIID
 			ExpectApplied(ctx, env.Client, nodeClass)
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
