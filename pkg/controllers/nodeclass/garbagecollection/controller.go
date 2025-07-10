@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/awslabs/operatorpkg/singleton"
-	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -29,6 +28,9 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
+
+	"github.com/mitchellh/hashstructure/v2"
+	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -44,13 +46,15 @@ type Controller struct {
 	kubeClient              client.Client
 	cloudProvider           cloudprovider.CloudProvider
 	instanceProfileProvider instanceprofile.Provider
+	region                  string
 }
 
-func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider, instanceProfileProvider instanceprofile.Provider) *Controller {
+func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider, instanceProfileProvider instanceprofile.Provider, region string) *Controller {
 	return &Controller{
 		kubeClient:              kubeClient,
 		cloudProvider:           cloudProvider,
 		instanceProfileProvider: instanceProfileProvider,
+		region:                  region,
 	}
 }
 
@@ -64,7 +68,14 @@ func (c *Controller) getActiveProfiles(ctx context.Context) (map[string]struct{}
 	for _, nc := range nodeClaims {
 		if profileName, ok := nc.Annotations[v1.AnnotationInstanceProfile]; ok {
 			activeProfiles[profileName] = struct{}{}
+			continue
 		}
+
+		// Protect against migration where pre-upgrade NodeClaims do not have instanceprofile annotation
+		clusterName := options.FromContext(ctx).ClusterName
+		hash := lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", c.region, nc.Spec.NodeClassRef.Name), hashstructure.FormatV2, nil))
+		oldProfileName := fmt.Sprintf("%s_%d", clusterName, hash)
+		activeProfiles[oldProfileName] = struct{}{}
 	}
 	return activeProfiles, nil
 }
@@ -92,7 +103,6 @@ func (c *Controller) shouldDeleteProfile(ctx context.Context, profileName string
 
 	tags, err := c.instanceProfileProvider.ListTags(ctx, profileName)
 	if err != nil {
-		// klog.Errorf("failed to list tags for instance profile %s: %v", profileName, err)
 		return false, fmt.Errorf("failed to list tags for instance profile %s: %w", profileName, err)
 	}
 
@@ -137,9 +147,8 @@ func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles
 
 		if _, isActive := activeProfiles[profileName]; !isActive {
 			if err := c.instanceProfileProvider.Delete(ctx, profileName); err != nil {
-				klog.Errorf("failed to delete instance profile %s: %v", profileName, err)
+				log.FromContext(ctx).Error(err, "failed to delete instance profile", "profile", profileName)
 			} else {
-				klog.V(2).Infof("garbage collected instance profile %s", profileName)
 				instanceprofile.DeleteTracking(profileName)
 			}
 		}

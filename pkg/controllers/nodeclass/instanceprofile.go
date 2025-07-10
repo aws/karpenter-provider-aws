@@ -50,7 +50,6 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 		if nodeClass.Status.InstanceProfile != "" {
 			oldProfileName = nodeClass.Status.InstanceProfile
 			if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
-				log.Printf("PROFILE ROLES: %v", lo.FromPtr(profile.Roles[0].RoleName))
 				if len(profile.Roles) > 0 {
 					currentRole = lo.FromPtr(profile.Roles[0].RoleName)
 				}
