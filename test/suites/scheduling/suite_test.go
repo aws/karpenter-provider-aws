@@ -396,6 +396,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					MinValues: lo.ToPtr(1),
 				}))
 			} else {
+				env.ExpectExists(pod)
 				// Give a min for the scheduling decision to be done.
 				env.ConsistentlyExpectPendingPods(time.Minute, pod)
 				env.EventuallyExpectNodeCount("==", 0)
