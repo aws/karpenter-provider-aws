@@ -17,7 +17,6 @@ package nodeclass_test
 import (
 	"context"
 	"fmt"
-	"log"
 	"testing"
 	"time"
 
@@ -187,74 +186,36 @@ var _ = Describe("NodeClass Termination", func() {
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
 	It("should succeed to delete the instance profile with no NodeClaims", func() {
-		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
-			profileName: {
-				InstanceProfileName: aws.String(profileName),
-				Roles: []iamtypes.Role{
-					{
-						RoleId:   aws.String(fake.RoleID()),
-						RoleName: aws.String(nodeClass.Spec.Role),
-					},
-				},
-				Tags: []iamtypes.Tag{
-					{
-						Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", "test-cluster")),
-						Value: aws.String("owned"),
-					},
-					{
-						Key:   aws.String("eks:eks-cluster-name"),
-						Value: aws.String("test-cluster"),
-					},
-					{
-						Key:   aws.String("karpenter.k8s.aws/ec2nodeclass"),
-						Value: aws.String(nodeClass.Name),
-					},
-				},
-			},
-		}
-		log.Printf("RECENT TEST PROFILE NAME: %s", profileName)
-		// log.Printf("RECENT ACTUAL TEST PROFILE NAME: %s", nodeClass.Status.InstanceProfile)
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 
-		log.Printf("RECENT ACTUAL TEST PROFILE NAME: %s", nodeClass.Status.InstanceProfile)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		Expect(awsEnv.IAMAPI.InstanceProfiles[nodeClass.Status.InstanceProfile].Roles).To(HaveLen(1))
+		Expect(*awsEnv.IAMAPI.InstanceProfiles[nodeClass.Status.InstanceProfile].Roles[0].RoleName).To(Equal("test-role"))
 
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-
-		for name := range awsEnv.IAMAPI.InstanceProfiles {
-			log.Printf("Profile Name: %s", name)
-		}
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
 	It("should succeed to delete the instance profile when no roles exist with no NodeClaims", func() {
-		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
-			profileName: {
-				InstanceProfileName: aws.String(profileName),
-				Tags: []iamtypes.Tag{
-					{
-						Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", "test-cluster")),
-						Value: aws.String("owned"),
-					},
-					{
-						Key:   aws.String("eks:eks-cluster-name"),
-						Value: aws.String("test-cluster"),
-					},
-					{
-						Key:   aws.String("karpenter.k8s.aws/ec2nodeclass"),
-						Value: aws.String(nodeClass.Name),
-					},
-				},
-			},
-		}
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		// Remove the role from the instance profile to test this specific case
+		profile := awsEnv.IAMAPI.InstanceProfiles[nodeClass.Status.InstanceProfile]
+		profile.Roles = nil
+
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		Expect(awsEnv.IAMAPI.InstanceProfiles[nodeClass.Status.InstanceProfile].Roles).To(BeEmpty())
+
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
@@ -285,35 +246,15 @@ var _ = Describe("NodeClass Termination", func() {
 			ExpectApplied(ctx, env.Client, nc)
 			nodeClaims = append(nodeClaims, nc)
 		}
-		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
-			profileName: {
-				InstanceProfileName: aws.String(profileName),
-				Roles: []iamtypes.Role{
-					{
-						RoleId:   aws.String(fake.RoleID()),
-						RoleName: aws.String(nodeClass.Spec.Role),
-					},
-				},
-				Tags: []iamtypes.Tag{
-					{
-						Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", "test-cluster")),
-						Value: aws.String("owned"),
-					},
-					{
-						Key:   aws.String("eks:eks-cluster-name"),
-						Value: aws.String("test-cluster"),
-					},
-					{
-						Key:   aws.String("karpenter.k8s.aws/ec2nodeclass"),
-						Value: aws.String(nodeClass.Name),
-					},
-				},
-			},
-		}
+
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		Expect(awsEnv.IAMAPI.InstanceProfiles[nodeClass.Status.InstanceProfile].Roles).To(HaveLen(1))
 
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
 		res := ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
