@@ -17,6 +17,7 @@ package fake
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -40,6 +41,8 @@ type IAMAPIBehavior struct {
 	AddRoleToInstanceProfileBehavior      MockedFunction[iam.AddRoleToInstanceProfileInput, iam.AddRoleToInstanceProfileOutput]
 	TagInstanceProfileBehavior            MockedFunction[iam.TagInstanceProfileInput, iam.TagInstanceProfileOutput]
 	RemoveRoleFromInstanceProfileBehavior MockedFunction[iam.RemoveRoleFromInstanceProfileInput, iam.RemoveRoleFromInstanceProfileOutput]
+	ListInstanceProfilesBehavior          MockedFunction[iam.ListInstanceProfilesInput, iam.ListInstanceProfilesOutput]
+	ListInstanceProfileTagsBehavior       MockedFunction[iam.ListInstanceProfileTagsInput, iam.ListInstanceProfileTagsOutput]
 }
 
 type IAMAPI struct {
@@ -61,6 +64,8 @@ func (s *IAMAPI) Reset() {
 	s.DeleteInstanceProfileBehavior.Reset()
 	s.AddRoleToInstanceProfileBehavior.Reset()
 	s.RemoveRoleFromInstanceProfileBehavior.Reset()
+	s.ListInstanceProfilesBehavior.Reset()
+	s.ListInstanceProfileTagsBehavior.Reset()
 	s.InstanceProfiles = map[string]*iamtypes.InstanceProfile{}
 }
 
@@ -194,6 +199,39 @@ func (s *IAMAPI) RemoveRoleFromInstanceProfile(_ context.Context, input *iam.Rem
 			Code: "NoSuchEntity",
 			Message: fmt.Sprintf("Instance Profile %s cannot be found",
 				aws.ToString(input.InstanceProfileName)),
+		}
+	})
+}
+
+func (s *IAMAPI) ListInstanceProfiles(_ context.Context, input *iam.ListInstanceProfilesInput, _ ...func(*iam.Options)) (*iam.ListInstanceProfilesOutput, error) {
+	return s.ListInstanceProfilesBehavior.Invoke(input, func(*iam.ListInstanceProfilesInput) (*iam.ListInstanceProfilesOutput, error) {
+		s.Lock()
+		defer s.Unlock()
+
+		var profiles []iamtypes.InstanceProfile
+		for _, profile := range s.InstanceProfiles {
+			profiles = append(profiles, *profile)
+		}
+		return &iam.ListInstanceProfilesOutput{
+			InstanceProfiles: profiles,
+		}, nil
+	})
+}
+
+func (s *IAMAPI) ListInstanceProfileTags(_ context.Context, input *iam.ListInstanceProfileTagsInput, _ ...func(*iam.Options)) (*iam.ListInstanceProfileTagsOutput, error) {
+	log.Printf("WORKING FOR LISTING TAGS")
+	return s.ListInstanceProfileTagsBehavior.Invoke(input, func(*iam.ListInstanceProfileTagsInput) (*iam.ListInstanceProfileTagsOutput, error) {
+		s.Lock()
+		defer s.Unlock()
+
+		if profile, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
+			return &iam.ListInstanceProfileTagsOutput{
+				Tags: profile.Tags,
+			}, nil
+		}
+		return nil, &smithy.GenericAPIError{
+			Code:    "NoSuchEntity",
+			Message: fmt.Sprintf("Instance Profile %s cannot be found", aws.ToString(input.InstanceProfileName)),
 		}
 	})
 }

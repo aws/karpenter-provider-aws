@@ -17,10 +17,13 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
 	"time"
 
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
@@ -46,6 +49,8 @@ import (
 	"github.com/awslabs/operatorpkg/reasonable"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
+
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -103,6 +108,7 @@ func NewController(
 			validation,
 			NewReadinessReconciler(launchTemplateProvider),
 		},
+		//iamapi: iamapi,
 	}
 }
 
@@ -127,6 +133,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		// Here, we are updating the finalizer list
 		if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); err != nil {
 			if errors.IsConflict(err) {
+				log.Printf("REQUEUEING 1, conflict error: %s", err)
 				return reconcile.Result{Requeue: true}, nil
 			}
 			return reconcile.Result{}, err
@@ -151,6 +158,21 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		// Here, we are updating the status condition list
 		if err := c.kubeClient.Status().Patch(ctx, nodeClass, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); err != nil {
 			if errors.IsConflict(err) {
+				// Delete the created instance profile if it hasn't yet patched into status
+				// This prevents multiple instance profiles from being created for the same role
+				if nodeClass.Spec.Role != "" && nodeClass.Status.InstanceProfile != "" {
+					if profile, err := c.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
+						if len(profile.Roles) > 0 {
+							currentRole := lo.FromPtr(profile.Roles[0].RoleName)
+							if currentRole == nodeClass.Spec.Role {
+								if err := c.instanceProfileProvider.Delete(ctx, nodeClass.Status.InstanceProfile); err != nil {
+									return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
+								}
+							}
+						}
+					}
+				}
+				log.Printf("REQUEUEING 2, conflict error: %s", err)
 				return reconcile.Result{Requeue: true}, nil
 			}
 			errs = multierr.Append(errs, client.IgnoreNotFound(err))
@@ -160,6 +182,59 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, errs
 	}
 	return result.Min(results...), nil
+}
+
+func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
+	if nodeClass.Spec.Role == "" {
+		return nil
+	}
+
+	profileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
+	idx := strings.LastIndex(profileName, "_")
+	baseProfileName := profileName[:idx]
+
+	out, err := c.instanceProfileProvider.ListByPrefix(ctx, baseProfileName)
+	if err != nil {
+		return fmt.Errorf("listing instance profiles, %w", err)
+	}
+
+	clusterName := options.FromContext(ctx).ClusterName
+	for _, profile := range out {
+		if err := c.cleanupSingleProfile(ctx, profile, clusterName, nodeClass.Name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Controller) cleanupSingleProfile(ctx context.Context, profile *iamtypes.InstanceProfile, clusterName, nodeClassName string) error {
+	name := *profile.InstanceProfileName
+	tags, err := c.instanceProfileProvider.ListTags(ctx, name)
+	if err != nil {
+		klog.Errorf("failed to list tags for instance profile %s: %v", name, err)
+		return nil
+	}
+
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		tagMap[*tag.Key] = *tag.Value
+	}
+
+	clusterTag := fmt.Sprintf("kubernetes.io/cluster/%s", clusterName)
+	if tagMap[clusterTag] != "owned" {
+		return nil
+	}
+	if tagMap[v1.EKSClusterNameTagKey] != clusterName {
+		return nil
+	}
+	if tagMap[v1.LabelNodeClass] != nodeClassName {
+		return nil
+	}
+
+	if err := c.instanceProfileProvider.Delete(ctx, name); err != nil {
+		return fmt.Errorf("deleting instance profile, %w", err)
+	}
+	return nil
 }
 
 func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
@@ -175,11 +250,10 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaims.Items, func(nc karpv1.NodeClaim, _ int) string { return nc.Name })))
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
-	if nodeClass.Spec.Role != "" {
-		if err := c.instanceProfileProvider.Delete(ctx, nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)); err != nil {
-			return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
-		}
+	if err := c.cleanupInstanceProfiles(ctx, nodeClass); err != nil {
+		return reconcile.Result{}, err
 	}
+
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("deleting launch templates, %w", err)
 	}
