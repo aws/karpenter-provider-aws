@@ -158,7 +158,7 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*karpv1.Nod
 		return nil, fmt.Errorf("getting instance ID, %w", err)
 	}
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id))
-	instance, err := c.instanceProvider.Get(ctx, id)
+	instance, err := c.instanceProvider.Get(ctx, id, true)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance, %w", err)
 	}
