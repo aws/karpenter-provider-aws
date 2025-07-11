@@ -262,7 +262,7 @@ func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes
 	for filterName, its := range rejectedInstanceTypes {
 		log.FromContext(ctx).WithValues("filter", filterName, "instance-types", utils.PrettySlice(lo.Map(its, func(i *cloudprovider.InstanceType, _ int) string { return i.Name }), 5)).V(1).Info("filtered out instance types from launch")
 	}
-	instanceTypes, err := cloudprovider.InstanceTypes(instanceTypes).Truncate(reqs, maxInstanceTypes)
+	instanceTypes, err := cloudprovider.InstanceTypes(instanceTypes).Truncate(ctx, reqs, maxInstanceTypes)
 	if err != nil {
 		return nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeFilteringFailed", "Error truncating instance types based on the passed-in requirements")
 	}
@@ -294,7 +294,7 @@ func (p *DefaultProvider) launchInstance(
 	}
 
 	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs)
-	if nodeClass.Spec.Context != nil {
+	if nodeClass.Spec.Context != nil && nodeClaim.Annotations[karpv1.NodeClaimMinValuesRelaxedAnnotationKey] != "true" {
 		cfiBuilder.WithContextID(*nodeClass.Spec.Context)
 	}
 	if capacityType == karpv1.CapacityTypeReserved {

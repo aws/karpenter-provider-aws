@@ -133,6 +133,10 @@ spec:
             - name: PREFERENCE_POLICY
               value: "{{ . }}"
           {{- end }}
+          {{- with .Values.settings.minValuesPolicy }}
+            - name: MIN_VALUES_POLICY
+              value: "{{ . }}"
+          {{- end }}
           {{- with .Values.settings.clusterCABundle }}
             - name: CLUSTER_CA_BUNDLE
               value: "{{ tpl (toString .) $ }}"
