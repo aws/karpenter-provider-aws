@@ -77,7 +77,8 @@ If any of these occur, and Karpenter detects that the instance no longer belongs
 ### Capacity Blocks
 
 Unlike default ODCRs, Capacity Blocks must have an end time.
-Additionally, instances launched into a capacity block will be terminated by EC2 ahead of the end time, rather than becoming standard on-demand capacity
+Additionally, instances launched into a capacity block will be terminated by EC2 ahead of the end time, rather than becoming standard on-demand capacity.
+
 From the [AWS docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-blocks.html):
 
 > You can use all the instances you reserved until 30 minutes (for instance types) or 60 minutes (for UltraServer type) before the end time of the Capacity Block.
