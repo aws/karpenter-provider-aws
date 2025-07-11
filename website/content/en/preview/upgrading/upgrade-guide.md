@@ -86,7 +86,21 @@ If you get the error `invalid ownership metadata; label validation error:` while
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
-### Upgrading to `1.5.2`+
+### Upgrading to `1.6.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* Native ODCR support has graduated to beta and is enabled by default.
+  If you were previously using open ODCRs with Karpenter and have not already migrated to native ODCR support, review the [native ODCR support guide]({{< relref "../tasks/odcrs" >}}) before upgrading.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.6.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.6.0
+
+### Upgrading to `1.5.0`+
 
 {{% alert title="Warning" color="warning" %}}
 Karpenter `1.1.0` drops the support for `v1beta1` APIs.
@@ -96,8 +110,8 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 * No breaking changes 🎉
 
 Full Changelog:
-* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.5.2
-* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.5.2
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.5.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.5.0
 
 ### Upgrading to `1.4.0`+
 

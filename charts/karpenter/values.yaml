@@ -211,9 +211,9 @@ settings:
     # -- nodeRepair is ALPHA and is disabled by default.
     # Setting this to true will enable node repair.
     nodeRepair: false
-    # -- reservedCapacity is ALPHA and is disabled by default.
+    # -- reservedCapacity is BETA and is enabled by default.
     # Setting this will enable native on-demand capacity reservation support.
-    reservedCapacity: false
+    reservedCapacity: true
     # -- spotToSpotConsolidation is ALPHA and is disabled by default.
     # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
     spotToSpotConsolidation: false

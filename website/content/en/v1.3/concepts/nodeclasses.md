@@ -1090,7 +1090,7 @@ spec:
     "memory.available" = "20%"
 ```
 
-This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your public key file): 
+This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your public key file):
 
 {{% alert title="Note" color="primary" %}}
 Instead of using SSH as set up in this example, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell access to Karpenter nodes.
@@ -1639,6 +1639,35 @@ status:
       operator: In
       values:
       - arm64
+```
+
+## status.capacityReservations
+
+[`status.capacityReservations`]({{< ref "#statuscapacityreservations" >}}) contains the following information for each resolved capacity reservation:
+
+| Field                   | Example                | Description                                                                          |
+| ----------------------- | ---------------------- | ------------------------------------------------------------------------------------ |
+| `availabilityZone`      | `us-east-1a`           | The availability zone the capacity reservation is available in                       |
+| `id`                    | `cr-56fac701cc1951b03` | The ID of the capacity reservation                                                   |
+| `instanceMatchCriteria` | `open`                 | The instanceMatchCriteria for the capacity reservation. Can be `open` or `targeted`. |
+| `instanceType`          | `m5.large`             | The EC2 instance type of the capacity reservation                                    |
+| `ownerID`               | `459763720645`         | The account ID that owns the capacity reservation                                    |
+
+#### Examples
+
+```yaml
+status:
+  capacityReservations:
+  - availabilityZone: us-west-2a
+    id: cr-01234567890123456
+    instanceMatchCriteria: targeted
+    instanceType: g6.48xlarge
+    ownerID: "012345678901"
+  - availabilityZone: us-west-2c
+    id: cr-12345678901234567
+    instanceMatchCriteria: open
+    instanceType: g6.48xlarge
+    ownerID: "98765432109"
 ```
 
 ## status.instanceProfile
