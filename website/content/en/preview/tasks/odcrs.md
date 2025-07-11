@@ -31,8 +31,8 @@ For more information on configuring `capacityReservationSelectorTerms`, see the 
 
 Additionally, you will need to update your NodePool to be compatible with ODCRs.
 Karpenter doesn't model ODCRs as standard on-demand capacity, and instead uses a dedicated capacity type: `reserved`.
-For a NodePool to utilized ODCRs, it must be compatible with `karpenter.sh/capacity-type: reserved`.
-The following example demonstrates how to configure a NodePool to prioritized ODCRs and fallback to on-demand capacity:
+For a NodePool to utilize ODCRs, it must be compatible with `karpenter.sh/capacity-type: reserved`.
+The following example demonstrates how to configure a NodePool to prioritize ODCRs and fallback to on-demand capacity:
 
 ```yaml
 requirements:
@@ -65,7 +65,6 @@ requirements:
 
 In this example, the NodePool is compatible with all capacity types.
 Karpenter will prioritize ODCRs, but if none are available or none are compatible with the pending workloads it will fallback to spot or on-demand.
-
 Similarly, Karpenter will prioritize reserved capacity during consolidation.
 Since ODCRs are pre-paid, Karpenter will model them as free and consolidate spot / on-demand nodes when possible.
 
@@ -77,24 +76,23 @@ If any of these occur, and Karpenter detects that the instance no longer belongs
 
 ### Capacity Blocks
 
-Unlike default ODCRs, Capacity Blocks **must** have an end time.
-Additionally, instances launched into a capacity block will be terminated by EC2 ahead of the end time.
+Unlike default ODCRs, Capacity Blocks must have an end time.
+Additionally, instances launched into a capacity block will be terminated by EC2 ahead of the end time, rather than becoming standard on-demand capacity
 From the [AWS docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-blocks.html):
 
 > You can use all the instances you reserved until 30 minutes (for instance types) or 60 minutes (for UltraServer type) before the end time of the Capacity Block.
 > With 30 minutes (for instance types) or 60 minutes (for UltraServer types) left in your Capacity Block reservation, we begin terminating any instances that are running in the Capacity Block.
 > We use this time to clean up your instances before delivering the Capacity Block to the next customer.
 
-Karpenter will preemptively begin draining nodes launched for capacity blocks 10 minutes before EC2 begins termination.
-This ensures your workloads can gracefully terminate before reclaimation.
+Karpenter will preemptively begin draining nodes launched for capacity blocks 10 minutes before EC2 begins termination, ensuring your workloads can gracefully terminate before reclaimation.
 
 ## Migrating From Previous Versions
 
 Although it was not natively supported, it was possible to utilize ODCRs on previous versions of Karpenter.
 If a NodeClaim's requirements happened to be compatible with an open ODCR in the target AWS account, it may have launched an instance into that open ODCR.
-This could be ensured by constraining a NodePool such that it was only compatible with the desired open ODCR, and limits could be used to enable fallback to a different NodePool.
+This could be ensured by constraining a NodePool such that it was only compatible with the desired open ODCR, and limits could be used to enable fallback to a different NodePool once the ODCR was exhausted.
 This behavior is no longer supported when native on-demand capacity support is enabled.
 
-If you were relying on this behavior, you should configure your `EC2NodeClasses` to select the desired ODCR **before** enabling the feature gate.
+If you were relying on this behavior, you should configure your `EC2NodeClasses` to select the desired ODCRs **before** enabling the feature gate.
 You should also ensure any NodePools which you wish to use with ODCRs are compatible with `karpenter.sh/capacity-type: reserved`.
 Performing these steps before enabling the feature gate will ensure that Karpenter can immediately continue utilizing your reservations, rather than falling back to on-demand.
