@@ -2,8 +2,6 @@ module github.com/aws/karpenter-provider-aws
 
 go 1.24.4
 
-replace sigs.k8s.io/karpenter => github.com/saurav-agarwalla/karpenter v1.5.1-0.20250708032605-914ac188dae3
-
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/PuerkitoBio/goquery v1.10.3
@@ -48,7 +46,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	sigs.k8s.io/controller-runtime v0.21.0
-	sigs.k8s.io/karpenter v1.5.1-0.20250617212656-d0f1c47a99dd
+	sigs.k8s.io/karpenter v1.5.1-0.20250711001527-7034d83858d5
 	sigs.k8s.io/yaml v1.5.0
 )
 
