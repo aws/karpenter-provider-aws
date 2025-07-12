@@ -349,6 +349,7 @@ func (p *DefaultProvider) hydrateCache(ctx context.Context) {
 				Values: []string{clusterName},
 			},
 		},
+		MaxResults: lo.ToPtr[int32](200),
 	})
 
 	for paginator.HasMorePages() {
@@ -400,6 +401,7 @@ func (p *DefaultProvider) DeleteAll(ctx context.Context, nodeClass *v1.EC2NodeCl
 				Values: []string{nodeClass.Name},
 			},
 		},
+		MaxResults: lo.ToPtr[int32](200),
 	})
 
 	for paginator.HasMorePages() {

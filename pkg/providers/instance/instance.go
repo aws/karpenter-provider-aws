@@ -190,6 +190,7 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 			},
 			instanceStateFilter,
 		},
+		MaxResults: lo.ToPtr[int32](1000),
 	})
 
 	for paginator.HasMorePages() {
