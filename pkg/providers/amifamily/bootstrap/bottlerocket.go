@@ -17,6 +17,7 @@ package bootstrap
 import (
 	"encoding/base64"
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/imdario/mergo"
@@ -95,8 +96,17 @@ func (b Bottlerocket) Script() (string, error) {
 		if s.Settings.BootstrapCommands == nil {
 			s.Settings.BootstrapCommands = map[string]BootstrapCommand{}
 		}
+
+		ephemeralStorageCommand := []string{"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/kubelet"}
+		if !slices.Contains(b.DisabledMounts, v1.DisabledMountContainerd) {
+			ephemeralStorageCommand = append(ephemeralStorageCommand, "/var/lib/containerd")
+		}
+		if !slices.Contains(b.DisabledMounts, v1.DisabledMountPodLogs) {
+			ephemeralStorageCommand = append(ephemeralStorageCommand, "/var/log/pods")
+		}
+
 		s.Settings.BootstrapCommands["000-mount-instance-storage"] = BootstrapCommand{
-			Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}},
+			Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, ephemeralStorageCommand},
 			Essential: true,
 			Mode:      BootstrapCommandModeAlways,
 		}

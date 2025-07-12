@@ -86,6 +86,8 @@ func (n Nodeadm) getNodeConfigYAML() (string, error) {
 	if lo.FromPtr(n.InstanceStorePolicy) == v1.InstanceStorePolicyRAID0 {
 		config.Spec.Instance.LocalStorage.Strategy = admv1alpha1.LocalStorageRAID0
 	}
+	config.Spec.Instance.LocalStorage.DisabledMounts = convertDisableMounts(n.DisabledMounts)
+
 	inlineConfig, err := n.generateInlineKubeletConfiguration()
 	if err != nil {
 		return "", err
@@ -149,4 +151,12 @@ func (n Nodeadm) parseUserData() ([]mime.Entry, error) {
 		ContentType: mime.ContentTypeShellScript,
 		Content:     userData,
 	}}, nil
+}
+
+func convertDisableMounts(input []v1.DisabledMount) []admv1alpha1.DisabledMount {
+	output := []admv1alpha1.DisabledMount{}
+	for _, v := range input {
+		output = append(output, admv1alpha1.DisabledMount(v))
+	}
+	return output
 }
