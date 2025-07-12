@@ -21,7 +21,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.31.2
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
 	github.com/aws/smithy-go v1.22.4
-	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
+	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20250712001701-a2db3a97ee74
 	github.com/awslabs/operatorpkg v0.0.0-20250624064700-e9977193119b
 	github.com/awslabs/operatorpkg/aws v0.0.0-20250414225955-b47cd315ffe9
 	github.com/docker/docker v28.3.0+incompatible
@@ -44,7 +44,7 @@ require (
 	k8s.io/apimachinery v0.33.2
 	k8s.io/client-go v0.33.2
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
+	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
 	sigs.k8s.io/controller-runtime v0.21.0
 	sigs.k8s.io/karpenter v1.5.1-0.20250711212127-927d7bd9feb8
 	sigs.k8s.io/yaml v1.5.0
