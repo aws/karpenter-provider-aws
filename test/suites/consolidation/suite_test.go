@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -67,7 +68,10 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
-var _ = Describe("Consolidation", Ordered, func() {
+var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy options.MinValuesPolicy) {
+	BeforeEach(func() {
+		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "MIN_VALUES_POLICY", Value: string(minValuesPolicy)})
+	})
 	Context("LastPodEventTime", func() {
 		var nodePool *karpv1.NodePool
 		BeforeEach(func() {
@@ -996,4 +1000,7 @@ var _ = Describe("Consolidation", Ordered, func() {
 			}, time.Minute*10).Should(Succeed())
 		})
 	})
-})
+},
+	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
+	Entry("MinValuesPolicyStrict", options.MinValuesPolicyStrict),
+)

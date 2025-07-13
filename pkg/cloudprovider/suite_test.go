@@ -333,6 +333,19 @@ var _ = Describe("CloudProvider", func() {
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(aws.ToString(createFleetInput.Context)).To(Equal(contextID))
 		})
+		It("should not set context on the CreateFleet request when min values are relaxed even if specified on the NodePool", func() {
+			nodeClass.Spec.Context = aws.String(contextID)
+			nodeClaimWithRelaxedMinValues := nodeClaim.DeepCopy()
+			nodeClaimWithRelaxedMinValues.Annotations = lo.Assign(nodeClaimWithRelaxedMinValues.Annotations, map[string]string{karpv1.NodeClaimMinValuesRelaxedAnnotationKey: "true"})
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaimWithRelaxedMinValues)
+			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaimWithRelaxedMinValues)
+			Expect(err).To(BeNil())
+			Expect(cloudProviderNodeClaim).ToNot(BeNil())
+
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(aws.ToString(createFleetInput.Context)).To(BeEmpty())
+		})
 		It("should default to no EC2 Context", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
