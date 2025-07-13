@@ -23,16 +23,6 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
-const (
-	BottlerocketTomlClusterNameLabelKey        = "cluster-name"
-	BottlerocketTomlApiServerLabelKey          = "api-server"
-	BottlerocketTomlClusterCertificateLabelKey = "cluster-certificate"
-	BottlerocketTomlNodeLabelsLabelKey         = "node-labels"
-	BottlerocketTomlNodeTaintsLabelKey         = "node-taints"
-	BottlerocketTomlKubernetesLabelKey         = "kubernetes"
-	BottlerocketTomlBootstrapCommandsLabelKey  = "bootstrap-commands"
-)
-
 type Bottlerocket struct {
 	Options
 }
@@ -46,40 +36,42 @@ func (b Bottlerocket) Script() (string, error) {
 
 	// Karpenter will overwrite settings present inside custom UserData
 	// based on other fields specified in the NodePool
-	settingsKubernetes := s.SettingsRaw[BottlerocketTomlKubernetesLabelKey].(map[string]interface{})
-	settingsKubernetes[BottlerocketTomlClusterNameLabelKey] = b.ClusterName
-	settingsKubernetes[BottlerocketTomlApiServerLabelKey] = b.ClusterEndpoint
-	settingsKubernetes[BottlerocketTomlClusterCertificateLabelKey] = b.CABundle
+	settingsKubernetes := s.GetKubernetesSettings()
+	settingsKubernetes["cluster-name"] = b.ClusterName
+	settingsKubernetes["api-server"] = b.ClusterEndpoint
+	settingsKubernetes["cluster-certificate"] = b.CABundle
 
-	if settingsKubernetes[BottlerocketTomlNodeLabelsLabelKey] == nil {
-		settingsKubernetes[BottlerocketTomlNodeLabelsLabelKey] = map[string]string{}
+	if len(b.KubeletConfig.ClusterDNS) > 0 {
+		settingsKubernetes["cluster-dns-ip"] = b.KubeletConfig.ClusterDNS[0]
 	}
 
-	nodeLabelsMap := settingsKubernetes[BottlerocketTomlNodeLabelsLabelKey].(map[string]string)
-
-	if err := mergo.Merge(&nodeLabelsMap, b.Labels, mergo.WithOverride); err != nil {
+	nodeLabelsMap := s.GetCustomSettingsAsMap(settingsKubernetes, "node-labels")
+	nodeLabelAsMapString := make(map[string]string)
+	for k, v := range nodeLabelsMap {
+		nodeLabelAsMapString[k] = v.(string)
+	}
+	if err := mergo.Merge(&nodeLabelAsMapString, b.Labels, mergo.WithOverride); err != nil {
 		return "", err
 	}
+	settingsKubernetes["node-labels"] = nodeLabelAsMapString
 
-	if settingsKubernetes[BottlerocketTomlNodeTaintsLabelKey] == nil {
-		settingsKubernetes[BottlerocketTomlNodeTaintsLabelKey] = map[string][]string{}
-	}
-
+	nodTaintsAsMapSliceString := make(map[string][]string)
 	for _, taint := range b.Taints {
-		tomlTaint := settingsKubernetes[BottlerocketTomlNodeTaintsLabelKey].(map[string][]string)[taint.Key]
-		tomlTaint = append(tomlTaint, fmt.Sprintf("%s:%s", taint.Value, taint.Effect))
+		nodTaintsAsMapSliceString[taint.Key] = append(nodTaintsAsMapSliceString[taint.Key], fmt.Sprintf("%s:%s", taint.Value, taint.Effect))
 	}
+	settingsKubernetes["node-taints"] = nodTaintsAsMapSliceString
 
 	if lo.FromPtr(b.InstanceStorePolicy) == v1.InstanceStorePolicyRAID0 {
-		if s.SettingsRaw[BottlerocketTomlBootstrapCommandsLabelKey] == nil {
-			s.SettingsRaw[BottlerocketTomlBootstrapCommandsLabelKey] = map[string]interface{}{}
-		}
-		mountInstanceStorageCmd := s.SettingsRaw[BottlerocketTomlBootstrapCommandsLabelKey].(map[string]interface{})["000-mount-instance-storage"]
-		mountInstanceStorageCmd.(map[string]interface{})["commands"] = [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}}
-		mountInstanceStorageCmd.(map[string]interface{})["essential"] = true
-		mountInstanceStorageCmd.(map[string]interface{})["mode"] = BootstrapCommandModeAlways
+		bootstrapCommands := make(map[string]interface{})
+		bootstrapCommands["commands"] = [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}}
+		bootstrapCommands["mode"] = BootstrapCommandModeAlways
+		bootstrapCommands["essential"] = true
 
+		settingsBootstrapCommand := s.GetCustomSettingsAsMap(s.SettingsRaw, "bootstrap-commands")
+		settingsBootstrapCommand["000-mount-instance-storage"] = bootstrapCommands
+		s.SettingsRaw["bootstrap-commands"] = settingsBootstrapCommand
 	}
+
 	script, err := s.MarshalTOML()
 	if err != nil {
 		return "", fmt.Errorf("constructing toml UserData %w", err)
