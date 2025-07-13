@@ -1413,7 +1413,8 @@ spec:
 
 {{% alert title="Warning" color="warning" %}}
 Any values configured by Karpenter will take precedent over values specifed in `spec.userData`.
-This includes cluster name, cluster endpoint, cluster certificate, taints and labels.
+This includes cluster name, cluster endpoint, cluster certificate, taints and labels. Labels are merged with your defined `settings.kubernetes.node-labels` and 
+taints are completely replaced with Karpenter defaults, then `settings.kubernetes.node-taints` defined by you will be ignored.
 These fields must be configured natively through Karpenter rather than through UserData.
 {{% /alert %}}
 
