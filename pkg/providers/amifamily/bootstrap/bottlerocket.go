@@ -41,7 +41,7 @@ func (b Bottlerocket) Script() (string, error) {
 	settingsKubernetes["api-server"] = b.ClusterEndpoint
 	settingsKubernetes["cluster-certificate"] = b.CABundle
 
-	if len(b.KubeletConfig.ClusterDNS) > 0 {
+	if b.KubeletConfig != nil && len(b.KubeletConfig.ClusterDNS) > 0 {
 		settingsKubernetes["cluster-dns-ip"] = b.KubeletConfig.ClusterDNS[0]
 	}
 
