@@ -63,3 +63,23 @@ func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 	}
 	return toml.Marshal(c)
 }
+
+func (c *BottlerocketConfig) GetKubernetesSettings() map[string]interface{} {
+	if c.SettingsRaw == nil {
+		c.SettingsRaw = map[string]interface{}{}
+	}
+
+	if c.SettingsRaw["kubernetes"] == nil {
+		c.SettingsRaw["kubernetes"] = map[string]interface{}{}
+	}
+
+	return c.SettingsRaw["kubernetes"].(map[string]interface{})
+}
+
+func (c *BottlerocketConfig) GetCustomSettingsAsMap(parent map[string]interface{}, key string) map[string]interface{} {
+	if parent == nil || parent[key] == nil {
+		return map[string]interface{}{}
+	} else {
+		return parent[key].(map[string]interface{})
+	}
+}

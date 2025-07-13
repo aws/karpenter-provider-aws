@@ -9,9 +9,6 @@ max-pods = 9999999999 # replaceme
 [settings.kubernetes.eviction-hard]
 "memory.available" = "12%%"
 
-[settings.kubernetes.labels]
-"replace" = "me"
-
 [settings.kubernetes.node-labels]
 "custom-node-label" = "custom"
 "%s" = "should-be-overridden"
