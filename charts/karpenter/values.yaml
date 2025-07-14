@@ -57,7 +57,6 @@ podDisruptionBudget:
   maxUnavailable: 1
 # -- SecurityContext for the pod.
 podSecurityContext:
-  runAsNonRoot: false
   fsGroup: 65532
   seccompProfile:
     type: RuntimeDefault
@@ -184,6 +183,8 @@ settings:
   # -- How the Karpenter scheduler should treat preferences. Preferences include preferredDuringSchedulingIgnoreDuringExecution
   # node and pod affinities/anti-affinities and ScheduleAnyways topologySpreadConstraints. Can be one of 'Ignore' and 'Respect'
   preferencePolicy: Respect
+  # -- How the Karpenter scheduler treats min values. Options include 'Strict' (fails scheduling when min values can't be met) and 'BestEffort' (relaxes min values when they can't be met).
+  minValuesPolicy: Strict
   # -- Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server.
   clusterCABundle: ""
   # -- Cluster name.
@@ -210,9 +211,9 @@ settings:
     # -- nodeRepair is ALPHA and is disabled by default.
     # Setting this to true will enable node repair.
     nodeRepair: false
-    # -- reservedCapacity is ALPHA and is disabled by default.
+    # -- reservedCapacity is BETA and is enabled by default.
     # Setting this will enable native on-demand capacity reservation support.
-    reservedCapacity: false
+    reservedCapacity: true
     # -- spotToSpotConsolidation is ALPHA and is disabled by default.
     # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
     spotToSpotConsolidation: false

@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -62,7 +63,7 @@ var _ = BeforeEach(func() {
 })
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
-var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
+var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minValuesPolicy options.MinValuesPolicy) {
 	var selectors sets.Set[string]
 
 	BeforeEach(func() {
@@ -81,6 +82,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				},
 			},
 		)
+		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "MIN_VALUES_POLICY", Value: string(minValuesPolicy)})
 	})
 	BeforeAll(func() {
 		selectors = sets.New[string]()
@@ -365,6 +367,54 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
+		})
+		It("should honor minValuesPolicy when provisioning a node", func() {
+			eventClient := debug.NewEventClient(env.Client)
+			pod := test.Pod()
+			nodePoolWithMinValues := test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"c5.large", "invalid-instance-type-1", "invalid-instance-type-2"},
+				},
+				MinValues: lo.ToPtr(3),
+			})
+			env.ExpectCreated(nodeClass, nodePoolWithMinValues, pod)
+
+			// minValues should only be relaxed when policy is set to BestEffort
+			if minValuesPolicy == options.MinValuesPolicyBestEffort {
+				env.EventuallyExpectHealthy(pod)
+				env.ExpectCreatedNodeCount("==", 1)
+				nodeClaim := env.ExpectNodeClaimCount("==", 1)
+				Expect(nodeClaim[0].Annotations).To(HaveKeyWithValue(karpv1.NodeClaimMinValuesRelaxedAnnotationKey, "true"))
+				Expect(nodeClaim[0].Spec.Requirements).To(ContainElement(karpv1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"c5.large"},
+					},
+					MinValues: lo.ToPtr(1),
+				}))
+			} else {
+				env.ExpectExists(pod)
+				// Give a min for the scheduling decision to be done.
+				env.ConsistentlyExpectPendingPods(time.Minute, pod)
+				env.EventuallyExpectNodeCount("==", 0)
+				env.ExpectNodeClaimCount("==", 0)
+				events, err := eventClient.GetEvents(env.Context, "NodePool")
+				Expect(err).ToNot(HaveOccurred())
+				key, found := lo.FindKeyBy(events, func(k corev1.ObjectReference, v *corev1.EventList) bool {
+					return k.Name == nodePoolWithMinValues.Name &&
+						k.Namespace == nodePoolWithMinValues.Namespace
+				})
+				Expect(found).To(BeTrue())
+				_, found = lo.Find(events[key].Items, func(e corev1.Event) bool {
+					return e.InvolvedObject.Name == nodePoolWithMinValues.Name &&
+						e.InvolvedObject.Namespace == nodePoolWithMinValues.Namespace &&
+						e.Message == "NodePool requirements filtered out all compatible available instance types due to minValues incompatibility"
+				})
+				Expect(found).To(BeTrue())
+			}
 		})
 		It("should provision a node for a deployment", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 			deployment := test.Deployment(test.DeploymentOptions{Replicas: 50})
@@ -858,7 +908,10 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.EventuallyExpectNodeCount("==", 2)
 		})
 	})
-})
+},
+	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
+	Entry("MinValuesPolicyStrict", options.MinValuesPolicyStrict),
+)
 
 func ephemeralInitContainer(requirements corev1.ResourceRequirements) corev1.Container {
 	return corev1.Container{
