@@ -57,7 +57,6 @@ podDisruptionBudget:
   maxUnavailable: 1
 # -- SecurityContext for the pod.
 podSecurityContext:
-  runAsNonRoot: false
   fsGroup: 65532
   seccompProfile:
     type: RuntimeDefault
