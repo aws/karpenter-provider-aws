@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
@@ -188,7 +187,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 		capacityReservationProvider,
-		cache.New(5*time.Minute, 5*time.Minute),
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 	)
 
 	// Setup field indexers on instanceID -- specifically for the interruption controller

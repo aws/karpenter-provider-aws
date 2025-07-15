@@ -142,6 +142,7 @@ var _ = Describe("GarbageCollection", func() {
 		awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), *instance)
 
 		ExpectSingletonReconciled(ctx, garbageCollectionController)
+		awsEnv.InstanceCache.Flush()
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).To(HaveOccurred())
 		Expect(karpcloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
@@ -157,6 +158,7 @@ var _ = Describe("GarbageCollection", func() {
 		ExpectApplied(ctx, env.Client, node)
 
 		ExpectSingletonReconciled(ctx, garbageCollectionController)
+		awsEnv.InstanceCache.Flush()
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).To(HaveOccurred())
 		Expect(karpcloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
@@ -212,7 +214,7 @@ var _ = Describe("GarbageCollection", func() {
 			go func(id string) {
 				defer GinkgoRecover()
 				defer wg.Done()
-
+				awsEnv.InstanceCache.Flush()
 				_, err := cloudProvider.Get(ctx, fake.ProviderID(id))
 				Expect(err).To(HaveOccurred())
 				Expect(karpcloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())

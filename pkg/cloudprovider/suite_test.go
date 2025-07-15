@@ -944,6 +944,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(corecloudprovider.DriftReason("")))
 			setReservationID("cr-bar")
+			awsEnv.InstanceCache.Flush()
 			isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.CapacityReservationDrift))
