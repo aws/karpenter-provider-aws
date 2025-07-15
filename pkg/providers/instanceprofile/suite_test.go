@@ -105,7 +105,8 @@ var _ = Describe("InstanceProfileProvider", func() {
 		func(roleWithPath, role string) {
 			const profileName = "test-profile"
 			nodeClass.Spec.Role = roleWithPath
-			Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, role, nil)).To(Succeed())
+			path := fmt.Sprintf("/karpenter/%s/%s/%s/", options.FromContext(ctx).ClusterName, nodeClass.UID, profileName)
+			Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, role, path, nil)).To(Succeed())
 			Expect(profileName).ToNot(BeNil())
 			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
 			Expect(aws.ToString(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName)).To(Equal(role))

@@ -18,11 +18,14 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	//"sync"
+
+	"github.com/patrickmn/go-cache"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -32,12 +35,14 @@ import (
 type InstanceProfile struct {
 	instanceProfileProvider instanceprofile.Provider
 	region                  string
+	cache                   *cache.Cache
 }
 
 func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider, region string) *InstanceProfile {
 	return &InstanceProfile{
 		instanceProfileProvider: instanceProfileProvider,
 		region:                  region,
+		cache:                   cache.New(time.Hour, time.Minute),
 	}
 }
 
@@ -66,10 +71,14 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 			log.Printf("Generated new profile name: %s", newProfileName)
 
 			// Create new profile
+			path := fmt.Sprintf("/karpenter/%s/%s/%s/", options.FromContext(ctx).ClusterName, string(nodeClass.UID), newProfileName)
+			log.Printf("THIS IS THE PATH: %s", path)
+
 			if err := ip.instanceProfileProvider.Create(
 				ctx,
 				newProfileName,
 				nodeClass.InstanceProfileRole(),
+				path,
 				nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
 			); err != nil {
 				return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
@@ -77,7 +86,7 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 
 			// Track the replacement change
 			if oldProfileName != "" {
-				instanceprofile.TrackReplacement(oldProfileName)
+				ip.instanceProfileProvider.TrackReplacement(oldProfileName)
 			}
 
 			nodeClass.Status.InstanceProfile = newProfileName

@@ -20,8 +20,10 @@ import (
 	"time"
 
 	"github.com/awslabs/operatorpkg/singleton"
+	"k8s.io/apimachinery/pkg/util/sets"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -58,16 +60,16 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudPr
 	}
 }
 
-func (c *Controller) getActiveProfiles(ctx context.Context) (map[string]struct{}, error) {
+func (c *Controller) getActiveProfiles(ctx context.Context) (sets.Set[string], error) {
 	nodeClaims, err := nodeclaimutils.ListManaged(ctx, c.kubeClient, c.cloudProvider)
 	if err != nil {
 		return nil, fmt.Errorf("listing nodeclaims, %w", err)
 	}
 
-	activeProfiles := make(map[string]struct{})
+	activeProfiles := sets.New[string]()
 	for _, nc := range nodeClaims {
 		if profileName, ok := nc.Annotations[v1.AnnotationInstanceProfile]; ok {
-			activeProfiles[profileName] = struct{}{}
+			activeProfiles.Insert(profileName)
 			continue
 		}
 
@@ -75,61 +77,44 @@ func (c *Controller) getActiveProfiles(ctx context.Context) (map[string]struct{}
 		clusterName := options.FromContext(ctx).ClusterName
 		hash := lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", c.region, nc.Spec.NodeClassRef.Name), hashstructure.FormatV2, nil))
 		oldProfileName := fmt.Sprintf("%s_%d", clusterName, hash)
-		activeProfiles[oldProfileName] = struct{}{}
+		activeProfiles.Insert(oldProfileName)
 	}
 	return activeProfiles, nil
 }
 
-func (c *Controller) getCurrentProfiles(ctx context.Context) (map[string]struct{}, error) {
+func (c *Controller) getCurrentProfiles(ctx context.Context) (sets.Set[string], error) {
 	nodeClasses := &v1.EC2NodeClassList{}
 	if err := c.kubeClient.List(ctx, nodeClasses); err != nil {
 		return nil, fmt.Errorf("listing nodeclasses, %w", err)
 	}
 
-	currentProfiles := make(map[string]struct{})
+	currentProfiles := sets.New[string]()
+
 	for _, nc := range nodeClasses.Items {
 		if nc.Status.InstanceProfile != "" {
-			currentProfiles[nc.Status.InstanceProfile] = struct{}{}
+			currentProfiles.Insert(nc.Status.InstanceProfile)
 		}
 	}
 	return currentProfiles, nil
 }
 
-func (c *Controller) shouldDeleteProfile(ctx context.Context, profileName string, currentProfiles map[string]struct{}, clusterName string) (bool, error) {
+func (c *Controller) shouldDeleteProfile(profileName string, currentProfiles sets.Set[string]) bool {
 	// Skip if this is a current profile in any EC2NodeClass
 	if _, isCurrent := currentProfiles[profileName]; isCurrent {
-		return false, nil
+		return false
 	}
 
-	tags, err := c.instanceProfileProvider.ListTags(ctx, profileName)
-	if err != nil {
-		return false, fmt.Errorf("failed to list tags for instance profile %s: %w", profileName, err)
-	}
-
-	tagMap := make(map[string]string)
-	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
-	}
-
-	clusterTag := fmt.Sprintf("kubernetes.io/cluster/%s", clusterName)
-	if tagMap[clusterTag] != "owned" {
-		return false, nil
-	}
-	if tagMap[v1.EKSClusterNameTagKey] != clusterName {
-		return false, nil
-	}
-
-	creationTime, ok := instanceprofile.GetCreationTime(profileName)
+	creationTime, ok := c.instanceProfileProvider.GetCreationTime(profileName)
 	if !ok {
 		creationTime = time.Now().Add(-GarbageCollectionDelay)
 	}
 
-	return time.Since(creationTime) >= GarbageCollectionDelay, nil
+	return time.Since(creationTime) >= GarbageCollectionDelay
 }
 
-func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles, currentProfiles map[string]struct{}) error {
+func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles sets.Set[string], currentProfiles sets.Set[string]) error {
 	clusterName := options.FromContext(ctx).ClusterName
-	profiles, err := c.instanceProfileProvider.ListByPrefix(ctx, clusterName)
+	profiles, err := c.instanceProfileProvider.ListByPrefix(ctx, fmt.Sprintf("/karpenter/%s/", clusterName))
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)
 	}
@@ -137,19 +122,16 @@ func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles
 	for _, profile := range profiles {
 		profileName := *profile.InstanceProfileName
 
-		shouldDelete, err := c.shouldDeleteProfile(ctx, profileName, currentProfiles, clusterName)
-		if err != nil {
-			return err
-		}
+		shouldDelete := c.shouldDeleteProfile(profileName, currentProfiles)
+
 		if !shouldDelete {
 			continue
 		}
-
 		if _, isActive := activeProfiles[profileName]; !isActive {
 			if err := c.instanceProfileProvider.Delete(ctx, profileName); err != nil {
 				log.FromContext(ctx).Error(err, "failed to delete instance profile", "profile", profileName)
 			} else {
-				instanceprofile.DeleteTracking(profileName)
+				c.instanceProfileProvider.DeleteTracking(profileName)
 			}
 		}
 	}
