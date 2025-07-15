@@ -810,6 +810,7 @@ var _ = Describe("CloudProvider", func() {
 				v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
 			})
 			nodeClaim.Status.ProviderID = fake.ProviderID(lo.FromPtr(instance.InstanceId))
+			nodeClaim.Status.ImageID = amdAMIID
 			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
 				v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
 				v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
@@ -829,11 +830,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(drifted).To(BeEmpty())
 		})
 		It("should return drifted if the AMI is not valid", func() {
-			// Instance is a reference to what we return in the GetInstances call
-			instance.ImageId = aws.String(fake.ImageID())
-			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
-			})
+			nodeClaim.Status.ImageID = fake.ImageID()
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
@@ -961,6 +958,11 @@ var _ = Describe("CloudProvider", func() {
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
+		It("should error if the NodeClaim doesn't have ImageID", func() {
+			nodeClaim.Status.ImageID = ""
+			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).To(HaveOccurred())
+		})
 		It("should error drift if NodeClaim doesn't have provider id", func() {
 			nodeClaim.Status = karpv1.NodeClaimStatus{}
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -985,10 +987,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			}
-			instance.ImageId = aws.String(armAMIID)
-			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
-			})
+			nodeClaim.Status.ImageID = armAMIID
 			ExpectApplied(ctx, env.Client, nodeClass)
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())

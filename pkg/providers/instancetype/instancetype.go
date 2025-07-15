@@ -255,6 +255,8 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 				Values: []string{"x86_64", "arm64"},
 			},
 		},
+		// MaxResults for DescribeInstanceTypes is capped at 100
+		MaxResults: lo.ToPtr[int32](100),
 	})
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
@@ -290,6 +292,8 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 
 	paginator := ec2.NewDescribeInstanceTypeOfferingsPaginator(p.ec2api, &ec2.DescribeInstanceTypeOfferingsInput{
 		LocationType: ec2types.LocationTypeAvailabilityZone,
+		// MaxResults for DescribeInstanceTypeOfferings is capped at 1000
+		MaxResults: lo.ToPtr[int32](1000),
 	})
 
 	for paginator.HasMorePages() {

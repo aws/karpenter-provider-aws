@@ -175,6 +175,10 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		unavailableOfferingsCache,
 		instancetype.NewDefaultResolver(cfg.Region),
 	)
+	// Ensure we're able to hydrate instance types before starting any reliant controllers.
+	// Instance type updates are hydrated asynchronously after this by controllers.
+	lo.Must0(instanceTypeProvider.UpdateInstanceTypes(ctx))
+	lo.Must0(instanceTypeProvider.UpdateInstanceTypeOfferings(ctx))
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		cfg.Region,
