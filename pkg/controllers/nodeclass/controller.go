@@ -18,12 +18,10 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
@@ -189,47 +187,21 @@ func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.
 		return nil
 	}
 
-	profileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
-	idx := strings.LastIndex(profileName, "_")
-	baseProfileName := profileName[:idx]
-
-	out, err := c.instanceProfileProvider.ListByPrefix(ctx, baseProfileName)
+	out, err := c.instanceProfileProvider.ListByPrefix(ctx, fmt.Sprintf("/karpenter/%s/%s/", options.FromContext(ctx).ClusterName, string(nodeClass.UID)))
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)
 	}
 
-	clusterName := options.FromContext(ctx).ClusterName
 	for _, profile := range out {
-		if err := c.cleanupSingleProfile(ctx, profile, clusterName, nodeClass.Name); err != nil {
+		if err := c.cleanupSingleProfile(ctx, profile); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *Controller) cleanupSingleProfile(ctx context.Context, profile *iamtypes.InstanceProfile, clusterName, nodeClassName string) error {
+func (c *Controller) cleanupSingleProfile(ctx context.Context, profile *iamtypes.InstanceProfile) error {
 	name := *profile.InstanceProfileName
-	tags, err := c.instanceProfileProvider.ListTags(ctx, name)
-	if err != nil {
-		klog.Errorf("failed to list tags for instance profile %s: %v", name, err)
-		return nil
-	}
-
-	tagMap := make(map[string]string)
-	for _, tag := range tags {
-		tagMap[*tag.Key] = *tag.Value
-	}
-
-	clusterTag := fmt.Sprintf("kubernetes.io/cluster/%s", clusterName)
-	if tagMap[clusterTag] != "owned" {
-		return nil
-	}
-	if tagMap[v1.EKSClusterNameTagKey] != clusterName {
-		return nil
-	}
-	if tagMap[v1.LabelNodeClass] != nodeClassName {
-		return nil
-	}
 
 	if err := c.instanceProfileProvider.Delete(ctx, name); err != nil {
 		return fmt.Errorf("deleting instance profile, %w", err)

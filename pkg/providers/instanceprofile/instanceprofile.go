@@ -19,12 +19,15 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	"k8s.io/utils/clock"
 
 	// "github.com/aws/aws-sdk-go-v2/aws"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -34,22 +37,53 @@ import (
 
 type Provider interface {
 	Get(context.Context, string) (*iamtypes.InstanceProfile, error)
-	Create(context.Context, string, string, map[string]string) error
+	Create(context.Context, string, string, string, map[string]string) error
 	Delete(context.Context, string) error
 	ListByPrefix(context.Context, string) ([]*iamtypes.InstanceProfile, error)
-	ListTags(context.Context, string) ([]iamtypes.Tag, error)
+	GetCreationTime(string) (time.Time, bool)
+	TrackReplacement(string)
+	DeleteTracking(string)
+	SetClock(clock.Clock)
 }
 
 type DefaultProvider struct {
-	iamapi sdk.IAMAPI
-	cache  *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
+	iamapi          sdk.IAMAPI
+	cache           *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
+	mu              sync.RWMutex
+	creationTimeMap map[string]time.Time
+	clock           clock.Clock
 }
 
 func NewDefaultProvider(iamapi sdk.IAMAPI, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
-		iamapi: iamapi,
-		cache:  cache,
+		iamapi:          iamapi,
+		cache:           cache,
+		creationTimeMap: map[string]time.Time{},
+		clock:           clock.RealClock{},
 	}
+}
+
+func (p *DefaultProvider) SetClock(c clock.Clock) {
+	p.clock = c
+}
+
+func (p *DefaultProvider) GetCreationTime(profileName string) (time.Time, bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	val, ok := p.creationTimeMap[profileName]
+	return val, ok
+}
+
+func (p *DefaultProvider) TrackReplacement(oldProfile string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.creationTimeMap[oldProfile] = p.clock.Now()
+}
+
+func (p *DefaultProvider) DeleteTracking(profileName string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	delete(p.creationTimeMap, profileName)
 }
 
 func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
@@ -66,7 +100,7 @@ func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (
 	return out.InstanceProfile, nil
 }
 
-func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string, roleName string, tags map[string]string) error {
+func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string, roleName string, path string, tags map[string]string) error {
 	instanceProfile, err := p.Get(ctx, instanceProfileName)
 	if err != nil {
 		if !awserrors.IsNotFound(err) {
@@ -75,6 +109,7 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 		o, err := p.iamapi.CreateInstanceProfile(ctx, &iam.CreateInstanceProfileInput{
 			InstanceProfileName: lo.ToPtr(instanceProfileName),
 			Tags:                utils.IAMMergeTags(tags),
+			Path:                lo.ToPtr(path),
 		})
 		if err != nil {
 			log.Printf("CALLING CREATE FAILED")
@@ -142,30 +177,15 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 
 func (p *DefaultProvider) ListByPrefix(ctx context.Context, prefix string) ([]*iamtypes.InstanceProfile, error) {
 	out, err := p.iamapi.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{
-		//PathPrefix: aws.String(prefix),
+		PathPrefix: lo.ToPtr(prefix),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("listing instance profiles, %w", err)
 	}
 
-	// Convert
-	// profiles := make([]*iamtypes.InstanceProfile, len(out.InstanceProfiles))
 	var profiles []*iamtypes.InstanceProfile
 	for i := range out.InstanceProfiles {
-		if strings.HasPrefix(*out.InstanceProfiles[i].InstanceProfileName, prefix) {
-			profiles = append(profiles, &out.InstanceProfiles[i])
-		}
-		//profiles[i] = &out.InstanceProfiles[i]
+		profiles = append(profiles, &out.InstanceProfiles[i])
 	}
 	return profiles, nil
-}
-
-func (p *DefaultProvider) ListTags(ctx context.Context, instanceProfileName string) ([]iamtypes.Tag, error) {
-	out, err := p.iamapi.ListInstanceProfileTags(ctx, &iam.ListInstanceProfileTagsInput{
-		InstanceProfileName: lo.ToPtr(instanceProfileName),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("listing instance profile tags, %w", err)
-	}
-	return out.Tags, nil
 }

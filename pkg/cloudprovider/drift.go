@@ -38,15 +38,15 @@ const (
 	SecurityGroupDrift       cloudprovider.DriftReason = "SecurityGroupDrift"
 	CapacityReservationDrift cloudprovider.DriftReason = "CapacityReservationDrift"
 	NodeClassDrift           cloudprovider.DriftReason = "NodeClassDrift"
-	InstanceProfileDrift     cloudprovider.DriftReason = "InstanceProfileDrift"
+	// InstanceProfileDrift     cloudprovider.DriftReason = "InstanceProfileDrift"
 )
 
 func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
 
-	// Check instance profile drift first
-	if drifted := c.isInstanceProfileDrifted(nodeClaim, nodeClass); drifted != "" {
-		return drifted, nil
-	}
+	// // Check instance profile drift first
+	// if drifted := c.isInstanceProfileDrifted(nodeClaim, nodeClass); drifted != "" {
+	// 	return drifted, nil
+	// }
 	// First check if the node class is statically drifted to save on API calls.
 	if drifted := c.areStaticFieldsDrifted(nodeClaim, nodeClass); drifted != "" {
 		return drifted, nil
@@ -81,19 +81,19 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 	return drifted, nil
 }
 
-func (c *CloudProvider) isInstanceProfileDrifted(nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {
-	// Get the instance profile from the NodeClaim annotation
-	nodeClaimInstanceProfile, ok := nodeClaim.Annotations[v1.AnnotationInstanceProfile]
-	if !ok {
-		return ""
-	}
+// func (c *CloudProvider) isInstanceProfileDrifted(nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {
+// 	// Get the instance profile from the NodeClaim annotation
+// 	nodeClaimInstanceProfile, ok := nodeClaim.Annotations[v1.AnnotationInstanceProfile]
+// 	if !ok {
+// 		return ""
+// 	}
 
-	// Compare with current NodeClass instance profile
-	if nodeClass.Status.InstanceProfile != nodeClaimInstanceProfile {
-		return InstanceProfileDrift
-	}
-	return ""
-}
+// 	// Compare with current NodeClass instance profile
+// 	if nodeClass.Status.InstanceProfile != nodeClaimInstanceProfile {
+// 		return InstanceProfileDrift
+// 	}
+// 	return ""
+// }
 
 func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool,
 	nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
