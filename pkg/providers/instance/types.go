@@ -85,11 +85,8 @@ func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
 }
 
 func tenancyFromInstance(instance ec2types.Instance) string {
-	var tenancy = instance.Placement.Tenancy
-	if tenancy == "" {
-		tenancy = ec2types.TenancyDefault
-	}
-	return string(tenancy)
+	tenancy := instance.Placement.Tenancy
+	return string(lo.Ternary(tenancy == "", ec2types.TenancyDefault, tenancy))
 }
 
 func capacityTypeFromInstance(ctx context.Context, instance ec2types.Instance) string {

@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"regexp"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
@@ -56,6 +58,9 @@ func init() {
 		LabelTenancy,
 		corev1.LabelWindowsBuild,
 	)
+
+	karpv1.WellKnownValuesForRequirements[LabelTenancy] = sets.New(string(ec2types.TenancyDedicated), string(ec2types.TenancyDefault))
+
 	karpv1.WellKnownResources.Insert(
 		ResourceAWSPodENI,
 		ResourceAWSNeuron,

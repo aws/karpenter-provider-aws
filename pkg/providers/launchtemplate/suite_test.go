@@ -2508,7 +2508,7 @@ eviction-max-pod-grace-period = 10
 		})
 	})
 	Context("Tenancy", func() {
-		DescribeTable("Sets tenancy on launch template",
+		DescribeTable("should set tenancy on launch template",
 			func(specTenancy *string, tenancy ec2types.Tenancy) {
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				nodeSelector := map[string]string{}
@@ -2525,9 +2525,9 @@ eviction-max-pod-grace-period = 10
 					Expect(ltInput.LaunchTemplateData.Placement.Tenancy).To(Equal(tenancy))
 				})
 			},
-			Entry("not specified", nil, ec2types.TenancyDefault),
-			Entry("default specified", lo.ToPtr("default"), ec2types.TenancyDefault),
-			Entry("dedicated specified", lo.ToPtr("dedicated"), ec2types.TenancyDedicated),
+			Entry("when not specified", nil, ec2types.TenancyDefault),
+			Entry("when default specified", lo.ToPtr("default"), ec2types.TenancyDefault),
+			Entry("when dedicated specified", lo.ToPtr("dedicated"), ec2types.TenancyDedicated),
 		)
 	})
 	It("should generate a unique launch template per capacity reservation", func() {
