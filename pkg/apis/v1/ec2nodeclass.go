@@ -499,8 +499,7 @@ func (in *EC2NodeClass) Hash() string {
 
 func (in *EC2NodeClass) InstanceProfileName(clusterName, region string) string {
 	randomID := uuid.New().String()[:8] // Use first 8 chars of UUID for brevity
-	hash := lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s%s", region, in.Name, randomID), hashstructure.FormatV2, nil))
-	return fmt.Sprintf("%s_%d_%s", clusterName, hash, randomID)
+	return fmt.Sprintf("%s_%d", clusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s%s", region, in.Name, randomID), hashstructure.FormatV2, nil)))
 }
 
 func (in *EC2NodeClass) InstanceProfileRole() string {
