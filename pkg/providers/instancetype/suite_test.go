@@ -2085,8 +2085,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			pod.Spec.Affinity = &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
 				{
 					Weight: 1, Preference: corev1.NodeSelectorTerm{MatchExpressions: []corev1.NodeSelectorRequirement{
-					{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-				}},
+						{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					}},
 				},
 			}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2165,8 +2165,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			pod.Spec.Affinity = &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
 				{
 					Weight: 1, Preference: corev1.NodeSelectorTerm{MatchExpressions: []corev1.NodeSelectorRequirement{
-					{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-				}},
+						{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					}},
 				},
 			}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2858,14 +2858,14 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 	})
 	Context("Tenancy", func() {
-		It("defaults to default tenancy", func() {
+		It("Should use default tenancy when no requirement is given for tenancy", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTenancy, string(ec2types.TenancyDefault)))
 		})
-		It("uses default tenancy if nodepool is ambiguous", func() {
+		It("Should use default tenancy if tenancy requirement specifies both default and dedicated tenancies", func() {
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
 					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -2884,7 +2884,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTenancy, string(ec2types.TenancyDefault)))
 		})
-		It("launches with default tenancy", func() {
+		It("Should launch with default tenancy when required", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
@@ -2895,7 +2895,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTenancy, string(ec2types.TenancyDefault)))
 		})
-		It("launches with dedicated tenancy", func() {
+		It("Should launch with dedicated tenancy when required", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
