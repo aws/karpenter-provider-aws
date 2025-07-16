@@ -1,6 +1,6 @@
 ---
-title: "Utilizing On-Demand Capacity Reservations"
-linkTitle: "Utilizing ODCRs"
+title: "Utilizing On-Demand Capacity Reservations and Capacity Blocks"
+linkTitle: "Utilizing ODCRs and Capacity Blocks"
 ---
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Beta]({{<ref "../reference/settings#feature-gates" >}})
@@ -26,6 +26,11 @@ capacityReservationSelectorTerms:
     application: foobar
 - id: cr-56fac701cc1951b03
 ```
+
+{{% alert title="Note" color="primary" %}}
+Capacity blocks are modeled as on-demand capacity reservations in EC2.
+To select capacity blocks, specify them in your `capacityReservationSelectorTerms` in the same way you would for a default ODCR.
+{{% /alert %}}
 
 For more information on configuring `capacityReservationSelectorTerms`, see the [NodeClass docs]({{< relref "../concepts/nodeclasses#speccapacityreservationselectorterms" >}}).
 
