@@ -31,9 +31,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
-	"github.com/mitchellh/hashstructure/v2"
-	"github.com/samber/lo"
-
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
@@ -70,14 +67,14 @@ func (c *Controller) getActiveProfiles(ctx context.Context) (sets.Set[string], e
 	for _, nc := range nodeClaims {
 		if profileName, ok := nc.Annotations[v1.AnnotationInstanceProfile]; ok {
 			activeProfiles.Insert(profileName)
-			continue
+			// continue
 		}
 
 		// Protect against migration where pre-upgrade NodeClaims do not have instanceprofile annotation
-		clusterName := options.FromContext(ctx).ClusterName
-		hash := lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", c.region, nc.Spec.NodeClassRef.Name), hashstructure.FormatV2, nil))
-		oldProfileName := fmt.Sprintf("%s_%d", clusterName, hash)
-		activeProfiles.Insert(oldProfileName)
+		// clusterName := options.FromContext(ctx).ClusterName
+		// hash := lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", c.region, nc.Spec.NodeClassRef.Name), hashstructure.FormatV2, nil))
+		// oldProfileName := fmt.Sprintf("%s_%d", clusterName, hash)
+		// activeProfiles.Insert(oldProfileName)
 	}
 	return activeProfiles, nil
 }
@@ -114,7 +111,7 @@ func (c *Controller) shouldDeleteProfile(profileName string, currentProfiles set
 
 func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles sets.Set[string], currentProfiles sets.Set[string]) error {
 	clusterName := options.FromContext(ctx).ClusterName
-	profiles, err := c.instanceProfileProvider.ListByPrefix(ctx, fmt.Sprintf("/karpenter/%s/", clusterName))
+	profiles, err := c.instanceProfileProvider.ListByPrefix(ctx, fmt.Sprintf("/karpenter/%s/%s/", c.region, clusterName))
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)
 	}

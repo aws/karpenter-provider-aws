@@ -29,6 +29,7 @@ import (
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 	"sigs.k8s.io/karpenter/pkg/utils/result"
 
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -187,7 +188,7 @@ func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.
 		return nil
 	}
 
-	out, err := c.instanceProfileProvider.ListByPrefix(ctx, fmt.Sprintf("/karpenter/%s/%s/", options.FromContext(ctx).ClusterName, string(nodeClass.UID)))
+	out, err := c.instanceProfileProvider.ListByPrefix(ctx, fmt.Sprintf("/karpenter/%s/%s/%s/", c.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID)))
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)
 	}
@@ -222,8 +223,17 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaims.Items, func(nc karpv1.NodeClaim, _ int) string { return nc.Name })))
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
+	// Deletes karpenter managed instance profiles for this nodeclass
 	if err := c.cleanupInstanceProfiles(ctx, nodeClass); err != nil {
 		return reconcile.Result{}, err
+	}
+	// Ensure to clean up instance profile that may have been created pre-upgrade
+	clusterName := options.FromContext(ctx).ClusterName
+	hash := lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", c.region, nodeClass.Name), hashstructure.FormatV2, nil))
+	oldProfileName := fmt.Sprintf("%s_%d", clusterName, hash)
+
+	if err := c.instanceProfileProvider.Delete(ctx, oldProfileName); err != nil {
+		return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
 	}
 
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {

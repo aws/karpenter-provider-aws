@@ -42,7 +42,7 @@ func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provid
 	return &InstanceProfile{
 		instanceProfileProvider: instanceProfileProvider,
 		region:                  region,
-		cache:                   cache.New(time.Hour, time.Minute),
+		cache:                   cache.New(1*time.Minute, 1*time.Minute),
 	}
 }
 
@@ -51,6 +51,22 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 		var currentRole string
 		var oldProfileName string
 
+		// Use a short-lived cache to prevent instance profile recreation for the same role
+		// in case of a status patch error in the EC2NodeClass controller
+		// if profileName, found := ip.cache.Get(nodeClass.Spec.Role); found {
+		// 	nodeClass.Status.InstanceProfile = profileName.(string)
+		// 	currentRole = nodeClass.Spec.Role
+		// } else {
+		// 	// Get the current profile info if it exists
+		// 	if nodeClass.Status.InstanceProfile != "" {
+		// 		oldProfileName = nodeClass.Status.InstanceProfile
+		// 		if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
+		// 			if len(profile.Roles) > 0 {
+		// 				currentRole = lo.FromPtr(profile.Roles[0].RoleName)
+		// 			}
+		// 		}
+		// 	}
+		// }
 		// Get the current profile info if it exists
 		if nodeClass.Status.InstanceProfile != "" {
 			oldProfileName = nodeClass.Status.InstanceProfile
@@ -70,8 +86,8 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 			newProfileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
 			log.Printf("Generated new profile name: %s", newProfileName)
 
-			// Create new profile
-			path := fmt.Sprintf("/karpenter/%s/%s/%s/", options.FromContext(ctx).ClusterName, string(nodeClass.UID), newProfileName)
+			// Create new profile with a specific path
+			path := fmt.Sprintf("/karpenter/%s/%s/%s/", ip.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))
 			log.Printf("THIS IS THE PATH: %s", path)
 
 			if err := ip.instanceProfileProvider.Create(
@@ -83,6 +99,10 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 			); err != nil {
 				return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
 			}
+
+			// Store the created instance profile in the short-lived cache
+			// ip.cache.Flush()
+			// ip.cache.SetDefault(nodeClass.Spec.Role, newProfileName)
 
 			// Track the replacement change
 			if oldProfileName != "" {
