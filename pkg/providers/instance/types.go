@@ -29,7 +29,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	"sigs.k8s.io/karpenter/pkg/operator/options"
+	karpopts "sigs.k8s.io/karpenter/pkg/operator/options"
 )
 
 // Instance is an internal data representation of either an ec2.Instance or an ec2.FleetInstance
@@ -86,7 +86,7 @@ func capacityTypeFromInstance(ctx context.Context, instance ec2types.Instance) s
 	if instance.SpotInstanceRequestId != nil {
 		return karpv1.CapacityTypeSpot
 	}
-	if options.FromContext(ctx).FeatureGates.ReservedCapacity &&
+	if karpopts.FromContext(ctx).FeatureGates.ReservedCapacity &&
 		instance.CapacityReservationId != nil &&
 		instance.CapacityReservationSpecification.CapacityReservationPreference == ec2types.CapacityReservationPreferenceCapacityReservationsOnly {
 		return karpv1.CapacityTypeReserved
