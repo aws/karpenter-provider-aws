@@ -168,7 +168,7 @@ func (c *CloudProvider) getInstance(ctx context.Context, providerID string) (*in
 	if err != nil {
 		return nil, err
 	}
-	instance, err := c.instanceProvider.Get(ctx, instanceID, true)
+	instance, err := c.instanceProvider.Get(ctx, instanceID)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance, %w", err)
 	}

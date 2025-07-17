@@ -110,7 +110,7 @@ func (c *Controller) tagInstance(ctx context.Context, nc *karpv1.NodeClaim, id s
 	}
 
 	// Remove tags which have been already populated
-	instance, err := c.instanceProvider.Get(ctx, id, false)
+	instance, err := c.instanceProvider.Get(ctx, id, instance.SkipCache)
 	if err != nil {
 		return fmt.Errorf("tagging nodeclaim, %w", err)
 	}
