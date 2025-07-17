@@ -184,6 +184,13 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 		return nil
 	}
 
+	if strings.HasPrefix(p.region, "us-gov") {
+		if p.cm.HasChanged("on-demand-prices", nil) {
+			log.FromContext(ctx).V(1).Info("pricing APIs aren't available in AWS GovCloud regions, on-demand pricing information will not be updated")
+		}
+		return nil
+	}
+
 	p.muOnDemand.Lock()
 	defer p.muOnDemand.Unlock()
 
