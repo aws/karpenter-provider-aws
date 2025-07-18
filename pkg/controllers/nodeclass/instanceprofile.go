@@ -48,30 +48,16 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 
 		// Use a short-lived cache to prevent instance profile recreation for the same role
 		// in case of a status patch error in the EC2NodeClass controller
-		// if profileName, found := ip.cache.Get(nodeClass.Spec.Role); found {
-		// 	nodeClass.Status.InstanceProfile = profileName.(string)
-		// 	currentRole = nodeClass.Spec.Role
-		// }
-
-		// profileName, found := ip.instanceProfileProvider.PreventRecreation(nodeClass.Spec.Role)
-		// if found {
-		// 	nodeClass.Status.InstanceProfile = profileName
-		// 	currentRole = nodeClass.Spec.Role
-		// } else {
-		// Get the current profile info if it exists
-		// if nodeClass.Status.InstanceProfile != "" {
-		// 	if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
-		// 		if len(profile.Roles) > 0 {
-		// 			currentRole = lo.FromPtr(profile.Roles[0].RoleName)
-		// 		}
-		// 	}
-		// }
-		// }
-
-		if nodeClass.Status.InstanceProfile != "" {
-			if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
-				if len(profile.Roles) > 0 {
-					currentRole = lo.FromPtr(profile.Roles[0].RoleName)
+		if profileName, found := ip.instanceProfileProvider.(*instanceprofile.DefaultProvider).PreventRecreation(nodeClass.Spec.Role); found {
+			nodeClass.Status.InstanceProfile = profileName
+			currentRole = nodeClass.Spec.Role
+		} else {
+			// Get the current profile info if it exists
+			if nodeClass.Status.InstanceProfile != "" {
+				if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
+					if len(profile.Roles) > 0 {
+						currentRole = lo.FromPtr(profile.Roles[0].RoleName)
+					}
 				}
 			}
 		}
@@ -99,8 +85,6 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 				return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
 			}
 
-			// Store the created instance profile in the short-lived cache
-			// ip.cache.SetDefault(nodeClass.Spec.Role, newProfileName)
 			nodeClass.Status.InstanceProfile = newProfileName
 		}
 	} else {

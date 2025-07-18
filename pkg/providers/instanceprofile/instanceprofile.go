@@ -25,7 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/awslabs/operatorpkg/serrors"
-	"github.com/patrickmn/go-cache"
+	gocache "github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -49,19 +49,21 @@ type Provider interface {
 
 type DefaultProvider struct {
 	iamapi            sdk.IAMAPI
-	cache             *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
-	protectedProfiles *cache.Cache
+	cache             *gocache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
+	protectedProfiles *gocache.Cache // Cache to account for eventual consistency delays when garbage collecting
+	recreationCache   *gocache.Cache // Cache to prevent instance profile recreation upon status patch error
 
 	// For testing purposes
 	mu              sync.RWMutex
 	protectionState map[string]bool // For test overrides
 }
 
-func NewDefaultProvider(iamapi sdk.IAMAPI, cacheA *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(iamapi sdk.IAMAPI, cache *gocache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		iamapi:            iamapi,
-		cache:             cacheA,
-		protectedProfiles: cache.New(time.Minute, time.Minute), // TTL should represent worst case "wait period" before deleting a non-active instance profile is acceptable
+		cache:             cache,
+		protectedProfiles: gocache.New(time.Minute, time.Minute), // TTL should represent worst case "wait period" before deleting a non-active instance profile is acceptable
+		recreationCache:   gocache.New(10*time.Second, 10*time.Second),
 	}
 }
 
@@ -126,6 +128,7 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 	}}
 	p.cache.SetDefault(instanceProfileName, instanceProfile)
 	p.protectedProfiles.Set(instanceProfileName, struct{}{}, time.Minute)
+	p.recreationCache.SetDefault(roleName, instanceProfileName)
 
 	return nil
 }
@@ -153,6 +156,8 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 		return awserrors.IgnoreNotFound(serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", instanceProfileName))
 	}
 	p.cache.Delete(instanceProfileName)
+	p.protectedProfiles.Delete(instanceProfileName)
+	p.recreationCache.Delete(instanceProfileName)
 	return nil
 }
 
@@ -210,19 +215,17 @@ func (p *DefaultProvider) SetProtected(profileName string, protected bool) {
 	p.protectionState[profileName] = protected
 }
 
-// func (p *DefaultProvider) PreventRecreation(roleName string) (string, bool) {
-// 	for profileName, item := range p.cache.Items() {
-// 		profile := item.Object.(*iamtypes.InstanceProfile)
-// 		if len(profile.Roles) > 0 && lo.FromPtr(profile.Roles[0].RoleName) == roleName {
-// 			return profileName, true
-// 		}
-// 	}
-// 	return "", false
-// }
+func (p *DefaultProvider) PreventRecreation(roleName string) (string, bool) {
+	if profileName, found := p.recreationCache.Get(roleName); found {
+		return profileName.(string), true
+	}
+	return "", false
+}
 
 func (p *DefaultProvider) Reset() {
 	for k := range p.protectionState {
 		delete(p.protectionState, k)
 	}
 	p.protectedProfiles.Flush()
+	p.recreationCache.Flush()
 }

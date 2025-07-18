@@ -156,20 +156,6 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		// Here, we are updating the status condition list
 		if err := c.kubeClient.Status().Patch(ctx, nodeClass, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); err != nil {
 			if errors.IsConflict(err) {
-				// Delete the created instance profile if it hasn't yet patched into status
-				// This prevents multiple instance profiles from being created for the same role
-				if nodeClass.Spec.Role != "" && nodeClass.Status.InstanceProfile != "" {
-					if profile, err := c.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
-						if len(profile.Roles) > 0 {
-							currentRole := lo.FromPtr(profile.Roles[0].RoleName)
-							if currentRole == nodeClass.Spec.Role {
-								if err := c.instanceProfileProvider.Delete(ctx, nodeClass.Status.InstanceProfile); err != nil {
-									return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
-								}
-							}
-						}
-					}
-				}
 				log.Printf("REQUEUEING 2, conflict error: %s", err)
 				return reconcile.Result{Requeue: true}, nil
 			}
