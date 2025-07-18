@@ -94,7 +94,7 @@ func (c *Controller) shouldDeleteProfile(profileName string, currentProfiles set
 }
 
 func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles sets.Set[string], currentProfiles sets.Set[string]) error {
-	profiles, err := c.instanceProfileProvider.ListClusterProfiles(ctx, c.region)
+	profiles, err := c.instanceProfileProvider.ListClusterProfiles(ctx)
 
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)
