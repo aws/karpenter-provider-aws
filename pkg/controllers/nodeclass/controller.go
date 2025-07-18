@@ -173,7 +173,7 @@ func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.
 		return nil
 	}
 
-	out, err := c.instanceProfileProvider.ListNodeClassProfiles(ctx, c.region, nodeClass)
+	out, err := c.instanceProfileProvider.ListNodeClassProfiles(ctx, nodeClass)
 
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)

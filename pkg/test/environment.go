@@ -138,7 +138,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	// Version updates are hydrated asynchronously after this, in the event of a failure
 	// the previously resolved value will be used.
 	lo.Must0(versionProvider.UpdateVersion(ctx))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, instanceProfileCache)
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, instanceProfileCache, fake.DefaultRegion)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
 	amiResolver := amifamily.NewDefaultResolver()
