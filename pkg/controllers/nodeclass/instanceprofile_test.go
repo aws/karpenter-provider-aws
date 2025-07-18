@@ -228,6 +228,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		profileC := nodeClass.Status.InstanceProfile
 		Expect(profileC).NotTo(Equal(profileB))
 
+		awsEnv.InstanceProfileProvider.Reset()
 		// Transition back to role-A
 		nodeClass.Spec.Role = "role-A"
 		ExpectApplied(ctx, env.Client, nodeClass)
