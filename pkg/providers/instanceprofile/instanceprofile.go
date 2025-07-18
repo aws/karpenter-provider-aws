@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -30,7 +29,6 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
-	// "github.com/aws/aws-sdk-go-v2/aws"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
@@ -41,10 +39,9 @@ type Provider interface {
 	Get(context.Context, string) (*iamtypes.InstanceProfile, error)
 	Create(context.Context, string, string, string, map[string]string) error
 	Delete(context.Context, string) error
-	ListClusterProfiles(context.Context, string) ([]*iamtypes.InstanceProfile, error)
-	ListNodeClassProfiles(context.Context, string, *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error)
+	ListClusterProfiles(context.Context) ([]*iamtypes.InstanceProfile, error)
+	ListNodeClassProfiles(context.Context, *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error)
 	IsProtected(string) bool
-	// PreventRecreation(string) (string, bool)
 }
 
 type DefaultProvider struct {
@@ -52,18 +49,16 @@ type DefaultProvider struct {
 	cache             *gocache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
 	protectedProfiles *gocache.Cache // Cache to account for eventual consistency delays when garbage collecting
 	recreationCache   *gocache.Cache // Cache to prevent instance profile recreation upon status patch error
-
-	// For testing purposes
-	mu              sync.RWMutex
-	protectionState map[string]bool // For test overrides
+	region            string
 }
 
-func NewDefaultProvider(iamapi sdk.IAMAPI, cache *gocache.Cache) *DefaultProvider {
+func NewDefaultProvider(iamapi sdk.IAMAPI, cache *gocache.Cache, region string) *DefaultProvider {
 	return &DefaultProvider{
 		iamapi:            iamapi,
 		cache:             cache,
 		protectedProfiles: gocache.New(time.Minute, time.Minute), // TTL should represent worst case "wait period" before deleting a non-active instance profile is acceptable
 		recreationCache:   gocache.New(10*time.Second, 10*time.Second),
+		region:            region,
 	}
 }
 
@@ -127,7 +122,7 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 		RoleName: lo.ToPtr(roleName),
 	}}
 	p.cache.SetDefault(instanceProfileName, instanceProfile)
-	p.protectedProfiles.Set(instanceProfileName, struct{}{}, time.Minute)
+	p.protectedProfiles.SetDefault(instanceProfileName, struct{}{})
 	p.recreationCache.SetDefault(roleName, instanceProfileName)
 
 	return nil
@@ -161,8 +156,8 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 	return nil
 }
 
-func (p *DefaultProvider) ListClusterProfiles(ctx context.Context, region string) ([]*iamtypes.InstanceProfile, error) {
-	prefix := fmt.Sprintf("/karpenter/%s/%s/", region, options.FromContext(ctx).ClusterName)
+func (p *DefaultProvider) ListClusterProfiles(ctx context.Context) ([]*iamtypes.InstanceProfile, error) {
+	prefix := fmt.Sprintf("/karpenter/%s/%s/", p.region, options.FromContext(ctx).ClusterName)
 	out, err := p.iamapi.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{
 		PathPrefix: lo.ToPtr(prefix),
 	})
@@ -177,8 +172,8 @@ func (p *DefaultProvider) ListClusterProfiles(ctx context.Context, region string
 	return profiles, nil
 }
 
-func (p *DefaultProvider) ListNodeClassProfiles(ctx context.Context, region string, nodeClass *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error) {
-	prefix := fmt.Sprintf("/karpenter/%s/%s/%s/", region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))
+func (p *DefaultProvider) ListNodeClassProfiles(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error) {
+	prefix := fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))
 	out, err := p.iamapi.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{
 		PathPrefix: lo.ToPtr(prefix),
 	})
@@ -194,25 +189,15 @@ func (p *DefaultProvider) ListNodeClassProfiles(ctx context.Context, region stri
 }
 
 func (p *DefaultProvider) IsProtected(profileName string) bool {
-	p.mu.RLock()
-	if state, exists := p.protectionState[profileName]; exists {
-		p.mu.RUnlock()
-		return state
-	}
-	p.mu.RUnlock()
-
 	_, exists := p.protectedProfiles.Get(profileName)
 	return exists
 }
 
 // For tests only
-func (p *DefaultProvider) SetProtected(profileName string, protected bool) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.protectionState == nil {
-		p.protectionState = map[string]bool{}
+func (p *DefaultProvider) SetProtectedState(profileName string, protected bool) {
+	if !protected {
+		p.protectedProfiles.Delete(profileName)
 	}
-	p.protectionState[profileName] = protected
 }
 
 func (p *DefaultProvider) PreventRecreation(roleName string) (string, bool) {
@@ -223,9 +208,6 @@ func (p *DefaultProvider) PreventRecreation(roleName string) (string, bool) {
 }
 
 func (p *DefaultProvider) Reset() {
-	for k := range p.protectionState {
-		delete(p.protectionState, k)
-	}
 	p.protectedProfiles.Flush()
 	p.recreationCache.Flush()
 }

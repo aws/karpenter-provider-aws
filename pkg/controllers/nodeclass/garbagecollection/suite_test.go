@@ -190,7 +190,7 @@ var _ = Describe("Instance Profile GarbageCollection", func() {
 		oldProfile := nodeClass.Status.InstanceProfile
 
 		// Update to role-B
-		awsEnv.InstanceProfileProvider.SetProtected(oldProfile, false)
+		awsEnv.InstanceProfileProvider.SetProtectedState(oldProfile, false)
 		nodeClass.Spec.Role = "role-B"
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, nodeClassController, nodeClass)
