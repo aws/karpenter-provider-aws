@@ -148,7 +148,7 @@ Take care to ensure the label domains are correct. A well known label like `karp
 #### Well-Known Labels
 
 | Label                                                          | Example              | Description                                                                                                                                                     |
-| -------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| -------------------------------------------------------------- |----------------------| --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | topology.kubernetes.io/zone                                    | us-east-2a           | Zones are defined by your cloud provider ([aws](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html))                     |
 | node.kubernetes.io/instance-type                               | g4dn.8xlarge         | Instance types are defined by your cloud provider ([aws](https://aws.amazon.com/ec2/instance-types/))                                                           |
 | node.kubernetes.io/windows-build                               | 10.0.17763           | Windows OS build in the format "MajorVersion.MinorVersion.BuildNumber". Can be `10.0.17763` for WS2019, or `10.0.20348` for WS2022. ([k8s](https://kubernetes.io/docs/reference/labels-annotations-taints/#nodekubernetesiowindows-build)) |
@@ -175,6 +175,7 @@ Take care to ensure the label domains are correct. A well known label like `karp
 | karpenter.k8s.aws/instance-gpu-count                           | 1                    | [AWS Specific] Number of GPUs on the instance                                                                                                                   |
 | karpenter.k8s.aws/instance-gpu-memory                          | 16384                | [AWS Specific] Number of mebibytes of memory on the GPU                                                                                                         |
 | karpenter.k8s.aws/instance-local-nvme                          | 900                  | [AWS Specific] Number of gibibytes of local nvme storage on the instance                                                                                        |
+| karpenter.k8s.aws/tenancy                                      | default              | [AWS Specific] Tenancy types include `default` and `dedicated`                                                                                                                                                                        |
 
 {{% alert title="Note" color="primary" %}}
 Karpenter translates the following deprecated labels to their stable equivalents: `failure-domain.beta.kubernetes.io/zone`, `failure-domain.beta.kubernetes.io/region`, `beta.kubernetes.io/arch`, `beta.kubernetes.io/os`, and `beta.kubernetes.io/instance-type`.

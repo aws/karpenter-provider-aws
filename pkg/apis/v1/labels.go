@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"regexp"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
@@ -52,8 +54,11 @@ func init() {
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
 		LabelTopologyZoneID,
+		LabelTenancy,
 		corev1.LabelWindowsBuild,
 	)
+
+	karpv1.WellKnownValuesForRequirements[LabelTenancy] = sets.New(string(ec2types.TenancyDedicated), string(ec2types.TenancyDefault))
 }
 
 var (
@@ -142,6 +147,7 @@ var (
 	LabelInstanceAcceleratorManufacturer      = apis.Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
 	LabelNodeClass                            = apis.Group + "/ec2nodeclass"
+	LabelTenancy                              = apis.Group + "/tenancy"
 
 	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
 
