@@ -18,14 +18,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	//"sync"
-
-	"github.com/patrickmn/go-cache"
+	// "github.com/patrickmn/go-cache"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -35,41 +32,43 @@ import (
 type InstanceProfile struct {
 	instanceProfileProvider instanceprofile.Provider
 	region                  string
-	cache                   *cache.Cache
+	// cache                   *cache.Cache
 }
 
 func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider, region string) *InstanceProfile {
 	return &InstanceProfile{
 		instanceProfileProvider: instanceProfileProvider,
 		region:                  region,
-		cache:                   cache.New(1*time.Minute, 1*time.Minute),
 	}
 }
 
 func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if nodeClass.Spec.Role != "" {
 		var currentRole string
-		var oldProfileName string
 
 		// Use a short-lived cache to prevent instance profile recreation for the same role
 		// in case of a status patch error in the EC2NodeClass controller
 		// if profileName, found := ip.cache.Get(nodeClass.Spec.Role); found {
 		// 	nodeClass.Status.InstanceProfile = profileName.(string)
 		// 	currentRole = nodeClass.Spec.Role
+		// }
+
+		// profileName, found := ip.instanceProfileProvider.PreventRecreation(nodeClass.Spec.Role)
+		// if found {
+		// 	nodeClass.Status.InstanceProfile = profileName
+		// 	currentRole = nodeClass.Spec.Role
 		// } else {
-		// 	// Get the current profile info if it exists
-		// 	if nodeClass.Status.InstanceProfile != "" {
-		// 		oldProfileName = nodeClass.Status.InstanceProfile
-		// 		if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
-		// 			if len(profile.Roles) > 0 {
-		// 				currentRole = lo.FromPtr(profile.Roles[0].RoleName)
-		// 			}
+		// Get the current profile info if it exists
+		// if nodeClass.Status.InstanceProfile != "" {
+		// 	if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
+		// 		if len(profile.Roles) > 0 {
+		// 			currentRole = lo.FromPtr(profile.Roles[0].RoleName)
 		// 		}
 		// 	}
 		// }
-		// Get the current profile info if it exists
+		// }
+
 		if nodeClass.Status.InstanceProfile != "" {
-			oldProfileName = nodeClass.Status.InstanceProfile
 			if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
 				if len(profile.Roles) > 0 {
 					currentRole = lo.FromPtr(profile.Roles[0].RoleName)
@@ -101,14 +100,7 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 			}
 
 			// Store the created instance profile in the short-lived cache
-			// ip.cache.Flush()
 			// ip.cache.SetDefault(nodeClass.Spec.Role, newProfileName)
-
-			// Track the replacement change
-			if oldProfileName != "" {
-				ip.instanceProfileProvider.TrackReplacement(oldProfileName)
-			}
-
 			nodeClass.Status.InstanceProfile = newProfileName
 		}
 	} else {

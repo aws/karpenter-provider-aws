@@ -27,9 +27,11 @@ import (
 	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
-	"k8s.io/utils/clock"
+
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
 	// "github.com/aws/aws-sdk-go-v2/aws"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -39,51 +41,28 @@ type Provider interface {
 	Get(context.Context, string) (*iamtypes.InstanceProfile, error)
 	Create(context.Context, string, string, string, map[string]string) error
 	Delete(context.Context, string) error
-	ListByPrefix(context.Context, string) ([]*iamtypes.InstanceProfile, error)
-	GetCreationTime(string) (time.Time, bool)
-	TrackReplacement(string)
-	DeleteTracking(string)
-	SetClock(clock.Clock)
+	ListClusterProfiles(context.Context, string) ([]*iamtypes.InstanceProfile, error)
+	ListNodeClassProfiles(context.Context, string, *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error)
+	IsProtected(string) bool
+	// PreventRecreation(string) (string, bool)
 }
 
 type DefaultProvider struct {
-	iamapi          sdk.IAMAPI
-	cache           *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
+	iamapi            sdk.IAMAPI
+	cache             *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
+	protectedProfiles *cache.Cache
+
+	// For testing purposes
 	mu              sync.RWMutex
-	creationTimeMap map[string]time.Time
-	clock           clock.Clock
+	protectionState map[string]bool // For test overrides
 }
 
-func NewDefaultProvider(iamapi sdk.IAMAPI, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(iamapi sdk.IAMAPI, cacheA *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
-		iamapi:          iamapi,
-		cache:           cache,
-		creationTimeMap: map[string]time.Time{},
-		clock:           clock.RealClock{},
+		iamapi:            iamapi,
+		cache:             cacheA,
+		protectedProfiles: cache.New(time.Minute, time.Minute), // TTL should represent worst case "wait period" before deleting a non-active instance profile is acceptable
 	}
-}
-
-func (p *DefaultProvider) SetClock(c clock.Clock) {
-	p.clock = c
-}
-
-func (p *DefaultProvider) GetCreationTime(profileName string) (time.Time, bool) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	val, ok := p.creationTimeMap[profileName]
-	return val, ok
-}
-
-func (p *DefaultProvider) TrackReplacement(oldProfile string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.creationTimeMap[oldProfile] = p.clock.Now()
-}
-
-func (p *DefaultProvider) DeleteTracking(profileName string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	delete(p.creationTimeMap, profileName)
 }
 
 func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
@@ -146,6 +125,8 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 		RoleName: lo.ToPtr(roleName),
 	}}
 	p.cache.SetDefault(instanceProfileName, instanceProfile)
+	p.protectedProfiles.Set(instanceProfileName, struct{}{}, time.Minute)
+
 	return nil
 }
 
@@ -175,7 +156,8 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 	return nil
 }
 
-func (p *DefaultProvider) ListByPrefix(ctx context.Context, prefix string) ([]*iamtypes.InstanceProfile, error) {
+func (p *DefaultProvider) ListClusterProfiles(ctx context.Context, region string) ([]*iamtypes.InstanceProfile, error) {
+	prefix := fmt.Sprintf("/karpenter/%s/%s/", region, options.FromContext(ctx).ClusterName)
 	out, err := p.iamapi.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{
 		PathPrefix: lo.ToPtr(prefix),
 	})
@@ -188,4 +170,59 @@ func (p *DefaultProvider) ListByPrefix(ctx context.Context, prefix string) ([]*i
 		profiles = append(profiles, &out.InstanceProfiles[i])
 	}
 	return profiles, nil
+}
+
+func (p *DefaultProvider) ListNodeClassProfiles(ctx context.Context, region string, nodeClass *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error) {
+	prefix := fmt.Sprintf("/karpenter/%s/%s/%s/", region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))
+	out, err := p.iamapi.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{
+		PathPrefix: lo.ToPtr(prefix),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing instance profiles, %w", err)
+	}
+
+	var profiles []*iamtypes.InstanceProfile
+	for i := range out.InstanceProfiles {
+		profiles = append(profiles, &out.InstanceProfiles[i])
+	}
+	return profiles, nil
+}
+
+func (p *DefaultProvider) IsProtected(profileName string) bool {
+	p.mu.RLock()
+	if state, exists := p.protectionState[profileName]; exists {
+		p.mu.RUnlock()
+		return state
+	}
+	p.mu.RUnlock()
+
+	_, exists := p.protectedProfiles.Get(profileName)
+	return exists
+}
+
+// For tests only
+func (p *DefaultProvider) SetProtected(profileName string, protected bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.protectionState == nil {
+		p.protectionState = map[string]bool{}
+	}
+	p.protectionState[profileName] = protected
+}
+
+// func (p *DefaultProvider) PreventRecreation(roleName string) (string, bool) {
+// 	for profileName, item := range p.cache.Items() {
+// 		profile := item.Object.(*iamtypes.InstanceProfile)
+// 		if len(profile.Roles) > 0 && lo.FromPtr(profile.Roles[0].RoleName) == roleName {
+// 			return profileName, true
+// 		}
+// 	}
+// 	return "", false
+// }
+
+func (p *DefaultProvider) Reset() {
+	for k := range p.protectionState {
+		delete(p.protectionState, k)
+	}
+	p.protectedProfiles.Flush()
 }

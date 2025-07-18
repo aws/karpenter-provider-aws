@@ -32,13 +32,7 @@ import (
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
-)
-
-const (
-	// GarbageCollectionDelay = 24 * time.Hour
-	GarbageCollectionDelay = 1 * time.Minute // Use 1 minute for testing purposes
 )
 
 type Controller struct {
@@ -67,14 +61,8 @@ func (c *Controller) getActiveProfiles(ctx context.Context) (sets.Set[string], e
 	for _, nc := range nodeClaims {
 		if profileName, ok := nc.Annotations[v1.AnnotationInstanceProfile]; ok {
 			activeProfiles.Insert(profileName)
-			// continue
 		}
 
-		// Protect against migration where pre-upgrade NodeClaims do not have instanceprofile annotation
-		// clusterName := options.FromContext(ctx).ClusterName
-		// hash := lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", c.region, nc.Spec.NodeClassRef.Name), hashstructure.FormatV2, nil))
-		// oldProfileName := fmt.Sprintf("%s_%d", clusterName, hash)
-		// activeProfiles.Insert(oldProfileName)
 	}
 	return activeProfiles, nil
 }
@@ -100,18 +88,14 @@ func (c *Controller) shouldDeleteProfile(profileName string, currentProfiles set
 	if _, isCurrent := currentProfiles[profileName]; isCurrent {
 		return false
 	}
+	ok := c.instanceProfileProvider.IsProtected(profileName)
 
-	creationTime, ok := c.instanceProfileProvider.GetCreationTime(profileName)
-	if !ok {
-		creationTime = time.Now().Add(-GarbageCollectionDelay)
-	}
-
-	return time.Since(creationTime) >= GarbageCollectionDelay
+	return !ok
 }
 
 func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles sets.Set[string], currentProfiles sets.Set[string]) error {
-	clusterName := options.FromContext(ctx).ClusterName
-	profiles, err := c.instanceProfileProvider.ListByPrefix(ctx, fmt.Sprintf("/karpenter/%s/%s/", c.region, clusterName))
+	profiles, err := c.instanceProfileProvider.ListClusterProfiles(ctx, c.region)
+
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)
 	}
@@ -127,8 +111,6 @@ func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles
 		if _, isActive := activeProfiles[profileName]; !isActive {
 			if err := c.instanceProfileProvider.Delete(ctx, profileName); err != nil {
 				log.FromContext(ctx).Error(err, "failed to delete instance profile", "profile", profileName)
-			} else {
-				c.instanceProfileProvider.DeleteTracking(profileName)
 			}
 		}
 	}

@@ -227,6 +227,7 @@ func (env *Environment) Reset() {
 	env.PricingAPI.Reset()
 	env.PricingProvider.Reset()
 	env.InstanceTypesProvider.Reset()
+	env.InstanceProfileProvider.Reset()
 
 	env.EC2Cache.Flush()
 	env.InstanceCache.Flush()

@@ -84,9 +84,6 @@ var _ = BeforeSuite(func() {
 	// Setup AWS environment
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	// Ensure we use a fake clock when adding to instance profile time in-memory map
-	awsEnv.InstanceProfileProvider.SetClock(fakeClock)
-
 	// Create cloudporivder
 	cloudProvider = cloudprovider.New(
 		awsEnv.InstanceTypesProvider,
@@ -193,12 +190,10 @@ var _ = Describe("Instance Profile GarbageCollection", func() {
 		oldProfile := nodeClass.Status.InstanceProfile
 
 		// Update to role-B
-		fakeClock.SetTime(fakeClock.Now().Add(-2 * time.Minute))
+		awsEnv.InstanceProfileProvider.SetProtected(oldProfile, false)
 		nodeClass.Spec.Role = "role-B"
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, nodeClassController, nodeClass)
-
-		// fakeClock.Step(2 * time.Minute) // > 1 minute grace period
 
 		// Run GC
 		ExpectSingletonReconciled(ctx, gcController)
