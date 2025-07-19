@@ -177,7 +177,8 @@ Resources:
                 "ec2:DescribeLaunchTemplates",
                 "ec2:DescribeSecurityGroups",
                 "ec2:DescribeSpotPriceHistory",
-                "ec2:DescribeSubnets"
+                "ec2:DescribeSubnets",
+                "iam:ListInstanceProfiles"
               ],
               "Condition": {
                 "StringEquals": {
