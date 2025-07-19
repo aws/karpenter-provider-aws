@@ -17,9 +17,12 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	// "github.com/patrickmn/go-cache"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -29,6 +32,7 @@ import (
 type InstanceProfile struct {
 	instanceProfileProvider instanceprofile.Provider
 	region                  string
+	// cache                   *cache.Cache
 }
 
 func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider, region string) *InstanceProfile {
@@ -40,19 +44,53 @@ func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provid
 
 func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if nodeClass.Spec.Role != "" {
-		profileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
-		if err := ip.instanceProfileProvider.Create(
-			ctx,
-			profileName,
-			nodeClass.InstanceProfileRole(),
-			nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
-		); err != nil {
-			return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
+		var currentRole string
+
+		// Use a short-lived cache to prevent instance profile recreation for the same role
+		// in case of a status patch error in the EC2NodeClass controller
+		if profileName, found := ip.instanceProfileProvider.(*instanceprofile.DefaultProvider).PreventRecreation(nodeClass.Spec.Role); found {
+			nodeClass.Status.InstanceProfile = profileName
+			currentRole = nodeClass.Spec.Role
+		} else {
+			// Get the current profile info if it exists
+			if nodeClass.Status.InstanceProfile != "" {
+				if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
+					if len(profile.Roles) > 0 {
+						currentRole = lo.FromPtr(profile.Roles[0].RoleName)
+					}
+				}
+			}
 		}
-		nodeClass.Status.InstanceProfile = profileName
+
+		// If role has changed, create new profile
+		log.Printf("Current role: %s, new role: %s", currentRole, nodeClass.Spec.Role)
+		if currentRole != nodeClass.Spec.Role {
+			// nodeClass.StatusConditions().SetFalse(v1.ConditionTypeInstanceProfileReady, "Reconciling", "Creating a new instance profile for role change")
+
+			// Generate new profile name
+			newProfileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
+			log.Printf("Generated new profile name: %s", newProfileName)
+
+			// Create new profile with a specific path
+			path := fmt.Sprintf("/karpenter/%s/%s/%s/", ip.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))
+			log.Printf("THIS IS THE PATH: %s", path)
+
+			if err := ip.instanceProfileProvider.Create(
+				ctx,
+				newProfileName,
+				nodeClass.InstanceProfileRole(),
+				path,
+				nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
+			); err != nil {
+				return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
+			}
+
+			nodeClass.Status.InstanceProfile = newProfileName
+		}
 	} else {
 		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
+	log.Printf("Reconciled instance profile: %s", nodeClass.Status.InstanceProfile)
 	return reconcile.Result{}, nil
 }
