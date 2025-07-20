@@ -177,8 +177,7 @@ Resources:
                 "ec2:DescribeLaunchTemplates",
                 "ec2:DescribeSecurityGroups",
                 "ec2:DescribeSpotPriceHistory",
-                "ec2:DescribeSubnets",
-                "iam:ListInstanceProfiles"
+                "ec2:DescribeSubnets"
               ],
               "Condition": {
                 "StringEquals": {
@@ -284,7 +283,10 @@ Resources:
               "Sid": "AllowInstanceProfileReadActions",
               "Effect": "Allow",
               "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
-              "Action": "iam:GetInstanceProfile"
+              "Action": [ 
+                "iam:GetInstanceProfile"
+                "iam:ListInstanceProfiles"
+              ]
             },
             {
               "Sid": "AllowAPIServerEndpointDiscovery",
