@@ -32,25 +32,25 @@ spec:
     podsPerCore: 2
     maxPods: 20
     systemReserved:
-        cpu: 100m
-        memory: 100Mi
-        ephemeral-storage: 1Gi
+      cpu: 100m
+      memory: 100Mi
+      ephemeral-storage: 1Gi
     kubeReserved:
-        cpu: 200m
-        memory: 100Mi
-        ephemeral-storage: 3Gi
+      cpu: 200m
+      memory: 100Mi
+      ephemeral-storage: 3Gi
     evictionHard:
-        memory.available: 5%
-        nodefs.available: 10%
-        nodefs.inodesFree: 10%
+      memory.available: 5%
+      nodefs.available: 10%
+      nodefs.inodesFree: 10%
     evictionSoft:
-        memory.available: 500Mi
-        nodefs.available: 15%
-        nodefs.inodesFree: 15%
+      memory.available: 500Mi
+      nodefs.available: 15%
+      nodefs.inodesFree: 15%
     evictionSoftGracePeriod:
-        memory.available: 1m
-        nodefs.available: 1m30s
-        nodefs.inodesFree: 2m
+      memory.available: 1m
+      nodefs.available: 1m30s
+      nodefs.inodesFree: 2m
     evictionMaxPodGracePeriod: 60
     imageGCHighThresholdPercent: 85
     imageGCLowThresholdPercent: 80
