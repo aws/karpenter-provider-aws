@@ -116,6 +116,7 @@ var _ = BeforeSuite(func() {
 		awsEnv.CapacityReservationProvider,
 		awsEnv.EC2API,
 		awsEnv.ValidationCache,
+		awsEnv.RecreationCache,
 		awsEnv.AMIResolver,
 	)
 })
@@ -190,10 +191,11 @@ var _ = Describe("Instance Profile GarbageCollection", func() {
 		oldProfile := nodeClass.Status.InstanceProfile
 
 		// Update to role-B
-		awsEnv.InstanceProfileProvider.SetProtectedState(oldProfile, false)
 		nodeClass.Spec.Role = "role-B"
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, nodeClassController, nodeClass)
+
+		awsEnv.InstanceProfileProvider.SetProtectedState(oldProfile, false)
 
 		// Run GC
 		ExpectSingletonReconciled(ctx, gcController)

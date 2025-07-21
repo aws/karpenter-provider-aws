@@ -37,7 +37,7 @@ import (
 
 type Provider interface {
 	Get(context.Context, string) (*iamtypes.InstanceProfile, error)
-	Create(context.Context, string, string, string, map[string]string) error
+	Create(context.Context, string, string, string, map[string]string, string) error
 	Delete(context.Context, string) error
 	ListClusterProfiles(context.Context) ([]*iamtypes.InstanceProfile, error)
 	ListNodeClassProfiles(context.Context, *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error)
@@ -48,7 +48,6 @@ type DefaultProvider struct {
 	iamapi            sdk.IAMAPI
 	cache             *gocache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
 	protectedProfiles *gocache.Cache // Cache to account for eventual consistency delays when garbage collecting
-	recreationCache   *gocache.Cache // Cache to prevent instance profile recreation upon status patch error
 	region            string
 }
 
@@ -57,7 +56,6 @@ func NewDefaultProvider(iamapi sdk.IAMAPI, cache *gocache.Cache, region string) 
 		iamapi:            iamapi,
 		cache:             cache,
 		protectedProfiles: gocache.New(time.Minute, time.Minute), // TTL should represent worst case "wait period" before deleting a non-active instance profile is acceptable
-		recreationCache:   gocache.New(10*time.Second, 10*time.Second),
 		region:            region,
 	}
 }
@@ -76,7 +74,7 @@ func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (
 	return out.InstanceProfile, nil
 }
 
-func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string, roleName string, path string, tags map[string]string) error {
+func (p *DefaultProvider) Create(ctx context.Context, oldProfileName string, instanceProfileName string, roleName string, tags map[string]string, nodeClassUID string) error {
 	instanceProfile, err := p.Get(ctx, instanceProfileName)
 	if err != nil {
 		if !awserrors.IsNotFound(err) {
@@ -85,7 +83,7 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 		o, err := p.iamapi.CreateInstanceProfile(ctx, &iam.CreateInstanceProfileInput{
 			InstanceProfileName: lo.ToPtr(instanceProfileName),
 			Tags:                utils.IAMMergeTags(tags),
-			Path:                lo.ToPtr(path),
+			Path:                lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, nodeClassUID)),
 		})
 		if err != nil {
 			log.Printf("CALLING CREATE FAILED")
@@ -122,8 +120,11 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 		RoleName: lo.ToPtr(roleName),
 	}}
 	p.cache.SetDefault(instanceProfileName, instanceProfile)
+
+	if oldProfileName != "" {
+		p.protectedProfiles.SetDefault(oldProfileName, struct{}{})
+	}
 	p.protectedProfiles.SetDefault(instanceProfileName, struct{}{})
-	p.recreationCache.SetDefault(roleName, instanceProfileName)
 
 	return nil
 }
@@ -152,14 +153,12 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 	}
 	p.cache.Delete(instanceProfileName)
 	p.protectedProfiles.Delete(instanceProfileName)
-	p.recreationCache.Delete(instanceProfileName)
 	return nil
 }
 
 func (p *DefaultProvider) ListClusterProfiles(ctx context.Context) ([]*iamtypes.InstanceProfile, error) {
-	prefix := fmt.Sprintf("/karpenter/%s/%s/", p.region, options.FromContext(ctx).ClusterName)
 	out, err := p.iamapi.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{
-		PathPrefix: lo.ToPtr(prefix),
+		PathPrefix: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/", p.region, options.FromContext(ctx).ClusterName)),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("listing instance profiles, %w", err)
@@ -173,9 +172,8 @@ func (p *DefaultProvider) ListClusterProfiles(ctx context.Context) ([]*iamtypes.
 }
 
 func (p *DefaultProvider) ListNodeClassProfiles(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error) {
-	prefix := fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))
 	out, err := p.iamapi.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{
-		PathPrefix: lo.ToPtr(prefix),
+		PathPrefix: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("listing instance profiles, %w", err)
@@ -193,21 +191,13 @@ func (p *DefaultProvider) IsProtected(profileName string) bool {
 	return exists
 }
 
-// For tests only
+// For testing purposes
 func (p *DefaultProvider) SetProtectedState(profileName string, protected bool) {
 	if !protected {
 		p.protectedProfiles.Delete(profileName)
 	}
 }
 
-func (p *DefaultProvider) PreventRecreation(roleName string) (string, bool) {
-	if profileName, found := p.recreationCache.Get(roleName); found {
-		return profileName.(string), true
-	}
-	return "", false
-}
-
 func (p *DefaultProvider) Reset() {
 	p.protectedProfiles.Flush()
-	p.recreationCache.Flush()
 }
