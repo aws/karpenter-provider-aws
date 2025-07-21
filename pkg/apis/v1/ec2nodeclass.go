@@ -497,6 +497,10 @@ func (in *EC2NodeClass) Hash() string {
 	})))
 }
 
+func (in *EC2NodeClass) LegacyInstanceProfileName(clusterName, region string) string {
+	return fmt.Sprintf("%s_%d", clusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", region, in.Name), hashstructure.FormatV2, nil)))
+}
+
 func (in *EC2NodeClass) InstanceProfileName(clusterName, region string) string {
 	return fmt.Sprintf("%s_%d", clusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s%s", region, in.Name, uuid.New().String()), hashstructure.FormatV2, nil)))
 }

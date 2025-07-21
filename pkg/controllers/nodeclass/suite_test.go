@@ -90,6 +90,7 @@ var _ = BeforeSuite(func() {
 		awsEnv.CapacityReservationProvider,
 		awsEnv.EC2API,
 		awsEnv.ValidationCache,
+		awsEnv.RecreationCache,
 		awsEnv.AMIResolver,
 	)
 })

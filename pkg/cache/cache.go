@@ -47,6 +47,8 @@ const (
 	DiscoveredCapacityCacheTTL = 60 * 24 * time.Hour
 	// ValidationTTL is time to check authorization errors with validation controller
 	ValidationTTL = 10 * time.Minute
+	// RecreationTTL is the duration to suppress instance profile recreation for the same role to avoid duplicates
+	RecreationTTL = 1 * time.Minute
 )
 
 const (

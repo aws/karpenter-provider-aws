@@ -88,9 +88,11 @@ func (c *Controller) shouldDeleteProfile(profileName string, currentProfiles set
 	if _, isCurrent := currentProfiles[profileName]; isCurrent {
 		return false
 	}
-	ok := c.instanceProfileProvider.IsProtected(profileName)
 
-	return !ok
+	if c.instanceProfileProvider.IsProtected(profileName) {
+		return false
+	}
+	return true
 }
 
 func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles sets.Set[string], currentProfiles sets.Set[string]) error {

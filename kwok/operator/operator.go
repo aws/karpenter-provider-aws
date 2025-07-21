@@ -80,6 +80,7 @@ type Operator struct {
 	UnavailableOfferingsCache   *awscache.UnavailableOfferings
 	SSMCache                    *cache.Cache
 	ValidationCache             *cache.Cache
+	RecreationCache             *cache.Cache
 	SubnetProvider              subnet.Provider
 	SecurityGroupProvider       securitygroup.Provider
 	InstanceProfileProvider     instanceprofile.Provider
@@ -120,6 +121,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
 	validationCache := cache.New(awscache.ValidationTTL, awscache.DefaultCleanupInterval)
+	recreationCache := cache.New(awscache.RecreationTTL, awscache.DefaultCleanupInterval)
 
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
@@ -194,6 +196,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		UnavailableOfferingsCache:   unavailableOfferingsCache,
 		SSMCache:                    ssmCache,
 		ValidationCache:             validationCache,
+		RecreationCache:             recreationCache,
 		SubnetProvider:              subnetProvider,
 		SecurityGroupProvider:       securityGroupProvider,
 		InstanceProfileProvider:     instanceProfileProvider,
