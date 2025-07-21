@@ -245,7 +245,7 @@ Note that Karpenter is not aware if [Security Groups per Pod](https://aws.github
 
 To avoid this discrepancy between `maxPods` and the supported pod density of the EC2 instance based on ENIs and allocatable IPs, you can perform one of the following actions on your cluster:
 
-1. Enable [Prefix Delegation](https://www.eksworkshop.com/docs/networking/prefix/) to increase the number of allocatable IPs for the ENIs on each instance type
+1. Enable [Prefix Delegation](https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html) to increase the number of allocatable IPs for the ENIs on each instance type
 2. Reduce your `maxPods` value to be under the maximum pod density for the instance types assigned to your NodePods
 3. Remove the `maxPods` value from your [`kubeletConfiguration`]({{<ref "./concepts/nodeclasses#speckubeletconfiguration" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
 4. Set [RESERVED_ENIS]({{<ref "./reference/settings" >}})=1 in your Karpenter configuration to account for the reserved ENI when using Security Groups for Pods.
@@ -260,7 +260,7 @@ When a node is launched by Karpenter, it is assigned to a subnet within your VPC
 
 1. Use `topologySpreadConstraints` on `topology.kubernetes.io/zone` to spread your pods and nodes more evenly across zones
 2. Increase the IP address space (CIDR) for the subnets selected by your `EC2NodeClass`
-3. Use [custom networking](https://www.eksworkshop.com/docs/networking/custom-networking/) to assign separate IP address spaces to your pods and your nodes
+3. Use [custom networking](https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html) to assign separate IP address spaces to your pods and your nodes
 4. [Run your EKS cluster on IPv6](https://aws.github.io/aws-eks-best-practices/networking/ipv6/) (Note: IPv6 clusters have some known limitations which should be well-understood before choosing to use one)
 
 For more troubleshooting information on why your pod may have a `FailedCreateSandbox` error, view the [EKS CreatePodSandbox Knowledge Center Post](https://repost.aws/knowledge-center/eks-failed-create-pod-sandbox).
