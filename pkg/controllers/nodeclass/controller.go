@@ -169,6 +169,10 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 }
 
 func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
+	if nodeClass.Spec.Role == "" {
+		return nil
+	}
+
 	out, err := c.instanceProfileProvider.ListNodeClassProfiles(ctx, nodeClass)
 
 	if err != nil {
