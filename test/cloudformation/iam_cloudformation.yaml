@@ -346,7 +346,9 @@ Resources:
               StringLike:
                 aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass: "*"
           - Effect: Allow
-            Action: iam:GetInstanceProfile
+            Action: 
+              - iam:GetInstanceProfile
+              - iam:ListInstanceProfiles
             Resource: "*"
           - Effect: Allow
             Action:
