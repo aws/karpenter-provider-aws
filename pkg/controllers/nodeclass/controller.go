@@ -29,7 +29,6 @@ import (
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 	"sigs.k8s.io/karpenter/pkg/utils/result"
 
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -88,6 +87,7 @@ func NewController(
 	capacityReservationProvider capacityreservation.Provider,
 	ec2api sdk.EC2API,
 	validationCache *cache.Cache,
+	recreationCache *cache.Cache,
 	amiResolver amifamily.Resolver,
 ) *Controller {
 	validation := NewValidationReconciler(kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache)
@@ -103,7 +103,7 @@ func NewController(
 			NewCapacityReservationReconciler(clk, capacityReservationProvider),
 			NewSubnetReconciler(subnetProvider),
 			NewSecurityGroupReconciler(securityGroupProvider),
-			NewInstanceProfileReconciler(instanceProfileProvider, region),
+			NewInstanceProfileReconciler(instanceProfileProvider, region, recreationCache),
 			validation,
 			NewReadinessReconciler(launchTemplateProvider),
 		},
@@ -188,9 +188,7 @@ func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.
 }
 
 func (c *Controller) cleanupSingleProfile(ctx context.Context, profile *iamtypes.InstanceProfile) error {
-	name := *profile.InstanceProfileName
-
-	if err := c.instanceProfileProvider.Delete(ctx, name); err != nil {
+	if err := c.instanceProfileProvider.Delete(ctx, *profile.InstanceProfileName); err != nil {
 		return fmt.Errorf("deleting instance profile, %w", err)
 	}
 	return nil
@@ -214,12 +212,8 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		return reconcile.Result{}, err
 	}
 	// Ensure to clean up instance profile that may have been created pre-upgrade
-	clusterName := options.FromContext(ctx).ClusterName
-	hash := lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", c.region, nodeClass.Name), hashstructure.FormatV2, nil))
-	oldProfileName := fmt.Sprintf("%s_%d", clusterName, hash)
-
-	if err := c.instanceProfileProvider.Delete(ctx, oldProfileName); err != nil {
-		return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
+	if err := c.instanceProfileProvider.Delete(ctx, nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, c.region)); err != nil {
+		return reconcile.Result{}, fmt.Errorf("deleting legacy instance profile, %w", err)
 	}
 
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {
