@@ -193,13 +193,31 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 }
 
-func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[string]string, failureReason string) {
-	v.cache.SetDefault(v.cacheKey(nodeClass, tags), failureReason)
-	nodeClass.StatusConditions().SetFalse(
-		v1.ConditionTypeValidationSucceeded,
-		failureReason,
-		ValidationConditionMessages[failureReason],
-	)
+type validatorFunc func(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim, map[string]string) (string, bool, error)
+
+func (v *Validation) validateCreateFleetAuthorization(
+	ctx context.Context,
+	nodeClass *v1.EC2NodeClass,
+	_ *karpv1.NodeClaim,
+	tags map[string]string,
+) (reason string, requeue bool, err error) {
+	createFleetInput := instance.NewCreateFleetInputBuilder(karpv1.CapacityTypeOnDemand, tags, mockLaunchTemplateConfig(), false).Build()
+	createFleetInput.DryRun = lo.ToPtr(true)
+	// Adding NopRetryer to avoid aggressive retry when rate limited
+	if _, err := v.ec2api.CreateFleet(ctx, createFleetInput, func(o *ec2.Options) {
+		o.Retryer = aws.NopRetryer{}
+	}); awserrors.IgnoreDryRunError(err) != nil {
+		if awserrors.IsRateLimitedError(err) {
+			return "", true, nil
+		}
+		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
+			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
+			// it would be an unexpected state
+			return "", false, fmt.Errorf("validating ec2:CreateFleet authorization, %w", err)
+		}
+		return ConditionReasonCreateFleetAuthFailed, false, nil
+	}
+	return "", false, nil
 }
 
 func (v *Validation) validateCreateLaunchTemplateAuthorization(
