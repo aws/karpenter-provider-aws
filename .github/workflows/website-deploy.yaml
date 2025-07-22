@@ -36,13 +36,13 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df # v4.2.1
         with:
-          role-to-assume: arn:aws:iam::${{ vars.RELEASE_ACCOUNT_ID }}:role/${{ vars.RELEASE_ROLE_NAME }}
+          role-to-assume: arn:aws:iam::${{ vars.RELEASE_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
           aws-region: ${{ vars.AMPLIFY_REGION }}
       - name: Sync Hugo build to S3
         run: aws s3 sync website/public/ s3://${{ vars.AMPLIFY_S3_BUCKET }} --delete
       - name: Configure Amplify redirect rules
         run: |
-          REDIRECT_RULES=$(python3 .github/scripts/parse-redirects.py)
+          REDIRECT_RULES=$(go run test/hack/resource/parse-redirects/main.go)
           aws amplify update-app \
             --app-id ${{ vars.AMPLIFY_APP_ID }} \
             --custom-rules "$REDIRECT_RULES"
