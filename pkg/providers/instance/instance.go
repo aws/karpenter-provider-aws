@@ -39,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/batcher"
@@ -321,7 +322,8 @@ func (p *DefaultProvider) launchInstance(
 		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
 	}
 
-	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs)
+	_, overlayApplied := nodeClaim.Annotations[v1alpha1.PriceOverlayAppliedAnnotationKey]
+	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs, overlayApplied)
 	if nodeClass.Spec.Context != nil && nodeClaim.Annotations[karpv1.NodeClaimMinValuesRelaxedAnnotationKey] != "true" {
 		cfiBuilder.WithContextID(*nodeClass.Spec.Context)
 	}
@@ -395,11 +397,12 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
+	_, overlayApplied := nodeClaim.Annotations[v1alpha1.PriceOverlayAppliedAnnotationKey]
 	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	requirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType)
 	for _, launchTemplate := range launchTemplates {
 		launchTemplateConfig := ec2types.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID),
+			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID, overlayApplied),
 			LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplate.Name),
 				Version:            aws.String("$Latest"),
@@ -421,7 +424,7 @@ func (p *DefaultProvider) getOverrides(
 	instanceTypes []*cloudprovider.InstanceType,
 	zonalSubnets map[string]*subnet.Subnet,
 	reqs scheduling.Requirements,
-	image, capacityReservationID string,
+	image, capacityReservationID string, overlayApplied bool,
 ) []ec2types.FleetLaunchTemplateOverridesRequest {
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
@@ -448,20 +451,30 @@ func (p *DefaultProvider) getOverrides(
 			})
 		}
 	}
+	if overlayApplied {
+		sort.Slice(filteredOfferings, func(x int, y int) bool {
+			return filteredOfferings[x].Price < filteredOfferings[y].Price
+		})
+	}
 	var overrides []ec2types.FleetLaunchTemplateOverridesRequest
-	for _, offering := range filteredOfferings {
+	for i, offering := range filteredOfferings {
+		fmt.Println(offering.parentInstanceTypeName, offering.Price)
 		subnet, ok := zonalSubnets[offering.Zone()]
 		if !ok {
 			continue
 		}
-		overrides = append(overrides, ec2types.FleetLaunchTemplateOverridesRequest{
+		o := ec2types.FleetLaunchTemplateOverridesRequest{
 			InstanceType: offering.parentInstanceTypeName,
 			SubnetId:     lo.ToPtr(subnet.ID),
 			ImageId:      lo.ToPtr(image),
 			// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
 			// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
 			AvailabilityZone: lo.ToPtr(subnet.Zone),
-		})
+		}
+		if overlayApplied {
+			o.Priority = lo.ToPtr(float64(i))
+		}
+		overrides = append(overrides, o)
 	}
 	return overrides
 }
