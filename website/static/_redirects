@@ -1,16 +1,3 @@
-# Redirect all v0.32 documentation to the new routes
-/v0.32/concepts/provisioners /v0.32/concepts/nodepools
-/v0.32/concepts/node-templates /v0.32/concepts/nodeclasses
-/v0.32/concepts/deprovisioning /v0.32/concepts/disruption
-/v0.32/upgrade-guide /v0.32/upgrading/upgrade-guide
-/v0.32/concepts/instance-types /v0.32/reference/instance-types
-/v0.32/concepts/metrics /v0.32/reference/metrics
-/v0.32/concepts/settings /v0.32/reference/settings
-/v0.32/concepts/threat-model /v0.32/reference/threat-model
-
-# Redirect any v1beta1-migration reference to the v0.32 version
-/*/upgrading/v1beta1-migration /v0.32/upgrading/v1beta1-migration
-
 # Redirect old "Managing AMIs" Task path
 /preview/tasks/amitasks /preview/tasks/managing-amis
 /docs/tasks/amitasks /docs/tasks/managing-amis
@@ -20,7 +7,6 @@
 # Redirect old working group page to the new community meetings page
 /preview/contributing/working-group /preview/contributing/community-meetings
 /docs/contributing/working-group /docs/contributing/community-meetings
-/v0.32/contributing/working-group /v0.32/contributing/community-meetings
 /v1.0/contributing/working-group /v1.0/contributing/community-meetings
 /v1.1/contributing/working-group /v1.1/contributing/community-meetings
 /v1.2/contributing/working-group /v1.2/contributing/community-meetings
