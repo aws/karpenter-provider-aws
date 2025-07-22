@@ -30,7 +30,7 @@ metadata:
 rules:
   # Read
   - apiGroups: ["karpenter.sh"]
-    resources: ["nodepools", "nodepools/status", "nodeclaims", "nodeclaims/status"]
+    resources: ["nodepools", "nodepools/status", "nodeclaims", "nodeclaims/status", "nodeoverlays", "nodeoverlays/status"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["pods", "nodes", "persistentvolumes", "persistentvolumeclaims", "replicationcontrollers", "namespaces"]
@@ -53,6 +53,9 @@ rules:
     verbs: ["create", "delete", "update", "patch"]
   - apiGroups: ["karpenter.sh"]
     resources: ["nodepools", "nodepools/status"]
+    verbs: ["update", "patch"]
+  - apiGroups: ["karpenter.sh"]
+    resources: ["nodeoverlays/status"]
     verbs: ["update", "patch"]
   - apiGroups: [""]
     resources: ["events"]
