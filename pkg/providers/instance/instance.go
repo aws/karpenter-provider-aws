@@ -168,7 +168,6 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 func (p *DefaultProvider) Get(ctx context.Context, id string, opts ...Options) (*Instance, error) {
 	skipCache := option.Resolve(opts...).SkipCache
 	if !skipCache {
-
 		if i, ok := p.instanceCache.Get(id); ok {
 			return i.(*Instance), nil
 		}
@@ -178,6 +177,7 @@ func (p *DefaultProvider) Get(ctx context.Context, id string, opts ...Options) (
 		Filters:     []ec2types.Filter{instanceStateFilter},
 	})
 	if awserrors.IsNotFound(err) {
+		p.instanceCache.Delete(id)
 		return nil, cloudprovider.NewNodeClaimNotFoundError(err)
 	}
 	if err != nil {
