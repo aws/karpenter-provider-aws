@@ -17,6 +17,7 @@
 /v0.34/tasks/amitasks /v0.34/tasks/managing-amis
 /v0.35/tasks/amitasks /v0.35/tasks/managing-amis
 
+
 # Redirect old working group page to the new community meetings page
 /preview/contributing/working-group /preview/contributing/community-meetings
 /docs/contributing/working-group /docs/contributing/community-meetings

@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 )
@@ -28,12 +29,12 @@ type RedirectRule struct {
 	Status string `json:"status"`
 }
 
-func getAvailableVersions() ([]string, error) {
+func getAvailableKarpenterVersions() ([]string, error) {
 	// scans the website content directory to find available for wildcard redirect expansion
 	contentDir := "website/content/en"
 	entries, err := os.ReadDir(contentDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read content directory: %v", err)
+		log.Fatalf("Error: Failed to read content directory: %v\n", err)
 	}
 	var versions []string
 	for _, entry := range entries {
@@ -75,21 +76,14 @@ func getRule(source string, target string, versions []string) []RedirectRule {
 func main() {
 	redirectsFile := "website/static/_redirects"
 
-	if _, err := os.Stat(redirectsFile); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "Error: %s not found\n", redirectsFile)
-		os.Exit(1)
-	}
-
-	versions, err := getAvailableVersions()
+	versions, err := getAvailableKarpenterVersions()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Could not get available versions: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Error: Could not get available versions: %v\n", err)
 	}
 
 	file, err := os.Open(redirectsFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", redirectsFile, err)
-		os.Exit(1)
+		log.Fatalf("Error reading %s: %v\n", redirectsFile, err)
 	}
 	defer file.Close()
 
@@ -109,19 +103,16 @@ func main() {
 			expandedRules := getRule(parts[0], parts[1], versions)
 			rules = append(rules, expandedRules...)
 		} else {
-			fmt.Fprintf(os.Stderr, "Error: Invalid redirect format on line %d: %s\n", lineNum, line)
-			os.Exit(1)
+			log.Fatalf("Error: Invalid redirect format on line %d: %s\n", lineNum, line)
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", redirectsFile, err)
-		os.Exit(1)
+		log.Fatalf("Error reading %s: %v\n", redirectsFile, err)
 	}
 	jsonData, err := json.Marshal(rules)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error marshaling JSON: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Error marshaling JSON: %v\n", err)
 	}
 	fmt.Println(string(jsonData))
 }

@@ -24,7 +24,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version-file: test/hack/resource/go.mod
+          go-version-file: test/hack/resource/parse-redirects/go.mod
           check-latest: true
           cache-dependency-path: "test/hack/resource/go.sum"
       - name: Install Hugo
@@ -91,7 +91,5 @@ jobs:
             
             **Preview URL:** ${process.env.PREVIEW_URL}
             
-            Built from commit \`${process.env.PR_COMMIT}\`
-            
-            This preview will update automatically with new commits.`
+            Built from commit \`${process.env.PR_COMMIT}\``
             })
