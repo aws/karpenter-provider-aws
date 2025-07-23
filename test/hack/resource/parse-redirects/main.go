@@ -75,7 +75,6 @@ func getRule(source string, target string, versions []string) []RedirectRule {
 
 func main() {
 	redirectsFile := "website/static/_redirects"
-
 	versions, err := getAvailableKarpenterVersions()
 	if err != nil {
 		log.Fatalf("Error: Could not get available versions: %v\n", err)

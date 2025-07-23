@@ -1,6 +1,7 @@
 name: Deploy Website Preview to Amplify
 on:
   pull_request:
+    types: [ opened, synchronize, reopened ]
     branches: [ main ]
     paths: [ website/** ]
 jobs:
@@ -21,17 +22,6 @@ jobs:
             echo PR_NUMBER="$pr_number"
             echo BRANCH_NAME="pr-$pr_number"
           } >> "$GITHUB_ENV"
-      - name: Install Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
-        with:
-          go-version-file: test/hack/resource/parse-redirects/go.mod
-          check-latest: true
-          cache-dependency-path: "test/hack/resource/go.sum"
-      - name: Install Hugo
-        uses: peaceiris/actions-hugo@16361eb4acea8698b220b76c0d4e84e1fd22c61d # v2.6.0
-        with:
-          hugo-version: '0.120.3'
-          extended: true
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df # v4.2.1
         with:
@@ -42,41 +32,17 @@ jobs:
           APP_DOMAIN=$(aws amplify get-app --app-id ${{ vars.AMPLIFY_APP_ID_BETA }} --query 'app.defaultDomain' --output text)
           PREVIEW_URL="https://${{ env.BRANCH_NAME }}.$APP_DOMAIN"
           echo PREVIEW_URL="$PREVIEW_URL" >> "$GITHUB_ENV"
-      - name: Build Hugo site (deploy-preview context)
-        working-directory: website
-        env:
-          HUGO_ENV: production
-          HUGO_ENABLEGITINFO: true
-          TZ: America/Los_Angeles
-          HUGO_CACHEDIR: ${{ github.workspace }}/.hugo
-          NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
-        run: |
-          npm ci --prefer-offline
-          hugo --gc --minify --buildFuture -b "${{ env.PREVIEW_URL }}"
-      - name: Upload to S3
-        run: |
-          aws s3 sync website/public/ s3://${{ vars.AMPLIFY_S3_BUCKET_BETA }}/pr-${{ env.PR_NUMBER }}/ --delete
-      - name: Create Amplify branch (if doesn't exist)
-        run: |
-          if ! aws amplify get-branch --app-id ${{ vars.AMPLIFY_APP_ID_BETA }} --branch-name "${{ env.BRANCH_NAME }}" 2>/dev/null; then
-            aws amplify create-branch \
-              --app-id ${{ vars.AMPLIFY_APP_ID_BETA }} \
-              --branch-name "${{ env.BRANCH_NAME }}" \
-              --description "Preview for PR #${{ env.PR_NUMBER }}"
-          fi
-      - name: Configure redirects
-        run: |
-          REDIRECT_RULES=$(go run test/hack/resource/parse-redirects/main.go)
-          aws amplify update-app \
-            --app-id ${{ vars.AMPLIFY_APP_ID_BETA }} \
-            --custom-rules "$REDIRECT_RULES"
-      - name: Deploy to Amplify
-        run: |
-          aws amplify start-deployment \
-            --app-id ${{ vars.AMPLIFY_APP_ID_BETA }} \
-            --branch-name "${{ env.BRANCH_NAME }}" \
-            --source-url s3://${{ vars.AMPLIFY_S3_BUCKET_BETA }}/pr-${{ env.PR_NUMBER }}/ \
-            --source-url-type BUCKET_PREFIX
+      - name: Deploy website
+        uses: ./.github/actions/deploy-website
+        with:
+          aws-role-arn: arn:aws:iam::${{ vars.RELEASE_PREVIEW_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
+          aws-region: ${{ vars.AMPLIFY_REGION }}
+          amplify-app-id: ${{ vars.AMPLIFY_APP_ID_BETA }}
+          amplify-branch-name: ${{ env.BRANCH_NAME }}
+          s3-bucket: ${{ vars.AMPLIFY_S3_BUCKET_BETA }}
+          s3-prefix: pr-${{ env.PR_NUMBER }}/
+          hugo-base-url: ${{ env.PREVIEW_URL }}
+          preview: 'true'
       - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
           PREVIEW_URL: ${{ env.PREVIEW_URL }}
