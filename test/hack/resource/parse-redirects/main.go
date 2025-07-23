@@ -29,7 +29,7 @@ type RedirectRule struct {
 	Status string `json:"status"`
 }
 
-func getAvailableKarpenterVersions() ([]string, error) {
+func getAvailableKarpenterVersions() []string {
 	// scans the website content directory to find available for wildcard redirect expansion
 	contentDir := "website/content/en"
 	entries, err := os.ReadDir(contentDir)
@@ -43,7 +43,7 @@ func getAvailableKarpenterVersions() ([]string, error) {
 			versions = append(versions, name)
 		}
 	}
-	return versions, nil
+	return versions
 }
 
 func getRule(source string, target string, versions []string) []RedirectRule {
@@ -75,12 +75,7 @@ func getRule(source string, target string, versions []string) []RedirectRule {
 
 func main() {
 	redirectsFile := "website/static/_redirects"
-
-	versions, err := getAvailableKarpenterVersions()
-	if err != nil {
-		log.Fatalf("Error: Could not get available versions: %v\n", err)
-	}
-
+	versions := getAvailableKarpenterVersions()
 	file, err := os.Open(redirectsFile)
 	if err != nil {
 		log.Fatalf("Error reading %s: %v\n", redirectsFile, err)
@@ -90,7 +85,6 @@ func main() {
 	var rules []RedirectRule
 	scanner := bufio.NewScanner(file)
 	lineNum := 0
-
 	for scanner.Scan() {
 		lineNum++
 		line := strings.TrimSpace(scanner.Text())
