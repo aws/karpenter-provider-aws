@@ -85,9 +85,6 @@ spec:
     - id: sg-063d7acfb4b06c82c
 
   # Optional, IAM role to use for the node identity.
-  # The "role" field is immutable after EC2NodeClass creation. This may change in the
-  # future, but this restriction is currently in place today to ensure that Karpenter
-  # avoids leaking managed instance profiles in your account.
   # Must specify one of "role" or "instanceProfile" for Karpenter to launch nodes
   role: "KarpenterNodeRole-${CLUSTER_NAME}"
 

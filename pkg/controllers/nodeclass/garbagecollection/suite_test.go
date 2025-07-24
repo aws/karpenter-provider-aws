@@ -16,13 +16,15 @@ package garbagecollection_test
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"testing"
 	"time"
 
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
-	clock "k8s.io/utils/clock/testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -31,12 +33,12 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
-	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/garbagecollection"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
@@ -48,14 +50,12 @@ import (
 )
 
 var (
-	ctx                 context.Context
-	env                 *coretest.Environment
-	awsEnv              *test.Environment
-	fakeClock           *clock.FakeClock
-	gcController        *garbagecollection.Controller
-	nodeClassController *nodeclass.Controller
-	nodeClass           *v1.EC2NodeClass
-	cloudProvider       *cloudprovider.CloudProvider
+	ctx           context.Context
+	env           *coretest.Environment
+	awsEnv        *test.Environment
+	gcController  *garbagecollection.Controller
+	nodeClass     *v1.EC2NodeClass
+	cloudProvider *cloudprovider.CloudProvider
 )
 
 func TestAPIs(t *testing.T) {
@@ -65,7 +65,6 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	fakeClock = clock.NewFakeClock(time.Now())
 
 	// Setup core environment with necessary CRDs
 	env = coretest.NewEnvironment(
@@ -101,24 +100,6 @@ var _ = BeforeSuite(func() {
 		awsEnv.InstanceProfileProvider,
 		fake.DefaultRegion,
 	)
-	nodeClassController = nodeclass.NewController(
-		awsEnv.Clock,
-		env.Client,
-		cloudProvider,
-		events.NewRecorder(&record.FakeRecorder{}),
-		fake.DefaultRegion,
-		awsEnv.SubnetProvider,
-		awsEnv.SecurityGroupProvider,
-		awsEnv.AMIProvider,
-		awsEnv.InstanceProfileProvider,
-		awsEnv.InstanceTypesProvider,
-		awsEnv.LaunchTemplateProvider,
-		awsEnv.CapacityReservationProvider,
-		awsEnv.EC2API,
-		awsEnv.ValidationCache,
-		awsEnv.RecreationCache,
-		awsEnv.AMIResolver,
-	)
 })
 
 var _ = AfterSuite(func() {
@@ -126,7 +107,6 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	fakeClock.SetTime(time.Now())
 
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	nodeClass = test.EC2NodeClass()
@@ -137,23 +117,33 @@ var _ = BeforeEach(func() {
 
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
+	log.Printf("CLEANED UP WAS CALLED AFTER EACH")
 })
 
 var _ = Describe("Instance Profile GarbageCollection", func() {
 	It("should not delete active profiles", func() {
-		// Create NodeClass with role-A
-		nodeClass.Spec.Role = "role-A"
-
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, nodeClassController, nodeClass)
-		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		oldProfile := nodeClass.Status.InstanceProfile
 
-		// Create NodeClaim using profile
+		// Manually add profile to IAMAPI InstanceProfiles map
+		profileName := "profile-A"
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			profileName: {
+				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+				InstanceProfileName: aws.String(profileName),
+				Path:                lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, nodeClass.UID)),
+				Roles: []iamtypes.Role{
+					{
+						RoleName: aws.String("role-A"),
+					},
+				},
+			},
+		}
+
+		// Create NodeClaim to ensure created profile is Active
 		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
-					v1.AnnotationInstanceProfile: nodeClass.Status.InstanceProfile,
+					v1.AnnotationInstanceProfile: profileName,
 				},
 			},
 			Spec: karpv1.NodeClaimSpec{
@@ -164,179 +154,149 @@ var _ = Describe("Instance Profile GarbageCollection", func() {
 				},
 			},
 		})
+
 		ExpectApplied(ctx, env.Client, nodeClaim)
 
-		fakeClock.SetTime(fakeClock.Now().Add(-2 * time.Minute))
-
-		nodeClass.Spec.Role = "role-B"
-		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, nodeClassController, nodeClass)
+		// Ensure profile is not protected
+		awsEnv.InstanceProfileProvider.SetProtectedState(profileName, false)
 
 		// Run GC
 		ExpectSingletonReconciled(ctx, gcController)
-
-		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 		// Verify profile not deleted
-		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(oldProfile))
-		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(nodeClass.Status.InstanceProfile))
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(profileName))
+		ExpectDeleted(ctx, env.Client, nodeClass)
 	})
 
-	It("should delete inactive profiles after grace period", func() {
-		// Create NodeClass with role-A
-		nodeClass.Spec.Role = "role-A"
+	It("should not delete current profiles", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, nodeClassController, nodeClass)
-		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		oldProfile := nodeClass.Status.InstanceProfile
 
-		// Update to role-B
-		nodeClass.Spec.Role = "role-B"
+		// Manually add profile to IAMAPI InstanceProfiles map
+		profileName := "profile-A"
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			profileName: {
+				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+				InstanceProfileName: aws.String(profileName),
+				Path:                lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, nodeClass.UID)),
+				Roles: []iamtypes.Role{
+					{
+						RoleName: aws.String("role-A"),
+					},
+				},
+			},
+		}
+
+		// Ensure profile is current
+		nodeClass.Status.InstanceProfile = profileName
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, nodeClassController, nodeClass)
 
-		awsEnv.InstanceProfileProvider.SetProtectedState(oldProfile, false)
+		// Ensure profile is not protected
+		awsEnv.InstanceProfileProvider.SetProtectedState(profileName, false)
 
 		// Run GC
 		ExpectSingletonReconciled(ctx, gcController)
 
-		// Verify old profile deleted
-		Expect(awsEnv.IAMAPI.InstanceProfiles).ToNot(HaveKey(oldProfile))
-		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(nodeClass.Status.InstanceProfile))
-
-		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		// Verify profile not deleted
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(profileName))
+		ExpectDeleted(ctx, env.Client, nodeClass)
 	})
 
-	// Continue with more tests....
+	It("should not delete protected profiles", func() {
+		ExpectApplied(ctx, env.Client, nodeClass)
 
-	// Context("Race Conditions", func() {
-	// 	It("should handle concurrent role changes", func() {
-	// 		// count := 0
-	// 		// instanceprofile.CreationTimeMap.Range(func(key, value interface{}) bool {
-	// 		// 	count++
-	// 		// 	return true // Continue iteration
-	// 		// })
-	// 		// log.Printf("NOT GOOD:%d", count)
+		// Manually add profile to IAMAPI InstanceProfiles map
+		profileName := "profile-A"
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			profileName: {
+				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+				InstanceProfileName: aws.String(profileName),
+				Path:                lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, nodeClass.UID)),
+				Roles: []iamtypes.Role{
+					{
+						RoleName: aws.String("role-A"),
+					},
+				},
+			},
+		}
 
-	// 		// Create NodeClass with role-A
-	// 		nodeClass.Spec.Role = "role-A"
-	// 		ExpectApplied(ctx, env.Client, nodeClass)
-	// 		ExpectObjectReconciled(ctx, env.Client, nodeClassController, nodeClass)
-	// 		// nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-	// 		// log.Printf("HA: %s", nodeClass.Status.InstanceProfile)
+		// Ensure profile is protected
+		awsEnv.InstanceProfileProvider.SetProtectedState(profileName, true)
 
-	// 		// Create NodeClaim during transition
-	// 		// nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
-	// 		// 	ObjectMeta: metav1.ObjectMeta{
-	// 		// 		Annotations: map[string]string{
-	// 		// 			v1.AnnotationInstanceProfile: nodeClass.Status.InstanceProfile,
-	// 		// 		},
-	// 		// 	},
-	// 		// 	Spec: karpv1.NodeClaimSpec{
-	// 		// 		NodeClassRef: &karpv1.NodeClassReference{
-	// 		// 			Group: object.GVK(nodeClass).Group,
-	// 		// 			Kind:  object.GVK(nodeClass).Kind,
-	// 		// 			Name:  nodeClass.Name,
-	// 		// 		},
-	// 		// 	},
-	// 		// })
-	// 		// ExpectApplied(ctx, env.Client, nodeClaim)
+		// Run GC
+		ExpectSingletonReconciled(ctx, gcController)
 
-	// 		// Update to role-B
-	// 		nodeClass.Spec.Role = "role-B"
-	// 		ExpectApplied(ctx, env.Client, nodeClass)
-	// 		ExpectObjectReconciled(ctx, env.Client, nodeClassController, nodeClass)
+		// Verify profile not deleted
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(profileName))
+		ExpectDeleted(ctx, env.Client, nodeClass)
+	})
 
-	// 		// log.Printf("HA2: %s", nodeClass.Status.InstanceProfile)
+	It("should delete inactive profiles which are not current or protected", func() {
+		ExpectApplied(ctx, env.Client, nodeClass)
 
-	// 		// // Run GC before grace period
-	// 		// t, ok := instanceprofile.GetCreationTime(nodeClass.Status.InstanceProfile)
-	// 		// if !ok {
-	// 		// 	log.Printf("RIP")
-	// 		// }
+		// Manually add profile to IAMAPI InstanceProfiles map
+		profileName := "profile-A"
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			profileName: {
+				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+				InstanceProfileName: aws.String(profileName),
+				Path:                lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, nodeClass.UID)),
+				Roles: []iamtypes.Role{
+					{
+						RoleName: aws.String("role-A"),
+					},
+				},
+			},
+		}
 
-	// 		// log.Printf("TIME MAP: %s", t)
-	// 		// log.Printf("TIME NOW: %s", time.Now())
-	// 		ExpectSingletonReconciled(ctx, gcController)
+		// Ensure profile is not protected
+		awsEnv.InstanceProfileProvider.SetProtectedState(profileName, false)
 
-	// 		// Verify both profiles exist
-	// 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(2))
-	// 	})
+		// Run GC
+		ExpectSingletonReconciled(ctx, gcController)
 
-	// 	// 	It("should protect profiles during grace period", func() {
-	// 	// 		// Create NodeClass with role-A
-	// 	// 		nodeClass.Spec.Role = "role-A"
-	// 	// 		ExpectApplied(ctx, env.Client, nodeClass)
-	// 	// 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-	// 	// 		oldProfile := nodeClass.Status.InstanceProfile
+		// Verify profile not deleted
+		Expect(awsEnv.IAMAPI.InstanceProfiles).ToNot(HaveKey(profileName))
+		ExpectDeleted(ctx, env.Client, nodeClass)
+	})
 
-	// 	// 		// Update to role-B
-	// 	// 		nodeClass.Spec.Role = "role-B"
-	// 	// 		ExpectApplied(ctx, env.Client, nodeClass)
-	// 	// 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+	It("should requeue after 30 minutes for a successful run", func() {
+		// Run GC with no profiles to clean up
+		result, err := gcController.Reconcile(ctx)
+		Expect(err).To(BeNil())
 
-	// 	// 		// Create NodeClaim during grace period
-	// 	// 		nodeClaim := test.NodeClaim()
-	// 	// 		nodeClaim.Annotations = map[string]string{
-	// 	// 			v1.AnnotationInstanceProfile: oldProfile,
-	// 	// 		}
-	// 	// 		ExpectApplied(ctx, env.Client, nodeClaim)
+		// Verify requeue time is 30 minutes (1 minute for now)
+		Expect(result.RequeueAfter).To(Equal(1 * time.Minute))
+		ExpectDeleted(ctx, env.Client, nodeClass)
+	})
 
-	// 	// 		// Wait for grace period
-	// 	// 		fakeClock.Step(2 * time.Minute)
+	It("should requeue immediately on deletion failure", func() {
+		ExpectApplied(ctx, env.Client, nodeClass)
 
-	// 	// 		// Run GC
-	// 	// 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		// Add a profile that should be deleted
+		profileName := "profile-A"
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			profileName: {
+				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+				InstanceProfileName: aws.String(profileName),
+				Path:                lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, nodeClass.UID)),
+			},
+		}
 
-	// 	// 		// Verify old profile protected
-	// 	// 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(oldProfile))
+		// Make DeleteInstanceProfile fail
+		awsEnv.IAMAPI.DeleteInstanceProfileBehavior.Error.Set(fmt.Errorf("get failed"))
 
-	// 	// 		// Delete NodeClaim
-	// 	// 		ExpectDeleted(ctx, env.Client, nodeClaim)
+		// Run GC
+		result, err := gcController.Reconcile(ctx)
 
-	// 	// 		// Run GC again
-	// 	// 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		// Should return error from deletion
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("get failed"))
 
-	// 	// 		// Verify old profile now deleted
-	// 	// 		Expect(awsEnv.IAMAPI.InstanceProfiles).ToNot(HaveKey(oldProfile))
-	// 	// 	})
-	// 	// })
+		// Should requeue immediately (no delay)
+		Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 
-	// 	// Context("Edge Cases", func() {
-	// 	// 	It("should handle missing tags", func() {
-	// 	// 		// Create untagged profile
-	// 	// 		profileName := "untagged-profile"
-	// 	// 		awsEnv.IAMAPI.InstanceProfiles[profileName] = &iamtypes.InstanceProfile{
-	// 	// 			InstanceProfileName: aws.String(profileName),
-	// 	// 			Tags:                []iamtypes.Tag{},
-	// 	// 		}
-
-	// 	// 		// Run GC
-	// 	// 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-
-	// 	// 		// Verify untagged profile not deleted
-	// 	// 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(profileName))
-	// 	// 	})
-
-	// 	// 	It("should handle pre-upgrade NodeClaims", func() {
-	// 	// 		// Create NodeClass
-	// 	// 		nodeClass.Spec.Role = "role-A"
-	// 	// 		ExpectApplied(ctx, env.Client, nodeClass)
-	// 	// 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-
-	// 	// 		// Create NodeClaim without instance profile annotation
-	// 	// 		nodeClaim := test.NodeClaim()
-	// 	// 		ExpectApplied(ctx, env.Client, nodeClaim)
-
-	// 	// 		// Run GC
-	// 	// 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-
-	// 	// 		// Verify profile protected via old name format
-	// 	// 		clusterName := options.FromContext(ctx).ClusterName
-	// 	// 		hash := lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", fake.DefaultRegion, nodeClass.Name), hashstructure.FormatV2, nil))
-	// 	// 		oldProfileName := fmt.Sprintf("%s_%d", clusterName, hash)
-	// 	// 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(oldProfileName))
-	// 	// 	})
-	// })
+		// Profile should still exist since deletion failed
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(profileName))
+		ExpectDeleted(ctx, env.Client, nodeClass)
+	})
 })

@@ -208,7 +208,7 @@ func (s *IAMAPI) ListInstanceProfiles(_ context.Context, input *iam.ListInstance
 
 		var profiles []iamtypes.InstanceProfile
 		for _, profile := range s.InstanceProfiles {
-			if strings.HasPrefix(*profile.Path, *input.PathPrefix) {
+			if profile.Path != nil && strings.HasPrefix(*profile.Path, *input.PathPrefix) {
 				profiles = append(profiles, *profile)
 			}
 		}

@@ -84,7 +84,6 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 
 			if err := ip.instanceProfileProvider.Create(
 				ctx,
-				oldProfileName,
 				newProfileName,
 				nodeClass.InstanceProfileRole(),
 				nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
@@ -93,9 +92,18 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 				return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
 			}
 			ip.recreationCache.SetDefault(fmt.Sprintf("%s/%s", nodeClass.Spec.Role, nodeClass.UID), newProfileName)
+
+			if oldProfileName != "" {
+				ip.instanceProfileProvider.SetProtectedState(oldProfileName, true)
+			}
+			ip.instanceProfileProvider.SetProtectedState(newProfileName, true)
+			// time.Sleep(10 * time.Second)
 			nodeClass.Status.InstanceProfile = newProfileName
 		}
 	} else {
+		if nodeClass.Status.InstanceProfile != "" {
+			ip.instanceProfileProvider.SetProtectedState(nodeClass.Status.InstanceProfile, true)
+		}
 		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)

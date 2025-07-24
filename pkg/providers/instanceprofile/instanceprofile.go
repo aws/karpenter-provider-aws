@@ -37,11 +37,12 @@ import (
 
 type Provider interface {
 	Get(context.Context, string) (*iamtypes.InstanceProfile, error)
-	Create(context.Context, string, string, string, map[string]string, string) error
+	Create(context.Context, string, string, map[string]string, string) error
 	Delete(context.Context, string) error
 	ListClusterProfiles(context.Context) ([]*iamtypes.InstanceProfile, error)
 	ListNodeClassProfiles(context.Context, *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error)
 	IsProtected(string) bool
+	SetProtectedState(string, bool)
 }
 
 type DefaultProvider struct {
@@ -74,7 +75,7 @@ func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (
 	return out.InstanceProfile, nil
 }
 
-func (p *DefaultProvider) Create(ctx context.Context, oldProfileName string, instanceProfileName string, roleName string, tags map[string]string, nodeClassUID string) error {
+func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string, roleName string, tags map[string]string, nodeClassUID string) error {
 	instanceProfile, err := p.Get(ctx, instanceProfileName)
 	if err != nil {
 		if !awserrors.IsNotFound(err) {
@@ -120,12 +121,6 @@ func (p *DefaultProvider) Create(ctx context.Context, oldProfileName string, ins
 		RoleName: lo.ToPtr(roleName),
 	}}
 	p.cache.SetDefault(instanceProfileName, instanceProfile)
-
-	if oldProfileName != "" {
-		p.protectedProfiles.SetDefault(oldProfileName, struct{}{})
-	}
-	p.protectedProfiles.SetDefault(instanceProfileName, struct{}{})
-
 	return nil
 }
 
@@ -195,6 +190,8 @@ func (p *DefaultProvider) IsProtected(profileName string) bool {
 func (p *DefaultProvider) SetProtectedState(profileName string, protected bool) {
 	if !protected {
 		p.protectedProfiles.Delete(profileName)
+	} else {
+		p.protectedProfiles.SetDefault(profileName, struct{}{})
 	}
 }
 

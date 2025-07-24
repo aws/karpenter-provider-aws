@@ -112,7 +112,6 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("NodeClass Termination", func() {
-	var profileName string
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
 			Spec: v1.EC2NodeClassSpec{
@@ -134,7 +133,6 @@ var _ = Describe("NodeClass Termination", func() {
 				},
 			},
 		})
-		profileName = nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, fake.DefaultRegion)
 
 	})
 	It("should not delete the NodeClass if launch template deletion fails", func() {
@@ -232,6 +230,30 @@ var _ = Describe("NodeClass Termination", func() {
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
+
+	It("should succeed to delete legacy instance profile if one exists and the NodeClass is deleted", func() {
+		profileName := nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, fake.DefaultRegion)
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			profileName: {
+				InstanceProfileName: lo.ToPtr(profileName),
+				Roles: []iamtypes.Role{
+					{
+						RoleId:   aws.String(fake.RoleID()),
+						RoleName: aws.String("fake-role"),
+					},
+				},
+			},
+		}
+		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(2))
+
+		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+		ExpectNotFound(ctx, env.Client, nodeClass)
+	})
 	It("should not delete the EC2NodeClass until all associated NodeClaims are terminated", func() {
 		var nodeClaims []*karpv1.NodeClaim
 		for i := 0; i < 2; i++ {
@@ -279,6 +301,7 @@ var _ = Describe("NodeClass Termination", func() {
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
 	It("should not call the IAM API when deleting a NodeClass with an instanceProfile specified", func() {
+		profileName := "test-instance-profile"
 		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
 			profileName: {
 				InstanceProfileName: aws.String("test-instance-profile"),

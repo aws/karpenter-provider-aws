@@ -336,6 +336,39 @@ var _ = Describe("Drift", Ordered, func() {
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
+	// It("should use new instance profile when drifting due to role change", func() {
+	// 	// Create initial nodepool/nodeclass with role-A
+	// 	nodeClass.Spec.Role = "role-A"
+	// 	pod := coretest.Pod()
+	// 	env.ExpectCreated(pod, nodeClass, nodePool)
+	// 	initialNodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+	// 	initialNode := env.ExpectCreatedNodeCount("==", 1)[0]
+
+	// 	// Get initial instance profile
+	// 	initialInstance := env.ExpectInstance(pod.Spec.NodeName)
+	// 	initialInstanceProfile := initialInstance.IamInstanceProfile.Arn
+
+	// 	// Update to role-B which should create new instance profile
+	// 	nodeClass.Spec.Role = "role-B"
+	// 	env.ExpectCreatedOrUpdated(nodeClass)
+
+	// 	// Verify node is marked as drifted
+	// 	env.EventuallyExpectDrifted(initialNodeClaim)
+
+	// 	// Remove do-not-disrupt to allow replacement
+	// 	delete(pod.Annotations, karpv1.DoNotDisruptAnnotationKey)
+	// 	env.ExpectUpdated(pod)
+
+	// 	// Verify old resources are removed
+	// 	env.EventuallyExpectNotFound(pod, initialNode)
+	// 	env.EventuallyExpectHealthyPodCount(selector, numPods)
+
+	// 	// Verify new node uses new instance profile
+	// 	newPod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
+	// 	newInstance := env.ExpectInstance(newPod.Spec.NodeName)
+	// 	Expect(newInstance.IamInstanceProfile.Arn).ToNot(Equal(initialInstanceProfile))
+	// })
+
 	It("should drift the EC2NodeClass on BlockDeviceMappings volume size update", func() {
 		nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 			{
