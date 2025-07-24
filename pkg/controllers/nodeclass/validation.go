@@ -421,7 +421,7 @@ func (v *Validation) mockLaunchTemplateOptions(
 			},
 		}
 	}
-	opts, err := v.amiResolver.Resolve(nodeClass, nodeClaim, selectedInstanceTypes, karpv1.CapacityTypeOnDemand, amiOptions)
+	opts, err := v.amiResolver.Resolve(nodeClass, nodeClaim, selectedInstanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), amiOptions)
 	if err != nil {
 		return nil, err
 	}
