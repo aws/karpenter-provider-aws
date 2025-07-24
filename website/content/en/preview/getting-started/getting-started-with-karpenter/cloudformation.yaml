@@ -283,10 +283,13 @@ Resources:
               "Sid": "AllowInstanceProfileReadActions",
               "Effect": "Allow",
               "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
-              "Action": [ 
-                "iam:GetInstanceProfile",
-                "iam:ListInstanceProfiles"
-              ]
+              "Action": "iam:GetInstanceProfile"
+            },
+            {
+              "Sid": "AllowUnscopedInstanceProfileListAction",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": "iam:ListInstanceProfiles"
             },
             {
               "Sid": "AllowAPIServerEndpointDiscovery",
