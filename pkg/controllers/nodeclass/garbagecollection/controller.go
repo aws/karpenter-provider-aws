@@ -17,6 +17,7 @@ package garbagecollection
 import (
 	"context"
 	"fmt"
+	origlog "log"
 	"time"
 
 	"github.com/awslabs/operatorpkg/singleton"
@@ -64,6 +65,8 @@ func (c *Controller) getActiveProfiles(ctx context.Context) (sets.Set[string], e
 		}
 
 	}
+	origlog.Printf("length of active profiles: %d", len(activeProfiles))
+
 	return activeProfiles, nil
 }
 
@@ -80,23 +83,29 @@ func (c *Controller) getCurrentProfiles(ctx context.Context) (sets.Set[string], 
 			currentProfiles.Insert(nc.Status.InstanceProfile)
 		}
 	}
+	origlog.Printf("length of current profiles: %d", len(currentProfiles))
 	return currentProfiles, nil
 }
 
 func (c *Controller) shouldDeleteProfile(profileName string, currentProfiles sets.Set[string]) bool {
 	// Skip if this is a current profile in any EC2NodeClass
+	origlog.Printf("ENTERED SHOULD DELETE")
 	if _, isCurrent := currentProfiles[profileName]; isCurrent {
 		return false
 	}
+	origlog.Printf("NOT CURRENT PROFILE")
 
 	if c.instanceProfileProvider.IsProtected(profileName) {
 		return false
 	}
+	origlog.Printf("NOT PROTECTED PROFILE")
+
 	return true
 }
 
 func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles sets.Set[string], currentProfiles sets.Set[string]) error {
 	profiles, err := c.instanceProfileProvider.ListClusterProfiles(ctx)
+	origlog.Printf("length of listed cluster profiles: %d", len(profiles))
 
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)
@@ -108,12 +117,16 @@ func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles
 		shouldDelete := c.shouldDeleteProfile(profileName, currentProfiles)
 
 		if !shouldDelete {
+			origlog.Printf("WE CONTINUED FOR SOME REASON")
 			continue
 		}
+		origlog.Printf("WE MADE IT HERE!")
 		if _, isActive := activeProfiles[profileName]; !isActive {
 			if err := c.instanceProfileProvider.Delete(ctx, profileName); err != nil {
 				log.FromContext(ctx).Error(err, "failed to delete instance profile", "profile", profileName)
+				return err
 			}
+			origlog.Printf("NOT ACTIVE PROFILE")
 		}
 	}
 	return nil
