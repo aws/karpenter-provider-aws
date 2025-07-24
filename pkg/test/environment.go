@@ -82,6 +82,7 @@ type Environment struct {
 	CapacityReservationAvailabilityCache *cache.Cache
 	ValidationCache                      *cache.Cache
 	RecreationCache                      *cache.Cache
+	ProtectedProfilesCache               *cache.Cache
 
 	// Providers
 	CapacityReservationProvider *capacityreservation.DefaultProvider
@@ -121,6 +122,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	associatePublicIPAddressCache := cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval)
 	securityGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceProfileCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	protectedProfilesCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationAvailabilityCache := cache.New(24*time.Hour, awscache.DefaultCleanupInterval)
@@ -138,7 +140,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	// Version updates are hydrated asynchronously after this, in the event of a failure
 	// the previously resolved value will be used.
 	lo.Must0(versionProvider.UpdateVersion(ctx))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, instanceProfileCache, fake.DefaultRegion)
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, instanceProfileCache, protectedProfilesCache, fake.DefaultRegion)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
 	amiResolver := amifamily.NewDefaultResolver()
@@ -200,6 +202,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		CapacityReservationAvailabilityCache: capacityReservationAvailabilityCache,
 		ValidationCache:                      validationCache,
 		RecreationCache:                      recreationCache,
+		ProtectedProfilesCache:               protectedProfilesCache,
 
 		CapacityReservationProvider: capacityReservationProvider,
 		InstanceTypesResolver:       instanceTypesResolver,
@@ -226,7 +229,6 @@ func (env *Environment) Reset() {
 	env.PricingAPI.Reset()
 	env.PricingProvider.Reset()
 	env.InstanceTypesProvider.Reset()
-	env.InstanceProfileProvider.Reset()
 
 	env.EC2Cache.Flush()
 	env.UnavailableOfferingsCache.Flush()
@@ -242,6 +244,7 @@ func (env *Environment) Reset() {
 	env.CapacityReservationCache.Flush()
 	env.ValidationCache.Flush()
 	env.RecreationCache.Flush()
+	env.ProtectedProfilesCache.Flush()
 	mfs, err := crmetrics.Registry.Gather()
 	if err != nil {
 		for _, mf := range mfs {

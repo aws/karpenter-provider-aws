@@ -49,6 +49,8 @@ const (
 	ValidationTTL = 10 * time.Minute
 	// RecreationTTL is the duration to suppress instance profile recreation for the same role to avoid duplicates
 	RecreationTTL = 1 * time.Minute
+	// ProtectedProfilesTTL is the duration to keep profiles as protected before nodeclass garbagecollector considers deletion
+	ProtectedProfilesTTL = 1 * time.Hour
 )
 
 const (
