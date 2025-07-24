@@ -1216,30 +1216,30 @@ var _ = Describe("CEL/Validation", func() {
 			nc.Spec.Role = ""
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
-		It("should fail when updating the role", func() {
+		It("should not fail when updating the role", func() {
 			nc.Spec.Role = "test-role"
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 
 			nc.Spec.Role = "test-role2"
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			Expect(env.Client.Update(ctx, nc)).To(Succeed())
 		})
-		It("should fail to switch between an unmanaged and managed instance profile", func() {
+		It("should not fail to switch between an unmanaged and managed instance profile", func() {
 			nc.Spec.Role = ""
 			nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 
 			nc.Spec.Role = "test-role"
 			nc.Spec.InstanceProfile = nil
-			Expect(env.Client.Update(ctx, nc)).ToNot(Succeed())
+			Expect(env.Client.Update(ctx, nc)).To(Succeed())
 		})
-		It("should fail to switch between a managed and unmanaged instance profile", func() {
+		It("should no fail to switch between a managed and unmanaged instance profile", func() {
 			nc.Spec.Role = "test-role"
 			nc.Spec.InstanceProfile = nil
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 
 			nc.Spec.Role = ""
 			nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-			Expect(env.Client.Update(ctx, nc)).ToNot(Succeed())
+			Expect(env.Client.Update(ctx, nc)).To(Succeed())
 		})
 	})
 })
