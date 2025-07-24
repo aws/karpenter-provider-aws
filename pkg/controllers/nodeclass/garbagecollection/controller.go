@@ -87,18 +87,25 @@ func (c *Controller) getCurrentProfiles(ctx context.Context) (sets.Set[string], 
 	return currentProfiles, nil
 }
 
-func (c *Controller) shouldDeleteProfile(profileName string, currentProfiles sets.Set[string]) bool {
+func (c *Controller) shouldDeleteProfile(profileName string, currentProfiles sets.Set[string], activeProfiles sets.Set[string]) bool {
 	// Skip if this is a current profile in any EC2NodeClass
 	origlog.Printf("ENTERED SHOULD DELETE")
-	if _, isCurrent := currentProfiles[profileName]; isCurrent {
+	if _, ok := currentProfiles[profileName]; ok {
 		return false
 	}
 	origlog.Printf("NOT CURRENT PROFILE")
 
+	// Skip if this is a protected profile
 	if c.instanceProfileProvider.IsProtected(profileName) {
 		return false
 	}
 	origlog.Printf("NOT PROTECTED PROFILE")
+
+	// Skip if this is an active profile (NodeClaims are using it)
+	if _, isActive := activeProfiles[profileName]; isActive {
+		return false
+	}
+	origlog.Printf("NOT ACTIVE PROFILE")
 
 	return true
 }
@@ -114,20 +121,17 @@ func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles
 	for _, profile := range profiles {
 		profileName := *profile.InstanceProfileName
 
-		shouldDelete := c.shouldDeleteProfile(profileName, currentProfiles)
-
-		if !shouldDelete {
+		if !c.shouldDeleteProfile(profileName, currentProfiles, activeProfiles) {
 			origlog.Printf("WE CONTINUED FOR SOME REASON")
 			continue
 		}
-		origlog.Printf("WE MADE IT HERE!")
-		if _, isActive := activeProfiles[profileName]; !isActive {
-			if err := c.instanceProfileProvider.Delete(ctx, profileName); err != nil {
-				log.FromContext(ctx).Error(err, "failed to delete instance profile", "profile", profileName)
-				return err
-			}
-			origlog.Printf("NOT ACTIVE PROFILE")
+		origlog.Printf("WE MADE IT PAST DELETE!")
+
+		if err := c.instanceProfileProvider.Delete(ctx, profileName); err != nil {
+			log.FromContext(ctx).Error(err, "failed to delete instance profile", "profile", profileName)
+			return err
 		}
+		origlog.Printf("NOT ACTIVE PROFILE")
 	}
 	return nil
 }

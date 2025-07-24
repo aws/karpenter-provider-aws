@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
@@ -52,11 +51,11 @@ type DefaultProvider struct {
 	region            string
 }
 
-func NewDefaultProvider(iamapi sdk.IAMAPI, cache *gocache.Cache, region string) *DefaultProvider {
+func NewDefaultProvider(iamapi sdk.IAMAPI, cache *gocache.Cache, protectedProfiles *gocache.Cache, region string) *DefaultProvider {
 	return &DefaultProvider{
 		iamapi:            iamapi,
 		cache:             cache,
-		protectedProfiles: gocache.New(time.Minute, time.Minute), // TTL should represent worst case "wait period" before deleting a non-active instance profile is acceptable
+		protectedProfiles: protectedProfiles,
 		region:            region,
 	}
 }
@@ -186,15 +185,10 @@ func (p *DefaultProvider) IsProtected(profileName string) bool {
 	return exists
 }
 
-// For testing purposes
 func (p *DefaultProvider) SetProtectedState(profileName string, protected bool) {
 	if !protected {
 		p.protectedProfiles.Delete(profileName)
 	} else {
 		p.protectedProfiles.SetDefault(profileName, struct{}{})
 	}
-}
-
-func (p *DefaultProvider) Reset() {
-	p.protectedProfiles.Flush()
 }

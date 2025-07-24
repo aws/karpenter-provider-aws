@@ -23,8 +23,6 @@ import (
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	// "github.com/patrickmn/go-cache"
-
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
@@ -76,8 +74,6 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 		// If role has changed, create new profile
 		log.Printf("Current role: %s, new role: %s", currentRole, nodeClass.Spec.Role)
 		if currentRole != nodeClass.Spec.Role {
-			// nodeClass.StatusConditions().SetFalse(v1.ConditionTypeInstanceProfileReady, "Reconciling", "Creating a new instance profile for role change")
-
 			// Generate new profile name
 			newProfileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
 			log.Printf("Generated new profile name: %s", newProfileName)
@@ -93,14 +89,20 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 			}
 			ip.recreationCache.SetDefault(fmt.Sprintf("%s/%s", nodeClass.Spec.Role, nodeClass.UID), newProfileName)
 
+			// Mark the old profile as protected to prevent premature deletion by garbage collection.
+			// This handles the case where a new NodeClaim is created but hasn't yet appeared in the
+			// informer cache when garbage collection runs.
 			if oldProfileName != "" {
 				ip.instanceProfileProvider.SetProtectedState(oldProfileName, true)
 			}
+			// Similarly protect the new profile to prevent deletion if garbage collection runs
+			// before this NodeClass appears in the informer cache.
 			ip.instanceProfileProvider.SetProtectedState(newProfileName, true)
-			// time.Sleep(10 * time.Second)
 			nodeClass.Status.InstanceProfile = newProfileName
 		}
 	} else {
+		// Ensure old profile is marked as protected in the event a customer switches from using
+		// spec.role to spec.instanceProfile
 		if nodeClass.Status.InstanceProfile != "" {
 			ip.instanceProfileProvider.SetProtectedState(nodeClass.Status.InstanceProfile, true)
 		}
