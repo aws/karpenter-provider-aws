@@ -1,7 +1,6 @@
 ---
 title: "Managing AMIs"
 linkTitle: "Managing AMIs"
-weight: 10
 description: >
   Task for managing AMIs in Karpenter
 ---

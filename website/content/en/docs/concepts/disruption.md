@@ -78,6 +78,7 @@ Disruption is configured through the NodePool's disruption block by the `consoli
 spec:
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 0s
 ```
 {{% /alert %}}
 

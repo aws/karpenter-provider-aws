@@ -27,12 +27,12 @@ capacityReservationSelectorTerms:
 - id: cr-56fac701cc1951b03
 ```
 
+For more information on configuring `capacityReservationSelectorTerms`, see the [NodeClass docs]({{< relref "../concepts/nodeclasses#speccapacityreservationselectorterms" >}}).
+
 {{% alert title="Note" color="primary" %}}
 Capacity blocks are modeled as on-demand capacity reservations in EC2.
 To select capacity blocks, specify them in your `capacityReservationSelectorTerms` in the same way you would for a default ODCR.
 {{% /alert %}}
-
-For more information on configuring `capacityReservationSelectorTerms`, see the [NodeClass docs]({{< relref "../concepts/nodeclasses#speccapacityreservationselectorterms" >}}).
 
 Additionally, you will need to update your NodePool to be compatible with ODCRs.
 Karpenter doesn't model ODCRs as standard on-demand capacity, and instead uses a dedicated capacity type: `reserved`.
