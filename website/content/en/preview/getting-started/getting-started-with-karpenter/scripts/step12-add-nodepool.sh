@@ -46,5 +46,5 @@ spec:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+        kubernetes.io/cluster/${CLUSTER_NAME}: "owned" # replace with your cluster name
 EOF
