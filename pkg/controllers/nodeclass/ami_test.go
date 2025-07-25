@@ -420,6 +420,105 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			}))
 			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
 		})
+		It("Should resolve all AMIs with correct requirements for Bottlerocket FIPS", func() {
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-fips/x86_64/latest/image_id", k8sVersion): "ami-amd64-standard",
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-fips/arm64/latest/image_id", k8sVersion):  "ami-arm64-standard",
+			}
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket-fips@latest"}}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+			Expect(len(nodeClass.Status.AMIs)).To(Equal(5))
+			Expect(nodeClass.Status.AMIs).To(ContainElements([]v1.AMI{
+				{
+					Name: "amd64-standard",
+					ID:   "ami-amd64-standard",
+					Requirements: []corev1.NodeSelectorRequirement{
+						{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureAmd64},
+						},
+						{
+							Key:      v1.LabelInstanceGPUCount,
+							Operator: corev1.NodeSelectorOpDoesNotExist,
+						},
+						{
+							Key:      v1.LabelInstanceAcceleratorCount,
+							Operator: corev1.NodeSelectorOpDoesNotExist,
+						},
+					},
+				},
+				{
+					Name: "arm64-standard",
+					ID:   "ami-arm64-standard",
+					Requirements: []corev1.NodeSelectorRequirement{
+						{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureArm64},
+						},
+						{
+							Key:      v1.LabelInstanceGPUCount,
+							Operator: corev1.NodeSelectorOpDoesNotExist,
+						},
+						{
+							Key:      v1.LabelInstanceAcceleratorCount,
+							Operator: corev1.NodeSelectorOpDoesNotExist,
+						},
+					},
+				},
+				// Note: Bottlerocket FIPS uses the same AMI for standard and neuron
+				{
+					Name: "amd64-standard",
+					ID:   "ami-amd64-standard",
+					Requirements: []corev1.NodeSelectorRequirement{
+						{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureAmd64},
+						},
+						{
+							Key:      v1.LabelInstanceAcceleratorCount,
+							Operator: corev1.NodeSelectorOpExists,
+						},
+					},
+				},
+				{
+					Name: "amd64-nvidia",
+					ID:   "ami-amd64-nvidia",
+					Requirements: []corev1.NodeSelectorRequirement{
+						{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureAmd64},
+						},
+						{
+							Key:      v1.LabelInstanceGPUCount,
+							Operator: corev1.NodeSelectorOpExists,
+						},
+					},
+				},
+				{
+					Name: "arm64-nvidia",
+					ID:   "ami-arm64-nvidia",
+					Requirements: []corev1.NodeSelectorRequirement{
+						{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureArm64},
+						},
+						{
+							Key:      v1.LabelInstanceGPUCount,
+							Operator: corev1.NodeSelectorOpExists,
+						},
+					},
+				},
+			}))
+			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
+		})
 		It("Should resolve all AMIs with correct requirements for Windows2019", func() {
 			awsEnv.SSMAPI.Parameters = map[string]string{
 				fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-EKS_Optimized-%s/image_id", k8sVersion): "ami-amd64-standard",

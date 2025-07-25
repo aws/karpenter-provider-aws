@@ -585,6 +585,7 @@ func amiFamilyFromAlias(alias string) string {
 		AMIFamilyAL2,
 		AMIFamilyAL2023,
 		AMIFamilyBottlerocket,
+		AMIFamilyBottlerocketFIPS,
 		AMIFamilyWindows2019,
 		AMIFamilyWindows2022,
 	}, func(family string) bool {

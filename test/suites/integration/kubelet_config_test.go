@@ -104,6 +104,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			Entry("when the AMIFamily is AL2", "al2@latest"),
 			Entry("when the AMIFamily is AL2023", "al2023@latest"),
 			Entry("when the AMIFamily is Bottlerocket", "bottlerocket@latest"),
+			Entry("when the AMIFamily is Bottlerocket FIPS", "bottlerocket-fips@latest"),
 		)
 		DescribeTable("Windows AMIFamilies",
 			func(term v1.AMISelectorTerm) {
@@ -215,38 +216,42 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreatedNodeCount("==", 2)
 		env.EventuallyExpectUniqueNodeNames(selector, 2)
 	})
-	It("should ignore podsPerCore value when Bottlerocket is used", func() {
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-		// All pods should schedule to a single node since we are ignoring podsPerCore value
-		// This would normally schedule to 3 nodes if not using Bottlerocket
-		test.ReplaceRequirements(nodePool,
-			karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceCPU,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"2"},
+	DescribeTable("should ignore podsPerCore value when Bottlerocket is used",
+		func(alias string) {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+			// All pods should schedule to a single node since we are ignoring podsPerCore value
+			// This would normally schedule to 3 nodes if not using Bottlerocket
+			test.ReplaceRequirements(nodePool,
+				karpv1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      v1.LabelInstanceCPU,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"2"},
+					},
 				},
-			},
-		)
+			)
 
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{PodsPerCore: lo.ToPtr(int32(1))}
-		numPods := 6
-		dep := test.Deployment(test.DeploymentOptions{
-			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "large-app"},
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{PodsPerCore: lo.ToPtr(int32(1))}
+			numPods := 6
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: int32(numPods),
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "large-app"},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
+					},
 				},
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
-				},
-			},
-		})
-		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			})
+			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		env.ExpectCreated(nodeClass, nodePool, dep)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectUniqueNodeNames(selector, 1)
-	})
+			env.ExpectCreated(nodeClass, nodePool, dep)
+			env.EventuallyExpectHealthyPodCount(selector, numPods)
+			env.ExpectCreatedNodeCount("==", 1)
+			env.EventuallyExpectUniqueNodeNames(selector, 1)
+		},
+		Entry("bottlerocket@latest", "bottlerocket@latest"),
+		Entry("bottlerocket-fips@latest", "bottlerocket-fips@latest"),
+	)
 })

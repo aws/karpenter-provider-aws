@@ -742,6 +742,7 @@ An `alias` term can be used to select EKS-optimized AMIs. An `alias` is formatte
 * `al2`
 * `al2023`
 * `bottlerocket`
+* `bottlerocket-fips`
 * `windows2019`
 * `windows2022`
 
@@ -751,6 +752,10 @@ For example, AL2 and AL2023 use dates for their release, so they can be pinned a
 alias: al2023@v20240703
 ```
 Bottlerocket uses a semantic version for their releases. You can pin bottlerocket as follows:
+```yaml
+alias: bottlerocket@v1.20.4
+```
+Bottlerocket FIPS variants follow the same semantic versioning for their releases. You can pin bottlerocket-fips as follows:
 ```yaml
 alias: bottlerocket@v1.20.4
 ```
@@ -775,6 +780,12 @@ The following commands can be used to determine the versions availble for an ali
   ```bash
   export K8S_VERSION="{{< param "latest_k8s_version" >}}"
   aws ssm get-parameters-by-path --path "/aws/service/bottlerocket/aws-k8s-$K8S_VERSION" --recursive | jq -cr '.Parameters[].Name' | grep -v "latest" | awk -F '/' '{print $7}' | sort | uniq
+  ```
+  {{% /tab %}}
+  {{% tab "Bottlerocket FIPS" %}}
+  ```bash
+  export K8S_VERSION="{{< param "latest_k8s_version" >}}"
+  aws ssm get-parameters-by-path --path "/aws/service/bottlerocket/aws-k8s-$K8S_VERSION-fips" --recursive | jq -cr '.Parameters[].Name' | grep -v "latest" | awk -F '/' '{print $7}' | sort | uniq
   ```
   {{% /tab %}}
 {{< /tabpane >}}
