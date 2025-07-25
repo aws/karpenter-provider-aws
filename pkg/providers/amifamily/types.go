@@ -70,12 +70,13 @@ var (
 	VariantStandard Variant   = "standard"
 	VariantNvidia   Variant   = "nvidia"
 	VariantNeuron   Variant   = "neuron"
+	VariantFIPS     Variant   = "fips"
 	maxTime         time.Time = time.Unix(math.MaxInt64, 0)
 	minTime         time.Time = time.Unix(math.MinInt64, 0)
 )
 
 func NewVariant(v string) (Variant, error) {
-	var wellKnownVariants = sets.New(VariantStandard, VariantNvidia, VariantNeuron)
+	var wellKnownVariants = sets.New(VariantStandard, VariantNvidia, VariantNeuron, VariantFIPS)
 	variant := Variant(v)
 	if !wellKnownVariants.Has(variant) {
 		return variant, serrors.Wrap(fmt.Errorf("variant is not well-known"), "variant", variant)
@@ -86,6 +87,7 @@ func NewVariant(v string) (Variant, error) {
 func (v Variant) Requirements() scheduling.Requirements {
 	switch v {
 	case VariantStandard:
+	case VariantFIPS:
 		return scheduling.NewRequirements(
 			scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpDoesNotExist),
 			scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpDoesNotExist),
