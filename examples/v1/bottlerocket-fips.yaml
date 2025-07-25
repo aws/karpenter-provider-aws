@@ -29,22 +29,22 @@ spec:
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: bottlerocket-fips
+        name: default
 ---
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: bottlerocket-fips
+  name: default
   annotations:
     kubernetes.io/description: "EC2NodeClass for running Bottlerocket FIPS nodes"
 spec:
-  role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
+  role: "KarpenterNodeRole-happy-bluegrass-pumpkin" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+        karpenter.sh/discovery: "happy-bluegrass-pumpkin" # replace with your cluster name
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+        karpenter.sh/discovery: "happy-bluegrass-pumpkin" # replace with your cluster name
   amiSelectorTerms:
     - alias: bottlerocket-fips@latest # Bottlerocket FIPS
   blockDeviceMappings:
