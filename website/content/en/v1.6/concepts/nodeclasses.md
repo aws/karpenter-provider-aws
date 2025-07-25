@@ -100,12 +100,13 @@ spec:
   amiSelectorTerms:
     # Select on any AMI that has both the `karpenter.sh/discovery: ${CLUSTER_NAME}`
     # AND `environment: test` tags OR any AMI with the name `my-ami` OR an AMI with
-    # ID `ami-123`
+    # ID `ami-123` OR an AMI with ID matching the value of my-custom-parameter
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}"
         environment: test
     - name: my-ami
     - id: ami-123
+    - ssmParameter: my-custom-parameter # ssm parameter name or ARN
     # Select EKS optimized AL2023 AMIs with version `v20240703`. This term is mutually
     # exclusive and can't be specified with other terms.
     # - alias: al2023@v20240703
@@ -140,6 +141,7 @@ spec:
         deleteOnTermination: true
         throughput: 125
         snapshotID: snap-0123456789
+        volumeInitializationRate: 100
 
   # Optional, use instance-store volumes for node ephemeral-storage
   instanceStorePolicy: RAID0
@@ -201,11 +203,15 @@ status:
       instanceMatchCriteria: targeted
       instanceType: g6.48xlarge
       ownerID: "012345678901"
+      reservationType: capacity-block
+      state: expiring
     - availabilityZone: us-west-2c
       id: cr-12345678901234567
       instanceMatchCriteria: open
       instanceType: g6.48xlarge
       ownerID: "98765432109"
+      reservationType: default
+      state: active
 
   # Generated instance profile name from "role"
   instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
@@ -292,17 +298,6 @@ spec:
 ```
 
 Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kubelet` and `spec.userData`.
-{{% /alert %}}
-
-{{% alert title="Warning" color="warning" %}}
-The Bottlerocket AMIFamily does not support the following fields:
-
-* `evictionSoft`
-* `evictionSoftGracePeriod`
-* `evictionMaxPodGracePeriod`
-
-If any of these fields are specified on a Bottlerocket EC2NodeClass, they will be ommited from generated UserData and ignored for scheduling purposes.
-Support for these fields can be tracked via GitHub issue [#3722](https://github.com/aws/karpenter-provider-aws/issues/3722).
 {{% /alert %}}
 
 #### Pods Per Core
@@ -728,12 +723,13 @@ The example below shows how this selection logic is fulfilled.
 amiSelectorTerms:
   # Select on any AMI that has both the `karpenter.sh/discovery: ${CLUSTER_NAME}`
   # AND `environment: test` tags OR any AMI with the name `my-ami` OR an AMI with
-  # ID `ami-123`
+  # ID `ami-123` OR an AMI with ID matching the value of my-custom-parameter
   - tags:
       karpenter.sh/discovery: "${CLUSTER_NAME}"
       environment: test
   - name: my-ami
   - id: ami-123
+  - ssmParameter: my-custom-parameter # ssm parameter name or ARN
   # Select EKS optimized AL2023 AMIs with version `v20240807`. This term is mutually
   # exclusive and can't be specified with other terms.
   # - alias: al2023@v20240807
@@ -865,11 +861,21 @@ Specify using ids:
     - id: "ami-456"
 ```
 
+Specify using custom ssm parameter name or ARN:
+```yaml
+  amiSelectorTerms:
+    - ssmParameter: "my-custom-parameter"
+```
+
+{{% alert title="Note" color="primary" %}}
+When using a custom SSM parameter, you'll need to expand the `ssm:GetParameter` permissions on the Karpenter IAM role to include your custom parameter, as the default policy only allows access to the AWS public parameters.
+{{% /alert %}}
+
 ## spec.capacityReservationSelectorTerms
 
-<i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Alpha]({{<ref "../reference/settings#feature-gates" >}})
+<i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Beta]({{<ref "../reference/settings#feature-gates" >}})
 
-Capacity Reservation Selector Terms allow you to select [on-demand capacity reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html), which will be made available to NodePools which select the given EC2NodeClass.
+Capacity Reservation Selector Terms allow you to select [on-demand capacity reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html) (ODCRs), which will be made available to NodePools which select the given EC2NodeClass.
 Karpenter will prioritize utilizing the capacity in these reservations before falling back to on-demand and spot.
 Capacity reservations can be discovered using ids or tags.
 
@@ -877,6 +883,12 @@ This selection logic is modeled as terms.
 A term can specify an ID or a set of tags to select against.
 When specifying tags, it will select all capacity reservations accessible from the account with matching tags.
 This can be further restricted by specifying an owner ID.
+
+For more information on utilizing ODCRs with Karpenter, refer to the [Utilizing ODCRs Task]({{< relref "../tasks/odcrs" >}}).
+
+{{% alert title="Note" color="primary" %}}
+Note that the IAM role Karpenter assumes should have a permissions policy associated with it that grants it permissions to use the [ec2:DescribeCapacityReservations](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-DescribeCapacityReservations) action to discover capacity reservations and the [ec2:RunInstances](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-RunInstances) action to run instances in those capacity reservations.
+{{% /alert %}}
 
 #### Examples
 
@@ -975,6 +987,7 @@ spec:
         deleteOnTermination: true
         throughput: 125
         snapshotID: snap-0123456789
+        volumeInitializationRate: 100
 ```
 
 The following blockDeviceMapping defaults are used for each `AMIFamily` if no `blockDeviceMapping` overrides are specified in the `EC2NodeClass`
@@ -1652,6 +1665,8 @@ status:
 | `instanceMatchCriteria` | `open`                 | The instanceMatchCriteria for the capacity reservation. Can be `open` or `targeted`. |
 | `instanceType`          | `m5.large`             | The EC2 instance type of the capacity reservation                                    |
 | `ownerID`               | `459763720645`         | The account ID that owns the capacity reservation                                    |
+| `reservationType`       | `default`              | The type of the capacity reservation. Can be `default` or `capacity-block`.          |
+| `state`                 | `active`               | The state of the capacity reservation. Can be `active` or `expiring`.                |
 
 #### Examples
 
@@ -1663,11 +1678,15 @@ status:
     instanceMatchCriteria: targeted
     instanceType: g6.48xlarge
     ownerID: "012345678901"
+    reservationType: capacity-block
+    state: expiring
   - availabilityZone: us-west-2c
     id: cr-12345678901234567
     instanceMatchCriteria: open
     instanceType: g6.48xlarge
     ownerID: "98765432109"
+    reservationType: default
+    state: active
 ```
 
 ## status.instanceProfile
