@@ -42,7 +42,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/batcher"
-	"github.com/aws/karpenter-provider-aws/pkg/cache"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
@@ -50,7 +50,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 
-	gocache "github.com/patrickmn/go-cache"
+	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
@@ -97,12 +97,12 @@ type DefaultProvider struct {
 	region                      string
 	recorder                    events.Recorder
 	ec2api                      sdk.EC2API
-	unavailableOfferings        *cache.UnavailableOfferings
+	unavailableOfferings        *awscache.UnavailableOfferings
 	subnetProvider              subnet.Provider
 	launchTemplateProvider      launchtemplate.Provider
 	ec2Batcher                  *batcher.EC2API
 	capacityReservationProvider capacityreservation.Provider
-	instanceCache               *gocache.Cache
+	instanceCache               *cache.Cache
 }
 
 func NewDefaultProvider(
@@ -110,11 +110,11 @@ func NewDefaultProvider(
 	region string,
 	recorder events.Recorder,
 	ec2api sdk.EC2API,
-	unavailableOfferings *cache.UnavailableOfferings,
+	unavailableOfferings *awscache.UnavailableOfferings,
 	subnetProvider subnet.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	capacityReservationProvider capacityreservation.Provider,
-	instanceCache *gocache.Cache,
+	instanceCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		region:                      region,
