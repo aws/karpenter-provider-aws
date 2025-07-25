@@ -17,7 +17,7 @@ These descriptions should allow you to understand:
 To download a particular version of `cloudformation.yaml`, set the version and use `curl` to pull the file to your local system:
 
 ```bash
-export KARPENTER_VERSION="1.5.2"
+export KARPENTER_VERSION="1.5.3"
 curl https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > cloudformation.yaml
 ```
 
@@ -113,7 +113,7 @@ Someone wanting to add Karpenter to an existing cluster, instead of using `cloud
 
 The AllowScopedEC2InstanceAccessActions statement ID (Sid) identifies a set of EC2 resources that are allowed to be accessed with
 [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html) and [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html) actions.
-For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read (but not create) `image`, `snapshot`, `security-group`, `subnet` and `launch-template` EC2 resources, scoped for the particular AWS partition and region.
+For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read (but not create) `image`, `snapshot`, `security-group`, `subnet` and `capacity-reservation` EC2 resources, scoped for the particular AWS partition and region.
 
 ```json
 {
@@ -123,7 +123,8 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read 
     "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
-    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*"
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*"
   ],
   "Action": [
     "ec2:RunInstances",
@@ -298,6 +299,7 @@ This allows the Karpenter controller to do any of those read-only actions across
   "Effect": "Allow",
   "Resource": "*",
   "Action": [
+    "ec2:DescribeCapacityReservations",
     "ec2:DescribeImages",
     "ec2:DescribeInstances",
     "ec2:DescribeInstanceTypeOfferings",

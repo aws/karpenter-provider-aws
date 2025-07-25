@@ -477,6 +477,14 @@ var _ = Describe("Pricing", func() {
 			Expect(ok).To(BeTrue())
 			Expect(price).To(BeNumerically("==", 1.10))
 		})
+		It("should return static on-demand data when in an AWS GovCloud region", func() {
+			provider := pricing.NewDefaultProvider(awsEnv.PricingAPI, awsEnv.EC2API, "us-gov-east-1", false)
+			err := provider.UpdateOnDemandPricing(ctx)
+			Expect(err).To(BeNil())
+			Expect(awsEnv.PricingAPI.GetProductsBehavior.CalledWithInput.Len()).To(Equal(0))
+			_, ok := provider.OnDemandPrice("c5.12xlarge")
+			Expect(ok).To(BeTrue())
+		})
 		It("should maintain previous data when pricing API returns partial data", func() {
 			now := time.Now()
 			awsEnv.EC2API.DescribeSpotPriceHistoryBehavior.Output.Set(&ec2.DescribeSpotPriceHistoryOutput{

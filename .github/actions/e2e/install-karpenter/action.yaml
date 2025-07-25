@@ -57,7 +57,11 @@ runs:
       CLUSTER_NAME: ${{ inputs.cluster_name }}
       PRIVATE_CLUSTER: ${{ inputs.private_cluster }}
     run: |
-      ./test/hack/e2e_scripts/install_karpenter.sh
+      output=$(./test/hack/e2e_scripts/install_karpenter.sh 2>&1)
+      if echo "$output" | grep -i "warning.*violate.*podsecurity"; then
+        echo "ERROR: Karpenter does not respect restricted Pod Security Standard"
+        exit 1
+      fi
   - name: diff-karpenter
     shell: bash
     env:

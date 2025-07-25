@@ -32,25 +32,25 @@ spec:
     podsPerCore: 2
     maxPods: 20
     systemReserved:
-        cpu: 100m
-        memory: 100Mi
-        ephemeral-storage: 1Gi
+      cpu: 100m
+      memory: 100Mi
+      ephemeral-storage: 1Gi
     kubeReserved:
-        cpu: 200m
-        memory: 100Mi
-        ephemeral-storage: 3Gi
+      cpu: 200m
+      memory: 100Mi
+      ephemeral-storage: 3Gi
     evictionHard:
-        memory.available: 5%
-        nodefs.available: 10%
-        nodefs.inodesFree: 10%
+      memory.available: 5%
+      nodefs.available: 10%
+      nodefs.inodesFree: 10%
     evictionSoft:
-        memory.available: 500Mi
-        nodefs.available: 15%
-        nodefs.inodesFree: 15%
+      memory.available: 500Mi
+      nodefs.available: 15%
+      nodefs.inodesFree: 15%
     evictionSoftGracePeriod:
-        memory.available: 1m
-        nodefs.available: 1m30s
-        nodefs.inodesFree: 2m
+      memory.available: 1m
+      nodefs.available: 1m30s
+      nodefs.inodesFree: 2m
     evictionMaxPodGracePeriod: 60
     imageGCHighThresholdPercent: 85
     imageGCLowThresholdPercent: 80
@@ -981,6 +981,7 @@ spec:
         deleteOnTermination: true
         throughput: 125
         snapshotID: snap-0123456789
+        volumeInitializationRate: 100
 ```
 
 The following blockDeviceMapping defaults are used for each `AMIFamily` if no `blockDeviceMapping` overrides are specified in the `EC2NodeClass`
@@ -1645,6 +1646,35 @@ status:
       operator: In
       values:
       - arm64
+```
+
+## status.capacityReservations
+
+[`status.capacityReservations`]({{< ref "#statuscapacityreservations" >}}) contains the following information for each resolved capacity reservation:
+
+| Field                   | Example                | Description                                                                          |
+| ----------------------- | ---------------------- | ------------------------------------------------------------------------------------ |
+| `availabilityZone`      | `us-east-1a`           | The availability zone the capacity reservation is available in                       |
+| `id`                    | `cr-56fac701cc1951b03` | The ID of the capacity reservation                                                   |
+| `instanceMatchCriteria` | `open`                 | The instanceMatchCriteria for the capacity reservation. Can be `open` or `targeted`. |
+| `instanceType`          | `m5.large`             | The EC2 instance type of the capacity reservation                                    |
+| `ownerID`               | `459763720645`         | The account ID that owns the capacity reservation                                    |
+
+#### Examples
+
+```yaml
+status:
+  capacityReservations:
+  - availabilityZone: us-west-2a
+    id: cr-01234567890123456
+    instanceMatchCriteria: targeted
+    instanceType: g6.48xlarge
+    ownerID: "012345678901"
+  - availabilityZone: us-west-2c
+    id: cr-12345678901234567
+    instanceMatchCriteria: open
+    instanceType: g6.48xlarge
+    ownerID: "98765432109"
 ```
 
 ## status.instanceProfile
