@@ -39,6 +39,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -207,13 +208,16 @@ func (c *Controller) deleteMessage(ctx context.Context, msg *sqstypes.Message) e
 // handleNodeClaim retrieves the action for the message and then performs the appropriate action against the node
 func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, nodeClaim *karpv1.NodeClaim, node *corev1.Node) error {
 	action := actionForMessage(msg)
+
+	var pods []*corev1.Pod
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("NodeClaim", klog.KObj(nodeClaim), "action", string(action)))
 	if node != nil {
 		ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("Node", klog.KObj(node)))
+		pods, _ = nodeutils.GetPods(ctx, c.kubeClient, node)
 	}
 
 	// Record metric and event for this action
-	c.notifyForMessage(msg, nodeClaim, node)
+	c.notifyForMessage(msg, nodeClaim, node, pods)
 
 	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
 	if msg.Kind() == messages.SpotInterruptionKind {
@@ -248,7 +252,7 @@ func (c *Controller) deleteNodeClaim(ctx context.Context, msg messages.Message, 
 }
 
 // notifyForMessage publishes the relevant alert based on the message kind
-func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.NodeClaim, n *corev1.Node) {
+func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.NodeClaim, n *corev1.Node, pods []*corev1.Pod) {
 	switch msg.Kind() {
 	case messages.RebalanceRecommendationKind:
 		c.recorder.Publish(interruptionevents.RebalanceRecommendation(n, nodeClaim)...)
@@ -257,7 +261,7 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 		c.recorder.Publish(interruptionevents.Unhealthy(n, nodeClaim)...)
 
 	case messages.SpotInterruptionKind:
-		c.recorder.Publish(interruptionevents.SpotInterrupted(n, nodeClaim)...)
+		c.recorder.Publish(interruptionevents.SpotInterrupted(pods, n, nodeClaim)...)
 
 	case messages.InstanceStoppedKind:
 		c.recorder.Publish(interruptionevents.Stopping(n, nodeClaim)...)
