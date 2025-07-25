@@ -87,7 +87,6 @@ func NewVariant(v string) (Variant, error) {
 func (v Variant) Requirements() scheduling.Requirements {
 	switch v {
 	case VariantStandard:
-	case VariantFIPS:
 		return scheduling.NewRequirements(
 			scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpDoesNotExist),
 			scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpDoesNotExist),
@@ -96,6 +95,11 @@ func (v Variant) Requirements() scheduling.Requirements {
 		return scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpExists))
 	case VariantNeuron:
 		return scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpExists))
+	case VariantFIPS:
+		return scheduling.NewRequirements(
+			scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpDoesNotExist),
+			scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpDoesNotExist),
+		)
 	}
 	return nil
 }
