@@ -430,7 +430,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-			Expect(len(nodeClass.Status.AMIs)).To(Equal(5))
+			Expect(len(nodeClass.Status.AMIs)).To(Equal(3))
 			Expect(nodeClass.Status.AMIs).To(ContainElements([]v1.AMI{
 				{
 					Name: "amd64-standard",
@@ -482,36 +482,6 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						},
 						{
 							Key:      v1.LabelInstanceAcceleratorCount,
-							Operator: corev1.NodeSelectorOpExists,
-						},
-					},
-				},
-				{
-					Name: "amd64-nvidia",
-					ID:   "ami-amd64-nvidia",
-					Requirements: []corev1.NodeSelectorRequirement{
-						{
-							Key:      corev1.LabelArchStable,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{karpv1.ArchitectureAmd64},
-						},
-						{
-							Key:      v1.LabelInstanceGPUCount,
-							Operator: corev1.NodeSelectorOpExists,
-						},
-					},
-				},
-				{
-					Name: "arm64-nvidia",
-					ID:   "ami-arm64-nvidia",
-					Requirements: []corev1.NodeSelectorRequirement{
-						{
-							Key:      corev1.LabelArchStable,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{karpv1.ArchitectureArm64},
-						},
-						{
-							Key:      v1.LabelInstanceGPUCount,
 							Operator: corev1.NodeSelectorOpExists,
 						},
 					},

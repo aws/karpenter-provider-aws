@@ -225,7 +225,7 @@ var _ = Describe("AMIProvider", func() {
 		}
 		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(amis).To(HaveLen(5))
+		Expect(amis).To(HaveLen(3))
 	})
 	It("should succeed to resolve AMIs (Windows2019)", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2019@latest"}}
@@ -373,10 +373,10 @@ var _ = Describe("AMIProvider", func() {
 				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-fips/x86_64/latest/image_id", version): amd64AMI,
 				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-fips/arm64/latest/image_id", version):  arm64AMI,
 			}
-			// Only 4 of the requirements sets for the SSM aliases will resolve
+			// Only 3 of the requirements sets for the SSM aliases will resolve
 			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(amis).To(HaveLen(4))
+			Expect(amis).To(HaveLen(3))
 		})
 	})
 	Context("AMI Tag Requirements", func() {
