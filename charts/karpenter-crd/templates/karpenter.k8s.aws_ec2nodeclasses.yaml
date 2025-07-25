@@ -631,7 +631,7 @@ spec:
                   rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find(''^[^@]+'') == ''al2'') ? (self.amiFamily == ''Custom'' || self.amiFamily == ''AL2'') : true)'
                 - message: if set, amiFamily must be 'AL2023' or 'Custom' when using an AL2023 alias
                   rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find(''^[^@]+'') == ''al2023'') ? (self.amiFamily == ''Custom'' || self.amiFamily == ''AL2023'') : true)'
-                - message: if set, amiFamily must be 'Bottlerocket' or 'Custom' when using a Bottlerocket alias
+                - message: if set, amiFamily must be 'Bottlerocket' or 'Bottlerocket-FIPS' or 'Custom' when using a Bottlerocket alias
                   rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && (x.alias.find(''^[^@]+'') == ''bottlerocket'' || x.alias.find(''^[^@]+'') == ''bottlerocket-fips'')) ? (self.amiFamily == ''Custom'' || self.amiFamily == ''Bottlerocket'' || self.amiFamily == ''Bottlerocket-FIPS'') : true)'
                 - message: if set, amiFamily must be 'Windows2019' or 'Custom' when using a Windows2019 alias
                   rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find(''^[^@]+'') == ''windows2019'') ? (self.amiFamily == ''Custom'' || self.amiFamily == ''Windows2019'') : true)'
