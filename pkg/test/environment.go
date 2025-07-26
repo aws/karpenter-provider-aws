@@ -68,6 +68,7 @@ type Environment struct {
 	// Cache
 	EC2Cache                             *cache.Cache
 	InstanceTypeCache                    *cache.Cache
+	InstanceCache                        *cache.Cache
 	OfferingCache                        *cache.Cache
 	UnavailableOfferingsCache            *awscache.UnavailableOfferings
 	LaunchTemplateCache                  *cache.Cache
@@ -111,6 +112,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	// cache
 	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceTypeCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	instanceCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	offeringCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	discoveredCapacityCache := cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval)
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
@@ -169,6 +171,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		subnetProvider,
 		launchTemplateProvider,
 		capacityReservationProvider,
+		instanceCache,
 	)
 
 	return &Environment{
@@ -183,6 +186,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 
 		EC2Cache:          ec2Cache,
 		InstanceTypeCache: instanceTypeCache,
+		InstanceCache:     instanceCache,
 		OfferingCache:     offeringCache,
 
 		LaunchTemplateCache:                  launchTemplateCache,
@@ -225,6 +229,7 @@ func (env *Environment) Reset() {
 	env.InstanceTypesProvider.Reset()
 
 	env.EC2Cache.Flush()
+	env.InstanceCache.Flush()
 	env.UnavailableOfferingsCache.Flush()
 	env.OfferingCache.Flush()
 	env.LaunchTemplateCache.Flush()

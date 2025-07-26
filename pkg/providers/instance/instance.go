@@ -22,6 +22,7 @@ import (
 
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/awslabs/operatorpkg/aws/middleware"
+	"github.com/awslabs/operatorpkg/option"
 	"github.com/awslabs/operatorpkg/serrors"
 	"sigs.k8s.io/karpenter/pkg/events"
 
@@ -41,14 +42,15 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/batcher"
-	"github.com/aws/karpenter-provider-aws/pkg/cache"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	instancefilter "github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 
+	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
@@ -75,21 +77,32 @@ var (
 
 type Provider interface {
 	Create(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim, map[string]string, []*cloudprovider.InstanceType) (*Instance, error)
-	Get(context.Context, string) (*Instance, error)
+	Get(context.Context, string, ...Options) (*Instance, error)
 	List(context.Context) ([]*Instance, error)
 	Delete(context.Context, string) error
 	CreateTags(context.Context, string, map[string]string) error
+}
+
+type options struct {
+	SkipCache bool
+}
+
+type Options = option.Function[options]
+
+var SkipCache = func(opts *options) {
+	opts.SkipCache = true
 }
 
 type DefaultProvider struct {
 	region                      string
 	recorder                    events.Recorder
 	ec2api                      sdk.EC2API
-	unavailableOfferings        *cache.UnavailableOfferings
+	unavailableOfferings        *awscache.UnavailableOfferings
 	subnetProvider              subnet.Provider
 	launchTemplateProvider      launchtemplate.Provider
 	ec2Batcher                  *batcher.EC2API
 	capacityReservationProvider capacityreservation.Provider
+	instanceCache               *cache.Cache
 }
 
 func NewDefaultProvider(
@@ -97,10 +110,11 @@ func NewDefaultProvider(
 	region string,
 	recorder events.Recorder,
 	ec2api sdk.EC2API,
-	unavailableOfferings *cache.UnavailableOfferings,
+	unavailableOfferings *awscache.UnavailableOfferings,
 	subnetProvider subnet.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	capacityReservationProvider capacityreservation.Provider,
+	instanceCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		region:                      region,
@@ -111,6 +125,7 @@ func NewDefaultProvider(
 		launchTemplateProvider:      launchTemplateProvider,
 		ec2Batcher:                  batcher.EC2(ctx, ec2api),
 		capacityReservationProvider: capacityReservationProvider,
+		instanceCache:               instanceCache,
 	}
 }
 
@@ -150,12 +165,19 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 	), nil
 }
 
-func (p *DefaultProvider) Get(ctx context.Context, id string) (*Instance, error) {
+func (p *DefaultProvider) Get(ctx context.Context, id string, opts ...Options) (*Instance, error) {
+	skipCache := option.Resolve(opts...).SkipCache
+	if !skipCache {
+		if i, ok := p.instanceCache.Get(id); ok {
+			return i.(*Instance), nil
+		}
+	}
 	out, err := p.ec2Batcher.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 		InstanceIds: []string{id},
 		Filters:     []ec2types.Filter{instanceStateFilter},
 	})
 	if awserrors.IsNotFound(err) {
+		p.instanceCache.Delete(id)
 		return nil, cloudprovider.NewNodeClaimNotFoundError(err)
 	}
 	if err != nil {
@@ -168,6 +190,7 @@ func (p *DefaultProvider) Get(ctx context.Context, id string) (*Instance, error)
 	if len(instances) != 1 {
 		return nil, fmt.Errorf("expected a single instance, %w", err)
 	}
+	p.instanceCache.SetDefault(id, instances[0])
 	return instances[0], nil
 }
 
@@ -186,7 +209,7 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 			},
 			{
 				Name:   aws.String(fmt.Sprintf("tag:%s", v1.EKSClusterNameTagKey)),
-				Values: []string{options.FromContext(ctx).ClusterName},
+				Values: []string{karpopts.FromContext(ctx).ClusterName},
 			},
 			instanceStateFilter,
 		},
@@ -202,11 +225,14 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 		out.Reservations = append(out.Reservations, page.Reservations...)
 	}
 	instances, err := instancesFromOutput(ctx, out)
+	for _, it := range instances {
+		p.instanceCache.SetDefault(it.ID, it)
+	}
 	return instances, cloudprovider.IgnoreNodeClaimNotFoundError(err)
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
-	out, err := p.Get(ctx, id)
+	out, err := p.Get(ctx, id, SkipCache)
 	if err != nil {
 		return err
 	}
