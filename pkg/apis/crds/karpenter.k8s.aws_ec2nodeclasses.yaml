@@ -293,6 +293,15 @@ spec:
                 detailedMonitoring:
                   description: DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
                   type: boolean
+                disabledMounts:
+                  description: DisabledMounts specifies directories that should not be mounted onto local storage
+                  items:
+                    description: DisabledMount enumerates options for directories that should not be mounted onto local storage
+                    enum:
+                      - Containerd
+                      - PodLogs
+                    type: string
+                  type: array
                 instanceProfile:
                   description: |-
                     InstanceProfile is the AWS entity that instances use.
