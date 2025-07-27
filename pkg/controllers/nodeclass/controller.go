@@ -17,7 +17,6 @@ package nodeclass
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"go.uber.org/multierr"
@@ -45,6 +44,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/awslabs/operatorpkg/reasonable"
+	"github.com/awslabs/operatorpkg/serrors"
+
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
 
@@ -131,7 +132,6 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		// Here, we are updating the finalizer list
 		if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); client.IgnoreNotFound(err) != nil {
 			if errors.IsConflict(err) {
-				log.Printf("REQUEUEING 1, conflict error: %s", err)
 				return reconcile.Result{Requeue: true}, nil
 			}
 			return reconcile.Result{}, err
@@ -156,7 +156,6 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		// Here, we are updating the status condition list
 		if err := c.kubeClient.Status().Patch(ctx, nodeClass, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); err != nil {
 			if errors.IsConflict(err) {
-				log.Printf("REQUEUEING 2, conflict error: %s", err)
 				return reconcile.Result{Requeue: true}, nil
 			}
 			errs = multierr.Append(errs, client.IgnoreNotFound(err))
@@ -185,7 +184,7 @@ func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.
 
 func (c *Controller) cleanupSingleProfile(ctx context.Context, profile *iamtypes.InstanceProfile) error {
 	if err := c.instanceProfileProvider.Delete(ctx, *profile.InstanceProfileName); err != nil {
-		return fmt.Errorf("deleting instance profile, %w", err)
+		return serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", *profile.InstanceProfileName)
 	}
 	return nil
 }
@@ -208,8 +207,9 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		return reconcile.Result{}, err
 	}
 	// Ensure to clean up instance profile that may have been created pre-upgrade
-	if err := c.instanceProfileProvider.Delete(ctx, nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, c.region)); err != nil {
-		return reconcile.Result{}, fmt.Errorf("deleting legacy instance profile, %w", err)
+	legacyProfileName := nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
+	if err := c.instanceProfileProvider.Delete(ctx, legacyProfileName); err != nil {
+		return reconcile.Result{}, serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, c.region))
 	}
 
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {

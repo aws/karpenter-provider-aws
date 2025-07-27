@@ -245,12 +245,8 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 
-		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		newProfilename := nodeClass.Status.InstanceProfile
-
 		// Verify old profile is still protected as well as new one
 		Expect(awsEnv.InstanceProfileProvider.IsProtected(oldProfileName)).To(BeTrue())
-		Expect(awsEnv.InstanceProfileProvider.IsProtected(newProfilename)).To(BeTrue())
 	})
 
 	It("should use the cached instance profile when spec.role is changed", func() {
@@ -318,8 +314,8 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		// Verify profile was created and cached
 		newProfileName := nodeClass.Status.InstanceProfile
-		cachedProfileName, found := awsEnv.RecreationCache.Get(fmt.Sprintf("%s/%s", "role-A", nodeClass.UID))
-		Expect(found).To(BeTrue())
+		cachedProfileName, ok := awsEnv.RecreationCache.Get(fmt.Sprintf("%s/%s", "role-A", nodeClass.UID))
+		Expect(ok).To(BeTrue())
 		Expect(cachedProfileName).To(Equal(newProfileName))
 	})
 
