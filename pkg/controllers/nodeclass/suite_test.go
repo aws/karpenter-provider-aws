@@ -231,7 +231,7 @@ var _ = Describe("NodeClass Termination", func() {
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
 
-	It("should succeed to delete legacy instance profile if one exists and the NodeClass is deleted", func() {
+	It("should succeed to delete both legacy and current instance profiles if the NodeClass is deleted", func() {
 		profileName := nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, fake.DefaultRegion)
 		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
 			profileName: {

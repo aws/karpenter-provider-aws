@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/samber/lo"
 
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
@@ -146,10 +147,30 @@ var _ = Describe("InstanceProfileProvider", func() {
 
 		// Create instance profiles using the UIDs from the applied NodeClasses
 		profile1 := "profile-1"
-		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profile1, "role-1", nil, string(nodeClass1.UID))).To(Succeed())
-
 		profile2 := "profile-2"
-		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profile2, "role-2", nil, string(nodeClass2.UID))).To(Succeed())
+
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			profile1: {
+				InstanceProfileName: lo.ToPtr(profile1),
+				Roles: []iamtypes.Role{
+					{
+						RoleId:   aws.String(fake.RoleID()),
+						RoleName: aws.String("role-1"),
+					},
+				},
+				Path: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, string(nodeClass1.UID))),
+			},
+			profile2: {
+				InstanceProfileName: lo.ToPtr(profile2),
+				Roles: []iamtypes.Role{
+					{
+						RoleId:   aws.String(fake.RoleID()),
+						RoleName: aws.String("role-2"),
+					},
+				},
+				Path: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, string(nodeClass2.UID))),
+			},
+		}
 
 		// List profiles for first NodeClass
 		profiles, err := awsEnv.InstanceProfileProvider.ListNodeClassProfiles(ctx, &nodeClass1.EC2NodeClass)
@@ -185,19 +206,47 @@ var _ = Describe("InstanceProfileProvider", func() {
 		nodeClass2.Spec.Role = "role-2"
 		ExpectApplied(ctx, env.Client, &nodeClass2.EC2NodeClass)
 
-		// Create instance profiles for both NodeClasses
 		profile1 := "profile-1"
-		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profile1, "role-1", nil, string(nodeClass1.UID))).To(Succeed())
-
 		profile2 := "profile-2"
-		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profile2, "role-2", nil, string(nodeClass2.UID))).To(Succeed())
+		profile3 := "profile-3"
 
-		// Create profile in different cluster by modifying context
 		otherClusterCtx := options.ToContext(ctx, test.Options(test.OptionsFields{
 			ClusterName: lo.ToPtr("other-cluster"),
 		}))
-		profile3 := "profile-3"
-		Expect(awsEnv.InstanceProfileProvider.Create(otherClusterCtx, profile3, "role-3", nil, "some-uid")).To(Succeed())
+
+		// Create instance profiles
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			profile1: {
+				InstanceProfileName: lo.ToPtr(profile1),
+				Roles: []iamtypes.Role{
+					{
+						RoleId:   aws.String(fake.RoleID()),
+						RoleName: aws.String("role-1"),
+					},
+				},
+				Path: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, string(nodeClass1.UID))),
+			},
+			profile2: {
+				InstanceProfileName: lo.ToPtr(profile2),
+				Roles: []iamtypes.Role{
+					{
+						RoleId:   aws.String(fake.RoleID()),
+						RoleName: aws.String("role-2"),
+					},
+				},
+				Path: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, string(nodeClass2.UID))),
+			},
+			profile3: {
+				InstanceProfileName: lo.ToPtr(profile3),
+				Roles: []iamtypes.Role{
+					{
+						RoleId:   aws.String(fake.RoleID()),
+						RoleName: aws.String("role-3"),
+					},
+				},
+				Path: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(otherClusterCtx).ClusterName, "some-uid")),
+			},
+		}
 
 		// List all cluster profiles
 		profiles, err := awsEnv.InstanceProfileProvider.ListClusterProfiles(ctx)

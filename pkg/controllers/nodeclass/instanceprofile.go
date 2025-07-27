@@ -43,7 +43,7 @@ func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provid
 }
 
 func (ip *InstanceProfile) PreventRecreation(nodeClass *v1.EC2NodeClass) (string, bool) {
-	if profileName, found := ip.recreationCache.Get(fmt.Sprintf("%s/%s", nodeClass.Spec.Role, nodeClass.UID)); found {
+	if profileName, ok := ip.recreationCache.Get(fmt.Sprintf("%s/%s", nodeClass.Spec.Role, nodeClass.UID)); ok {
 		return profileName.(string), true
 	}
 	return "", false
@@ -56,17 +56,17 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 
 		// Use a short-lived cache to prevent instance profile recreation for the same role in the same EC2NodeClass
 		// in case of a status patch error in the EC2NodeClass controller
-		if profileName, found := ip.PreventRecreation(nodeClass); found {
+		if profileName, ok := ip.PreventRecreation(nodeClass); ok {
 			nodeClass.Status.InstanceProfile = profileName
 			currentRole = nodeClass.Spec.Role
-		} else {
-			// Get the current profile info if it exists
-			if nodeClass.Status.InstanceProfile != "" {
-				oldProfileName = nodeClass.Status.InstanceProfile
-				if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
-					if len(profile.Roles) > 0 {
-						currentRole = lo.FromPtr(profile.Roles[0].RoleName)
-					}
+		}
+
+		// Get the current profile info if it exists
+		if nodeClass.Status.InstanceProfile != "" {
+			oldProfileName = nodeClass.Status.InstanceProfile
+			if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
+				if len(profile.Roles) > 0 {
+					currentRole = lo.FromPtr(profile.Roles[0].RoleName)
 				}
 			}
 		}

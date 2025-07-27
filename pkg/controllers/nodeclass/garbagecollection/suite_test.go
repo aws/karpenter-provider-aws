@@ -17,7 +17,6 @@ package garbagecollection_test
 import (
 	"context"
 	"fmt"
-	"log"
 	"testing"
 	"time"
 
@@ -117,7 +116,7 @@ var _ = BeforeEach(func() {
 
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
-	log.Printf("CLEANED UP WAS CALLED AFTER EACH")
+	ExpectDeleted(ctx, env.Client, nodeClass)
 })
 
 var _ = Describe("Instance Profile GarbageCollection", func() {
@@ -165,7 +164,6 @@ var _ = Describe("Instance Profile GarbageCollection", func() {
 
 		// Verify profile not deleted
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(profileName))
-		ExpectDeleted(ctx, env.Client, nodeClass)
 	})
 
 	It("should not delete current profiles", func() {
@@ -198,7 +196,6 @@ var _ = Describe("Instance Profile GarbageCollection", func() {
 
 		// Verify profile not deleted
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(profileName))
-		ExpectDeleted(ctx, env.Client, nodeClass)
 	})
 
 	It("should not delete protected profiles", func() {
@@ -227,7 +224,6 @@ var _ = Describe("Instance Profile GarbageCollection", func() {
 
 		// Verify profile not deleted
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(profileName))
-		ExpectDeleted(ctx, env.Client, nodeClass)
 	})
 
 	It("should delete inactive profiles which are not current or protected", func() {
@@ -256,7 +252,6 @@ var _ = Describe("Instance Profile GarbageCollection", func() {
 
 		// Verify profile not deleted
 		Expect(awsEnv.IAMAPI.InstanceProfiles).ToNot(HaveKey(profileName))
-		ExpectDeleted(ctx, env.Client, nodeClass)
 	})
 
 	It("should requeue after 30 minutes for a successful run", func() {
@@ -266,7 +261,6 @@ var _ = Describe("Instance Profile GarbageCollection", func() {
 
 		// Verify requeue time is 30 minutes (1 minute for now)
 		Expect(result.RequeueAfter).To(Equal(1 * time.Minute))
-		ExpectDeleted(ctx, env.Client, nodeClass)
 	})
 
 	It("should requeue immediately on deletion failure", func() {
@@ -297,6 +291,5 @@ var _ = Describe("Instance Profile GarbageCollection", func() {
 
 		// Profile should still exist since deletion failed
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(profileName))
-		ExpectDeleted(ctx, env.Client, nodeClass)
 	})
 })
