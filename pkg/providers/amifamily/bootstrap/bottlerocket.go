@@ -105,5 +105,9 @@ func (b Bottlerocket) Script() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("constructing toml UserData %w", err)
 	}
+	script, err = compressIfNeeded(script, gzipCompression)
+	if err != nil {
+		return "", err
+	}
 	return base64.StdEncoding.EncodeToString(script), nil
 }
