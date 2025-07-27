@@ -17,6 +17,7 @@ package fake
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,6 +41,7 @@ type IAMAPIBehavior struct {
 	AddRoleToInstanceProfileBehavior      MockedFunction[iam.AddRoleToInstanceProfileInput, iam.AddRoleToInstanceProfileOutput]
 	TagInstanceProfileBehavior            MockedFunction[iam.TagInstanceProfileInput, iam.TagInstanceProfileOutput]
 	RemoveRoleFromInstanceProfileBehavior MockedFunction[iam.RemoveRoleFromInstanceProfileInput, iam.RemoveRoleFromInstanceProfileOutput]
+	ListInstanceProfilesBehavior          MockedFunction[iam.ListInstanceProfilesInput, iam.ListInstanceProfilesOutput]
 }
 
 type IAMAPI struct {
@@ -61,6 +63,7 @@ func (s *IAMAPI) Reset() {
 	s.DeleteInstanceProfileBehavior.Reset()
 	s.AddRoleToInstanceProfileBehavior.Reset()
 	s.RemoveRoleFromInstanceProfileBehavior.Reset()
+	s.ListInstanceProfilesBehavior.Reset()
 	s.InstanceProfiles = map[string]*iamtypes.InstanceProfile{}
 }
 
@@ -195,5 +198,22 @@ func (s *IAMAPI) RemoveRoleFromInstanceProfile(_ context.Context, input *iam.Rem
 			Message: fmt.Sprintf("Instance Profile %s cannot be found",
 				aws.ToString(input.InstanceProfileName)),
 		}
+	})
+}
+
+func (s *IAMAPI) ListInstanceProfiles(_ context.Context, input *iam.ListInstanceProfilesInput, _ ...func(*iam.Options)) (*iam.ListInstanceProfilesOutput, error) {
+	return s.ListInstanceProfilesBehavior.Invoke(input, func(*iam.ListInstanceProfilesInput) (*iam.ListInstanceProfilesOutput, error) {
+		s.Lock()
+		defer s.Unlock()
+
+		var profiles []iamtypes.InstanceProfile
+		for _, profile := range s.InstanceProfiles {
+			if profile.Path != nil && strings.HasPrefix(*profile.Path, *input.PathPrefix) {
+				profiles = append(profiles, *profile)
+			}
+		}
+		return &iam.ListInstanceProfilesOutput{
+			InstanceProfiles: profiles,
+		}, nil
 	})
 }

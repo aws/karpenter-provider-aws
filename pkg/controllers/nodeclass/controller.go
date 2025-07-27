@@ -17,6 +17,7 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"go.uber.org/multierr"
@@ -46,6 +47,8 @@ import (
 	"github.com/awslabs/operatorpkg/reasonable"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
+
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -84,6 +87,7 @@ func NewController(
 	capacityReservationProvider capacityreservation.Provider,
 	ec2api sdk.EC2API,
 	validationCache *cache.Cache,
+	recreationCache *cache.Cache,
 	amiResolver amifamily.Resolver,
 ) *Controller {
 	validation := NewValidationReconciler(kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache)
@@ -99,7 +103,7 @@ func NewController(
 			NewCapacityReservationReconciler(clk, capacityReservationProvider),
 			NewSubnetReconciler(subnetProvider),
 			NewSecurityGroupReconciler(securityGroupProvider),
-			NewInstanceProfileReconciler(instanceProfileProvider, region),
+			NewInstanceProfileReconciler(instanceProfileProvider, region, recreationCache),
 			validation,
 			NewReadinessReconciler(launchTemplateProvider),
 		},
@@ -127,6 +131,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		// Here, we are updating the finalizer list
 		if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); client.IgnoreNotFound(err) != nil {
 			if errors.IsConflict(err) {
+				log.Printf("REQUEUEING 1, conflict error: %s", err)
 				return reconcile.Result{Requeue: true}, nil
 			}
 			return reconcile.Result{}, err
@@ -151,6 +156,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		// Here, we are updating the status condition list
 		if err := c.kubeClient.Status().Patch(ctx, nodeClass, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); err != nil {
 			if errors.IsConflict(err) {
+				log.Printf("REQUEUEING 2, conflict error: %s", err)
 				return reconcile.Result{Requeue: true}, nil
 			}
 			errs = multierr.Append(errs, client.IgnoreNotFound(err))
@@ -160,6 +166,28 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, errs
 	}
 	return result.Min(results...), nil
+}
+
+func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
+	out, err := c.instanceProfileProvider.ListNodeClassProfiles(ctx, nodeClass)
+
+	if err != nil {
+		return fmt.Errorf("listing instance profiles, %w", err)
+	}
+
+	for _, profile := range out {
+		if err := c.cleanupSingleProfile(ctx, profile); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Controller) cleanupSingleProfile(ctx context.Context, profile *iamtypes.InstanceProfile) error {
+	if err := c.instanceProfileProvider.Delete(ctx, *profile.InstanceProfileName); err != nil {
+		return fmt.Errorf("deleting instance profile, %w", err)
+	}
+	return nil
 }
 
 func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
@@ -175,11 +203,15 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaims.Items, func(nc karpv1.NodeClaim, _ int) string { return nc.Name })))
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
-	if nodeClass.Spec.Role != "" {
-		if err := c.instanceProfileProvider.Delete(ctx, nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, c.region)); err != nil {
-			return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
-		}
+	// Deletes karpenter managed instance profiles for this nodeclass
+	if err := c.cleanupInstanceProfiles(ctx, nodeClass); err != nil {
+		return reconcile.Result{}, err
 	}
+	// Ensure to clean up instance profile that may have been created pre-upgrade
+	if err := c.instanceProfileProvider.Delete(ctx, nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, c.region)); err != nil {
+		return reconcile.Result{}, fmt.Errorf("deleting legacy instance profile, %w", err)
+	}
+
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("deleting launch templates, %w", err)
 	}

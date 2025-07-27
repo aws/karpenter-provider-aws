@@ -17,7 +17,9 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"log"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -29,30 +31,84 @@ import (
 type InstanceProfile struct {
 	instanceProfileProvider instanceprofile.Provider
 	region                  string
+	recreationCache         *cache.Cache
 }
 
-func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider, region string) *InstanceProfile {
+func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider, region string, cache *cache.Cache) *InstanceProfile {
 	return &InstanceProfile{
 		instanceProfileProvider: instanceProfileProvider,
 		region:                  region,
+		recreationCache:         cache,
 	}
+}
+
+func (ip *InstanceProfile) PreventRecreation(nodeClass *v1.EC2NodeClass) (string, bool) {
+	if profileName, found := ip.recreationCache.Get(fmt.Sprintf("%s/%s", nodeClass.Spec.Role, nodeClass.UID)); found {
+		return profileName.(string), true
+	}
+	return "", false
 }
 
 func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if nodeClass.Spec.Role != "" {
-		profileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
-		if err := ip.instanceProfileProvider.Create(
-			ctx,
-			profileName,
-			nodeClass.InstanceProfileRole(),
-			nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
-		); err != nil {
-			return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
+		var currentRole string
+		var oldProfileName string
+
+		// Use a short-lived cache to prevent instance profile recreation for the same role in the same EC2NodeClass
+		// in case of a status patch error in the EC2NodeClass controller
+		if profileName, found := ip.PreventRecreation(nodeClass); found {
+			nodeClass.Status.InstanceProfile = profileName
+			currentRole = nodeClass.Spec.Role
+		} else {
+			// Get the current profile info if it exists
+			if nodeClass.Status.InstanceProfile != "" {
+				oldProfileName = nodeClass.Status.InstanceProfile
+				if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
+					if len(profile.Roles) > 0 {
+						currentRole = lo.FromPtr(profile.Roles[0].RoleName)
+					}
+				}
+			}
 		}
-		nodeClass.Status.InstanceProfile = profileName
+
+		// If role has changed, create new profile
+		log.Printf("Current role: %s, new role: %s", currentRole, nodeClass.Spec.Role)
+		if currentRole != nodeClass.Spec.Role {
+			// Generate new profile name
+			newProfileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
+			log.Printf("Generated new profile name: %s", newProfileName)
+
+			if err := ip.instanceProfileProvider.Create(
+				ctx,
+				newProfileName,
+				nodeClass.InstanceProfileRole(),
+				nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
+				string(nodeClass.UID),
+			); err != nil {
+				return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
+			}
+			ip.recreationCache.SetDefault(fmt.Sprintf("%s/%s", nodeClass.Spec.Role, nodeClass.UID), newProfileName)
+
+			// Mark the old profile as protected to prevent premature deletion by garbage collection.
+			// This handles the case where a new NodeClaim is created but hasn't yet appeared in the
+			// informer cache when garbage collection runs.
+			if oldProfileName != "" {
+				ip.instanceProfileProvider.SetProtectedState(oldProfileName, true)
+			}
+			// Similarly protect the new profile to prevent deletion if garbage collection runs
+			// before this NodeClass appears in the informer cache.
+			ip.instanceProfileProvider.SetProtectedState(newProfileName, true)
+			nodeClass.Status.InstanceProfile = newProfileName
+		}
 	} else {
+		// Ensure old profile is marked as protected in the event a customer switches from using
+		// spec.role to spec.instanceProfile
+		if nodeClass.Status.InstanceProfile != "" {
+			ip.instanceProfileProvider.SetProtectedState(nodeClass.Status.InstanceProfile, true)
+		}
 		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
+	log.Printf("Reconciled instance profile: %s", nodeClass.Status.InstanceProfile)
 	return reconcile.Result{}, nil
 }
