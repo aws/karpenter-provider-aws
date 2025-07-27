@@ -336,69 +336,85 @@ var _ = Describe("Drift", Ordered, func() {
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
-	// It("should drift nodeclaims when spec.role changes", func() {
-	// 	// Create initial role and instance profile
-	// 	roleName := fmt.Sprintf("KarpenterNodeRole-A-%s", env.ClusterName)
-	// 	nodeClass.Spec.Role = roleName
+	It("should drift nodeclaims when spec.role changes", func() {
+		// Create initial role and instance profile
+		initialRoleName := fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
+		nodeClass.Spec.Role = initialRoleName
 
-	// 	// Create pod with do-not-disrupt annotation to verify drift before replacement
-	// 	pod := coretest.Pod(coretest.PodOptions{
-	// 		ObjectMeta: metav1.ObjectMeta{
-	// 			Labels: map[string]string{
-	// 				"app": "test",
-	// 			},
-	// 			Annotations: map[string]string{
-	// 				karpv1.DoNotDisruptAnnotationKey: "true",
-	// 			},
-	// 		},
-	// 		NodeSelector: map[string]string{
-	// 			corev1.LabelOSStable:        string(corev1.Linux),
-	// 			karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand,
-	// 		},
-	// 	})
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		firstNodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
 
-	// 	// Create nodeclass and nodepool first
-	// 	env.ExpectCreated(nodeClass)
-	// 	nodePool.Labels = map[string]string{coretest.DiscoveryLabel: env.ClusterName}
-	// 	env.ExpectCreated(nodePool)
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodePool), nodePool)).To(Succeed())
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(firstNodeClaim), firstNodeClaim)).To(Succeed())
+			g.Expect(nodeClass.Status.InstanceProfile).NotTo(BeEmpty())
+			g.Expect(firstNodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(nodeClass.Status.InstanceProfile))
+		}).Should(Succeed())
 
-	// 	// Wait for nodepool to be ready then create pod
-	// 	Eventually(func(g Gomega) {
-	// 		g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodePool), nodePool)).To(Succeed())
-	// 	}).Should(Succeed())
-	// 	env.ExpectCreated(pod)
+		initialInstanceProfile := nodeClass.Status.InstanceProfile
 
-	// 	// Verify initial state
-	// 	nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
-	// 	node := env.EventuallyExpectNodeCount("==", 1)[0]
-	// 	initialProfile := nodeClass.Status.InstanceProfile
-	// 	Expect(nodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(initialProfile))
+		// Change role
+		secondRoleName := fmt.Sprintf("KarpenterNodeRole-%sV2", env.ClusterName)
+		nodeClass.Spec.Role = secondRoleName
+		env.ExpectCreatedOrUpdated(nodeClass)
 
-	// 	// Change role
-	// 	nodeClass.Spec.Role = fmt.Sprintf("KarpenterNodeRole-B-%s", env.ClusterName)
-	// 	env.ExpectCreatedOrUpdated(nodeClass)
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
+			g.Expect(nodeClass.Status.InstanceProfile).NotTo(BeEmpty())
+			g.Expect(nodeClass.Status.InstanceProfile).NotTo(Equal(initialInstanceProfile))
+		}).Should(Succeed())
 
-	// 	// Verify new instance profile is created
-	// 	nodeClass = env.ExpectExists(nodeClass).(*v1.EC2NodeClass)
-	// 	newProfile := nodeClass.Status.InstanceProfile
-	// 	Expect(newProfile).NotTo(Equal(initialProfile))
+		secondInstanceProfile := nodeClass.Status.InstanceProfile
 
-	// 	// Verify nodeclaim is marked as drifted
-	// 	env.EventuallyExpectDrifted(nodeClaim)
+		env.EventuallyExpectDrifted(firstNodeClaim)
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(firstNodeClaim), firstNodeClaim)).To(Succeed())
+			condition := firstNodeClaim.StatusConditions().Get(karpv1.ConditionTypeDrifted)
+			g.Expect(condition).ToNot(BeNil())
+			g.Expect(condition.Reason).To(Equal("InstanceProfileDrift"))
+		}).Should(Succeed())
 
-	// 	// Remove do-not-disrupt annotation to allow replacement
-	// 	delete(pod.Annotations, karpv1.DoNotDisruptAnnotationKey)
-	// 	env.ExpectUpdated(pod)
+		// Remove do-not-disrupt annotation from deployment's pod template
+		delete(dep.Spec.Template.Annotations, karpv1.DoNotDisruptAnnotationKey)
+		env.ExpectUpdated(dep)
 
-	// 	// Verify old resources are cleaned up
-	// 	env.EventuallyExpectNotFound(pod, nodeClaim, node)
+		// Verify old resources are cleaned up
+		env.EventuallyExpectNotFound(firstNodeClaim, node)
 
-	// 	// Verify new nodeclaim uses new instance profile
-	// 	env.EventuallyExpectHealthyPodCount(labels.Everything(), 1)
-	// 	newNodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
-	// 	Expect(newNodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(newProfile))
-	// })
+		// Verify new nodeclaim uses new instance profile
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		secondNodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		Expect(secondNodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(secondInstanceProfile))
 
+		// Change back to initial role
+		nodeClass.Spec.Role = initialRoleName
+		env.ExpectCreatedOrUpdated(nodeClass)
+
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
+			g.Expect(nodeClass.Status.InstanceProfile).NotTo(BeEmpty())
+			g.Expect(nodeClass.Status.InstanceProfile).NotTo(Equal(initialInstanceProfile))
+			g.Expect(nodeClass.Status.InstanceProfile).NotTo(Equal(secondInstanceProfile))
+		}).Should(Succeed())
+
+		finalInstanceProfile := nodeClass.Status.InstanceProfile
+
+		env.EventuallyExpectDrifted(secondNodeClaim)
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(secondNodeClaim), secondNodeClaim)).To(Succeed())
+			condition := secondNodeClaim.StatusConditions().Get(karpv1.ConditionTypeDrifted)
+			g.Expect(condition).ToNot(BeNil())
+			g.Expect(condition.Reason).To(Equal("InstanceProfileDrift"))
+		}).Should(Succeed())
+
+		env.EventuallyExpectNotFound(secondNodeClaim)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		finalNodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		Expect(finalNodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(finalInstanceProfile))
+	})
 	It("should drift the EC2NodeClass on BlockDeviceMappings volume size update", func() {
 		nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 			{
