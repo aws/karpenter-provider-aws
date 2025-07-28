@@ -1,10 +1,10 @@
 name: 'Deploy Website to Amplify'
 description: 'Build Hugo site and deploy to AWS Amplify'
 inputs:
-  aws-role-arn:
+  role:
     description: 'AWS IAM role ARN to assume'
     required: true
-  aws-region:
+  region:
     description: 'AWS region for Amplify'
     required: true
   amplify-app-id:
@@ -61,8 +61,8 @@ runs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df # v4.2.1
       with:
-        role-to-assume: ${{ inputs.aws-role-arn }}
-        aws-region: ${{ inputs.aws-region }}
+        role-to-assume: ${{ inputs.role }}
+        aws-region: ${{ inputs.region }}
     - name: Upload to S3
       shell: bash
       run: |

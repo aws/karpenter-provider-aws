@@ -29,15 +29,15 @@ jobs:
           aws-region: ${{ vars.AMPLIFY_REGION }}
       - name: Get preview URL
         run: |
-          APP_DOMAIN=$(aws amplify get-app --app-id ${{ vars.AMPLIFY_APP_ID_BETA }} --query 'app.defaultDomain' --output text)
+          APP_DOMAIN=$(aws amplify get-app --app-id ${{ vars.AMPLIFY_APP_ID_PREVIEW }} --query 'app.defaultDomain' --output text)
           PREVIEW_URL="https://${{ env.BRANCH_NAME }}.$APP_DOMAIN"
           echo PREVIEW_URL="$PREVIEW_URL" >> "$GITHUB_ENV"
       - name: Deploy website
         uses: ./.github/actions/deploy-website
         with:
-          aws-role-arn: arn:aws:iam::${{ vars.RELEASE_PREVIEW_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
-          aws-region: ${{ vars.AMPLIFY_REGION }}
-          amplify-app-id: ${{ vars.AMPLIFY_APP_ID_BETA }}
+          role: arn:aws:iam::${{ vars.RELEASE_PREVIEW_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
+          region: ${{ vars.AMPLIFY_REGION }}
+          amplify-app-id: ${{ vars.AMPLIFY_APP_ID_PREVIEW }}
           amplify-branch-name: ${{ env.BRANCH_NAME }}
           s3-bucket: ${{ vars.AMPLIFY_S3_BUCKET_BETA }}
           s3-prefix: pr-${{ env.PR_NUMBER }}/

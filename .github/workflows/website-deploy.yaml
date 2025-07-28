@@ -14,8 +14,8 @@ jobs:
       - name: Deploy website
         uses: ./.github/actions/deploy-website
         with:
-          aws-role-arn: arn:aws:iam::${{ vars.RELEASE_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
-          aws-region: ${{ vars.AMPLIFY_REGION }}
+          role: arn:aws:iam::${{ vars.RELEASE_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
+          region: ${{ vars.AMPLIFY_REGION }}
           amplify-app-id: ${{ vars.AMPLIFY_APP_ID }}
           amplify-branch-name: ${{ vars.BRANCH_NAME }}
           s3-bucket: ${{ vars.AMPLIFY_S3_BUCKET }}
