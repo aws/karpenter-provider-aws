@@ -291,12 +291,29 @@ Resources:
               "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*",
               "Action": [
                 "iam:CreateRole",
-                "iam:AttachRolePolicy",
                 "iam:GetRole",
                 "iam:ListAttachedRolePolicies",
-                "iam:DetachRolePolicy",
                 "iam:DeleteRole"
               ]
+            },
+            {
+              "Sid": "AllowRestrictedPolicyAttachment",
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*",
+              "Action": [
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy"
+              ],
+              "Condition": {
+                "StringLike": {
+                  "iam:policyARN": [
+                    "arn:${AWS::Partition}:iam::aws:policy/AmazonEKS_CNI_Policy",
+                    "arn:${AWS::Partition}:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+                    "arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly",
+                    "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+                  ]
+                }
+              }
             },
             {
               "Sid": "AllowUnscopedInstanceProfileListAction",
