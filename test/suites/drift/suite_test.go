@@ -357,7 +357,12 @@ var _ = Describe("Drift", Ordered, func() {
 		initialInstanceProfile := nodeClass.Status.InstanceProfile
 
 		// Change role
-		secondRoleName := fmt.Sprintf("KarpenterNodeRole-%sV2", env.ClusterName)
+		secondRoleName := fmt.Sprintf("KarpenterNodeRole-%s-V2", env.ClusterName)
+		env.EventuallyExpectRoleCreated(secondRoleName)
+		DeferCleanup(func() {
+			env.ExpectRoleDeleted(secondRoleName)
+		})
+
 		nodeClass.Spec.Role = secondRoleName
 		env.ExpectCreatedOrUpdated(nodeClass)
 

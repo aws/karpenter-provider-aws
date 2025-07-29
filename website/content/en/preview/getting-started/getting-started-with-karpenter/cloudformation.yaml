@@ -286,6 +286,19 @@ Resources:
               "Action": "iam:GetInstanceProfile"
             },
             {
+              "Sid": "AllowRoleActions",
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*",
+              "Action": [
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:GetRole",
+                "iam:ListAttachedRolePolicies",
+                "iam:DetachRolePolicy",
+                "iam:DeleteRole"
+              ]
+            },
+            {
               "Sid": "AllowUnscopedInstanceProfileListAction",
               "Effect": "Allow",
               "Resource": "*",
