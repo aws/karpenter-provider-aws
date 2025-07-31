@@ -49,8 +49,6 @@ import (
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
 
-	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
-
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -175,16 +173,9 @@ func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.
 	}
 
 	for _, profile := range out {
-		if err := c.cleanupSingleProfile(ctx, profile); err != nil {
-			return err
+		if err := c.instanceProfileProvider.Delete(ctx, *profile.InstanceProfileName); err != nil {
+			return serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", *profile.InstanceProfileName)
 		}
-	}
-	return nil
-}
-
-func (c *Controller) cleanupSingleProfile(ctx context.Context, profile *iamtypes.InstanceProfile) error {
-	if err := c.instanceProfileProvider.Delete(ctx, *profile.InstanceProfileName); err != nil {
-		return serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", *profile.InstanceProfileName)
 	}
 	return nil
 }
@@ -209,7 +200,7 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	// Ensure to clean up instance profile that may have been created pre-upgrade
 	legacyProfileName := nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
 	if err := c.instanceProfileProvider.Delete(ctx, legacyProfileName); err != nil {
-		return reconcile.Result{}, serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, c.region))
+		return reconcile.Result{}, serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", legacyProfileName)
 	}
 
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {

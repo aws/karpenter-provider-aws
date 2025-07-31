@@ -256,6 +256,18 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		cachedProfileName := "cached-profile"
 		awsEnv.RecreationCache.SetDefault(fmt.Sprintf("%s/%s", "role-A", nodeClass.UID), cachedProfileName)
 
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			cachedProfileName: {
+				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+				InstanceProfileName: aws.String(cachedProfileName),
+				Roles: []iamtypes.Role{
+					{
+						RoleName: aws.String("role-A"),
+					},
+				},
+			},
+		}
+
 		// Apply NodeClass with role-A
 		nodeClass.Spec.Role = "role-A"
 		ExpectApplied(ctx, env.Client, nodeClass)
@@ -265,7 +277,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		// Verify it used the cached profile
 		Expect(nodeClass.Status.InstanceProfile).To(Equal(cachedProfileName))
-		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 	})
 
 	It("should not use the cached instance profile if it was for a different role", func() {
@@ -274,6 +286,18 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		// Set up cache with a profile for role-B
 		cachedProfileName := "cached-profile"
 		awsEnv.RecreationCache.SetDefault(fmt.Sprintf("%s/%s", "role-B", nodeClass.UID), cachedProfileName)
+
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			cachedProfileName: {
+				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+				InstanceProfileName: aws.String(cachedProfileName),
+				Roles: []iamtypes.Role{
+					{
+						RoleName: aws.String("role-B"),
+					},
+				},
+			},
+		}
 
 		// Apply NodeClass with role-A
 		nodeClass.Spec.Role = "role-A"
@@ -284,13 +308,25 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		// Verify it created a new profile instead of using cached one
 		Expect(nodeClass.Status.InstanceProfile).NotTo(Equal(cachedProfileName))
-		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(2))
 	})
 
 	It("should not use the cached instance profile if it was for a different nodeclass", func() {
 		// Set up cache with a profile but for a different nodeclass UID
 		cachedProfileName := "cached-profile"
 		awsEnv.RecreationCache.SetDefault(fmt.Sprintf("%s/%s", "role-A", "different-uid"), cachedProfileName)
+
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			cachedProfileName: {
+				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+				InstanceProfileName: aws.String(cachedProfileName),
+				Roles: []iamtypes.Role{
+					{
+						RoleName: aws.String("role-A"),
+					},
+				},
+			},
+		}
 
 		// Apply NodeClass with role-A but different UID
 		nodeClass.Spec.Role = "role-A"
@@ -301,7 +337,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		// Verify it created a new profile instead of using cached one
 		Expect(nodeClass.Status.InstanceProfile).NotTo(Equal(cachedProfileName))
-		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(2))
 	})
 
 	It("should update the cache when a new instance profile is created", func() {
@@ -419,6 +455,37 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		// Verify unique names even when reusing role-A
 		Expect(profileA2).NotTo(Equal(profileA))
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(4))
+	})
+
+	It("should return error on transient failures getting instance profile", func() {
+		// Set up initial profile
+		profileName := "profile-A"
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			profileName: {
+				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+				InstanceProfileName: aws.String(profileName),
+				Roles: []iamtypes.Role{
+					{
+						RoleName: aws.String("role-A"),
+					},
+				},
+			},
+		}
+		nodeClass.Status.InstanceProfile = profileName
+		nodeClass.Spec.Role = "role-A"
+		ExpectApplied(ctx, env.Client, nodeClass)
+
+		nodeClass.Spec.Role = "role-B"
+
+		// Simulate a transient error
+		awsEnv.IAMAPI.GetInstanceProfileBehavior.Error.Set(fmt.Errorf("simulated transient error"))
+
+		_, err := controller.Reconcile(ctx, nodeClass)
+		Expect(err).To(MatchError(ContainSubstring("getting instance profile")))
+		Expect(err).To(MatchError(ContainSubstring("simulated transient error")))
+
+		// Verify no new profile was created
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 	})
 
 	It("should properly tag new instance profiles", func() {

@@ -129,10 +129,9 @@ func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles
 		origlog.Printf("WE MADE IT PAST DELETE!")
 
 		if err := c.instanceProfileProvider.Delete(ctx, profileName); err != nil {
-			log.FromContext(ctx).Error(err, "failed to delete instance profile", "instance-profile", profileName)
 			return serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", profileName)
 		}
-		log.FromContext(ctx).V(1).Info("successfully deleted instance profile", "instance-profile", profileName)
+		log.FromContext(ctx).V(1).Info("deleted instance profile", "instance-profile", profileName)
 		origlog.Printf("NOT ACTIVE PROFILE")
 	}
 	return nil
