@@ -1,0 +1,26 @@
+name: Cleanup Website PR Preview
+on:
+  pull_request:
+    types: [ closed ]
+    paths: [ website/** ]
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - id: metadata
+        run: |
+          pr_number="${{ github.event.number }}"
+          echo PR_NUMBER="$pr_number" >> "$GITHUB_ENV"
+          echo BRANCH_NAME="pr-$pr_number" >> "$GITHUB_ENV"
+      - uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df # v4.2.1
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.RELEASE_PREVIEW_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
+          aws-region: ${{ vars.AMPLIFY_REGION }}
+      - run: |
+          if aws amplify get-branch --app-id ${{ vars.AMPLIFY_APP_ID_PREVIEW }} --branch-name "${{ env.BRANCH_NAME }}" 2>/dev/null; then
+            aws amplify delete-branch --app-id ${{ vars.AMPLIFY_APP_ID_PREVIEW }} --branch-name "${{ env.BRANCH_NAME }}"
+          fi
+      - run: aws s3 rm s3://${{ vars.AMPLIFY_S3_BUCKET_BETA }}/pr-${{ env.PR_NUMBER }}/ --recursive

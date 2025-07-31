@@ -1,0 +1,60 @@
+name: Deploy Website Preview to Amplify
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+    branches: [ main ]
+    paths: [ website/** ]
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+      - id: metadata
+        run: |
+          pr_number="${{ github.event.number }}"
+          pr_commit="${{ github.event.pull_request.head.sha }}"
+          {
+            echo PR_COMMIT="$pr_commit"
+            echo PR_NUMBER="$pr_number"
+            echo BRANCH_NAME="pr-$pr_number"
+          } >> "$GITHUB_ENV"
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df # v4.2.1
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.RELEASE_PREVIEW_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
+          aws-region: ${{ vars.AMPLIFY_REGION }}
+      - name: Get preview URL
+        run: |
+          APP_DOMAIN=$(aws amplify get-app --app-id ${{ vars.AMPLIFY_APP_ID_PREVIEW }} --query 'app.defaultDomain' --output text)
+          PREVIEW_URL="https://${{ env.BRANCH_NAME }}.$APP_DOMAIN"
+          echo PREVIEW_URL="$PREVIEW_URL" >> "$GITHUB_ENV"
+      - name: Deploy website
+        uses: ./.github/actions/deploy-website
+        with:
+          role: arn:aws:iam::${{ vars.RELEASE_PREVIEW_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
+          region: ${{ vars.AMPLIFY_REGION }}
+          amplify-app-id: ${{ vars.AMPLIFY_APP_ID_PREVIEW }}
+          amplify-branch-name: ${{ env.BRANCH_NAME }}
+          s3-bucket: ${{ vars.AMPLIFY_S3_BUCKET_BETA }}
+          s3-prefix: pr-${{ env.PR_NUMBER }}/
+          hugo-base-url: ${{ env.PREVIEW_URL }}
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          PREVIEW_URL: ${{ env.PREVIEW_URL }}
+          PR_COMMIT: ${{ env.PR_COMMIT }}
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: process.env.PR_NUMBER,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `**Preview deployment ready!**
+            
+            **Preview URL:** ${process.env.PREVIEW_URL}
+            
+            Built from commit \`${process.env.PR_COMMIT}\``
+            })
