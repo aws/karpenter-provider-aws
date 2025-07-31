@@ -42,7 +42,6 @@ jobs:
           s3-bucket: ${{ vars.AMPLIFY_S3_BUCKET_BETA }}
           s3-prefix: pr-${{ env.PR_NUMBER }}/
           hugo-base-url: ${{ env.PREVIEW_URL }}
-          preview: 'true'
       - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
           PREVIEW_URL: ${{ env.PREVIEW_URL }}

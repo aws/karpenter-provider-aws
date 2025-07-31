@@ -24,12 +24,14 @@ inputs:
     description: 'Base URL for Hugo build'
     required: false
     default: ''
-  preview:
-    description: 'Whether this is a preview deployment'
-    required: false
-    default: 'false'
 runs:
   using: 'composite'
+  env:
+        HUGO_ENV: production
+        HUGO_ENABLEGITINFO: true
+        TZ: America/Los_Angeles
+        HUGO_CACHEDIR: ${{ github.workspace }}/.hugo
+        NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
   steps:
     - name: Install Go
       uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
@@ -42,22 +44,20 @@ runs:
       with:
         hugo-version: '0.120.3'
         extended: true
-    - name: Build Hugo site
+    - name: Build Hugo site (preview)
       working-directory: website
       shell: bash
-      env:
-        HUGO_ENV: production
-        HUGO_ENABLEGITINFO: true
-        TZ: America/Los_Angeles
-        HUGO_CACHEDIR: ${{ github.workspace }}/.hugo
-        NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
+      if: github.event_name == 'pull_request'
       run: |
         npm ci --prefer-offline
-        if [ "${{ inputs.preview }}" == "true" ]; then
-          hugo --gc --minify --buildFuture -b "${{ inputs.hugo-base-url }}"
-        else
-          hugo --gc --minify
-        fi
+        hugo --gc --minify --buildFuture -b "${{ inputs.hugo-base-url }}"
+    - name: Build Hugo site (production) 
+      working-directory: website
+      shell: bash
+      if: github.event_name == 'push'
+      run: |
+        npm ci --prefer-offline
+        hugo --gc --minify
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df # v4.2.1
       with:
@@ -70,13 +70,12 @@ runs:
         aws s3 sync website/public/ "$S3_PATH" --delete
     - name: Create Amplify branch (if preview and doesn't exist)
       shell: bash
+      if: github.event_name == 'pull_request'
       run: |
-        if [ "${{ inputs.preview }}" == "true" ]; then
-          if ! aws amplify get-branch --app-id ${{ inputs.amplify-app-id }} --branch-name "${{ inputs.amplify-branch-name }}" 2>/dev/null; then
-            aws amplify create-branch \
-              --app-id ${{ inputs.amplify-app-id }} \
-              --branch-name "${{ inputs.amplify-branch-name }}"
-          fi
+        if ! aws amplify get-branch --app-id ${{ inputs.amplify-app-id }} --branch-name "${{ inputs.amplify-branch-name }}" 2>/dev/null; then
+          aws amplify create-branch \
+            --app-id ${{ inputs.amplify-app-id }} \
+            --branch-name "${{ inputs.amplify-branch-name }}"
         fi
     - name: Configure redirects
       shell: bash
