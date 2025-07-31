@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -344,20 +345,21 @@ var _ = Describe("Drift", Ordered, func() {
 		env.ExpectCreated(dep, nodeClass, nodePool)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		firstNodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
-		node := env.ExpectCreatedNodeCount("==", 1)[0]
+		firstNode := env.ExpectCreatedNodeCount("==", 1)[0]
 
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodePool), nodePool)).To(Succeed())
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(firstNodeClaim), firstNodeClaim)).To(Succeed())
 			g.Expect(nodeClass.Status.InstanceProfile).NotTo(BeEmpty())
+			env.EventuallyExpectInstanceProfileExists(nodeClass.Status.InstanceProfile)
 			g.Expect(firstNodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(nodeClass.Status.InstanceProfile))
 		}).Should(Succeed())
 
 		initialInstanceProfile := nodeClass.Status.InstanceProfile
 
 		// Change role
-		secondRoleName := fmt.Sprintf("KarpenterNodeRole-%s-V2", env.ClusterName)
+		secondRoleName := fmt.Sprintf("KarpenterNodeRole-%s-%s", env.ClusterName, uuid.New().String()[:8])
 		env.EventuallyExpectRoleCreated(secondRoleName)
 		DeferCleanup(func() {
 			env.ExpectRoleDeleted(secondRoleName)
@@ -370,6 +372,7 @@ var _ = Describe("Drift", Ordered, func() {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
 			g.Expect(nodeClass.Status.InstanceProfile).NotTo(BeEmpty())
 			g.Expect(nodeClass.Status.InstanceProfile).NotTo(Equal(initialInstanceProfile))
+			env.EventuallyExpectInstanceProfileExists(nodeClass.Status.InstanceProfile)
 		}).Should(Succeed())
 
 		secondInstanceProfile := nodeClass.Status.InstanceProfile
@@ -382,16 +385,15 @@ var _ = Describe("Drift", Ordered, func() {
 			g.Expect(condition.Reason).To(Equal("InstanceProfileDrift"))
 		}).Should(Succeed())
 
-		// Remove do-not-disrupt annotation from deployment's pod template
 		delete(dep.Spec.Template.Annotations, karpv1.DoNotDisruptAnnotationKey)
 		env.ExpectUpdated(dep)
 
-		// Verify old resources are cleaned up
-		env.EventuallyExpectNotFound(firstNodeClaim, node)
+		env.EventuallyExpectNotFound(firstNodeClaim, firstNode)
 
 		// Verify new nodeclaim uses new instance profile
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		secondNodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		secondNode := env.ExpectCreatedNodeCount("==", 1)[0]
 		Expect(secondNodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(secondInstanceProfile))
 
 		// Change back to initial role
@@ -403,6 +405,7 @@ var _ = Describe("Drift", Ordered, func() {
 			g.Expect(nodeClass.Status.InstanceProfile).NotTo(BeEmpty())
 			g.Expect(nodeClass.Status.InstanceProfile).NotTo(Equal(initialInstanceProfile))
 			g.Expect(nodeClass.Status.InstanceProfile).NotTo(Equal(secondInstanceProfile))
+			env.EventuallyExpectInstanceProfileExists(nodeClass.Status.InstanceProfile)
 		}).Should(Succeed())
 
 		finalInstanceProfile := nodeClass.Status.InstanceProfile
@@ -415,9 +418,12 @@ var _ = Describe("Drift", Ordered, func() {
 			g.Expect(condition.Reason).To(Equal("InstanceProfileDrift"))
 		}).Should(Succeed())
 
-		env.EventuallyExpectNotFound(secondNodeClaim)
+		env.EventuallyExpectNotFound(secondNodeClaim, secondNode)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		finalNodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		_ = env.ExpectCreatedNodeCount("==", 1)[0]
+
+		// Verify new nodeclaim uses new instance profile
 		Expect(finalNodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(finalInstanceProfile))
 	})
 	It("should drift the EC2NodeClass on BlockDeviceMappings volume size update", func() {

@@ -75,6 +75,12 @@ func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (
 }
 
 func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string, roleName string, tags map[string]string, nodeClassUID string) error {
+	_, err := p.iamapi.GetRole(ctx, &iam.GetRoleInput{
+		RoleName: lo.ToPtr(roleName),
+	})
+	if err != nil {
+		return serrors.Wrap(fmt.Errorf("role does not exist, %w", err), "role", roleName)
+	}
 	instanceProfile, err := p.Get(ctx, instanceProfileName)
 	if err != nil {
 		if !awserrors.IsNotFound(err) {
@@ -151,31 +157,41 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 }
 
 func (p *DefaultProvider) ListClusterProfiles(ctx context.Context) ([]*iamtypes.InstanceProfile, error) {
-	out, err := p.iamapi.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{
+	input := &iam.ListInstanceProfilesInput{
 		PathPrefix: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/", p.region, options.FromContext(ctx).ClusterName)),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("listing instance profiles, %w", err)
 	}
 
+	paginator := iam.NewListInstanceProfilesPaginator(p.iamapi, input)
+
 	var profiles []*iamtypes.InstanceProfile
-	for i := range out.InstanceProfiles {
-		profiles = append(profiles, &out.InstanceProfiles[i])
+	for paginator.HasMorePages() {
+		out, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("listing instance profiles, %w", err)
+		}
+		for i := range out.InstanceProfiles {
+			profiles = append(profiles, &out.InstanceProfiles[i])
+		}
 	}
 	return profiles, nil
 }
 
 func (p *DefaultProvider) ListNodeClassProfiles(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error) {
-	out, err := p.iamapi.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{
+	input := &iam.ListInstanceProfilesInput{
 		PathPrefix: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("listing instance profiles, %w", err)
 	}
 
+	paginator := iam.NewListInstanceProfilesPaginator(p.iamapi, input)
+
 	var profiles []*iamtypes.InstanceProfile
-	for i := range out.InstanceProfiles {
-		profiles = append(profiles, &out.InstanceProfiles[i])
+	for paginator.HasMorePages() {
+		out, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("listing instance profiles, %w", err)
+		}
+		for i := range out.InstanceProfiles {
+			profiles = append(profiles, &out.InstanceProfiles[i])
+		}
 	}
 	return profiles, nil
 }

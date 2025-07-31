@@ -42,6 +42,7 @@ type IAMAPIBehavior struct {
 	TagInstanceProfileBehavior            MockedFunction[iam.TagInstanceProfileInput, iam.TagInstanceProfileOutput]
 	RemoveRoleFromInstanceProfileBehavior MockedFunction[iam.RemoveRoleFromInstanceProfileInput, iam.RemoveRoleFromInstanceProfileOutput]
 	ListInstanceProfilesBehavior          MockedFunction[iam.ListInstanceProfilesInput, iam.ListInstanceProfilesOutput]
+	GetRoleBehavior                       MockedFunction[iam.GetRoleInput, iam.GetRoleOutput]
 }
 
 type IAMAPI struct {
@@ -51,10 +52,14 @@ type IAMAPI struct {
 	IAMAPIBehavior
 
 	InstanceProfiles map[string]*iamtypes.InstanceProfile
+	Roles            map[string]*iamtypes.Role
 }
 
 func NewIAMAPI() *IAMAPI {
-	return &IAMAPI{InstanceProfiles: map[string]*iamtypes.InstanceProfile{}}
+	return &IAMAPI{
+		InstanceProfiles: map[string]*iamtypes.InstanceProfile{},
+		Roles:            map[string]*iamtypes.Role{},
+	}
 }
 
 func (s *IAMAPI) Reset() {
@@ -64,7 +69,9 @@ func (s *IAMAPI) Reset() {
 	s.AddRoleToInstanceProfileBehavior.Reset()
 	s.RemoveRoleFromInstanceProfileBehavior.Reset()
 	s.ListInstanceProfilesBehavior.Reset()
+	s.GetRoleBehavior.Reset()
 	s.InstanceProfiles = map[string]*iamtypes.InstanceProfile{}
+	s.Roles = map[string]*iamtypes.Role{}
 }
 
 func (s *IAMAPI) GetInstanceProfile(_ context.Context, input *iam.GetInstanceProfileInput, _ ...func(*iam.Options)) (*iam.GetInstanceProfileOutput, error) {
@@ -214,6 +221,16 @@ func (s *IAMAPI) ListInstanceProfiles(_ context.Context, input *iam.ListInstance
 		}
 		return &iam.ListInstanceProfilesOutput{
 			InstanceProfiles: profiles,
+		}, nil
+	})
+}
+
+func (s *IAMAPI) GetRole(_ context.Context, input *iam.GetRoleInput, _ ...func(*iam.Options)) (*iam.GetRoleOutput, error) {
+	return s.GetRoleBehavior.Invoke(input, func(*iam.GetRoleInput) (*iam.GetRoleOutput, error) {
+		return &iam.GetRoleOutput{
+			Role: &iamtypes.Role{
+				RoleName: input.RoleName,
+			},
 		}, nil
 	})
 }
