@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,7 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 
 	"github.com/aws/aws-sdk-go-v2/service/fis"
 	fistypes "github.com/aws/aws-sdk-go-v2/service/fis/types"
@@ -562,30 +561,28 @@ func ExpectCapacityReservationsCanceled(ctx context.Context, ec2api *ec2.Client,
 
 func (env *Environment) EventuallyExpectRoleCreated(roleName string) {
 	GinkgoHelper()
-	_, err := env.IAMAPI.GetRole(env.Context, &iam.GetRoleInput{
+	if _, err := env.IAMAPI.GetRole(env.Context, &iam.GetRoleInput{
 		RoleName: aws.String(roleName),
-	})
-	if err == nil {
+	}); err == nil {
 		return
 	}
 
-	// Get policies from existing role
-	existingRoleName := fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
-	attachedPolicies, err := env.IAMAPI.ListAttachedRolePolicies(env.Context, &iam.ListAttachedRolePoliciesInput{
-		RoleName: aws.String(existingRoleName),
-	})
-	Expect(err).ToNot(HaveOccurred())
-
-	// Get trust policy from existing role
-	roleOutput, err := env.IAMAPI.GetRole(env.Context, &iam.GetRoleInput{
-		RoleName: aws.String(existingRoleName),
-	})
-	Expect(err).ToNot(HaveOccurred())
-	trustPolicy, err := url.QueryUnescape(aws.ToString(roleOutput.Role.AssumeRolePolicyDocument))
-	Expect(err).ToNot(HaveOccurred())
+	// Create new role with trust policy
+	trustPolicy := `{
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": {
+                    "Service": "ec2.amazonaws.com"
+                },
+                "Action": "sts:AssumeRole"
+            }
+        ]
+    }`
 
 	// Create new role with same trust policy
-	_, err = env.IAMAPI.CreateRole(env.Context, &iam.CreateRoleInput{
+	_, err := env.IAMAPI.CreateRole(env.Context, &iam.CreateRoleInput{
 		RoleName:                 aws.String(roleName),
 		AssumeRolePolicyDocument: aws.String(trustPolicy),
 		Tags: []iamtypes.Tag{
@@ -597,52 +594,62 @@ func (env *Environment) EventuallyExpectRoleCreated(roleName string) {
 	})
 	Expect(awserrors.IgnoreAlreadyExists(err)).ToNot(HaveOccurred())
 
-	// Attach all policies from existing role
-	for _, policy := range attachedPolicies.AttachedPolicies {
+	requiredPolicies := []string{
+		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly",
+		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
+		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+		"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+	}
+
+	// Attach all required policies
+	for _, policyArn := range requiredPolicies {
 		_, err = env.IAMAPI.AttachRolePolicy(env.Context, &iam.AttachRolePolicyInput{
 			RoleName:  aws.String(roleName),
-			PolicyArn: policy.PolicyArn,
+			PolicyArn: aws.String(policyArn),
 		})
 		Expect(err).ToNot(HaveOccurred())
 	}
 
-	// Update aws-auth ConfigMap to add the role mapping
-	roleArn := fmt.Sprintf("arn:aws:iam::%s:role/%s", env.ExpectAccountID(), roleName)
-	mapRolesYAML := fmt.Sprintf(`- rolearn: %s
-	username: system:node:{{EC2PrivateDNSName}}
-	groups:
-		- system:bootstrappers
-		- system:nodes`, roleArn)
+	// Verify role exists and has access entry
+	Eventually(func(g Gomega) {
+		// Verify role exists
+		verifyRole, err := env.IAMAPI.GetRole(env.Context, &iam.GetRoleInput{
+			RoleName: aws.String(roleName),
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(verifyRole.Role).ToNot(BeNil())
+	}).Should(Succeed())
 
-	key := types.NamespacedName{
-		Namespace: "kube-system",
-		Name:      "aws-auth",
-	}
-	cm := &corev1.ConfigMap{}
-	err = env.Client.Get(env, key, cm)
-	Expect(err).ToNot(HaveOccurred())
-
-	existing := cm.Data["mapRoles"]
-	if !strings.Contains(existing, roleArn) {
-		existing += "\n" + mapRolesYAML + "\n"
-		cm.Data["mapRoles"] = existing
-		env.ExpectCreatedOrUpdated(cm)
-	}
+	Eventually(func(g Gomega) {
+		_, err = env.EKSAPI.CreateAccessEntry(env.Context, &eks.CreateAccessEntryInput{
+			ClusterName:  aws.String(env.ClusterName),
+			PrincipalArn: aws.String(fmt.Sprintf("arn:aws:iam::%s:role/%s", env.ExpectAccountID(), roleName)),
+			Type:         aws.String("EC2_LINUX"),
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+	}).WithTimeout(30 * time.Second).WithPolling(5 * time.Second).Should(Succeed())
 }
 
 func (env *Environment) ExpectRoleDeleted(roleName string) {
 	GinkgoHelper()
-	// Get all attached policies
-	attachedPolicies, err := env.IAMAPI.ListAttachedRolePolicies(env.Context, &iam.ListAttachedRolePoliciesInput{
-		RoleName: aws.String(roleName),
+
+	_, err := env.EKSAPI.DeleteAccessEntry(env.Context, &eks.DeleteAccessEntryInput{
+		ClusterName:  aws.String(env.ClusterName),
+		PrincipalArn: aws.String(fmt.Sprintf("arn:aws:iam::%s:role/%s", env.ExpectAccountID(), roleName)),
 	})
 	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
 
+	requiredPolicies := []string{
+		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly",
+		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
+		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+		"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+	}
 	// Detach all policies
-	for _, policy := range attachedPolicies.AttachedPolicies {
+	for _, policyArn := range requiredPolicies {
 		_, err = env.IAMAPI.DetachRolePolicy(env.Context, &iam.DetachRolePolicyInput{
 			RoleName:  aws.String(roleName),
-			PolicyArn: policy.PolicyArn,
+			PolicyArn: &policyArn,
 		})
 		Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
 	}
