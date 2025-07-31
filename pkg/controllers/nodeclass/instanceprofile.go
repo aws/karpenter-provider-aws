@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 )
@@ -42,11 +43,8 @@ func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provid
 	}
 }
 
-func (ip *InstanceProfile) PreventRecreation(nodeClass *v1.EC2NodeClass) (string, bool) {
-	if profileName, ok := ip.recreationCache.Get(fmt.Sprintf("%s/%s", nodeClass.Spec.Role, nodeClass.UID)); ok {
-		return profileName.(string), true
-	}
-	return "", false
+func generateCacheKey(nodeClass *v1.EC2NodeClass) string {
+	return fmt.Sprintf("%s/%s", nodeClass.Spec.Role, nodeClass.UID)
 }
 
 func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
@@ -56,18 +54,20 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 
 		// Use a short-lived cache to prevent instance profile recreation for the same role in the same EC2NodeClass
 		// in case of a status patch error in the EC2NodeClass controller
-		if profileName, ok := ip.PreventRecreation(nodeClass); ok {
-			nodeClass.Status.InstanceProfile = profileName
-			currentRole = nodeClass.Spec.Role
+		if profileName, ok := ip.recreationCache.Get(generateCacheKey(nodeClass)); ok {
+			nodeClass.Status.InstanceProfile = profileName.(string)
 		}
 
 		// Get the current profile info if it exists
 		if nodeClass.Status.InstanceProfile != "" {
 			oldProfileName = nodeClass.Status.InstanceProfile
-			if profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile); err == nil {
-				if len(profile.Roles) > 0 {
-					currentRole = lo.FromPtr(profile.Roles[0].RoleName)
+			profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile)
+			if err != nil {
+				if !awserrors.IsNotFound(err) {
+					return reconcile.Result{}, fmt.Errorf("getting instance profile %s: %w", nodeClass.Status.InstanceProfile, err)
 				}
+			} else if len(profile.Roles) > 0 {
+				currentRole = lo.FromPtr(profile.Roles[0].RoleName)
 			}
 		}
 
@@ -87,7 +87,7 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 			); err != nil {
 				return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
 			}
-			ip.recreationCache.SetDefault(fmt.Sprintf("%s/%s", nodeClass.Spec.Role, nodeClass.UID), newProfileName)
+			ip.recreationCache.SetDefault(generateCacheKey(nodeClass), newProfileName)
 
 			// Mark the old profile as protected to prevent premature deletion by garbage collection.
 			// This handles the case where a new NodeClaim is created but hasn't yet appeared in the

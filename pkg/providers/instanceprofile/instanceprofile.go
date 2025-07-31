@@ -23,7 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/awslabs/operatorpkg/serrors"
-	gocache "github.com/patrickmn/go-cache"
+	cache "github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -46,12 +46,12 @@ type Provider interface {
 
 type DefaultProvider struct {
 	iamapi            sdk.IAMAPI
-	cache             *gocache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
-	protectedProfiles *gocache.Cache // Cache to account for eventual consistency delays when garbage collecting
+	cache             *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
+	protectedProfiles *cache.Cache // Cache to account for eventual consistency delays when garbage collecting
 	region            string
 }
 
-func NewDefaultProvider(iamapi sdk.IAMAPI, cache *gocache.Cache, protectedProfiles *gocache.Cache, region string) *DefaultProvider {
+func NewDefaultProvider(iamapi sdk.IAMAPI, cache *cache.Cache, protectedProfiles *cache.Cache, region string) *DefaultProvider {
 	return &DefaultProvider{
 		iamapi:            iamapi,
 		cache:             cache,
@@ -169,9 +169,7 @@ func (p *DefaultProvider) ListClusterProfiles(ctx context.Context) ([]*iamtypes.
 		if err != nil {
 			return nil, fmt.Errorf("listing instance profiles, %w", err)
 		}
-		for i := range out.InstanceProfiles {
-			profiles = append(profiles, &out.InstanceProfiles[i])
-		}
+		profiles = append(profiles, lo.ToSlicePtr(out.InstanceProfiles)...)
 	}
 	return profiles, nil
 }
@@ -189,9 +187,7 @@ func (p *DefaultProvider) ListNodeClassProfiles(ctx context.Context, nodeClass *
 		if err != nil {
 			return nil, fmt.Errorf("listing instance profiles, %w", err)
 		}
-		for i := range out.InstanceProfiles {
-			profiles = append(profiles, &out.InstanceProfiles[i])
-		}
+		profiles = append(profiles, lo.ToSlicePtr(out.InstanceProfiles)...)
 	}
 	return profiles, nil
 }
