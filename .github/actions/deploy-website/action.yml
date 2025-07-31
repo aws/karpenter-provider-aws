@@ -26,12 +26,6 @@ inputs:
     default: ''
 runs:
   using: 'composite'
-  env:
-        HUGO_ENV: production
-        HUGO_ENABLEGITINFO: true
-        TZ: America/Los_Angeles
-        HUGO_CACHEDIR: ${{ github.workspace }}/.hugo
-        NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
   steps:
     - name: Install Go
       uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
@@ -47,6 +41,12 @@ runs:
     - name: Build Hugo site (preview)
       working-directory: website
       shell: bash
+      env:
+        HUGO_ENV: production
+        HUGO_ENABLEGITINFO: true
+        TZ: America/Los_Angeles
+        HUGO_CACHEDIR: ${{ github.workspace }}/.hugo
+        NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
       if: github.event_name == 'pull_request'
       run: |
         npm ci --prefer-offline
@@ -54,6 +54,12 @@ runs:
     - name: Build Hugo site (production) 
       working-directory: website
       shell: bash
+      env:
+        HUGO_ENV: production
+        HUGO_ENABLEGITINFO: true
+        TZ: America/Los_Angeles
+        HUGO_CACHEDIR: ${{ github.workspace }}/.hugo
+        NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
       if: github.event_name == 'push'
       run: |
         npm ci --prefer-offline
