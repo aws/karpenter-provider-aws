@@ -3,7 +3,6 @@ base = "website/"
 publish = "public"
 command = "npm install; hugo --gc --minify"
 
-
 [context.production.environment]
 HUGO_VERSION = "0.120.3"
 HUGO_ENV = "production"
