@@ -8,6 +8,7 @@ HUGO_VERSION = "0.120.3"
 HUGO_ENV = "production"
 HUGO_ENABLEGITINFO = "true"
 
+
 [context.split1]
 command = "npm install; hugo --gc --minify --enableGitInfo"
 
