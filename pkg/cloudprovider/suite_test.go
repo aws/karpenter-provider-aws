@@ -302,7 +302,7 @@ var _ = Describe("CloudProvider", func() {
 		Expect(err).To(BeNil())
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
 		Expect(len(lo.Keys(cloudProviderNodeClaim.Annotations))).To(BeNumerically("==", 3))
-		Expect(lo.Keys(cloudProviderNodeClaim.Annotations)).To(ContainElements(v1.AnnotationEC2NodeClassHash, v1.AnnotationEC2NodeClassHashVersion))
+		Expect(lo.Keys(cloudProviderNodeClaim.Annotations)).To(ContainElements(v1.AnnotationEC2NodeClassHash, v1.AnnotationEC2NodeClassHashVersion, v1.AnnotationInstanceProfile))
 	})
 	It("should return NodeClass Hash on the nodeClaim", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
