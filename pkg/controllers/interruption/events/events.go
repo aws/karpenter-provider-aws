@@ -43,7 +43,7 @@ func SpotInterrupted(pods []*corev1.Pod, node *corev1.Node, nodeClaim *karpv1.No
 			InvolvedObject: pod,
 			Type:           corev1.EventTypeWarning,
 			Reason:         "SpotInterrupted",
-			Message:        "Spot interruption warning was triggered",
+			Message:        "Pod will be evicted from the node due to a spot interruption warning",
 			DedupeValues:   []string{string(pod.UID)},
 		})
 	}
