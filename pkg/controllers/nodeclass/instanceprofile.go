@@ -102,7 +102,10 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 		}
 	} else {
 		// Ensure old profile is marked as protected in the event a customer switches from using
-		// spec.role to spec.instanceProfile
+		// spec.role to spec.instanceProfile. Note that unmanaged profiles may be added to the
+		// protectedProfiles cache in certain sitatuations (e.g. going from spec.InstanceProfile = IP1 to
+		// spec.InstanceProfile = IP2 will cause IP1 to be added to cache). This is not an issue though,
+		// given that we never consider unmanaged instance profiles for deletion anyways.
 		if nodeClass.Status.InstanceProfile != "" {
 			ip.instanceProfileProvider.SetProtectedState(nodeClass.Status.InstanceProfile, true)
 		}

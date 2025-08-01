@@ -141,6 +141,19 @@ func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string
 	return instanceProfile
 }
 
+func (env *Environment) EventuallyExpectInstanceProfilesNotFound(profileNames ...string) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting instance profiles %v to not exist", profileNames))
+	Eventually(func(g Gomega) {
+		for _, profileName := range profileNames {
+			_, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
+				InstanceProfileName: aws.String(profileName),
+			})
+			g.Expect(awserrors.IsNotFound(err)).To(BeTrue())
+		}
+	}).WithTimeout(30 * time.Second).Should(Succeed())
+}
+
 func (env *Environment) GetInstance(nodeName string) ec2types.Instance {
 	node := env.Environment.GetNode(nodeName)
 	return env.GetInstanceByID(env.ExpectParsedProviderID(node.Spec.ProviderID))

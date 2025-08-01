@@ -339,8 +339,7 @@ var _ = Describe("Drift", Ordered, func() {
 	})
 	It("should drift nodeclaims when spec.role changes", func() {
 		// Create initial role and instance profile
-		initialRoleName := fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
-		nodeClass.Spec.Role = initialRoleName
+		initialRoleName := nodeClass.Spec.Role
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -348,7 +347,6 @@ var _ = Describe("Drift", Ordered, func() {
 		firstNode := env.ExpectCreatedNodeCount("==", 1)[0]
 
 		Eventually(func(g Gomega) {
-			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodePool), nodePool)).To(Succeed())
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(firstNodeClaim), firstNodeClaim)).To(Succeed())
 			g.Expect(nodeClass.Status.InstanceProfile).NotTo(BeEmpty())
@@ -403,7 +401,6 @@ var _ = Describe("Drift", Ordered, func() {
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
 			g.Expect(nodeClass.Status.InstanceProfile).NotTo(BeEmpty())
-			g.Expect(nodeClass.Status.InstanceProfile).NotTo(Equal(initialInstanceProfile))
 			g.Expect(nodeClass.Status.InstanceProfile).NotTo(Equal(secondInstanceProfile))
 			env.EventuallyExpectInstanceProfileExists(nodeClass.Status.InstanceProfile)
 		}).Should(Succeed())
@@ -425,6 +422,10 @@ var _ = Describe("Drift", Ordered, func() {
 
 		// Verify new nodeclaim uses new instance profile
 		Expect(finalNodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(finalInstanceProfile))
+
+		env.ExpectDeleted(nodePool)
+		env.ExpectDeleted(nodeClass)
+		env.EventuallyExpectInstanceProfilesNotFound(initialInstanceProfile, secondInstanceProfile, finalInstanceProfile)
 	})
 	It("should drift the EC2NodeClass on BlockDeviceMappings volume size update", func() {
 		nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
