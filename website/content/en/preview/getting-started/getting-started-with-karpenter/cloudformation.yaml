@@ -210,7 +210,7 @@ Resources:
             {
               "Sid": "AllowPassingInstanceRole",
               "Effect": "Allow",
-              "Resource": "${KarpenterNodeRole.Arn}",
+              "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*",
               "Action": "iam:PassRole",
               "Condition": {
                 "StringEquals": {
