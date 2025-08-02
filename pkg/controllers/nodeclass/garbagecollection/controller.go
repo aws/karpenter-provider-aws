@@ -154,8 +154,8 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 		return reconcile.Result{}, err
 	}
 
-	// Requeue after 30 minutes (1 minute for testing purposes)
-	return reconcile.Result{RequeueAfter: 1 * time.Minute}, nil
+	// Requeue after 30 minutes
+	return reconcile.Result{RequeueAfter: 30 * time.Minute}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
