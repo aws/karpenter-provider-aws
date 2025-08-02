@@ -76,7 +76,7 @@ runs:
         aws s3 sync website/public/ "$S3_PATH" --delete
     - name: Create Amplify branch (if preview and doesn't exist)
       shell: bash
-      if: github.event_name != 'push'
+      if: github.event_name == 'workflow_run'
       run: |
         if ! aws amplify get-branch --app-id ${{ inputs.amplify-app-id }} --branch-name "${{ inputs.amplify-branch-name }}" 2>/dev/null; then
           aws amplify create-branch \
