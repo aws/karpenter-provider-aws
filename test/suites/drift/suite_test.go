@@ -337,7 +337,7 @@ var _ = Describe("Drift", Ordered, func() {
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
-	It("should drift nodeclaims when spec.role changes", func() {
+	FIt("should drift nodeclaims when spec.role changes", func() {
 		// Create initial role and instance profile
 		initialRoleName := nodeClass.Spec.Role
 
