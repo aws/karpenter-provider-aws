@@ -337,7 +337,7 @@ var _ = Describe("Drift", Ordered, func() {
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
-	FIt("should drift nodeclaims when spec.role changes", func() {
+	It("should drift nodeclaims when spec.role changes", func() {
 		// Create initial role and instance profile
 		initialRoleName := nodeClass.Spec.Role
 
@@ -418,12 +418,16 @@ var _ = Describe("Drift", Ordered, func() {
 		env.EventuallyExpectNotFound(secondNodeClaim, secondNode)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		finalNodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
-		_ = env.ExpectCreatedNodeCount("==", 1)[0]
+		finalNode := env.ExpectCreatedNodeCount("==", 1)[0]
 
 		// Verify new nodeclaim uses new instance profile
 		Expect(finalNodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(finalInstanceProfile))
 
+		Expect(env.ExpectTestingFinalizerRemoved(finalNode)).To(Succeed())
+		Expect(env.ExpectTestingFinalizerRemoved(finalNodeClaim)).To(Succeed())
+
 		env.ExpectDeleted(nodePool)
+		env.EventuallyExpectNotFound(finalNodeClaim, finalNode)
 		env.ExpectDeleted(nodeClass)
 		env.EventuallyExpectInstanceProfilesNotFound(initialInstanceProfile, secondInstanceProfile, finalInstanceProfile)
 	})

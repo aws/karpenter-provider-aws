@@ -259,8 +259,8 @@ var _ = Describe("Instance Profile GarbageCollection", func() {
 		result, err := gcController.Reconcile(ctx)
 		Expect(err).To(BeNil())
 
-		// Verify requeue time is 30 minutes (1 minute for now)
-		Expect(result.RequeueAfter).To(Equal(1 * time.Minute))
+		// Verify requeue time is 30 minutes
+		Expect(result.RequeueAfter).To(Equal(30 * time.Minute))
 	})
 
 	It("should requeue immediately on deletion failure", func() {
