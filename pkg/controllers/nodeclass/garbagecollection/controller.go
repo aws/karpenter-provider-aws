@@ -17,7 +17,6 @@ package garbagecollection
 import (
 	"context"
 	"fmt"
-	origlog "log"
 	"time"
 
 	"github.com/awslabs/operatorpkg/serrors"
@@ -66,7 +65,6 @@ func (c *Controller) getActiveProfiles(ctx context.Context) (sets.Set[string], e
 		}
 
 	}
-	origlog.Printf("length of active profiles: %d", len(activeProfiles))
 
 	return activeProfiles, nil
 }
@@ -84,36 +82,30 @@ func (c *Controller) getCurrentProfiles(ctx context.Context) (sets.Set[string], 
 			currentProfiles.Insert(nc.Status.InstanceProfile)
 		}
 	}
-	origlog.Printf("length of current profiles: %d", len(currentProfiles))
 	return currentProfiles, nil
 }
 
 func (c *Controller) shouldDeleteProfile(profileName string, currentProfiles sets.Set[string], activeProfiles sets.Set[string]) bool {
 	// Skip if this is a current profile in any EC2NodeClass
-	origlog.Printf("ENTERED SHOULD DELETE")
 	if _, ok := currentProfiles[profileName]; ok {
 		return false
 	}
-	origlog.Printf("NOT CURRENT PROFILE")
 
 	// Skip if this is a protected profile
 	if c.instanceProfileProvider.IsProtected(profileName) {
 		return false
 	}
-	origlog.Printf("NOT PROTECTED PROFILE")
 
 	// Skip if this is an active profile (NodeClaims are using it)
 	if _, isActive := activeProfiles[profileName]; isActive {
 		return false
 	}
-	origlog.Printf("NOT ACTIVE PROFILE")
 
 	return true
 }
 
 func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles sets.Set[string], currentProfiles sets.Set[string]) error {
 	profiles, err := c.instanceProfileProvider.ListClusterProfiles(ctx)
-	origlog.Printf("length of listed cluster profiles: %d", len(profiles))
 
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)
@@ -123,16 +115,13 @@ func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles
 		profileName := *profile.InstanceProfileName
 
 		if !c.shouldDeleteProfile(profileName, currentProfiles, activeProfiles) {
-			origlog.Printf("WE CONTINUED FOR SOME REASON")
 			continue
 		}
-		origlog.Printf("WE MADE IT PAST DELETE!")
 
 		if err := c.instanceProfileProvider.Delete(ctx, profileName); err != nil {
 			return serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", profileName)
 		}
 		log.FromContext(ctx).V(1).Info("deleted instance profile", "instance-profile", profileName)
-		origlog.Printf("NOT ACTIVE PROFILE")
 	}
 	return nil
 }

@@ -17,7 +17,6 @@ package instanceprofile
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -92,10 +91,8 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 			Path:                lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, nodeClassUID)),
 		})
 		if err != nil {
-			log.Printf("CALLING CREATE FAILED")
 			return serrors.Wrap(fmt.Errorf("creating instance profile, %w", err), "instance-profile", instanceProfileName)
 		}
-		log.Printf("CALLING CREATE GOOD")
 
 		instanceProfile = o.InstanceProfile
 	}
@@ -115,7 +112,6 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 	// If the role has a path, ignore the path and take the role name only since AddRoleToInstanceProfile
 	// does not support paths in the role name.
 	roleName = lo.LastOr(strings.Split(roleName, "/"), roleName)
-	log.Printf("HERE IS ROLE NAME: %s", roleName)
 	if _, err = p.iamapi.AddRoleToInstanceProfile(ctx, &iam.AddRoleToInstanceProfileInput{
 		InstanceProfileName: lo.ToPtr(instanceProfileName),
 		RoleName:            lo.ToPtr(roleName),

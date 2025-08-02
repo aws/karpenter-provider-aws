@@ -17,7 +17,6 @@ package nodeclass
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -72,11 +71,9 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 		}
 
 		// If role has changed, create new profile
-		log.Printf("Current role: %s, new role: %s", currentRole, nodeClass.Spec.Role)
 		if currentRole != nodeClass.Spec.Role {
 			// Generate new profile name
 			newProfileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
-			log.Printf("Generated new profile name: %s", newProfileName)
 
 			if err := ip.instanceProfileProvider.Create(
 				ctx,
@@ -112,6 +109,5 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
-	log.Printf("Reconciled instance profile: %s", nodeClass.Status.InstanceProfile)
 	return reconcile.Result{}, nil
 }
