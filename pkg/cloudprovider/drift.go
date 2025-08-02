@@ -38,9 +38,18 @@ const (
 	SecurityGroupDrift       cloudprovider.DriftReason = "SecurityGroupDrift"
 	CapacityReservationDrift cloudprovider.DriftReason = "CapacityReservationDrift"
 	NodeClassDrift           cloudprovider.DriftReason = "NodeClassDrift"
+	InstanceProfileDrift     cloudprovider.DriftReason = "InstanceProfileDrift"
 )
 
 func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+
+	// Important to use standalone drift reason for instance profile changes. Using areStaticFieldsDrifted
+	// for when spec.role changes can lead to a race condition where we drift after spec.role changes
+	// but before the newly created instance profile has been reflected on status. Thus, drifted nodes
+	// could use the old instance profile.
+	if drifted := c.isInstanceProfileDrifted(nodeClaim, nodeClass); drifted != "" {
+		return drifted, nil
+	}
 	// First check if the node class is statically drifted to save on API calls.
 	if drifted := c.areStaticFieldsDrifted(nodeClaim, nodeClass); drifted != "" {
 		return drifted, nil
@@ -73,6 +82,23 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 		return string(i) != ""
 	})
 	return drifted, nil
+}
+
+func (c *CloudProvider) isInstanceProfileDrifted(nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {
+	// Get the instance profile from the NodeClaim annotation
+	nodeClaimInstanceProfile, ok := nodeClaim.Annotations[v1.AnnotationInstanceProfile]
+
+	// An instance profile annotation will not be set on a given NodeClaim if the NodeClaim is pre-upgrade
+	// to enabling spec.role mutability.
+	if !ok {
+		return ""
+	}
+
+	// Compare with current NodeClass instance profile
+	if nodeClass.Status.InstanceProfile != nodeClaimInstanceProfile {
+		return InstanceProfileDrift
+	}
+	return ""
 }
 
 func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool,
