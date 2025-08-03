@@ -2,7 +2,6 @@ name: Cleanup Website PR Preview
 on:
   pull_request_target:
     types: [ closed ]
-    paths: [ website/** ]
 jobs:
   cleanup:
     runs-on: ubuntu-latest

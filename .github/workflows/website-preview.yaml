@@ -1,10 +1,8 @@
 name: Deploy Website Preview to Amplify
 on:
   workflow_run:
-    workflows:
-      - ApprovalComment
-    types:
-      - completed
+    workflows: [ ApprovalComment ]
+    types: [ completed ]
 jobs:
   resolve:
     if: github.event.workflow_run.conclusion == 'success'
