@@ -1,10 +1,8 @@
 name: Deploy Website Preview to Amplify
 on:
   workflow_run:
-    workflows:
-      - ApprovalComment
-    types:
-      - completed
+    workflows: [ WebsitePreviewTrigger ]
+    types: [ completed ]
 jobs:
   preview:
     permissions:
@@ -12,15 +10,14 @@ jobs:
       contents: read
       pull-requests: write
       statuses: write
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
       - uses: ./.github/actions/download-artifact
-      - id: metadata
+      - id: website-metadata
         run: |
-          pr_number="$(head -n 2 /tmp/artifacts/metadata.txt | tail -n 1)"
-          pr_commit="$(tail -n 1 /tmp/artifacts/metadata.txt)"
+          pr_number="$(head -n 1 /tmp/artifacts/website-metadata.txt)"
+          pr_commit="$(tail -n 1 /tmp/artifacts/website-metadata.txt)"
           {
             echo PR_COMMIT="$pr_commit"
             echo PR_NUMBER="$pr_number"
@@ -74,4 +71,3 @@ jobs:
         with:
           name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
           git_ref: ${{ env.PR_COMMIT }}
-
