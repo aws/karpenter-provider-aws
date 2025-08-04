@@ -5,13 +5,16 @@
 {{ end }}
 {{ $pagePath := replace .Page.RelPermalink "docs" "" }}
 {{ $pagePath = replace $pagePath $pageDir "" }}
+{{ $pagePath = trim $pagePath "/" }}
 
 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 	{{ $pageDir }} {{ if eq (index .Site.Params.versions 0) $pageDir }} (latest) {{ end }}
 </a>
 <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink" id="navbarVersionSelector">
 	{{ range $index, $version := .Site.Params.versions }}
-	<a class="dropdown-item" href='/{{ $version }}{{ $pagePath }}' data-docs-version="{{ $version }}">
+	<a class="dropdown-item"
+		href='/{{ $version }}{{ if not (hasPrefix $pagePath "/") }}{{ "/" }}{{ end }}{{ $pagePath }}'
+		data-docs-version="{{ $version }}">
 		{{ $version }} {{ if eq $index 0 }} (latest) {{ end }}
 	</a>
 	{{ end }}

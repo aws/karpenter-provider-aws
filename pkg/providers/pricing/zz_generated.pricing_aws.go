@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2025-07-07T13:17:52Z for us-east-1
+// generated at 2025-08-04T13:21:54Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -154,8 +154,12 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		// g6e family
 		"g6e.12xlarge": 10.492640, "g6e.16xlarge": 7.577190, "g6e.24xlarge": 15.065590, "g6e.2xlarge": 2.242080,
 		"g6e.48xlarge": 30.131180, "g6e.4xlarge": 3.004240, "g6e.8xlarge": 4.528560, "g6e.xlarge": 1.861000,
+		// g6f family
+		"g6f.2xlarge": 0.475000, "g6f.4xlarge": 0.950000, "g6f.large": 0.202000, "g6f.xlarge": 0.237500,
 		// gr6 family
 		"gr6.4xlarge": 1.539200, "gr6.8xlarge": 2.446400,
+		// gr6f family
+		"gr6f.4xlarge": 1.066000,
 		// h1 family
 		"h1.16xlarge": 3.744000, "h1.2xlarge": 0.468000, "h1.4xlarge": 0.936000, "h1.8xlarge": 1.872000,
 		// hpc7g family
@@ -302,6 +306,8 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"p5.48xlarge": 55.040000,
 		// p5en family
 		"p5en.48xlarge": 63.296000,
+		// p6-b200 family
+		"p6-b200.48xlarge": 113.932800,
 		// r3 family
 		"r3.2xlarge": 0.665000, "r3.4xlarge": 1.330000, "r3.8xlarge": 2.660000, "r3.large": 0.166000,
 		"r3.xlarge": 0.333000,
@@ -422,7 +428,7 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		// u-9tb1 family
 		"u-9tb1.112xlarge": 81.900000,
 		// u7i-12tb family
-		"u7i-12tb.224xlarge": 135.227750,
+		"u7i-12tb.224xlarge": 125.581820,
 		// u7i-6tb family
 		"u7i-6tb.112xlarge": 62.790000,
 		// u7i-8tb family
