@@ -27,10 +27,6 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: print
-      shell: bash
-      run: |
-        echo "event name: ${{ github.event_name }}"
     - name: Install Go
       uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
       with:
@@ -51,6 +47,7 @@ runs:
         TZ: America/Los_Angeles
         HUGO_CACHEDIR: ${{ github.workspace }}/.hugo
         NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
+      if: github.event_name == 'workflow_run'
       run: |
         npm ci --prefer-offline
         hugo --gc --minify --buildFuture -b "${{ inputs.hugo-base-url }}"
@@ -79,7 +76,7 @@ runs:
         aws s3 sync website/public/ "$S3_PATH" --delete
     - name: Create Amplify branch (if preview and doesn't exist)
       shell: bash
-      if: github.event_name != 'push'
+      if: github.event_name == 'workflow_run'
       run: |
         if ! aws amplify get-branch --app-id ${{ inputs.amplify-app-id }} --branch-name "${{ inputs.amplify-branch-name }}" 2>/dev/null; then
           aws amplify create-branch \
