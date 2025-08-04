@@ -26,8 +26,8 @@ github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.37 h1:v+X21AvTb2wZ+ycg1g
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.37/go.mod h1:G0uM1kyssELxmJ2VZEfG0q2npObR3BAkF3c1VsfVnfs=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 h1:bIqFDwgGXXN1Kpp99pDOdKMTTb5d2KyU5X/BZxjOkRo=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3/go.mod h1:H5O/EsxDWyU+LP/V8i5sm8cxoZgc2fdNR9bxlOFrQTo=
-github.com/aws/aws-sdk-go-v2/service/ec2 v1.233.1 h1:1KYEVBXApGIQnXChtqKTZSN6jerkfiFhOApi8TcGs2w=
-github.com/aws/aws-sdk-go-v2/service/ec2 v1.233.1/go.mod h1:K7qdQFo+lbGM48aPEyoPfy/VN/xNOA4o8GGczfSXNcQ=
+github.com/aws/aws-sdk-go-v2/service/ec2 v1.236.0 h1:p9VAk1AO/UDMq4sYtsxMbZqoJIXtCZmLolsPTc3rP/w=
+github.com/aws/aws-sdk-go-v2/service/ec2 v1.236.0/go.mod h1:K7qdQFo+lbGM48aPEyoPfy/VN/xNOA4o8GGczfSXNcQ=
 github.com/aws/aws-sdk-go-v2/service/eks v1.66.2 h1:gDvxe1rFYhU9sfA/S8TePGE7gfC0vB9pCs6B4zbm5Ng=
 github.com/aws/aws-sdk-go-v2/service/eks v1.66.2/go.mod h1:lpcShMkoQ94JiSVoEF1yE2WP40IV02bbnaT6oYP7cQo=
 github.com/aws/aws-sdk-go-v2/service/fis v1.33.5 h1:pQvBXcA08Rlzz4Tj1Hgejb9Jxdma5dJivt6mHe039vg=
@@ -42,8 +42,8 @@ github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.18 h1:vvbXsA2T
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.18/go.mod h1:m2JJHledjBGNMsLOF1g9gbAxprzq3KjC8e4lxtn+eWg=
 github.com/aws/aws-sdk-go-v2/service/pricing v1.35.1 h1:mDs7RCM54yvesfOZ0dU5Cu0epcJHfndaApSiqRA5CHA=
 github.com/aws/aws-sdk-go-v2/service/pricing v1.35.1/go.mod h1:+ilPBV+rF+tKduqHEoSZpHwyM18DPcTOWXfzoMsIEA4=
-github.com/aws/aws-sdk-go-v2/service/sqs v1.38.9 h1:cTcsKveUzuJi5zt5YyE0quVFWB1fyk1MTUHvhdfojdo=
-github.com/aws/aws-sdk-go-v2/service/sqs v1.38.9/go.mod h1:TmYkwanFzsU2TkM0xCt15u3KMzf0wVmx0GhZOsxhVKo=
+github.com/aws/aws-sdk-go-v2/service/sqs v1.38.10 h1:f8DaKfXPawd2U9lEKVZKpGyOaR0Z/RsveDu5stN4mbo=
+github.com/aws/aws-sdk-go-v2/service/sqs v1.38.10/go.mod h1:TmYkwanFzsU2TkM0xCt15u3KMzf0wVmx0GhZOsxhVKo=
 github.com/aws/aws-sdk-go-v2/service/ssm v1.60.2 h1:ZvLR/SUQGk8sR+bHl8vXT00zgJ+U1fHDzrlokzz9DDo=
 github.com/aws/aws-sdk-go-v2/service/ssm v1.60.2/go.mod h1:H5QEq6SthlWMh8PXfSupp6uTg7iaJ3J36Cf15CPG5zE=
 github.com/aws/aws-sdk-go-v2/service/sso v1.25.6 h1:rGtWqkQbPk7Bkwuv3NzpE/scwwL9sC1Ul3tn9x83DUI=
@@ -56,8 +56,8 @@ github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.31.3 h1:Z9mDy4gW5VgC1Vqn
 github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.31.3/go.mod h1:FAIXnogpYqEIC4XzomUKdHO4lug4UIkMz43aTJ4ZYFA=
 github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881 h1:m9rhsGhdepdQV96tZgfy68oU75AWAjOH8u65OefTjwA=
 github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881/go.mod h1:+Mk5k0b6HpKobxNq+B56DOhZ+I/NiPhd5MIBhQMSTSs=
-github.com/aws/smithy-go v1.22.4 h1:uqXzVZNuNexwc/xrh6Tb56u89WDlJY6HS+KC0S4QSjw=
-github.com/aws/smithy-go v1.22.4/go.mod h1:t1ufH5HMublsJYulve2RKmHDC15xu1f26kHCp/HgceI=
+github.com/aws/smithy-go v1.22.5 h1:P9ATCXPMb2mPjYBgueqJNCA5S9UfktsW0tTxi+a7eqw=
+github.com/aws/smithy-go v1.22.5/go.mod h1:t1ufH5HMublsJYulve2RKmHDC15xu1f26kHCp/HgceI=
 github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647 h1:8yRBVsjGmI7qQsPWtIrbWP+XfwHO9Wq7gdLVzjqiZFs=
 github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647/go.mod h1:9NafTAUHL0FlMeL6Cu5PXnMZ1q/LnC9X2emLXHsVbM8=
 github.com/awslabs/operatorpkg v0.0.0-20250624064700-e9977193119b h1:0yddGrvwF5JFzgIbiGw+oBVWftYp2VjvrPcj7jP9uXo=
@@ -168,8 +168,8 @@ github.com/olekukonko/tablewriter v0.0.5 h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N
 github.com/olekukonko/tablewriter v0.0.5/go.mod h1:hPp6KlRPjbx+hW8ykQs1w3UBbZlj6HuIJcUGPhkA7kY=
 github.com/onsi/ginkgo/v2 v2.23.4 h1:ktYTpKJAVZnDT4VjxSbiBenUjmlL/5QkBEocaWXiQus=
 github.com/onsi/ginkgo/v2 v2.23.4/go.mod h1:Bt66ApGPBFzHyR+JO10Zbt0Gsp4uWxu5mIOTusL46e8=
-github.com/onsi/gomega v1.37.0 h1:CdEG8g0S133B4OswTDC/5XPSzE1OeP29QOioj2PID2Y=
-github.com/onsi/gomega v1.37.0/go.mod h1:8D9+Txp43QWKhM24yyOBEdpkzN8FvJyAwecBgsU4KU0=
+github.com/onsi/gomega v1.38.0 h1:c/WX+w8SLAinvuKKQFh77WEucCnPk4j2OTUr7lt7BeY=
+github.com/onsi/gomega v1.38.0/go.mod h1:OcXcwId0b9QsE7Y49u+BTrL4IdKOBOKnD6VQNTJEB6o=
 github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
 github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pelletier/go-toml/v2 v2.2.4 h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=
@@ -373,5 +373,5 @@ sigs.k8s.io/randfill v1.0.0/go.mod h1:XeLlZ/jmk4i1HRopwe7/aU3H5n1zNUcX6TM94b3QxO
 sigs.k8s.io/structured-merge-diff/v4 v4.6.0 h1:IUA9nvMmnKWcj5jl84xn+T5MnlZKThmUW1TdblaLVAc=
 sigs.k8s.io/structured-merge-diff/v4 v4.6.0/go.mod h1:dDy58f92j70zLsuZVuUX5Wp9vtxXpaZnkPGWeqDfCps=
 sigs.k8s.io/yaml v1.4.0/go.mod h1:Ejl7/uTz7PSA4eKMyQCUTnhZYNmLIl+5c2lQPGR2BPY=
-sigs.k8s.io/yaml v1.5.0 h1:M10b2U7aEUY6hRtU870n2VTPgR5RZiL/I6Lcc2F4NUQ=
-sigs.k8s.io/yaml v1.5.0/go.mod h1:wZs27Rbxoai4C0f8/9urLZtZtF3avA3gKvGyPdDqTO4=
+sigs.k8s.io/yaml v1.6.0 h1:G8fkbMSAFqgEFgh4b1wmtzDnioxFCUgTZhlbj5P9QYs=
+sigs.k8s.io/yaml v1.6.0/go.mod h1:796bPqUfzR/0jLAl6XjHl3Ck7MiyVv8dbTdyT3/pMf4=
