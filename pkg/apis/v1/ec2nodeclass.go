@@ -82,7 +82,7 @@ type EC2NodeClassSpec struct {
 	// This field is mutually exclusive from instanceProfile.
 	// +kubebuilder:validation:XValidation:rule="self != ''",message="role cannot be empty"
 	// +optional
-	Role string `json:"role,omitempty" hash:"ignore"`
+	Role string `json:"role,omitempty"`
 	// InstanceProfile is the AWS entity that instances use.
 	// This field is mutually exclusive from role.
 	// The instance profile should already have a role assigned to it that Karpenter
@@ -477,7 +477,7 @@ type EC2NodeClass struct {
 // 1. A field changes its default value for an existing field that is already hashed
 // 2. A field is added to the hash calculation with an already-set value
 // 3. A field is removed from the hash calculations
-const EC2NodeClassHashVersion = "v5"
+const EC2NodeClassHashVersion = "v4"
 
 func (in *EC2NodeClass) Hash() string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]interface{}{

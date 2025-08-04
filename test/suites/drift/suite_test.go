@@ -380,7 +380,7 @@ var _ = Describe("Drift", Ordered, func() {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(firstNodeClaim), firstNodeClaim)).To(Succeed())
 			condition := firstNodeClaim.StatusConditions().Get(karpv1.ConditionTypeDrifted)
 			g.Expect(condition).ToNot(BeNil())
-			g.Expect(condition.Reason).To(Equal("InstanceProfileDrift"))
+			g.Expect(condition.Reason).To(Equal("NodeClassDrift"))
 		}).Should(Succeed())
 
 		delete(dep.Spec.Template.Annotations, karpv1.DoNotDisruptAnnotationKey)
@@ -412,7 +412,7 @@ var _ = Describe("Drift", Ordered, func() {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(secondNodeClaim), secondNodeClaim)).To(Succeed())
 			condition := secondNodeClaim.StatusConditions().Get(karpv1.ConditionTypeDrifted)
 			g.Expect(condition).ToNot(BeNil())
-			g.Expect(condition.Reason).To(Equal("InstanceProfileDrift"))
+			g.Expect(condition.Reason).To(Equal("NodeClassDrift"))
 		}).Should(Succeed())
 
 		env.EventuallyExpectNotFound(secondNodeClaim, secondNode)
