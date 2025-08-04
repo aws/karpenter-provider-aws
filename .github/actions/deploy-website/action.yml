@@ -47,7 +47,7 @@ runs:
         TZ: America/Los_Angeles
         HUGO_CACHEDIR: ${{ github.workspace }}/.hugo
         NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
-      if: github.event_name == 'workflow_run'
+      if: github.event_name != 'push'
       run: |
         npm ci --prefer-offline
         hugo --gc --minify --buildFuture -b "${{ inputs.hugo-base-url }}"
@@ -76,7 +76,7 @@ runs:
         aws s3 sync website/public/ "$S3_PATH" --delete
     - name: Create Amplify branch (if preview and doesn't exist)
       shell: bash
-      if: github.event_name == 'workflow_run'
+      if: github.event_name != 'push'
       run: |
         if ! aws amplify get-branch --app-id ${{ inputs.amplify-app-id }} --branch-name "${{ inputs.amplify-branch-name }}" 2>/dev/null; then
           aws amplify create-branch \
