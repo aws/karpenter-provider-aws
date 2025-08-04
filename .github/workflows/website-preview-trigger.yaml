@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
         with:
           fetch-depth: 0
-      - name: Save info about the review comment as an artifact for other workflows that run on workflow_run to download them
+      - name: Save info about the PR as an artifact for other workflows that run on workflow_run to download them
         env:
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           COMMIT_ID: ${{ github.event.pull_request.head.sha }}
