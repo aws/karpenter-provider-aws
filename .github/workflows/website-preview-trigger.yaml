@@ -1,10 +1,9 @@
-name: ApprovalComment
+name: WebsitePreviewTrigger
 on:
-  pull_request_review:
-    types: [submitted]
+  pull_request:
+    types: [ opened, synchronize, reopened ]
 jobs:
-  approval-comment:
-    if: startsWith(github.event.review.body, '/karpenter snapshot') || startsWith(github.event.review.body, '/karpenter scale') || startsWith(github.event.review.body, '/karpenter versionCompatibility')
+  preview-trigger:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
@@ -12,13 +11,12 @@ jobs:
           fetch-depth: 0
       - name: Save info about the review comment as an artifact for other workflows that run on workflow_run to download them
         env:
-          REVIEW_BODY: ${{ github.event.review.body }}
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-          COMMIT_ID: ${{ github.event.review.commit_id }}
+          COMMIT_ID: ${{ github.event.pull_request.head.sha }}
         run: |
           mkdir -p /tmp/artifacts
-          { echo "$REVIEW_BODY"; echo "$PULL_REQUEST_NUMBER"; echo "$COMMIT_ID"; } >> /tmp/artifacts/metadata.txt
-          cat /tmp/artifacts/metadata.txt
+          { echo "$PULL_REQUEST_NUMBER"; echo "$COMMIT_ID"; } >> /tmp/artifacts/website-metadata.txt
+          cat /tmp/artifacts/website-metadata.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: artifacts

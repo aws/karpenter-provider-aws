@@ -1,14 +1,9 @@
 name: Deploy Website Preview to Amplify
 on:
   workflow_run:
-    workflows: [ ApprovalComment ]
+    workflows: [ WebsitePreviewTrigger ]
     types: [ completed ]
 jobs:
-  resolve:
-    if: github.event.workflow_run.conclusion == 'success'
-    uses: ./.github/workflows/resolve-args.yaml
-    with:
-      allowed_comment: "preview"
   preview:
     permissions:
       id-token: write
@@ -16,14 +11,13 @@ jobs:
       pull-requests: write
       statuses: write
     runs-on: ubuntu-latest
-    needs: [ resolve ]
     steps:
       - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
       - uses: ./.github/actions/download-artifact
-      - id: metadata
+      - id: website-metadata
         run: |
-          pr_number="$(head -n 2 /tmp/artifacts/metadata.txt | tail -n 1)"
-          pr_commit="$(tail -n 1 /tmp/artifacts/metadata.txt)"
+          pr_number="$(head -n 1 /tmp/artifacts/website-metadata.txt)"
+          pr_commit="$(tail -n 1 /tmp/artifacts/website-metadata.txt)"
           {
             echo PR_COMMIT="$pr_commit"
             echo PR_NUMBER="$pr_number"
