@@ -86,27 +86,33 @@ func (c *Controller) getCurrentProfiles(ctx context.Context) (sets.Set[string], 
 }
 
 func (c *Controller) shouldDeleteProfile(profileName string, currentProfiles sets.Set[string], activeProfiles sets.Set[string]) bool {
-	// Skip if this is a current profile in any EC2NodeClass
-	if _, ok := currentProfiles[profileName]; ok {
+	if currentProfiles.Has(profileName) {
 		return false
 	}
 
-	// Skip if this is a protected profile
 	if c.instanceProfileProvider.IsProtected(profileName) {
 		return false
 	}
 
-	// Skip if this is an active profile (NodeClaims are using it)
-	if _, isActive := activeProfiles[profileName]; isActive {
+	if activeProfiles.Has(profileName) {
 		return false
 	}
 
 	return true
 }
 
-func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles sets.Set[string], currentProfiles sets.Set[string]) error {
-	profiles, err := c.instanceProfileProvider.ListClusterProfiles(ctx)
+func (c *Controller) cleanupInactiveProfiles(ctx context.Context) error {
+	activeProfiles, err := c.getActiveProfiles(ctx)
+	if err != nil {
+		return err
+	}
 
+	currentProfiles, err := c.getCurrentProfiles(ctx)
+	if err != nil {
+		return err
+	}
+
+	profiles, err := c.instanceProfileProvider.ListClusterProfiles(ctx)
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)
 	}
@@ -129,20 +135,9 @@ func (c *Controller) cleanupInactiveProfiles(ctx context.Context, activeProfiles
 func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("controller", "instanceprofile.garbagecollection"))
 
-	activeProfiles, err := c.getActiveProfiles(ctx)
-	if err != nil {
+	if err := c.cleanupInactiveProfiles(ctx); err != nil {
 		return reconcile.Result{}, err
 	}
-
-	currentProfiles, err := c.getCurrentProfiles(ctx)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	if err := c.cleanupInactiveProfiles(ctx, activeProfiles, currentProfiles); err != nil {
-		return reconcile.Result{}, err
-	}
-
 	// Requeue after 30 minutes
 	return reconcile.Result{RequeueAfter: 30 * time.Minute}, nil
 }

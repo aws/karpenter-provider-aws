@@ -358,7 +358,7 @@ var _ = Describe("Drift", Ordered, func() {
 
 		// Change role
 		secondRoleName := fmt.Sprintf("KarpenterNodeRole-%s-%s", env.ClusterName, uuid.New().String()[:8])
-		env.EventuallyExpectRoleCreated(secondRoleName)
+		env.EventuallyExpectNodeRoleCreated(secondRoleName)
 		DeferCleanup(func() {
 			env.ExpectRoleDeleted(secondRoleName)
 		})

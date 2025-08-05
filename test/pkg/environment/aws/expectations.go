@@ -572,7 +572,10 @@ func ExpectCapacityReservationsCanceled(ctx context.Context, ec2api *ec2.Client,
 	}
 }
 
-func (env *Environment) EventuallyExpectRoleCreated(roleName string) {
+// Creates a role with the provided name. The appropriate policies and trust policy are configured to ensure nodes with
+// this role may join the cluster. Additionally, an AccessEntry is created for the role to ensure nodes are authorized
+// to join the cluster.
+func (env *Environment) EventuallyExpectNodeRoleCreated(roleName string) {
 	GinkgoHelper()
 	if _, err := env.IAMAPI.GetRole(env.Context, &iam.GetRoleInput{
 		RoleName: aws.String(roleName),
@@ -643,6 +646,9 @@ func (env *Environment) EventuallyExpectRoleCreated(roleName string) {
 	}).WithTimeout(30 * time.Second).WithPolling(5 * time.Second).Should(Succeed())
 }
 
+// Deletes a role and cleans up associated resources. This includes removing the EKS access entry that authorizes nodes
+// to join the cluster, detaching standard node policies (container registry, CNI, worker node, and SSM policies), and
+// finally deleting the IAM role itself.
 func (env *Environment) ExpectRoleDeleted(roleName string) {
 	GinkgoHelper()
 

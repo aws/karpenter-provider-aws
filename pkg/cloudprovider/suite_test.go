@@ -258,6 +258,15 @@ var _ = Describe("CloudProvider", func() {
 		Expect(err).To(HaveOccurred())
 		Expect(corecloudprovider.IsNodeClassNotReadyError(err)).To(BeTrue())
 	})
+	It("should return NodeClassNotReady error when observed generation doesn't match", func() {
+		nodeClass.Generation = 2
+		nodeClass.StatusConditions().SetTrue(opstatus.ConditionReady)
+		nodeClass.StatusConditions().Get(opstatus.ConditionReady).ObservedGeneration = 1
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		_, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(HaveOccurred())
+		Expect(corecloudprovider.IsNodeClassNotReadyError(err)).To(BeTrue())
+	})
 	It("should return an ICE error when there are no instance types to launch", func() {
 		// Specify no instance types and expect to receive a capacity error
 		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
@@ -303,6 +312,7 @@ var _ = Describe("CloudProvider", func() {
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
 		Expect(len(lo.Keys(cloudProviderNodeClaim.Annotations))).To(BeNumerically("==", 3))
 		Expect(lo.Keys(cloudProviderNodeClaim.Annotations)).To(ContainElements(v1.AnnotationEC2NodeClassHash, v1.AnnotationEC2NodeClassHashVersion, v1.AnnotationInstanceProfile))
+		Expect(cloudProviderNodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(nodeClass.Status.InstanceProfile))
 	})
 	It("should return NodeClass Hash on the nodeClaim", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
