@@ -106,6 +106,11 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if nodeClassReady.IsUnknown() {
 		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving NodeClass readiness, NodeClass is in Ready=Unknown, %s", nodeClassReady.Message), "NodeClassReadinessUnknown", "NodeClass is in Ready=Unknown")
 	}
+	// Prevent NodeClaim creation in the case where spec.role changes but nodeclass status has not updated with appropriate instance profile
+	instanceProfileCondition := nodeClass.StatusConditions().Get(v1.ConditionTypeInstanceProfileReady)
+	if instanceProfileCondition != nil && instanceProfileCondition.ObservedGeneration != nodeClass.Generation {
+		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("NodeClass status.instanceProfile is not yet up to date"))
+	}
 	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
 	if err != nil {
 		return nil, cloudprovider.NewNodeClassNotReadyError(err)

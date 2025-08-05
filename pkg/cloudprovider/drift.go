@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/awslabs/operatorpkg/serrors"
-	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -161,18 +160,6 @@ func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *karpv1.NodeClaim, node
 	if nodeClassHashVersion != nodeClaimHashVersion {
 		return ""
 	}
-	var instanceProfileCondition *status.Condition
-	for _, cond := range nodeClass.GetConditions() {
-		if cond.Type == v1.ConditionTypeInstanceProfileReady {
-			instanceProfileCondition = &cond
-			break
-		}
-	}
-	// Prevent drift in the case where spec.role changes but nodeclass status has not updated with appropriate instance profile
-	if instanceProfileCondition != nil && instanceProfileCondition.ObservedGeneration != nodeClass.Generation {
-		return ""
-	}
-
 	return lo.Ternary(nodeClassHash != nodeClaimHash, NodeClassDrift, "")
 }
 
