@@ -5,12 +5,13 @@ MEMORY_RESOURCES ?= "4Gi"
 
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
+QUEUE_NAME ?= "${CLUSTER_NAME}-karpenter-interruption"
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
 AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output text)
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
       		--set settings.clusterName=${CLUSTER_NAME} \
-			--set settings.interruptionQueue=${CLUSTER_NAME} \
+			--set settings.interruptionQueue=${QUEUE_NAME} \
 			--set controller.resources.requests.cpu=${CPU_RESOURCES} \
 			--set controller.resources.requests.memory=${MEMORY_RESOURCES} \
 			--set controller.resources.limits.cpu=${CPU_RESOURCES} \

@@ -1,4 +1,5 @@
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
+QUEUE_NAME ?= "${CLUSTER_NAME}-karpenter-interruption"
 
 ## Inject the app version into operator.Version
 LDFLAGS ?= -ldflags=-X=sigs.k8s.io/karpenter/pkg/operator.Version=$(shell git describe --tags --always | cut -d"v" -f2)
@@ -12,7 +13,7 @@ AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output t
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
       		--set settings.clusterName=${CLUSTER_NAME} \
-			--set settings.interruptionQueue=${CLUSTER_NAME} \
+			--set settings.interruptionQueue=${QUEUE_NAME} \
 			--set controller.resources.requests.cpu=1 \
 			--set controller.resources.requests.memory=1Gi \
 			--set controller.resources.limits.cpu=1 \
@@ -55,7 +56,7 @@ run: ## Run Karpenter controller binary against your local cluster
 		KUBERNETES_MIN_VERSION="1.19.0-0" \
 		DISABLE_LEADER_ELECTION=true \
 		CLUSTER_NAME=${CLUSTER_NAME} \
-		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		INTERRUPTION_QUEUE=${QUEUE_NAME} \
 		FEATURE_GATES="SpotToSpotConsolidation=true" \
 		LOG_LEVEL="debug" \
 		go run ./cmd/controller/main.go
@@ -79,7 +80,7 @@ deflake: ## Run randomized, racing tests until the test fails to catch flakes
 e2etests: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
 		CLUSTER_NAME=${CLUSTER_NAME} \
-		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		INTERRUPTION_QUEUE=${QUEUE_NAME} \
 		go test \
 		-p 1 \
 		-count 1 \
