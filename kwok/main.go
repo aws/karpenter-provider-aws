@@ -17,6 +17,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
 	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"
+	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay/validation"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
 	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
@@ -38,7 +39,9 @@ func main() {
 		op.AMIProvider,
 		op.SecurityGroupProvider,
 		op.CapacityReservationProvider,
+		op.InstanceTypeStore,
 	)
+	instanceTypeStore := validation.NewInstanceTypeStore()
 	cloudProvider := metrics.Decorate(kwokAWSCloudProvider)
 	clusterState := state.NewCluster(op.Clock, op.GetClient(), cloudProvider)
 
@@ -75,6 +78,7 @@ func main() {
 			op.EventRecorder,
 			cloudProvider,
 			clusterState,
+			instanceTypeStore,
 		)...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,

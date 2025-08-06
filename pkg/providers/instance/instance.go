@@ -458,7 +458,6 @@ func (p *DefaultProvider) getOverrides(
 	}
 	var overrides []ec2types.FleetLaunchTemplateOverridesRequest
 	for i, offering := range filteredOfferings {
-		fmt.Println(offering.parentInstanceTypeName, offering.Price)
 		subnet, ok := zonalSubnets[offering.Zone()]
 		if !ok {
 			continue
