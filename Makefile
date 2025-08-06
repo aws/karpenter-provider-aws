@@ -213,6 +213,15 @@ update-karpenter: ## Update kubernetes-sigs/karpenter to latest
 	go get -u sigs.k8s.io/karpenter@HEAD
 	go mod tidy
 
+.PHONY: deploy-cfn
+deploy-cfn: ## Deploys the cloudformation stack defined in the docs preview directory
+	aws cloudformation deploy \
+		--stack-name "Karpenter-${CLUSTER_NAME}" \
+		--template-file "./website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml" \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameter-overrides "ClusterName=${CLUSTER_NAME}"
+
+
 .PHONY: help presubmit ci-test ci-non-test run test deflake e2etests e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
 
 define newline

@@ -7,7 +7,7 @@ description: >
 ---
 
 Karpenter uses NodeOverlays to inject alternative assumptions into the scheduling simulation for more accurate scheduling decisions.
-NodeOverlays enable users to fine-tune instance pricing and add extended resources to instance types during Karpenter's decision-making process.
+NodeOverlays enable users to fine-tune instance pricing and add extended resources to instance types that should be considered during Karpenter's decision-making process.
 They provide a flexible way to account for real-world factors like savings plans, licensing costs, and custom hardware resources that aren't captured in the base instance data from cloud providers.
 
 NodeOverlays work by modifying the instance type information that Karpenter uses during its scheduling simulation.
@@ -47,7 +47,7 @@ spec:
 Optional integer that determines precedence when multiple NodeOverlays match the same instance type. Higher weights take precedence over lower weights. When weights are equal, alphabetical ordering by name is used for conflict resolution.
 
 ## spec.requirements
-Array of requirements that determine which instance types this overlay applies to. Uses the same format as NodePool requirements and supports all standard Kubernetes label selectors. An empty requirements array applies the overlay to all instance types universally. Kubernetes defines the following [Well-Known Labels](https://kubernetes.io/docs/reference/labels-annotations-taints/), and cloud providers (e.g., AWS) implement them.
+Array of requirements that determine which instance types this overlay applies to. Uses the same format as NodePool requirements and supports all standard Kubernetes label selectors. An empty requirements array applies the overlay to all instance types. Kubernetes defines the following [Well-Known Labels](https://kubernetes.io/docs/reference/labels-annotations-taints/), and cloud providers (e.g., AWS) implement them.
 
 Currently, requirements sets are defined based on the well-known labels that are discovered for instance types. In cases 
 
@@ -139,7 +139,7 @@ When NodeOverlay configurations change, Karpenter incorporates these changes int
 
 ## Status and Observability
 
-NodeOverlays include status conditions to help you understand their current state and troubleshoot configuration issues:
+NodeOverlays include status conditions to help you understand their current state and troubleshoot configuration issues.
 
 ### Common Status Conditions
 
