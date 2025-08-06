@@ -706,6 +706,10 @@ For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-
 
 {{% /alert %}}
 
+{{% alert title="Warning" color="warning" %}}
+When using `spec.instanceProfile`, ensure you are using pre-provisioned instance profiles that you manage yourself.
+{{% /alert %}}
+
 ## spec.amiSelectorTerms
 
 AMI Selector Terms are __required__ and are used to configure AMIs for Karpenter to use. AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).

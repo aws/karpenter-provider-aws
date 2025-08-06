@@ -46,11 +46,16 @@ func generateCacheKey(nodeClass *v1.EC2NodeClass) string {
 	return fmt.Sprintf("%s/%s", nodeClass.Spec.Role, nodeClass.UID)
 }
 
+func (ip *InstanceProfile) protectProfile(profile string) {
+	if profile != "" {
+		ip.instanceProfileProvider.SetProtectedState(profile, true)
+	}
+}
+
 func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if nodeClass.Spec.Role != "" {
 		var currentRole string
-		var oldProfileName string
-
+		oldProfileName := nodeClass.Status.InstanceProfile
 		// Use a short-lived cache to prevent instance profile recreation for the same role in the same EC2NodeClass
 		// in case of a status patch error in the EC2NodeClass controller
 		if profileName, ok := ip.recreationCache.Get(generateCacheKey(nodeClass)); ok {
@@ -59,7 +64,6 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 
 		// Get the current profile info if it exists
 		if nodeClass.Status.InstanceProfile != "" {
-			oldProfileName = nodeClass.Status.InstanceProfile
 			profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile)
 			if err != nil {
 				if !awserrors.IsNotFound(err) {
@@ -86,16 +90,16 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 			}
 			ip.recreationCache.SetDefault(generateCacheKey(nodeClass), newProfileName)
 
-			// Mark the old profile as protected to prevent premature deletion by garbage collection.
-			// This handles the case where a new NodeClaim is created but hasn't yet appeared in the
-			// informer cache when garbage collection runs.
-			if oldProfileName != "" {
-				ip.instanceProfileProvider.SetProtectedState(oldProfileName, true)
-			}
-			// Similarly protect the new profile to prevent deletion if garbage collection runs
+			// Protect the new profile to prevent deletion if garbage collection runs
 			// before this NodeClass appears in the informer cache.
-			ip.instanceProfileProvider.SetProtectedState(newProfileName, true)
+			ip.protectProfile(newProfileName)
 			nodeClass.Status.InstanceProfile = newProfileName
+		}
+		// Mark the old profile as protected to prevent premature deletion by garbage collection.
+		// This handles the case where a new NodeClaim is created but hasn't yet appeared in the
+		// informer cache when garbage collection runs.
+		if oldProfileName != nodeClass.Status.InstanceProfile {
+			ip.protectProfile(oldProfileName)
 		}
 	} else {
 		// Ensure old profile is marked as protected in the event a customer switches from using
@@ -103,9 +107,7 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 		// protectedProfiles cache in certain sitatuations (e.g. going from spec.InstanceProfile = IP1 to
 		// spec.InstanceProfile = IP2 will cause IP1 to be added to cache). This is not an issue though,
 		// given that we never consider unmanaged instance profiles for deletion anyways.
-		if nodeClass.Status.InstanceProfile != "" {
-			ip.instanceProfileProvider.SetProtectedState(nodeClass.Status.InstanceProfile, true)
-		}
+		ip.protectProfile(nodeClass.Status.InstanceProfile)
 		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)

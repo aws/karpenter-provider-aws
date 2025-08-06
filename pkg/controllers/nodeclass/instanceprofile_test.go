@@ -16,6 +16,7 @@ package nodeclass_test
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
@@ -74,12 +75,26 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(3))
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
-		Expect(awsEnv.InstanceProfileCache.Items()).To(HaveLen(3))
+
+		instanceProfileCount := 0
+		for key := range awsEnv.InstanceProfileCache.Items() {
+			if strings.HasPrefix(key, "instance-profile:") {
+				instanceProfileCount++
+			}
+		}
+		Expect(instanceProfileCount).To(Equal(3))
 
 		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
-		Expect(awsEnv.InstanceProfileCache.Items()).To(HaveLen(0))
+
+		instanceProfileCount = 0
+		for key := range awsEnv.InstanceProfileCache.Items() {
+			if strings.HasPrefix(key, "instance-profile:") {
+				instanceProfileCount++
+			}
+		}
+		Expect(instanceProfileCount).To(Equal(0))
 	})
 	It("should add the role to the instance profile when it exists without a role", func() {
 		profileName := "profile-A"

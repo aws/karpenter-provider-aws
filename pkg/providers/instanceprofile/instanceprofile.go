@@ -60,7 +60,8 @@ func NewDefaultProvider(iamapi sdk.IAMAPI, cache *cache.Cache, protectedProfiles
 }
 
 func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
-	if instanceProfile, ok := p.cache.Get(instanceProfileName); ok {
+	profileCacheKey := "instance-profile:" + instanceProfileName
+	if instanceProfile, ok := p.cache.Get(profileCacheKey); ok {
 		return instanceProfile.(*iamtypes.InstanceProfile), nil
 	}
 	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
@@ -69,16 +70,21 @@ func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (
 	if err != nil {
 		return nil, err
 	}
-	p.cache.SetDefault(instanceProfileName, out.InstanceProfile)
+	p.cache.SetDefault(profileCacheKey, out.InstanceProfile)
 	return out.InstanceProfile, nil
 }
 
 func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string, roleName string, tags map[string]string, nodeClassUID string) error {
-	_, err := p.iamapi.GetRole(ctx, &iam.GetRoleInput{
-		RoleName: lo.ToPtr(roleName),
-	})
-	if err != nil {
-		return serrors.Wrap(fmt.Errorf("role does not exist, %w", err), "role", roleName)
+	profileCacheKey := "instance-profile:" + instanceProfileName
+	roleCacheKey := "role:" + roleName
+	if _, ok := p.cache.Get(roleCacheKey); !ok {
+		out, err := p.iamapi.GetRole(ctx, &iam.GetRoleInput{
+			RoleName: lo.ToPtr(roleName),
+		})
+		if err != nil {
+			return serrors.Wrap(fmt.Errorf("role does not exist, %w", err), "role", roleName)
+		}
+		p.cache.SetDefault(roleCacheKey, out.Role)
 	}
 	instanceProfile, err := p.Get(ctx, instanceProfileName)
 	if err != nil {
@@ -121,11 +127,12 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 	instanceProfile.Roles = []iamtypes.Role{{
 		RoleName: lo.ToPtr(roleName),
 	}}
-	p.cache.SetDefault(instanceProfileName, instanceProfile)
+	p.cache.SetDefault(profileCacheKey, instanceProfile)
 	return nil
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string) error {
+	profileCacheKey := "instance-profile:" + instanceProfileName
 	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
 		InstanceProfileName: lo.ToPtr(instanceProfileName),
 	})
@@ -147,7 +154,7 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 	}); err != nil {
 		return awserrors.IgnoreNotFound(serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", instanceProfileName))
 	}
-	p.cache.Delete(instanceProfileName)
+	p.cache.Delete(profileCacheKey)
 	p.SetProtectedState(instanceProfileName, false)
 	return nil
 }
