@@ -2,7 +2,7 @@ module github.com/aws/karpenter-provider-aws
 
 go 1.24.6
 
-replace sigs.k8s.io/karpenter => github.com/engedaam/karpenter-core v0.0.0-20250725181414-e5d8430c7b25
+replace sigs.k8s.io/karpenter => github.com/engedaam/karpenter-core v0.0.0-20250806124443-7e784fbb31fa
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0

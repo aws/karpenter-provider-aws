@@ -18,6 +18,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay/validation"
 	"sigs.k8s.io/karpenter/pkg/events"
 
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
@@ -40,6 +41,7 @@ func New(
 	amiProvider amifamily.Provider,
 	securityGroupProvider securitygroup.Provider,
 	capacityReservationProvider capacityreservation.Provider,
+	instanceTypeStore *validation.InstanceTypeStore,
 ) *CloudProvider {
 	return &CloudProvider{
 		CloudProvider: cloudprovider.New(
@@ -50,6 +52,7 @@ func New(
 			amiProvider,
 			securityGroupProvider,
 			capacityReservationProvider,
+			instanceTypeStore,
 		),
 	}
 }

@@ -29,8 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay/validation"
 	"sigs.k8s.io/karpenter/pkg/events"
-	"sigs.k8s.io/karpenter/pkg/utils/nodeoverlay"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -65,6 +65,7 @@ type CloudProvider struct {
 	amiProvider                 amifamily.Provider
 	securityGroupProvider       securitygroup.Provider
 	capacityReservationProvider capacityreservation.Provider
+	instanceTypeStore           *validation.InstanceTypeStore
 }
 
 func New(
@@ -75,6 +76,7 @@ func New(
 	amiProvider amifamily.Provider,
 	securityGroupProvider securitygroup.Provider,
 	capacityReservationProvider capacityreservation.Provider,
+	store *validation.InstanceTypeStore,
 ) *CloudProvider {
 	return &CloudProvider{
 		instanceTypeProvider:        instanceTypeProvider,
@@ -84,6 +86,7 @@ func New(
 		securityGroupProvider:       securityGroupProvider,
 		capacityReservationProvider: capacityReservationProvider,
 		recorder:                    recorder,
+		instanceTypeStore:           store,
 	}
 }
 
@@ -118,10 +121,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if err != nil {
 		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving instance types, %w", err), "InstanceTypeResolutionFailed", "Error resolving instance types")
 	}
-	instanceTypes, err = nodeoverlay.OverlayInstanceTypes(ctx, c.kubeClient, instanceTypes)
-	if err != nil {
-		return nil, cloudprovider.NewCreateError(fmt.Errorf("overlaying instance types types, %w", err), "NodeOverlayResolutionError", "Error resolving instance types")
-	}
+	c.instanceTypeStore.ApplyOverlayOnInstanceTypes(nodeClaim.Labels[v1.NodePoolTagKey], instanceTypes)
 	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
 	if err != nil {
 		return nil, fmt.Errorf("creating instance, %w", err)
@@ -216,8 +216,9 @@ func (c *CloudProvider) getInstanceType(ctx context.Context, nodePool *karpv1.No
 	if err != nil {
 		return nil, fmt.Errorf("resolving instanceype, %w", err)
 	}
-	overlayInstanceType, err := nodeoverlay.OverlayInstanceTypes(ctx, c.kubeClient, []*cloudprovider.InstanceType{it})
-	return overlayInstanceType[0], err
+	c.instanceTypeStore.ApplyOverlayOnInstanceTypes(nodePool.Name, []*cloudprovider.InstanceType{it})
+
+	return it, err
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim) error {

@@ -26,6 +26,7 @@ import (
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay/validation"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
@@ -55,8 +56,9 @@ func init() {
 
 type Environment struct {
 	// Mock
-	Clock         *clock.FakeClock
-	EventRecorder *coretest.EventRecorder
+	Clock             *clock.FakeClock
+	EventRecorder     *coretest.EventRecorder
+	InstanceTypeStore *validation.InstanceTypeStore
 
 	// API
 	EC2API     *fake.EC2API
@@ -105,6 +107,7 @@ type Environment struct {
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
 	// Mock
 	clock := &clock.FakeClock{}
+	store := validation.NewInstanceTypeStore()
 
 	// API
 	ec2api := fake.NewEC2API()
@@ -185,8 +188,9 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	)
 
 	return &Environment{
-		Clock:         clock,
-		EventRecorder: eventRecorder,
+		Clock:             clock,
+		EventRecorder:     eventRecorder,
+		InstanceTypeStore: store,
 
 		EC2API:     ec2api,
 		EKSAPI:     eksapi,
