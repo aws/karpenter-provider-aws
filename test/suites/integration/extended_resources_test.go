@@ -72,6 +72,13 @@ var _ = Describe("Extended Resources", func() {
 				Operator: corev1.NodeSelectorOpExists,
 			},
 		})
+		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceFamily,
+				Operator: corev1.NodeSelectorOpNotIn,
+				Values:   []string{"g6f"},
+			},
+		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -103,6 +110,13 @@ var _ = Describe("Extended Resources", func() {
 				Key:      v1.LabelInstanceCategory,
 				Operator: corev1.NodeSelectorOpExists,
 			}})
+		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceFamily,
+				Operator: corev1.NodeSelectorOpNotIn,
+				Values:   []string{"g6f"},
+			},
+		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
