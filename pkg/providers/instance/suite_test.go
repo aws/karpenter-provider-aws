@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
+	testv1alpha1 "sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
@@ -63,7 +64,7 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(test.DisableCapacityReservationIDValidation(apis.CRDs)...), coretest.WithCRDs(v1alpha1.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(test.DisableCapacityReservationIDValidation(apis.CRDs)...), coretest.WithCRDs(testv1alpha1.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
@@ -387,5 +388,107 @@ var _ = Describe("InstanceProvider", func() {
 				Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable(ec2types.InstanceType(instance.Name), zone, "on-demand")).To(BeFalse())
 			}
 		}
+	})
+	It("should use priotiztied allocation stragaty for an on-demand nodeclaim using nodeoverlay pricing", func() {
+		nodeClaim.Annotations = map[string]string{v1alpha1.PriceOverlayAppliedAnnotationKey: "true"}
+		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      karpv1.CapacityTypeLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						"on-demand",
+					},
+				},
+			},
+		}
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(BeNil())
+
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+		priotiztied := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+
+		Expect(priotiztied.OnDemandOptions.AllocationStrategy).To(Equal(ec2types.FleetOnDemandAllocationStrategyPrioritized))
+	})
+	It("should use lowest price allocation stragaty by default for on-demand nodeclaims", func() {
+		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      karpv1.CapacityTypeLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						"on-demand",
+					},
+				},
+			},
+		}
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(BeNil())
+
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+		priotiztied := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+
+		Expect(priotiztied.OnDemandOptions.AllocationStrategy).To(Equal(ec2types.FleetOnDemandAllocationStrategyLowestPrice))
+	})
+	It("should use capacity optimized prioritized allocation stragaty for an spot nodeclaim using nodeoverlay", func() {
+		nodeClaim.Annotations = map[string]string{v1alpha1.PriceOverlayAppliedAnnotationKey: "true"}
+		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      karpv1.CapacityTypeLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						"spot",
+					},
+				},
+			},
+		}
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(BeNil())
+
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+		priotiztied := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+
+		Expect(priotiztied.SpotOptions.AllocationStrategy).To(Equal(ec2types.SpotAllocationStrategyCapacityOptimizedPrioritized))
+	})
+	It("should use price capacity optimized allocation stragaty by default for spot nodeclaims", func() {
+		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      karpv1.CapacityTypeLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						"spot",
+					},
+				},
+			},
+		}
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(BeNil())
+
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+		priotiztied := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+
+		Expect(priotiztied.SpotOptions.AllocationStrategy).To(Equal(ec2types.SpotAllocationStrategyPriceCapacityOptimized))
 	})
 })
