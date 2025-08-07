@@ -15,6 +15,7 @@ limitations under the License.
 package v1
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -482,6 +483,8 @@ type EC2NodeClass struct {
 	Status EC2NodeClassStatus `json:"status,omitempty"`
 }
 
+// TODO(maxcao13): if we ever change any hashes downstream, we will have to bump this version ourselves, irrespective of upstream.
+
 // We need to bump the EC2NodeClassHashVersion when we make an update to the EC2NodeClass CRD under these conditions:
 // 1. A field changes its default value for an existing field that is already hashed
 // 2. A field is added to the hash calculation with an already-set value
@@ -489,8 +492,10 @@ type EC2NodeClass struct {
 const EC2NodeClassHashVersion = "v4"
 
 func (in *EC2NodeClass) Hash() string {
-	return fmt.Sprint(lo.Must(hashstructure.Hash([]any{
-		in.Spec,
+	spec := in.Spec
+	spec.UserData = lo.ToPtr(in.UserDataHash())
+	return fmt.Sprint(lo.Must(hashstructure.Hash([]interface{}{
+		spec,
 		// AMIFamily should be hashed using the dynamically resolved value rather than the literal value of the field.
 		// This ensures that scenarios such as changing the field from nil to AL2023 with the alias "al2023@latest"
 		// doesn't trigger drift.
@@ -604,6 +609,47 @@ func amiVersionFromAlias(alias string) string {
 		log.Fatalf("failed to parse AMI alias %q, invalid format", alias)
 	}
 	return components[1]
+}
+
+// UPSTREAM: <carry>: We need to specially hash our custom user data because we pass in a rotating token into the userData field
+// which unintentionally causes the hash to change and trigger drift. We specially handle any ignition userData by parsing it,
+// getting a special header we include in ignition server requests, and only return that header TargetConfigVersionHash's value.
+// The hash is unique and will act as a trigger for Drift rollout, similar to it's usage in HyperShift and the hyperv1.NodePool API.
+// https://github.com/openshift/hypershift/blob/07b5bf9a97d23d6c7a01164a385e5b9d6c513794/hypershift-operator/controllers/nodepool/config.go#L120
+//
+// comes from https://github.com/openshift/hypershift/blob/c6c65ef3a26243489477c984af93655a33c4167b/hypershift-operator/controllers/nodepool/token.go#L426
+const TargetConfigVersionHashHeader = "TargetConfigVersionHash"
+
+// Returns the TargetConfigVersionHash value from the userData's ignition payload, assuming it's a valid config.
+// If not valid, returns the raw userData, effectively bypassing this handling.
+func (in *EC2NodeClass) UserDataHash() string {
+	var ignitionConfig struct {
+		Ignition struct {
+			Config struct {
+				Merge []struct {
+					HTTPHeaders []struct {
+						Name  string  `json:"name"`
+						Value *string `json:"value"`
+					} `json:"httpHeaders"`
+				} `json:"merge"`
+			} `json:"config"`
+		} `json:"ignition"`
+	}
+
+	if err := json.Unmarshal([]byte(*in.Spec.UserData), &ignitionConfig); err != nil {
+		return *in.Spec.UserData
+	}
+
+	if len(ignitionConfig.Ignition.Config.Merge) == 0 {
+		return *in.Spec.UserData
+	}
+
+	for _, header := range ignitionConfig.Ignition.Config.Merge[0].HTTPHeaders {
+		if header.Name == TargetConfigVersionHashHeader && header.Value != nil {
+			return *header.Value
+		}
+	}
+	return *in.Spec.UserData
 }
 
 // EC2NodeClassList contains a list of EC2NodeClass
