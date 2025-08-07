@@ -121,7 +121,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if err != nil {
 		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving instance types, %w", err), "InstanceTypeResolutionFailed", "Error resolving instance types")
 	}
-	c.instanceTypeStore.ApplyOverlayOnInstanceTypes(nodeClaim.Labels[v1.NodePoolTagKey], instanceTypes)
+	instanceTypes = c.instanceTypeStore.ApplyOverlayOnInstanceTypes(nodeClaim.Labels[v1.NodePoolTagKey], instanceTypes)
 	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
 	if err != nil {
 		return nil, fmt.Errorf("creating instance, %w", err)
@@ -216,9 +216,9 @@ func (c *CloudProvider) getInstanceType(ctx context.Context, nodePool *karpv1.No
 	if err != nil {
 		return nil, fmt.Errorf("resolving instanceype, %w", err)
 	}
-	c.instanceTypeStore.ApplyOverlayOnInstanceTypes(nodePool.Name, []*cloudprovider.InstanceType{it})
+	updatedInstanceTypes := c.instanceTypeStore.ApplyOverlayOnInstanceTypes(nodePool.Name, []*cloudprovider.InstanceType{it})
 
-	return it, err
+	return updatedInstanceTypes[0], err
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim) error {
