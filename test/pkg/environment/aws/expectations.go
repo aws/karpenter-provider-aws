@@ -649,7 +649,7 @@ func (env *Environment) EventuallyExpectNodeRoleCreated(roleName string) {
 // Deletes a role and cleans up associated resources. This includes removing the EKS access entry that authorizes nodes
 // to join the cluster, detaching standard node policies (container registry, CNI, worker node, and SSM policies), and
 // finally deleting the IAM role itself.
-func (env *Environment) ExpectRoleDeleted(roleName string) {
+func (env *Environment) ExpectNodeRoleDeleted(roleName string) {
 	GinkgoHelper()
 
 	_, err := env.EKSAPI.DeleteAccessEntry(env.Context, &eks.DeleteAccessEntryInput{

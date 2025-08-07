@@ -59,8 +59,16 @@ func NewDefaultProvider(iamapi sdk.IAMAPI, cache *cache.Cache, protectedProfiles
 	}
 }
 
+func getProfileCacheKey(profileName string) string {
+	return "instance-profile:" + profileName
+}
+
+func getRoleCacheKey(roleName string) string {
+	return "role:" + roleName
+}
+
 func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
-	profileCacheKey := "instance-profile:" + instanceProfileName
+	profileCacheKey := getProfileCacheKey(instanceProfileName)
 	if instanceProfile, ok := p.cache.Get(profileCacheKey); ok {
 		return instanceProfile.(*iamtypes.InstanceProfile), nil
 	}
@@ -75,8 +83,8 @@ func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (
 }
 
 func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string, roleName string, tags map[string]string, nodeClassUID string) error {
-	profileCacheKey := "instance-profile:" + instanceProfileName
-	roleCacheKey := "role:" + roleName
+	profileCacheKey := getProfileCacheKey(instanceProfileName)
+	roleCacheKey := getRoleCacheKey(roleName)
 	if _, ok := p.cache.Get(roleCacheKey); !ok {
 		out, err := p.iamapi.GetRole(ctx, &iam.GetRoleInput{
 			RoleName: lo.ToPtr(roleName),
@@ -132,7 +140,7 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string) error {
-	profileCacheKey := "instance-profile:" + instanceProfileName
+	profileCacheKey := getProfileCacheKey(instanceProfileName)
 	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
 		InstanceProfileName: lo.ToPtr(instanceProfileName),
 	})
