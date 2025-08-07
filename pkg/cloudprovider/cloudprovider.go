@@ -104,7 +104,10 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, cloudprovider.NewNodeClassNotReadyError(stderrors.New(nodeClassReady.Message))
 	}
 	if nodeClassReady.IsUnknown() {
-		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving NodeClass readiness, NodeClass is in Ready=Unknown, %s", nodeClassReady.Message), "NodeClassReadinessUnknown", "NodeClass is in Ready=Unknown")
+		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving nodeclass readiness, nodeclass is in Ready=Unknown, %s", nodeClassReady.Message), "NodeClassReadinessUnknown", "NodeClass is in Ready=Unknown")
+	}
+	if nodeClassReady != nil && nodeClassReady.ObservedGeneration != nodeClass.Generation {
+		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("nodeclass status has not been reconciled against the latest spec"))
 	}
 	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
 	if err != nil {
@@ -128,6 +131,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
 		v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
 		v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
+		v1.AnnotationInstanceProfile:         nodeClass.Status.InstanceProfile,
 	})
 	return nc, nil
 }

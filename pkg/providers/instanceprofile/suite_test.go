@@ -19,8 +19,14 @@ import (
 	"fmt"
 	"testing"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/samber/lo"
+
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
@@ -103,9 +109,9 @@ var _ = Describe("InstanceProfileProvider", func() {
 	DescribeTable(
 		"should support IAM roles",
 		func(roleWithPath, role string) {
-			const profileName = "test-profile"
+			const profileName = "profile-A"
 			nodeClass.Spec.Role = roleWithPath
-			Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, role, nil)).To(Succeed())
+			Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, role, nil, string(nodeClass.UID))).To(Succeed())
 			Expect(profileName).ToNot(BeNil())
 			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
 			Expect(aws.ToString(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName)).To(Equal(role))
@@ -113,4 +119,205 @@ var _ = Describe("InstanceProfileProvider", func() {
 		Entry("with custom paths", fmt.Sprintf("CustomPath/%s", nodeRole), nodeRole),
 		Entry("without custom paths", nodeRole, nodeRole),
 	)
+
+	It("should list all instance profiles for a NodeClass", func() {
+		// Create and apply first NodeClass
+		nodeClass1 := test.TestNodeClass{
+			EC2NodeClass: v1.EC2NodeClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "nodeclass-1",
+				},
+				Spec: nodeClass.Spec,
+			},
+		}
+		nodeClass1.Spec.Role = "role-1"
+		ExpectApplied(ctx, env.Client, &nodeClass1.EC2NodeClass)
+
+		// Create and apply second NodeClass
+		nodeClass2 := test.TestNodeClass{
+			EC2NodeClass: v1.EC2NodeClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "nodeclass-2",
+				},
+				Spec: nodeClass.Spec,
+			},
+		}
+		nodeClass2.Spec.Role = "role-2"
+		ExpectApplied(ctx, env.Client, &nodeClass2.EC2NodeClass)
+
+		// Create instance profiles using the UIDs from the applied NodeClasses
+		profile1 := "profile-1"
+		profile2 := "profile-2"
+
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			profile1: {
+				InstanceProfileName: lo.ToPtr(profile1),
+				Roles: []iamtypes.Role{
+					{
+						RoleId:   aws.String(fake.RoleID()),
+						RoleName: aws.String("role-1"),
+					},
+				},
+				Path: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, string(nodeClass1.UID))),
+			},
+			profile2: {
+				InstanceProfileName: lo.ToPtr(profile2),
+				Roles: []iamtypes.Role{
+					{
+						RoleId:   aws.String(fake.RoleID()),
+						RoleName: aws.String("role-2"),
+					},
+				},
+				Path: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, string(nodeClass2.UID))),
+			},
+		}
+
+		// List profiles for first NodeClass
+		profiles, err := awsEnv.InstanceProfileProvider.ListNodeClassProfiles(ctx, &nodeClass1.EC2NodeClass)
+		Expect(err).To(BeNil())
+
+		// Should only get profiles for first NodeClass
+		Expect(profiles).To(HaveLen(1))
+		Expect(aws.ToString(profiles[0].InstanceProfileName)).To(Equal(profile1))
+	})
+
+	It("should list all instance profiles for a Cluster", func() {
+		// Create and apply first NodeClass
+		nodeClass1 := test.TestNodeClass{
+			EC2NodeClass: v1.EC2NodeClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "nodeclass-1",
+				},
+				Spec: nodeClass.Spec, // Use the spec from BeforeEach
+			},
+		}
+		nodeClass1.Spec.Role = "role-1"
+		ExpectApplied(ctx, env.Client, &nodeClass1.EC2NodeClass)
+
+		// Create and apply second NodeClass
+		nodeClass2 := test.TestNodeClass{
+			EC2NodeClass: v1.EC2NodeClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "nodeclass-2",
+				},
+				Spec: nodeClass.Spec, // Use the spec from BeforeEach
+			},
+		}
+		nodeClass2.Spec.Role = "role-2"
+		ExpectApplied(ctx, env.Client, &nodeClass2.EC2NodeClass)
+
+		profile1 := "profile-1"
+		profile2 := "profile-2"
+		profile3 := "profile-3"
+
+		otherClusterCtx := options.ToContext(ctx, test.Options(test.OptionsFields{
+			ClusterName: lo.ToPtr("other-cluster"),
+		}))
+
+		// Create instance profiles
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			profile1: {
+				InstanceProfileName: lo.ToPtr(profile1),
+				Roles: []iamtypes.Role{
+					{
+						RoleId:   aws.String(fake.RoleID()),
+						RoleName: aws.String("role-1"),
+					},
+				},
+				Path: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, string(nodeClass1.UID))),
+			},
+			profile2: {
+				InstanceProfileName: lo.ToPtr(profile2),
+				Roles: []iamtypes.Role{
+					{
+						RoleId:   aws.String(fake.RoleID()),
+						RoleName: aws.String("role-2"),
+					},
+				},
+				Path: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, string(nodeClass2.UID))),
+			},
+			profile3: {
+				InstanceProfileName: lo.ToPtr(profile3),
+				Roles: []iamtypes.Role{
+					{
+						RoleId:   aws.String(fake.RoleID()),
+						RoleName: aws.String("role-3"),
+					},
+				},
+				Path: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(otherClusterCtx).ClusterName, "some-uid")),
+			},
+		}
+
+		// List all cluster profiles
+		profiles, err := awsEnv.InstanceProfileProvider.ListClusterProfiles(ctx)
+		Expect(err).To(BeNil())
+
+		// Should get both profiles in first cluster and not the other one
+		Expect(profiles).To(HaveLen(2))
+		profileNames := []string{
+			aws.ToString(profiles[0].InstanceProfileName),
+			aws.ToString(profiles[1].InstanceProfileName),
+		}
+		Expect(profileNames).To(ContainElements(profile1, profile2))
+		Expect(profileNames).ToNot(ContainElement(profile3))
+	})
+
+	It("should create an instance profile with the correct path and name", func() {
+		// Create instance profile
+		profileName := "profile-A"
+		nodeClassUID := "test-uid"
+		expectedPath := fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, nodeClassUID)
+
+		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, nodeRole, nil, nodeClassUID)).To(Succeed())
+
+		// Get the created profile
+		profile, err := awsEnv.InstanceProfileProvider.Get(ctx, profileName)
+		Expect(err).To(BeNil())
+
+		// Verify name and path
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(profileName))
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		Expect(aws.ToString(profile.InstanceProfileName)).To(Equal(profileName))
+		Expect(aws.ToString(profile.Path)).To(Equal(expectedPath))
+	})
+
+	It("should delete an instance profile with the correct name", func() {
+		// Create instance profile first
+		profileName := "profile-A"
+		nodeClassUID := "test-uid"
+
+		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, nodeRole, nil, nodeClassUID)).To(Succeed())
+
+		// Verify profile exists
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(profileName))
+		_, err := awsEnv.InstanceProfileProvider.Get(ctx, profileName)
+		Expect(err).To(BeNil())
+
+		// Delete the profile
+		Expect(awsEnv.InstanceProfileProvider.Delete(ctx, profileName)).To(Succeed())
+
+		// Verify profile no longer exists
+		_, err = awsEnv.InstanceProfileProvider.Get(ctx, profileName)
+		Expect(awserrors.IsNotFound(err)).To(BeTrue())
+
+		// Verify it's removed from IAMAPI
+		Expect(awsEnv.IAMAPI.InstanceProfiles).ToNot(HaveKey(profileName))
+	})
+
+	It("should reflect IsProtected updates", func() {
+		// Create a profile
+		profileName := "profile-A"
+		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, nodeRole, nil, "test-uid")).To(Succeed())
+
+		// Initially should not be protected (protection is set in instance profile reconciler)
+		Expect(awsEnv.InstanceProfileProvider.IsProtected(profileName)).To(BeFalse())
+
+		// Set to protected
+		awsEnv.InstanceProfileProvider.SetProtectedState(profileName, true)
+		Expect(awsEnv.InstanceProfileProvider.IsProtected(profileName)).To(BeTrue())
+
+		// Set back to unprotected
+		awsEnv.InstanceProfileProvider.SetProtectedState(profileName, false)
+		Expect(awsEnv.InstanceProfileProvider.IsProtected(profileName)).To(BeFalse())
+	})
 })
