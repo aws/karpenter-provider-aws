@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/samber/lo"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
@@ -99,16 +100,18 @@ var _ = Describe("Validation", func() {
 			nodeClass.Spec.InstanceProfile = nil
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 		})
-		It("should fail to switch between an unmanaged and managed instance profile", func() {
+		It("should succeed to switch between an unmanaged and managed instance profile", func() {
 			nodeClass.Spec.Role = ""
 			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 			Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
 
-			nodeClass.Spec.Role = "test-role"
-			nodeClass.Spec.InstanceProfile = nil
-			Expect(env.Client.Update(env.Context, nodeClass)).ToNot(Succeed())
+			updatedNodeClass := &v1.EC2NodeClass{}
+			Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), updatedNodeClass)).To(Succeed())
+			updatedNodeClass.Spec.Role = "test-role"
+			updatedNodeClass.Spec.InstanceProfile = nil
+			Expect(env.Client.Update(env.Context, updatedNodeClass)).To(Succeed())
 		})
-		It("should fail to switch between a managed and unmanaged instance profile", func() {
+		It("should succeed to switch between a managed and unmanaged instance profile", func() {
 			// Skipping this test for private cluster because there is no VPC private endpoint for the IAM API. As a result,
 			// you cannot use the default spec.role field in your EC2NodeClass. Instead, you need to provision and manage an
 			// instance profile manually and then specify Karpenter to use this instance profile through the spec.instanceProfile field.
@@ -119,9 +122,11 @@ var _ = Describe("Validation", func() {
 			nodeClass.Spec.InstanceProfile = nil
 			Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
 
-			nodeClass.Spec.Role = ""
-			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-			Expect(env.Client.Update(env.Context, nodeClass)).ToNot(Succeed())
+			updatedNodeClass := &v1.EC2NodeClass{}
+			Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), updatedNodeClass)).To(Succeed())
+			updatedNodeClass.Spec.Role = ""
+			updatedNodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+			Expect(env.Client.Update(env.Context, updatedNodeClass)).To(Succeed())
 		})
 		It("should error if imageGCHighThresholdPercent is less than imageGCLowThresholdPercent", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
