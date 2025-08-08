@@ -109,7 +109,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), updatedNodeClass)).To(Succeed())
 			updatedNodeClass.Spec.Role = "test-role"
 			updatedNodeClass.Spec.InstanceProfile = nil
-			Expect(env.Client.Update(env.Context, updatedNodeClass)).To(Succeed())
+			Expect(env.Client.Patch(env.Context, updatedNodeClass, client.MergeFrom(nodeClass))).To(Succeed())
 		})
 		It("should succeed to switch between a managed and unmanaged instance profile", func() {
 			// Skipping this test for private cluster because there is no VPC private endpoint for the IAM API. As a result,
@@ -126,7 +126,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), updatedNodeClass)).To(Succeed())
 			updatedNodeClass.Spec.Role = ""
 			updatedNodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-			Expect(env.Client.Update(env.Context, updatedNodeClass)).To(Succeed())
+			Expect(env.Client.Patch(env.Context, updatedNodeClass, client.MergeFrom(nodeClass))).To(Succeed())
 		})
 		It("should error if imageGCHighThresholdPercent is less than imageGCLowThresholdPercent", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
