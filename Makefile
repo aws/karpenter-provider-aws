@@ -57,7 +57,6 @@ run: ## Run Karpenter controller binary against your local cluster
 		DISABLE_LEADER_ELECTION=true \
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
-		EC2NODECLASS_VALIDATION=false \
 		FEATURE_GATES="SpotToSpotConsolidation=true" \
 		LOG_LEVEL="debug" \
 		go run ./cmd/controller/main.go
