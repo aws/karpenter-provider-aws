@@ -329,29 +329,6 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			awsEnv.AMIResolver,
 			true,
 		)
-		nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
-			Spec: v1.EC2NodeClassSpec{
-				SubnetSelectorTerms: []v1.SubnetSelectorTerm{
-					{
-						Tags: map[string]string{"*": "*"},
-					},
-				},
-				SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{
-					{
-						Tags: map[string]string{"*": "*"},
-					},
-				},
-				AMIFamily: lo.ToPtr(v1.AMIFamilyCustom),
-				AMISelectorTerms: []v1.AMISelectorTerm{
-					{
-						Tags: map[string]string{"*": "*"},
-					},
-				},
-				Tags: map[string]string{
-					"kubernetes.io/cluster/anothercluster": "owned",
-				},
-			},
-		})
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
