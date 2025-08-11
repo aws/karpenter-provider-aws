@@ -30,9 +30,8 @@ runs:
     - name: Install Go
       uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
       with:
-        go-version-file: test/hack/resource/parse-redirects/go.mod
+        go-version-file: hack/docs/parse-redirects/go.mod
         check-latest: true
-        cache-dependency-path: "test/hack/resource/go.sum"
     - name: Install Hugo
       uses: peaceiris/actions-hugo@16361eb4acea8698b220b76c0d4e84e1fd22c61d # v2.6.0
       with:
@@ -86,7 +85,7 @@ runs:
     - name: Configure redirects
       shell: bash
       run: |
-        REDIRECT_RULES=$(go run test/hack/resource/parse-redirects/main.go)
+        REDIRECT_RULES=$(go run hack/docs/parse-redirects/main.go)
         aws amplify update-app \
           --app-id ${{ inputs.amplify-app-id }} \
           --custom-rules "$REDIRECT_RULES"
