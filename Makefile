@@ -21,7 +21,6 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.featureGates.reservedCapacity=true \
 			--set settings.featureGates.spotToSpotConsolidation=true \
 			--set settings.preferencePolicy=Ignore \
-			--set settings.disableEc2NodeClassValidation=false \
 			--create-namespace
 
 # CR for local builds of Karpenter
