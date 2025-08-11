@@ -36,7 +36,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("NodeClass IAM Permissions", func() {
+var _ = FDescribe("NodeClass IAM Permissions", func() {
 	var (
 		roleName   string
 		policyName string
@@ -103,6 +103,14 @@ var _ = Describe("NodeClass IAM Permissions", func() {
 	)
 
 	It("should succeed with all required permissions", func() {
+		env.ExpectCreated(nodeClass)
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
+			g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		}).Should(Succeed())
+	})
+	FIt("should bypass and succeed EC2NodeClass validation when validation is disabled", func() {
+		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "EC2NODECLASS_VALIDATION", Value: "false"})
 		env.ExpectCreated(nodeClass)
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())

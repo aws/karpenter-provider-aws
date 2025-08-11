@@ -34,14 +34,15 @@ func init() {
 type optionsKey struct{}
 
 type Options struct {
-	ClusterCABundle         string
-	ClusterName             string
-	ClusterEndpoint         string
-	IsolatedVPC             bool
-	EKSControlPlane         bool
-	VMMemoryOverheadPercent float64
-	InterruptionQueue       string
-	ReservedENIs            int
+	ClusterCABundle               string
+	ClusterName                   string
+	ClusterEndpoint               string
+	IsolatedVPC                   bool
+	EKSControlPlane               bool
+	VMMemoryOverheadPercent       float64
+	InterruptionQueue             string
+	ReservedENIs                  int
+	DisableEC2NodeClassValidation bool
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
@@ -53,6 +54,8 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.Float64Var(&o.VMMemoryOverheadPercent, "vm-memory-overhead-percent", utils.WithDefaultFloat64("VM_MEMORY_OVERHEAD_PERCENT", 0.075), "The VM memory overhead as a percent that will be subtracted from the total memory for all instance types when cached information is unavailable.")
 	fs.StringVar(&o.InterruptionQueue, "interruption-queue", env.WithDefaultString("INTERRUPTION_QUEUE", ""), "Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.")
 	fs.IntVar(&o.ReservedENIs, "reserved-enis", env.WithDefaultInt("RESERVED_ENIS", 0), "Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.")
+	// rewrite description to show that the intent is to surface errors via statuses
+	fs.BoolVarWithEnv(&o.DisableEC2NodeClassValidation, "disable-ec2nodeclass-validation", "DISABLE_EC2NODECLASS_VALIDATION", false, "If true, then disable EC2NodeClass dry run checks for auth validation.")
 }
 
 func (o *Options) Parse(fs *coreoptions.FlagSet, args ...string) error {

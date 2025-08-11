@@ -90,7 +90,7 @@ func NewControllers(
 ) []controller.Controller {
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient),
-		nodeclass.NewController(clk, kubeClient, cloudProvider, recorder, cfg.Region, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, instanceTypeProvider, launchTemplateProvider, capacityReservationProvider, ec2api, validationCache, recreationCache, amiResolver),
+		nodeclass.NewController(clk, kubeClient, cloudProvider, recorder, cfg.Region, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, instanceTypeProvider, launchTemplateProvider, capacityReservationProvider, ec2api, validationCache, recreationCache, amiResolver, options.FromContext(ctx).DisableEC2NodeClassValidation),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclassgarbagecollection.NewController(kubeClient, cloudProvider, instanceProfileProvider, cfg.Region),
 		nodeclaimtagging.NewController(kubeClient, cloudProvider, instanceProvider),

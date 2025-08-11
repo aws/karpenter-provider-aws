@@ -52,6 +52,7 @@ const (
 	ConditionReasonCreateLaunchTemplateAuthFailed = "CreateLaunchTemplateAuthCheckFailed"
 	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
 	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
+	ConditionReasonValidationBypassed             = "ValidationBypassed"
 	ConditionReasonTagValidationFailed            = "TagValidationFailed"
 )
 
@@ -69,6 +70,7 @@ type Validation struct {
 	instanceTypeProvider   instancetype.Provider
 	launchTemplateProvider launchtemplate.Provider
 	cache                  *cache.Cache
+	disabled               bool
 }
 
 func NewValidationReconciler(
@@ -79,6 +81,7 @@ func NewValidationReconciler(
 	instanceTypeProvider instancetype.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	cache *cache.Cache,
+	disabled bool,
 ) *Validation {
 	return &Validation{
 		kubeClient:             kubeClient,
@@ -88,11 +91,20 @@ func NewValidationReconciler(
 		instanceTypeProvider:   instanceTypeProvider,
 		launchTemplateProvider: launchTemplateProvider,
 		cache:                  cache,
+		disabled:               disabled,
 	}
 }
 
 // nolint:gocyclo
 func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
+	if v.disabled {
+		nodeClass.StatusConditions().SetTrueWithReason(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonValidationBypassed,
+			"Validation bypassed because EC2NodeClass validation is disabled",
+		)
+		return reconcile.Result{}, nil
+	}
 	if _, ok := lo.Find(v.requiredConditions(), func(cond string) bool {
 		return nodeClass.StatusConditions().Get(cond).IsFalse()
 	}); ok {

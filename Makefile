@@ -21,6 +21,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.featureGates.reservedCapacity=true \
 			--set settings.featureGates.spotToSpotConsolidation=true \
 			--set settings.preferencePolicy=Ignore \
+			--set settings.disableEc2NodeClassValidation=false \
 			--create-namespace
 
 # CR for local builds of Karpenter
@@ -56,6 +57,7 @@ run: ## Run Karpenter controller binary against your local cluster
 		DISABLE_LEADER_ELECTION=true \
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		EC2NODECLASS_VALIDATION=false \
 		FEATURE_GATES="SpotToSpotConsolidation=true" \
 		LOG_LEVEL="debug" \
 		go run ./cmd/controller/main.go

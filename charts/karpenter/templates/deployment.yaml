@@ -167,6 +167,10 @@ spec:
             - name: RESERVED_ENIS
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.disableEc2NodeClassValidation  }}
+            - name: DISABLE_EC2NODECLASS_VALIDATION
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
