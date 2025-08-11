@@ -1038,7 +1038,7 @@ var _ = Describe("Node Overlay", func() {
 
 		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
 		env.EventuallyExpectHealthy(pod)
-		nodes := env.ExpectCreatedNodeCount("==", 1)
+		nodes := env.EventuallyExpectInitializedNodeCount("==", 1)
 
 		instanceType, foundInstanceType := nodes[0].Labels[corev1.LabelInstanceTypeStable]
 		Expect(foundInstanceType).To(BeTrue())
@@ -1052,7 +1052,7 @@ var _ = Describe("Node Overlay", func() {
 		})
 		env.ExpectUpdated(nodeOverlay)
 
-		nodes = env.EventuallyExpectCreatedNodeCount("==", 2)
+		nodes = env.EventuallyExpectInitializedNodeCount("==", 2)
 		nodes = lo.Filter(nodes, func(n *corev1.Node, _ int) bool {
 			_, ok := lo.Find(n.Spec.Taints, func(t corev1.Taint) bool {
 				return t.MatchTaint(&karpv1.DisruptedNoScheduleTaint)
@@ -1089,7 +1089,7 @@ var _ = Describe("Node Overlay", func() {
 
 		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
 		env.EventuallyExpectHealthy(pod)
-		nodes := env.ExpectCreatedNodeCount("==", 1)
+		nodes := env.EventuallyExpectInitializedNodeCount("==", 1)
 
 		instanceType, foundInstanceType := nodes[0].Labels[corev1.LabelInstanceTypeStable]
 		Expect(foundInstanceType).To(BeTrue())
@@ -1103,7 +1103,7 @@ var _ = Describe("Node Overlay", func() {
 		})
 		env.ExpectUpdated(nodeOverlay)
 
-		nodes = env.EventuallyExpectCreatedNodeCount("==", 2)
+		nodes = env.EventuallyExpectInitializedNodeCount("==", 2)
 		nodes = lo.Filter(nodes, func(n *corev1.Node, _ int) bool {
 			_, ok := lo.Find(n.Spec.Taints, func(t corev1.Taint) bool {
 				return t.MatchTaint(&karpv1.DisruptedNoScheduleTaint)
@@ -1149,7 +1149,7 @@ var _ = Describe("Node Overlay", func() {
 
 		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
 		env.EventuallyExpectHealthy(pod)
-		nodes := env.ExpectCreatedNodeCount("==", 1)
+		nodes := env.EventuallyExpectInitializedNodeCount("==", 1)
 
 		instanceType, foundInstanceType := nodes[0].Labels[corev1.LabelInstanceTypeStable]
 		Expect(foundInstanceType).To(BeTrue())
@@ -1163,7 +1163,7 @@ var _ = Describe("Node Overlay", func() {
 		})
 		env.ExpectUpdated(nodeOverlay)
 
-		nodes = env.EventuallyExpectCreatedNodeCount("==", 2)
+		nodes = env.EventuallyExpectInitializedNodeCount("==", 2)
 		nodes = lo.Filter(nodes, func(n *corev1.Node, _ int) bool {
 			_, ok := lo.Find(n.Spec.Taints, func(t corev1.Taint) bool {
 				return t.MatchTaint(&karpv1.DisruptedNoScheduleTaint)
