@@ -25,11 +25,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay/validation"
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
@@ -65,7 +65,7 @@ type CloudProvider struct {
 	amiProvider                 amifamily.Provider
 	securityGroupProvider       securitygroup.Provider
 	capacityReservationProvider capacityreservation.Provider
-	instanceTypeStore           *validation.InstanceTypeStore
+	instanceTypeStore           *nodeoverlay.InstanceTypeStore
 }
 
 func New(
@@ -76,7 +76,7 @@ func New(
 	amiProvider amifamily.Provider,
 	securityGroupProvider securitygroup.Provider,
 	capacityReservationProvider capacityreservation.Provider,
-	store *validation.InstanceTypeStore,
+	store *nodeoverlay.InstanceTypeStore,
 ) *CloudProvider {
 	return &CloudProvider{
 		instanceTypeProvider:        instanceTypeProvider,
