@@ -944,7 +944,7 @@ var _ = Describe("Node Overlay", func() {
 		})
 		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
 		env.EventuallyExpectHealthy(pod)
-		node := env.ExpectCreatedNodeCount("==", 1)
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)
 
 		instanceType, foundInstanceType := node[0].Labels[corev1.LabelInstanceTypeStable]
 		Expect(foundInstanceType).To(BeTrue())
@@ -967,7 +967,7 @@ var _ = Describe("Node Overlay", func() {
 		})
 		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
 		env.EventuallyExpectHealthy(pod)
-		node := env.ExpectCreatedNodeCount("==", 1)
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)
 
 		instanceType, foundInstanceType := node[0].Labels[corev1.LabelInstanceTypeStable]
 		Expect(foundInstanceType).To(BeTrue())
@@ -1008,7 +1008,7 @@ var _ = Describe("Node Overlay", func() {
 
 		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
 		env.EventuallyExpectHealthy(pod)
-		node := env.ExpectCreatedNodeCount("==", 1)
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)
 
 		instanceType, foundInstanceType := node[0].Labels[corev1.LabelInstanceTypeStable]
 		Expect(foundInstanceType).To(BeTrue())

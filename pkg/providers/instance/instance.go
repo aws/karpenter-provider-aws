@@ -106,14 +106,6 @@ type DefaultProvider struct {
 	instanceCache               *cache.Cache
 }
 
-// Unwrap all the offerings to a flat slice that includes a pointer
-// to the parent instance type name
-type offeringWithOrdering struct {
-	*cloudprovider.Offering
-	parentInstanceTypeName ec2types.InstanceType
-	weight                 int
-}
-
 func NewDefaultProvider(
 	ctx context.Context,
 	region string,
@@ -330,8 +322,10 @@ func (p *DefaultProvider) launchInstance(
 		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
 	}
 
-	_, overlayApplied := nodeClaim.Annotations[v1alpha1.PriceOverlayAppliedAnnotationKey]
-	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs, overlayApplied)
+	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs)
+	if _, ok := nodeClaim.Annotations[v1alpha1.PriceOverlayAppliedAnnotationKey]; ok {
+		cfiBuilder.WithOverlay()
+	}
 	if nodeClass.Spec.Context != nil && nodeClaim.Annotations[karpv1.NodeClaimMinValuesRelaxedAnnotationKey] != "true" {
 		cfiBuilder.WithContextID(*nodeClass.Spec.Context)
 	}
@@ -405,13 +399,11 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
-	_, overlayApplied := nodeClaim.Annotations[v1alpha1.PriceOverlayAppliedAnnotationKey]
 	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	requirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType)
-	offeringOrdering := priceOrderInstanceType(instanceTypes)
 	for _, launchTemplate := range launchTemplates {
 		launchTemplateConfig := ec2types.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID, overlayApplied, offeringOrdering),
+			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID),
 			LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplate.Name),
 				Version:            aws.String("$Latest"),
@@ -433,7 +425,7 @@ func (p *DefaultProvider) getOverrides(
 	instanceTypes []*cloudprovider.InstanceType,
 	zonalSubnets map[string]*subnet.Subnet,
 	reqs scheduling.Requirements,
-	image, capacityReservationID string, overlayApplied bool, offeringOrder []offeringWithOrdering,
+	image, capacityReservationID string,
 ) []ec2types.FleetLaunchTemplateOverridesRequest {
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
@@ -460,58 +452,27 @@ func (p *DefaultProvider) getOverrides(
 			})
 		}
 	}
-	if overlayApplied {
-		sort.Slice(filteredOfferings, func(x int, y int) bool {
-			return filteredOfferings[x].Price < filteredOfferings[y].Price
-		})
-	}
 	var overrides []ec2types.FleetLaunchTemplateOverridesRequest
 	for _, offering := range filteredOfferings {
 		subnet, ok := zonalSubnets[offering.Zone()]
 		if !ok {
 			continue
 		}
-		o := ec2types.FleetLaunchTemplateOverridesRequest{
+		overrides = append(overrides, ec2types.FleetLaunchTemplateOverridesRequest{
 			InstanceType: offering.parentInstanceTypeName,
 			SubnetId:     lo.ToPtr(subnet.ID),
 			ImageId:      lo.ToPtr(image),
 			// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
 			// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
 			AvailabilityZone: lo.ToPtr(subnet.Zone),
-		}
-		if overlayApplied {
-			of, _ := lo.Find(offeringOrder, func(pOrder offeringWithOrdering) bool {
-				return pOrder.parentInstanceTypeName == offering.parentInstanceTypeName &&
-					pOrder.Offering.Requirements.IsCompatible(offering.Requirements)
-			})
-			o.Priority = lo.ToPtr(float64(of.weight))
-		}
-		overrides = append(overrides, o)
+			// Priority settings for offerings take effect only when node overlays are defined.
+			// Allocation strategies will be applied in the following order:
+			// 1. On-demand instances (prioritized)
+			// 2. Capacity-optimized Spot instances
+			Priority: lo.ToPtr(float64(offering.Price)),
+		})
 	}
 	return overrides
-}
-
-// priceOrderInstanceType will maintain an flatted offerings price order when
-// for nodeclaims that are launched using a node overlay
-func priceOrderInstanceType(instanceTypes []*cloudprovider.InstanceType) []offeringWithOrdering {
-	var filteredOfferings []offeringWithOrdering
-	for _, it := range instanceTypes {
-		for _, o := range it.Offerings {
-			filteredOfferings = append(filteredOfferings, offeringWithOrdering{
-				Offering:               o,
-				parentInstanceTypeName: ec2types.InstanceType(it.Name),
-			})
-		}
-	}
-	sort.Slice(filteredOfferings, func(x int, y int) bool {
-		return filteredOfferings[x].Price < filteredOfferings[y].Price
-	})
-
-	for i := range filteredOfferings {
-		filteredOfferings[i].weight = i
-	}
-
-	return filteredOfferings
 }
 
 func (p *DefaultProvider) updateUnavailableOfferingsCache(

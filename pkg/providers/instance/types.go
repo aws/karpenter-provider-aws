@@ -138,7 +138,7 @@ type CreateFleetInputBuilder struct {
 	overlay                 bool
 }
 
-func NewCreateFleetInputBuilder(capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest, appliedOverlay bool) *CreateFleetInputBuilder {
+func NewCreateFleetInputBuilder(capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) *CreateFleetInputBuilder {
 	var taggedResources = []ec2types.ResourceType{
 		ec2types.ResourceTypeInstance,
 		ec2types.ResourceTypeVolume,
@@ -150,12 +150,17 @@ func NewCreateFleetInputBuilder(capacityType string, tags map[string]string, lau
 			return ec2types.TagSpecification{ResourceType: resource, Tags: utils.EC2MergeTags(tags)}
 		}),
 		launchTemplateConfigs: launchTemplateConfigs,
-		overlay:               appliedOverlay,
+		overlay:               false,
 	}
 }
 
 func (b *CreateFleetInputBuilder) WithContextID(contextID string) *CreateFleetInputBuilder {
 	b.contextID = &contextID
+	return b
+}
+
+func (b *CreateFleetInputBuilder) WithOverlay() *CreateFleetInputBuilder {
+	b.overlay = true
 	return b
 }
 
