@@ -103,7 +103,7 @@ var _ = BeforeEach(func() {
 		awsEnv.ValidationCache,
 		awsEnv.RecreationCache,
 		awsEnv.AMIResolver,
-		options.FromContext(ctx).DisableEC2NodeClassValidation,
+		options.FromContext(ctx).DisableAuthValidation,
 	)
 })
 

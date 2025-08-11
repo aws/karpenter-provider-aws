@@ -63,17 +63,17 @@ var _ = Describe("Options", func() {
 			"--vm-memory-overhead-percent", "0.1",
 			"--interruption-queue", "env-cluster",
 			"--reserved-enis", "10",
-			"--disable-ec2nodeclass-validation")
+			"--disable-auth-validation")
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
-			ClusterCABundle:               lo.ToPtr("env-bundle"),
-			ClusterName:                   lo.ToPtr("env-cluster"),
-			ClusterEndpoint:               lo.ToPtr("https://env-cluster"),
-			IsolatedVPC:                   lo.ToPtr(true),
-			VMMemoryOverheadPercent:       lo.ToPtr[float64](0.1),
-			InterruptionQueue:             lo.ToPtr("env-cluster"),
-			ReservedENIs:                  lo.ToPtr(10),
-			DisableEC2NodeClassValidation: lo.ToPtr(true),
+			ClusterCABundle:         lo.ToPtr("env-bundle"),
+			ClusterName:             lo.ToPtr("env-cluster"),
+			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
+			IsolatedVPC:             lo.ToPtr(true),
+			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
+			InterruptionQueue:       lo.ToPtr("env-cluster"),
+			ReservedENIs:            lo.ToPtr(10),
+			DisableAuthValidation:   lo.ToPtr(true),
 		}))
 	})
 	It("should correctly fallback to env vars when CLI flags aren't set", func() {
@@ -84,7 +84,7 @@ var _ = Describe("Options", func() {
 		os.Setenv("VM_MEMORY_OVERHEAD_PERCENT", "0.1")
 		os.Setenv("INTERRUPTION_QUEUE", "env-cluster")
 		os.Setenv("RESERVED_ENIS", "10")
-		os.Setenv("DISABLE_EC2NODECLASS_VALIDATION", "false")
+		os.Setenv("DISABLE_AUTH_VALIDATION", "false")
 
 		// Add flags after we set the environment variables so that the parsing logic correctly refers
 		// to the new environment variable values
@@ -92,14 +92,14 @@ var _ = Describe("Options", func() {
 		err := opts.Parse(fs)
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
-			ClusterCABundle:               lo.ToPtr("env-bundle"),
-			ClusterName:                   lo.ToPtr("env-cluster"),
-			ClusterEndpoint:               lo.ToPtr("https://env-cluster"),
-			IsolatedVPC:                   lo.ToPtr(true),
-			VMMemoryOverheadPercent:       lo.ToPtr[float64](0.1),
-			InterruptionQueue:             lo.ToPtr("env-cluster"),
-			ReservedENIs:                  lo.ToPtr(10),
-			DisableEC2NodeClassValidation: lo.ToPtr(false),
+			ClusterCABundle:         lo.ToPtr("env-bundle"),
+			ClusterName:             lo.ToPtr("env-cluster"),
+			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
+			IsolatedVPC:             lo.ToPtr(true),
+			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
+			InterruptionQueue:       lo.ToPtr("env-cluster"),
+			ReservedENIs:            lo.ToPtr(10),
+			DisableAuthValidation:   lo.ToPtr(false),
 		}))
 	})
 
@@ -135,5 +135,5 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.VMMemoryOverheadPercent).To(Equal(optsB.VMMemoryOverheadPercent))
 	Expect(optsA.InterruptionQueue).To(Equal(optsB.InterruptionQueue))
 	Expect(optsA.ReservedENIs).To(Equal(optsB.ReservedENIs))
-	Expect(optsA.DisableEC2NodeClassValidation).To(Equal(optsB.DisableEC2NodeClassValidation))
+	Expect(optsA.DisableAuthValidation).To(Equal(optsB.DisableAuthValidation))
 }
