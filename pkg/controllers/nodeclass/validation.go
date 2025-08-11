@@ -101,7 +101,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		nodeClass.StatusConditions().SetTrueWithReason(
 			v1.ConditionTypeValidationSucceeded,
 			ConditionReasonValidationBypassed,
-			"Validation bypassed because auth validation is disabled",
+			"Validation bypassed because AWS validation is disabled",
 		)
 		return reconcile.Result{}, nil
 	}

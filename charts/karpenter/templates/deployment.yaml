@@ -167,8 +167,8 @@ spec:
             - name: RESERVED_ENIS
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
-          {{- with .Values.settings.disableAuthValidation }}
-            - name: DISABLE_AUTH_VALIDATION
+          {{- with .Values.settings.disableAWSValidation }}
+            - name: DISABLE_AWS_VALIDATION
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.controller.env }}
