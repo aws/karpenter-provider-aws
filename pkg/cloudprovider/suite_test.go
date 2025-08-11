@@ -1228,9 +1228,9 @@ var _ = Describe("CloudProvider", func() {
 					if ov.InstanceType == "m5.large" {
 						foundNonGPULT = true
 						Expect(v.Overrides).To(ContainElements(
-							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test1"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1a")},
-							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test2"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1b")},
-							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test3"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1c")},
+							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test1"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1a"), Priority: lo.ToPtr(float64(0.096))},
+							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test2"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1b"), Priority: lo.ToPtr(float64(0.096))},
+							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test3"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1c"), Priority: lo.ToPtr(float64(0.096))},
 						))
 					}
 				}
