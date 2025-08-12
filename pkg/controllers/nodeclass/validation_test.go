@@ -310,6 +310,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
 	})
 	It("should pass validation when the validation controller is disabled", func() {
+		Expect(awsEnv.EC2API.RunInstancesBehavior.Calls()).To(Equal(0))
 		controller = nodeclass.NewController(
 			awsEnv.Clock,
 			env.Client,
@@ -336,7 +337,9 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
 		// The cache shouldn't have any entries because we short circuit
 		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
-		// We shouldn't make any CreateFleet calls when validation is disabled
+		// We shouldn't make any new calls when validation is disabled
 		Expect(awsEnv.EC2API.CreateFleetBehavior.Calls()).To(Equal(0))
+		Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.Calls()).To(Equal(0))
+		Expect(awsEnv.EC2API.RunInstancesBehavior.Calls()).To(Equal(0))
 	})
 })

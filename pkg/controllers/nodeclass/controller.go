@@ -88,9 +88,9 @@ func NewController(
 	validationCache *cache.Cache,
 	recreationCache *cache.Cache,
 	amiResolver amifamily.Resolver,
-	validationEnabled bool,
+	disableAWSValidation bool,
 ) *Controller {
-	validation := NewValidationReconciler(kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache, validationEnabled)
+	validation := NewValidationReconciler(kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache, disableAWSValidation)
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
