@@ -68,6 +68,9 @@ runs:
       # Update the Cloudformation policy to add the permissionBoundary to the NodeRole
       yq -i ".Resources.KarpenterNodeRole.Properties.PermissionsBoundary = \"arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary\"" $CLOUDFORMATION_PATH
 
+      # Update the PassRole resource to use wildcard
+      awk '{gsub(/"Resource": "\${KarpenterNodeRole.Arn}"/, "\"Resource\": \"arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*\"")}1' $CLOUDFORMATION_PATH > $CLOUDFORMATION_PATH.tmp && mv $CLOUDFORMATION_PATH.tmp $CLOUDFORMATION_PATH
+
       aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
       aws cloudformation deploy \
         --stack-name "iam-$CLUSTER_NAME" \

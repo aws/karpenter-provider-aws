@@ -67,6 +67,7 @@ func main() {
 			op.UnavailableOfferingsCache,
 			op.SSMCache,
 			op.ValidationCache,
+			op.RecreationCache,
 			cloudProvider,
 			op.SubnetProvider,
 			op.SecurityGroupProvider,

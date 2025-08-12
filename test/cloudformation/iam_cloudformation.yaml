@@ -233,7 +233,17 @@ Resources:
               - eks:TagResource
               - eks:DescribeCluster
               - eks:ListClusters
+              - eks:CreateAccessEntry
             Resource: !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:cluster/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion:
+                  Ref: Regions
+          - Effect: Allow
+            Action:
+              - eks:DeleteAccessEntry
+            Resource: 
+              - !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:access-entry/*/role/${AWS::AccountId}/KarpenterNodeRole-*"
             Condition:
               StringEquals:
                 aws:RequestedRegion:
@@ -346,7 +356,9 @@ Resources:
               StringLike:
                 aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass: "*"
           - Effect: Allow
-            Action: iam:GetInstanceProfile
+            Action: 
+              - iam:GetInstanceProfile
+              - iam:ListInstanceProfiles
             Resource: "*"
           - Effect: Allow
             Action:
@@ -372,6 +384,30 @@ Resources:
                 ec2:Attribute: HttpTokens
               StringNotEquals:
                 ec2:Attribute/HttpTokens: required
+          - Effect: Allow
+            Action:
+              - iam:CreateRole
+              - iam:DeleteRole
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
+          - Effect: Allow
+            Action:
+              - iam:AttachRolePolicy
+              - iam:DetachRolePolicy
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
+            Condition:
+              ArnEquals:
+                "iam:PolicyARN":
+                  - "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+                  - "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+                  - "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly"
+                  - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+          - Effect: Allow
+            Action:
+              - iam:GetRole
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*"
   GithubActionsRole:
     Type: AWS::IAM::Role
     Properties:

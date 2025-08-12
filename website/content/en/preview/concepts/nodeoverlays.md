@@ -29,6 +29,14 @@ spec:
     - key: node.kubernetes.io/instance-type
       operator: In
       values: ["m5.large", "m5.xlarge"]
+    # or 
+    - key: karpenter.sh/capacity-type  
+      operator: In
+      values: ["spot"]
+    # or 
+    - key: karpenter.k8s.aws/instance-cpu 
+      operator: Gt
+      values: ["32"]
   
   # Price override (sets absolute price)
   price: "5.00"
@@ -66,7 +74,7 @@ Price modification that can be specified as:
 - **Percentage adjustment**: `"+15%"` (increase by 15%) or `"-10%"` (decrease by 10%)
 
 ## spec.capacity
-Map of extended resources to add to matching instance types. These resources are added to the existing standard capacity and do not replace or modify standard resources. Only extended resources should be specified here.
+Map of extended resources to add to matching instance types. These resources are added to the existing standard capacity and do not replace or modify well-known resources. Only extended resources should be specified here.
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha1
