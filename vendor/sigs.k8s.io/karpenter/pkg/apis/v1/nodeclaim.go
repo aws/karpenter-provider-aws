@@ -69,7 +69,7 @@ type NodeClaimSpec struct {
 	// is useful to implement features like eventually consistent node upgrade,
 	// memory leak protection, and disruption testing.
 	// +kubebuilder:default:="720h"
-	// +kubebuilder:validation:Pattern=`^(([0-9]+(s|m|h))+)|(Never)$`
+	// +kubebuilder:validation:Pattern=`^(([0-9]+(s|m|h))+|Never)$`
 	// +kubebuilder:validation:Type="string"
 	// +kubebuilder:validation:Schemaless
 	// +optional
@@ -137,6 +137,7 @@ type Provider = runtime.RawExtension
 // +kubebuilder:printcolumn:name="ID",type="string",JSONPath=".status.providerID",priority=1,description=""
 // +kubebuilder:printcolumn:name="NodePool",type="string",JSONPath=".metadata.labels.karpenter\\.sh/nodepool",priority=1,description=""
 // +kubebuilder:printcolumn:name="NodeClass",type="string",JSONPath=".spec.nodeClassRef.name",priority=1,description=""
+// +kubebuilder:printcolumn:name="Drifted",type="string",JSONPath=".status.conditions[?(@.type==\"Drifted\")].status",priority=1,description=""
 type NodeClaim struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

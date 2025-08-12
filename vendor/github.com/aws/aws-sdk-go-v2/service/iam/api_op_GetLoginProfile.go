@@ -58,7 +58,9 @@ type GetLoginProfileInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful GetLoginProfile request.
+// Contains the response to a successful [GetLoginProfile] request.
+//
+// [GetLoginProfile]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetLoginProfile.html
 type GetLoginProfileOutput struct {
 
 	// A structure containing the user name and the profile creation date for the user.
@@ -134,6 +136,9 @@ func (c *Client) addOperationGetLoginProfileMiddlewares(stack *middleware.Stack,
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetLoginProfile(options.Region), middleware.Before); err != nil {

@@ -15,19 +15,23 @@ import (
 // the role manually, or the deletion fails. For more information, see [Deleting an IAM role]. Before
 // attempting to delete a role, remove the following attached items:
 //
-//   - Inline policies (DeleteRolePolicy )
+//   - Inline policies ([DeleteRolePolicy] )
 //
-//   - Attached managed policies (DetachRolePolicy )
+//   - Attached managed policies ([DetachRolePolicy] )
 //
-//   - Instance profile (RemoveRoleFromInstanceProfile )
+//   - Instance profile ([RemoveRoleFromInstanceProfile] )
 //
 //   - Optional – Delete instance profile after detaching from role for resource
-//     clean up (DeleteInstanceProfile )
+//     clean up ([DeleteInstanceProfile] )
 //
 // Make sure that you do not have any Amazon EC2 instances running with the role
 // you are about to delete. Deleting a role or instance profile that is associated
 // with a running instance will break any applications running on the instance.
 //
+// [DetachRolePolicy]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_DetachRolePolicy.html
+// [RemoveRoleFromInstanceProfile]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_RemoveRoleFromInstanceProfile.html
+// [DeleteRolePolicy]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_DeleteRolePolicy.html
+// [DeleteInstanceProfile]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_DeleteInstanceProfile.html
 // [Deleting an IAM role]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_manage_delete.html#roles-managingrole-deleting-cli
 func (c *Client) DeleteRole(ctx context.Context, params *DeleteRoleInput, optFns ...func(*Options)) (*DeleteRoleOutput, error) {
 	if params == nil {
@@ -129,6 +133,9 @@ func (c *Client) addOperationDeleteRoleMiddlewares(stack *middleware.Stack, opti
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpDeleteRoleValidationMiddleware(stack); err != nil {

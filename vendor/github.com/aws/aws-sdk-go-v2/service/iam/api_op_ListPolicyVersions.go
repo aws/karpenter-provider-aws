@@ -65,7 +65,9 @@ type ListPolicyVersionsInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful ListPolicyVersions request.
+// Contains the response to a successful [ListPolicyVersions] request.
+//
+// [ListPolicyVersions]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListPolicyVersions.html
 type ListPolicyVersionsOutput struct {
 
 	// A flag that indicates whether there are more items to return. If your results
@@ -155,6 +157,9 @@ func (c *Client) addOperationListPolicyVersionsMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpListPolicyVersionsValidationMiddleware(stack); err != nil {

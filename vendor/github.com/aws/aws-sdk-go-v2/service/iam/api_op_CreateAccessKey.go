@@ -62,7 +62,9 @@ type CreateAccessKeyInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful CreateAccessKey request.
+// Contains the response to a successful [CreateAccessKey] request.
+//
+// [CreateAccessKey]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateAccessKey.html
 type CreateAccessKeyOutput struct {
 
 	// A structure with details about the access key.
@@ -138,6 +140,9 @@ func (c *Client) addOperationCreateAccessKeyMiddlewares(stack *middleware.Stack,
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opCreateAccessKey(options.Region), middleware.Before); err != nil {

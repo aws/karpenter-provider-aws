@@ -22,12 +22,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
+	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -95,10 +99,10 @@ func (n StateNodes) Pods(ctx context.Context, kubeClient client.Client) ([]*core
 	return pods, nil
 }
 
-func (n StateNodes) ReschedulablePods(ctx context.Context, kubeClient client.Client) ([]*corev1.Pod, error) {
+func (n StateNodes) CurrentlyReschedulablePods(ctx context.Context, kubeClient client.Client) ([]*corev1.Pod, error) {
 	var pods []*corev1.Pod
 	for _, node := range n {
-		p, err := node.ReschedulablePods(ctx, kubeClient)
+		p, err := node.CurrentlyReschedulablePods(ctx, kubeClient)
 		if err != nil {
 			return nil, err
 		}
@@ -141,6 +145,21 @@ func NewNode() *StateNode {
 		podLimits:         map[types.NamespacedName]corev1.ResourceList{},
 		hostPortUsage:     scheduling.NewHostPortUsage(),
 		volumeUsage:       scheduling.NewVolumeUsage(),
+	}
+}
+
+func (in *StateNode) ShallowCopy() *StateNode {
+	return &StateNode{
+		Node:              in.Node,
+		NodeClaim:         in.NodeClaim,
+		daemonSetRequests: in.daemonSetRequests,
+		daemonSetLimits:   in.daemonSetLimits,
+		podRequests:       in.podRequests,
+		podLimits:         in.podLimits,
+		hostPortUsage:     in.hostPortUsage,
+		volumeUsage:       in.volumeUsage,
+		markedForDeletion: in.markedForDeletion,
+		nominatedUntil:    in.nominatedUntil,
 	}
 }
 
@@ -202,7 +221,7 @@ func (in *StateNode) ValidateNodeDisruptable() error {
 	}
 	// check whether the node has the NodePool label
 	if _, ok := in.Labels()[v1.NodePoolLabelKey]; !ok {
-		return fmt.Errorf("node doesn't have required label %q", v1.NodePoolLabelKey)
+		return serrors.Wrap(fmt.Errorf("node doesn't have required label"), "label", v1.NodePoolLabelKey)
 	}
 	return nil
 }
@@ -221,22 +240,22 @@ func (in *StateNode) ValidatePodsDisruptable(ctx context.Context, kubeClient cli
 		// We only consider pods that are actively running for "karpenter.sh/do-not-disrupt"
 		// This means that we will allow Mirror Pods and DaemonSets to block disruption using this annotation
 		if !podutils.IsDisruptable(po) {
-			return pods, NewPodBlockEvictionError(fmt.Errorf(`pod %q has "karpenter.sh/do-not-disrupt" annotation`, client.ObjectKeyFromObject(po)))
+			return pods, NewPodBlockEvictionError(serrors.Wrap(fmt.Errorf(`pod has "karpenter.sh/do-not-disrupt" annotation`), "Pod", klog.KObj(po)))
 		}
 	}
 	if pdbKey, ok := pdbs.CanEvictPods(pods); !ok {
-		return pods, NewPodBlockEvictionError(fmt.Errorf("pdb %q prevents pod evictions", pdbKey))
+		return pods, NewPodBlockEvictionError(serrors.Wrap(fmt.Errorf("pdb prevents pod evictions"), "PodDisruptionBudget", klog.KRef(pdbKey.Namespace, pdbKey.Name)))
 	}
 
 	return pods, nil
 }
 
-// ReschedulablePods gets the pods assigned to the Node that are reschedulable based on the kubernetes api-server bindings
-func (in *StateNode) ReschedulablePods(ctx context.Context, kubeClient client.Client) ([]*corev1.Pod, error) {
+// CurrentlyReschedulablePods gets the pods assigned to the Node that are currently reschedulable based on the kubernetes api-server bindings
+func (in *StateNode) CurrentlyReschedulablePods(ctx context.Context, kubeClient client.Client) ([]*corev1.Pod, error) {
 	if in.Node == nil {
 		return nil, nil
 	}
-	return nodeutils.GetReschedulablePods(ctx, kubeClient, in.Node)
+	return nodeutils.GetCurrentlyReschedulablePods(ctx, kubeClient, in.Node)
 }
 
 func (in *StateNode) HostName() string {
@@ -459,71 +478,80 @@ func nominationWindow(ctx context.Context) time.Duration {
 // to add/remove taints while executing a disruption action.
 // nolint:gocyclo
 func RequireNoScheduleTaint(ctx context.Context, kubeClient client.Client, addTaint bool, nodes ...*StateNode) error {
-	var multiErr error
-	for _, n := range nodes {
+	errs := make([]error, len(nodes))
+	workqueue.ParallelizeUntil(ctx, len(nodes), len(nodes), func(i int) {
 		// If the StateNode is Karpenter owned and only has a nodeclaim, or is not owned by
 		// Karpenter, thus having no nodeclaim, don't touch the node.
-		if n.Node == nil || n.NodeClaim == nil {
-			continue
+		if nodes[i].Node == nil || nodes[i].NodeClaim == nil {
+			return
 		}
 		node := &corev1.Node{}
-		if err := kubeClient.Get(ctx, client.ObjectKey{Name: n.Node.Name}, node); client.IgnoreNotFound(err) != nil {
-			multiErr = multierr.Append(multiErr, fmt.Errorf("getting node, %w", err))
-		}
-		// If the node already has the taint, continue to the next
-		_, hasTaint := lo.Find(node.Spec.Taints, func(taint corev1.Taint) bool {
-			return taint.MatchTaint(&v1.DisruptedNoScheduleTaint)
-		})
-		// Node is being deleted, so no need to remove taint as the node will be gone soon.
-		// This ensures that the disruption controller doesn't modify taints that the Termination
-		// controller is also modifying
-		if hasTaint && !node.DeletionTimestamp.IsZero() {
-			continue
-		}
-		stored := node.DeepCopy()
-		// If the taint is present and we want to remove the taint, remove it.
-		if !addTaint {
-			node.Spec.Taints = lo.Reject(node.Spec.Taints, func(taint corev1.Taint, _ int) bool {
-				return taint.MatchTaint(&v1.DisruptedNoScheduleTaint)
-			})
-			// otherwise, add it.
-		} else if addTaint && !hasTaint {
-			// If the taint key is present (but with a different value or effect), remove it.
-			node.Spec.Taints = lo.Reject(node.Spec.Taints, func(taint corev1.Taint, _ int) bool {
-				return taint.MatchTaint(&v1.DisruptedNoScheduleTaint)
-			})
-			node.Spec.Taints = append(node.Spec.Taints, v1.DisruptedNoScheduleTaint)
-		}
-		if !equality.Semantic.DeepEqual(stored, node) {
-			// We use client.MergeFromWithOptimisticLock because patching a list with a JSON merge patch
-			// can cause races due to the fact that it fully replaces the list on a change
-			// Here, we are updating the taint list
-			if err := kubeClient.Patch(ctx, node, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); err != nil {
-				multiErr = multierr.Append(multiErr, fmt.Errorf("patching node %s, %w", node.Name, err))
+		if err := retry.OnError(retry.DefaultBackoff, func(err error) bool { return client.IgnoreNotFound(err) != nil }, func() error {
+			if e := kubeClient.Get(ctx, client.ObjectKey{Name: nodes[i].Node.Name}, node); e != nil {
+				return e
 			}
+			// If the node already has the taint, continue to the next
+			_, hasTaint := lo.Find(node.Spec.Taints, func(taint corev1.Taint) bool {
+				return taint.MatchTaint(&v1.DisruptedNoScheduleTaint)
+			})
+			// Node is being deleted, so no need to remove taint as the node will be gone soon.
+			// This ensures that the disruption controller doesn't modify taints that the Termination
+			// controller is also modifying
+			if hasTaint && !node.DeletionTimestamp.IsZero() {
+				return nil
+			}
+			stored := node.DeepCopy()
+			// If the taint is present and we want to remove the taint, remove it.
+			if !addTaint {
+				node.Spec.Taints = lo.Reject(node.Spec.Taints, func(taint corev1.Taint, _ int) bool {
+					return taint.MatchTaint(&v1.DisruptedNoScheduleTaint)
+				})
+				// otherwise, add it.
+			} else if addTaint && !hasTaint {
+				// If the taint key is present (but with a different value or effect), remove it.
+				node.Spec.Taints = lo.Reject(node.Spec.Taints, func(taint corev1.Taint, _ int) bool {
+					return taint.MatchTaint(&v1.DisruptedNoScheduleTaint)
+				})
+				node.Spec.Taints = append(node.Spec.Taints, v1.DisruptedNoScheduleTaint)
+			}
+			if !equality.Semantic.DeepEqual(stored, node) {
+				// We use client.MergeFromWithOptimisticLock because patching a list with a JSON merge patch
+				// can cause races due to the fact that it fully replaces the list on a change
+				// Here, we are updating the taint list
+				return kubeClient.Patch(ctx, node, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{}))
+			}
+			return nil
+		}); err != nil {
+			errs[i] = client.IgnoreNotFound(fmt.Errorf("getting node, %w", err))
+			return
 		}
-	}
-	return multiErr
+	})
+	return multierr.Combine(errs...)
 }
 
 // ClearNodeClaimsCondition will remove the conditionType from the NodeClaim status of the provided statenodes
 func ClearNodeClaimsCondition(ctx context.Context, kubeClient client.Client, conditionType string, nodes ...*StateNode) error {
-	return multierr.Combine(lo.Map(nodes, func(s *StateNode, _ int) error {
-		if !s.Initialized() || s.NodeClaim == nil {
-			return nil
+	errs := make([]error, len(nodes))
+	workqueue.ParallelizeUntil(ctx, len(nodes), len(nodes), func(i int) {
+		if !nodes[i].Initialized() || nodes[i].NodeClaim == nil {
+			return
 		}
 		nodeClaim := &v1.NodeClaim{}
-		if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(s.NodeClaim), nodeClaim); err != nil {
-			return client.IgnoreNotFound(err)
-		}
-		stored := nodeClaim.DeepCopy()
-		_ = nodeClaim.StatusConditions().Clear(conditionType)
-
-		if !equality.Semantic.DeepEqual(stored, nodeClaim) {
-			if err := kubeClient.Status().Patch(ctx, nodeClaim, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); err != nil {
-				return client.IgnoreNotFound(err)
+		if err := retry.OnError(retry.DefaultBackoff, func(err error) bool { return client.IgnoreNotFound(err) != nil }, func() error {
+			if e := kubeClient.Get(ctx, client.ObjectKeyFromObject(nodes[i].NodeClaim), nodeClaim); e != nil {
+				return e
 			}
+			stored := nodeClaim.DeepCopy()
+			_ = nodeClaim.StatusConditions().Clear(conditionType)
+			if !equality.Semantic.DeepEqual(stored, nodeClaim) {
+				return kubeClient.Status().Patch(ctx, nodeClaim, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{}))
+			}
+			return nil
+		}); err != nil {
+			errs[i] = client.IgnoreNotFound(err)
+			return
 		}
-		return nil
-	})...)
+
+	})
+	return multierr.Combine(errs...)
 }

@@ -32,6 +32,9 @@ type DescribeDocumentInput struct {
 
 	// The name of the SSM document.
 	//
+	// If you're calling a shared SSM document from a different Amazon Web Services
+	// account, Name is the full Amazon Resource Name (ARN) of the document.
+	//
 	// This member is required.
 	Name *string
 
@@ -120,6 +123,9 @@ func (c *Client) addOperationDescribeDocumentMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpDescribeDocumentValidationMiddleware(stack); err != nil {

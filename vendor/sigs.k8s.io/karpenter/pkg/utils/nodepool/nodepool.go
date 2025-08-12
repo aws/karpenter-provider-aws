@@ -39,6 +39,18 @@ func IsManaged(nodePool *v1.NodePool, cp cloudprovider.CloudProvider) bool {
 	})
 }
 
+func GetNodeClass(ctx context.Context, c client.Client, nodePool *v1.NodePool, cp cloudprovider.CloudProvider) (status.Object, error) {
+	if nodeClass, ok := lo.Find(cp.GetSupportedNodeClasses(), func(nodeClass status.Object) bool {
+		return object.GVK(nodeClass).GroupKind() == nodePool.Spec.Template.Spec.NodeClassRef.GroupKind()
+	}); ok {
+		if err := c.Get(ctx, client.ObjectKey{Name: nodePool.Spec.Template.Spec.NodeClassRef.Name}, nodeClass); err != nil {
+			return nodeClass, err
+		}
+		return nodeClass, nil
+	}
+	return nil, nil
+}
+
 // IsManagedPredicateFuncs is used to filter controller-runtime NodeClaim watches to NodeClaims managed by the given cloudprovider.
 func IsManagedPredicateFuncs(cp cloudprovider.CloudProvider) predicate.Funcs {
 	return predicate.NewPredicateFuncs(func(o client.Object) bool {

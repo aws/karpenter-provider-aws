@@ -62,7 +62,9 @@ type GetGroupInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful GetGroup request.
+// Contains the response to a successful [GetGroup] request.
+//
+// [GetGroup]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetGroup.html
 type GetGroupOutput struct {
 
 	// A structure that contains details about the group.
@@ -155,6 +157,9 @@ func (c *Client) addOperationGetGroupMiddlewares(stack *middleware.Stack, option
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpGetGroupValidationMiddleware(stack); err != nil {

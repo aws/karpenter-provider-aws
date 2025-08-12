@@ -82,6 +82,15 @@ func IsDrainable(pod *corev1.Pod, clk clock.Clock) bool {
 		!IsOwnedByNode(pod)
 }
 
+// IsPodEligibleForForcedEviction checks if a pod needs to be deleted with a reduced grace period ensuring that the pod:
+// - Is terminating
+// - Has a deletion timestamp that is after the node's grace period expiration time
+func IsPodEligibleForForcedEviction(pod *corev1.Pod, nodeGracePeriodExpirationTime *time.Time) bool {
+	return nodeGracePeriodExpirationTime != nil &&
+		IsTerminating(pod) &&
+		pod.DeletionTimestamp.Time.After(*nodeGracePeriodExpirationTime)
+}
+
 // IsProvisionable checks if a pod needs to be scheduled to new capacity by Karpenter by ensuring that the pod:
 // - Has been marked as "Unschedulable" in the PodScheduled reason by the kube-scheduler
 // - Has not been bound to a node

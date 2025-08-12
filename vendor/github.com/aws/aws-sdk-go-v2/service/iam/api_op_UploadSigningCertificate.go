@@ -83,7 +83,9 @@ type UploadSigningCertificateInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful UploadSigningCertificate request.
+// Contains the response to a successful [UploadSigningCertificate] request.
+//
+// [UploadSigningCertificate]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_UploadSigningCertificate.html
 type UploadSigningCertificateOutput struct {
 
 	// Information about the certificate.
@@ -159,6 +161,9 @@ func (c *Client) addOperationUploadSigningCertificateMiddlewares(stack *middlewa
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpUploadSigningCertificateValidationMiddleware(stack); err != nil {

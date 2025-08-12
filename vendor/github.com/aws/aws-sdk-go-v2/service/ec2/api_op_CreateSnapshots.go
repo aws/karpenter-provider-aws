@@ -25,7 +25,7 @@ import (
 //     same Region as the instance.
 //
 //   - If the source instance is in a Local Zone, you can create the snapshots in
-//     the same Local Zone or in parent Amazon Web Services Region.
+//     the same Local Zone or in its parent Amazon Web Services Region.
 //
 //   - If the source instance is on an Outpost, you can create the snapshots on
 //     the same Outpost or in its parent Amazon Web Services Region.
@@ -69,7 +69,7 @@ type CreateSnapshotsInput struct {
 	//   - To create local snapshots in the same Local Zone as the source instance,
 	//   specify local .
 	//
-	//   - To create a regional snapshots in the parent Region of the Local Zone,
+	//   - To create regional snapshots in the parent Region of the Local Zone,
 	//   specify regional or omit this parameter.
 	//
 	// Default value: regional
@@ -169,6 +169,9 @@ func (c *Client) addOperationCreateSnapshotsMiddlewares(stack *middleware.Stack,
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpCreateSnapshotsValidationMiddleware(stack); err != nil {

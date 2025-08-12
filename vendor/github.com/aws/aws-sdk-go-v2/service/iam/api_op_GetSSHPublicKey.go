@@ -67,7 +67,9 @@ type GetSSHPublicKeyInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful GetSSHPublicKey request.
+// Contains the response to a successful [GetSSHPublicKey] request.
+//
+// [GetSSHPublicKey]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetSSHPublicKey.html
 type GetSSHPublicKeyOutput struct {
 
 	// A structure containing details about the SSH public key.
@@ -141,6 +143,9 @@ func (c *Client) addOperationGetSSHPublicKeyMiddlewares(stack *middleware.Stack,
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpGetSSHPublicKeyValidationMiddleware(stack); err != nil {

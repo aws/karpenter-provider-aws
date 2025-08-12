@@ -10,19 +10,23 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Deletes the password for the specified IAM user, For more information, see [Managing passwords for IAM users].
+// Deletes the password for the specified IAM user or root user, For more
+// information, see [Managing passwords for IAM users].
 //
 // You can use the CLI, the Amazon Web Services API, or the Users page in the IAM
-// console to delete a password for any IAM user. You can use ChangePasswordto update, but not
+// console to delete a password for any IAM user. You can use [ChangePassword]to update, but not
 // delete, your own password in the My Security Credentials page in the Amazon Web
 // Services Management Console.
 //
 // Deleting a user's password does not prevent a user from accessing Amazon Web
 // Services through the command line interface or the API. To prevent all user
 // access, you must also either make any access keys inactive or delete them. For
-// more information about making keys inactive or deleting them, see UpdateAccessKeyand DeleteAccessKey.
+// more information about making keys inactive or deleting them, see [UpdateAccessKey]and [DeleteAccessKey].
 //
+// [ChangePassword]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ChangePassword.html
+// [DeleteAccessKey]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_DeleteAccessKey.html
 // [Managing passwords for IAM users]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_passwords_admin-change-user.html
+// [UpdateAccessKey]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_UpdateAccessKey.html
 func (c *Client) DeleteLoginProfile(ctx context.Context, params *DeleteLoginProfileInput, optFns ...func(*Options)) (*DeleteLoginProfileOutput, error) {
 	if params == nil {
 		params = &DeleteLoginProfileInput{}
@@ -126,6 +130,9 @@ func (c *Client) addOperationDeleteLoginProfileMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDeleteLoginProfile(options.Region), middleware.Before); err != nil {

@@ -32,7 +32,9 @@ import (
 // You can use the endpointPublicAccess and endpointPrivateAccess parameters to
 // enable or disable public and private access to your cluster's Kubernetes API
 // server endpoint. By default, public access is enabled, and private access is
-// disabled. For more information, see [Amazon EKS Cluster Endpoint Access Control]in the Amazon EKS User Guide .
+// disabled. The endpoint domain name and IP address family depends on the value of
+// the ipFamily for the cluster. For more information, see [Amazon EKS Cluster Endpoint Access Control] in the Amazon EKS User
+// Guide .
 //
 // You can use the logging parameter to enable or disable exporting the Kubernetes
 // control plane logs for your cluster to CloudWatch Logs. By default, cluster
@@ -105,7 +107,7 @@ type CreateClusterInput struct {
 	// If you set this value to False when creating a cluster, the default networking
 	// add-ons will not be installed.
 	//
-	// The default networking addons include vpc-cni, coredns, and kube-proxy.
+	// The default networking add-ons include vpc-cni , coredns , and kube-proxy .
 	//
 	// Use this option when you plan to install third-party alternative add-ons or
 	// self-manage the default networking add-ons.
@@ -145,8 +147,8 @@ type CreateClusterInput struct {
 	// [Local clusters for Amazon EKS on Amazon Web Services Outposts]: https://docs.aws.amazon.com/eks/latest/userguide/eks-outposts-local-cluster-overview.html
 	OutpostConfig *types.OutpostConfigRequest
 
-	// The configuration in the cluster for EKS Hybrid Nodes. You can't change or
-	// update this configuration after the cluster is created.
+	// The configuration in the cluster for EKS Hybrid Nodes. You can add, change, or
+	// remove this configuration after the cluster is created.
 	RemoteNetworkConfig *types.RemoteNetworkConfigRequest
 
 	// Enable or disable the block storage capability of EKS Auto Mode when creating
@@ -264,6 +266,9 @@ func (c *Client) addOperationCreateClusterMiddlewares(stack *middleware.Stack, o
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addIdempotencyToken_opCreateClusterMiddleware(stack, options); err != nil {

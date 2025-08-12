@@ -40,6 +40,7 @@ var (
 type TestNodeClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec              TestNodeClassSpec   `json:"spec,omitempty"`
 	Status            TestNodeClassStatus `json:"status,omitempty"`
 }
 
@@ -49,4 +50,9 @@ type TestNodeClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []TestNodeClass `json:"items"`
+}
+
+type TestNodeClassSpec struct {
+	// Tags to be applied on resources like instances
+	Tags map[string]string `json:"tags,omitempty"`
 }

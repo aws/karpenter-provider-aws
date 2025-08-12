@@ -96,7 +96,9 @@ type ListEntitiesForPolicyInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful ListEntitiesForPolicy request.
+// Contains the response to a successful [ListEntitiesForPolicy] request.
+//
+// [ListEntitiesForPolicy]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListEntitiesForPolicy.html
 type ListEntitiesForPolicyOutput struct {
 
 	// A flag that indicates whether there are more items to return. If your results
@@ -188,6 +190,9 @@ func (c *Client) addOperationListEntitiesForPolicyMiddlewares(stack *middleware.
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpListEntitiesForPolicyValidationMiddleware(stack); err != nil {

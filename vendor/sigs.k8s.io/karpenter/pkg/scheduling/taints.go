@@ -19,6 +19,7 @@ package scheduling
 import (
 	"fmt"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
@@ -56,7 +57,7 @@ func (ts Taints) Tolerates(tolerations []corev1.Toleration) (errs error) {
 			tolerates = tolerates || t.ToleratesTaint(&taint)
 		}
 		if !tolerates {
-			errs = multierr.Append(errs, fmt.Errorf("did not tolerate %s", pretty.Taint(taint)))
+			errs = multierr.Append(errs, serrors.Wrap(fmt.Errorf("did not tolerate taint"), "taint", pretty.Taint(taint)))
 		}
 	}
 	return errs

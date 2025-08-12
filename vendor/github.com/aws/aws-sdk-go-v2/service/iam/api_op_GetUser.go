@@ -52,7 +52,9 @@ type GetUserInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful GetUser request.
+// Contains the response to a successful [GetUser] request.
+//
+// [GetUser]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetUser.html
 type GetUserOutput struct {
 
 	// A structure containing details about the IAM user.
@@ -147,6 +149,9 @@ func (c *Client) addOperationGetUserMiddlewares(stack *middleware.Stack, options
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetUser(options.Region), middleware.Before); err != nil {

@@ -38,9 +38,12 @@ type OptionsFields struct {
 	LeaderElectionName      *string
 	LeaderElectionNamespace *string
 	MemoryLimit             *int64
+	CPURequests             *int64
 	LogLevel                *string
 	LogOutputPaths          *string
 	LogErrorOutputPaths     *string
+	PreferencePolicy        *options.PreferencePolicy
+	MinValuesPolicy         *options.MinValuesPolicy
 	BatchMaxDuration        *time.Duration
 	BatchIdleDuration       *time.Duration
 	FeatureGates            FeatureGates
@@ -48,6 +51,7 @@ type OptionsFields struct {
 
 type FeatureGates struct {
 	NodeRepair              *bool
+	ReservedCapacity        *bool
 	SpotToSpotConsolidation *bool
 }
 
@@ -68,13 +72,17 @@ func Options(overrides ...OptionsFields) *options.Options {
 		EnableProfiling:       lo.FromPtrOr(opts.EnableProfiling, false),
 		DisableLeaderElection: lo.FromPtrOr(opts.DisableLeaderElection, false),
 		MemoryLimit:           lo.FromPtrOr(opts.MemoryLimit, -1),
+		CPURequests:           lo.FromPtrOr(opts.CPURequests, 5000), // use 5 threads to enforce parallelism
 		LogLevel:              lo.FromPtrOr(opts.LogLevel, ""),
 		LogOutputPaths:        lo.FromPtrOr(opts.LogOutputPaths, "stdout"),
 		LogErrorOutputPaths:   lo.FromPtrOr(opts.LogErrorOutputPaths, "stderr"),
 		BatchMaxDuration:      lo.FromPtrOr(opts.BatchMaxDuration, 10*time.Second),
 		BatchIdleDuration:     lo.FromPtrOr(opts.BatchIdleDuration, time.Second),
+		PreferencePolicy:      lo.FromPtrOr(opts.PreferencePolicy, options.PreferencePolicyRespect),
+		MinValuesPolicy:       lo.FromPtrOr(opts.MinValuesPolicy, options.MinValuesPolicyStrict),
 		FeatureGates: options.FeatureGates{
 			NodeRepair:              lo.FromPtrOr(opts.FeatureGates.NodeRepair, false),
+			ReservedCapacity:        lo.FromPtrOr(opts.FeatureGates.ReservedCapacity, true),
 			SpotToSpotConsolidation: lo.FromPtrOr(opts.FeatureGates.SpotToSpotConsolidation, false),
 		},
 	}

@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -88,7 +89,7 @@ func GetVolumes(ctx context.Context, kubeClient client.Client, pod *v1.Pod) (Vol
 		// computing limits, otherwise Karpenter may never be able to update its cluster state.
 		if err != nil {
 			if errors.IsNotFound(err) {
-				log.FromContext(ctx).WithValues("Pod", klog.KRef(pod.Namespace, pod.Name), "volume", volume.Name).Error(err, "failed tracking CSI volume limits for volume")
+				log.FromContext(ctx).WithValues("Pod", klog.KObj(pod), "volume", volume.Name).Error(err, "failed tracking CSI volume limits for volume")
 				continue
 			}
 			return nil, fmt.Errorf("failed updating volume limits, %w", err)
@@ -134,7 +135,7 @@ func resolveDriver(ctx context.Context, kubeClient client.Client, pod *v1.Pod, v
 	// In either of these cases, a PV must have been previously bound to the PVC and has since been removed. We can
 	// ignore this PVC while computing limits and continue.
 	if storageClassName == "" {
-		log.FromContext(ctx).WithValues("volume", volumeName, "Pod", klog.KRef(pod.Namespace, pod.Name), "PersistentVolumeClaim", klog.KRef(pvc.Namespace, pvc.Name)).V(1).Info("failed tracking CSI volume limits for volume with unbound PVC, no storage class specified")
+		log.FromContext(ctx).WithValues("volume", volumeName, "Pod", klog.KObj(pod), "PersistentVolumeClaim", klog.KObj(pvc)).V(1).Info("failed tracking CSI volume limits for volume with unbound PVC, no storage class specified")
 		return "", nil
 	}
 
@@ -145,7 +146,7 @@ func resolveDriver(ctx context.Context, kubeClient client.Client, pod *v1.Pod, v
 		//  2. The StorageClass never existed and was used to bind the PVC to an existing PV, but that PV was removed
 		// In either of these cases, we should ignore the PVC while computing limits and continue.
 		if errors.IsNotFound(err) {
-			log.FromContext(ctx).WithValues("volume", volumeName, "Pod", klog.KRef(pod.Namespace, pod.Name), "PersistentVolumeClaim", klog.KRef(pvc.Namespace, pvc.Name), "StorageClass", klog.KRef("", storageClassName)).V(1).Info(fmt.Sprintf("failed tracking CSI volume limits for volume with unbound PVC, %s", err))
+			log.FromContext(ctx).WithValues("volume", volumeName, "Pod", klog.KObj(pod), "PersistentVolumeClaim", klog.KObj(pvc), "StorageClass", klog.KRef("", storageClassName)).V(1).Info(fmt.Sprintf("failed tracking CSI volume limits for volume with unbound PVC, %s", err))
 			return "", nil
 		}
 		return "", err
@@ -201,7 +202,7 @@ func NewVolumeUsage() *VolumeUsage {
 func (v *VolumeUsage) ExceedsLimits(vols Volumes) error {
 	for k, volumes := range v.volumes.Union(vols) {
 		if limit, hasLimit := v.limits[k]; hasLimit && len(volumes) > limit {
-			return fmt.Errorf("would exceed volume limit for %s, %d > %d", k, len(volumes), limit)
+			return serrors.Wrap(fmt.Errorf("would exceed volume limit"), "provisioner", k, "volume-count", len(volumes), "volume-limit", limit)
 		}
 	}
 	return nil

@@ -1,3 +1,66 @@
+# v1.66.1 (2025-06-17)
+
+* **Dependency Update**: Update to smithy-go v1.22.4.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.66.0 (2025-06-11)
+
+* **Feature**: Release for EKS Pod Identity Cross Account feature and disableSessionTags flag.
+
+# v1.65.2 (2025-06-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.65.1 (2025-06-06)
+
+* No change notes available for this release.
+
+# v1.65.0 (2025-06-02)
+
+* **Feature**: Add support for filtering ListInsights API calls on MISCONFIGURATION insight category
+
+# v1.64.0 (2025-04-16)
+
+* **Feature**: Added support for new AL2023 ARM64 NVIDIA AMIs to the supported AMITypes.
+
+# v1.63.2 (2025-04-10)
+
+* No change notes available for this release.
+
+# v1.63.1 (2025-04-03)
+
+* No change notes available for this release.
+
+# v1.63.0 (2025-03-31)
+
+* **Feature**: Add support for updating RemoteNetworkConfig for hybrid nodes on EKS UpdateClusterConfig API
+
+# v1.62.0 (2025-03-27)
+
+* **Feature**: Added support for BOTTLEROCKET FIPS AMIs to AMI types in US regions.
+
+# v1.61.0 (2025-03-25)
+
+* **Feature**: Added support to override upgrade-blocking readiness checks via force flag when updating a cluster.
+
+# v1.60.1 (2025-03-04.2)
+
+* **Bug Fix**: Add assurance test for operation order.
+
+# v1.60.0 (2025-02-28)
+
+* **Feature**: Adding licenses to EKS Anywhere Subscription operations response.
+
+# v1.59.0 (2025-02-27)
+
+* **Feature**: Track credential providers via User-Agent Feature ids
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.58.1 (2025-02-18)
+
+* **Bug Fix**: Bump go version to 1.22
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.58.0 (2025-02-07)
 
 * **Feature**: Introduce versionStatus field to take place of status field in EKS DescribeClusterVersions API

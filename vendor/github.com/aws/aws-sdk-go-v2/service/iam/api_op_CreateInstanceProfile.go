@@ -78,7 +78,9 @@ type CreateInstanceProfileInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful CreateInstanceProfile request.
+// Contains the response to a successful [CreateInstanceProfile] request.
+//
+// [CreateInstanceProfile]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateInstanceProfile.html
 type CreateInstanceProfileOutput struct {
 
 	// A structure containing details about the new instance profile.
@@ -154,6 +156,9 @@ func (c *Client) addOperationCreateInstanceProfileMiddlewares(stack *middleware.
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpCreateInstanceProfileValidationMiddleware(stack); err != nil {

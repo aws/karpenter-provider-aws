@@ -1305,6 +1305,11 @@ func awsRestjson1_serializeOpDocumentCreatePodIdentityAssociationInput(v *Create
 		ok.String(*v.ClientRequestToken)
 	}
 
+	if v.DisableSessionTags != nil {
+		ok := object.Key("disableSessionTags")
+		ok.Boolean(*v.DisableSessionTags)
+	}
+
 	if v.Namespace != nil {
 		ok := object.Key("namespace")
 		ok.String(*v.Namespace)
@@ -1325,6 +1330,11 @@ func awsRestjson1_serializeOpDocumentCreatePodIdentityAssociationInput(v *Create
 		if err := awsRestjson1_serializeDocumentTagMap(v.Tags, ok); err != nil {
 			return err
 		}
+	}
+
+	if v.TargetRoleArn != nil {
+		ok := object.Key("targetRoleArn")
+		ok.String(*v.TargetRoleArn)
 	}
 
 	return nil
@@ -4902,6 +4912,13 @@ func awsRestjson1_serializeOpDocumentUpdateClusterConfigInput(v *UpdateClusterCo
 		}
 	}
 
+	if v.RemoteNetworkConfig != nil {
+		ok := object.Key("remoteNetworkConfig")
+		if err := awsRestjson1_serializeDocumentRemoteNetworkConfigRequest(v.RemoteNetworkConfig, ok); err != nil {
+			return err
+		}
+	}
+
 	if v.ResourcesVpcConfig != nil {
 		ok := object.Key("resourcesVpcConfig")
 		if err := awsRestjson1_serializeDocumentVpcConfigRequest(v.ResourcesVpcConfig, ok); err != nil {
@@ -5022,6 +5039,11 @@ func awsRestjson1_serializeOpDocumentUpdateClusterVersionInput(v *UpdateClusterV
 	if v.ClientRequestToken != nil {
 		ok := object.Key("clientRequestToken")
 		ok.String(*v.ClientRequestToken)
+	}
+
+	if v.Force {
+		ok := object.Key("force")
+		ok.Boolean(v.Force)
 	}
 
 	if v.Version != nil {
@@ -5494,9 +5516,19 @@ func awsRestjson1_serializeOpDocumentUpdatePodIdentityAssociationInput(v *Update
 		ok.String(*v.ClientRequestToken)
 	}
 
+	if v.DisableSessionTags != nil {
+		ok := object.Key("disableSessionTags")
+		ok.Boolean(*v.DisableSessionTags)
+	}
+
 	if v.RoleArn != nil {
 		ok := object.Key("roleArn")
 		ok.String(*v.RoleArn)
+	}
+
+	if v.TargetRoleArn != nil {
+		ok := object.Key("targetRoleArn")
+		ok.String(*v.TargetRoleArn)
 	}
 
 	return nil

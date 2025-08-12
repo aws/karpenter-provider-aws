@@ -12,11 +12,9 @@
 
 ✨ **`samber/lo` is a Lodash-style Go library based on Go 1.18+ Generics.**
 
-This project started as an experiment with the new generics implementation. It may look like [Lodash](https://github.com/lodash/lodash) in some aspects. I used to code with the fantastic ["go-funk"](https://github.com/thoas/go-funk) package, but "go-funk" uses reflection and therefore is not typesafe.
+A utility library based on Go 1.18+ generics that makes it easier to work with slices, maps, strings, channels, and functions. It provides dozens of handy methods to simplify common coding tasks and improve code readability. It may look like [Lodash](https://github.com/lodash/lodash) in some aspects.
 
-As expected, benchmarks demonstrate that generics are much faster than implementations based on the "reflect" package. Benchmarks also show similar performance gains compared to pure `for` loops. [See below](#-benchmark).
-
-In the future, 5 to 10 helpers will overlap with those coming into the Go standard library (under package names `slices` and `maps`). I feel this library is legitimate and offers many more valuable abstractions.
+5 to 10 helpers may overlap with those from the Go standard library, in packages `slices` and `maps`. I feel this library is legitimate and offers many more valuable abstractions.
 
 **See also:**
 
@@ -25,7 +23,7 @@ In the future, 5 to 10 helpers will overlap with those coming into the Go standa
 
 **Why this name?**
 
-I wanted a **short name**, similar to "Lodash" and no Go package uses this name.
+I wanted a **short name**, similar to "Lodash", and no Go package uses this name.
 
 ![lo](img/logo-full.png)
 
@@ -49,6 +47,7 @@ You can import `lo` using:
 import (
     "github.com/samber/lo"
     lop "github.com/samber/lo/parallel"
+    lom "github.com/samber/lo/mutable"
 )
 ```
 
@@ -58,8 +57,6 @@ Then use one of the helpers below:
 names := lo.Uniq([]string{"Samuel", "John", "Samuel"})
 // []string{"Samuel", "John"}
 ```
-
-Most of the time, the compiler will be able to infer the type so that you can call: `lo.Uniq([]string{...})`.
 
 ### Tips for lazy developers
 
@@ -92,6 +89,7 @@ Supported helpers for slices:
 - [Uniq](#uniq)
 - [UniqBy](#uniqby)
 - [GroupBy](#groupby)
+- [GroupByMap](#groupbymap)
 - [Chunk](#chunk)
 - [PartitionBy](#partitionby)
 - [Flatten](#flatten)
@@ -148,6 +146,7 @@ Supported helpers for maps:
 - [MapValues](#mapvalues)
 - [MapEntries](#mapentries)
 - [MapToSlice](#maptoslice)
+- [FilterMapToSlice](#FilterMapToSlice)
 
 Supported math helpers:
 
@@ -218,6 +217,8 @@ Supported intersection helpers:
 - [WithoutBy](#withoutby)
 - [WithoutEmpty](#withoutempty)
 - [WithoutNth](#withoutnth)
+- [ElementsMatch](#ElementsMatch)
+- [ElementsMatchBy](#ElementsMatchBy)
 
 Supported search helpers:
 
@@ -252,6 +253,8 @@ Supported search helpers:
 - [LastOrEmpty](#LastOrEmpty)
 - [LastOr](#LastOr)
 - [Nth](#nth)
+- [NthOr](#nthor)
+- [NthOrEmpty](#nthorempty)
 - [Sample](#sample)
 - [SampleBy](#sampleby)
 - [Samples](#samples)
@@ -323,6 +326,8 @@ Error handling:
 - [TryWithErrorValue](#trywitherrorvalue)
 - [TryCatchWithErrorValue](#trycatchwitherrorvalue)
 - [ErrorsAs](#errorsas)
+- [Assert](#assert)
+- [Assertf](#assertf)
 
 Constraints:
 
@@ -340,6 +345,23 @@ even := lo.Filter([]int{1, 2, 3, 4}, func(x int, index int) bool {
 ```
 
 [[play](https://go.dev/play/p/Apjg3WeSi7K)]
+
+Mutable: like `lo.Filter()`, but the slice is updated in place.
+
+```go
+import lom "github.com/samber/lo/mutable"
+
+list := []int{1, 2, 3, 4}
+newList := lom.Filter(list, func(x int) bool {
+    return x%2 == 0
+})
+
+list
+// []int{2, 4, 3, 4}
+
+newList
+// []int{2, 4}
+```
 
 ### Map
 
@@ -365,6 +387,18 @@ lop.Map([]int64{1, 2, 3, 4}, func(x int64, _ int) string {
     return strconv.FormatInt(x, 10)
 })
 // []string{"1", "2", "3", "4"}
+```
+
+Mutable: like `lo.Map()`, but the slice is updated in place.
+
+```go
+import lom "github.com/samber/lo/mutable"
+
+list := []int{1, 2, 3, 4}
+lom.Map(list, func(x int) int {
+    return x*2
+})
+// []int{2, 4, 6, 8}
 ```
 
 ### UniqMap
@@ -566,6 +600,19 @@ lop.GroupBy([]int{0, 1, 2, 3, 4, 5}, func(i int) int {
 // map[int][]int{0: []int{0, 3}, 1: []int{1, 4}, 2: []int{2, 5}}
 ```
 
+### GroupByMap
+
+Returns an object composed of keys generated from the results of running each element of collection through iteratee.
+
+```go
+import lo "github.com/samber/lo"
+
+groups := lo.GroupByMap([]int{0, 1, 2, 3, 4, 5}, func(i int) (int, int) {
+    return i%3, i*2
+})
+// map[int][]int{0: []int{0, 6}, 1: []int{2, 8}, 2: []int{4, 10}}
+```
+
 ### Chunk
 
 Returns an array of elements split into groups the length of size. If array can't be split evenly, the final chunk will be the remaining elements.
@@ -656,11 +703,14 @@ Returns an array of shuffled values. Uses the Fisher-Yates shuffle algorithm.
 ```go
 import lom "github.com/samber/lo/mutable"
 
-randomOrder := lom.Shuffle([]int{0, 1, 2, 3, 4, 5})
+list := []int{0, 1, 2, 3, 4, 5}
+lom.Shuffle(list)
+
+list
 // []int{1, 4, 0, 3, 5, 2}
 ```
 
-[[play](https://go.dev/play/p/ZTGG7OUCdnp)]
+[[play](https://go.dev/play/p/2xb3WdLjeSJ)]
 
 ### Reverse
 
@@ -678,7 +728,7 @@ list
 // []int{5, 4, 3, 2, 1, 0}
 ```
 
-[[play](https://go.dev/play/p/iv2e9jslfBM)]
+[[play](https://go.dev/play/p/O-M5pmCRgzV)]
 
 ### Fill
 
@@ -1377,6 +1427,7 @@ maps := lo.ChunkEntries(
 //    {"d": 4, "e": 5},
 // }
 ```
+[[play](https://go.dev/play/p/X_YQL6mmoD-)]
 
 ### MapKeys
 
@@ -1435,6 +1486,21 @@ s := lo.MapToSlice(m, func(k int, v int64) string {
 ```
 
 [[play](https://go.dev/play/p/ZuiCZpDt6LD)]
+
+### FilterMapToSlice
+
+Transforms a map into a slice based on specific iteratee. The iteratee returns a value and a boolean. If the boolean is true, the value is added to the result slice.
+
+If the boolean is false, the value is not added to the result slice. The order of the keys in the input map is not specified and the order of the keys in the output slice is not guaranteed.
+
+```go
+kv := map[int]int64{1: 1, 2: 2, 3: 3, 4: 4}
+
+result := lo.FilterMapToSlice(kv, func(k int, v int64) (string, bool) {
+    return fmt.Sprintf("%d_%d", k, v), k%2 == 0
+})
+// []{"2_2", "4_4"}
+```
 
 ### Range / RangeFrom / RangeWithSteps
 
@@ -1707,7 +1773,7 @@ str := lo.Capitalize("heLLO")
 
 ### Ellipsis
 
-Trims and truncates a string to a specified length and appends an ellipsis if truncated.
+Trims and truncates a string to a specified length **in bytes** and appends an ellipsis if truncated. If the string contains non-ASCII characters (which may occupy multiple bytes in UTF-8), truncating by byte length may split a character in the middle, potentially resulting in garbled output.
 
 ```go
 str := lo.Ellipsis("  Lorem Ipsum  ", 5)
@@ -2334,6 +2400,36 @@ subset := lo.WithoutNth([]int{-2, -1, 0, 1, 2}, 3, -42, 1)
 // []int{-2, 0, 2}
 ```
 
+### ElementsMatch
+
+Returns true if lists contain the same set of elements (including empty set).
+
+If there are duplicate elements, the number of appearances of each of them in both lists should match.
+
+The order of elements is not checked.
+
+```go
+b := lo.ElementsMatch([]int{1, 1, 2}, []int{2, 1, 1})
+// true
+```
+
+### ElementsMatchBy
+
+Returns true if lists contain the same set of elements' keys (including empty set).
+
+If there are duplicate keys, the number of appearances of each of them in both lists should match.
+
+The order of elements is not checked.
+
+```go
+b := lo.ElementsMatchBy(
+    []someType{a, b},
+    []someType{b, a},
+    func(item someType) string { return item.ID() },
+)
+// true
+```
+
 ### IndexOf
 
 Returns the index at which the first occurrence of a value is found in an array or return -1 if the value cannot be found.
@@ -2679,7 +2775,7 @@ Search the maximum time.Time of a collection.
 Returns zero value when the collection is empty.
 
 ```go
-latest := lo.Latest([]time.Time{time.Now(), time.Time{}})
+latest := lo.Latest(time.Now(), time.Time{})
 // 2023-04-01 01:02:03 +0000 UTC
 ```
 
@@ -2752,7 +2848,7 @@ last, ok := lo.Last([]int{})
 
 ### LastOrEmpty
 
-Returns the first element of a collection or zero value if empty.
+Returns the last element of a collection or zero value if empty.
 
 ```go
 last := lo.LastOrEmpty([]int{1, 2, 3})
@@ -2764,7 +2860,7 @@ last := lo.LastOrEmpty([]int{})
 
 ### LastOr
 
-Returns the first element of a collection or the fallback value if empty.
+Returns the last element of a collection or the fallback value if empty.
 
 ```go
 last := lo.LastOr([]int{1, 2, 3}, 245)
@@ -2786,6 +2882,40 @@ nth, err := lo.Nth([]int{0, 1, 2, 3}, -2)
 // 2
 ```
 
+### NthOr
+
+Returns the element at index `nth` of the collection. If `nth` is negative, it returns the `nth` element from the end. If `nth` is out of slice bounds, it returns the provided fallback value
+```go	
+nth := lo.NthOr([]int{10, 20, 30, 40, 50}, 2, -1)
+// 30
+
+nth := lo.NthOr([]int{10, 20, 30, 40, 50}, -1, -1)
+// 50
+
+nth := lo.NthOr([]int{10, 20, 30, 40, 50}, 5, -1)
+// -1 (fallback value)
+```
+
+### NthOrEmpty
+
+Returns the element at index `nth` of the collection. If `nth` is negative, it returns the `nth` element from the end. If `nth` is out of slice bounds, it returns the zero value for the element type (e.g., 0 for integers, "" for strings, etc).
+``` go
+nth := lo.NthOrEmpty([]int{10, 20, 30, 40, 50}, 2)
+// 30
+
+nth := lo.NthOrEmpty([]int{10, 20, 30, 40, 50}, -1)
+// 50
+
+nth := lo.NthOrEmpty([]int{10, 20, 30, 40, 50}, 5)
+// 0 (zero value for int)
+
+nth := lo.NthOrEmpty([]string{"apple", "banana", "cherry"}, 2)
+// "cherry"
+
+nth := lo.NthOrEmpty([]string{"apple", "banana", "cherry"}, 5)
+// "" (zero value for string)
+```
+
 ### Sample
 
 Returns a random item from collection.
@@ -2797,6 +2927,8 @@ lo.Sample([]string{"a", "b", "c"})
 lo.Sample([]string{})
 // ""
 ```
+
+
 
 ### SampleBy
 
@@ -2836,6 +2968,7 @@ lo.SamplesBy([]string{"a", "b", "c"}, 3, r.Intn)
 
 A 1 line if/else statement.
 
+
 ```go
 result := lo.Ternary(true, "a", "b")
 // "a"
@@ -2843,6 +2976,8 @@ result := lo.Ternary(true, "a", "b")
 result := lo.Ternary(false, "a", "b")
 // "b"
 ```
+
+Take care to avoid dereferencing potentially nil pointers in your A/B expressions, because they are both evaluated. See TernaryF to avoid this problem.
 
 [[play](https://go.dev/play/p/t-D7WBL44h2)]
 
@@ -3248,6 +3383,10 @@ result, ok := lo.CoalesceSlice([]int{1, 2, 3}, []int{4, 5, 6})
 result, ok := lo.CoalesceSlice(nil, []int{})
 // []
 // true
+
+result, ok := lo.CoalesceSlice([]int(nil))
+// []
+// false
 ```
 
 ### CoalesceSliceOrEmpty
@@ -3268,12 +3407,16 @@ Returns the first non-zero map.
 
 ```go
 result, ok := lo.CoalesceMap(map[string]int{"1": 1, "2": 2, "3": 3}, map[string]int{"4": 4, "5": 5, "6": 6})
-// [1, 2, 3]
+// {"1": 1, "2": 2, "3": 3}
 // true
 
 result, ok := lo.CoalesceMap(nil, map[string]int{})
-// []
+// {}
 // true
+
+result, ok := lo.CoalesceMap(map[string]int(nil))
+// {}
+// false
 ```
 
 ### CoalesceMapOrEmpty
@@ -3954,6 +4097,40 @@ if rateLimitErr, ok := lo.ErrorsAs[*RateLimitError](err); ok {
 
 [[play](https://go.dev/play/p/8wk5rH8UfrE)]
 
+### Assert
+
+Does nothing when the condition is `true`, otherwise it panics with an optional message.
+
+Think twice before using it, given that [Go intentionally omits assertions from its standard library](https://go.dev/doc/faq#assertions).
+
+```go
+age := getUserAge()
+
+lo.Assert(age >= 15)
+```
+
+```go
+age := getUserAge()
+
+lo.Assert(age >= 15, "user age must be >= 15")
+```
+
+[[play](https://go.dev/play/p/Xv8LLKBMNwI)]
+
+### Assertf
+
+Like `Assert`, but with `fmt.Printf`-like formatting.
+
+Think twice before using it, given that [Go intentionally omits assertions from its standard library](https://go.dev/doc/faq#assertions).
+
+```go
+age := getUserAge()
+
+lo.Assertf(age >= 15, "user age must be >= 15, got %d", age)
+```
+
+[[play](https://go.dev/play/p/TVPEmVcyrdY)]
+
 ## 🛩 Benchmark
 
 We executed a simple benchmark with a dead-simple `lo.Map` loop:
@@ -3986,7 +4163,7 @@ ok  	github.com/samber/lo	6.657s
 ```
 
 - `lo.Map` is way faster (x7) than `go-funk`, a reflection-based Map implementation.
-- `lo.Map` have the same allocation profile than `for`.
+- `lo.Map` has the same allocation profile as `for`.
 - `lo.Map` is 4% slower than `for`.
 - `lop.Map` is slower than `lo.Map` because it implies more memory allocation and locks. `lop.Map` will be useful for long-running callbacks, such as i/o bound processing.
 - `for` beats other implementations for memory and CPU.

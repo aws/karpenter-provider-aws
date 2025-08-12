@@ -74,7 +74,8 @@ var (
 		crmetrics.Registry,
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
-			Name:      "ignored_pod_count",
+			Subsystem: schedulerSubsystem,
+			Name:      "ignored_pods_count",
 			Help:      "Number of pods ignored during scheduling by Karpenter",
 		},
 		[]string{},

@@ -71,6 +71,7 @@
         "api_op_DescribePatchProperties.go",
         "api_op_DescribeSessions.go",
         "api_op_DisassociateOpsItemRelatedItem.go",
+        "api_op_GetAccessToken.go",
         "api_op_GetAutomationExecution.go",
         "api_op_GetCalendarState.go",
         "api_op_GetCommandInvocation.go",
@@ -130,6 +131,7 @@
         "api_op_ResumeSession.go",
         "api_op_SendAutomationSignal.go",
         "api_op_SendCommand.go",
+        "api_op_StartAccessRequest.go",
         "api_op_StartAssociationsOnce.go",
         "api_op_StartAutomationExecution.go",
         "api_op_StartChangeRequestExecution.go",
@@ -165,13 +167,14 @@
         "protocol_test.go",
         "serializers.go",
         "snapshot_test.go",
+        "sra_operation_order_test.go",
         "types/enums.go",
         "types/errors.go",
         "types/types.go",
         "types/types_exported_test.go",
         "validators.go"
     ],
-    "go": "1.15",
+    "go": "1.22",
     "module": "github.com/aws/aws-sdk-go-v2/service/ssm",
     "unstable": false
 }

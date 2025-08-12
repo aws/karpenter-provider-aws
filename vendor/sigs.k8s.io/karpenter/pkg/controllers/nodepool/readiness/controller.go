@@ -19,9 +19,7 @@ package readiness
 import (
 	"context"
 
-	"github.com/awslabs/operatorpkg/object"
 	"github.com/awslabs/operatorpkg/status"
-	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -55,17 +53,13 @@ func (c *Controller) Reconcile(ctx context.Context, nodePool *v1.NodePool) (reco
 	ctx = injection.WithControllerName(ctx, "nodepool.readiness")
 	stored := nodePool.DeepCopy()
 
-	nodeClass, ok := lo.Find(c.cloudProvider.GetSupportedNodeClasses(), func(nc status.Object) bool {
-		return object.GVK(nc).GroupKind() == nodePool.Spec.Template.Spec.NodeClassRef.GroupKind()
-	})
-	if !ok {
-		// Ignore NodePools which aren't using a supported NodeClass.
-		return reconcile.Result{}, nil
-	}
-
-	err := c.kubeClient.Get(ctx, client.ObjectKey{Name: nodePool.Spec.Template.Spec.NodeClassRef.Name}, nodeClass)
+	nodeClass, err := nodepoolutils.GetNodeClass(ctx, c.kubeClient, nodePool, c.cloudProvider)
 	if client.IgnoreNotFound(err) != nil {
 		return reconcile.Result{}, err
+	}
+	// Ignore NodePools which aren't using a supported NodeClass
+	if nodeClass == nil {
+		return reconcile.Result{}, nil
 	}
 	switch {
 	case errors.IsNotFound(err):

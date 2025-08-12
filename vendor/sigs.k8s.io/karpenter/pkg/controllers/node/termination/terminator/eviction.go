@@ -23,8 +23,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/awslabs/operatorpkg/singleton"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
+	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,16 +36,20 @@ import (
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllertest"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	terminatorevents "sigs.k8s.io/karpenter/pkg/controllers/node/termination/terminator/events"
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
-	"sigs.k8s.io/karpenter/pkg/utils/node"
+	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
+	podutils "sigs.k8s.io/karpenter/pkg/utils/pod"
 )
 
 const (
@@ -70,23 +75,21 @@ func IsNodeDrainError(err error) bool {
 
 type QueueKey struct {
 	types.NamespacedName
-	UID        types.UID
-	providerID string
+	UID types.UID
 }
 
-func NewQueueKey(pod *corev1.Pod, providerID string) QueueKey {
+func NewQueueKey(pod *corev1.Pod) QueueKey {
 	return QueueKey{
 		NamespacedName: client.ObjectKeyFromObject(pod),
 		UID:            pod.UID,
-		providerID:     providerID,
 	}
 }
 
 type Queue struct {
-	workqueue.TypedRateLimitingInterface[QueueKey]
+	sync.Mutex
 
-	mu  sync.Mutex
-	set sets.Set[QueueKey]
+	source chan event.TypedGenericEvent[*corev1.Pod]
+	set    sets.Set[QueueKey]
 
 	kubeClient client.Client
 	recorder   events.Recorder
@@ -94,98 +97,75 @@ type Queue struct {
 
 func NewQueue(kubeClient client.Client, recorder events.Recorder) *Queue {
 	return &Queue{
-		TypedRateLimitingInterface: workqueue.NewTypedRateLimitingQueueWithConfig[QueueKey](
-			workqueue.NewTypedItemExponentialFailureRateLimiter[QueueKey](evictionQueueBaseDelay, evictionQueueMaxDelay),
-			workqueue.TypedRateLimitingQueueConfig[QueueKey]{
-				Name: "eviction.workqueue",
-			}),
+		source:     make(chan event.TypedGenericEvent[*corev1.Pod], 10000),
 		set:        sets.New[QueueKey](),
 		kubeClient: kubeClient,
 		recorder:   recorder,
 	}
 }
 
-func NewTestingQueue(kubeClient client.Client, recorder events.Recorder) *Queue {
-	return &Queue{
-		TypedRateLimitingInterface: &controllertest.TypedQueue[QueueKey]{TypedInterface: workqueue.NewTypedWithConfig(workqueue.TypedQueueConfig[QueueKey]{Name: "eviction.workqueue"})},
-		set:                        sets.New[QueueKey](),
-		kubeClient:                 kubeClient,
-		recorder:                   recorder,
-	}
+func (q *Queue) Name() string {
+	return "eviction-queue"
 }
 
 func (q *Queue) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("eviction-queue").
-		WatchesRawSource(singleton.Source()).
-		Complete(singleton.AsReconciler(q))
+		Named(q.Name()).
+		WatchesRawSource(source.Channel(q.source, handler.TypedFuncs[*corev1.Pod, reconcile.Request]{
+			GenericFunc: func(_ context.Context, e event.TypedGenericEvent[*corev1.Pod], queue workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+				queue.Add(reconcile.Request{
+					NamespacedName: client.ObjectKeyFromObject(e.Object),
+				})
+			},
+		})).
+		WithOptions(controller.Options{
+			RateLimiter: workqueue.NewTypedMaxOfRateLimiter[reconcile.Request](
+				workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](evictionQueueBaseDelay, evictionQueueMaxDelay),
+				&workqueue.TypedBucketRateLimiter[reconcile.Request]{Limiter: rate.NewLimiter(rate.Limit(100), 1000)},
+			),
+			MaxConcurrentReconciles: 100,
+		}).
+		Complete(reconcile.AsReconciler(m.GetClient(), q))
 }
 
 // Add adds pods to the Queue
-func (q *Queue) Add(node *corev1.Node, pods ...*corev1.Pod) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
+func (q *Queue) Add(pods ...*corev1.Pod) {
+	q.Lock()
+	defer q.Unlock()
 
 	for _, pod := range pods {
-		qk := NewQueueKey(pod, node.Spec.ProviderID)
+		qk := NewQueueKey(pod)
 		if !q.set.Has(qk) {
 			q.set.Insert(qk)
-			q.TypedRateLimitingInterface.Add(qk)
+			q.source <- event.TypedGenericEvent[*corev1.Pod]{Object: pod}
 		}
 	}
 }
 
-func (q *Queue) Has(node *corev1.Node, pod *corev1.Pod) bool {
-	q.mu.Lock()
-	defer q.mu.Unlock()
+func (q *Queue) Has(pod *corev1.Pod) bool {
+	q.Lock()
+	defer q.Unlock()
 
-	return q.set.Has(NewQueueKey(pod, node.Spec.ProviderID))
+	return q.set.Has(NewQueueKey(pod))
 }
 
-func (q *Queue) Reconcile(ctx context.Context) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "eviction-queue")
-	// Check if the queue is empty. client-go recommends not using this function to gate the subsequent
-	// get call, but since we're popping items off the queue synchronously, there should be no synchonization
-	// issues.
-	if q.TypedRateLimitingInterface.Len() == 0 {
-		return reconcile.Result{RequeueAfter: 1 * time.Second}, nil
-	}
-	// Get pod from queue. This waits until queue is non-empty.
-	item, shutdown := q.TypedRateLimitingInterface.Get()
-	if shutdown {
-		return reconcile.Result{}, fmt.Errorf("EvictionQueue is broken and has shutdown")
-	}
+func (q *Queue) Reconcile(ctx context.Context, pod *corev1.Pod) (reconcile.Result, error) {
+	ctx = injection.WithControllerName(ctx, q.Name())
 
-	defer q.TypedRateLimitingInterface.Done(item)
-
+	if !q.Has(pod) {
+		//This is a different pod than the one the queue, we should exit without evicting
+		//This race happens when a pod is replaced with one that has the same namespace and name
+		//but a different UID after the original pod is added to the queue but before the
+		//controller can reconcile on it
+		return reconcile.Result{}, nil
+	}
 	// Evict the pod
-	if q.Evict(ctx, item) {
-		q.TypedRateLimitingInterface.Forget(item)
-		q.mu.Lock()
-		q.set.Delete(item)
-		q.mu.Unlock()
-		return reconcile.Result{RequeueAfter: singleton.RequeueImmediately}, nil
-	}
-
-	// Requeue pod if eviction failed
-	q.TypedRateLimitingInterface.AddRateLimited(item)
-	return reconcile.Result{RequeueAfter: singleton.RequeueImmediately}, nil
-}
-
-// Evict returns true if successful eviction call, and false if there was an eviction-related error
-func (q *Queue) Evict(ctx context.Context, key QueueKey) bool {
-	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("Pod", klog.KRef(key.Namespace, key.Name)))
-	evictionMessage, err := evictionReason(ctx, key, q.kubeClient)
-	if err != nil {
-		// XXX(cmcavoy): this should be unreachable, but we log it if it happens
-		log.FromContext(ctx).V(1).Error(err, "failed looking up pod eviction reason")
-	}
 	if err := q.kubeClient.SubResource("eviction").Create(ctx,
-		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: key.Namespace, Name: key.Name}},
+		pod,
 		&policyv1.Eviction{
 			DeleteOptions: &metav1.DeleteOptions{
 				Preconditions: &metav1.Preconditions{
-					UID: lo.ToPtr(key.UID),
+					UID: lo.ToPtr(pod.UID),
 				},
 			},
 		}); err != nil {
@@ -201,31 +181,44 @@ func (q *Queue) Evict(ctx context.Context, key QueueKey) bool {
 			// https://github.com/kubernetes/kubernetes/blob/ad19beaa83363de89a7772f4d5af393b85ce5e61/pkg/registry/core/pod/storage/eviction.go#L160
 			// 409 - The pod exists, but it is not the same pod that we initiated the eviction on
 			// https://github.com/kubernetes/kubernetes/blob/ad19beaa83363de89a7772f4d5af393b85ce5e61/pkg/registry/core/pod/storage/eviction.go#L318
-			return true
+			return reconcile.Result{}, nil
 		}
+		// The pod exists and is the same pod, we need to continue
 		if apierrors.IsTooManyRequests(err) { // 429 - PDB violation
-			q.recorder.Publish(terminatorevents.NodeFailedToDrain(&corev1.Node{ObjectMeta: metav1.ObjectMeta{
-				Name:      key.Name,
-				Namespace: key.Namespace,
-			}}, fmt.Errorf("evicting pod %s/%s violates a PDB", key.Namespace, key.Name)))
-			return false
+			node, err2 := podutils.NodeForPod(ctx, q.kubeClient, pod)
+			if err2 != nil {
+				return reconcile.Result{}, err2
+			}
+			q.recorder.Publish(terminatorevents.NodeFailedToDrain(node, serrors.Wrap(fmt.Errorf("evicting pod violates a PDB"), "Pod", klog.KRef(pod.Namespace, pod.Name))))
+			return reconcile.Result{Requeue: true}, nil
 		}
-		log.FromContext(ctx).Error(err, "failed evicting pod")
-		return false
+		// Its not a PDB, we should requeue
+		return reconcile.Result{}, err
 	}
 	NodesEvictionRequestsTotal.Inc(map[string]string{CodeLabel: "200"})
-	q.recorder.Publish(terminatorevents.EvictPod(&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: key.Name, Namespace: key.Namespace}}, evictionMessage))
-	return true
+	reason := evictionReason(ctx, pod, q.kubeClient)
+	q.recorder.Publish(terminatorevents.EvictPod(pod, reason))
+	PodsDrainedTotal.Inc(map[string]string{ReasonLabel: reason})
+
+	q.Lock()
+	defer q.Unlock()
+	q.set.Delete(NewQueueKey(pod))
+	return reconcile.Result{}, nil
 }
 
-func evictionReason(ctx context.Context, key QueueKey, kubeClient client.Client) (string, error) {
-	nodeClaim, err := node.NodeClaimForNode(ctx, kubeClient, &corev1.Node{Spec: corev1.NodeSpec{ProviderID: key.providerID}})
+func evictionReason(ctx context.Context, pod *corev1.Pod, kubeClient client.Client) string {
+	node, err := podutils.NodeForPod(ctx, kubeClient, pod)
 	if err != nil {
-		return "", err
+		log.FromContext(ctx).V(1).Error(err, "pod has no node, failed looking up pod eviction reason")
+		return ""
 	}
-	terminationCondition := nodeClaim.StatusConditions().Get(v1.ConditionTypeDisruptionReason)
-	if terminationCondition.IsTrue() {
-		return terminationCondition.Message, nil
+	nodeClaim, err := nodeutils.NodeClaimForNode(ctx, kubeClient, node)
+	if err != nil {
+		log.FromContext(ctx).V(1).Error(err, "node has no nodeclaim, failed looking up pod eviction reason")
+		return ""
 	}
-	return "Forceful Termination", nil
+	if cond := nodeClaim.StatusConditions().Get(v1.ConditionTypeDisruptionReason); cond.IsTrue() {
+		return cond.Reason
+	}
+	return "Forceful Termination"
 }

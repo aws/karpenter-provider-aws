@@ -64,7 +64,9 @@ type ListMFADevicesInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful ListMFADevices request.
+// Contains the response to a successful [ListMFADevices] request.
+//
+// [ListMFADevices]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListMFADevices.html
 type ListMFADevicesOutput struct {
 
 	// A list of MFA devices.
@@ -152,6 +154,9 @@ func (c *Client) addOperationListMFADevicesMiddlewares(stack *middleware.Stack, 
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListMFADevices(options.Region), middleware.Before); err != nil {

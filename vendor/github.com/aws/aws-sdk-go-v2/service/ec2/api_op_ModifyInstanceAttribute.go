@@ -48,6 +48,11 @@ type ModifyInstanceAttributeInput struct {
 
 	// The name of the attribute to modify.
 	//
+	// When changing the instance type: If the original instance type is configured
+	// for configurable bandwidth, and the desired instance type doesn't support
+	// configurable bandwidth, first set the existing bandwidth configuration to
+	// default using the ModifyInstanceNetworkPerformanceOptions operation.
+	//
 	// You can modify the following attributes only: disableApiTermination |
 	// instanceType | kernel | ramdisk | instanceInitiatedShutdownBehavior |
 	// blockDeviceMapping | userData | sourceDestCheck | groupSet | ebsOptimized |
@@ -58,7 +63,7 @@ type ModifyInstanceAttributeInput struct {
 	// attached. The volume must be owned by the caller. If no value is specified for
 	// DeleteOnTermination , the default is true and the volume is deleted when the
 	// instance is terminated. You can't modify the DeleteOnTermination attribute for
-	// volumes that are attached to Fargate tasks.
+	// volumes that are attached to Amazon Web Services-managed resources.
 	//
 	// To add instance store volumes to an Amazon EBS-backed instance, you must add
 	// them when you launch the instance. For more information, see [Update the block device mapping when launching an instance]in the Amazon EC2
@@ -73,9 +78,9 @@ type ModifyInstanceAttributeInput struct {
 	// [Enable stop protection for your instance]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-stop-protection.html
 	DisableApiStop *types.AttributeBooleanValue
 
-	// If the value is true , you can't terminate the instance using the Amazon EC2
-	// console, CLI, or API; otherwise, you can. You cannot use this parameter for Spot
-	// Instances.
+	// Enable or disable termination protection for the instance. If the value is true
+	// , you can't terminate the instance using the Amazon EC2 console, command line
+	// interface, or API. You can't enable termination protection for Spot Instances.
 	DisableApiTermination *types.AttributeBooleanValue
 
 	// Checks whether you have the required permissions for the operation, without
@@ -226,6 +231,9 @@ func (c *Client) addOperationModifyInstanceAttributeMiddlewares(stack *middlewar
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpModifyInstanceAttributeValidationMiddleware(stack); err != nil {

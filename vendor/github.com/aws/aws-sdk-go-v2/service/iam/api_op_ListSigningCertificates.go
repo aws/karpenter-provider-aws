@@ -69,7 +69,9 @@ type ListSigningCertificatesInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful ListSigningCertificates request.
+// Contains the response to a successful [ListSigningCertificates] request.
+//
+// [ListSigningCertificates]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListSigningCertificates.html
 type ListSigningCertificatesOutput struct {
 
 	// A list of the user's signing certificate information.
@@ -157,6 +159,9 @@ func (c *Client) addOperationListSigningCertificatesMiddlewares(stack *middlewar
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListSigningCertificates(options.Region), middleware.Before); err != nil {

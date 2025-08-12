@@ -29,9 +29,10 @@ import (
 // you temporarily store tokens. For information, see [Activating and deactivating STS in an Amazon Web Services Region]in the IAM User Guide.
 //
 // To view the current session token version, see the GlobalEndpointTokenVersion
-// entry in the response of the GetAccountSummaryoperation.
+// entry in the response of the [GetAccountSummary]operation.
 //
 // [Activating and deactivating STS in an Amazon Web Services Region]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_enable-regions.html
+// [GetAccountSummary]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetAccountSummary.html
 // [Security Token Service endpoints and quotas]: https://docs.aws.amazon.com/general/latest/gr/sts.html
 func (c *Client) SetSecurityTokenServicePreferences(ctx context.Context, params *SetSecurityTokenServicePreferencesInput, optFns ...func(*Options)) (*SetSecurityTokenServicePreferencesOutput, error) {
 	if params == nil {
@@ -135,6 +136,9 @@ func (c *Client) addOperationSetSecurityTokenServicePreferencesMiddlewares(stack
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpSetSecurityTokenServicePreferencesValidationMiddleware(stack); err != nil {

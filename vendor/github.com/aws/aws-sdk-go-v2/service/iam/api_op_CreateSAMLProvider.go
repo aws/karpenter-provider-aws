@@ -96,7 +96,9 @@ type CreateSAMLProviderInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful CreateSAMLProvider request.
+// Contains the response to a successful [CreateSAMLProvider] request.
+//
+// [CreateSAMLProvider]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateSAMLProvider.html
 type CreateSAMLProviderOutput struct {
 
 	// The Amazon Resource Name (ARN) of the new SAML provider resource in IAM.
@@ -177,6 +179,9 @@ func (c *Client) addOperationCreateSAMLProviderMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpCreateSAMLProviderValidationMiddleware(stack); err != nil {

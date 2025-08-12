@@ -62,10 +62,11 @@ type PodOptions struct {
 
 type PDBOptions struct {
 	metav1.ObjectMeta
-	Labels         map[string]string
-	MinAvailable   *intstr.IntOrString
-	MaxUnavailable *intstr.IntOrString
-	Status         *policyv1.PodDisruptionBudgetStatus
+	Labels                     map[string]string
+	MinAvailable               *intstr.IntOrString
+	MaxUnavailable             *intstr.IntOrString
+	UnhealthyPodEvictionPolicy *policyv1.UnhealthyPodEvictionPolicyType
+	Status                     *policyv1.PodDisruptionBudgetStatus
 }
 
 type EphemeralVolumeTemplateOptions struct {
@@ -73,7 +74,8 @@ type EphemeralVolumeTemplateOptions struct {
 }
 
 var (
-	DefaultImage = "public.ecr.aws/eks-distro/kubernetes/pause:3.2"
+	DefaultImage        = "public.ecr.aws/eks-distro/kubernetes/pause:3.2"
+	KWOKDelayAnnotation = "pod-delete.stage.kwok.x-k8s.io/delay"
 )
 
 // Pod creates a test pod with defaults that can be overridden by PodOptions.
@@ -155,13 +157,16 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 	// Can't use v1.LifecycleHandler == v1.SleepAction as that's a feature gate in Alpha 1.29.
 	// https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#hook-handler-implementations
 	if options.PreStopSleep != nil {
+		p.ObjectMeta.Annotations = lo.Assign(p.Annotations, map[string]string{
+			KWOKDelayAnnotation: fmt.Sprintf("%ds", lo.FromPtr(options.PreStopSleep)),
+		})
 		p.Spec.Containers[0].Lifecycle = &v1.Lifecycle{
 			PreStop: &v1.LifecycleHandler{
 				Exec: &v1.ExecAction{
 					Command: []string{
 						"/bin/sh",
 						"-c",
-						fmt.Sprintf("sleep %d", *options.PreStopSleep),
+						fmt.Sprintf("sleep %d", lo.FromPtr(options.PreStopSleep)),
 					},
 				},
 			},
@@ -248,7 +253,8 @@ func PodDisruptionBudget(overrides ...PDBOptions) *policyv1.PodDisruptionBudget 
 			Selector: &metav1.LabelSelector{
 				MatchLabels: options.Labels,
 			},
-			MaxUnavailable: options.MaxUnavailable,
+			MaxUnavailable:             options.MaxUnavailable,
+			UnhealthyPodEvictionPolicy: options.UnhealthyPodEvictionPolicy,
 		},
 		Status: status,
 	}

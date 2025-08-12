@@ -61,12 +61,12 @@ type CreateAddonInput struct {
 	// DescribeAddonConfiguration .
 	ConfigurationValues *string
 
-	// An array of Pod Identity Assocations to be created. Each EKS Pod Identity
-	// association maps a Kubernetes service account to an IAM Role.
+	// An array of EKS Pod Identity associations to be created. Each association maps
+	// a Kubernetes service account to an IAM role.
 	//
-	// For more information, see [Attach an IAM Role to an Amazon EKS add-on using Pod Identity] in the Amazon EKS User Guide.
+	// For more information, see [Attach an IAM Role to an Amazon EKS add-on using EKS Pod Identity] in the Amazon EKS User Guide.
 	//
-	// [Attach an IAM Role to an Amazon EKS add-on using Pod Identity]: https://docs.aws.amazon.com/eks/latest/userguide/add-ons-iam.html
+	// [Attach an IAM Role to an Amazon EKS add-on using EKS Pod Identity]: https://docs.aws.amazon.com/eks/latest/userguide/add-ons-iam.html
 	PodIdentityAssociations []types.AddonPodIdentityAssociations
 
 	// How to resolve field value conflicts for an Amazon EKS add-on. Conflicts are
@@ -189,6 +189,9 @@ func (c *Client) addOperationCreateAddonMiddlewares(stack *middleware.Stack, opt
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addIdempotencyToken_opCreateAddonMiddleware(stack, options); err != nil {

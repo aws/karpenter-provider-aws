@@ -56,7 +56,6 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudPr
 
 func (c *Controller) Reconcile(ctx context.Context, n *corev1.Node) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
-	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("Node", klog.KRef(n.Namespace, n.Name)))
 
 	nc, err := nodeutils.NodeClaimForNode(ctx, c.kubeClient, n)
 	if err != nil {
@@ -68,6 +67,7 @@ func (c *Controller) Reconcile(ctx context.Context, n *corev1.Node) (reconcile.R
 	if !nodeclaimutils.IsManaged(nc, c.cloudProvider) {
 		return reconcile.Result{}, nil
 	}
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("NodeClaim", klog.KObj(nc)))
 
 	stored := n.DeepCopy()
 	n.Labels = lo.Assign(n.Labels, map[string]string{

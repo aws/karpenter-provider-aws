@@ -15,10 +15,14 @@ import (
 // group.
 //
 // You can update a node group using a launch template only if the node group was
-// originally deployed with a launch template. If you need to update a custom AMI
-// in a node group that was deployed with a launch template, then update your
-// custom AMI, specify the new ID in a new version of the launch template, and then
-// update the node group to the new version of the launch template.
+// originally deployed with a launch template. Additionally, the launch template ID
+// or name must match what was used when the node group was created. You can update
+// the launch template version with necessary changes.
+//
+// If you need to update a custom AMI in a node group that was deployed with a
+// launch template, then update your custom AMI, specify the new ID in a new
+// version of the launch template, and then update the node group to the new
+// version of the launch template.
 //
 // If you update without a launch template, then you can update to the latest
 // available AMI version of a node group's current Kubernetes version by not
@@ -78,7 +82,8 @@ type UpdateNodegroupVersionInput struct {
 
 	// An object representing a node group's launch template specification. You can
 	// only update a node group using a launch template if the node group was
-	// originally deployed with a launch template.
+	// originally deployed with a launch template. When updating, you must specify the
+	// same launch template ID or name that was used to create the node group.
 	LaunchTemplate *types.LaunchTemplateSpecification
 
 	// The AMI version of the Amazon EKS optimized AMI to use for the update. By
@@ -185,6 +190,9 @@ func (c *Client) addOperationUpdateNodegroupVersionMiddlewares(stack *middleware
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addIdempotencyToken_opUpdateNodegroupVersionMiddleware(stack, options); err != nil {

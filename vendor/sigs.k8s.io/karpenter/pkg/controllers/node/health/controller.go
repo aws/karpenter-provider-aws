@@ -74,15 +74,27 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 
 func (c *Controller) Reconcile(ctx context.Context, node *corev1.Node) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "node.health")
-	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("Node", klog.KRef(node.Namespace, node.Name)))
 
 	// Validate that the node is owned by us
 	nodeClaim, err := nodeutils.NodeClaimForNode(ctx, c.kubeClient, node)
 	if err != nil {
 		return reconcile.Result{}, nodeutils.IgnoreDuplicateNodeClaimError(nodeutils.IgnoreNodeClaimNotFoundError(err))
 	}
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("NodeClaim", klog.KObj(nodeClaim)))
 
-	// If a nodeclaim does has a nodepool label, validate the nodeclaims inside the nodepool are healthy (i.e bellow the allowed threshold)
+	unhealthyNodeCondition, policyTerminationDuration := c.findUnhealthyConditions(node)
+	if unhealthyNodeCondition == nil {
+		return reconcile.Result{}, nil
+	}
+
+	// If the Node is unhealthy, but has not reached its full toleration disruption
+	// requeue at the termination time of the unhealthy node
+	terminationTime := unhealthyNodeCondition.LastTransitionTime.Add(policyTerminationDuration)
+	if c.clock.Now().Before(terminationTime) {
+		return reconcile.Result{RequeueAfter: terminationTime.Sub(c.clock.Now())}, nil
+	}
+
+	// If a nodeclaim does have a nodepool label, validate the nodeclaims inside the nodepool are healthy (i.e bellow the allowed threshold)
 	// In the case of standalone nodeclaim, validate the nodes inside the cluster are healthy before proceeding
 	// to repair the nodes
 	nodePoolName, found := nodeClaim.Labels[v1.NodePoolLabelKey]
@@ -104,24 +116,10 @@ func (c *Controller) Reconcile(ctx context.Context, node *corev1.Node) (reconcil
 			return reconcile.Result{}, nil
 		}
 	}
-
-	unhealthyNodeCondition, policyTerminationDuration := c.findUnhealthyConditions(node)
-	if unhealthyNodeCondition == nil {
-		return reconcile.Result{}, nil
-	}
-
-	// If the Node is unhealthy, but has not reached it's full toleration disruption
-	// requeue at the termination time of the unhealthy node
-	terminationTime := unhealthyNodeCondition.LastTransitionTime.Add(policyTerminationDuration)
-	if c.clock.Now().Before(terminationTime) {
-		return reconcile.Result{RequeueAfter: terminationTime.Sub(c.clock.Now())}, nil
-	}
-
 	// For unhealthy past the tolerationDisruption window we can forcefully terminate the node
 	if err := c.annotateTerminationGracePeriod(ctx, nodeClaim); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
-
 	return c.deleteNodeClaim(ctx, nodeClaim, node, unhealthyNodeCondition)
 }
 
@@ -176,7 +174,6 @@ func (c *Controller) annotateTerminationGracePeriod(ctx context.Context, nodeCla
 			return nil
 		}
 	}
-
 	stored := nodeClaim.DeepCopy()
 	terminationTime := c.clock.Now().Format(time.RFC3339)
 	nodeClaim.ObjectMeta.Annotations = lo.Assign(nodeClaim.ObjectMeta.Annotations, map[string]string{v1.NodeClaimTerminationTimestampAnnotationKey: terminationTime})
@@ -187,7 +184,6 @@ func (c *Controller) annotateTerminationGracePeriod(ctx context.Context, nodeCla
 		}
 		log.FromContext(ctx).WithValues(v1.NodeClaimTerminationTimestampAnnotationKey, terminationTime).Info("annotated nodeclaim")
 	}
-
 	return nil
 }
 
@@ -197,34 +193,27 @@ func (c *Controller) annotateTerminationGracePeriod(ctx context.Context, nodeCla
 // For example, given a NodePool with three nodes, one may be unhealthy without rendering the NodePool unhealthy, even though that's 33% of the total nodes.
 // This is analogous to how minAvailable and maxUnavailable work for PodDisruptionBudgets: https://kubernetes.io/docs/tasks/run-application/configure-pdb/#rounding-logic-when-specifying-percentages.
 func (c *Controller) isNodePoolHealthy(ctx context.Context, nodePoolName string) (bool, error) {
-	nodeList := &corev1.NodeList{}
-	if err := c.kubeClient.List(ctx, nodeList, client.MatchingLabels(map[string]string{v1.NodePoolLabelKey: nodePoolName})); err != nil {
-		return false, err
-	}
-
-	return c.isHealthyForNodes(nodeList.Items), nil
+	return c.areNodesHealthy(ctx, client.MatchingLabels(map[string]string{v1.NodePoolLabelKey: nodePoolName}))
 }
 
 func (c *Controller) isClusterHealthy(ctx context.Context) (bool, error) {
-	nodeList := &corev1.NodeList{}
-	if err := c.kubeClient.List(ctx, nodeList); err != nil {
-		return false, err
-	}
-
-	return c.isHealthyForNodes(nodeList.Items), nil
+	return c.areNodesHealthy(ctx)
 }
 
-func (c *Controller) isHealthyForNodes(nodes []corev1.Node) bool {
-	unhealthyNodeCount := lo.CountBy(nodes, func(node corev1.Node) bool {
+func (c *Controller) areNodesHealthy(ctx context.Context, opts ...client.ListOption) (bool, error) {
+	nodeList := &corev1.NodeList{}
+	if err := c.kubeClient.List(ctx, nodeList, append(opts, client.UnsafeDisableDeepCopy)...); err != nil {
+		return false, err
+	}
+	unhealthyNodeCount := lo.CountBy(nodeList.Items, func(node corev1.Node) bool {
 		_, found := lo.Find(c.cloudProvider.RepairPolicies(), func(policy cloudprovider.RepairPolicy) bool {
 			nodeCondition := nodeutils.GetCondition(lo.ToPtr(node), policy.ConditionType)
 			return nodeCondition.Status == policy.ConditionStatus
 		})
 		return found
 	})
-
-	threshold := lo.Must(intstr.GetScaledValueFromIntOrPercent(lo.ToPtr(allowedUnhealthyPercent), len(nodes), true))
-	return unhealthyNodeCount <= threshold
+	threshold := lo.Must(intstr.GetScaledValueFromIntOrPercent(lo.ToPtr(allowedUnhealthyPercent), len(nodeList.Items), true))
+	return unhealthyNodeCount <= threshold, nil
 }
 
 func (c *Controller) publishNodePoolHealthEvent(ctx context.Context, node *corev1.Node, nodeClaim *v1.NodeClaim, npName string) error {

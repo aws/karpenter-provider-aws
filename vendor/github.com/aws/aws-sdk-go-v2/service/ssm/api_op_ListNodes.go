@@ -42,9 +42,13 @@ type ListNodesInput struct {
 	// previous call.)
 	NextToken *string
 
-	// The name of the resource data sync to retrieve information about. Required for
-	// cross-account/cross-Region configurations. Optional for single
-	// account/single-Region configurations.
+	// The name of the Amazon Web Services managed resource data sync to retrieve
+	// information about.
+	//
+	// For cross-account/cross-Region configurations, this parameter is required, and
+	// the name of the supported resource data sync is AWS-QuickSetup-ManagedNode .
+	//
+	// For single account/single-Region configurations, the parameter is not required.
 	SyncName *string
 
 	noSmithyDocumentSerde
@@ -127,6 +131,9 @@ func (c *Client) addOperationListNodesMiddlewares(stack *middleware.Stack, optio
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpListNodesValidationMiddleware(stack); err != nil {

@@ -5460,7 +5460,7 @@ func awsRestjson1_deserializeDocumentExperimentReportConfigurationOutputsS3Confi
 			if value != nil {
 				jtv, ok := value.(string)
 				if !ok {
-					return fmt.Errorf("expected S3ObjectKey to be of type string, got %T instead", value)
+					return fmt.Errorf("expected ReportConfigurationS3OutputPrefix to be of type string, got %T instead", value)
 				}
 				sv.Prefix = ptr.String(jtv)
 			}
@@ -7618,7 +7618,7 @@ func awsRestjson1_deserializeDocumentReportConfigurationS3Output(v **types.Repor
 			if value != nil {
 				jtv, ok := value.(string)
 				if !ok {
-					return fmt.Errorf("expected S3ObjectKey to be of type string, got %T instead", value)
+					return fmt.Errorf("expected ReportConfigurationS3OutputPrefix to be of type string, got %T instead", value)
 				}
 				sv.Prefix = ptr.String(jtv)
 			}

@@ -13,9 +13,10 @@ import (
 // Deletes the specified inline policy that is embedded in the specified IAM user.
 //
 // A user can also have managed policies attached to it. To detach a managed
-// policy from a user, use DetachUserPolicy. For more information about policies, refer to [Managed policies and inline policies] in the
+// policy from a user, use [DetachUserPolicy]. For more information about policies, refer to [Managed policies and inline policies] in the
 // IAM User Guide.
 //
+// [DetachUserPolicy]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_DetachUserPolicy.html
 // [Managed policies and inline policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/policies-managed-vs-inline.html
 func (c *Client) DeleteUserPolicy(ctx context.Context, params *DeleteUserPolicyInput, optFns ...func(*Options)) (*DeleteUserPolicyOutput, error) {
 	if params == nil {
@@ -129,6 +130,9 @@ func (c *Client) addOperationDeleteUserPolicyMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpDeleteUserPolicyValidationMiddleware(stack); err != nil {

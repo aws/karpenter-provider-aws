@@ -35,7 +35,9 @@ type GenerateCredentialReportInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful GenerateCredentialReport request.
+// Contains the response to a successful [GenerateCredentialReport] request.
+//
+// [GenerateCredentialReport]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GenerateCredentialReport.html
 type GenerateCredentialReportOutput struct {
 
 	// Information about the credential report.
@@ -112,6 +114,9 @@ func (c *Client) addOperationGenerateCredentialReportMiddlewares(stack *middlewa
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGenerateCredentialReport(options.Region), middleware.Before); err != nil {

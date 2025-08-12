@@ -14,7 +14,7 @@ import (
 // Lists all managed policies that are attached to the specified IAM role.
 //
 // An IAM role can also have inline policies embedded with it. To list the inline
-// policies for a role, use ListRolePolicies. For information about policies, see [Managed policies and inline policies] in the IAM User
+// policies for a role, use [ListRolePolicies]. For information about policies, see [Managed policies and inline policies] in the IAM User
 // Guide.
 //
 // You can paginate the results using the MaxItems and Marker parameters. You can
@@ -23,6 +23,7 @@ import (
 // specified role (or none that match the specified path prefix), the operation
 // returns an empty list.
 //
+// [ListRolePolicies]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListRolePolicies.html
 // [Managed policies and inline policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/policies-managed-vs-inline.html
 func (c *Client) ListAttachedRolePolicies(ctx context.Context, params *ListAttachedRolePoliciesInput, optFns ...func(*Options)) (*ListAttachedRolePoliciesOutput, error) {
 	if params == nil {
@@ -84,7 +85,9 @@ type ListAttachedRolePoliciesInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful ListAttachedRolePolicies request.
+// Contains the response to a successful [ListAttachedRolePolicies] request.
+//
+// [ListAttachedRolePolicies]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListAttachedRolePolicies.html
 type ListAttachedRolePoliciesOutput struct {
 
 	// A list of the attached policies.
@@ -170,6 +173,9 @@ func (c *Client) addOperationListAttachedRolePoliciesMiddlewares(stack *middlewa
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpListAttachedRolePoliciesValidationMiddleware(stack); err != nil {

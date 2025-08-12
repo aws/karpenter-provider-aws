@@ -49,12 +49,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 	"sigs.k8s.io/karpenter/pkg/utils/result"
-	terminationutil "sigs.k8s.io/karpenter/pkg/utils/termination"
 )
-
-type nodeClaimReconciler interface {
-	Reconcile(context.Context, *v1.NodeClaim) (reconcile.Result, error)
-}
 
 // Controller is a NodeClaim Lifecycle controller that manages the lifecycle of the NodeClaim up until its termination
 // The controller is responsible for ensuring that new Nodes get launched, that they have properly registered with
@@ -77,8 +72,8 @@ func NewController(clk clock.Clock, kubeClient client.Client, cloudProvider clou
 		cloudProvider: cloudProvider,
 		recorder:      recorder,
 
-		launch:         &Launch{kubeClient: kubeClient, cloudProvider: cloudProvider, cache: cache.New(time.Minute, time.Second*10), recorder: recorder},
-		registration:   &Registration{kubeClient: kubeClient},
+		launch:         &Launch{kubeClient: kubeClient, cloudProvider: cloudProvider, cache: cache.New(time.Hour, time.Minute), recorder: recorder},
+		registration:   &Registration{kubeClient: kubeClient, recorder: recorder},
 		initialization: &Initialization{kubeClient: kubeClient},
 		liveness:       &Liveness{clock: clk, kubeClient: kubeClient},
 	}
@@ -108,9 +103,15 @@ func (c *Controller) Name() string {
 	return "nodeclaim.lifecycle"
 }
 
+// nolint:gocyclo
 func (c *Controller) Reconcile(ctx context.Context, nodeClaim *v1.NodeClaim) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
-
+	if nodeClaim.Status.ProviderID != "" {
+		ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("provider-id", nodeClaim.Status.ProviderID))
+	}
+	if nodeClaim.Status.NodeName != "" {
+		ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("Node", klog.KRef("", nodeClaim.Status.NodeName)))
+	}
 	if !nodeclaimutils.IsManaged(nodeClaim, c.cloudProvider) {
 		return reconcile.Result{}, nil
 	}
@@ -137,7 +138,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *v1.NodeClaim) (re
 	stored = nodeClaim.DeepCopy()
 	var results []reconcile.Result
 	var errs error
-	for _, reconciler := range []nodeClaimReconciler{
+	for _, reconciler := range []reconcile.TypedReconciler[*v1.NodeClaim]{
 		c.launch,
 		c.registration,
 		c.initialization,
@@ -169,7 +170,6 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *v1.NodeClaim) (re
 
 //nolint:gocyclo
 func (c *Controller) finalize(ctx context.Context, nodeClaim *v1.NodeClaim) (reconcile.Result, error) {
-	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("Node", klog.KRef("", nodeClaim.Status.NodeName), "provider-id", nodeClaim.Status.ProviderID))
 	if !controllerutil.ContainsFinalizer(nodeClaim, v1.TerminationFinalizer) {
 		return reconcile.Result{}, nil
 	}
@@ -180,7 +180,7 @@ func (c *Controller) finalize(ctx context.Context, nodeClaim *v1.NodeClaim) (rec
 		return reconcile.Result{}, fmt.Errorf("adding nodeclaim terminationGracePeriod annotation, %w", err)
 	}
 
-	// Only delete Nodes if the NodeClaim has not been registered. Deleting Node's without the termination finalizer
+	// Only delete Nodes if the NodeClaim has been registered. Deleting Nodes without the termination finalizer
 	// may result in leaked leases due to a kubelet bug until k8s 1.29. The Node should be garbage collected after the
 	// instance is terminated by CCM.
 	// Upstream Kubelet Fix: https://github.com/kubernetes/kubernetes/pull/119661
@@ -206,19 +206,27 @@ func (c *Controller) finalize(ctx context.Context, nodeClaim *v1.NodeClaim) (rec
 	}
 	// We can expect ProviderID to be empty when there is a failure while launching the nodeClaim
 	if nodeClaim.Status.ProviderID != "" {
-		isInstanceTerminated, err := terminationutil.EnsureTerminated(ctx, c.kubeClient, nodeClaim, c.cloudProvider)
-		if err != nil {
-			// 404 = the nodeClaim no longer exists
-			if errors.IsNotFound(err) {
-				return reconcile.Result{}, nil
-			}
-			// 409 - The nodeClaim exists, but its status has already been modified
-			if errors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-			return reconcile.Result{}, fmt.Errorf("ensuring instance termination, %w", err)
+		deleteErr := c.cloudProvider.Delete(ctx, nodeClaim)
+		if cloudprovider.IgnoreNodeClaimNotFoundError(deleteErr) != nil {
+			return reconcile.Result{}, deleteErr
 		}
-		if !isInstanceTerminated {
+		stored := nodeClaim.DeepCopy()
+		nodeClaim.StatusConditions().SetTrue(v1.ConditionTypeInstanceTerminating)
+		if !equality.Semantic.DeepEqual(stored, nodeClaim) {
+			// We use client.MergeFromWithOptimisticLock because patching a list with a JSON merge patch
+			// can cause races due to the fact that it fully replaces the list on a change
+			// Here, we are updating the status condition list
+			if err := c.kubeClient.Status().Patch(ctx, nodeClaim, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); err != nil {
+				if errors.IsNotFound(err) {
+					return reconcile.Result{}, nil
+				}
+				if errors.IsConflict(err) {
+					return reconcile.Result{Requeue: true}, nil
+				}
+				return reconcile.Result{}, err
+			}
+		}
+		if !cloudprovider.IsNodeClaimNotFoundError(deleteErr) {
 			return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 		}
 		InstanceTerminationDurationSeconds.Observe(time.Since(nodeClaim.StatusConditions().Get(v1.ConditionTypeInstanceTerminating).LastTransitionTime.Time).Seconds(), map[string]string{

@@ -66,7 +66,9 @@ type ListInstanceProfilesForRoleInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful ListInstanceProfilesForRole request.
+// Contains the response to a successful [ListInstanceProfilesForRole] request.
+//
+// [ListInstanceProfilesForRole]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListInstanceProfilesForRole.html
 type ListInstanceProfilesForRoleOutput struct {
 
 	// A list of instance profiles.
@@ -154,6 +156,9 @@ func (c *Client) addOperationListInstanceProfilesForRoleMiddlewares(stack *middl
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpListInstanceProfilesForRoleValidationMiddleware(stack); err != nil {

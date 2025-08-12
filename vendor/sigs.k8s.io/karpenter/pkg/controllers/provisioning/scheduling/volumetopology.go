@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -72,7 +73,7 @@ func (v *VolumeTopology) Inject(ctx context.Context, pod *v1.Pod) error {
 	}
 
 	log.FromContext(ctx).
-		WithValues("Pod", klog.KRef(pod.Namespace, pod.Name)).
+		WithValues("Pod", klog.KObj(pod)).
 		V(1).Info(fmt.Sprintf("adding requirements derived from pod volumes, %s", requirements))
 	return nil
 }
@@ -109,7 +110,7 @@ func (v *VolumeTopology) getRequirements(ctx context.Context, pod *v1.Pod, volum
 func (v *VolumeTopology) getStorageClassRequirements(ctx context.Context, storageClassName string) ([]v1.NodeSelectorRequirement, error) {
 	storageClass := &storagev1.StorageClass{}
 	if err := v.kubeClient.Get(ctx, types.NamespacedName{Name: storageClassName}, storageClass); err != nil {
-		return nil, fmt.Errorf("getting storage class %q, %w", storageClassName, err)
+		return nil, serrors.Wrap(fmt.Errorf("getting storage class, %w", err), "StorageClass", klog.KRef("", storageClassName))
 	}
 	var requirements []v1.NodeSelectorRequirement
 	if len(storageClass.AllowedTopologies) > 0 {
@@ -124,7 +125,7 @@ func (v *VolumeTopology) getStorageClassRequirements(ctx context.Context, storag
 func (v *VolumeTopology) getPersistentVolumeRequirements(ctx context.Context, pod *v1.Pod, volumeName string) ([]v1.NodeSelectorRequirement, error) {
 	pv := &v1.PersistentVolume{}
 	if err := v.kubeClient.Get(ctx, types.NamespacedName{Name: volumeName, Namespace: pod.Namespace}, pv); err != nil {
-		return nil, fmt.Errorf("getting persistent volume %q, %w", volumeName, err)
+		return nil, serrors.Wrap(fmt.Errorf("getting persistent volume, %w", err), "PersistentVolume", klog.KRef("", volumeName))
 	}
 	if pv.Spec.NodeAffinity == nil {
 		return nil, nil
@@ -162,7 +163,7 @@ func (v *VolumeTopology) ValidatePersistentVolumeClaims(ctx context.Context, pod
 
 		if pvc.Spec.VolumeName != "" {
 			if err := v.validateVolume(ctx, pvc.Spec.VolumeName); err != nil {
-				return fmt.Errorf("failed to validate pvc %q with volume %q, %w", pvc.Name, pvc.Spec.VolumeName, err)
+				return serrors.Wrap(fmt.Errorf("failed to validate pvc, %w", err), "PersistentVolumeClaim", klog.KRef("", pvc.Name), "PersistentVolume", klog.KRef("", pvc.Spec.VolumeName))
 			}
 			continue
 		}
@@ -170,10 +171,10 @@ func (v *VolumeTopology) ValidatePersistentVolumeClaims(ctx context.Context, pod
 		// PVC is unbound, we can't schedule unless the pod defines a valid storage class
 		storageClassName := lo.FromPtr(pvc.Spec.StorageClassName)
 		if storageClassName == "" {
-			return fmt.Errorf("unbound pvc %s must define a storage class", pvc.Name)
+			return serrors.Wrap(fmt.Errorf("unbound pvc must define a storage class"), "PersistentVolumeClaim", klog.KRef("", pvc.Name))
 		}
 		if err := v.validateStorageClass(ctx, storageClassName); err != nil {
-			return fmt.Errorf("failed to validate pvc %q with storage class %q, %w", pvc.Name, storageClassName, err)
+			return serrors.Wrap(fmt.Errorf("failed to validate storage class, %w", err), "PersistentVolumeClaim", klog.KRef("", pvc.Name), "StorageClass", klog.KRef("", storageClassName))
 		}
 	}
 	return nil

@@ -55,6 +55,9 @@ type PurchaseCapacityBlockInput struct {
 
 type PurchaseCapacityBlockOutput struct {
 
+	// The Capacity Block.
+	CapacityBlocks []types.CapacityBlock
+
 	// The Capacity Reservation.
 	CapacityReservation *types.CapacityReservation
 
@@ -126,6 +129,9 @@ func (c *Client) addOperationPurchaseCapacityBlockMiddlewares(stack *middleware.
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpPurchaseCapacityBlockValidationMiddleware(stack); err != nil {

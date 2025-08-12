@@ -180,6 +180,9 @@ func (c *Client) addOperationCreateFargateProfileMiddlewares(stack *middleware.S
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addIdempotencyToken_opCreateFargateProfileMiddleware(stack, options); err != nil {
 		return err
 	}

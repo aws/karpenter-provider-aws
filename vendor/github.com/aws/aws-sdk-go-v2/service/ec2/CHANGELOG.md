@@ -1,3 +1,158 @@
+# v1.231.0 (2025-07-09)
+
+* **Feature**: Adds support to Capacity Blocks for ML for purchasing EC2 P6e-GB200 UltraServers. Customers can now purchase u-p6e-gb200x72 and u-p6e-gb200x36 UltraServers. Adds new DescribeCapacityBlocks andDescribeCapacityBlockStatus APIs. Adds support for CapacityBlockId to DescribeInstanceTopology.
+
+# v1.230.0 (2025-07-03)
+
+* **Feature**: This release adds GroupOwnerId as a response member to the DescribeSecurityGroupVpcAssociations API and also adds waiters for SecurityGroupVpcAssociations (SecurityGroupVpcAssociationAssociated and SecurityGroupVpcAssociationDisassociated).
+
+# v1.229.0 (2025-07-02)
+
+* **Feature**: AWS Site-to-Site VPN now supports IPv6 addresses on outer tunnel IPs, making it easier for customers to build or transition to IPv6-only networks.
+
+# v1.228.0 (2025-07-01)
+
+* **Feature**: Add Context to GetInstanceTypesFromInstanceRequirements API
+
+# v1.227.0 (2025-06-26)
+
+* **Feature**: This release adds support for OdbNetworkArn as a target in VPC Route Tables
+
+# v1.226.0 (2025-06-24)
+
+* **Feature**: This release allows you to create and register AMIs while maintaining their underlying EBS snapshots within Local Zones.
+
+# v1.225.2 (2025-06-17)
+
+* **Dependency Update**: Update to smithy-go v1.22.4.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.225.1 (2025-06-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.225.0 (2025-06-09)
+
+* **Feature**: Release to support Elastic VMware Service (Amazon EVS) Subnet and Amazon EVS Network Interface Types.
+
+# v1.224.1 (2025-06-06)
+
+* No change notes available for this release.
+
+# v1.224.0 (2025-05-28)
+
+* **Feature**: Enable the option to automatically delete underlying Amazon EBS snapshots when deregistering Amazon Machine Images (AMIs)
+
+# v1.223.0 (2025-05-27)
+
+* **Feature**: This release adds three features - option to store AWS Site-to-Site VPN pre-shared keys in AWS Secrets Manager, GetActiveVpnTunnelStatus API to check the in-use VPN algorithms, and SampleType option in GetVpnConnectionDeviceSampleConfiguration API to get recommended sample configs for VPN devices.
+
+# v1.222.0 (2025-05-23)
+
+* **Feature**: This release adds support for the C7i-flex, M7i-flex, I7i, I7ie, I8g, P6-b200, Trn2, C8gd, M8gd and R8gd instances
+
+# v1.221.0 (2025-05-21)
+
+* **Feature**: Release of Dualstack and Ipv6-only EC2 Public DNS hostnames
+
+# v1.220.0 (2025-05-20)
+
+* **Feature**: This release expands the ModifyInstanceMaintenanceOptions API to enable or disable instance migration during customer-initiated reboots for EC2 Scheduled Reboot Events.
+
+# v1.219.0 (2025-05-19)
+
+* **Feature**: This release includes new APIs for System Integrity Protection (SIP) configuration and automated root volume ownership delegation for EC2 Mac instances.
+
+# v1.218.0 (2025-05-12)
+
+* **Feature**: EC2 - Adding support for AvailabilityZoneId
+
+# v1.217.0 (2025-05-08)
+
+* **Feature**: Launching the feature to support ENA queues offering flexibility to support multiple queues per Enhanced Network Interface (ENI)
+
+# v1.216.0 (2025-05-07)
+
+* **Feature**: This release adds API support for Path Component Exclusion (Filter Out ARN) for Reachability Analyzer
+
+# v1.215.0 (2025-05-06)
+
+* **Feature**: This release adds support for Amazon EBS Provisioned Rate for Volume Initialization, which lets you specify a volume initialization rate to ensure that your EBS volumes are initialized in a predictable amount of time.
+
+# v1.214.0 (2025-05-05)
+
+* **Feature**: This update introduces API operations to manage and create local gateway VIF and VIF groups. It also includes API operations to describe Outpost LAGs and service link VIFs.
+
+# v1.213.0 (2025-04-30)
+
+* **Feature**: Launch of cost distribution feature for IPAM owners to distribute costs to internal teams.
+
+# v1.212.0 (2025-04-22)
+
+* **Feature**: Added support for  ClientRouteEnforcementOptions flag in CreateClientVpnEndpoint and ModifyClientVpnEndpoint requests and DescribeClientVpnEndpoints responses
+
+# v1.211.3 (2025-04-10)
+
+* No change notes available for this release.
+
+# v1.211.2 (2025-04-04)
+
+* **Documentation**: Doc-only updates for Amazon EC2
+
+# v1.211.1 (2025-04-03)
+
+* No change notes available for this release.
+
+# v1.211.0 (2025-03-31)
+
+* **Feature**: Release VPC Route Server, a new feature allowing dynamic routing in VPCs.
+
+# v1.210.1 (2025-03-19)
+
+* **Documentation**: Doc-only updates for EC2 for March 2025.
+
+# v1.210.0 (2025-03-13)
+
+* **Feature**: This release changes the CreateLaunchTemplate, CreateLaunchTemplateVersion, ModifyLaunchTemplate CLI and SDKs such that if you do not specify a client token, a randomly generated token is used for the request to ensure idempotency.
+
+# v1.209.0 (2025-03-11)
+
+* **Feature**: This release adds the GroupLongName field to the response of the DescribeAvailabilityZones API.
+
+# v1.208.0 (2025-03-07)
+
+* **Feature**: Add serviceManaged field to DescribeAddresses API response.
+
+# v1.207.1 (2025-03-04.2)
+
+* **Bug Fix**: Add assurance test for operation order.
+
+# v1.207.0 (2025-03-04)
+
+* **Feature**: Update the DescribeVpcs response
+
+# v1.206.0 (2025-02-27)
+
+* **Feature**: Track credential providers via User-Agent Feature ids
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.205.0 (2025-02-26)
+
+* **Feature**: Amazon EC2 Fleet customers can now override the Block Device Mapping specified in the Launch Template when creating a new Fleet request, saving the effort of creating and associating new Launch Templates to customize the Block Device Mapping.
+
+# v1.204.0 (2025-02-25)
+
+* **Feature**: Adds support for time-based EBS-backed AMI copy operations. Time-based copy ensures that EBS-backed AMIs are copied within and across Regions in a specified timeframe.
+
+# v1.203.1 (2025-02-18)
+
+* **Bug Fix**: Bump go version to 1.22
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.203.0 (2025-02-11)
+
+* **Feature**: Adding support for the new fullSnapshotSizeInBytes field in the response of the EC2 EBS DescribeSnapshots API. This field represents the size of all the blocks that were written to the source volume at the time the snapshot was created.
+
 # v1.202.4 (2025-02-05)
 
 * **Dependency Update**: Updated to the latest SDK module versions

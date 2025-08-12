@@ -73,8 +73,6 @@ type CreateVpcEndpointInput struct {
 	//
 	// To use a private hosted zone, you must set the following VPC attributes to true
 	// : enableDnsHostnames and enableDnsSupport . Use ModifyVpcAttribute to set the VPC attributes.
-	//
-	// Default: true
 	PrivateDnsEnabled *bool
 
 	// The Amazon Resource Name (ARN) of a resource configuration that will be
@@ -195,6 +193,9 @@ func (c *Client) addOperationCreateVpcEndpointMiddlewares(stack *middleware.Stac
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpCreateVpcEndpointValidationMiddleware(stack); err != nil {

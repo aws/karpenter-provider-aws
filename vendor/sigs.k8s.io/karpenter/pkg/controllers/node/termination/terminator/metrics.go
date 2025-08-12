@@ -27,6 +27,8 @@ import (
 const (
 	// CodeLabel for eviction request
 	CodeLabel = "code"
+	// ReasonLabel for pod draining
+	ReasonLabel = "reason"
 )
 
 var NodesEvictionRequestsTotal = opmetrics.NewPrometheusCounter(
@@ -38,4 +40,15 @@ var NodesEvictionRequestsTotal = opmetrics.NewPrometheusCounter(
 		Help:      "The total number of eviction requests made by Karpenter",
 	},
 	[]string{CodeLabel},
+)
+
+var PodsDrainedTotal = opmetrics.NewPrometheusCounter(
+	crmetrics.Registry,
+	prometheus.CounterOpts{
+		Namespace: metrics.Namespace,
+		Subsystem: metrics.PodSubsystem,
+		Name:      "pods_drained_total",
+		Help:      "The total number of pods drained during node termination by Karpenter, labeled by reason",
+	},
+	[]string{ReasonLabel},
 )

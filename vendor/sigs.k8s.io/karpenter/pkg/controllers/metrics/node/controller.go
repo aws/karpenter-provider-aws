@@ -47,6 +47,19 @@ const (
 )
 
 var (
+	Allocatable         opmetrics.GaugeMetric
+	TotalPodRequests    opmetrics.GaugeMetric
+	TotalPodLimits      opmetrics.GaugeMetric
+	TotalDaemonRequests opmetrics.GaugeMetric
+	TotalDaemonLimits   opmetrics.GaugeMetric
+	SystemOverhead      opmetrics.GaugeMetric
+	Lifetime            opmetrics.GaugeMetric
+	ClusterUtilization  opmetrics.GaugeMetric
+)
+
+// Initialize metrics at runtime to ensure cloud provider's well-known labels are properly
+// injected, preventing race conditions in dependency ordering during label injection for global variable. .
+func initializeMetrics() {
 	Allocatable = opmetrics.NewPrometheusGauge(
 		crmetrics.Registry,
 		prometheus.GaugeOpts{
@@ -127,8 +140,7 @@ var (
 		},
 		[]string{resourceType},
 	)
-	wellKnownLabels = getWellKnownLabels()
-)
+}
 
 func nodeLabelNamesWithResourceType() []string {
 	return append(
@@ -141,7 +153,7 @@ func nodeLabelNames() []string {
 	return append(
 		// WellKnownLabels includes the nodepool label, so we don't need to add it as its own item here.
 		// If we do, prometheus will panic since there would be duplicate labels.
-		sets.New(lo.Values(wellKnownLabels)...).UnsortedList(),
+		sets.New(lo.Values(getWellKnownLabels())...).UnsortedList(),
 		nodeName,
 		nodePhase,
 	)
@@ -153,6 +165,7 @@ type Controller struct {
 }
 
 func NewController(cluster *state.Cluster) *Controller {
+	initializeMetrics()
 	return &Controller{
 		cluster:     cluster,
 		metricStore: metrics.NewStore(),
@@ -260,7 +273,7 @@ func getNodeLabels(node *corev1.Node) prometheus.Labels {
 	metricLabels[nodePhase] = string(node.Status.Phase)
 
 	// Populate well known labels
-	for wellKnownLabel, label := range wellKnownLabels {
+	for wellKnownLabel, label := range getWellKnownLabels() {
 		metricLabels[label] = node.Labels[wellKnownLabel]
 	}
 	return metricLabels

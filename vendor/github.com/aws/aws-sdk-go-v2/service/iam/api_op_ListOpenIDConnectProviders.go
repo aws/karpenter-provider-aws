@@ -17,7 +17,9 @@ import (
 // IAM resource-listing operations return a subset of the available attributes for
 // the resource. For example, this operation does not return tags, even though they
 // are an attribute of the returned object. To view all of the information for an
-// OIDC provider, see GetOpenIDConnectProvider.
+// OIDC provider, see [GetOpenIDConnectProvider].
+//
+// [GetOpenIDConnectProvider]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetOpenIDConnectProvider.html
 func (c *Client) ListOpenIDConnectProviders(ctx context.Context, params *ListOpenIDConnectProvidersInput, optFns ...func(*Options)) (*ListOpenIDConnectProvidersOutput, error) {
 	if params == nil {
 		params = &ListOpenIDConnectProvidersInput{}
@@ -37,7 +39,9 @@ type ListOpenIDConnectProvidersInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful ListOpenIDConnectProviders request.
+// Contains the response to a successful [ListOpenIDConnectProviders] request.
+//
+// [ListOpenIDConnectProviders]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListOpenIDConnectProviders.html
 type ListOpenIDConnectProvidersOutput struct {
 
 	// The list of IAM OIDC provider resource objects defined in the Amazon Web
@@ -112,6 +116,9 @@ func (c *Client) addOperationListOpenIDConnectProvidersMiddlewares(stack *middle
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListOpenIDConnectProviders(options.Region), middleware.Before); err != nil {

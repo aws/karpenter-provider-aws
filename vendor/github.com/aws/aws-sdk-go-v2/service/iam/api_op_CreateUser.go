@@ -86,7 +86,9 @@ type CreateUserInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful CreateUser request.
+// Contains the response to a successful [CreateUser] request.
+//
+// [CreateUser]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateUser.html
 type CreateUserOutput struct {
 
 	// A structure with details about the new IAM user.
@@ -160,6 +162,9 @@ func (c *Client) addOperationCreateUserMiddlewares(stack *middleware.Stack, opti
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpCreateUserValidationMiddleware(stack); err != nil {

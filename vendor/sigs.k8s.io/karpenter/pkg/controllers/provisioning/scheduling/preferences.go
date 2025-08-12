@@ -49,7 +49,7 @@ func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod) bool {
 
 	for _, relaxFunc := range relaxations {
 		if reason := relaxFunc(pod); reason != nil {
-			log.FromContext(ctx).WithValues("Pod", klog.KRef(pod.Namespace, pod.Name)).V(1).Info(fmt.Sprintf("relaxing soft constraints for pod since it previously failed to schedule, %s", lo.FromPtr(reason)))
+			log.FromContext(ctx).WithValues("Pod", klog.KObj(pod)).V(1).Info(fmt.Sprintf("relaxing soft constraints for pod since it previously failed to schedule, %s", lo.FromPtr(reason)))
 			return true
 		}
 	}

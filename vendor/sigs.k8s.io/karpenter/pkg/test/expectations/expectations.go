@@ -123,6 +123,13 @@ func ExpectScheduled(ctx context.Context, c client.Client, pod *corev1.Pod) *cor
 	return ExpectNodeExists(ctx, c, p.Spec.NodeName)
 }
 
+func ExpectPodsScheduled(ctx context.Context, c client.Client, pods ...*corev1.Pod) {
+	GinkgoHelper()
+	for _, p := range pods {
+		ExpectScheduled(ctx, c, p)
+	}
+}
+
 func ExpectNotScheduled(ctx context.Context, c client.Client, pod *corev1.Pod) *corev1.Pod {
 	GinkgoHelper()
 	p := ExpectPodExists(ctx, c, pod.Name, pod.Namespace)

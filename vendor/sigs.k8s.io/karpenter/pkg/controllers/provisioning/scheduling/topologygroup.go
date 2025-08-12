@@ -210,6 +210,21 @@ func (t *TopologyGroup) nextDomainTopologySpread(pod *corev1.Pod, podDomains, no
 	minDomain := ""
 	minCount := int32(math.MaxInt32)
 
+	// We special-case kubernetes.io/hostname primarily for new NodeClaims since their domain won't be registered until we Add() them
+	if t.Key == corev1.LabelHostname && len(nodeDomains.Values()) == 1 {
+		hostName := nodeDomains.Values()[0]
+		count := t.domains[hostName] // t.domains[hostName] produces a 0 value for new NodeClaims
+		if selfSelecting {
+			count++
+		}
+		// Because Karpenter can always create a new domain for hostname, we assume the global miniumum is always zero
+		// This means we can just check whether our current count is less than or equal to the skew to check if the domain is valid
+		if count <= t.maxSkew {
+			return scheduling.NewRequirement(t.Key, corev1.NodeSelectorOpIn, hostName)
+		}
+		return scheduling.NewRequirement(t.Key, corev1.NodeSelectorOpDoesNotExist)
+	}
+
 	// If we are explicitly selecting on specific node domains ("In" requirement),
 	// this is going to be more efficient to iterate through
 	// This is particularly useful when considering the hostname topology key that can have a
@@ -245,9 +260,9 @@ func (t *TopologyGroup) nextDomainTopologySpread(pod *corev1.Pod, podDomains, no
 	}
 	if minDomain == "" {
 		// avoids an error message about 'zone in [""]', preferring 'zone in []'
-		return scheduling.NewRequirement(podDomains.Key, corev1.NodeSelectorOpDoesNotExist)
+		return scheduling.NewRequirement(t.Key, corev1.NodeSelectorOpDoesNotExist)
 	}
-	return scheduling.NewRequirement(podDomains.Key, corev1.NodeSelectorOpIn, minDomain)
+	return scheduling.NewRequirement(t.Key, corev1.NodeSelectorOpIn, minDomain)
 }
 
 func (t *TopologyGroup) domainMinCount(domains *scheduling.Requirement) int32 {
@@ -275,7 +290,24 @@ func (t *TopologyGroup) domainMinCount(domains *scheduling.Requirement) int32 {
 
 // nolint:gocyclo
 func (t *TopologyGroup) nextDomainAffinity(pod *corev1.Pod, podDomains *scheduling.Requirement, nodeDomains *scheduling.Requirement) *scheduling.Requirement {
-	options := scheduling.NewRequirement(podDomains.Key, corev1.NodeSelectorOpDoesNotExist)
+	options := scheduling.NewRequirement(t.Key, corev1.NodeSelectorOpDoesNotExist)
+
+	// We special-case kubernetes.io/hostname primarily for new NodeClaims since their domain won't be registered until we Add() them
+	if t.Key == corev1.LabelHostname && len(nodeDomains.Values()) == 1 {
+		hostName := nodeDomains.Values()[0]
+		if !podDomains.Has(hostName) {
+			return options
+		}
+		if t.domains[hostName] > 0 { // t.domains[hostName] produces a 0 value for new NodeClaims
+			options.Insert(hostName)
+			return options
+		}
+		if t.selects(pod) && (len(t.domains) == len(t.emptyDomains) || !t.anyCompatiblePodDomain(podDomains)) {
+			options.Insert(hostName)
+			return options
+		}
+		return options
+	}
 
 	// If we are explicitly selecting on specific node domains ("In" requirement),
 	// this is going to be more efficient to iterate through
@@ -338,12 +370,21 @@ func (t *TopologyGroup) anyCompatiblePodDomain(podDomains *scheduling.Requiremen
 
 // nolint:gocyclo
 func (t *TopologyGroup) nextDomainAntiAffinity(podDomains, nodeDomains *scheduling.Requirement) *scheduling.Requirement {
-	options := scheduling.NewRequirement(podDomains.Key, corev1.NodeSelectorOpDoesNotExist)
+	options := scheduling.NewRequirement(t.Key, corev1.NodeSelectorOpDoesNotExist)
 	// pods with anti-affinity must schedule to a domain where there are currently none of those pods (an empty
 	// domain). If there are none of those domains, then the pod can't schedule and we don't need to walk this
 	// list of domains.  The use case where this optimization is really great is when we are launching nodes for
 	// a deployment of pods with self anti-affinity.  The domains map here continues to grow, and we continue to
 	// fully scan it each iteration.
+
+	// We special-case kubernetes.io/hostname primarily for new NodeClaims since their domain won't be registered until we Add() them
+	if t.Key == corev1.LabelHostname && len(nodeDomains.Values()) == 1 {
+		hostName := nodeDomains.Values()[0]
+		if t.domains[hostName] == 0 { // t.domains[hostName] produces a 0 value for new NodeClaims
+			options.Insert(hostName)
+		}
+		return options
+	}
 
 	// If we are explicitly selecting on specific node domains ("In" requirement) and the number of node domains
 	// is less than our empty domains, this is going to be more efficient to iterate through

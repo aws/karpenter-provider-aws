@@ -58,6 +58,20 @@ type UpdatePatchBaselineInput struct {
 	// Applies to Linux managed nodes only.
 	ApprovedPatchesEnableNonSecurity *bool
 
+	// Indicates the status to be assigned to security patches that are available but
+	// not approved because they don't meet the installation criteria specified in the
+	// patch baseline.
+	//
+	// Example scenario: Security patches that you might want installed can be skipped
+	// if you have specified a long period to wait after a patch is released before
+	// installation. If an update to the patch is released during your specified
+	// waiting period, the waiting period for installing the patch starts over. If the
+	// waiting period is too long, multiple versions of the patch could be released but
+	// never installed.
+	//
+	// Supported for Windows Server managed nodes only.
+	AvailableSecurityUpdatesComplianceStatus types.PatchComplianceStatus
+
 	// A description of the patch baseline.
 	Description *string
 
@@ -129,6 +143,13 @@ type UpdatePatchBaselineOutput struct {
 	// that should be applied to the managed nodes. The default value is false .
 	// Applies to Linux managed nodes only.
 	ApprovedPatchesEnableNonSecurity *bool
+
+	// Indicates the compliance status of managed nodes for which security-related
+	// patches are available but were not approved. This preference is specified when
+	// the CreatePatchBaseline or UpdatePatchBaseline commands are run.
+	//
+	// Applies to Windows Server managed nodes only.
+	AvailableSecurityUpdatesComplianceStatus types.PatchComplianceStatus
 
 	// The ID of the deleted patch baseline.
 	BaselineId *string
@@ -232,6 +253,9 @@ func (c *Client) addOperationUpdatePatchBaselineMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpUpdatePatchBaselineValidationMiddleware(stack); err != nil {

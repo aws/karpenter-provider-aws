@@ -62,7 +62,9 @@ type UpdateSAMLProviderInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful UpdateSAMLProvider request.
+// Contains the response to a successful [UpdateSAMLProvider] request.
+//
+// [UpdateSAMLProvider]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_UpdateSAMLProvider.html
 type UpdateSAMLProviderOutput struct {
 
 	// The Amazon Resource Name (ARN) of the SAML provider that was updated.
@@ -136,6 +138,9 @@ func (c *Client) addOperationUpdateSAMLProviderMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpUpdateSAMLProviderValidationMiddleware(stack); err != nil {

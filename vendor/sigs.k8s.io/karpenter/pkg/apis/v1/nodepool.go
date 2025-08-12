@@ -21,6 +21,7 @@ import (
 	"math"
 	"strconv"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/robfig/cron/v3"
 	"github.com/samber/lo"
@@ -61,7 +62,7 @@ type Disruption struct {
 	// ConsolidateAfter is the duration the controller will wait
 	// before attempting to terminate nodes that are underutilized.
 	// Refer to ConsolidationPolicy for how underutilization is considered.
-	// +kubebuilder:validation:Pattern=`^(([0-9]+(s|m|h))+)|(Never)$`
+	// +kubebuilder:validation:Pattern=`^(([0-9]+(s|m|h))+|Never)$`
 	// +kubebuilder:validation:Type="string"
 	// +kubebuilder:validation:Schemaless
 	// +required
@@ -146,7 +147,7 @@ func (l Limits) ExceededBy(resources v1.ResourceList) error {
 	for resourceName, usage := range resources {
 		if limit, ok := l[resourceName]; ok {
 			if usage.Cmp(limit) > 0 {
-				return fmt.Errorf("%s resource usage of %v exceeds limit of %v", resourceName, usage.AsDec(), limit.AsDec())
+				return serrors.Wrap(fmt.Errorf("resource usage exceeds limit"), "resource-name", resourceName, "usage", usage.AsDec(), "limit", limit.AsDec())
 			}
 		}
 	}
@@ -206,7 +207,7 @@ type NodeClaimTemplateSpec struct {
 	// is useful to implement features like eventually consistent node upgrade,
 	// memory leak protection, and disruption testing.
 	// +kubebuilder:default:="720h"
-	// +kubebuilder:validation:Pattern=`^(([0-9]+(s|m|h))+)|(Never)$`
+	// +kubebuilder:validation:Pattern=`^(([0-9]+(s|m|h))+|Never)$`
 	// +kubebuilder:validation:Type="string"
 	// +kubebuilder:validation:Schemaless
 	// +optional
@@ -358,7 +359,7 @@ func (in *Budget) IsActive(c clock.Clock) (bool, error) {
 	if err != nil {
 		// Should only occur if there's a discrepancy
 		// with the validation regex and the cron package.
-		return false, fmt.Errorf("invariant violated, invalid cron %s", schedule)
+		return false, serrors.Wrap(fmt.Errorf("invariant violated, invalid cron, %w", err), "cron", schedule)
 	}
 	// Walk back in time for the duration associated with the schedule
 	checkPoint := c.Now().UTC().Add(-lo.FromPtr(in.Duration).Duration)

@@ -49,7 +49,9 @@ type GetServerCertificateInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful GetServerCertificate request.
+// Contains the response to a successful [GetServerCertificate] request.
+//
+// [GetServerCertificate]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetServerCertificate.html
 type GetServerCertificateOutput struct {
 
 	// A structure containing details about the server certificate.
@@ -125,6 +127,9 @@ func (c *Client) addOperationGetServerCertificateMiddlewares(stack *middleware.S
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpGetServerCertificateValidationMiddleware(stack); err != nil {

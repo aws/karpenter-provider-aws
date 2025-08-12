@@ -28,6 +28,7 @@ import (
 
 	"github.com/awslabs/operatorpkg/controller"
 	opmetrics "github.com/awslabs/operatorpkg/metrics"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/go-logr/zapr"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
@@ -38,8 +39,8 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
-	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -117,13 +118,21 @@ func NewOperator() (context.Context, *Operator) {
 	}
 
 	// Logging
-	logger := zapr.NewLogger(logging.NewLogger(ctx, component))
+	logger := serrors.NewLogger(zapr.NewLogger(logging.NewLogger(ctx, component)))
 	log.SetLogger(logger)
 	klog.SetLogger(logger)
 
 	// Client Config
 	config := ctrl.GetConfigOrDie()
-	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(options.FromContext(ctx).KubeClientQPS), options.FromContext(ctx).KubeClientBurst)
+	// Copy the leader config for lower QPS/Burst
+	// We changed this from explicitly setting the RateLimiter on the config and not creating
+	// a separate leaderConfig ourselves because this caused a subtle bug when copying the leaderConfig
+	// for the leader election client. The leaderConfig would use the same RateLimiter, so client-side rate
+	// limiting on the regular config would also cause client-side rate limiting on the leader election client,
+	// often leading to leader loss during large scale-ups or periods of high churn
+	leaderConfig := rest.CopyConfig(config)
+	config.QPS = float32(options.FromContext(ctx).KubeClientQPS)
+	config.Burst = options.FromContext(ctx).KubeClientBurst
 	config.UserAgent = fmt.Sprintf("%s/%s", appName, Version)
 
 	// Client
@@ -139,6 +148,7 @@ func NewOperator() (context.Context, *Operator) {
 		LeaderElectionNamespace:       options.FromContext(ctx).LeaderElectionNamespace,
 		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
 		LeaderElectionReleaseOnCancel: true,
+		LeaderElectionConfig:          leaderConfig,
 		Metrics: server.Options{
 			BindAddress: fmt.Sprintf(":%d", options.FromContext(ctx).MetricsPort),
 		},

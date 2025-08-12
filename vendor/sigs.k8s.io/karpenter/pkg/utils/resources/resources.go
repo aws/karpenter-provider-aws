@@ -24,6 +24,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
+var Node = v1.ResourceName("nodes")
+
 // RequestsForPods returns the total resources of a variadic list of podspecs.
 func RequestsForPods(pods ...*v1.Pod) v1.ResourceList {
 	var resources []v1.ResourceList
@@ -91,6 +93,19 @@ func Subtract(lhs, rhs v1.ResourceList) v1.ResourceList {
 		result[resourceName] = current
 	}
 	return result
+}
+
+// SubtractFrom subtracts the src v1.ResourceList from the dest v1.ResourceList in-place
+func SubtractFrom(dest v1.ResourceList, src v1.ResourceList) {
+	if dest == nil {
+		sz := len(src)
+		dest = make(v1.ResourceList, sz)
+	}
+	for resourceName, quantity := range src {
+		current := dest[resourceName]
+		current.Sub(quantity)
+		dest[resourceName] = current
+	}
 }
 
 // podRequests calculates the max between the sum of container resources and max of initContainers along with sidecar feature consideration

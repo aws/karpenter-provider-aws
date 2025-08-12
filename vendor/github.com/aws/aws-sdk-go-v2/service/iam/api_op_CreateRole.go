@@ -142,7 +142,9 @@ type CreateRoleInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful CreateRole request.
+// Contains the response to a successful [CreateRole] request.
+//
+// [CreateRole]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateRole.html
 type CreateRoleOutput struct {
 
 	// A structure containing details about the new role.
@@ -218,6 +220,9 @@ func (c *Client) addOperationCreateRoleMiddlewares(stack *middleware.Stack, opti
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpCreateRoleValidationMiddleware(stack); err != nil {

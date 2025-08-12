@@ -20,8 +20,10 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/awslabs/operatorpkg/option"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
@@ -31,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -42,7 +45,8 @@ import (
 )
 
 type Topology struct {
-	kubeClient client.Client
+	kubeClient       client.Client
+	preferencePolicy PreferencePolicy
 	// Both the topologyGroups and inverseTopologies are maps of the hash from TopologyGroup.Hash() to the topology group
 	// itself. This is used to allow us to store one topology group that tracks the topology of many pods instead of
 	// having a 1<->1 mapping between topology groups and pods owned/selected by that group.
@@ -69,9 +73,11 @@ func NewTopology(
 	nodePools []*v1.NodePool,
 	instanceTypes map[string][]*cloudprovider.InstanceType,
 	pods []*corev1.Pod,
+	opts ...Options,
 ) (*Topology, error) {
 	t := &Topology{
 		kubeClient:            kubeClient,
+		preferencePolicy:      option.Resolve(opts...).preferencePolicy,
 		cluster:               cluster,
 		stateNodes:            stateNodes,
 		domainGroups:          buildDomainGroups(nodePools, instanceTypes),
@@ -158,7 +164,8 @@ func (t *Topology) Update(ctx context.Context, p *corev1.Pod) error {
 		topology.RemoveOwner(p.UID)
 	}
 
-	if pod.HasPodAntiAffinity(p) {
+	if (t.preferencePolicy == PreferencePolicyIgnore && pod.HasRequiredPodAntiAffinity(p)) ||
+		(t.preferencePolicy == PreferencePolicyRespect && pod.HasPodAntiAffinity(p)) {
 		if err := t.updateInverseAntiAffinity(ctx, p, nil); err != nil {
 			return fmt.Errorf("updating inverse anti-affinities, %w", err)
 		}
@@ -354,6 +361,13 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 		}
 	}
 
+	// sort our pods by the node they are scheduled to
+	sort.Slice(pods, func(i, j int) bool {
+		return pods[i].Spec.NodeName < pods[j].Spec.NodeName
+	})
+	var previousNode *corev1.Node
+	var previousNodeRequirements scheduling.Requirements
+
 	for i, p := range pods {
 		if IgnoredForTopology(&pods[i]) {
 			continue
@@ -362,18 +376,32 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 		if t.excludedPods.Has(string(p.UID)) {
 			continue
 		}
-		node := &corev1.Node{}
-		if err := t.kubeClient.Get(ctx, types.NamespacedName{Name: p.Spec.NodeName}, node); err != nil {
-			// Pods that cannot be evicted can be leaked in the API Server after
-			// a Node is removed. Since pod bindings are immutable, these pods
-			// cannot be recovered, and will be deleted by the pod lifecycle
-			// garbage collector. These pods are not running, and should not
-			// impact future topology calculations.
-			if errors.IsNotFound(err) {
-				continue
+		var node *corev1.Node
+		var nodeRequirements scheduling.Requirements
+		if previousNode != nil && previousNode.Name == p.Spec.NodeName {
+			// no need to look up the node since we already have it
+			node = previousNode
+			nodeRequirements = previousNodeRequirements
+		} else {
+			node = &corev1.Node{}
+			if err := t.kubeClient.Get(ctx, types.NamespacedName{Name: p.Spec.NodeName}, node); err != nil {
+				// Pods that cannot be evicted can be leaked in the API Server after
+				// a Node is removed. Since pod bindings are immutable, these pods
+				// cannot be recovered, and will be deleted by the pod lifecycle
+				// garbage collector. These pods are not running, and should not
+				// impact future topology calculations.
+				if errors.IsNotFound(err) {
+					continue
+				}
+				return serrors.Wrap(fmt.Errorf("getting node, %w", err), "Node", klog.KRef("", p.Spec.NodeName))
 			}
-			return fmt.Errorf("getting node %s, %w", p.Spec.NodeName, err)
+			nodeRequirements = scheduling.NewLabelRequirements(node.Labels)
+
+			// assign back to previous node so we can hopefully re-use these in the next iteration
+			previousNode = node
+			previousNodeRequirements = nodeRequirements
 		}
+
 		domain, ok := node.Labels[tg.Key]
 		// Kubelet sets the hostname label, but the node may not be ready yet so there is no label.  We fall back and just
 		// treat the node name as the label.  It probably is in most cases, but even if not we at least count the existence
@@ -386,9 +414,10 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 		if !ok {
 			continue // Don't include pods if node doesn't contain domain https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/#conventions
 		}
+
 		// nodes may or may not be considered for counting purposes for topology spread constraints depending on if they
 		// are selected by the pod's node selectors and required node affinities.  If these are unset, the node always counts.
-		if !tg.nodeFilter.Matches(node.Spec.Taints, scheduling.NewLabelRequirements(node.Labels)) {
+		if !tg.nodeFilter.Matches(node.Spec.Taints, nodeRequirements) {
 			continue
 		}
 		tg.Record(domain)
@@ -399,6 +428,9 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 func (t *Topology) newForTopologies(p *corev1.Pod) []*TopologyGroup {
 	var topologyGroups []*TopologyGroup
 	for _, tsc := range p.Spec.TopologySpreadConstraints {
+		if t.preferencePolicy == PreferencePolicyIgnore && tsc.WhenUnsatisfiable != corev1.DoNotSchedule {
+			continue
+		}
 		for _, key := range tsc.MatchLabelKeys {
 			if value, ok := p.Labels[key]; ok {
 				tsc.LabelSelector.MatchExpressions = append(tsc.LabelSelector.MatchExpressions, metav1.LabelSelectorRequirement{
@@ -436,16 +468,20 @@ func (t *Topology) newForAffinities(ctx context.Context, p *corev1.Pod) ([]*Topo
 	// include both soft and hard affinity terms
 	if p.Spec.Affinity.PodAffinity != nil {
 		affinityTerms[TopologyTypePodAffinity] = append(affinityTerms[TopologyTypePodAffinity], p.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution...)
-		for _, term := range p.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-			affinityTerms[TopologyTypePodAffinity] = append(affinityTerms[TopologyTypePodAffinity], term.PodAffinityTerm)
+		if t.preferencePolicy == PreferencePolicyRespect {
+			for _, term := range p.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+				affinityTerms[TopologyTypePodAffinity] = append(affinityTerms[TopologyTypePodAffinity], term.PodAffinityTerm)
+			}
 		}
 	}
 
 	// include both soft and hard antiaffinity terms
 	if p.Spec.Affinity.PodAntiAffinity != nil {
 		affinityTerms[TopologyTypePodAntiAffinity] = append(affinityTerms[TopologyTypePodAntiAffinity], p.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution...)
-		for _, term := range p.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-			affinityTerms[TopologyTypePodAntiAffinity] = append(affinityTerms[TopologyTypePodAntiAffinity], term.PodAffinityTerm)
+		if t.preferencePolicy == PreferencePolicyRespect {
+			for _, term := range p.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+				affinityTerms[TopologyTypePodAntiAffinity] = append(affinityTerms[TopologyTypePodAntiAffinity], term.PodAffinityTerm)
+			}
 		}
 	}
 

@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/flowcontrol"
 
@@ -49,12 +50,12 @@ func NominatePodEvent(pod *corev1.Pod, node *corev1.Node, nodeClaim *v1.NodeClai
 	}
 }
 
-func NoCompatibleInstanceTypes(np *v1.NodePool) events.Event {
+func NoCompatibleInstanceTypes(np *v1.NodePool, minValuesIncompatibleError bool) events.Event {
 	return events.Event{
 		InvolvedObject: np,
 		Type:           corev1.EventTypeWarning,
 		Reason:         events.NoCompatibleInstanceTypes,
-		Message:        "NodePool requirements filtered out all compatible available instance types",
+		Message:        lo.Ternary(minValuesIncompatibleError, "NodePool requirements filtered out all compatible available instance types due to minValues incompatibility", "NodePool requirements filtered out all compatible available instance types"),
 		DedupeValues:   []string{string(np.UID)},
 		DedupeTimeout:  1 * time.Minute,
 	}

@@ -249,6 +249,7 @@ func Assign[K comparable, V any, Map ~map[K]V](maps ...Map) Map {
 
 // ChunkEntries splits a map into an array of elements in groups of a length equal to its size. If the map cannot be split evenly,
 // the final chunk will contain the remaining elements.
+// Play: https://go.dev/play/p/X_YQL6mmoD-
 func ChunkEntries[K comparable, V any](m map[K]V, size int) []map[K]V {
 	if size <= 0 {
 		panic("The chunk size must be greater than 0")
@@ -321,6 +322,22 @@ func MapToSlice[K comparable, V any, R any](in map[K]V, iteratee func(key K, val
 
 	for k := range in {
 		result = append(result, iteratee(k, in[k]))
+	}
+
+	return result
+}
+
+// FilterMapToSlice transforms a map into a slice based on specific iteratee.
+// The iteratee returns a value and a boolean. If the boolean is true, the value is added to the result slice.
+// If the boolean is false, the value is not added to the result slice.
+// The order of the keys in the input map is not specified and the order of the keys in the output slice is not guaranteed.
+func FilterMapToSlice[K comparable, V any, R any](in map[K]V, iteratee func(key K, value V) (R, bool)) []R {
+	result := make([]R, 0, len(in))
+
+	for k := range in {
+		if v, ok := iteratee(k, in[k]); ok {
+			result = append(result, v)
+		}
 	}
 
 	return result

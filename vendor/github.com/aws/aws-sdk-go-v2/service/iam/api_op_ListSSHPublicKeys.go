@@ -71,7 +71,9 @@ type ListSSHPublicKeysInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful ListSSHPublicKeys request.
+// Contains the response to a successful [ListSSHPublicKeys] request.
+//
+// [ListSSHPublicKeys]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListSSHPublicKeys.html
 type ListSSHPublicKeysOutput struct {
 
 	// A flag that indicates whether there are more items to return. If your results
@@ -157,6 +159,9 @@ func (c *Client) addOperationListSSHPublicKeysMiddlewares(stack *middleware.Stac
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListSSHPublicKeys(options.Region), middleware.Before); err != nil {

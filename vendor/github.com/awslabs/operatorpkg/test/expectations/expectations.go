@@ -67,6 +67,16 @@ func ExpectReconciled(ctx context.Context, reconciler reconcile.Reconciler, obje
 	return result
 }
 
+func ExpectRequeued(result reconcile.Result) {
+	GinkgoHelper()
+	Expect(result.Requeue || result.RequeueAfter != lo.Empty[time.Duration]())
+}
+
+func ExpectNotRequeued(result reconcile.Result) {
+	GinkgoHelper()
+	Expect(!result.Requeue && result.RequeueAfter == lo.Empty[time.Duration]())
+}
+
 func ExpectObject[T client.Object](ctx context.Context, c client.Client, obj T) types.Assertion {
 	GinkgoHelper()
 	Expect(c.Get(ctx, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
@@ -119,6 +129,7 @@ func ExpectDeletionTimestampSet(ctx context.Context, c client.Client, objects ..
 }
 
 func ExpectStatusConditions(ctx context.Context, c client.Client, timeout time.Duration, obj status.Object, conditions ...status.Condition) {
+	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		g.Expect(c.Get(ctx, client.ObjectKeyFromObject(obj), obj)).To(BeNil())
 		objStatus := obj.StatusConditions()
@@ -162,8 +173,8 @@ func ExpectStatusUpdated(ctx context.Context, c client.Client, objects ...client
 func ExpectDeleted(ctx context.Context, c client.Client, objects ...client.Object) {
 	GinkgoHelper()
 	for _, o := range objects {
-		Expect(c.Delete(ctx, o)).To(Succeed())
-		Expect(c.Get(ctx, client.ObjectKeyFromObject(o), o)).To(Or(Succeed(), MatchError(ContainSubstring("not found"))))
+		Expect(client.IgnoreNotFound(c.Delete(ctx, o))).To(Succeed())
+		Expect(client.IgnoreNotFound(c.Get(ctx, client.ObjectKeyFromObject(o), o))).To(Succeed())
 	}
 }
 
@@ -179,6 +190,7 @@ func ExpectForceCleanedUp(ctx context.Context, c client.Client, objectLists ...c
 }
 
 func expectCleanedUp(ctx context.Context, c client.Client, force bool, objectLists ...client.ObjectList) {
+	GinkgoHelper()
 	wg := sync.WaitGroup{}
 	for _, objectList := range objectLists {
 		wg.Add(1)

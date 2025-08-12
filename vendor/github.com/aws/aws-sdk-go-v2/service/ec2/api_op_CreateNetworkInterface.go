@@ -75,7 +75,7 @@ type CreateNetworkInterfaceInput struct {
 	// with the ENI becomes the primary IPv6 address.
 	EnablePrimaryIpv6 *bool
 
-	// The IDs of one or more security groups.
+	// The IDs of the security groups.
 	Groups []string
 
 	// The type of network interface. The default is interface .
@@ -244,6 +244,9 @@ func (c *Client) addOperationCreateNetworkInterfaceMiddlewares(stack *middleware
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addIdempotencyToken_opCreateNetworkInterfaceMiddleware(stack, options); err != nil {

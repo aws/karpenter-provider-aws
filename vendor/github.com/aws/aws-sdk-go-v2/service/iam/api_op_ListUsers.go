@@ -23,9 +23,11 @@ import (
 //
 //   - Tags
 //
-// To view all of the information for a user, see GetUser.
+// To view all of the information for a user, see [GetUser].
 //
 // You can paginate the results using the MaxItems and Marker parameters.
+//
+// [GetUser]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetUser.html
 func (c *Client) ListUsers(ctx context.Context, params *ListUsersInput, optFns ...func(*Options)) (*ListUsersOutput, error) {
 	if params == nil {
 		params = &ListUsersInput{}
@@ -77,7 +79,9 @@ type ListUsersInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful ListUsers request.
+// Contains the response to a successful [ListUsers] request.
+//
+// [ListUsers]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListUsers.html
 type ListUsersOutput struct {
 
 	// A list of users.
@@ -165,6 +169,9 @@ func (c *Client) addOperationListUsersMiddlewares(stack *middleware.Stack, optio
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListUsers(options.Region), middleware.Before); err != nil {

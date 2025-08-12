@@ -1,3 +1,34 @@
+# v1.31.2 (2025-06-17)
+
+* **Dependency Update**: Update to smithy-go v1.22.4.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.1 (2025-06-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.0 (2025-05-06)
+
+* **Feature**: Add dualstack endpoints support.
+
+# v1.30.2 (2025-04-03)
+
+* No change notes available for this release.
+
+# v1.30.1 (2025-03-04.2)
+
+* **Bug Fix**: Add assurance test for operation order.
+
+# v1.30.0 (2025-02-27)
+
+* **Feature**: Track credential providers via User-Agent Feature ids
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.17 (2025-02-18)
+
+* **Bug Fix**: Bump go version to 1.22
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.29.16 (2025-02-05)
 
 * **Dependency Update**: Updated to the latest SDK module versions

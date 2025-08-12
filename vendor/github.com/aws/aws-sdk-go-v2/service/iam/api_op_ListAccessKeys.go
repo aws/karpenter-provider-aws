@@ -74,7 +74,9 @@ type ListAccessKeysInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful ListAccessKeys request.
+// Contains the response to a successful [ListAccessKeys] request.
+//
+// [ListAccessKeys]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListAccessKeys.html
 type ListAccessKeysOutput struct {
 
 	// A list of objects containing metadata about the access keys.
@@ -162,6 +164,9 @@ func (c *Client) addOperationListAccessKeysMiddlewares(stack *middleware.Stack, 
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListAccessKeys(options.Region), middleware.Before); err != nil {

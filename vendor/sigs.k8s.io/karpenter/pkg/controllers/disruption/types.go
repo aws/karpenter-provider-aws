@@ -17,12 +17,15 @@ limitations under the License.
 package disruption
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/awslabs/operatorpkg/serrors"
+	"github.com/google/uuid"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -31,7 +34,6 @@ import (
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	disruptionevents "sigs.k8s.io/karpenter/pkg/controllers/disruption/events"
-	"sigs.k8s.io/karpenter/pkg/controllers/disruption/orchestration"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -47,7 +49,7 @@ const (
 
 type Method interface {
 	ShouldDisrupt(context.Context, *Candidate) bool
-	ComputeCommand(context.Context, map[string]int, ...*Candidate) (Command, scheduling.Results, error)
+	ComputeCommand(context.Context, map[string]int, ...*Candidate) (Command, error)
 	Reason() v1.DisruptionReason
 	Class() string
 	ConsolidationType() string
@@ -60,18 +62,22 @@ type CandidateFilter func(context.Context, *Candidate) bool
 type Candidate struct {
 	*state.StateNode
 	instanceType      *cloudprovider.InstanceType
-	nodePool          *v1.NodePool
+	NodePool          *v1.NodePool
 	zone              string
 	capacityType      string
-	disruptionCost    float64
+	DisruptionCost    float64
 	reschedulablePods []*corev1.Pod
 }
 
 //nolint:gocyclo
 func NewCandidate(ctx context.Context, kubeClient client.Client, recorder events.Recorder, clk clock.Clock, node *state.StateNode, pdbs pdb.Limits,
-	nodePoolMap map[string]*v1.NodePool, nodePoolToInstanceTypesMap map[string]map[string]*cloudprovider.InstanceType, queue *orchestration.Queue, disruptionClass string) (*Candidate, error) {
+	nodePoolMap map[string]*v1.NodePool, nodePoolToInstanceTypesMap map[string]map[string]*cloudprovider.InstanceType, queue *Queue, disruptionClass string) (*Candidate, error) {
 	var err error
 	var pods []*corev1.Pod
+	// If the orchestration queue is already considering a candidate we want to disrupt, don't consider it a candidate.
+	if queue.HasAny(node.ProviderID()) {
+		return nil, fmt.Errorf("candidate is already being disrupted")
+	}
 	if err = node.ValidateNodeDisruptable(); err != nil {
 		// Only emit an event if the NodeClaim is not nil, ensuring that we only emit events for Karpenter-managed nodes
 		if node.NodeClaim != nil {
@@ -79,18 +85,14 @@ func NewCandidate(ctx context.Context, kubeClient client.Client, recorder events
 		}
 		return nil, err
 	}
-	// If the orchestration queue is already considering a candidate we want to disrupt, don't consider it a candidate.
-	if queue.HasAny(node.ProviderID()) {
-		return nil, fmt.Errorf("candidate is already being disrupted")
-	}
 	// We know that the node will have the label key because of the node.IsDisruptable check above
 	nodePoolName := node.Labels()[v1.NodePoolLabelKey]
 	nodePool := nodePoolMap[nodePoolName]
 	instanceTypeMap := nodePoolToInstanceTypesMap[nodePoolName]
 	// skip any candidates where we can't determine the nodePool
 	if nodePool == nil || instanceTypeMap == nil {
-		recorder.Publish(disruptionevents.Blocked(node.Node, node.NodeClaim, fmt.Sprintf("NodePool %q not found", nodePoolName))...)
-		return nil, fmt.Errorf("nodepool %q not found", nodePoolName)
+		recorder.Publish(disruptionevents.Blocked(node.Node, node.NodeClaim, fmt.Sprintf("NodePool not found (NodePool=%s)", nodePoolName))...)
+		return nil, serrors.Wrap(fmt.Errorf("nodepool not found"), "NodePool", klog.KRef("", nodePoolName))
 	}
 	// We only care if instanceType in non-empty consolidation to do price-comparison.
 	instanceType := instanceTypeMap[node.Labels()[corev1.LabelInstanceTypeStable]]
@@ -105,20 +107,42 @@ func NewCandidate(ctx context.Context, kubeClient client.Client, recorder events
 		}
 	}
 	return &Candidate{
-		StateNode:         node.DeepCopy(),
+		StateNode:         node,
 		instanceType:      instanceType,
-		nodePool:          nodePool,
+		NodePool:          nodePool,
 		capacityType:      node.Labels()[v1.CapacityTypeLabelKey],
 		zone:              node.Labels()[corev1.LabelTopologyZone],
 		reschedulablePods: lo.Filter(pods, func(p *corev1.Pod, _ int) bool { return pod.IsReschedulable(p) }),
 		// We get the disruption cost from all pods in the candidate, not just the reschedulable pods
-		disruptionCost: disruptionutils.ReschedulingCost(ctx, pods) * disruptionutils.LifetimeRemaining(clk, nodePool, node.NodeClaim),
+		DisruptionCost: disruptionutils.ReschedulingCost(ctx, pods) * disruptionutils.LifetimeRemaining(clk, nodePool, node.NodeClaim),
 	}, nil
 }
 
+type Replacement struct {
+	*scheduling.NodeClaim
+
+	Name string
+	// Use a bool track if a node has already been initialized so we can fire metrics for intialization once.
+	// This intentionally does not capture nodes that go initialized then go NotReady after as other pods can
+	// schedule to this node as well.
+	Initialized bool
+}
+
+func replacementsFromNodeClaims(newNodeClaims ...*scheduling.NodeClaim) []*Replacement {
+	return lo.Map(newNodeClaims, func(n *scheduling.NodeClaim, _ int) *Replacement { return &Replacement{NodeClaim: n} })
+}
+
 type Command struct {
-	candidates   []*Candidate
-	replacements []*scheduling.NodeClaim
+	Method
+
+	Succeeded bool
+
+	CreationTimestamp time.Time
+	ID                uuid.UUID
+
+	Results      scheduling.Results
+	Candidates   []*Candidate
+	Replacements []*Replacement
 }
 
 type Decision string
@@ -131,55 +155,47 @@ var (
 
 func (c Command) Decision() Decision {
 	switch {
-	case len(c.candidates) > 0 && len(c.replacements) > 0:
+	case len(c.Candidates) > 0 && len(c.Replacements) > 0:
 		return ReplaceDecision
-	case len(c.candidates) > 0 && len(c.replacements) == 0:
+	case len(c.Candidates) > 0 && len(c.Replacements) == 0:
 		return DeleteDecision
 	default:
 		return NoOpDecision
 	}
 }
 
-func (c Command) String() string {
-	var buf bytes.Buffer
-	podCount := lo.Reduce(c.candidates, func(_ int, cd *Candidate, _ int) int { return len(cd.reschedulablePods) }, 0)
-	fmt.Fprintf(&buf, "%s, terminating %d nodes (%d pods) ", c.Decision(), len(c.candidates), podCount)
-	for i, old := range c.candidates {
-		if i != 0 {
-			fmt.Fprint(&buf, ", ")
+func (c Command) LogValues() []any {
+	podCount := lo.Reduce(c.Candidates, func(_ int, cd *Candidate, _ int) int { return len(cd.reschedulablePods) }, 0)
+
+	candidateNodes := lo.Map(c.Candidates, func(candidate *Candidate, _ int) interface{} {
+		return map[string]interface{}{
+			"Node":          klog.KObj(candidate.Node),
+			"NodeClaim":     klog.KObj(candidate.NodeClaim),
+			"instance-type": candidate.Labels()[corev1.LabelInstanceTypeStable],
+			"capacity-type": candidate.Labels()[v1.CapacityTypeLabelKey],
 		}
-		fmt.Fprintf(&buf, "%s", old.Name())
-		fmt.Fprintf(&buf, "/%s", old.Labels()[corev1.LabelInstanceTypeStable])
-		fmt.Fprintf(&buf, "/%s", old.Labels()[v1.CapacityTypeLabelKey])
-	}
-	if len(c.replacements) == 0 {
-		return buf.String()
-	}
-	odNodeClaims := 0
-	spotNodeClaims := 0
-	for _, nodeClaim := range c.replacements {
-		ct := nodeClaim.Requirements.Get(v1.CapacityTypeLabelKey)
-		if ct.Has(v1.CapacityTypeOnDemand) {
-			odNodeClaims++
+	})
+	replacementNodes := lo.Map(c.Replacements, func(replacement *Replacement, _ int) interface{} {
+		ct := replacement.Requirements.Get(v1.CapacityTypeLabelKey)
+		m := map[string]interface{}{
+			"capacity-type": lo.If(
+				ct.Has(v1.CapacityTypeReserved), v1.CapacityTypeReserved,
+			).ElseIf(
+				ct.Has(v1.CapacityTypeSpot), v1.CapacityTypeSpot,
+			).Else(v1.CapacityTypeOnDemand),
 		}
-		if ct.Has(v1.CapacityTypeSpot) {
-			spotNodeClaims++
+		if len(c.Replacements) == 1 {
+			m["instance-types"] = scheduling.InstanceTypeList(replacement.InstanceTypeOptions)
 		}
+		return m
+	})
+
+	return []any{
+		"decision", c.Decision(),
+		"disrupted-node-count", len(candidateNodes),
+		"replacement-node-count", len(replacementNodes),
+		"pod-count", podCount,
+		"disrupted-nodes", candidateNodes,
+		"replacement-nodes", replacementNodes,
 	}
-	// Print list of instance types for the first replacements.
-	if len(c.replacements) > 1 {
-		fmt.Fprintf(&buf, " and replacing with %d spot and %d on-demand, from types %s",
-			spotNodeClaims, odNodeClaims,
-			scheduling.InstanceTypeList(c.replacements[0].InstanceTypeOptions))
-		return buf.String()
-	}
-	ct := c.replacements[0].Requirements.Get(v1.CapacityTypeLabelKey)
-	nodeDesc := "node"
-	if ct.Len() == 1 {
-		nodeDesc = fmt.Sprintf("%s node", ct.Any())
-	}
-	fmt.Fprintf(&buf, " and replacing with %s from types %s",
-		nodeDesc,
-		scheduling.InstanceTypeList(c.replacements[0].InstanceTypeOptions))
-	return buf.String()
 }

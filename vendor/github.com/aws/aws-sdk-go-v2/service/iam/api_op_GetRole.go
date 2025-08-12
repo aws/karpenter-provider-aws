@@ -24,7 +24,7 @@ import (
 // use a URL decoding method to convert the policy back to plain JSON text. For
 // example, if you use Java, you can use the decode method of the
 // java.net.URLDecoder utility class in the Java SDK. Other languages and SDKs
-// provide similar functionality.
+// provide similar functionality, and some SDKs do this decoding automatically.
 //
 // [RFC 3986]: https://tools.ietf.org/html/rfc3986
 // [IAM roles]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html
@@ -59,7 +59,9 @@ type GetRoleInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful GetRole request.
+// Contains the response to a successful [GetRole] request.
+//
+// [GetRole]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetRole.html
 type GetRoleOutput struct {
 
 	// A structure containing details about the IAM role.
@@ -135,6 +137,9 @@ func (c *Client) addOperationGetRoleMiddlewares(stack *middleware.Stack, options
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpGetRoleValidationMiddleware(stack); err != nil {

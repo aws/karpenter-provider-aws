@@ -45,8 +45,12 @@ type GetAccessKeyLastUsedInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful GetAccessKeyLastUsed request. It is also returned as a member
-// of the AccessKeyMetaDatastructure returned by the ListAccessKeys action.
+// Contains the response to a successful [GetAccessKeyLastUsed] request. It is also returned as a member
+// of the [AccessKeyMetaData]structure returned by the [ListAccessKeys] action.
+//
+// [AccessKeyMetaData]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_AccessKeyMetaData.html
+// [ListAccessKeys]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListAccessKeys.html
+// [GetAccessKeyLastUsed]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetAccessKeyLastUsed.html
 type GetAccessKeyLastUsedOutput struct {
 
 	// Contains information about the last time the access key was used.
@@ -123,6 +127,9 @@ func (c *Client) addOperationGetAccessKeyLastUsedMiddlewares(stack *middleware.S
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpGetAccessKeyLastUsedValidationMiddleware(stack); err != nil {

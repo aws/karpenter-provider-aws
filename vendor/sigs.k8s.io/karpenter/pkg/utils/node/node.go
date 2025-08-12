@@ -22,10 +22,12 @@ import (
 	"fmt"
 
 	"github.com/awslabs/operatorpkg/object"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -34,23 +36,29 @@ import (
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
+	"sigs.k8s.io/karpenter/pkg/utils/pdb"
 	"sigs.k8s.io/karpenter/pkg/utils/pod"
 )
 
 // NodeClaimNotFoundError is an error returned when no v1.NodeClaims are found matching the passed providerID
 type NodeClaimNotFoundError struct {
-	ProviderID string
+	error
 }
 
-func (e *NodeClaimNotFoundError) Error() string {
-	return fmt.Sprintf("no nodeclaims found for provider id '%s'", e.ProviderID)
+func NewNodeClaimNotFoundError(providerID string) NodeClaimNotFoundError {
+	return NodeClaimNotFoundError{
+		error: serrors.Wrap(
+			fmt.Errorf("no nodeclaims found for provider-id"),
+			"provider-id", providerID,
+		),
+	}
 }
 
 func IsNodeClaimNotFoundError(err error) bool {
 	if err == nil {
 		return false
 	}
-	nnfErr := &NodeClaimNotFoundError{}
+	nnfErr := NodeClaimNotFoundError{}
 	return errors.As(err, &nnfErr)
 }
 
@@ -63,18 +71,24 @@ func IgnoreNodeClaimNotFoundError(err error) error {
 
 // DuplicateNodeClaimError is an error returned when multiple v1.NodeClaims are found matching the passed providerID
 type DuplicateNodeClaimError struct {
-	ProviderID string
+	error
 }
 
-func (e *DuplicateNodeClaimError) Error() string {
-	return fmt.Sprintf("multiple found for provider id '%s'", e.ProviderID)
+func NewDuplicateNodeClaimError(providerID string, nodeClaims ...*v1.NodeClaim) DuplicateNodeClaimError {
+	return DuplicateNodeClaimError{
+		error: serrors.Wrap(
+			fmt.Errorf("found duplicate nodeclaims for provider-id"),
+			"provider-id", providerID,
+			"NodeClaims", lo.Map(nodeClaims, func(nc *v1.NodeClaim, _ int) klog.ObjectRef { return klog.KObj(nc) }),
+		),
+	}
 }
 
 func IsDuplicateNodeClaimError(err error) bool {
 	if err == nil {
 		return false
 	}
-	dnErr := &DuplicateNodeClaimError{}
+	dnErr := DuplicateNodeClaimError{}
 	return errors.As(err, &dnErr)
 }
 
@@ -119,22 +133,28 @@ func NodeClaimForNode(ctx context.Context, c client.Client, node *corev1.Node) (
 		return nil, err
 	}
 	if len(nodeClaims) > 1 {
-		return nil, &DuplicateNodeClaimError{ProviderID: node.Spec.ProviderID}
+		return nil, NewDuplicateNodeClaimError(node.Spec.ProviderID, nodeClaims...)
 	}
 	if len(nodeClaims) == 0 {
-		return nil, &NodeClaimNotFoundError{ProviderID: node.Spec.ProviderID}
+		return nil, NewNodeClaimNotFoundError(node.Spec.ProviderID)
 	}
 	return nodeClaims[0], nil
 }
 
-// GetReschedulablePods grabs all pods from the passed nodes that satisfy the IsReschedulable criteria
-func GetReschedulablePods(ctx context.Context, kubeClient client.Client, nodes ...*corev1.Node) ([]*corev1.Pod, error) {
+// GetCurrentlyReschedulablePods grabs all pods from the passed nodes that satisfy the IsReschedulable criteria
+func GetCurrentlyReschedulablePods(ctx context.Context, kubeClient client.Client, nodes ...*corev1.Node) ([]*corev1.Pod, error) {
 	pods, err := GetPods(ctx, kubeClient, nodes...)
 	if err != nil {
 		return nil, fmt.Errorf("listing pods, %w", err)
 	}
+
+	pdbs, err := pdb.NewLimits(ctx, kubeClient)
+	if err != nil {
+		return nil, fmt.Errorf("tracking PodDisruptionBudgets, %w", err)
+	}
+
 	return lo.Filter(pods, func(p *corev1.Pod, _ int) bool {
-		return pod.IsReschedulable(p)
+		return pdbs.IsCurrentlyReschedulable(p)
 	}), nil
 }
 
