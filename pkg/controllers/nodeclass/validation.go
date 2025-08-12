@@ -152,7 +152,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		nodeClass.StatusConditions().SetTrueWithReason(
 			v1.ConditionTypeValidationSucceeded,
 			ConditionReasonAuthValidationBypassed,
-			"Dry run validation is disabled",
+			"Auth validation is disabled",
 		)
 		v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
 		return reconcile.Result{}, nil
