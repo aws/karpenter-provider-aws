@@ -205,8 +205,8 @@ settings:
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved.
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.
   reservedENIs: "0"
-  # -- Disable AWS validation for EC2NodeClasses. One example is using dry run calls for auth validation.
-  disableAWSValidation: false
+  # -- Disable auth validation for EC2NodeClasses.
+  disableAuthValidation: false
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features.
   featureGates:

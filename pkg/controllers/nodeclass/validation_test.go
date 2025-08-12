@@ -49,7 +49,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 	Context("Preconditions", func() {
 		var reconciler *nodeclass.Validation
 		BeforeEach(func() {
-			reconciler = nodeclass.NewValidationReconciler(env.Client, cloudProvider, awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache, options.FromContext(ctx).DisableAWSValidation)
+			reconciler = nodeclass.NewValidationReconciler(env.Client, cloudProvider, awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache, options.FromContext(ctx).DisableAuthValidation)
 			for _, cond := range []string{
 				v1.ConditionTypeAMIsReady,
 				v1.ConditionTypeInstanceProfileReady,
@@ -335,8 +335,8 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
 		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
-		// The cache shouldn't have any entries because we short circuit
-		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
+		// The cache still has an entry so we don't revalidate tags
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(1))
 		// We shouldn't make any new calls when validation is disabled
 		Expect(awsEnv.EC2API.CreateFleetBehavior.Calls()).To(Equal(0))
 		Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.Calls()).To(Equal(0))

@@ -52,8 +52,8 @@ const (
 	ConditionReasonCreateLaunchTemplateAuthFailed = "CreateLaunchTemplateAuthCheckFailed"
 	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
 	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
-	ConditionReasonValidationBypassed             = "ValidationBypassed"
 	ConditionReasonTagValidationFailed            = "TagValidationFailed"
+	ConditionReasonAuthValidationBypassed         = "AuthValidationBypassed"
 )
 
 var ValidationConditionMessages = map[string]string{
@@ -70,7 +70,7 @@ type Validation struct {
 	instanceTypeProvider   instancetype.Provider
 	launchTemplateProvider launchtemplate.Provider
 	cache                  *cache.Cache
-	disabled               bool
+	authValidationDisabled bool
 }
 
 func NewValidationReconciler(
@@ -81,7 +81,7 @@ func NewValidationReconciler(
 	instanceTypeProvider instancetype.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	cache *cache.Cache,
-	disabled bool,
+	authValidationDisabled bool,
 ) *Validation {
 	return &Validation{
 		kubeClient:             kubeClient,
@@ -91,20 +91,12 @@ func NewValidationReconciler(
 		instanceTypeProvider:   instanceTypeProvider,
 		launchTemplateProvider: launchTemplateProvider,
 		cache:                  cache,
-		disabled:               disabled,
+		authValidationDisabled: authValidationDisabled,
 	}
 }
 
 // nolint:gocyclo
 func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	if v.disabled {
-		nodeClass.StatusConditions().SetTrueWithReason(
-			v1.ConditionTypeValidationSucceeded,
-			ConditionReasonValidationBypassed,
-			"Validation bypassed because AWS validation is disabled",
-		)
-		return reconcile.Result{}, nil
-	}
 	if _, ok := lo.Find(v.requiredConditions(), func(cond string) bool {
 		return nodeClass.StatusConditions().Get(cond).IsFalse()
 	}); ok {
@@ -155,6 +147,17 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		}
 		return reconcile.Result{}, nil
 	}
+
+	if v.authValidationDisabled {
+		nodeClass.StatusConditions().SetTrueWithReason(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonAuthValidationBypassed,
+			"Dry run validation is disabled",
+		)
+		v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
+		return reconcile.Result{}, nil
+	}
+
 	for _, isValid := range []validatorFunc{
 		v.validateCreateFleetAuthorization,
 		v.validateCreateLaunchTemplateAuthorization,
