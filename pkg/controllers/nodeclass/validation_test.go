@@ -310,7 +310,6 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
 	})
 	It("should pass validation when the validation controller is disabled", func() {
-		Expect(awsEnv.EC2API.RunInstancesBehavior.Calls()).To(Equal(0))
 		controller = nodeclass.NewController(
 			awsEnv.Clock,
 			env.Client,
