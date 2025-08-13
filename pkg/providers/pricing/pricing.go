@@ -101,20 +101,36 @@ func newZonalPricing(defaultPrice float64) zonal {
 }
 
 // NewPricingAPI returns a pricing API configured based on a particular region
-func NewAPI(cfg aws.Config) *pricing.Client {
-	// pricing API doesn't have an endpoint in all regions
-	pricingAPIRegion := "us-east-1"
-	if strings.HasPrefix(cfg.Region, "ap-") {
-		pricingAPIRegion = "ap-south-1"
-	} else if strings.HasPrefix(cfg.Region, "cn-") {
-		pricingAPIRegion = "cn-northwest-1"
-	} else if strings.HasPrefix(cfg.Region, "eu-") {
-		pricingAPIRegion = "eu-central-1"
-	}
+func NewAPI(cfg aws.Config, regionOverride string) *pricing.Client {
 	//create pricing config using pricing endpoint
 	pricingCfg := cfg.Copy()
-	pricingCfg.Region = pricingAPIRegion
+	pricingCfg.Region = getPricingAPIRegion(cfg.Region, regionOverride)
 	return pricing.NewFromConfig(pricingCfg)
+}
+
+// getPricingAPIRegion returns the appropriate AWS Pricing API region based on the source region.
+// If regionOverride is provided, it takes precedence. Otherwise, maps regional prefixes to
+// their corresponding pricing API endpoints. Returns us-east-1 if no mapping exists for the region.
+func getPricingAPIRegion(cfgRegion, regionOverride string) string {
+	if regionOverride != "" {
+		return regionOverride
+	}
+
+	// pricing API doesn't have an endpoint in all regions
+	regionalMapping := map[string]string{
+		"ap-": "ap-south-1",
+		"eu-": "eu-central-1",
+		"cn-": "cn-northwest-1",
+	}
+
+	for prefix, pricingRegion := range regionalMapping {
+		if strings.HasPrefix(cfgRegion, prefix) {
+			return pricingRegion
+		}
+	}
+
+	// Default fallback for all other regions (including us-*)
+	return "us-east-1"
 }
 
 func NewDefaultProvider(pricing sdk.PricingAPI, ec2Api sdk.EC2API, region string, isolatedVPC bool) *DefaultProvider {

@@ -133,7 +133,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(iam.NewFromConfig(cfg), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval), cache.New(awscache.ProtectedProfilesTTL, awscache.DefaultCleanupInterval), cfg.Region)
 	pricingProvider := pricing.NewDefaultProvider(
-		pricing.NewAPI(cfg),
+		pricing.NewAPI(cfg, options.FromContext(ctx).PricingRegionOverride),
 		ec2api,
 		cfg.Region,
 		options.FromContext(ctx).IsolatedVPC,

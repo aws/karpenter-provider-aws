@@ -17,9 +17,11 @@ package options
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/awslabs/operatorpkg/serrors"
 	"go.uber.org/multierr"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func (o *Options) Validate() error {
@@ -28,6 +30,7 @@ func (o *Options) Validate() error {
 		o.validateVMMemoryOverheadPercent(),
 		o.validateReservedENIs(),
 		o.validateRequiredFields(),
+		o.validatePricingRegion(),
 	)
 }
 
@@ -63,4 +66,17 @@ func (o *Options) validateRequiredFields() error {
 		return fmt.Errorf("missing field, cluster-name")
 	}
 	return nil
+}
+
+var validPricingRegions = sets.New("ap-south-1", "cn-northwest-1", "eu-central-1", "us-east-1")
+
+func (o *Options) validatePricingRegion() error {
+	if o.PricingRegionOverride == "" || validPricingRegions.Has(o.PricingRegionOverride) {
+		return nil
+	}
+	return fmt.Errorf(
+		"invalid pricing API region override '%s', valid regions are: [%s]",
+		o.PricingRegionOverride,
+		strings.Join(sets.List(validPricingRegions), ", "),
+	)
 }
