@@ -213,7 +213,7 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 		return nil, reconcile.Result{}, fmt.Errorf("generating options, %w", err)
 	}
 	// pass 1 instance type in EnsureAll to only create 1 launch template
-	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes[:1], karpv1.CapacityTypeOnDemand, tags)
+	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes[:1], karpv1.CapacityTypeOnDemand, tags, string(ec2types.TenancyDedicated))
 	if err != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
 			return nil, reconcile.Result{Requeue: true}, nil
