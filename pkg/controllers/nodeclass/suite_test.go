@@ -74,7 +74,18 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider)
+})
 
+var _ = AfterSuite(func() {
+	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
+})
+
+var _ = BeforeEach(func() {
+	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
+	nodeClass = test.EC2NodeClass()
+	awsEnv.Reset()
+	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	controller = nodeclass.NewController(
 		awsEnv.Clock,
 		env.Client,
@@ -92,19 +103,8 @@ var _ = BeforeSuite(func() {
 		awsEnv.ValidationCache,
 		awsEnv.RecreationCache,
 		awsEnv.AMIResolver,
+		options.FromContext(ctx).DisableDryRun,
 	)
-})
-
-var _ = AfterSuite(func() {
-	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
-})
-
-var _ = BeforeEach(func() {
-	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
-	nodeClass = test.EC2NodeClass()
-	awsEnv.Reset()
-	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
-	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 })
 
 var _ = AfterEach(func() {

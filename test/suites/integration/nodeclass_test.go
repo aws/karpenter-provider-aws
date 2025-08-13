@@ -109,4 +109,51 @@ var _ = Describe("NodeClass IAM Permissions", func() {
 			g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 	})
+	It("should succeed EC2NodeClass validation when dry run validation is disabled", func() {
+		// create a policy that blocks validation calls
+		policyDoc := `{
+			"Version": "2012-10-17",
+			"Statement": [
+				{
+					"Effect": "Deny",
+					"Action": ["ec2:CreateFleet", "ec2:CreateLaunchTemplate", "ec2:RunInstances"],
+					"Resource": "*"
+				}
+			]
+		}`
+		deployment := &appsv1.Deployment{}
+		Expect(env.Client.Get(env.Context, types.NamespacedName{
+			Namespace: "kube-system",
+			Name:      "karpenter",
+		}, deployment)).To(Succeed())
+
+		sa := &corev1.ServiceAccount{}
+		Expect(env.Client.Get(env.Context, types.NamespacedName{
+			Namespace: "kube-system",
+			Name:      deployment.Spec.Template.Spec.ServiceAccountName,
+		}, sa)).To(Succeed())
+
+		roleName = strings.Split(sa.Annotations["eks.amazonaws.com/role-arn"], "/")[1]
+		policyName = fmt.Sprintf("TestPolicy-%s", uuid.New().String())
+
+		_, err := env.IAMAPI.PutRolePolicy(env.Context, &iam.PutRolePolicyInput{
+			RoleName:       aws.String(roleName),
+			PolicyName:     aws.String(policyName),
+			PolicyDocument: aws.String(policyDoc),
+		})
+		Expect(err).To(BeNil())
+		DeferCleanup(func() {
+			_, err := env.IAMAPI.DeleteRolePolicy(env.Context, &iam.DeleteRolePolicyInput{
+				RoleName:   aws.String(roleName),
+				PolicyName: aws.String(policyName),
+			})
+			Expect(err).To(BeNil())
+		})
+		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "DISABLE_DRY_RUN", Value: "true"})
+		env.ExpectCreated(nodeClass)
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
+			g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		}).Should(Succeed())
+	})
 })
