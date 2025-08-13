@@ -27,12 +27,15 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/events"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -46,7 +49,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 	Context("Preconditions", func() {
 		var reconciler *nodeclass.Validation
 		BeforeEach(func() {
-			reconciler = nodeclass.NewValidationReconciler(env.Client, cloudProvider, awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache)
+			reconciler = nodeclass.NewValidationReconciler(env.Client, cloudProvider, awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache, options.FromContext(ctx).DisableDryRun)
 			for _, cond := range []string{
 				v1.ConditionTypeAMIsReady,
 				v1.ConditionTypeInstanceProfileReady,
@@ -305,5 +308,37 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		ExpectNotFound(ctx, env.Client, nodeClass)
 		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
+	})
+	It("should pass validation when the validation controller is disabled", func() {
+		controller = nodeclass.NewController(
+			awsEnv.Clock,
+			env.Client,
+			cloudProvider,
+			events.NewRecorder(&record.FakeRecorder{}),
+			fake.DefaultRegion,
+			awsEnv.SubnetProvider,
+			awsEnv.SecurityGroupProvider,
+			awsEnv.AMIProvider,
+			awsEnv.InstanceProfileProvider,
+			awsEnv.InstanceTypesProvider,
+			awsEnv.LaunchTemplateProvider,
+			awsEnv.CapacityReservationProvider,
+			awsEnv.EC2API,
+			awsEnv.ValidationCache,
+			awsEnv.RecreationCache,
+			awsEnv.AMIResolver,
+			true,
+		)
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
+		// The cache still has an entry so we don't revalidate tags
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(1))
+		// We shouldn't make any new calls when validation is disabled
+		Expect(awsEnv.EC2API.CreateFleetBehavior.Calls()).To(Equal(0))
+		Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.Calls()).To(Equal(0))
+		Expect(awsEnv.EC2API.RunInstancesBehavior.Calls()).To(Equal(0))
 	})
 })
