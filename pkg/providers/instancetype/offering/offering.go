@@ -175,7 +175,7 @@ func (p *DefaultProvider) createOfferings(
 				scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpIn, string(reservation.ReservationType)),
 			),
 			Price:               price,
-			Available:           reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone),
+			Available:           reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring,
 			ReservationCapacity: reservationCapacity,
 		}
 		if id, ok := subnetZonesToZoneIDs[reservation.AvailabilityZone]; ok {
