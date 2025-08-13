@@ -109,7 +109,7 @@ var _ = Describe("NodeClass IAM Permissions", func() {
 			g.Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 	})
-	It("should bypass and succeed EC2NodeClass validation when AWS validation is disabled", func() {
+	It("should succeed EC2NodeClass validation when dry run validation is disabled", func() {
 		// create a policy that blocks validation calls
 		policyDoc := `{
 			"Version": "2012-10-17",
@@ -149,7 +149,7 @@ var _ = Describe("NodeClass IAM Permissions", func() {
 			})
 			Expect(err).To(BeNil())
 		})
-		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "DISABLE_AWS_VALIDATION", Value: "true"})
+		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "DISABLE_DRY_RUN", Value: "true"})
 		env.ExpectCreated(nodeClass)
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())

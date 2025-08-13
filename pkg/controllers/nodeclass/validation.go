@@ -53,7 +53,7 @@ const (
 	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
 	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
 	ConditionReasonTagValidationFailed            = "TagValidationFailed"
-	ConditionReasonAuthValidationBypassed         = "AuthValidationBypassed"
+	ConditionReasonDryRunDisabled                 = "DryRunDisabled"
 )
 
 var ValidationConditionMessages = map[string]string{
@@ -70,7 +70,7 @@ type Validation struct {
 	instanceTypeProvider   instancetype.Provider
 	launchTemplateProvider launchtemplate.Provider
 	cache                  *cache.Cache
-	authValidationDisabled bool
+	dryRunDisabled         bool
 }
 
 func NewValidationReconciler(
@@ -81,7 +81,7 @@ func NewValidationReconciler(
 	instanceTypeProvider instancetype.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	cache *cache.Cache,
-	authValidationDisabled bool,
+	dryRunDisabled bool,
 ) *Validation {
 	return &Validation{
 		kubeClient:             kubeClient,
@@ -91,7 +91,7 @@ func NewValidationReconciler(
 		instanceTypeProvider:   instanceTypeProvider,
 		launchTemplateProvider: launchTemplateProvider,
 		cache:                  cache,
-		authValidationDisabled: authValidationDisabled,
+		dryRunDisabled:         dryRunDisabled,
 	}
 }
 
@@ -148,11 +148,11 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, nil
 	}
 
-	if v.authValidationDisabled {
+	if v.dryRunDisabled {
 		nodeClass.StatusConditions().SetTrueWithReason(
 			v1.ConditionTypeValidationSucceeded,
-			ConditionReasonAuthValidationBypassed,
-			"Auth validation is disabled",
+			ConditionReasonDryRunDisabled,
+			"Dry run is disabled",
 		)
 		v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
 		return reconcile.Result{}, nil
