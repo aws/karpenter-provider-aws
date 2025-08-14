@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	"sigs.k8s.io/karpenter/pkg/test"
 	"sigs.k8s.io/karpenter/pkg/utils/pod"
 
@@ -63,6 +64,7 @@ var (
 		&karpv1.NodeClaim{},
 		&v1.EC2NodeClass{},
 		&v1beta1.SecurityGroupPolicy{},
+		&v1alpha1.NodeOverlay{},
 	}
 )
 
@@ -93,7 +95,7 @@ func (env *Environment) ExpectCleanCluster() {
 		Expect(pods.Items[i].Namespace).ToNot(Equal("default"),
 			fmt.Sprintf("expected no pods in the `default` namespace, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
 	}
-	for _, obj := range []client.Object{&karpv1.NodePool{}, &v1.EC2NodeClass{}} {
+	for _, obj := range []client.Object{&karpv1.NodePool{}, &v1.EC2NodeClass{}, &v1alpha1.NodeOverlay{}} {
 		metaList := &metav1.PartialObjectMetadataList{}
 		gvk := lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme()))
 		metaList.SetGroupVersionKind(gvk)
