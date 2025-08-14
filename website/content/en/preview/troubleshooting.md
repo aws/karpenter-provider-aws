@@ -110,6 +110,19 @@ kubectl annotate crd ec2nodeclasses.karpenter.k8s.aws nodepools.karpenter.sh nod
 kubectl annotate crd ec2nodeclasses.karpenter.k8s.aws nodepools.karpenter.sh nodeclaims.karpenter.sh meta.helm.sh/release-namespace="${KARPENTER_NAMESPACE}" --overwrite
 ```
 
+## Upgrade
+
+### Karpenter upgrade impairs cascade deletion of Kubernetes resources
+
+This error happens because of an upgrade between API versions of the Karpenter CRD (e.j. v1beta1 to v1). This issue can lead to child pods not being deleted when deleting the owner resource. For example, the deletion of a deployment does not delete the child pods afterwards.
+The kube-controller-manager logs will show the following message:
+
+```text
+conversion webhook for karpenter.k8s.aws/v1beta1, Kind=EC2NodeClass failed: Post "https://karpenter.kube-system.svc:8443/conversion/karpenter.k8s.aws?timeout=30s": no endpoints available for service "karpenter"
+```
+
+To fix the issue, delete all Karpenter CRDs from the cluster and perform a clean install of Karpenter. Make sure to backup any NodePool and NodeClass objects in the cluster. Follow the [Karpenter upgrade guide](https://karpenter.sh/docs/upgrading/upgrade-guide/) to avoid this from happening.
+
 ## Uninstallation
 
 ### Unable to delete nodes after uninstalling Karpenter
