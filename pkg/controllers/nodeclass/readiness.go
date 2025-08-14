@@ -18,8 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/operatorpkg/status"
-
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -43,9 +41,10 @@ func (n Readiness) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (r
 	// will not be done at startup but instead in a reconcile loop.
 	if nodeClass.AMIFamily() == v1.AMIFamilyAL2023 {
 		if err := n.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
-			nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to detect the cluster CIDR")
+			nodeClass.StatusConditions().SetFalse(v1.ConditionTypeClusterCIDRReady, "ClusterCIDRNotResolved", "Failed to detect the cluster CIDR")
 			return reconcile.Result{}, fmt.Errorf("failed to detect the cluster CIDR, %w", err)
 		}
 	}
+    nodeClass.StatusConditions().SetTrue(v1.ConditionTypeClusterCIDRReady)
 	return reconcile.Result{}, nil
 }

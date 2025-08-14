@@ -55,6 +55,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				v1.ConditionTypeInstanceProfileReady,
 				v1.ConditionTypeSecurityGroupsReady,
 				v1.ConditionTypeSubnetsReady,
+				v1.ConditionTypeClusterCIDRReady,
 			} {
 				nodeClass.StatusConditions().SetTrue(cond)
 			}
@@ -72,6 +73,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Entry(v1.ConditionTypeInstanceProfileReady, v1.ConditionTypeInstanceProfileReady),
 			Entry(v1.ConditionTypeSecurityGroupsReady, v1.ConditionTypeSecurityGroupsReady),
 			Entry(v1.ConditionTypeSubnetsReady, v1.ConditionTypeSubnetsReady),
+			Entry(v1.ConditionTypeClusterCIDRReady, v1.ConditionTypeClusterCIDRReady),
 		)
 		DescribeTable(
 			"should set validated status condition to unknown when no required condition is false and any are unknown",
@@ -86,6 +88,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Entry(v1.ConditionTypeInstanceProfileReady, v1.ConditionTypeInstanceProfileReady),
 			Entry(v1.ConditionTypeSecurityGroupsReady, v1.ConditionTypeSecurityGroupsReady),
 			Entry(v1.ConditionTypeSubnetsReady, v1.ConditionTypeSubnetsReady),
+			Entry(v1.ConditionTypeClusterCIDRReady, v1.ConditionTypeClusterCIDRReady),
 		)
 	})
 	Context("Tag Validation", func() {
