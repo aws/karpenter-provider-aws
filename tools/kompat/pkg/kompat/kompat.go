@@ -241,8 +241,8 @@ func (k List) Markdown(opts ...Options) string {
 				data[i] = append(data[i], app.Name)
 				continue
 			}
-			allAppVersions := lo.Uniq(lo.Flatten(lo.Values(k8sVersionToAppVersions)))
-			data[i] = append(data[i], semverRange(k8sVersionToAppVersions[k8sVersion], allAppVersions...))
+
+			data[i] = append(data[i], semverRange(k8sVersionToAppVersions[k8sVersion]))
 		}
 	}
 	table.SetHeader(headers)
@@ -350,10 +350,13 @@ func readFromFile(file string) ([]byte, error) {
 	return contents, nil
 }
 
-// semverRange will sort the versions and output in a pretty range string in the format of "1.21 - 1.27"
-// if allSemvers is passed, then semverRange will check if the max version is equal to the max in allSemvers
-// if it is then you can get prettier strings like "1.21+"
-func semverRange(semvers []string, allSemvers ...string) string {
+// semverRange will sort the versions and output in a pretty range string in the format of "\>= minVersion \<= maxVersion"
+// Sample output:
+//
+// | KUBERNETES |       1.30       |       1.31        |      1.32       | ... |
+// |------------|------------------|-------------------|-----------------| ... |
+// | karpenter  | \>= 0.37 \<= 1.4 | \>= 1.0.5 \<= 1.4 | \>= 1.2 \<= 1.4 | ... |
+func semverRange(semvers []string) string {
 	if len(semvers) == 0 {
 		return ""
 	}
@@ -361,13 +364,6 @@ func semverRange(semvers []string, allSemvers ...string) string {
 		return semvers[0]
 	}
 	sortSemvers(semvers)
-	if len(allSemvers) != 0 {
-		allSems := allSemvers
-		sortSemvers(allSems)
-		if allSems[len(allSems)-1] == semvers[len(semvers)-1] {
-			return fmt.Sprintf("\\>= %s", strings.ReplaceAll(semvers[0], ".x", ""))
-		}
-	}
 	return fmt.Sprintf("\\>= %s \\<= %s", strings.ReplaceAll(semvers[0], ".x", ""), strings.ReplaceAll(semvers[len(semvers)-1], ".x", ""))
 }
 
