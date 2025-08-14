@@ -153,6 +153,7 @@ You should still review the upgrade procedure; the sequence of operations remain
     ```bash
     export AWS_PARTITION="aws" # if you are not using standard partitions, you may need to configure to aws-cn / aws-us-gov
     export CLUSTER_NAME="${USER}-karpenter-demo"
+    export QUEUE_NAME="${CLUSTER_NAME}-karpenter-interruption"
     export AWS_REGION="us-west-2"
     export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
     export KARPENTER_NAMESPACE=kube-system
@@ -190,7 +191,7 @@ You should still review the upgrade procedure; the sequence of operations remain
     helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
       --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
       --set settings.clusterName=${CLUSTER_NAME} \
-      --set settings.interruptionQueue=${CLUSTER_NAME} \
+      --set settings.interruptionQueue=${QUEUE_NAME} \
       --set controller.resources.requests.cpu=1 \
       --set controller.resources.requests.memory=1Gi \
       --set controller.resources.limits.cpu=1 \
@@ -287,7 +288,7 @@ You should still review the upgrade procedure; the sequence of operations remain
     helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
       --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
       --set settings.clusterName=${CLUSTER_NAME} \
-      --set settings.interruptionQueue=${CLUSTER_NAME} \
+      --set settings.interruptionQueue=${QUEUE_NAME} \
       --set controller.resources.requests.cpu=1 \
       --set controller.resources.requests.memory=1Gi \
       --set controller.resources.limits.cpu=1 \
@@ -400,7 +401,7 @@ For example: `kubectl get nodepool.v1beta1.karpenter.sh`.
    helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
      --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
      --set settings.clusterName=${CLUSTER_NAME} \
-     --set settings.interruptionQueue=${CLUSTER_NAME} \
+     --set settings.interruptionQueue=${QUEUE_NAME} \
      --set controller.resources.requests.cpu=1 \
      --set controller.resources.requests.memory=1Gi \
      --set controller.resources.limits.cpu=1 \

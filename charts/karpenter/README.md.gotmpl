@@ -17,7 +17,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
   --version {{ template "chart.version" . }} \
   --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}" \
   --set settings.clusterName=${CLUSTER_NAME} \
-  --set settings.interruptionQueue=${CLUSTER_NAME} \
+  --set settings.interruptionQueue=${QUEUE_NAME} \
   --wait
 ```
 

@@ -1,5 +1,6 @@
 aws eks update-kubeconfig --name "$CLUSTER_NAME"
 
+QUEUE_NAME="${CLUSTER_NAME}-karpenter-interruption"
 CHART="oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter"
 ADDITIONAL_FLAGS=""
 if [[ "$PRIVATE_CLUSTER" == "true" ]]; then
@@ -15,7 +16,7 @@ helm upgrade --install karpenter "${CHART}" \
   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::$ACCOUNT_ID:role/karpenter-irsa-$CLUSTER_NAME" \
   $ADDITIONAL_FLAGS \
   --set settings.clusterName="$CLUSTER_NAME" \
-  --set settings.interruptionQueue="$CLUSTER_NAME" \
+  --set settings.interruptionQueue="$QUEUE_NAME" \
   --set settings.featureGates.spotToSpotConsolidation=true \
   --set settings.featureGates.nodeRepair=true \
   --set settings.featureGates.reservedCapacity=true \
