@@ -96,7 +96,14 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 * Native ODCR support has graduated to beta and is enabled by default.
   If you were previously using open ODCRs with Karpenter and have not already migrated to native ODCR support, review the [native ODCR support guide]({{< relref "../tasks/odcrs" >}}) before upgrading.
 * Support a new configuration option `MinValuesPolicy` which controls how the Karpenter scheduler treats min values. Options include 'Strict' (fails scheduling when min values can't be met) and 'BestEffort' (relaxes min values when they can't be met). Default is 'Strict' to preserve existing behavior.
-
+* Instance profile path changes:
+  - Karpenter now creates instance profiles with a specific path structure `/karpenter/{region}/{cluster-name}/{nodeclass-uid}/` instead of the generic root path `/`
+  - This change helps with better organization and management of instance profiles
+  - No action is required for existing instance profiles, but new ones will use this path structure
+* Additional IAM permissions required:
+  - The following new IAM permissions are required for the Karpenter controller role:
+    - `iam:ListInstanceProfiles`: Required for managing instance profiles
+    - `iam:GetRole`: Required for validating roles exist before creating instance profiles
 
 Full Changelog:
 * https://github.com/aws/karpenter-provider-aws/releases/tag/v1.6.0

@@ -22,9 +22,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/awslabs/operatorpkg/serrors"
-	"github.com/patrickmn/go-cache"
+	cache "github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -32,24 +35,41 @@ import (
 
 type Provider interface {
 	Get(context.Context, string) (*iamtypes.InstanceProfile, error)
-	Create(context.Context, string, string, map[string]string) error
+	Create(context.Context, string, string, map[string]string, string) error
 	Delete(context.Context, string) error
+	ListClusterProfiles(context.Context) ([]*iamtypes.InstanceProfile, error)
+	ListNodeClassProfiles(context.Context, *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error)
+	IsProtected(string) bool
+	SetProtectedState(string, bool)
 }
 
 type DefaultProvider struct {
-	iamapi sdk.IAMAPI
-	cache  *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
+	iamapi            sdk.IAMAPI
+	cache             *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
+	protectedProfiles *cache.Cache // Cache to account for eventual consistency delays when garbage collecting
+	region            string
 }
 
-func NewDefaultProvider(iamapi sdk.IAMAPI, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(iamapi sdk.IAMAPI, cache *cache.Cache, protectedProfiles *cache.Cache, region string) *DefaultProvider {
 	return &DefaultProvider{
-		iamapi: iamapi,
-		cache:  cache,
+		iamapi:            iamapi,
+		cache:             cache,
+		protectedProfiles: protectedProfiles,
+		region:            region,
 	}
 }
 
+func getProfileCacheKey(profileName string) string {
+	return "instance-profile:" + profileName
+}
+
+func getRoleCacheKey(roleName string) string {
+	return "role:" + roleName
+}
+
 func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
-	if instanceProfile, ok := p.cache.Get(instanceProfileName); ok {
+	profileCacheKey := getProfileCacheKey(instanceProfileName)
+	if instanceProfile, ok := p.cache.Get(profileCacheKey); ok {
 		return instanceProfile.(*iamtypes.InstanceProfile), nil
 	}
 	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
@@ -58,11 +78,22 @@ func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (
 	if err != nil {
 		return nil, err
 	}
-	p.cache.SetDefault(instanceProfileName, out.InstanceProfile)
+	p.cache.SetDefault(profileCacheKey, out.InstanceProfile)
 	return out.InstanceProfile, nil
 }
 
-func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string, roleName string, tags map[string]string) error {
+func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string, roleName string, tags map[string]string, nodeClassUID string) error {
+	profileCacheKey := getProfileCacheKey(instanceProfileName)
+	roleCacheKey := getRoleCacheKey(roleName)
+	if _, ok := p.cache.Get(roleCacheKey); !ok {
+		out, err := p.iamapi.GetRole(ctx, &iam.GetRoleInput{
+			RoleName: lo.ToPtr(roleName),
+		})
+		if err != nil {
+			return serrors.Wrap(fmt.Errorf("role does not exist, %w", err), "role", roleName)
+		}
+		p.cache.SetDefault(roleCacheKey, out.Role)
+	}
 	instanceProfile, err := p.Get(ctx, instanceProfileName)
 	if err != nil {
 		if !awserrors.IsNotFound(err) {
@@ -71,10 +102,12 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 		o, err := p.iamapi.CreateInstanceProfile(ctx, &iam.CreateInstanceProfileInput{
 			InstanceProfileName: lo.ToPtr(instanceProfileName),
 			Tags:                utils.IAMMergeTags(tags),
+			Path:                lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, nodeClassUID)),
 		})
 		if err != nil {
 			return serrors.Wrap(fmt.Errorf("creating instance profile, %w", err), "instance-profile", instanceProfileName)
 		}
+
 		instanceProfile = o.InstanceProfile
 	}
 	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
@@ -102,11 +135,12 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 	instanceProfile.Roles = []iamtypes.Role{{
 		RoleName: lo.ToPtr(roleName),
 	}}
-	p.cache.SetDefault(instanceProfileName, instanceProfile)
+	p.cache.SetDefault(profileCacheKey, instanceProfile)
 	return nil
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string) error {
+	profileCacheKey := getProfileCacheKey(instanceProfileName)
 	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
 		InstanceProfileName: lo.ToPtr(instanceProfileName),
 	})
@@ -128,6 +162,56 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 	}); err != nil {
 		return awserrors.IgnoreNotFound(serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", instanceProfileName))
 	}
-	p.cache.Delete(instanceProfileName)
+	p.cache.Delete(profileCacheKey)
+	p.SetProtectedState(instanceProfileName, false)
 	return nil
+}
+
+func (p *DefaultProvider) ListClusterProfiles(ctx context.Context) ([]*iamtypes.InstanceProfile, error) {
+	input := &iam.ListInstanceProfilesInput{
+		PathPrefix: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/", p.region, options.FromContext(ctx).ClusterName)),
+	}
+
+	paginator := iam.NewListInstanceProfilesPaginator(p.iamapi, input)
+
+	var profiles []*iamtypes.InstanceProfile
+	for paginator.HasMorePages() {
+		out, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("listing instance profiles, %w", err)
+		}
+		profiles = append(profiles, lo.ToSlicePtr(out.InstanceProfiles)...)
+	}
+	return profiles, nil
+}
+
+func (p *DefaultProvider) ListNodeClassProfiles(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error) {
+	input := &iam.ListInstanceProfilesInput{
+		PathPrefix: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))),
+	}
+
+	paginator := iam.NewListInstanceProfilesPaginator(p.iamapi, input)
+
+	var profiles []*iamtypes.InstanceProfile
+	for paginator.HasMorePages() {
+		out, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("listing instance profiles, %w", err)
+		}
+		profiles = append(profiles, lo.ToSlicePtr(out.InstanceProfiles)...)
+	}
+	return profiles, nil
+}
+
+func (p *DefaultProvider) IsProtected(profileName string) bool {
+	_, exists := p.protectedProfiles.Get(profileName)
+	return exists
+}
+
+func (p *DefaultProvider) SetProtectedState(profileName string, protected bool) {
+	if !protected {
+		p.protectedProfiles.Delete(profileName)
+	} else {
+		p.protectedProfiles.SetDefault(profileName, struct{}{})
+	}
 }

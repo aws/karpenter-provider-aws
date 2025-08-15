@@ -2894,6 +2894,62 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 		wg.Wait()
 	})
+	Context("Capacity Blocks", func() {
+		const crInstanceType = "c6g.large"
+		const crZone = "test-zone-1a"
+		const crID = "cr-123"
+		const crCapacity = 1
+		BeforeEach(func() {
+			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(crID, crCapacity)
+			nodeClass.Status.CapacityReservations = []v1.CapacityReservation{{
+				AvailabilityZone: crZone,
+				ID:               crID,
+				InstanceType:     crInstanceType,
+				ReservationType:  v1.CapacityReservationTypeCapacityBlock,
+			}}
+		})
+		DescribeTable(
+			"should create an offering for a capacity block",
+			func(state v1.CapacityReservationState) {
+				nodeClass.Status.CapacityReservations[0].State = state
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+
+				var instanceType *corecloudprovider.InstanceType
+				for _, it := range instanceTypes {
+					if it.Name == crInstanceType {
+						instanceType = it
+						break
+					}
+				}
+				Expect(instanceType).ToNot(BeNil())
+
+				var offering *corecloudprovider.Offering
+				for _, o := range instanceType.Offerings {
+					if o.CapacityType() == karpv1.CapacityTypeReserved {
+						if offering != nil {
+							Fail("only a single reserved offering should exist")
+						}
+						offering = o
+					}
+				}
+				Expect(offering).ToNot(BeNil())
+
+				Expect(offering.Requirements.Has(karpv1.CapacityTypeLabelKey)).To(BeTrue())
+				Expect(offering.Requirements.Get(karpv1.CapacityTypeLabelKey).Any()).To(Equal(karpv1.CapacityTypeReserved))
+				Expect(offering.Requirements.Has(corev1.LabelTopologyZone)).To(BeTrue())
+				Expect(offering.Requirements.Get(corev1.LabelTopologyZone).Any()).To(Equal(crZone))
+				Expect(offering.Requirements.Has(v1.LabelCapacityReservationType)).To(BeTrue())
+				Expect(offering.Requirements.Get(v1.LabelCapacityReservationType).Any()).To(Equal(string(v1.CapacityReservationTypeCapacityBlock)))
+				Expect(offering.Requirements.Has(v1.LabelCapacityReservationID)).To(BeTrue())
+				Expect(offering.Requirements.Get(v1.LabelCapacityReservationID).Any()).To(Equal(crID))
+				Expect(offering.Available).To(Equal(state != v1.CapacityReservationStateExpiring))
+				Expect(offering.ReservationCapacity).To(Equal(crCapacity))
+			},
+			Entry("when the capacity block is active", v1.CapacityReservationStateActive),
+			Entry("when the capacity block is expiring", v1.CapacityReservationStateExpiring),
+		)
+	})
 })
 
 func ExpectSameInstanceTypeLists(instanceTypesLists ...[]*corecloudprovider.InstanceType) {
