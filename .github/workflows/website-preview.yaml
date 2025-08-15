@@ -56,16 +56,36 @@ jobs:
           PR_COMMIT: ${{ env.PR_COMMIT }}
         with:
           script: |
-            github.rest.issues.createComment({
-              issue_number: process.env.PR_NUMBER,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `**Preview deployment ready!**
+            const commentBody = `**Preview deployment ready!**
             
             **Preview URL:** ${process.env.PREVIEW_URL}
             
-            Built from commit \`${process.env.PR_COMMIT}\``
-            })
+            Built from commit \`${process.env.PR_COMMIT}\``;
+            
+            const existingComment = (await github.rest.issues.listComments({
+              issue_number: process.env.PR_NUMBER,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            })).data.find(comment => 
+              comment.user.login === 'github-actions[bot]' && 
+              comment.body.includes('**Preview deployment ready!**')
+            );
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                comment_id: existingComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: process.env.PR_NUMBER,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+            }
       - if: always()
         uses: ./.github/actions/commit-status/end
         with:
