@@ -85,9 +85,6 @@ spec:
     - id: sg-063d7acfb4b06c82c
 
   # Optional, IAM role to use for the node identity.
-  # The "role" field is immutable after EC2NodeClass creation. This may change in the
-  # future, but this restriction is currently in place today to ensure that Karpenter
-  # avoids leaking managed instance profiles in your account.
   # Must specify one of "role" or "instanceProfile" for Karpenter to launch nodes
   role: "KarpenterNodeRole-${CLUSTER_NAME}"
 
@@ -707,6 +704,10 @@ You can provision and assign a role to an IAM instance profile using [CloudForma
 
 For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html) that do not have access to the public internet, using `spec.instanceProfile` is required. `spec.role` cannot be used since Karpenter needs to access IAM endpoints to manage a generated instance profile. IAM [doesn't support private endpoints](https://docs.aws.amazon.com/vpc/latest/privatelink/aws-services-privatelink-support.html) to enable accessing the service without going to the public internet.
 
+{{% /alert %}}
+
+{{% alert title="Warning" color="warning" %}}
+When using `spec.instanceProfile`, ensure you are using pre-provisioned instance profiles that you manage yourself.
 {{% /alert %}}
 
 ## spec.amiSelectorTerms

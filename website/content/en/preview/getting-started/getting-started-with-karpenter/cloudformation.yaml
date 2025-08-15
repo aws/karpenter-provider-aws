@@ -286,6 +286,18 @@ Resources:
               "Action": "iam:GetInstanceProfile"
             },
             {
+              "Sid": "AllowRoleActions",
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*",
+              "Action": "iam:GetRole"
+            },
+            {
+              "Sid": "AllowUnscopedInstanceProfileListAction",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": "iam:ListInstanceProfiles"
+            },
+            {
               "Sid": "AllowAPIServerEndpointDiscovery",
               "Effect": "Allow",
               "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",

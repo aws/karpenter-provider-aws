@@ -19,6 +19,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -77,13 +78,9 @@ type EC2NodeClassSpec struct {
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
 	// +optional
 	UserData *string `json:"userData,omitempty"`
-	// Role is the AWS identity that nodes use. This field is immutable.
+	// Role is the AWS identity that nodes use.
 	// This field is mutually exclusive from instanceProfile.
-	// Marking this field as immutable avoids concerns around terminating managed instance profiles from running instances.
-	// This field may be made mutable in the future, assuming the correct garbage collection and drift handling is implemented
-	// for the old instance profiles on an update.
 	// +kubebuilder:validation:XValidation:rule="self != ''",message="role cannot be empty"
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="immutable field changed"
 	// +optional
 	Role string `json:"role,omitempty"`
 	// InstanceProfile is the AWS entity that instances use.
@@ -466,7 +463,6 @@ type EC2NodeClass struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +kubebuilder:validation:XValidation:message="must specify exactly one of ['role', 'instanceProfile']",rule="(has(self.role) && !has(self.instanceProfile)) || (!has(self.role) && has(self.instanceProfile))"
-	// +kubebuilder:validation:XValidation:message="changing from 'instanceProfile' to 'role' is not supported. You must delete and recreate this node class if you want to change this.",rule="(has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))"
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'AL2' or 'Custom' when using an AL2 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'al2') ? (self.amiFamily == 'Custom' || self.amiFamily == 'AL2') : true)"
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'AL2023' or 'Custom' when using an AL2023 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'al2023') ? (self.amiFamily == 'Custom' || self.amiFamily == 'AL2023') : true)"
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Bottlerocket' or 'Custom' when using a Bottlerocket alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'bottlerocket') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Bottlerocket') : true)"
@@ -497,8 +493,12 @@ func (in *EC2NodeClass) Hash() string {
 	})))
 }
 
-func (in *EC2NodeClass) InstanceProfileName(clusterName, region string) string {
+func (in *EC2NodeClass) LegacyInstanceProfileName(clusterName, region string) string {
 	return fmt.Sprintf("%s_%d", clusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", region, in.Name), hashstructure.FormatV2, nil)))
+}
+
+func (in *EC2NodeClass) InstanceProfileName(clusterName, region string) string {
+	return fmt.Sprintf("%s_%d", clusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s%s", region, in.Name, uuid.New().String()), hashstructure.FormatV2, nil)))
 }
 
 func (in *EC2NodeClass) InstanceProfileRole() string {

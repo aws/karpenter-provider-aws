@@ -26,13 +26,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+
 	"github.com/aws/aws-sdk-go-v2/service/fis"
 	fistypes "github.com/aws/aws-sdk-go-v2/service/fis/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-	"github.com/mitchellh/hashstructure/v2"
+
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,7 +42,6 @@ import (
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
@@ -140,10 +141,17 @@ func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string
 	return instanceProfile
 }
 
-// GetInstanceProfileName gets the string for the profile name based on the cluster name, region and the NodeClass name.
-// The length of this string can never exceed the maximum instance profile name limit of 128 characters.
-func (env *Environment) GetInstanceProfileName(nodeClass *v1.EC2NodeClass) string {
-	return fmt.Sprintf("%s_%d", env.ClusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", env.Region, nodeClass.Name), hashstructure.FormatV2, nil)))
+func (env *Environment) EventuallyExpectInstanceProfilesNotFound(profileNames ...string) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting instance profiles %v to not exist", profileNames))
+	Eventually(func(g Gomega) {
+		for _, profileName := range profileNames {
+			_, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
+				InstanceProfileName: aws.String(profileName),
+			})
+			g.Expect(awserrors.IsNotFound(err)).To(BeTrue())
+		}
+	}).WithTimeout(30 * time.Second).Should(Succeed())
 }
 
 func (env *Environment) GetInstance(nodeName string) ec2types.Instance {
@@ -562,4 +570,112 @@ func ExpectCapacityReservationsCanceled(ctx context.Context, ec2api *ec2.Client,
 		})
 		Expect(err).ToNot(HaveOccurred())
 	}
+}
+
+// Creates a role with the provided name. The appropriate policies and trust policy are configured to ensure nodes with
+// this role may join the cluster. Additionally, an AccessEntry is created for the role to ensure nodes are authorized
+// to join the cluster.
+func (env *Environment) EventuallyExpectNodeRoleCreated(roleName string) {
+	GinkgoHelper()
+	if _, err := env.IAMAPI.GetRole(env.Context, &iam.GetRoleInput{
+		RoleName: aws.String(roleName),
+	}); err == nil {
+		return
+	}
+
+	// Create new role with trust policy
+	trustPolicy := `{
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": {
+                    "Service": "ec2.amazonaws.com"
+                },
+                "Action": "sts:AssumeRole"
+            }
+        ]
+    }`
+
+	// Create new role with same trust policy
+	_, err := env.IAMAPI.CreateRole(env.Context, &iam.CreateRoleInput{
+		RoleName:                 aws.String(roleName),
+		AssumeRolePolicyDocument: aws.String(trustPolicy),
+		Tags: []iamtypes.Tag{
+			{
+				Key:   aws.String(coretest.DiscoveryLabel),
+				Value: aws.String(env.ClusterName),
+			},
+		},
+	})
+	Expect(awserrors.IgnoreAlreadyExists(err)).ToNot(HaveOccurred())
+
+	requiredPolicies := []string{
+		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly",
+		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
+		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+		"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+	}
+
+	// Attach all required policies
+	for _, policyArn := range requiredPolicies {
+		_, err = env.IAMAPI.AttachRolePolicy(env.Context, &iam.AttachRolePolicyInput{
+			RoleName:  aws.String(roleName),
+			PolicyArn: aws.String(policyArn),
+		})
+		Expect(err).ToNot(HaveOccurred())
+	}
+
+	// Verify role exists and has access entry
+	Eventually(func(g Gomega) {
+		// Verify role exists
+		verifyRole, err := env.IAMAPI.GetRole(env.Context, &iam.GetRoleInput{
+			RoleName: aws.String(roleName),
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(verifyRole.Role).ToNot(BeNil())
+	}).Should(Succeed())
+
+	Eventually(func(g Gomega) {
+		_, err = env.EKSAPI.CreateAccessEntry(env.Context, &eks.CreateAccessEntryInput{
+			ClusterName:  aws.String(env.ClusterName),
+			PrincipalArn: aws.String(fmt.Sprintf("arn:aws:iam::%s:role/%s", env.ExpectAccountID(), roleName)),
+			Type:         aws.String("EC2_LINUX"),
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+	}).WithTimeout(30 * time.Second).WithPolling(5 * time.Second).Should(Succeed())
+}
+
+// Deletes a role and cleans up associated resources. This includes removing the EKS access entry that authorizes nodes
+// to join the cluster, detaching standard node policies (container registry, CNI, worker node, and SSM policies), and
+// finally deleting the IAM role itself.
+func (env *Environment) ExpectNodeRoleDeleted(roleName string) {
+	GinkgoHelper()
+
+	_, err := env.EKSAPI.DeleteAccessEntry(env.Context, &eks.DeleteAccessEntryInput{
+		ClusterName:  aws.String(env.ClusterName),
+		PrincipalArn: aws.String(fmt.Sprintf("arn:aws:iam::%s:role/%s", env.ExpectAccountID(), roleName)),
+	})
+	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
+
+	requiredPolicies := []string{
+		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly",
+		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
+		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+		"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+	}
+	// Detach all policies
+	for _, policyArn := range requiredPolicies {
+		_, err = env.IAMAPI.DetachRolePolicy(env.Context, &iam.DetachRolePolicyInput{
+			RoleName:  aws.String(roleName),
+			PolicyArn: &policyArn,
+		})
+		Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
+	}
+
+	// Delete role
+	_, err = env.IAMAPI.DeleteRole(env.Context, &iam.DeleteRoleInput{
+		RoleName: aws.String(roleName),
+	})
+	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
 }
