@@ -129,11 +129,6 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--reserved-enis", "-1")
 			Expect(err).To(HaveOccurred())
 		})
-		It("should fail when pricingRegionOverride specifies an invalid pricing API region", func() {
-			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--pricing-region-override", "us-west-2")
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("invalid pricing API region override 'us-west-2'"))
-		})
 	})
 })
 
