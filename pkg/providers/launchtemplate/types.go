@@ -17,6 +17,7 @@ package launchtemplate
 import (
 	"context"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
@@ -102,14 +103,24 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			Tags:         utils.EC2MergeTags(b.options.Tags),
 		})
 	}
+
+	var instanceProfile *ec2types.LaunchTemplateIamInstanceProfileSpecificationRequest
+	if arn.IsARN(b.options.InstanceProfile) {
+		instanceProfile = &ec2types.LaunchTemplateIamInstanceProfileSpecificationRequest{
+			Arn: lo.ToPtr(b.options.InstanceProfile),
+		}
+	} else {
+		instanceProfile = &ec2types.LaunchTemplateIamInstanceProfileSpecificationRequest{
+			Name: lo.ToPtr(b.options.InstanceProfile),
+		}
+	}
+
 	networkInterfaces := generateNetworkInterfaces(b.options, b.clusterIPFamily)
 	lt := &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: lo.ToPtr(LaunchTemplateName(b.options)),
 		LaunchTemplateData: &ec2types.RequestLaunchTemplateData{
 			BlockDeviceMappings: blockDeviceMappings(b.options.BlockDeviceMappings),
-			IamInstanceProfile: &ec2types.LaunchTemplateIamInstanceProfileSpecificationRequest{
-				Name: lo.ToPtr(b.options.InstanceProfile),
-			},
+			IamInstanceProfile:  instanceProfile,
 			Monitoring: &ec2types.LaunchTemplatesMonitoringRequest{
 				Enabled: lo.ToPtr(b.options.DetailedMonitoring),
 			},
