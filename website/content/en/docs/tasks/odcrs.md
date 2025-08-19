@@ -56,6 +56,11 @@ Additionaly, Karpenter supports the following scheduling labels:
 These labels will only be present on reserved nodes.
 They are supported as NodePool requirements and as pod scheduling constaints (e.g. [node affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity)).
 
+{{% alert title="Warning" color="warning" %}}
+Karpenter does **not** support open matching for ODCRs.
+This means that all ODCRs you wish to utilize, even those with `open` instance eligibility, must be included in your NodeClass' `spec.capacityReservationSelectorTerms`.
+{{% /alert %}}
+
 ## Prioritization Behavior
 
 NodePools are not limited to a single compatible capacity-type -- they can be compatible with any combination of the available capacity-types (`on-demand`, `spot`, and `reserved`).
