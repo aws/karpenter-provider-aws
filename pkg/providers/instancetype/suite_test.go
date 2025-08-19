@@ -651,7 +651,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceCapacityFlex, "true"))
 		Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, MatchRegexp(".*flex.*")))
 	})
-	It("should not launch pod when there is no flex instances", func() {
+	It("should not launch pod when flex instances are disallowed", func() {
 		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 				Key:      v1.LabelInstanceCapacityFlex,
