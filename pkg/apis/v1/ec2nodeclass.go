@@ -296,6 +296,12 @@ type KubeletConfiguration struct {
 	// CPUCFSQuota enables CPU CFS quota enforcement for containers that specify CPU limits.
 	// +optional
 	CPUCFSQuota *bool `json:"cpuCFSQuota,omitempty"`
+	// CPUManagerPolicy is the name of the policy to use.
+	// Default: "None"
+	// +kubebuilder:validation:Enum:={None,Static}
+	// +kubebuilder:default=None
+	// +optional
+	CPUManagerPolicy string `json:"cpuManagerPolicy,omitempty"`
 }
 
 // MetadataOptions contains parameters for specifying the exposure of the
