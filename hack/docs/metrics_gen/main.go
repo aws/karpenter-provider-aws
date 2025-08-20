@@ -45,10 +45,12 @@ var (
 	stableMetrics = []string{"controller_runtime", "aws_sdk_go", "client_go", "leader_election", "interruption", "cluster_state", "workqueue", "karpenter_build_info", "karpenter_nodepool_usage", "karpenter_nodepool_limit",
 		"karpenter_nodeclaims_terminated_total", "karpenter_nodeclaims_created_total", "karpenter_nodes_terminated_total", "karpenter_nodes_created_total", "karpenter_pods_startup_duration_seconds",
 		"karpenter_scheduler_scheduling_duration_seconds", "karpenter_provisioner_scheduling_duration_seconds", "karpenter_nodepool_allowed_disruptions", "karpenter_voluntary_disruption_decisions_total"}
-	betaMetrics = []string{"status_condition", "cloudprovider", "cloudprovider_batcher", "karpenter_nodeclaims_termination_duration_seconds", "karpenter_nodeclaims_instance_termination_duration_seconds",
+	betaMetrics = []string{"status_condition", "ec2nodeclass", "nodeclaim", "node", "nodepool", "cloudprovider", "cloudprovider_batcher", "karpenter_nodeclaims_termination_duration_seconds", "karpenter_nodeclaims_instance_termination_duration_seconds",
 		"karpenter_nodes_total_pod_requests", "karpenter_nodes_total_pod_limits", "karpenter_nodes_total_daemon_requests", "karpenter_nodes_total_daemon_limits", "karpenter_nodes_termination_duration_seconds",
 		"karpenter_nodes_system_overhead", "karpenter_nodes_allocatable", "karpenter_pods_state", "karpenter_scheduler_queue_depth", "karpenter_voluntary_disruption_queue_failures_total",
 		"karpenter_voluntary_disruption_decision_evaluation_duration_seconds", "karpenter_voluntary_disruption_eligible_nodes", "karpenter_voluntary_disruption_consolidation_timeouts_total"}
+	deprecatedMetrics = []string{"operator_status_condition_transitions_total", "operator_status_condition_transition_seconds", "operator_status_condition_current_status_seconds", "operator_status_condition_count",
+		"operator_termination_duration_seconds", "operator_termination_current_time_seconds"}
 )
 
 func (i metricInfo) qualifiedName() string {
@@ -68,6 +70,9 @@ func main() {
 		packages := getPackages(flag.Arg(i))
 		allMetrics = append(allMetrics, getMetricsFromPackages(packages...)...)
 	}
+
+	// Pattern-based synthetic metrics for known conventions
+	allMetrics = addPatternBasedMetrics(allMetrics)
 
 	// Dedupe metrics
 	allMetrics = lo.UniqBy(allMetrics, func(m metricInfo) string {
@@ -112,34 +117,51 @@ description: >
 	fmt.Fprintf(f, "<!-- this document is generated from hack/docs/metrics_gen_docs.go -->\n")
 	fmt.Fprintf(f, "Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. "+
 		"These metrics are available by default at `karpenter.kube-system.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)\n")
-	previousSubsystem := ""
+	previousTitle := ""
 
 	for _, metric := range allMetrics {
-		if metric.subsystem != previousSubsystem {
-			if metric.subsystem != "" {
-				subsystemTitle := strings.Join(lo.Map(strings.Split(metric.subsystem, "_"), func(s string, _ int) string {
+		var subsystemTitle string
+		subsystemMap := map[string]string{
+			"node":       "Nodes",
+			"nodes":      "Nodes",
+			"nodeclaim":  "Nodeclaims",
+			"nodeclaims": "Nodeclaims",
+			"nodepool":   "Nodepools",
+			"nodepools":  "Nodepools",
+		}
+		if metric.subsystem != "" {
+			if val, ok := subsystemMap[metric.subsystem]; ok {
+				subsystemTitle = val
+			} else {
+				subsystemTitle = strings.Join(lo.Map(strings.Split(metric.subsystem, "_"), func(s string, _ int) string {
 					if s == "sdk" || s == "aws" {
 						return strings.ToUpper(s)
 					} else {
 						return fmt.Sprintf("%s%s", strings.ToUpper(s[0:1]), s[1:])
 					}
 				}), " ")
+			}
+			if subsystemTitle != previousTitle {
 				fmt.Fprintf(f, "## %s Metrics\n", subsystemTitle)
 				fmt.Fprintln(f)
+				previousTitle = subsystemTitle
 			}
-			previousSubsystem = metric.subsystem
 		}
-		fmt.Fprintf(f, "### `%s`\n", metric.qualifiedName())
-		fmt.Fprintf(f, "%s\n", metric.help)
-		switch {
-		case slices.Contains(stableMetrics, metric.subsystem) || slices.Contains(stableMetrics, metric.qualifiedName()):
-			fmt.Fprintf(f, "- Stability Level: %s\n", "STABLE")
-		case slices.Contains(betaMetrics, metric.subsystem) || slices.Contains(betaMetrics, metric.qualifiedName()):
-			fmt.Fprintf(f, "- Stability Level: %s\n", "BETA")
-		default:
-			fmt.Fprintf(f, "- Stability Level: %s\n", "ALPHA")
+		if metric.qualifiedName() != "" {
+			fmt.Fprintf(f, "### `%s`\n", metric.qualifiedName())
+			fmt.Fprintf(f, "%s\n", metric.help)
+			switch {
+			case slices.Contains(deprecatedMetrics, metric.subsystem) || slices.Contains(deprecatedMetrics, metric.qualifiedName()):
+				fmt.Fprintf(f, "- Stability Level: %s\n", "DEPRECATED")
+			case slices.Contains(stableMetrics, metric.subsystem) || slices.Contains(stableMetrics, metric.qualifiedName()):
+				fmt.Fprintf(f, "- Stability Level: %s\n", "STABLE")
+			case slices.Contains(betaMetrics, metric.subsystem) || slices.Contains(betaMetrics, metric.qualifiedName()):
+				fmt.Fprintf(f, "- Stability Level: %s\n", "BETA")
+			default:
+				fmt.Fprintf(f, "- Stability Level: %s\n", "ALPHA")
+			}
+			fmt.Fprintln(f)
 		}
-		fmt.Fprintln(f)
 	}
 
 }
@@ -203,8 +225,11 @@ func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
 	subSystemSortOrder := map[string]int{
 		"":                 100,
 		"nodepool":         10,
+		"nodepools":        10,
 		"nodeclaims":       9,
+		"nodeclaim":        9,
 		"nodes":            8,
+		"node":             8,
 		"pods":             7,
 		"status_condition": -1,
 		"workqueue":        -1,
@@ -236,55 +261,65 @@ func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
 				continue
 			}
 			funcPkg := getFuncPackage(ce.Fun)
-			if funcPkg != "prometheus" {
+			if funcPkg != "prometheus" && funcPkg != "opmetrics" {
 				continue
 			}
 			if len(ce.Args) == 0 {
 				continue
 			}
-			arg := ce.Args[0].(*ast.CompositeLit)
-			keyValuePairs := map[string]string{}
-			for _, el := range arg.Elts {
-				kv := el.(*ast.KeyValueExpr)
-				key := fmt.Sprintf("%s", kv.Key)
-				switch key {
-				case "Namespace", "Subsystem", "Name", "Help":
-				default:
-					// skip any keys we don't care about
-					continue
-				}
-				value := ""
-				switch val := kv.Value.(type) {
-				case *ast.BasicLit:
-					value = val.Value
-				case *ast.SelectorExpr:
-					selector := fmt.Sprintf("%s.%s", val.X, val.Sel)
-					if v, err := getIdentMapping(selector); err != nil {
-						log.Fatalf("unsupported selector %s, %s", selector, err)
-					} else {
-						value = v
+
+			// Iterate over all arguments
+			for _, arg := range ce.Args {
+				// Check if the argument is a composite literal
+				if compositeLit, ok := arg.(*ast.CompositeLit); ok {
+					keyValuePairs := map[string]string{}
+					for _, el := range compositeLit.Elts {
+						// Ensure the element is a KeyValueExpr before processing
+						kv, ok := el.(*ast.KeyValueExpr)
+						if !ok {
+							continue // Skip this element if it's not a KeyValueExpr
+						}
+						key := fmt.Sprintf("%s", kv.Key)
+						switch key {
+						case "Namespace", "Subsystem", "Name", "Help":
+						default:
+							// skip any keys we don't care about
+							continue
+						}
+						value := ""
+						switch val := kv.Value.(type) {
+						case *ast.BasicLit:
+							value = val.Value
+						case *ast.SelectorExpr:
+							selector := fmt.Sprintf("%s.%s", val.X, val.Sel)
+							if v, err := getIdentMapping(selector); err != nil {
+								log.Fatalf("unsupported selector %s, %s", selector, err)
+							} else {
+								value = v
+							}
+						case *ast.Ident:
+							if v, err := getIdentMapping(val.String()); err != nil {
+								log.Fatal(err)
+							} else {
+								value = v
+							}
+						case *ast.BinaryExpr:
+							value = getBinaryExpr(val)
+						default:
+							log.Fatalf("unsupported value %T %v", kv.Value, kv.Value)
+						}
+						keyValuePairs[key] = strings.TrimFunc(value, func(r rune) bool {
+							return r == '"'
+						})
 					}
-				case *ast.Ident:
-					if v, err := getIdentMapping(val.String()); err != nil {
-						log.Fatal(err)
-					} else {
-						value = v
-					}
-				case *ast.BinaryExpr:
-					value = getBinaryExpr(val)
-				default:
-					log.Fatalf("unsupported value %T %v", kv.Value, kv.Value)
+					promMetrics = append(promMetrics, metricInfo{
+						namespace: keyValuePairs["Namespace"],
+						subsystem: keyValuePairs["Subsystem"],
+						name:      keyValuePairs["Name"],
+						help:      keyValuePairs["Help"],
+					})
 				}
-				keyValuePairs[key] = strings.TrimFunc(value, func(r rune) bool {
-					return r == '"'
-				})
 			}
-			promMetrics = append(promMetrics, metricInfo{
-				namespace: keyValuePairs["Namespace"],
-				subsystem: keyValuePairs["Subsystem"],
-				name:      keyValuePairs["Name"],
-				help:      keyValuePairs["Help"],
-			})
 		}
 	}
 	return promMetrics
@@ -374,4 +409,103 @@ func getIdentMapping(identName string) (string, error) {
 		return v, nil
 	}
 	return "", serrors.Wrap(fmt.Errorf("no identifier mapping exists"), "identifier", identName)
+}
+
+// addPatternBasedMetrics adds metrics that are generated by convention or at runtime by libraries (such as operatorpkg/status and client-go).
+// Go AST analysis cannot see into the runtime behavior of libraries, so metrics that are created dynamically
+// (for example, status condition metrics from operatorpkg/status) will not be found by static code analysis. This function adds those
+// metrics based on known patterns and conventions used in the codebase, ensuring the documentation is complete.
+func addPatternBasedMetrics(allMetrics []metricInfo) []metricInfo {
+	// 1. operatorpkg/status metrics for CRDs with status.conditions
+	crdKinds := []string{"nodeclaim", "nodepool", "ec2nodeclass", "node"} // Add more as needed
+	for _, kind := range crdKinds {
+		statusMetrics := []struct {
+			name string
+			help string
+		}{
+			{fmt.Sprintf("status_condition_transitions_total"), "The count of transitions of a " + kind + ", type and status."},
+			{fmt.Sprintf("status_condition_transition_seconds"), "The amount of time a condition was in a given state before transitioning."},
+			{fmt.Sprintf("status_condition_current_status_seconds"), "The current amount of time in seconds that a status condition has been in a specific state."},
+			{fmt.Sprintf("status_condition_count"), "The number of a condition for a " + kind + ", type and status."},
+		}
+		for _, m := range statusMetrics {
+			allMetrics = append(allMetrics, metricInfo{
+				namespace: "operator",
+				subsystem: kind,
+				name:      m.name,
+				help:      m.help,
+			})
+		}
+
+		terminationMetrics := []struct {
+			name string
+			help string
+		}{
+			{fmt.Sprintf("termination_current_time_seconds"), "The current amount of time in seconds that a " + kind + " has been in terminating state."},
+			{fmt.Sprintf("termination_duration_seconds"), "The amount of time taken by a " + kind + " to terminate completely."},
+		}
+		for _, m := range terminationMetrics {
+			allMetrics = append(allMetrics, metricInfo{
+				namespace: "operator",
+				subsystem: kind,
+				name:      m.name,
+				help:      m.help,
+			})
+		}
+
+		if kind == "node" {
+			allMetrics = append(allMetrics, metricInfo{
+				namespace: "operator",
+				subsystem: "node",
+				name:      "event_total",
+				help:      "The total number of events of a given type and reason for a node",
+			})
+		}
+	}
+
+	// 2. Deprecated/legacy operator status metrics
+	legacyStatusMetrics := []struct {
+		name string
+		help string
+	}{
+		{"transitions_total", "The count of transitions of a given object, type and status."},
+		{"transition_seconds", "The amount of time a condition was in a given state before transitioning."},
+		{"current_status_seconds", "The current amount of time in seconds that a status condition has been in a specific state."},
+		{"count", "The number of a condition for a given object, type and status."},
+	}
+	for _, m := range legacyStatusMetrics {
+		allMetrics = append(allMetrics, metricInfo{
+			namespace: "operator",
+			subsystem: "status_condition",
+			name:      m.name,
+			help:      m.help,
+		})
+	}
+	legacyTerminationMetrics := []struct {
+		name string
+		help string
+	}{
+		{"duration_seconds", "The amount of time taken by an object to terminate completely."},
+		{"current_time_seconds", "The current amount of time in seconds that an object has been in terminating state."},
+	}
+	for _, m := range legacyTerminationMetrics {
+		allMetrics = append(allMetrics, metricInfo{
+			namespace: "operator",
+			subsystem: "termination",
+			name:      m.name,
+			help:      m.help,
+		})
+	}
+
+	// 3. client-go metrics
+	allMetrics = append(allMetrics, metricInfo{
+		name: "client_go_request_total",
+		help: "Number of HTTP requests, partitioned by status code and method.",
+	})
+	allMetrics = append(allMetrics, metricInfo{
+		name: "client_go_request_duration_seconds",
+		help: "Request latency in seconds. Broken down by verb, group, version, kind, and subresource.",
+	})
+
+	return allMetrics
 }
