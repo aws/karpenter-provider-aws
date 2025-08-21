@@ -32,7 +32,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.6.0 \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v1.6.0 \
+  --certificate-github-workflow-ref=refs/tags/v1.6.2 \
   --annotations version=1.6.0
 ```
 
