@@ -1,0 +1,32 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: high-capacity
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        kind: EC2NodeClass
+        name: default
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: karpenter.k8s.aws/instance-cpu
+          operator: Gt
+          values: ["7"]  # To ensure at least 8 CPU
+        - key: karpenter.k8s.aws/instance-memory
+          operator: Gt
+          values: ["16384"]  # At least 16GB in MB
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]  # Compute, General Purpose, and Memory-optimized
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["5"]

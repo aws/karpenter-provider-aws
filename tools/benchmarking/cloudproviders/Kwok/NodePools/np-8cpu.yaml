@@ -1,0 +1,27 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: high-capacity-kwok
+spec:
+  template:
+    metadata:
+      labels:
+        nodepool-type: high-capacity
+    spec:
+      nodeClassRef:
+        group: karpenter.kwok.sh
+        kind: KWOKNodeClass
+        name: default
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: karpenter.kwok.sh/instance-cpu
+          operator: Gt
+          values: ["7"]  # To ensure at least 8 CPU
+        - key: karpenter.kwok.sh/instance-memory
+          operator: Gt
+          values: ["16384"]  # At least 16GB in MB

@@ -1,0 +1,32 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: arm-2cpu
+spec:
+  disruption:
+    consolidateAfter: 0s
+    consolidationPolicy: WhenEmpty
+    budgets:
+      - nodes: 100%
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.kwok.sh
+        kind: KWOKNodeClass
+        name: default
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["arm64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: karpenter.kwok.sh/instance-cpu
+          operator: Lt
+          values: ["2"]
+        - key: karpenter.kwok.sh/instance-family
+          operator: In
+          values: ["c", "m", "r"]  # Compute, General Purpose, and Memory-optimized

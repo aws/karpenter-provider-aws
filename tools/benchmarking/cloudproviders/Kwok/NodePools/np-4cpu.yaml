@@ -1,0 +1,30 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default-kwok
+spec:
+  template:
+    metadata:
+      labels:
+        nodepool-type: default
+    spec:
+      nodeClassRef:
+        group: karpenter.kwok.sh
+        kind: KWOKNodeClass
+        name: default
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: karpenter.kwok.sh/instance-cpu
+          operator: In
+          values: ["4"]
+        - key: karpenter.kwok.sh/instance-memory
+          operator: Gt
+          values: ["4096"]  # 4GB in MB
+        - key: karpenter.kwok.sh/instance-memory
+          operator: Lt
+          values: ["16384"]  # 16GB in MB
