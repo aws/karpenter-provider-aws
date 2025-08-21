@@ -65,13 +65,14 @@ The following considerations were suggested, but are intentionally excluded from
 
 ## Considered Options
 
-* [Option 1: Introducing `nodeRequirements` field to `amiSelectorTerms`](#introducing-noderequirements-field-to-amiselectorterms)
-* [Option 2: Nesting the AMI selector and node requirements separately](#nesting-the-ami-selector-and-node-requirements-separately)
+* [Option 1: Introducing `nodeRequirements` Field to `amiSelectorTerms`](#introducing-noderequirements-field-to-amiselectorterms)
+* [Option 2: Nesting the AMI Selector and Node Requirements Separately](#nesting-the-ami-selector-and-node-requirements-separately)
 * [Option 3: SSM-Encoded Requirements](#ssm-encoded-requirements)
-* [Option 4: A Combination of 1 and 2](#combination-of-1--2)
-* [Option 5: A Combination of 1, 2, and 3](#combination-of-1-2-and-3)
+* [Option 4: A Combination of 1 and 2](#a-combination-of-1-and-2)
+* [Option 5: A Combination of 1 and 3](#a-combination-of-1-and-3)
+* [Option 6: A Combination of 1, 2, and 3](#a-combination-of-1-2-and-3)
 
-### Introducing `nodeRequirements` field to `amiSelectorTerms`
+### Introducing `nodeRequirements` Field to `amiSelectorTerms`
 
 Enhance the `amiSelectorTerms` API to allow for the explicit definition of scheduling requirements alongside the AMI
 selector itself.
@@ -136,7 +137,7 @@ as specifying `kubernetes.io/arch: amd64` for an arm64 AMI.
       requirements as a field within an `amiSelectorTerm` is consistent with its purpose: to define the **AND**ed
       conditions under which an AMI is valid for use.
 
-### Nesting the AMI selector and node requirements separately
+### Nesting the AMI Selector and Node Requirements Separately
 
 This option proposes introducing a nested structure to separate AMI selection from scheduling constraints.
 
@@ -159,8 +160,8 @@ amiSelectorTerms:
 
 ### SSM-Encoded Requirements
 
-This solution suggests embedding scheduling requirements directly into the SSM Parameter Store metadata associated with
-an AMI.
+This solution suggests embedding scheduling requirements directly into the SSM Parameter Store parameter associated with
+an AMI and/or associating requirements to the parameter with tags.
 
 Given an SSM parameter (e.g. `/my-org/amis/custom-ml-drivers`)
 
@@ -200,16 +201,18 @@ Karpenter would then resolve the AMI ID and the associated requirements from the
 requirements on to the resolver, similar to how it does for alias.
 
 * **Pro**: Consistent with the existing `alias` behavior.
+* **Pro**: Fills a gap in the `DescribeImages` API by allowing AMI publishers to specify arbitrary
+  attributes, outside of just architecture.
 * **Neutral**: Introduces new conventions around SSM parameter format when used as an `amiSelectorTerm`.
-  SSM parameters for well known AMI families (e.g. `bottlerocket`) do not follow this proposed convention.
+  SSM parameters for well known AMI families (e.g. `bottlerocket`) do not currently follow this proposed
+  convention.
 * **Con**: SSM Parameters have a maximum character limit of 2048, which imposes a hard cap on the number and
   complexity of requirements that can be encoded. While this limit is generous and unlikely to be exceeded in typical
   use cases, it may constrain more complex configurations or future extensibility.
-* **Con**: Reduced transparency. Requirements are no longer visible in the `EC2NodeClass` manifest, until after
-  the `status` has been reconciled.
+* **Con**: Limited to requirements provided by SSM parameter owner.
 * **Con**: Not extensible to other `amiSelectorTerms`.
 
-### A Combination of 1 & 2
+### A Combination of 1 and 2
 
 Support `requirements` in the current schema (Option 1), and plan for a future breaking change to adopt a nested
 structure (Option 2) in a new API version.
@@ -218,22 +221,35 @@ structure (Option 2) in a new API version.
 * **Pro**: Provides a migration path to a cleaner long-term model.
 * **Con**: Introduces some semantic ambiguity in the short term.
 
+### A Combination of 1 and 3
+
+Support `requirements` in the current schema (Option 1) and read metadata from SSM parameters (Option 3).
+
+* **Pro**: Immediate value without breaking changes.
+* **Pro**: Allows both Karpenter users and AMI publishers to specify arbitrary attributes.
+* **Con**: Supporting two mechanisms adds implementation and maintenance overhead.
+
 ### A Combination of 1, 2, and 3
 
 Support `requirements` in the current schema (Option 1), plan for a future breaking change to adopt a nested
-structure (Option 2) in a new API version, and read metadata from SSM parameters (option 3).
+structure (Option 2) in a new API version, and read metadata from SSM parameters (Option 3).
 
 * **Pro**: Immediate value without breaking changes.
 * **Pro**: Provides a migration path to a cleaner long-term model.
+* **Pro**: Allows both Karpenter users and AMI publishers to specify arbitrary attributes.
 * **Con**: Introduces some semantic ambiguity in the short term.
 * **Con**: Supporting three mechanisms adds implementation and maintenance overhead.
-* **Con**: Avoiding conflicts across both ways to specify `requirements` will _require_ additional validation logic.
 
-## Recommended Solution: Option 4&mdash;A Combination of 1 & 2
+## Recommended Solution: [Option 5&mdash;A Combination of 1 & 3](#a-combination-of-1-and-3)
 
-This approach delivers immediate value by enabling `requirements` in the current schema, while allowing for a cleaner,
-semantically distinct model in a future Karpenter version. Balancing backwards compatibility with long-term
-maintainability.
+This approach delivers immediate value by enabling `amiSelectorTerm` requirements for Karpenter users in
+the current schema, while allowing for AMI publishers to additionally provider their own arbitrary
+AMI attributes. A breaking change to introduce a more semantically distinct model version can always
+be considered in a future Karpenter version, but is deemed unnecessary today.
+
+To avoid abiguous behavior, in cases where requirements are specified both in an SSM parameter and with
+NodeClass `amiSelectorTerms`, the latter should take precedence. This could be on a per-key basis, or
+the whole set.
 
 ## Appendix
 
@@ -241,4 +257,3 @@ maintainability.
 * [Karpenter "EC2NodeClass" Documentation](https://karpenter.sh/docs/concepts/nodeclasses/#specamiselectorterms)
 * [Related Issue (#8265)](https://github.com/aws/karpenter-provider-aws/issues/8265)
 * [Related RFC](https://github.com/aws/karpenter-provider-aws/blob/v1.6.1/designs/ami-selector.md)
-
