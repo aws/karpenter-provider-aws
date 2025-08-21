@@ -15,6 +15,9 @@ limitations under the License.
 package nodeclass_test
 
 import (
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/awslabs/operatorpkg/status"
@@ -30,6 +33,7 @@ import (
 
 var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() {
 	BeforeEach(func() {
+		awsEnv.EC2API.Reset()
 		nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
 			Spec: v1.EC2NodeClassSpec{
 				SubnetSelectorTerms: []v1.SubnetSelectorTerm{
@@ -52,6 +56,16 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 		})
 		// Cluster CIDR will only be resolved once per lifetime of the launch template provider, reset to nil between tests
 		awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(nil)
+
+		// Mock EC2 Describe Launch Template API calls to ensure Create Fleet validation passes
+		awsEnv.EC2API.DescribeLaunchTemplatesOutput.Set(&ec2.DescribeLaunchTemplatesOutput{
+			LaunchTemplates: []ec2types.LaunchTemplate{
+				{
+					LaunchTemplateName: aws.String("test-lt"),
+					LaunchTemplateId:   aws.String("lt-12345"),
+				},
+			},
+		})
 	})
 	DescribeTable(
 		"shouldn't resolve cluster CIDR for non-AL2023 NodeClasses",
