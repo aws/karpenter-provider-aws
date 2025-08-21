@@ -96,6 +96,7 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 * Native ODCR support has graduated to beta and is enabled by default.
   If you were previously using open ODCRs with Karpenter and have not already migrated to native ODCR support, review the [native ODCR support guide]({{< relref "../tasks/odcrs" >}}) before upgrading.
 * Support a new configuration option `MinValuesPolicy` which controls how the Karpenter scheduler treats min values. Options include 'Strict' (fails scheduling when min values can't be met) and 'BestEffort' (relaxes min values when they can't be met). Default is 'Strict' to preserve existing behavior.
+* Support a new configuration option `DisableDryRun` which disables the dry run calls made during EC2NodeClass validation.
 * Instance profile path changes:
   - Karpenter now creates instance profiles with a specific path structure `/karpenter/{region}/{cluster-name}/{nodeclass-uid}/` instead of the generic root path `/`
   - This change helps with better organization and management of instance profiles
@@ -107,7 +108,7 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 
 Full Changelog:
 * https://github.com/aws/karpenter-provider-aws/releases/tag/v1.6.2
-* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.6.2
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.6.1
 
 ### Upgrading to `1.5.0`+
 
