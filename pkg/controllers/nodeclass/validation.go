@@ -242,8 +242,8 @@ func (v *Validation) validateCreateFleetAuthorization(
 	tags map[string]string,
 	validationCtx *validationContext,
 ) (reason string, requeue bool, err error) {
-	realLaunchTemplateConfig := v.getRealLaunchTemplateConfig(nodeClass, validationCtx.instanceTypes, validationCtx.launchTemplate)
-	createFleetInput := instance.NewCreateFleetInputBuilder(karpv1.CapacityTypeOnDemand, tags, realLaunchTemplateConfig).Build()
+	fleetLaunchTemplateConfig := getFleetLaunchTemplateConfig(nodeClass, validationCtx.instanceTypes, validationCtx.launchTemplate)
+	createFleetInput := instance.NewCreateFleetInputBuilder(karpv1.CapacityTypeOnDemand, tags, fleetLaunchTemplateConfig).Build()
 	createFleetInput.DryRun = lo.ToPtr(true)
 	// Adding NopRetryer to avoid aggressive retry when rate limited
 	if _, err := v.ec2api.CreateFleet(ctx, createFleetInput, func(o *ec2.Options) {
@@ -345,7 +345,7 @@ func (v *Validation) clearCacheEntries(nodeClass *v1.EC2NodeClass) {
 	}
 }
 
-func (v *Validation) getRealLaunchTemplateConfig(
+func getFleetLaunchTemplateConfig(
 	nodeClass *v1.EC2NodeClass,
 	instanceTypes []*cloudprovider.InstanceType,
 	launchTemplate *launchtemplate.LaunchTemplate,
