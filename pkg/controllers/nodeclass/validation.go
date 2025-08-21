@@ -62,6 +62,12 @@ var ValidationConditionMessages = map[string]string{
 	ConditionReasonRunInstancesAuthFailed:         "Controller isn't authorized to call ec2:RunInstances",
 }
 
+type validationContext struct {
+	instanceTypes     []*cloudprovider.InstanceType
+	launchTemplate    *launchtemplate.LaunchTemplate
+	runInstancesInput *ec2.RunInstancesInput
+}
+
 type Validation struct {
 	kubeClient             client.Client
 	cloudProvider          cloudprovider.CloudProvider
@@ -157,13 +163,14 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
 		return reconcile.Result{}, nil
 	}
+	validationCtx := &validationContext{}
 
-	// Note: validateCreateFleetAuthorization inhently checks for launch template validation errors (as we create a launch template)
 	for _, isValid := range []validatorFunc{
+		v.validateCreateLaunchTemplateAuthorization,
 		v.validateCreateFleetAuthorization,
 		v.validateRunInstancesAuthorization,
 	} {
-		if failureReason, requeue, err := isValid(ctx, nodeClass, nodeClaim, tags); err != nil {
+		if failureReason, requeue, err := isValid(ctx, nodeClass, nodeClaim, tags, validationCtx); err != nil {
 			return reconcile.Result{}, err
 		} else if requeue {
 			return reconcile.Result{Requeue: true}, nil
@@ -183,18 +190,20 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	return reconcile.Result{}, nil
 }
 
-type validatorFunc func(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim, map[string]string) (string, bool, error)
+type validatorFunc func(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim, map[string]string, *validationContext) (string, bool, error)
 
-func (v *Validation) validateCreateFleetAuthorization(
+func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
+	validationCtx *validationContext,
 ) (reason string, requeue bool, err error) {
-	opts, err := v.mockLaunchTemplateOptions(ctx, nodeClaim, nodeClass, tags)
+	opts, err := v.getLaunchTemplateOptions(ctx, nodeClaim, nodeClass, tags)
 	if err != nil {
 		return "", false, fmt.Errorf("generating options, %w", err)
 	}
+	// this case should never occur
 	if len(opts.InstanceTypes) == 0 {
 		return "", false, fmt.Errorf("no instance types available")
 	}
@@ -207,10 +216,33 @@ func (v *Validation) validateCreateFleetAuthorization(
 		}
 		return ConditionReasonCreateLaunchTemplateAuthFailed, false, nil
 	}
+	// this case should never occur
 	if len(launchTemplates) == 0 {
 		return "", false, fmt.Errorf("no launch templates created")
 	}
-	realLaunchTemplateConfig := v.getRealLaunchTemplateConfig(nodeClass, instanceTypes, launchTemplates[0])
+	// update validation context
+	runInstancesInput := &ec2.RunInstancesInput{}
+	raw, err := json.Marshal(launchtemplate.NewCreateLaunchTemplateInputBuilder(opts, corev1.IPv4Protocol, "").Build(ctx).LaunchTemplateData)
+	if err != nil {
+		return "", false, fmt.Errorf("converting launch template input to run instances input, %w", err)
+	}
+	if err = json.Unmarshal(raw, runInstancesInput); err != nil {
+		return "", false, fmt.Errorf("converting launch template input to run instances input, %w", err)
+	}
+	validationCtx.instanceTypes = instanceTypes
+	validationCtx.launchTemplate = launchTemplates[0]
+	validationCtx.runInstancesInput = runInstancesInput
+	return "", false, nil
+}
+
+func (v *Validation) validateCreateFleetAuthorization(
+	ctx context.Context,
+	nodeClass *v1.EC2NodeClass,
+	_ *karpv1.NodeClaim,
+	tags map[string]string,
+	validationCtx *validationContext,
+) (reason string, requeue bool, err error) {
+	realLaunchTemplateConfig := v.getRealLaunchTemplateConfig(nodeClass, validationCtx.instanceTypes, validationCtx.launchTemplate)
 	createFleetInput := instance.NewCreateFleetInputBuilder(karpv1.CapacityTypeOnDemand, tags, realLaunchTemplateConfig).Build()
 	createFleetInput.DryRun = lo.ToPtr(true)
 	// Adding NopRetryer to avoid aggressive retry when rate limited
@@ -233,30 +265,17 @@ func (v *Validation) validateCreateFleetAuthorization(
 func (v *Validation) validateRunInstancesAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
-	nodeClaim *karpv1.NodeClaim,
+	_ *karpv1.NodeClaim,
 	tags map[string]string,
+	validationCtx *validationContext,
 ) (reason string, requeue bool, err error) {
-	opts, err := v.mockLaunchTemplateOptions(ctx, nodeClaim, nodeClass, tags)
-	if err != nil {
-		return "", false, fmt.Errorf("generating options, %w", err)
-	}
-
-	// We can directly marshal from CreateLaunchTemplate LaunchTemplate data
-	runInstancesInput := &ec2.RunInstancesInput{}
-	raw, err := json.Marshal(launchtemplate.NewCreateLaunchTemplateInputBuilder(opts, corev1.IPv4Protocol, "").Build(ctx).LaunchTemplateData)
-	if err != nil {
-		return "", false, fmt.Errorf("converting launch template input to run instances input, %w", err)
-	}
-	if err = json.Unmarshal(raw, runInstancesInput); err != nil {
-		return "", false, fmt.Errorf("converting launch template input to run instances input, %w", err)
-	}
-
+	runInstancesInput := validationCtx.runInstancesInput
 	// Ensure we set specific values for things that are typically overridden in the CreateFleet call
 	runInstancesInput.DryRun = lo.ToPtr(true)
 	runInstancesInput.MaxCount = lo.ToPtr[int32](1)
 	runInstancesInput.MinCount = lo.ToPtr[int32](1)
 	runInstancesInput.NetworkInterfaces[0].SubnetId = lo.ToPtr(nodeClass.Status.Subnets[0].ID)
-	runInstancesInput.InstanceType = ec2types.InstanceType(opts.InstanceTypes[0].Name)
+	runInstancesInput.InstanceType = ec2types.InstanceType(validationCtx.instanceTypes[0].Name)
 	runInstancesInput.TagSpecifications = append(runInstancesInput.TagSpecifications,
 		ec2types.TagSpecification{
 			ResourceType: ec2types.ResourceTypeInstance,
@@ -353,7 +372,7 @@ func (v *Validation) getRealLaunchTemplateConfig(
 	}
 }
 
-func (v *Validation) mockLaunchTemplateOptions(
+func (v *Validation) getLaunchTemplateOptions(
 	ctx context.Context,
 	nodeClaim *karpv1.NodeClaim,
 	nodeClass *v1.EC2NodeClass,
