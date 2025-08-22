@@ -24,6 +24,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -213,15 +214,20 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	if len(opts.InstanceTypes) == 0 {
 		return "", false, fmt.Errorf("no instance types available")
 	}
+	log.FromContext(ctx).V(1).Info("DEBUG VALIDATION: before ensure all call") // TODO: remove
 	// we only want to create 1 launch template so we only pass 1 instance type to EnsureAll
 	instanceTypes := opts.InstanceTypes[:1]
+	log.FromContext(ctx).WithValues("nodeClass", nodeClass.Name, "capacityType", karpv1.CapacityTypeOnDemand, "instanceTypeCount", len(instanceTypes)).V(1).Info("calling EnsureAll for launch templates") // TODO: remove
 	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, tags)
+	log.FromContext(ctx).V(1).Info("DEBUG VALIDATION: after ensure all call") // TODO: remove
 	if err != nil {
+		log.FromContext(ctx).Error(err, "DEBUG VALIDATION: failed after ensure all call") // TODO: remove
 		if awserrors.IsRateLimitedError(err) {
 			return "", true, nil
 		}
 		return ConditionReasonCreateLaunchTemplateAuthFailed, false, nil
 	}
+	log.FromContext(ctx).WithValues("launch tempalte", launchTemplates).V(1).Info("actually passed so should be fine") // TODO: remove
 	// this case should never occur
 	if len(launchTemplates) == 0 {
 		return "", false, fmt.Errorf("no launch templates created")
