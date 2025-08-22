@@ -33,6 +33,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -128,6 +129,11 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	}
 
 	nodeClaim := &karpv1.NodeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				karpv1.NodePoolLabelKey: "validation-nodepool",
+			},
+		},
 		Spec: karpv1.NodeClaimSpec{
 			NodeClassRef: &karpv1.NodeClassReference{
 				Name: nodeClass.ObjectMeta.Name,
