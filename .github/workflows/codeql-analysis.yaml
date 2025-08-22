@@ -38,12 +38,12 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: github/codeql-action/init@df32e399139a3050671466d7d9b3cbacc1cfd034 # v2.22.8
         with:
-          languages: javascript
+          languages: actions
           config: |
             packs:
               # Use the latest version of 'codeql-javascript' published by 'advanced-security'
               # This will catch things like actions that aren't pinned to a hash
-              - advanced-security/codeql-javascript
+              - advanced-security/codeql-actions
             paths:
               - '.github/workflows'
               - '.github/actions'
