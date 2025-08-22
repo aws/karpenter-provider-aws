@@ -39,12 +39,4 @@ jobs:
       - uses: github/codeql-action/init@df32e399139a3050671466d7d9b3cbacc1cfd034 # v2.22.8
         with:
           languages: actions
-          config: |
-            packs:
-              # Use the latest version of 'codeql-javascript' published by 'advanced-security'
-              # This will catch things like actions that aren't pinned to a hash
-              - advanced-security/codeql-actions
-            paths:
-              - '.github/workflows'
-              - '.github/actions'
       - uses: github/codeql-action/analyze@df32e399139a3050671466d7d9b3cbacc1cfd034 # v2.22.8
