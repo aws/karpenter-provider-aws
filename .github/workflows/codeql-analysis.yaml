@@ -20,11 +20,11 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: ./.github/actions/install-deps
       - run: make vulncheck
-      - uses: github/codeql-action/init@df32e399139a3050671466d7d9b3cbacc1cfd034 # v2.22.8
+      - uses: github/codeql-action/init@3c3833e0f8c1c83d449a7478aa59c036a9165498 # v3.29.11
         with:
           languages: go
-      - uses: github/codeql-action/autobuild@df32e399139a3050671466d7d9b3cbacc1cfd034 # v2.22.8
-      - uses: github/codeql-action/analyze@df32e399139a3050671466d7d9b3cbacc1cfd034 # v2.22.8
+      - uses: github/codeql-action/autobuild@3c3833e0f8c1c83d449a7478aa59c036a9165498 # v3.29.11
+      - uses: github/codeql-action/analyze@3c3833e0f8c1c83d449a7478aa59c036a9165498 # v3.29.11
   # Javascript is added here for evaluating Github Action vulnerabilities
   # https://github.blog/2023-08-09-four-tips-to-keep-your-github-actions-workflows-secure/#2-enable-code-scanning-for-workflows
   analyze-github-actions:
@@ -32,19 +32,11 @@ jobs:
     if: github.repository == 'aws/karpenter-provider-aws'
     runs-on: ubuntu-latest
     permissions:
-      actions: read # github/codeql-action/init@v2
-      security-events: write # github/codeql-action/init@v2
+      actions: read # github/codeql-action/init@v3
+      security-events: write # github/codeql-action/init@v3
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: github/codeql-action/init@df32e399139a3050671466d7d9b3cbacc1cfd034 # v2.22.8
+      - uses: github/codeql-action/init@3c3833e0f8c1c83d449a7478aa59c036a9165498 # v3.29.11
         with:
-          languages: javascript
-          config: |
-            packs:
-              # Use the latest version of 'codeql-javascript' published by 'advanced-security'
-              # This will catch things like actions that aren't pinned to a hash
-              - advanced-security/codeql-javascript
-            paths:
-              - '.github/workflows'
-              - '.github/actions'
-      - uses: github/codeql-action/analyze@df32e399139a3050671466d7d9b3cbacc1cfd034 # v2.22.8
+          languages: actions
+      - uses: github/codeql-action/analyze@3c3833e0f8c1c83d449a7478aa59c036a9165498 # v3.29.11
