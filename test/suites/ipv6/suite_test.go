@@ -63,7 +63,7 @@ var _ = BeforeEach(func() {
 			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 				Key:      corev1.LabelInstanceTypeStable,
 				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"t3a.small"},
+				Values:   []string{"c5.large"},
 			},
 		},
 	)
