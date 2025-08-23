@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -60,6 +61,12 @@ var ValidationConditionMessages = map[string]string{
 	ConditionReasonCreateFleetAuthFailed:          "Controller isn't authorized to call ec2:CreateFleet",
 	ConditionReasonCreateLaunchTemplateAuthFailed: "Controller isn't authorized to call ec2:CreateLaunchTemplate",
 	ConditionReasonRunInstancesAuthFailed:         "Controller isn't authorized to call ec2:RunInstances",
+}
+
+type validationContext struct {
+	instanceTypes     []*cloudprovider.InstanceType
+	launchTemplate    *launchtemplate.LaunchTemplate
+	runInstancesInput *ec2.RunInstancesInput
 }
 
 type Validation struct {
@@ -120,6 +127,16 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		)
 		return reconcile.Result{}, nil
 	}
+	// If CIDR has not been resolved, we know validation will fail regardless of the other values.
+	readyCondition := nodeClass.StatusConditions().Get(status.ConditionReady)
+	if readyCondition.Reason == "NodeClassNotReady" && readyCondition.Message == "Failed to detect the cluster CIDR" {
+		nodeClass.StatusConditions().SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonDependenciesNotReady,
+			"Awaiting CIDR resolution",
+		)
+		return reconcile.Result{}, nil
+	}
 
 	nodeClaim := &karpv1.NodeClaim{
 		Spec: karpv1.NodeClaimSpec{
@@ -157,13 +174,14 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
 		return reconcile.Result{}, nil
 	}
+	validationCtx := &validationContext{}
 
 	for _, isValid := range []validatorFunc{
-		v.validateCreateFleetAuthorization,
 		v.validateCreateLaunchTemplateAuthorization,
+		v.validateCreateFleetAuthorization,
 		v.validateRunInstancesAuthorization,
 	} {
-		if failureReason, requeue, err := isValid(ctx, nodeClass, nodeClaim, tags); err != nil {
+		if failureReason, requeue, err := isValid(ctx, nodeClass, nodeClaim, tags, validationCtx); err != nil {
 			return reconcile.Result{}, err
 		} else if requeue {
 			return reconcile.Result{Requeue: true}, nil
@@ -183,15 +201,60 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	return reconcile.Result{}, nil
 }
 
-type validatorFunc func(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim, map[string]string) (string, bool, error)
+type validatorFunc func(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim, map[string]string, *validationContext) (string, bool, error)
+
+func (v *Validation) validateCreateLaunchTemplateAuthorization(
+	ctx context.Context,
+	nodeClass *v1.EC2NodeClass,
+	nodeClaim *karpv1.NodeClaim,
+	tags map[string]string,
+	validationCtx *validationContext,
+) (reason string, requeue bool, err error) {
+	opts, err := v.getLaunchTemplateOptions(ctx, nodeClaim, nodeClass, tags)
+	if err != nil {
+		return "", false, fmt.Errorf("generating options, %w", err)
+	}
+	// this case should never occur
+	if len(opts.InstanceTypes) == 0 {
+		return "", false, fmt.Errorf("no instance types available")
+	}
+	// we only want to create 1 launch template so we only pass 1 instance type to EnsureAll
+	instanceTypes := opts.InstanceTypes[:1]
+	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, tags)
+	if err != nil {
+		if awserrors.IsRateLimitedError(err) {
+			return "", true, nil
+		}
+		return ConditionReasonCreateLaunchTemplateAuthFailed, false, nil
+	}
+	// this case should never occur
+	if len(launchTemplates) == 0 {
+		return "", false, fmt.Errorf("no launch templates created")
+	}
+	// update validation context
+	runInstancesInput := &ec2.RunInstancesInput{}
+	raw, err := json.Marshal(launchtemplate.NewCreateLaunchTemplateInputBuilder(opts, corev1.IPv4Protocol, "").Build(ctx).LaunchTemplateData)
+	if err != nil {
+		return "", false, fmt.Errorf("converting launch template input to run instances input, %w", err)
+	}
+	if err = json.Unmarshal(raw, runInstancesInput); err != nil {
+		return "", false, fmt.Errorf("converting launch template input to run instances input, %w", err)
+	}
+	validationCtx.instanceTypes = instanceTypes
+	validationCtx.launchTemplate = launchTemplates[0]
+	validationCtx.runInstancesInput = runInstancesInput
+	return "", false, nil
+}
 
 func (v *Validation) validateCreateFleetAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
 	_ *karpv1.NodeClaim,
 	tags map[string]string,
+	validationCtx *validationContext,
 ) (reason string, requeue bool, err error) {
-	createFleetInput := instance.NewCreateFleetInputBuilder(karpv1.CapacityTypeOnDemand, tags, mockLaunchTemplateConfig()).Build()
+	fleetLaunchTemplateConfig := getFleetLaunchTemplateConfig(nodeClass, validationCtx.instanceTypes, validationCtx.launchTemplate)
+	createFleetInput := instance.NewCreateFleetInputBuilder(karpv1.CapacityTypeOnDemand, tags, fleetLaunchTemplateConfig).Build()
 	createFleetInput.DryRun = lo.ToPtr(true)
 	// Adding NopRetryer to avoid aggressive retry when rate limited
 	if _, err := v.ec2api.CreateFleet(ctx, createFleetInput, func(o *ec2.Options) {
@@ -210,62 +273,20 @@ func (v *Validation) validateCreateFleetAuthorization(
 	return "", false, nil
 }
 
-func (v *Validation) validateCreateLaunchTemplateAuthorization(
-	ctx context.Context,
-	nodeClass *v1.EC2NodeClass,
-	nodeClaim *karpv1.NodeClaim,
-	tags map[string]string,
-) (reason string, requeue bool, err error) {
-	opts, err := v.mockLaunchTemplateOptions(ctx, nodeClaim, nodeClass, tags)
-	if err != nil {
-		return "", false, fmt.Errorf("generating options, %w", err)
-	}
-	createLaunchTemplateInput := launchtemplate.NewCreateLaunchTemplateInputBuilder(opts, corev1.IPv4Protocol, "").Build(ctx)
-	createLaunchTemplateInput.DryRun = lo.ToPtr(true)
-	// Adding NopRetryer to avoid aggressive retry when rate limited
-	if _, err := v.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput, func(o *ec2.Options) {
-		o.Retryer = aws.NopRetryer{}
-	}); awserrors.IgnoreDryRunError(err) != nil {
-		if awserrors.IsRateLimitedError(err) {
-			return "", true, nil
-		}
-		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
-			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
-			// it would be an unexpected state
-			return "", false, fmt.Errorf("validating ec2:CreateLaunchTemplates authorization, %w", err)
-		}
-		return ConditionReasonCreateLaunchTemplateAuthFailed, false, nil
-	}
-	return "", false, nil
-}
-
 func (v *Validation) validateRunInstancesAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
-	nodeClaim *karpv1.NodeClaim,
+	_ *karpv1.NodeClaim,
 	tags map[string]string,
+	validationCtx *validationContext,
 ) (reason string, requeue bool, err error) {
-	opts, err := v.mockLaunchTemplateOptions(ctx, nodeClaim, nodeClass, tags)
-	if err != nil {
-		return "", false, fmt.Errorf("generating options, %w", err)
-	}
-
-	// We can directly marshal from CreateLaunchTemplate LaunchTemplate data
-	runInstancesInput := &ec2.RunInstancesInput{}
-	raw, err := json.Marshal(launchtemplate.NewCreateLaunchTemplateInputBuilder(opts, corev1.IPv4Protocol, "").Build(ctx).LaunchTemplateData)
-	if err != nil {
-		return "", false, fmt.Errorf("converting launch template input to run instances input, %w", err)
-	}
-	if err = json.Unmarshal(raw, runInstancesInput); err != nil {
-		return "", false, fmt.Errorf("converting launch template input to run instances input, %w", err)
-	}
-
+	runInstancesInput := validationCtx.runInstancesInput
 	// Ensure we set specific values for things that are typically overridden in the CreateFleet call
 	runInstancesInput.DryRun = lo.ToPtr(true)
 	runInstancesInput.MaxCount = lo.ToPtr[int32](1)
 	runInstancesInput.MinCount = lo.ToPtr[int32](1)
 	runInstancesInput.NetworkInterfaces[0].SubnetId = lo.ToPtr(nodeClass.Status.Subnets[0].ID)
-	runInstancesInput.InstanceType = ec2types.InstanceType(opts.InstanceTypes[0].Name)
+	runInstancesInput.InstanceType = ec2types.InstanceType(validationCtx.instanceTypes[0].Name)
 	runInstancesInput.TagSpecifications = append(runInstancesInput.TagSpecifications,
 		ec2types.TagSpecification{
 			ResourceType: ec2types.ResourceTypeInstance,
@@ -335,29 +356,34 @@ func (v *Validation) clearCacheEntries(nodeClass *v1.EC2NodeClass) {
 	}
 }
 
-func mockLaunchTemplateConfig() []ec2types.FleetLaunchTemplateConfigRequest {
+func getFleetLaunchTemplateConfig(
+	nodeClass *v1.EC2NodeClass,
+	instanceTypes []*cloudprovider.InstanceType,
+	launchTemplate *launchtemplate.LaunchTemplate,
+) []ec2types.FleetLaunchTemplateConfigRequest {
+	var overrides []ec2types.FleetLaunchTemplateOverridesRequest
+	for _, instanceType := range instanceTypes {
+		for _, subnet := range nodeClass.Status.Subnets {
+			overrides = append(overrides,
+				ec2types.FleetLaunchTemplateOverridesRequest{
+					InstanceType: ec2types.InstanceType(instanceType.Name),
+					SubnetId:     lo.ToPtr(subnet.ID),
+				},
+			)
+		}
+	}
 	return []ec2types.FleetLaunchTemplateConfigRequest{
 		{
 			LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateName: lo.ToPtr("mock-lt-name"),
-				LaunchTemplateId:   lo.ToPtr("lt-1234567890abcdef0"),
-				Version:            lo.ToPtr("1"),
+				LaunchTemplateName: lo.ToPtr(launchTemplate.Name),
+				Version:            lo.ToPtr("$Latest"),
 			},
-			Overrides: []ec2types.FleetLaunchTemplateOverridesRequest{
-				{
-					InstanceType: ec2types.InstanceTypeT3Micro,
-					SubnetId:     lo.ToPtr("subnet-1234567890abcdef0"),
-				},
-				{
-					InstanceType: ec2types.InstanceTypeT3Small,
-					SubnetId:     lo.ToPtr("subnet-1234567890abcdef1"),
-				},
-			},
+			Overrides: overrides,
 		},
 	}
 }
 
-func (v *Validation) mockLaunchTemplateOptions(
+func (v *Validation) getLaunchTemplateOptions(
 	ctx context.Context,
 	nodeClaim *karpv1.NodeClaim,
 	nodeClass *v1.EC2NodeClass,
