@@ -129,19 +129,24 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, nil
 	}
 	// If CIDR has not been resolved, we know validation will fail regardless of the other values.
-	if err := v.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
-		nodeClass.StatusConditions().SetUnknownWithReason(
-			v1.ConditionTypeValidationSucceeded,
-			ConditionReasonDependenciesNotReady,
-			"Awaiting cluster CIDR resolution",
-		)
-		return reconcile.Result{}, err
+	if nodeClass.AMIFamily() == v1.AMIFamilyAL2023 {
+		// TODO: CIDR resolution is done by readiness controller. We dont want duplication logic.
+		// We also can't just remove the readiness controller as dry run could be off.
+		// Need to look into a better solution
+		if err := v.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
+			nodeClass.StatusConditions().SetUnknownWithReason(
+				v1.ConditionTypeValidationSucceeded,
+				ConditionReasonDependenciesNotReady,
+				"Awaiting cluster CIDR resolution",
+			)
+			return reconcile.Result{}, err
+		}
 	}
 
 	nodeClaim := &karpv1.NodeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
-				karpv1.NodePoolLabelKey: "validation-nodepool",
+				karpv1.NodePoolLabelKey: "validation-nodepool", // TODO: may be able to remove (need to verify)
 			},
 		},
 		Spec: karpv1.NodeClaimSpec{
