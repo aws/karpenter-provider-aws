@@ -37,6 +37,7 @@ const (
 	ConditionTypeAMIsReady                 = "AMIsReady"
 	ConditionTypeInstanceProfileReady      = "InstanceProfileReady"
 	ConditionTypeCapacityReservationsReady = "CapacityReservationsReady"
+	ConditionTypeClusterCIDRReady          = "ClusterCIDRReady"
 	ConditionTypeValidationSucceeded       = "ValidationSucceeded"
 )
 
@@ -168,6 +169,7 @@ func (in *EC2NodeClass) StatusConditions() status.ConditionSet {
 		ConditionTypeSubnetsReady,
 		ConditionTypeSecurityGroupsReady,
 		ConditionTypeInstanceProfileReady,
+		ConditionTypeClusterCIDRReady,
 		ConditionTypeValidationSucceeded,
 	}
 	if CapacityReservationsEnabled {
