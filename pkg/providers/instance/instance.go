@@ -103,6 +103,7 @@ type DefaultProvider struct {
 	ec2Batcher                  *batcher.EC2API
 	capacityReservationProvider capacityreservation.Provider
 	instanceCache               *cache.Cache
+	validationCache             *cache.Cache
 }
 
 func NewDefaultProvider(
@@ -115,6 +116,7 @@ func NewDefaultProvider(
 	launchTemplateProvider launchtemplate.Provider,
 	capacityReservationProvider capacityreservation.Provider,
 	instanceCache *cache.Cache,
+	validationCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		region:                      region,
@@ -126,6 +128,7 @@ func NewDefaultProvider(
 		ec2Batcher:                  batcher.EC2(ctx, ec2api),
 		capacityReservationProvider: capacityReservationProvider,
 		instanceCache:               instanceCache,
+		validationCache:             validationCache,
 	}
 }
 
@@ -358,6 +361,8 @@ func (p *DefaultProvider) launchInstance(
 			middleware.AWSErrorCodeLogKey, "UnfulfillableCapacity",
 		)
 	}
+	// CreateFleet call is successful so we mark valdiation as successful
+	p.validationCache.SetDefault(utils.ValidationCacheKey(nodeClass, tags), "")
 	return createFleetOutput.Instances[0], nil
 }
 

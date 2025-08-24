@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/awslabs/operatorpkg/status"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -151,7 +150,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating tags, %w", err))
 	}
 
-	if val, ok := v.cache.Get(v.cacheKey(nodeClass, tags)); ok {
+	if val, ok := v.cache.Get(utils.ValidationCacheKey(nodeClass, tags)); ok {
 		// We still update the status condition even if it's cached since we may have had a conflict error previously
 		if val == "" {
 			nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
@@ -171,7 +170,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			ConditionReasonDryRunDisabled,
 			"Dry run is disabled",
 		)
-		v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
+		v.cache.SetDefault(utils.ValidationCacheKey(nodeClass, tags), "")
 		return reconcile.Result{}, nil
 	}
 	validationCtx := &validationContext{}
@@ -186,7 +185,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		} else if requeue {
 			return reconcile.Result{Requeue: true}, nil
 		} else if failureReason != "" {
-			v.cache.SetDefault(v.cacheKey(nodeClass, tags), failureReason)
+			v.cache.SetDefault(utils.ValidationCacheKey(nodeClass, tags), failureReason)
 			nodeClass.StatusConditions().SetFalse(
 				v1.ConditionTypeValidationSucceeded,
 				failureReason,
@@ -196,7 +195,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		}
 	}
 
-	v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
+	v.cache.SetDefault(utils.ValidationCacheKey(nodeClass, tags), "")
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 	return reconcile.Result{}, nil
 }
@@ -323,19 +322,6 @@ func (*Validation) requiredConditions() []string {
 		v1.ConditionTypeSecurityGroupsReady,
 		v1.ConditionTypeSubnetsReady,
 	}
-}
-
-func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) string {
-	hash := lo.Must(hashstructure.Hash([]interface{}{
-		nodeClass.Status.Subnets,
-		nodeClass.Status.SecurityGroups,
-		nodeClass.Status.AMIs,
-		nodeClass.Status.InstanceProfile,
-		nodeClass.Spec.MetadataOptions,
-		nodeClass.Spec.BlockDeviceMappings,
-		tags,
-	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-	return fmt.Sprintf("%s:%016x", nodeClass.Name, hash)
 }
 
 // clearCacheEntries removes all cache entries associated with the given nodeclass from the validation cache

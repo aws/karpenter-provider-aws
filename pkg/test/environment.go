@@ -176,6 +176,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		launchTemplateProvider,
 		capacityReservationProvider,
 		instanceCache,
+		validationCache,
 	)
 
 	return &Environment{
