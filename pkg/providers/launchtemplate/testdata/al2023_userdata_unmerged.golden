@@ -7,8 +7,7 @@ Content-Type: application/node.eks.aws
 # Karpenter Generated NodeConfig
 apiVersion: node.eks.aws/v1alpha1
 kind: NodeConfig
-metadata:
-  creationTimestamp: null
+metadata: {}
 spec:
   cluster:
     apiServerEndpoint: https://test-cluster
