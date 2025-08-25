@@ -27,6 +27,11 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
+const (
+	CIDRDetectionFailed = "Failed to detect the cluster CIDR"
+	NodeClassNotReady   = "NodeClassNotReady"
+)
+
 type Readiness struct {
 	launchTemplateProvider launchtemplate.Provider
 }
@@ -41,11 +46,18 @@ func (n Readiness) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (r
 	// A NodeClass that uses AL2023 requires the cluster CIDR for launching nodes.
 	// To allow Karpenter to be used for Non-EKS clusters, resolving the Cluster CIDR
 	// will not be done at startup but instead in a reconcile loop.
-	if nodeClass.AMIFamily() == v1.AMIFamilyAL2023 {
-		if err := n.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
-			nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to detect the cluster CIDR")
-			return reconcile.Result{}, fmt.Errorf("failed to detect the cluster CIDR, %w", err)
-		}
+	if err := ResolveClusterCIDR(ctx, n.launchTemplateProvider, nodeClass); err != nil {
+		nodeClass.StatusConditions().SetFalse(status.ConditionReady, NodeClassNotReady, CIDRDetectionFailed)
+		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
+}
+
+func ResolveClusterCIDR(ctx context.Context, launchTemplateProvider launchtemplate.Provider, nodeClass *v1.EC2NodeClass) error {
+	if nodeClass.AMIFamily() == v1.AMIFamilyAL2023 {
+		if err := launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
+			return fmt.Errorf("%s, %w", CIDRDetectionFailed, err)
+		}
+	}
+	return nil
 }

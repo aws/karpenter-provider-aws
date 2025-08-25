@@ -125,15 +125,24 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		)
 		return reconcile.Result{}, nil
 	}
-	// If CIDR has not been resolved, we know validation will fail regardless of the other values.
+	// Ensure CIDR is resolved for relevant AMIs, if it is not we know validation will fail regardless of the other values.
+	// We first check ready condition to not re-call API
 	readyCondition := nodeClass.StatusConditions().Get(status.ConditionReady)
-	if readyCondition.Reason == "NodeClassNotReady" && readyCondition.Message == "Failed to detect the cluster CIDR" {
+	if readyCondition.Reason == NodeClassNotReady && readyCondition.Message == CIDRDetectionFailed {
 		nodeClass.StatusConditions().SetFalse(
 			v1.ConditionTypeValidationSucceeded,
 			ConditionReasonDependenciesNotReady,
 			"Awaiting CIDR resolution",
 		)
 		return reconcile.Result{}, nil
+	}
+	if err := ResolveClusterCIDR(ctx, v.launchTemplateProvider, nodeClass); err != nil {
+		nodeClass.StatusConditions().SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonDependenciesNotReady,
+			"Awaiting CIDR resolution",
+		)
+		return reconcile.Result{}, err
 	}
 
 	nodeClaim := &karpv1.NodeClaim{

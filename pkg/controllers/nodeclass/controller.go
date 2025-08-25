@@ -91,7 +91,6 @@ func NewController(
 	disableDryRun bool,
 ) *Controller {
 	validation := NewValidationReconciler(kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache, disableDryRun)
-	// Validation reconcile must occur after NewReadinessReconciler as CIDR must be resolved before CreateLaunchTemplate validation
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
