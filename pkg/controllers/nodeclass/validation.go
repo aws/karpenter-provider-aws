@@ -220,7 +220,7 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	instanceTypes := opts.InstanceTypes[:1]
 	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, tags)
 	if err != nil {
-		if awserrors.IsRateLimitedError(err) {
+		if awserrors.IsRateLimitedError(err) || awserrors.IsTemporaryServiceError(err) {
 			return "", true, nil
 		}
 		return ConditionReasonCreateLaunchTemplateAuthFailed, false, nil
