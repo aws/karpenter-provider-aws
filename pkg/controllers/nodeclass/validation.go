@@ -207,16 +207,16 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	tags map[string]string,
 	validationCtx *validationContext,
 ) (reason string, requeue bool, err error) {
-	opts, err := v.getLaunchTemplateOptions(ctx, nodeClaim, nodeClass, tags)
+	allInstanceTypes, err := v.getValidationInstanceTypes(ctx, nodeClaim, nodeClass, tags)
 	if err != nil {
 		return "", false, fmt.Errorf("generating options, %w", err)
 	}
 	// this case should never occur
-	if len(opts.InstanceTypes) == 0 {
+	if len(allInstanceTypes) == 0 {
 		return "", false, fmt.Errorf("no instance types available")
 	}
 	// we only want to create 1 launch template so we only pass 1 instance type to EnsureAll
-	instanceTypes := opts.InstanceTypes[:1]
+	instanceTypes := allInstanceTypes[:1]
 	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, tags)
 	if err != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsTemporaryServiceError(err) {
@@ -393,12 +393,12 @@ func getFleetLaunchTemplateConfig(
 	}
 }
 
-func (v *Validation) getLaunchTemplateOptions(
+func (v *Validation) getValidationInstanceTypes(
 	ctx context.Context,
 	nodeClaim *karpv1.NodeClaim,
 	nodeClass *v1.EC2NodeClass,
 	tags map[string]string,
-) (*amifamily.LaunchTemplate, error) {
+) ([]*cloudprovider.InstanceType, error) {
 	amiOptions, err := v.launchTemplateProvider.CreateAMIOptions(
 		ctx,
 		nodeClass,
@@ -476,7 +476,7 @@ func (v *Validation) getLaunchTemplateOptions(
 	if err != nil {
 		return nil, err
 	}
-	return opts[0], nil
+	return opts[0].InstanceTypes, nil
 }
 
 // getInstanceTypesForNodeClass returns the set of instances which could be launched using this NodeClass based on the
