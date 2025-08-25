@@ -16,7 +16,6 @@ package nodeclass
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -64,9 +63,8 @@ var ValidationConditionMessages = map[string]string{
 }
 
 type validationContext struct {
-	instanceTypes     []*cloudprovider.InstanceType
-	launchTemplate    *launchtemplate.LaunchTemplate
-	runInstancesInput *ec2.RunInstancesInput
+	instanceTypes  []*cloudprovider.InstanceType
+	launchTemplate *launchtemplate.LaunchTemplate
 }
 
 type Validation struct {
@@ -232,17 +230,8 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 		return "", false, fmt.Errorf("no launch templates created")
 	}
 	// update validation context
-	runInstancesInput := &ec2.RunInstancesInput{}
-	raw, err := json.Marshal(launchtemplate.NewCreateLaunchTemplateInputBuilder(opts, corev1.IPv4Protocol, "").Build(ctx).LaunchTemplateData)
-	if err != nil {
-		return "", false, fmt.Errorf("converting launch template input to run instances input, %w", err)
-	}
-	if err = json.Unmarshal(raw, runInstancesInput); err != nil {
-		return "", false, fmt.Errorf("converting launch template input to run instances input, %w", err)
-	}
 	validationCtx.instanceTypes = instanceTypes
 	validationCtx.launchTemplate = launchTemplates[0]
-	validationCtx.runInstancesInput = runInstancesInput
 	return "", false, nil
 }
 
@@ -280,23 +269,7 @@ func (v *Validation) validateRunInstancesAuthorization(
 	tags map[string]string,
 	validationCtx *validationContext,
 ) (reason string, requeue bool, err error) {
-	runInstancesInput := validationCtx.runInstancesInput
-	// Ensure we set specific values for things that are typically overridden in the CreateFleet call
-	runInstancesInput.DryRun = lo.ToPtr(true)
-	runInstancesInput.MaxCount = lo.ToPtr[int32](1)
-	runInstancesInput.MinCount = lo.ToPtr[int32](1)
-	runInstancesInput.NetworkInterfaces[0].SubnetId = lo.ToPtr(nodeClass.Status.Subnets[0].ID)
-	runInstancesInput.InstanceType = ec2types.InstanceType(validationCtx.instanceTypes[0].Name)
-	runInstancesInput.TagSpecifications = append(runInstancesInput.TagSpecifications,
-		ec2types.TagSpecification{
-			ResourceType: ec2types.ResourceTypeInstance,
-			Tags:         runInstancesInput.TagSpecifications[0].Tags,
-		},
-		ec2types.TagSpecification{
-			ResourceType: ec2types.ResourceTypeVolume,
-			Tags:         runInstancesInput.TagSpecifications[0].Tags,
-		},
-	)
+	runInstancesInput := getRunInstancesInput(nodeClass, tags, validationCtx)
 	// Adding NopRetryer to avoid aggressive retry when rate limited
 	if _, err = v.ec2api.RunInstances(ctx, runInstancesInput, func(o *ec2.Options) {
 		o.Retryer = aws.NopRetryer{}
@@ -353,6 +326,44 @@ func (v *Validation) clearCacheEntries(nodeClass *v1.EC2NodeClass) {
 	}
 	for _, key := range toDelete {
 		v.cache.Delete(key)
+	}
+}
+
+func getRunInstancesInput(
+	nodeClass *v1.EC2NodeClass,
+	tags map[string]string,
+	validationCtx *validationContext,
+) *ec2.RunInstancesInput {
+	return &ec2.RunInstancesInput{
+		DryRun:   lo.ToPtr(true),
+		MaxCount: lo.ToPtr[int32](1),
+		MinCount: lo.ToPtr[int32](1),
+		LaunchTemplate: &ec2types.LaunchTemplateSpecification{
+			LaunchTemplateName: lo.ToPtr(validationCtx.launchTemplate.Name),
+			Version:            lo.ToPtr("$Latest"),
+		},
+		InstanceType: ec2types.InstanceType(validationCtx.instanceTypes[0].Name),
+		ImageId:      lo.ToPtr(validationCtx.launchTemplate.ImageID),
+		NetworkInterfaces: []ec2types.InstanceNetworkInterfaceSpecification{
+			{
+				DeviceIndex: lo.ToPtr[int32](0),
+				SubnetId:    lo.ToPtr(nodeClass.Status.Subnets[0].ID),
+			},
+		},
+		TagSpecifications: []ec2types.TagSpecification{
+			{
+				ResourceType: ec2types.ResourceTypeInstance,
+				Tags:         utils.EC2MergeTags(tags),
+			},
+			{
+				ResourceType: ec2types.ResourceTypeVolume,
+				Tags:         utils.EC2MergeTags(tags),
+			},
+			{
+				ResourceType: ec2types.ResourceTypeNetworkInterface,
+				Tags:         utils.EC2MergeTags(tags),
+			},
+		},
 	}
 }
 
