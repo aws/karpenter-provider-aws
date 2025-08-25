@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -87,10 +86,6 @@ type DefaultProvider struct {
 	instanceTypesCache      *cache.Cache
 	discoveredCapacityCache *cache.Cache
 	cm                      *pretty.ChangeMonitor
-	// instanceTypesSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
-	instanceTypesSeqNum uint64
-	// instanceTypesOfferingsSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
-	instanceTypesOfferingsSeqNum uint64
 
 	offeringProvider *offering.DefaultProvider
 }
@@ -115,7 +110,6 @@ func NewDefaultProvider(
 		instanceTypesCache:      instanceTypesCache,
 		discoveredCapacityCache: discoveredCapacityCache,
 		cm:                      pretty.NewChangeMonitor(),
-		instanceTypesSeqNum:     0,
 		offeringProvider: offering.NewDefaultProvider(
 			pricingProvider,
 			capacityReservationProvider,
@@ -227,9 +221,7 @@ func (p *DefaultProvider) cacheKey(nodeClass NodeClass) string {
 	subnetZonesHash, _ := hashstructure.Hash(nodeClass.ZoneInfo(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	// Compute hash key against node class AMIs (used to force cache rebuild when AMIs change)
 	amiHash, _ := hashstructure.Hash(nodeClass.AMIs(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	return fmt.Sprintf("%d-%d-%016x-%016x-%016x",
-		p.instanceTypesSeqNum,
-		p.instanceTypesOfferingsSeqNum,
+	return fmt.Sprintf("%016x-%016x-%s",
 		amiHash,
 		subnetZonesHash,
 		p.instanceTypesResolver.CacheKey(nodeClass),
@@ -255,6 +247,8 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 				Values: []string{"x86_64", "arm64"},
 			},
 		},
+		// MaxResults for DescribeInstanceTypes is capped at 100
+		MaxResults: lo.ToPtr[int32](100),
 	})
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
@@ -267,7 +261,7 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 	if p.cm.HasChanged("instance-types", instanceTypes) {
 		// Only update instanceTypesSeqNun with the instance types have been changed
 		// This is to not create new keys with duplicate instance types option
-		atomic.AddUint64(&p.instanceTypesSeqNum, 1)
+		p.instanceTypesCache.Flush() // None of the cached instance type info is valid when the instance type info changes
 		log.FromContext(ctx).WithValues("count", len(instanceTypes)).V(1).Info("discovered instance types")
 	}
 	p.instanceTypesInfo = lo.SliceToMap(instanceTypes, func(i ec2types.InstanceTypeInfo) (ec2types.InstanceType, ec2types.InstanceTypeInfo) {
@@ -290,6 +284,8 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 
 	paginator := ec2.NewDescribeInstanceTypeOfferingsPaginator(p.ec2api, &ec2.DescribeInstanceTypeOfferingsInput{
 		LocationType: ec2types.LocationTypeAvailabilityZone,
+		// MaxResults for DescribeInstanceTypeOfferings is capped at 1000
+		MaxResults: lo.ToPtr[int32](1000),
 	})
 
 	for paginator.HasMorePages() {
@@ -309,7 +305,7 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 	if p.cm.HasChanged("instance-type-offering", instanceTypeOfferings) {
 		// Only update instanceTypesSeqNun with the instance type offerings  have been changed
 		// This is to not create new keys with duplicate instance type offerings option
-		atomic.AddUint64(&p.instanceTypesOfferingsSeqNum, 1)
+		p.instanceTypesCache.Flush() // None of the cached instance type info is valid when the instance type offerings info changes
 		log.FromContext(ctx).WithValues("instance-type-count", len(instanceTypeOfferings)).V(1).Info("discovered offerings for instance types")
 	}
 	p.instanceTypesOfferings = instanceTypeOfferings

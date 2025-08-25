@@ -17,6 +17,7 @@ package offering
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
@@ -45,10 +46,11 @@ type NodeClass interface {
 }
 
 type DefaultProvider struct {
-	pricingProvider             pricing.Provider
-	capacityReservationProvider capacityreservation.Provider
-	unavailableOfferings        *awscache.UnavailableOfferings
-	cache                       *cache.Cache
+	pricingProvider                pricing.Provider
+	capacityReservationProvider    capacityreservation.Provider
+	unavailableOfferings           *awscache.UnavailableOfferings
+	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
+	cache                          *cache.Cache
 }
 
 func NewDefaultProvider(
@@ -108,7 +110,13 @@ func (p *DefaultProvider) createOfferings(
 	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
 
-	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it)); ok {
+	// If the sequence number has changed for the unavailable offerings, we know that we can't use the previously cached value
+	lastSeqNum, ok := p.lastUnavailableOfferingsSeqNum.Load(ec2types.InstanceType(it.Name))
+	if !ok {
+		lastSeqNum = 0
+	}
+	seqNum := p.unavailableOfferings.SeqNum(ec2types.InstanceType(it.Name))
+	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it)); ok && lastSeqNum == seqNum {
 		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
 	} else {
 		var cachedOfferings []*cloudprovider.Offering
@@ -146,6 +154,7 @@ func (p *DefaultProvider) createOfferings(
 			}
 		}
 		p.cache.SetDefault(p.cacheKeyFromInstanceType(it), cachedOfferings)
+		p.lastUnavailableOfferingsSeqNum.Store(ec2types.InstanceType(it.Name), seqNum)
 		offerings = append(offerings, cachedOfferings...)
 	}
 	if !options.FromContext(ctx).FeatureGates.ReservedCapacity {
@@ -175,7 +184,7 @@ func (p *DefaultProvider) createOfferings(
 				scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpIn, string(reservation.ReservationType)),
 			),
 			Price:               price,
-			Available:           reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone),
+			Available:           reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring,
 			ReservationCapacity: reservationCapacity,
 		}
 		if id, ok := subnetZonesToZoneIDs[reservation.AvailabilityZone]; ok {
@@ -198,10 +207,9 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
 	return fmt.Sprintf(
-		"%s-%016x-%016x-%d",
+		"%s-%016x-%016x",
 		it.Name,
 		zonesHash,
 		capacityTypesHash,
-		p.unavailableOfferings.SeqNum,
 	)
 }

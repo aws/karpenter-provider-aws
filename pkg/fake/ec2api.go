@@ -120,21 +120,23 @@ func (e *EC2API) Reset() {
 		e.launchTemplatesToCapacityReservations.Delete(k)
 		return true
 	})
+	e.RunInstancesBehavior.Reset()
 }
 
 // nolint: gocyclo
 func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ ...func(*ec2.Options)) (*ec2.CreateFleetOutput, error) {
-	if input.DryRun != nil && *input.DryRun {
-		err := e.CreateFleetBehavior.Error.Get()
-		if err == nil {
-			return &ec2.CreateFleetOutput{}, &smithy.GenericAPIError{
-				Code:    "DryRunOperation",
-				Message: "Request would have succeeded, but DryRun flag is set",
-			}
-		}
-		return nil, err
-	}
 	return e.CreateFleetBehavior.Invoke(input, func(input *ec2.CreateFleetInput) (*ec2.CreateFleetOutput, error) {
+		if input.DryRun != nil && *input.DryRun {
+			err := e.CreateFleetBehavior.Error.Get()
+			if err == nil {
+				return &ec2.CreateFleetOutput{}, &smithy.GenericAPIError{
+					Code:    "DryRunOperation",
+					Message: "Request would have succeeded, but DryRun flag is set",
+				}
+			}
+			return nil, err
+		}
+
 		if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 			return nil, fmt.Errorf("missing launch template name")
 		}
@@ -264,17 +266,17 @@ func (e *EC2API) TerminateInstances(_ context.Context, input *ec2.TerminateInsta
 
 // Then modify the CreateLaunchTemplate method:
 func (e *EC2API) CreateLaunchTemplate(ctx context.Context, input *ec2.CreateLaunchTemplateInput, _ ...func(*ec2.Options)) (*ec2.CreateLaunchTemplateOutput, error) {
-	if input.DryRun != nil && *input.DryRun {
-		err := e.CreateLaunchTemplateBehavior.Error.Get()
-		if err == nil {
-			return &ec2.CreateLaunchTemplateOutput{}, &smithy.GenericAPIError{
-				Code:    "DryRunOperation",
-				Message: "Request would have succeeded, but DryRun flag is set",
-			}
-		}
-		return nil, err
-	}
 	return e.CreateLaunchTemplateBehavior.Invoke(input, func(input *ec2.CreateLaunchTemplateInput) (*ec2.CreateLaunchTemplateOutput, error) {
+		if input.DryRun != nil && *input.DryRun {
+			err := e.CreateLaunchTemplateBehavior.Error.Get()
+			if err == nil {
+				return &ec2.CreateLaunchTemplateOutput{}, &smithy.GenericAPIError{
+					Code:    "DryRunOperation",
+					Message: "Request would have succeeded, but DryRun flag is set",
+				}
+			}
+			return nil, err
+		}
 		if !e.NextError.IsNil() {
 			defer e.NextError.Reset()
 			return nil, e.NextError.Get()

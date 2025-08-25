@@ -1,0 +1,93 @@
+name: Deploy Website Preview to Amplify
+on:
+  workflow_run:
+    workflows: [ WebsitePreviewTrigger ]
+    types: [ completed ]
+jobs:
+  preview:
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+      statuses: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: ./.github/actions/download-artifact
+      - id: website-metadata
+        run: |
+          pr_number="$(head -n 1 /tmp/artifacts/website-metadata.txt)"
+          pr_commit="$(tail -n 1 /tmp/artifacts/website-metadata.txt)"
+          {
+            echo PR_COMMIT="$pr_commit"
+            echo PR_NUMBER="$pr_number"
+            echo BRANCH_NAME="pr-$pr_number"
+          } >> "$GITHUB_ENV"
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ env.PR_COMMIT }}
+      - uses: ./.github/actions/commit-status/start
+        with:
+          name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
+          git_ref: ${{ env.PR_COMMIT }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.RELEASE_PREVIEW_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
+          aws-region: ${{ vars.AMPLIFY_REGION }}
+      - name: Get preview URL
+        run: |
+          APP_DOMAIN=$(aws amplify get-app --app-id ${{ vars.AMPLIFY_APP_ID_PREVIEW }} --query 'app.defaultDomain' --output text)
+          PREVIEW_URL="https://${{ env.BRANCH_NAME }}.$APP_DOMAIN"
+          echo PREVIEW_URL="$PREVIEW_URL" >> "$GITHUB_ENV"
+      - name: Deploy website
+        uses: ./.github/actions/deploy-website
+        with:
+          role: arn:aws:iam::${{ vars.RELEASE_PREVIEW_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
+          region: ${{ vars.AMPLIFY_REGION }}
+          amplify-app-id: ${{ vars.AMPLIFY_APP_ID_PREVIEW }}
+          amplify-branch-name: ${{ env.BRANCH_NAME }}
+          s3-bucket: ${{ vars.AMPLIFY_S3_BUCKET_BETA }}
+          s3-prefix: pr-${{ env.PR_NUMBER }}/
+          hugo-base-url: ${{ env.PREVIEW_URL }}
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          PREVIEW_URL: ${{ env.PREVIEW_URL }}
+          PR_COMMIT: ${{ env.PR_COMMIT }}
+        with:
+          script: |
+            const commentBody = `**Preview deployment ready!**
+            
+            **Preview URL:** ${process.env.PREVIEW_URL}
+            
+            Built from commit \`${process.env.PR_COMMIT}\``;
+            
+            const existingComment = (await github.rest.issues.listComments({
+              issue_number: process.env.PR_NUMBER,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            })).data.find(comment => 
+              comment.user.login === 'github-actions[bot]' && 
+              comment.body.includes('**Preview deployment ready!**')
+            );
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                comment_id: existingComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: process.env.PR_NUMBER,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+            }
+      - if: always()
+        uses: ./.github/actions/commit-status/end
+        with:
+          name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
+          git_ref: ${{ env.PR_COMMIT }}

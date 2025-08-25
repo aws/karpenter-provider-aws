@@ -80,6 +80,7 @@ type Operator struct {
 	UnavailableOfferingsCache   *awscache.UnavailableOfferings
 	SSMCache                    *cache.Cache
 	ValidationCache             *cache.Cache
+	RecreationCache             *cache.Cache
 	SubnetProvider              subnet.Provider
 	SecurityGroupProvider       securitygroup.Provider
 	InstanceProfileProvider     instanceprofile.Provider
@@ -120,10 +121,11 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
 	validationCache := cache.New(awscache.ValidationTTL, awscache.DefaultCleanupInterval)
+	recreationCache := cache.New(awscache.RecreationTTL, awscache.DefaultCleanupInterval)
 
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(iam.NewFromConfig(cfg), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(iam.NewFromConfig(cfg), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval), cache.New(awscache.ProtectedProfilesTTL, awscache.DefaultCleanupInterval), cfg.Region)
 	pricingProvider := pricing.NewDefaultProvider(
 		pricing.NewAPI(cfg),
 		ec2api,
@@ -137,7 +139,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	lo.Must0(versionProvider.UpdateVersion(ctx))
 	ssmProvider := ssmp.NewDefaultProvider(ssm.NewFromConfig(cfg), ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiResolver := amifamily.NewDefaultResolver()
+	amiResolver := amifamily.NewDefaultResolver(cfg.Region)
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
@@ -168,6 +170,10 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		unavailableOfferingsCache,
 		instancetype.NewDefaultResolver(cfg.Region),
 	)
+	// Ensure we're able to hydrate instance types before starting any reliant controllers.
+	// Instance type updates are hydrated asynchronously after this by controllers.
+	lo.Must0(instanceTypeProvider.UpdateInstanceTypes(ctx))
+	lo.Must0(instanceTypeProvider.UpdateInstanceTypeOfferings(ctx))
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		cfg.Region,
@@ -177,6 +183,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 		capacityReservationProvider,
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 	)
 
 	// Setup field indexers on instanceID -- specifically for the interruption controller
@@ -189,6 +196,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		UnavailableOfferingsCache:   unavailableOfferingsCache,
 		SSMCache:                    ssmCache,
 		ValidationCache:             validationCache,
+		RecreationCache:             recreationCache,
 		SubnetProvider:              subnetProvider,
 		SecurityGroupProvider:       securityGroupProvider,
 		InstanceProfileProvider:     instanceProfileProvider,

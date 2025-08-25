@@ -50,7 +50,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+  - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
     with:
       ref: ${{ inputs.git_ref }}
   - uses: ./.github/actions/e2e/install-eksctl
@@ -67,6 +67,9 @@ runs:
 
       # Update the Cloudformation policy to add the permissionBoundary to the NodeRole
       yq -i ".Resources.KarpenterNodeRole.Properties.PermissionsBoundary = \"arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary\"" $CLOUDFORMATION_PATH
+
+      # Update the PassRole resource to use wildcard
+      awk '{gsub(/"Resource": "\${KarpenterNodeRole.Arn}"/, "\"Resource\": \"arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*\"")}1' $CLOUDFORMATION_PATH > $CLOUDFORMATION_PATH.tmp && mv $CLOUDFORMATION_PATH.tmp $CLOUDFORMATION_PATH
 
       aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
       aws cloudformation deploy \

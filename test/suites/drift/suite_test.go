@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -335,6 +336,100 @@ var _ = Describe("Drift", Ordered, func() {
 		env.ExpectUpdated(pod)
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
+	})
+	It("should drift nodeclaims when spec.role changes", func() {
+		// Create initial role and instance profile
+		initialRoleName := nodeClass.Spec.Role
+
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		firstNodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		firstNode := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(firstNodeClaim), firstNodeClaim)).To(Succeed())
+			g.Expect(nodeClass.Status.InstanceProfile).NotTo(BeEmpty())
+			env.EventuallyExpectInstanceProfileExists(nodeClass.Status.InstanceProfile)
+			g.Expect(firstNodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(nodeClass.Status.InstanceProfile))
+		}).Should(Succeed())
+
+		initialInstanceProfile := nodeClass.Status.InstanceProfile
+
+		// Change role
+		secondRoleName := fmt.Sprintf("KarpenterNodeRole-%s-%s", env.ClusterName, uuid.New().String()[:8])
+		env.EventuallyExpectNodeRoleCreated(secondRoleName)
+		DeferCleanup(func() {
+			env.ExpectNodeRoleDeleted(secondRoleName)
+		})
+
+		nodeClass.Spec.Role = secondRoleName
+		env.ExpectCreatedOrUpdated(nodeClass)
+
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
+			g.Expect(nodeClass.Status.InstanceProfile).NotTo(BeEmpty())
+			g.Expect(nodeClass.Status.InstanceProfile).NotTo(Equal(initialInstanceProfile))
+			env.EventuallyExpectInstanceProfileExists(nodeClass.Status.InstanceProfile)
+		}).Should(Succeed())
+
+		secondInstanceProfile := nodeClass.Status.InstanceProfile
+
+		env.EventuallyExpectDrifted(firstNodeClaim)
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(firstNodeClaim), firstNodeClaim)).To(Succeed())
+			condition := firstNodeClaim.StatusConditions().Get(karpv1.ConditionTypeDrifted)
+			g.Expect(condition).ToNot(BeNil())
+			g.Expect(condition.Reason).To(Equal("NodeClassDrift"))
+		}).Should(Succeed())
+
+		delete(dep.Spec.Template.Annotations, karpv1.DoNotDisruptAnnotationKey)
+		env.ExpectUpdated(dep)
+
+		env.EventuallyExpectNotFound(firstNodeClaim, firstNode)
+
+		// Verify new nodeclaim uses new instance profile
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		secondNodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		secondNode := env.ExpectCreatedNodeCount("==", 1)[0]
+		Expect(secondNodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(secondInstanceProfile))
+
+		// Change back to initial role
+		nodeClass.Spec.Role = initialRoleName
+		env.ExpectCreatedOrUpdated(nodeClass)
+
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
+			g.Expect(nodeClass.Status.InstanceProfile).NotTo(BeEmpty())
+			g.Expect(nodeClass.Status.InstanceProfile).NotTo(Equal(secondInstanceProfile))
+			env.EventuallyExpectInstanceProfileExists(nodeClass.Status.InstanceProfile)
+		}).Should(Succeed())
+
+		finalInstanceProfile := nodeClass.Status.InstanceProfile
+
+		env.EventuallyExpectDrifted(secondNodeClaim)
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(secondNodeClaim), secondNodeClaim)).To(Succeed())
+			condition := secondNodeClaim.StatusConditions().Get(karpv1.ConditionTypeDrifted)
+			g.Expect(condition).ToNot(BeNil())
+			g.Expect(condition.Reason).To(Equal("NodeClassDrift"))
+		}).Should(Succeed())
+
+		env.EventuallyExpectNotFound(secondNodeClaim, secondNode)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		finalNodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		finalNode := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		// Verify new nodeclaim uses new instance profile
+		Expect(finalNodeClaim.Annotations[v1.AnnotationInstanceProfile]).To(Equal(finalInstanceProfile))
+
+		Expect(env.ExpectTestingFinalizerRemoved(finalNode)).To(Succeed())
+		Expect(env.ExpectTestingFinalizerRemoved(finalNodeClaim)).To(Succeed())
+
+		env.ExpectDeleted(nodePool)
+		env.EventuallyExpectNotFound(finalNodeClaim, finalNode)
+		env.ExpectDeleted(nodeClass)
+		env.EventuallyExpectInstanceProfilesNotFound(initialInstanceProfile, secondInstanceProfile, finalInstanceProfile)
 	})
 	It("should drift the EC2NodeClass on BlockDeviceMappings volume size update", func() {
 		nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{

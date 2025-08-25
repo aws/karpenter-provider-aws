@@ -1,0 +1,22 @@
+name: Deploy Website to Amplify
+on:
+  push:
+    branches: [ main ]
+    paths: [ website/** ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.repository == 'aws/karpenter-provider-aws'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Deploy website
+        uses: ./.github/actions/deploy-website
+        with:
+          role: arn:aws:iam::${{ vars.RELEASE_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
+          region: ${{ vars.AMPLIFY_REGION }}
+          amplify-app-id: ${{ vars.AMPLIFY_APP_ID }}
+          amplify-branch-name: ${{ vars.BRANCH_NAME }}
+          s3-bucket: ${{ vars.AMPLIFY_S3_BUCKET }}

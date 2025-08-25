@@ -45,36 +45,41 @@ func (c *EventClient) DumpEvents(ctx context.Context) error {
 		c.dumpPodEvents(ctx),
 		c.dumpNodeEvents(ctx),
 	)
-
 }
 
 func (c *EventClient) dumpPodEvents(ctx context.Context) error {
-	el := &corev1.EventList{}
-	if err := c.kubeClient.List(ctx, el, &client.ListOptions{
-		FieldSelector: fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Pod"}),
-	}); err != nil {
+	events, err := c.GetEvents(ctx, "Pod", "kube-system")
+	if err != nil {
 		return err
 	}
-	events := lo.Filter(filterTestEvents(el.Items, c.start), func(e corev1.Event, _ int) bool {
-		return e.InvolvedObject.Namespace != "kube-system"
-	})
-	for k, v := range coallateEvents(events) {
+	for k, v := range events {
 		fmt.Print(getEventInformation(k, v))
 	}
 	return nil
 }
 
 func (c *EventClient) dumpNodeEvents(ctx context.Context) error {
-	el := &corev1.EventList{}
-	if err := c.kubeClient.List(ctx, el, &client.ListOptions{
-		FieldSelector: fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Node"}),
-	}); err != nil {
+	events, err := c.GetEvents(ctx, "Node")
+	if err != nil {
 		return err
 	}
-	for k, v := range coallateEvents(filterTestEvents(el.Items, c.start)) {
+	for k, v := range events {
 		fmt.Print(getEventInformation(k, v))
 	}
 	return nil
+}
+
+func (c *EventClient) GetEvents(ctx context.Context, kind string, excludedNamespaces ...string) (map[corev1.ObjectReference]*corev1.EventList, error) {
+	el := &corev1.EventList{}
+	if err := c.kubeClient.List(ctx, el, &client.ListOptions{
+		FieldSelector: fields.SelectorFromSet(map[string]string{"involvedObject.kind": kind}),
+	}); err != nil {
+		return nil, err
+	}
+	events := lo.Filter(filterTestEvents(el.Items, c.start), func(e corev1.Event, _ int) bool {
+		return !lo.Contains(excludedNamespaces, e.InvolvedObject.Namespace)
+	})
+	return coallateEvents(events), nil
 }
 
 func filterTestEvents(events []corev1.Event, startTime time.Time) []corev1.Event {

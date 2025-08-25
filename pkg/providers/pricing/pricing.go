@@ -184,6 +184,13 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 		return nil
 	}
 
+	if strings.HasPrefix(p.region, "us-gov") {
+		if p.cm.HasChanged("on-demand-prices", nil) {
+			log.FromContext(ctx).V(1).Info("pricing APIs aren't available in AWS GovCloud regions, on-demand pricing information will not be updated")
+		}
+		return nil
+	}
+
 	p.muOnDemand.Lock()
 	defer p.muOnDemand.Unlock()
 
@@ -277,6 +284,8 @@ func (p *DefaultProvider) fetchOnDemandPricing(ctx context.Context, additionalFi
 	input := &pricing.GetProductsInput{
 		Filters:     filters,
 		ServiceCode: aws.String("AmazonEC2"),
+		// MaxResults for DescribeInstances is capped at 100
+		MaxResults: lo.ToPtr[int32](100),
 	}
 
 	paginator := pricing.NewGetProductsPaginator(p.pricing, input)
@@ -380,6 +389,8 @@ func (p *DefaultProvider) UpdateSpotPricing(ctx context.Context) error {
 		},
 		// get the latest spot price for each instance type
 		StartTime: aws.Time(time.Now()),
+		// MaxResults for DescribeSpotPriceHistory is set at 2000 arbitrarily since EC2 doesn't seem to limit page size here
+		MaxResults: lo.ToPtr[int32](2000),
 	}
 
 	paginator := ec2.NewDescribeSpotPriceHistoryPaginator(p.ec2, input)

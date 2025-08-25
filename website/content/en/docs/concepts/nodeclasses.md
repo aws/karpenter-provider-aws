@@ -32,25 +32,25 @@ spec:
     podsPerCore: 2
     maxPods: 20
     systemReserved:
-        cpu: 100m
-        memory: 100Mi
-        ephemeral-storage: 1Gi
+      cpu: 100m
+      memory: 100Mi
+      ephemeral-storage: 1Gi
     kubeReserved:
-        cpu: 200m
-        memory: 100Mi
-        ephemeral-storage: 3Gi
+      cpu: 200m
+      memory: 100Mi
+      ephemeral-storage: 3Gi
     evictionHard:
-        memory.available: 5%
-        nodefs.available: 10%
-        nodefs.inodesFree: 10%
+      memory.available: 5%
+      nodefs.available: 10%
+      nodefs.inodesFree: 10%
     evictionSoft:
-        memory.available: 500Mi
-        nodefs.available: 15%
-        nodefs.inodesFree: 15%
+      memory.available: 500Mi
+      nodefs.available: 15%
+      nodefs.inodesFree: 15%
     evictionSoftGracePeriod:
-        memory.available: 1m
-        nodefs.available: 1m30s
-        nodefs.inodesFree: 2m
+      memory.available: 1m
+      nodefs.available: 1m30s
+      nodefs.inodesFree: 2m
     evictionMaxPodGracePeriod: 60
     imageGCHighThresholdPercent: 85
     imageGCLowThresholdPercent: 80
@@ -207,11 +207,15 @@ status:
       instanceMatchCriteria: targeted
       instanceType: g6.48xlarge
       ownerID: "012345678901"
+      reservationType: capacity-block
+      state: expiring
     - availabilityZone: us-west-2c
       id: cr-12345678901234567
       instanceMatchCriteria: open
       instanceType: g6.48xlarge
       ownerID: "98765432109"
+      reservationType: default
+      state: active
 
   # Generated instance profile name from "role"
   instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
@@ -873,9 +877,9 @@ When using a custom SSM parameter, you'll need to expand the `ssm:GetParameter` 
 
 ## spec.capacityReservationSelectorTerms
 
-<i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Alpha]({{<ref "../reference/settings#feature-gates" >}})
+<i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Beta]({{<ref "../reference/settings#feature-gates" >}})
 
-Capacity Reservation Selector Terms allow you to select [on-demand capacity reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html), which will be made available to NodePools which select the given EC2NodeClass.
+Capacity Reservation Selector Terms allow you to select [on-demand capacity reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html) (ODCRs), which will be made available to NodePools which select the given EC2NodeClass.
 Karpenter will prioritize utilizing the capacity in these reservations before falling back to on-demand and spot.
 Capacity reservations can be discovered using ids or tags.
 
@@ -883,6 +887,8 @@ This selection logic is modeled as terms.
 A term can specify an ID or a set of tags to select against.
 When specifying tags, it will select all capacity reservations accessible from the account with matching tags.
 This can be further restricted by specifying an owner ID.
+
+For more information on utilizing ODCRs with Karpenter, refer to the [Utilizing ODCRs Task]({{< relref "../tasks/odcrs" >}}).
 
 {{% alert title="Note" color="primary" %}}
 Note that the IAM role Karpenter assumes should have a permissions policy associated with it that grants it permissions to use the [ec2:DescribeCapacityReservations](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-DescribeCapacityReservations) action to discover capacity reservations and the [ec2:RunInstances](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-RunInstances) action to run instances in those capacity reservations.
@@ -985,6 +991,7 @@ spec:
         deleteOnTermination: true
         throughput: 125
         snapshotID: snap-0123456789
+        volumeInitializationRate: 100
 ```
 
 The following blockDeviceMapping defaults are used for each `AMIFamily` if no `blockDeviceMapping` overrides are specified in the `EC2NodeClass`
@@ -1785,6 +1792,41 @@ status:
       operator: In
       values:
       - arm64
+```
+
+## status.capacityReservations
+
+[`status.capacityReservations`]({{< ref "#statuscapacityreservations" >}}) contains the following information for each resolved capacity reservation:
+
+| Field                   | Example                | Description                                                                          |
+| ----------------------- | ---------------------- | ------------------------------------------------------------------------------------ |
+| `availabilityZone`      | `us-east-1a`           | The availability zone the capacity reservation is available in                       |
+| `id`                    | `cr-56fac701cc1951b03` | The ID of the capacity reservation                                                   |
+| `instanceMatchCriteria` | `open`                 | The instanceMatchCriteria for the capacity reservation. Can be `open` or `targeted`. |
+| `instanceType`          | `m5.large`             | The EC2 instance type of the capacity reservation                                    |
+| `ownerID`               | `459763720645`         | The account ID that owns the capacity reservation                                    |
+| `reservationType`       | `default`              | The type of the capacity reservation. Can be `default` or `capacity-block`.          |
+| `state`                 | `active`               | The state of the capacity reservation. Can be `active` or `expiring`.                |
+
+#### Examples
+
+```yaml
+status:
+  capacityReservations:
+  - availabilityZone: us-west-2a
+    id: cr-01234567890123456
+    instanceMatchCriteria: targeted
+    instanceType: g6.48xlarge
+    ownerID: "012345678901"
+    reservationType: capacity-block
+    state: expiring
+  - availabilityZone: us-west-2c
+    id: cr-12345678901234567
+    instanceMatchCriteria: open
+    instanceType: g6.48xlarge
+    ownerID: "98765432109"
+    reservationType: default
+    state: active
 ```
 
 ## status.instanceProfile
