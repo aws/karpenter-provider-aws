@@ -25,6 +25,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	sqsapi "github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/singleton"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
@@ -35,7 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -93,13 +93,13 @@ func NewController(
 	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	ctx = injection.WithControllerName(ctx, "interruption")
 	if c.sqsProvider == nil {
 		prov, err := sqs.NewSQSProvider(ctx, c.sqsAPI)
 		if err != nil {
 			log.FromContext(ctx).Error(err, "failed to create valid sqs provider")
-			return reconcile.Result{}, fmt.Errorf("creating sqs provider, %w", err)
+			return reconciler.Result{}, fmt.Errorf("creating sqs provider, %w", err)
 		}
 		c.sqsProvider = prov
 	}
@@ -109,10 +109,10 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	}
 	sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
+		return reconciler.Result{}, fmt.Errorf("getting messages from queue, %w", err)
 	}
 	if len(sqsMessages) == 0 {
-		return reconcile.Result{RequeueAfter: singleton.RequeueImmediately}, nil
+		return reconciler.Result{RequeueAfter: singleton.RequeueImmediately}, nil
 	}
 
 	errs := make([]error, len(sqsMessages))
@@ -131,9 +131,9 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 		errs[i] = c.deleteMessage(ctx, sqsMessages[i])
 	})
 	if err = multierr.Combine(errs...); err != nil {
-		return reconcile.Result{}, err
+		return reconciler.Result{}, err
 	}
-	return reconcile.Result{RequeueAfter: singleton.RequeueImmediately}, nil
+	return reconciler.Result{RequeueAfter: singleton.RequeueImmediately}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
