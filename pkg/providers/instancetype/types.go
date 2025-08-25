@@ -564,6 +564,14 @@ func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifami
 	if lo.FromPtr(podsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
 		count = lo.Min([]int64{int64(lo.FromPtr(podsPerCore)) * int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)), count})
 	}
+
+	// sig-scalability and aws recommend capping pods, see:
+	// - https://github.com/kubernetes/community/blob/master/sig-scalability/configs-and-limits/thresholds.md
+	// - https://github.com/awslabs/amazon-eks-ami/blob/main/templates/al2/runtime/max-pods-calculator.sh
+	// - https://github.com/aws/karpenter-provider-aws/issues/8286
+	// TODO: make this opt-in or opt-out
+	count = min(count, int64(lo.Ternary(lo.FromPtr(info.VCpuInfo.DefaultVCpus) > 30, 250, 110)))
+
 	return resources.Quantity(fmt.Sprint(count))
 }
 
