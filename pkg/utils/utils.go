@@ -25,6 +25,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/awslabs/operatorpkg/serrors"
+	"github.com/mitchellh/hashstructure/v2"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -120,4 +121,17 @@ func GetTags(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, clusterNam
 		v1.LabelNodeClass:                                    nodeClass.Name,
 	}
 	return lo.Assign(nodeClass.Spec.Tags, staticTags), nil
+}
+
+func ValidationCacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) string {
+	hash := lo.Must(hashstructure.Hash([]interface{}{
+		nodeClass.Status.Subnets,
+		nodeClass.Status.SecurityGroups,
+		nodeClass.Status.AMIs,
+		nodeClass.Status.InstanceProfile,
+		nodeClass.Spec.MetadataOptions,
+		nodeClass.Spec.BlockDeviceMappings,
+		tags,
+	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
+	return fmt.Sprintf("%s:%016x", nodeClass.Name, hash)
 }

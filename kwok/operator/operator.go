@@ -184,6 +184,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		launchTemplateProvider,
 		capacityReservationProvider,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		validationCache,
 	)
 
 	// Setup field indexers on instanceID -- specifically for the interruption controller
