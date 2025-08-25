@@ -104,7 +104,6 @@ func NewController(
 			NewSubnetReconciler(subnetProvider),
 			NewSecurityGroupReconciler(securityGroupProvider),
 			NewInstanceProfileReconciler(instanceProfileProvider, region, recreationCache),
-			NewReadinessReconciler(launchTemplateProvider),
 			validation,
 		},
 	}

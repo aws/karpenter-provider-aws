@@ -125,24 +125,14 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		)
 		return reconcile.Result{}, nil
 	}
-	// Ensure CIDR is resolved for relevant AMIs, if it is not we know validation will fail regardless of the other values.
-	// We first check ready condition to not re-call API
-	readyCondition := nodeClass.StatusConditions().Get(status.ConditionReady)
-	if readyCondition.Reason == NodeClassNotReady && readyCondition.Message == CIDRDetectionFailed {
-		nodeClass.StatusConditions().SetFalse(
-			v1.ConditionTypeValidationSucceeded,
-			ConditionReasonDependenciesNotReady,
-			"Awaiting CIDR resolution",
-		)
-		return reconcile.Result{}, nil
-	}
-	if err := ResolveClusterCIDR(ctx, v.launchTemplateProvider, nodeClass); err != nil {
-		nodeClass.StatusConditions().SetFalse(
-			v1.ConditionTypeValidationSucceeded,
-			ConditionReasonDependenciesNotReady,
-			"Awaiting CIDR resolution",
-		)
-		return reconcile.Result{}, err
+	// A NodeClass that uses AL2023 requires the cluster CIDR for launching nodes.
+	// To allow Karpenter to be used for Non-EKS clusters, resolving the Cluster CIDR
+	// will not be done at startup but instead in a reconcile loop.
+	if nodeClass.AMIFamily() == v1.AMIFamilyAL2023 {
+		if err := v.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
+			nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to detect the cluster CIDR")
+			return reconcile.Result{}, fmt.Errorf("failed to detect the cluster CIDR, %w", err)
+		}
 	}
 
 	nodeClaim := &karpv1.NodeClaim{

@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -87,6 +88,56 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Entry(v1.ConditionTypeSecurityGroupsReady, v1.ConditionTypeSecurityGroupsReady),
 			Entry(v1.ConditionTypeSubnetsReady, v1.ConditionTypeSubnetsReady),
 		)
+	})
+	Context("NodeClass Status Conditions", func() {
+		BeforeEach(func() {
+			nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					SubnetSelectorTerms: []v1.SubnetSelectorTerm{
+						{
+							Tags: map[string]string{"*": "*"},
+						},
+					},
+					SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{
+						{
+							Tags: map[string]string{"*": "*"},
+						},
+					},
+					AMIFamily: lo.ToPtr(v1.AMIFamilyCustom),
+					AMISelectorTerms: []v1.AMISelectorTerm{
+						{
+							Tags: map[string]string{"*": "*"},
+						},
+					},
+				},
+			})
+		})
+		DescribeTable(
+			"should update status condition on nodeClass as Ready",
+			func(reservedCapacity bool) {
+				coreoptions.FromContext(ctx).FeatureGates.ReservedCapacity = reservedCapacity
+				ExpectApplied(ctx, env.Client, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.Status.Conditions).To(HaveLen(lo.Ternary(reservedCapacity, 7, 6)))
+				Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
+			},
+			Entry("when reserved capacity feature flag is enabled", true),
+			Entry("when reserved capacity feature flag is disabled", false),
+		)
+		It("should update status condition as Not Ready", func() {
+			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+				{
+					Tags: map[string]string{"foo": "invalid"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
+			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("ValidationSucceeded=False, SecurityGroupsReady=False"))
+		})
 	})
 	Context("Tag Validation", func() {
 		BeforeEach(func() {
