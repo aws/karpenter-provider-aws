@@ -31,6 +31,8 @@ const (
 	RateLimitingErrorCode                          = "RequestLimitExceeded"
 	ServiceLinkedRoleCreationNotPermittedErrorCode = "AuthFailure.ServiceLinkedRoleCreationNotPermitted"
 	InsufficientFreeAddressesInSubnetErrorCode     = "InsufficientFreeAddressesInSubnet"
+	InternalErrorCode                              = "InternalError"
+	ServiceUnavailableErrorCode                    = "ServiceUnavailable"
 )
 
 var (
@@ -145,6 +147,23 @@ func IsRateLimitedError(err error) bool {
 
 func IgnoreRateLimitedError(err error) error {
 	if IsRateLimitedError(err) {
+		return nil
+	}
+	return err
+}
+
+func IsTemporaryServiceError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
+		return apiErr.ErrorCode() == InternalErrorCode || apiErr.ErrorCode() == ServiceUnavailableErrorCode
+	}
+	return false
+}
+
+func IgnoreTemporaryServiceError(err error) error {
+	if IsTemporaryServiceError(err) {
 		return nil
 	}
 	return err
