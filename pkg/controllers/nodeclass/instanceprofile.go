@@ -67,7 +67,7 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 			profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile)
 			if err != nil {
 				if !awserrors.IsNotFound(err) {
-					return reconcile.Result{}, fmt.Errorf("getting instance profile %s: %w", nodeClass.Status.InstanceProfile, err)
+					return reconcile.Result{}, fmt.Errorf("getting instance profile %s, %w", nodeClass.Status.InstanceProfile, err)
 				}
 			} else if len(profile.Roles) > 0 {
 				currentRole = lo.FromPtr(profile.Roles[0].RoleName)

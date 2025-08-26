@@ -52,6 +52,9 @@ type IAMAPI struct {
 	IAMAPIBehavior
 
 	InstanceProfiles map[string]*iamtypes.InstanceProfile
+
+	// TODO (jmdeal@): Update remaining tests to pass role validation
+	EnableRoleValidation bool
 	Roles            map[string]*iamtypes.Role
 }
 
@@ -71,6 +74,7 @@ func (s *IAMAPI) Reset() {
 	s.ListInstanceProfilesBehavior.Reset()
 	s.GetRoleBehavior.Reset()
 	s.InstanceProfiles = map[string]*iamtypes.InstanceProfile{}
+	s.EnableRoleValidation = false
 	s.Roles = map[string]*iamtypes.Role{}
 }
 
@@ -162,6 +166,12 @@ func (s *IAMAPI) AddRoleToInstanceProfile(_ context.Context, input *iam.AddRoleT
 		s.Lock()
 		defer s.Unlock()
 
+		if _, ok := s.Roles[aws.ToString(input.RoleName)]; !ok && s.EnableRoleValidation {
+			return nil, &smithy.GenericAPIError{
+				Code: "NoSuchEntity",
+				Message: fmt.Sprintf("The role with name %s cannot be found", aws.ToString(input.RoleName)),
+			}
+		}
 		if i, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
 			if len(i.Roles) > 0 {
 				return nil, &smithy.GenericAPIError{
@@ -175,8 +185,7 @@ func (s *IAMAPI) AddRoleToInstanceProfile(_ context.Context, input *iam.AddRoleT
 		}
 		return nil, &smithy.GenericAPIError{
 			Code: "NoSuchEntity",
-			Message: fmt.Sprintf("Instance Profile %s cannot be found",
-				aws.ToString(input.InstanceProfileName)),
+			Message: fmt.Sprintf("Instance Profile %s cannot be found", aws.ToString(input.InstanceProfileName)),
 		}
 	})
 }
