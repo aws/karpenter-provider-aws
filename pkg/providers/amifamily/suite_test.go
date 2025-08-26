@@ -35,13 +35,18 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/awslabs/operatorpkg/object"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	corecloudfake "sigs.k8s.io/karpenter/pkg/cloudprovider/fake"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -51,6 +56,9 @@ var ctx context.Context
 var env *coretest.Environment
 var awsEnv *test.Environment
 var nodeClass *v1.EC2NodeClass
+var nodePool *karpv1.NodePool
+var nodeClaim *karpv1.NodeClaim
+var instanceTypes []*corecloudprovider.InstanceType
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -927,6 +935,60 @@ var _ = Describe("AMIProvider", func() {
 			Expect(amis).To(HaveLen(0))
 		})
 	})
+})
+
+var _ = Describe("AMIResolver", func() {
+	BeforeEach(func() {
+		nodeClass = test.EC2NodeClass()
+		nodePool = coretest.NodePool(karpv1.NodePool{
+			Spec: karpv1.NodePoolSpec{
+				Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimTemplateSpec{
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
+						},
+					},
+				},
+			},
+		})
+		nodeClaim = coretest.NodeClaim(karpv1.NodeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					karpv1.NodePoolLabelKey: nodePool.Name,
+				},
+			},
+			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
+					Group: object.GVK(nodeClass).Group,
+					Kind:  object.GVK(nodeClass).Kind,
+					Name:  nodeClass.Name,
+				},
+			},
+		})
+		instanceTypes = []*corecloudprovider.InstanceType{
+			corecloudfake.NewInstanceType(corecloudfake.InstanceTypeOptions{Name: "t3.medium"}),
+			corecloudfake.NewInstanceType(corecloudfake.InstanceTypeOptions{Name: "m5.large"}),
+		}
+	})
+	DescribeTable(
+		"should set launch template metadata options correctly per region",
+		func(region string, expect *string) {
+			amiResolver := amifamily.NewDefaultResolver(region)
+			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, &amifamily.Options{ClusterName: "test"})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(launchTemplates).To(HaveLen(1))
+			lo.ForEach(launchTemplates, func(launchTemplate *amifamily.LaunchTemplate, _ int) {
+				Expect(launchTemplate.MetadataOptions.HTTPProtocolIPv6).To(Equal(expect))
+			})
+		},
+		Entry("should be disabled for supported regions", fake.DefaultRegion, lo.ToPtr("disabled")),
+		Entry("should be nil for isoe", "eu-isoe-west-1", nil),
+		Entry("should be nil for iso", "us-iso-east-1", nil),
+		Entry("should be nil for isob", "us-isob-east-1", nil),
+		Entry("should be nil for isof", "us-isof-south-1", nil),
+	)
 })
 
 func ExpectConsistsOfAMIQueries(expected, actual []amifamily.DescribeImageQuery) {

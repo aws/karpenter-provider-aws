@@ -25,10 +25,9 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/awslabs/operatorpkg/reconciler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
@@ -132,14 +131,14 @@ func (c *Controller) cleanupInactiveProfiles(ctx context.Context) error {
 	return nil
 }
 
-func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("controller", "instanceprofile.garbagecollection"))
 
 	if err := c.cleanupInactiveProfiles(ctx); err != nil {
-		return reconcile.Result{}, err
+		return reconciler.Result{}, err
 	}
 	// Requeue after 30 minutes
-	return reconcile.Result{RequeueAfter: 30 * time.Minute}, nil
+	return reconciler.Result{RequeueAfter: 30 * time.Minute}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

@@ -33,8 +33,6 @@ var (
 		// d2.2xlarge has vague bandwidth information, bandwidth is High
 		// d2.4xlarge has vague bandwidth information, bandwidth is High
 		// d2.xlarge has vague bandwidth information, bandwidth is Moderate
-		// f1.2xlarge has vague bandwidth information, bandwidth is Up to 10 Gigabit
-		// f1.4xlarge has vague bandwidth information, bandwidth is Up to 10 Gigabit
 		// i2.2xlarge has vague bandwidth information, bandwidth is High
 		// i2.4xlarge has vague bandwidth information, bandwidth is High
 		// i2.xlarge has vague bandwidth information, bandwidth is Moderate
@@ -53,7 +51,6 @@ var (
 		// m4.4xlarge has vague bandwidth information, bandwidth is High
 		// m4.large has vague bandwidth information, bandwidth is Moderate
 		// m4.xlarge has vague bandwidth information, bandwidth is High
-		// p3.2xlarge has vague bandwidth information, bandwidth is Up to 10 Gigabit
 		// r3.2xlarge has vague bandwidth information, bandwidth is High
 		// r3.4xlarge has vague bandwidth information, bandwidth is High
 		// r3.large has vague bandwidth information, bandwidth is Moderate
@@ -83,6 +80,7 @@ var (
 		"m7a.medium":           390,
 		"m7i-flex.large":       390,
 		"r7a.medium":           390,
+		"r8i-flex.large":       468,
 		"a1.medium":            500,
 		"c6g.medium":           500,
 		"c6gd.medium":          500,
@@ -164,6 +162,8 @@ var (
 		"r7gd.large":           937,
 		"r8g.large":            937,
 		"r8gd.large":           937,
+		"r8i-flex.xlarge":      937,
+		"r8i.large":            937,
 		"x8g.large":            937,
 		"t3.xlarge":            1024,
 		"t3a.xlarge":           1024,
@@ -225,6 +225,8 @@ var (
 		"m8gd.xlarge":          1875,
 		"r8g.xlarge":           1875,
 		"r8gd.xlarge":          1875,
+		"r8i-flex.2xlarge":     1875,
+		"r8i.xlarge":           1875,
 		"x2iedn.xlarge":        1875,
 		"x8g.xlarge":           1875,
 		"c7g.xlarge":           1876,
@@ -253,6 +255,7 @@ var (
 		"c5d.2xlarge":          2500,
 		"c6g.2xlarge":          2500,
 		"c6gd.2xlarge":         2500,
+		"f1.2xlarge":           2500,
 		"g5.xlarge":            2500,
 		"g5g.2xlarge":          2500,
 		"g6.xlarge":            2500,
@@ -266,6 +269,7 @@ var (
 		"m5d.2xlarge":          2500,
 		"m6g.2xlarge":          2500,
 		"m6gd.2xlarge":         2500,
+		"p3.2xlarge":           2500,
 		"r4.2xlarge":           2500,
 		"r5.2xlarge":           2500,
 		"r5a.2xlarge":          2500,
@@ -322,6 +326,8 @@ var (
 		"r7gd.2xlarge":         3750,
 		"r8g.2xlarge":          3750,
 		"r8gd.2xlarge":         3750,
+		"r8i-flex.4xlarge":     3750,
+		"r8i.2xlarge":          3750,
 		"x8g.2xlarge":          3750,
 		"m5dn.xlarge":          4100,
 		"m5n.xlarge":           4100,
@@ -343,6 +349,8 @@ var (
 		"c5n.xlarge":           5000,
 		"c6g.4xlarge":          5000,
 		"c6gd.4xlarge":         5000,
+		"f1.4xlarge":           5000,
+		"g3.4xlarge":           5000,
 		"g4dn.xlarge":          5000,
 		"g5.2xlarge":           5000,
 		"g5g.4xlarge":          5000,
@@ -419,6 +427,8 @@ var (
 		"r7gd.4xlarge":         7500,
 		"r8g.4xlarge":          7500,
 		"r8gd.4xlarge":         7500,
+		"r8i-flex.8xlarge":     7500,
+		"r8i.4xlarge":          7500,
 		"x8g.4xlarge":          7500,
 		"m5dn.2xlarge":         8125,
 		"m5n.2xlarge":          8125,
@@ -470,6 +480,7 @@ var (
 		"r5d.8xlarge":          10000,
 		"x1.16xlarge":          10000,
 		"x1e.16xlarge":         10000,
+		"r8i-flex.12xlarge":    11250,
 		"c5.12xlarge":          12000,
 		"c5.9xlarge":           12000,
 		"c5a.12xlarge":         12000,
@@ -549,6 +560,8 @@ var (
 		"r7gd.8xlarge":         15000,
 		"r8g.8xlarge":          15000,
 		"r8gd.8xlarge":         15000,
+		"r8i-flex.16xlarge":    15000,
+		"r8i.8xlarge":          15000,
 		"x2iezn.4xlarge":       15000,
 		"x8g.8xlarge":          15000,
 		"m5dn.4xlarge":         16250,
@@ -609,6 +622,7 @@ var (
 		"r7gd.12xlarge":        22500,
 		"r8g.12xlarge":         22500,
 		"r8gd.12xlarge":        22500,
+		"r8i.12xlarge":         22500,
 		"x8g.12xlarge":         22500,
 		"c5.18xlarge":          25000,
 		"c5.24xlarge":          25000,
@@ -726,6 +740,7 @@ var (
 		"r7gd.metal":           30000,
 		"r8g.16xlarge":         30000,
 		"r8gd.16xlarge":        30000,
+		"r8i.16xlarge":         30000,
 		"x8g.16xlarge":         30000,
 		"g6e.16xlarge":         35000,
 		"c6a.24xlarge":         37500,
@@ -764,6 +779,7 @@ var (
 		"r8g.metal-24xl":       40000,
 		"r8gd.24xlarge":        40000,
 		"r8gd.metal-24xl":      40000,
+		"r8i.24xlarge":         40000,
 		"x8g.24xlarge":         40000,
 		"x8g.metal-24xl":       40000,
 		"c5n.9xlarge":          50000,
@@ -842,6 +858,7 @@ var (
 		"r8g.metal-48xl":       50000,
 		"r8gd.48xlarge":        50000,
 		"r8gd.metal-48xl":      50000,
+		"r8i.32xlarge":         50000,
 		"u-3tb1.56xlarge":      50000,
 		"x2idn.16xlarge":       50000,
 		"x2iedn.16xlarge":      50000,
@@ -865,6 +882,8 @@ var (
 		"r5n.16xlarge":         75000,
 		"r6idn.12xlarge":       75000,
 		"r6in.12xlarge":        75000,
+		"r8i.48xlarge":         75000,
+		"r8i.metal-48xl":       75000,
 		"x2idn.24xlarge":       75000,
 		"x2iedn.24xlarge":      75000,
 		"x2iezn.8xlarge":       75000,
@@ -897,12 +916,15 @@ var (
 		"m6idn.16xlarge":       100000,
 		"m6in.16xlarge":        100000,
 		"p3dn.24xlarge":        100000,
+		"p5.4xlarge":           100000,
 		"r5dn.24xlarge":        100000,
 		"r5dn.metal":           100000,
 		"r5n.24xlarge":         100000,
 		"r5n.metal":            100000,
 		"r6idn.16xlarge":       100000,
 		"r6in.16xlarge":        100000,
+		"r8i.96xlarge":         100000,
+		"r8i.metal-96xl":       100000,
 		"u-12tb1.112xlarge":    100000,
 		"u-12tb1.metal":        100000,
 		"u-18tb1.112xlarge":    100000,
