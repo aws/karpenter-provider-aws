@@ -158,11 +158,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	}
 
 	if v.dryRunDisabled {
-		nodeClass.StatusConditions().SetTrueWithReason(
-			v1.ConditionTypeValidationSucceeded,
-			ConditionReasonDryRunDisabled,
-			"Dry run is disabled",
-		)
+		nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 		v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
 		return reconcile.Result{}, nil
 	}
