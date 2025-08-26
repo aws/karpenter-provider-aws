@@ -55,7 +55,7 @@ type IAMAPI struct {
 
 	// TODO (jmdeal@): Update remaining tests to pass role validation
 	EnableRoleValidation bool
-	Roles            map[string]*iamtypes.Role
+	Roles                map[string]*iamtypes.Role
 }
 
 func NewIAMAPI() *IAMAPI {
@@ -168,7 +168,7 @@ func (s *IAMAPI) AddRoleToInstanceProfile(_ context.Context, input *iam.AddRoleT
 
 		if _, ok := s.Roles[aws.ToString(input.RoleName)]; !ok && s.EnableRoleValidation {
 			return nil, &smithy.GenericAPIError{
-				Code: "NoSuchEntity",
+				Code:    "NoSuchEntity",
 				Message: fmt.Sprintf("The role with name %s cannot be found", aws.ToString(input.RoleName)),
 			}
 		}
@@ -184,7 +184,7 @@ func (s *IAMAPI) AddRoleToInstanceProfile(_ context.Context, input *iam.AddRoleT
 			return nil, nil
 		}
 		return nil, &smithy.GenericAPIError{
-			Code: "NoSuchEntity",
+			Code:    "NoSuchEntity",
 			Message: fmt.Sprintf("Instance Profile %s cannot be found", aws.ToString(input.InstanceProfileName)),
 		}
 	})
