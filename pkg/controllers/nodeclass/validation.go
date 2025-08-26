@@ -62,11 +62,6 @@ var ValidationConditionMessages = map[string]string{
 	ConditionReasonRunInstancesAuthFailed:         "Controller isn't authorized to call ec2:RunInstances",
 }
 
-type validationContext struct {
-	instanceTypes  []*cloudprovider.InstanceType
-	launchTemplate *launchtemplate.LaunchTemplate
-}
-
 type Validation struct {
 	kubeClient             client.Client
 	cloudProvider          cloudprovider.CloudProvider
@@ -171,26 +166,20 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
 		return reconcile.Result{}, nil
 	}
-	validationCtx := &validationContext{}
 
-	for _, isValid := range []validatorFunc{
-		v.validateCreateLaunchTemplateAuthorization,
-		v.validateCreateFleetAuthorization,
-		v.validateRunInstancesAuthorization,
-	} {
-		if failureReason, requeue, err := isValid(ctx, nodeClass, nodeClaim, tags, validationCtx); err != nil {
-			return reconcile.Result{}, err
-		} else if requeue {
-			return reconcile.Result{Requeue: true}, nil
-		} else if failureReason != "" {
-			v.cache.SetDefault(v.cacheKey(nodeClass, tags), failureReason)
-			nodeClass.StatusConditions().SetFalse(
-				v1.ConditionTypeValidationSucceeded,
-				failureReason,
-				ValidationConditionMessages[failureReason],
-			)
-			return reconcile.Result{}, nil
-		}
+	failureReason, requeue, instanceTypes, launchTemplate, err := v.validateCreateLaunchTemplateAuthorization(ctx, nodeClass, nodeClaim, tags)
+	if reconcileResult, shouldReturn, err := v.handleValidationResult(failureReason, requeue, err, nodeClass, tags); shouldReturn {
+		return reconcileResult, err
+	}
+
+	failureReason, requeue, err = v.validateCreateFleetAuthorization(ctx, nodeClass, nodeClaim, tags, instanceTypes, launchTemplate)
+	if reconcileResult, shouldReturn, err := v.handleValidationResult(failureReason, requeue, err, nodeClass, tags); shouldReturn {
+		return reconcileResult, err
+	}
+
+	failureReason, requeue, err = v.validateRunInstancesAuthorization(ctx, nodeClass, nodeClaim, tags, instanceTypes[0], launchTemplate)
+	if reconcileResult, shouldReturn, err := v.handleValidationResult(failureReason, requeue, err, nodeClass, tags); shouldReturn {
+		return reconcileResult, err
 	}
 
 	v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
@@ -198,40 +187,57 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	return reconcile.Result{}, nil
 }
 
-type validatorFunc func(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim, map[string]string, *validationContext) (string, bool, error)
+func (v *Validation) handleValidationResult(
+	failureReason string,
+	requeue bool,
+	err error,
+	nodeClass *v1.EC2NodeClass,
+	tags map[string]string,
+) (reconcileResult reconcile.Result, shouldReturn bool, _ error) {
+	if err != nil {
+		return reconcile.Result{}, true, err
+	} else if requeue {
+		return reconcile.Result{Requeue: true}, true, nil
+	} else if failureReason != "" {
+		v.cache.SetDefault(v.cacheKey(nodeClass, tags), failureReason)
+		nodeClass.StatusConditions().SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			failureReason,
+			ValidationConditionMessages[failureReason],
+		)
+		return reconcile.Result{}, true, nil
+	}
+	return reconcile.Result{}, false, nil
+}
 
 func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
-	validationCtx *validationContext,
-) (reason string, requeue bool, err error) {
+) (reason string, requeue bool, instanceTypes []*cloudprovider.InstanceType, launchTemplate *launchtemplate.LaunchTemplate, err error) {
 	allInstanceTypes, err := v.getValidationInstanceTypes(ctx, nodeClaim, nodeClass, tags)
 	if err != nil {
-		return "", false, fmt.Errorf("generating options, %w", err)
+		return "", false, nil, nil, fmt.Errorf("generating options, %w", err)
 	}
 	// this case should never occur
 	if len(allInstanceTypes) == 0 {
-		return "", false, fmt.Errorf("no instance types available")
+		return "", false, nil, nil, fmt.Errorf("no instance types available")
 	}
 	// we only want to create 1 launch template so we only pass 1 instance type to EnsureAll
-	instanceTypes := allInstanceTypes[:1]
+	instanceTypes = allInstanceTypes[:1]
 	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, tags)
 	if err != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsTemporaryServiceError(err) {
-			return "", true, nil
+			return "", true, nil, nil, nil
 		}
-		return ConditionReasonCreateLaunchTemplateAuthFailed, false, nil
+		return ConditionReasonCreateLaunchTemplateAuthFailed, false, nil, nil, nil
 	}
 	// this case should never occur
 	if len(launchTemplates) == 0 {
-		return "", false, fmt.Errorf("no launch templates created")
+		return "", false, nil, nil, fmt.Errorf("no launch templates created")
 	}
-	// update validation context
-	validationCtx.instanceTypes = instanceTypes
-	validationCtx.launchTemplate = launchTemplates[0]
-	return "", false, nil
+	return "", false, instanceTypes, launchTemplates[0], nil
 }
 
 func (v *Validation) validateCreateFleetAuthorization(
@@ -239,9 +245,10 @@ func (v *Validation) validateCreateFleetAuthorization(
 	nodeClass *v1.EC2NodeClass,
 	_ *karpv1.NodeClaim,
 	tags map[string]string,
-	validationCtx *validationContext,
+	instanceTypes []*cloudprovider.InstanceType,
+	launchTemplate *launchtemplate.LaunchTemplate,
 ) (reason string, requeue bool, err error) {
-	fleetLaunchTemplateConfig := getFleetLaunchTemplateConfig(nodeClass, validationCtx.instanceTypes, validationCtx.launchTemplate)
+	fleetLaunchTemplateConfig := getFleetLaunchTemplateConfig(nodeClass, instanceTypes, launchTemplate)
 	createFleetInput := instance.NewCreateFleetInputBuilder(karpv1.CapacityTypeOnDemand, tags, fleetLaunchTemplateConfig).Build()
 	createFleetInput.DryRun = lo.ToPtr(true)
 	// Adding NopRetryer to avoid aggressive retry when rate limited
@@ -266,9 +273,10 @@ func (v *Validation) validateRunInstancesAuthorization(
 	nodeClass *v1.EC2NodeClass,
 	_ *karpv1.NodeClaim,
 	tags map[string]string,
-	validationCtx *validationContext,
+	instanceType *cloudprovider.InstanceType,
+	launchTemplate *launchtemplate.LaunchTemplate,
 ) (reason string, requeue bool, err error) {
-	runInstancesInput := getRunInstancesInput(nodeClass, tags, validationCtx)
+	runInstancesInput := getRunInstancesInput(nodeClass, tags, instanceType, launchTemplate)
 	// Adding NopRetryer to avoid aggressive retry when rate limited
 	if _, err = v.ec2api.RunInstances(ctx, runInstancesInput, func(o *ec2.Options) {
 		o.Retryer = aws.NopRetryer{}
@@ -331,18 +339,19 @@ func (v *Validation) clearCacheEntries(nodeClass *v1.EC2NodeClass) {
 func getRunInstancesInput(
 	nodeClass *v1.EC2NodeClass,
 	tags map[string]string,
-	validationCtx *validationContext,
+	instanceType *cloudprovider.InstanceType,
+	launchTemplate *launchtemplate.LaunchTemplate,
 ) *ec2.RunInstancesInput {
 	return &ec2.RunInstancesInput{
 		DryRun:   lo.ToPtr(true),
 		MaxCount: lo.ToPtr[int32](1),
 		MinCount: lo.ToPtr[int32](1),
 		LaunchTemplate: &ec2types.LaunchTemplateSpecification{
-			LaunchTemplateName: lo.ToPtr(validationCtx.launchTemplate.Name),
+			LaunchTemplateName: lo.ToPtr(launchTemplate.Name),
 			Version:            lo.ToPtr("$Latest"),
 		},
-		InstanceType: ec2types.InstanceType(validationCtx.instanceTypes[0].Name),
-		ImageId:      lo.ToPtr(validationCtx.launchTemplate.ImageID),
+		InstanceType: ec2types.InstanceType(instanceType.Name),
+		ImageId:      lo.ToPtr(launchTemplate.ImageID),
 		NetworkInterfaces: []ec2types.InstanceNetworkInterfaceSpecification{
 			{
 				DeviceIndex: lo.ToPtr[int32](0),
