@@ -333,19 +333,19 @@ var _ = Describe("InstanceProfileProvider", func() {
 		It("should not cache role not found errors when the role exists", func() {
 			err := awsEnv.InstanceProfileProvider.Create(ctx, "test-profile", roleName, nil, "test-uid")
 			Expect(err).ToNot(HaveOccurred())
-			_, ok := awsEnv.InstanceProfileCache.Get(fmt.Sprintf("role:%s", roleName))
+			_, ok := awsEnv.RoleCache.Get(roleName)
 			Expect(ok).To(BeFalse())
 		})
 		It("should cache role not found errors when the role does not", func() {
 			missingRoleName := "non-existent-role"
 			err := awsEnv.InstanceProfileProvider.Create(ctx, "test-profile", missingRoleName, nil, "test-uid")
 			Expect(err).To(HaveOccurred())
-			_, ok := awsEnv.InstanceProfileCache.Get(fmt.Sprintf("role:%s", missingRoleName))
+			_, ok := awsEnv.RoleCache.Get(missingRoleName)
 			Expect(ok).To(BeTrue())
 		})
 		It("should not attempt to create instance profile when role is cached as not found", func() {
 			missingRoleName := "non-existent-role"
-			awsEnv.InstanceProfileCache.SetDefault(fmt.Sprintf("role:%s", missingRoleName), errors.New("role not found"))
+			awsEnv.RoleCache.SetDefault(missingRoleName, errors.New("role not found"))
 
 			err := awsEnv.InstanceProfileProvider.Create(ctx, "test-profile", missingRoleName, nil, "test-uid")
 			Expect(err).To(HaveOccurred())

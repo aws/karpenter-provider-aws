@@ -15,7 +15,6 @@ limitations under the License.
 package instanceprofile
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/aws/smithy-go"
@@ -53,27 +52,22 @@ func ToRoleNotFoundError(err error) (error, bool) {
 	}, true
 }
 
-// roleCache is a wrapper around a go-cache for handling role not found errors returned by AddRoleToInstanceProfile.
-type roleCache struct {
+// RoleCache is a wrapper around a go-cache for handling role not found errors returned by AddRoleToInstanceProfile.
+type RoleCache struct {
 	*cache.Cache
 }
 
-func (c roleCache) Key(name string) string {
-	// NOTE: : is an illegal character in both instance profile and role names, ensuring there isn't risk of collision
-	return fmt.Sprintf("role:%s", name)
-}
-
 // HasError returns the last RoleNotFoundError encountered when attempting to add the given role to an instance profile.
-func (c roleCache) HasError(name string) (error, bool) {
-	if err, ok := c.Get(c.Key(name)); ok {
+func (rc RoleCache) HasError(roleName string) (error, bool) {
+	if err, ok := rc.Get(roleName); ok {
 		return err.(error), true
 	}
 	return nil, false
 }
 
-func (c roleCache) SetError(name string, err error) {
+func (rc RoleCache) SetError(roleName string, err error) {
 	if !IsRoleNotFoundError(err) {
 		panic("role cache only accepts RoleNotFoundErrors")
 	}
-	c.SetDefault(c.Key(name), err)
+	rc.SetDefault(roleName, err)
 }

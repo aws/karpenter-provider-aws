@@ -44,22 +44,26 @@ type Provider interface {
 }
 
 type DefaultProvider struct {
-	iamapi            sdk.IAMAPI
-	cache             *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
-	protectedProfiles *cache.Cache // Cache to account for eventual consistency delays when garbage collecting
-	region            string
-
-	roleCache roleCache
+	iamapi                sdk.IAMAPI
+	instanceProfileCache  *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
+	roleCache             RoleCache
+	protectedProfileCache *cache.Cache // Cache to account for eventual consistency delays when garbage collecting
+	region                string
 }
 
-func NewDefaultProvider(iamapi sdk.IAMAPI, cache *cache.Cache, protectedProfiles *cache.Cache, region string) *DefaultProvider {
+func NewDefaultProvider(
+	iamapi sdk.IAMAPI,
+	instanceProfileCache *cache.Cache,
+	roleCache *cache.Cache,
+	protectedProfileCache *cache.Cache,
+	region string,
+) *DefaultProvider {
 	return &DefaultProvider{
-		iamapi:            iamapi,
-		cache:             cache,
-		protectedProfiles: protectedProfiles,
-		region:            region,
-
-		roleCache: roleCache{Cache: cache},
+		iamapi:                iamapi,
+		instanceProfileCache:  instanceProfileCache,
+		roleCache:             RoleCache{Cache: roleCache},
+		protectedProfileCache: protectedProfileCache,
+		region:                region,
 	}
 }
 
@@ -69,7 +73,7 @@ func getProfileCacheKey(profileName string) string {
 
 func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
 	profileCacheKey := getProfileCacheKey(instanceProfileName)
-	if instanceProfile, ok := p.cache.Get(profileCacheKey); ok {
+	if instanceProfile, ok := p.instanceProfileCache.Get(profileCacheKey); ok {
 		return instanceProfile.(*iamtypes.InstanceProfile), nil
 	}
 	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
@@ -78,7 +82,7 @@ func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (
 	if err != nil {
 		return nil, err
 	}
-	p.cache.SetDefault(profileCacheKey, out.InstanceProfile)
+	p.instanceProfileCache.SetDefault(profileCacheKey, out.InstanceProfile)
 	return out.InstanceProfile, nil
 }
 
@@ -112,7 +116,7 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 	instanceProfile.Roles = []iamtypes.Role{{
 		RoleName: lo.ToPtr(roleName),
 	}}
-	p.cache.SetDefault(profileCacheKey, instanceProfile)
+	p.instanceProfileCache.SetDefault(profileCacheKey, instanceProfile)
 	return nil
 }
 
@@ -180,7 +184,7 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 	}); err != nil {
 		return awserrors.IgnoreNotFound(serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", instanceProfileName))
 	}
-	p.cache.Delete(profileCacheKey)
+	p.instanceProfileCache.Delete(profileCacheKey)
 	p.SetProtectedState(instanceProfileName, false)
 	return nil
 }
@@ -222,14 +226,14 @@ func (p *DefaultProvider) ListNodeClassProfiles(ctx context.Context, nodeClass *
 }
 
 func (p *DefaultProvider) IsProtected(profileName string) bool {
-	_, exists := p.protectedProfiles.Get(profileName)
+	_, exists := p.protectedProfileCache.Get(profileName)
 	return exists
 }
 
 func (p *DefaultProvider) SetProtectedState(profileName string, protected bool) {
 	if !protected {
-		p.protectedProfiles.Delete(profileName)
+		p.protectedProfileCache.Delete(profileName)
 	} else {
-		p.protectedProfiles.SetDefault(profileName, struct{}{})
+		p.protectedProfileCache.SetDefault(profileName, struct{}{})
 	}
 }
