@@ -33,6 +33,7 @@ import (
 type Provider interface {
 	EnsureAll(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim,
 		[]*cloudprovider.InstanceType, string, map[string]string) ([]*LaunchTemplate, error)
+	EnsureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (ec2types.LaunchTemplate, error)
 	DeleteAll(context.Context, *v1.EC2NodeClass) error
 	InvalidateCache(context.Context, string, string)
 	ResolveClusterCIDR(context.Context) error

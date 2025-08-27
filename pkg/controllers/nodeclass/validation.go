@@ -97,6 +97,16 @@ func NewValidationReconciler(
 
 // nolint:gocyclo
 func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
+	// A NodeClass that uses AL2023 requires the cluster CIDR for launching nodes.
+	// To allow Karpenter to be used for Non-EKS clusters, resolving the Cluster CIDR
+	// will not be done at startup but instead in a reconcile loop.
+	if nodeClass.AMIFamily() == v1.AMIFamilyAL2023 {
+		if err := v.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
+			nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to detect the cluster CIDR")
+			return reconcile.Result{}, fmt.Errorf("failed to detect the cluster CIDR, %w", err)
+		}
+	}
+
 	if _, ok := lo.Find(v.requiredConditions(), func(cond string) bool {
 		return nodeClass.StatusConditions().Get(cond).IsFalse()
 	}); ok {
@@ -119,15 +129,6 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			"Awaiting AMI, Instance Profile, Security Group, and Subnet resolution",
 		)
 		return reconcile.Result{}, nil
-	}
-	// A NodeClass that uses AL2023 requires the cluster CIDR for launching nodes.
-	// To allow Karpenter to be used for Non-EKS clusters, resolving the Cluster CIDR
-	// will not be done at startup but instead in a reconcile loop.
-	if nodeClass.AMIFamily() == v1.AMIFamilyAL2023 {
-		if err := v.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
-			nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to detect the cluster CIDR")
-			return reconcile.Result{}, fmt.Errorf("failed to detect the cluster CIDR, %w", err)
-		}
 	}
 
 	nodeClaim := &karpv1.NodeClaim{
@@ -163,17 +164,17 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, nil
 	}
 
-	failureReason, requeue, instanceTypes, launchTemplate, err := v.validateCreateLaunchTemplateAuthorization(ctx, nodeClass, nodeClaim, tags)
+	failureReason, requeue, launchTemplate, err := v.validateCreateLaunchTemplateAuthorization(ctx, nodeClass, nodeClaim, tags)
 	if reconcileResult, shouldReturn, err := v.handleValidationResult(failureReason, requeue, err, nodeClass, tags); shouldReturn {
 		return reconcileResult, err
 	}
 
-	failureReason, requeue, err = v.validateCreateFleetAuthorization(ctx, nodeClass, nodeClaim, tags, instanceTypes, launchTemplate)
+	failureReason, requeue, err = v.validateCreateFleetAuthorization(ctx, nodeClass, nodeClaim, tags, launchTemplate)
 	if reconcileResult, shouldReturn, err := v.handleValidationResult(failureReason, requeue, err, nodeClass, tags); shouldReturn {
 		return reconcileResult, err
 	}
 
-	failureReason, requeue, err = v.validateRunInstancesAuthorization(ctx, nodeClass, nodeClaim, tags, instanceTypes[0], launchTemplate)
+	failureReason, requeue, err = v.validateRunInstancesAuthorization(ctx, nodeClass, nodeClaim, tags, launchTemplate)
 	if reconcileResult, shouldReturn, err := v.handleValidationResult(failureReason, requeue, err, nodeClass, tags); shouldReturn {
 		return reconcileResult, err
 	}
@@ -211,29 +212,30 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
-) (reason string, requeue bool, instanceTypes []*cloudprovider.InstanceType, launchTemplate *launchtemplate.LaunchTemplate, err error) {
-	allInstanceTypes, err := v.getValidationInstanceTypes(ctx, nodeClaim, nodeClass, tags)
+) (reason string, requeue bool, launchTemplate *launchtemplate.LaunchTemplate, err error) {
+	opts, err := v.getLaunchTemplateOptions(ctx, nodeClaim, nodeClass, tags)
 	if err != nil {
-		return "", false, nil, nil, fmt.Errorf("generating options, %w", err)
+		return "", false, nil, fmt.Errorf("generating options, %w", err)
 	}
 	// this case should never occur
-	if len(allInstanceTypes) == 0 {
-		return "", false, nil, nil, fmt.Errorf("no instance types available")
+	if len(opts.InstanceTypes) == 0 {
+		return "", false, nil, fmt.Errorf("no instance types available")
 	}
-	// we only want to create 1 launch template so we only pass 1 instance type to EnsureAll
-	instanceTypes = allInstanceTypes[:1]
-	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, tags)
+	// only pass 1 instance type in EnsureLaunchTemplate
+	opts.InstanceTypes = opts.InstanceTypes[:1]
+	launchTemplateCreated, err := v.launchTemplateProvider.EnsureLaunchTemplate(ctx, opts)
 	if err != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsTemporaryServiceError(err) {
-			return "", true, nil, nil, nil
+			return "", true, nil, nil
 		}
-		return ConditionReasonCreateLaunchTemplateAuthFailed, false, nil, nil, nil
+		return ConditionReasonCreateLaunchTemplateAuthFailed, false, nil, nil
 	}
-	// this case should never occur
-	if len(launchTemplates) == 0 {
-		return "", false, nil, nil, fmt.Errorf("no launch templates created")
+	launchTemplate = &launchtemplate.LaunchTemplate{
+		Name:          *launchTemplateCreated.LaunchTemplateName,
+		InstanceTypes: opts.InstanceTypes,
+		ImageID:       opts.AMIID,
 	}
-	return "", false, instanceTypes, launchTemplates[0], nil
+	return "", false, launchTemplate, nil
 }
 
 func (v *Validation) validateCreateFleetAuthorization(
@@ -241,10 +243,9 @@ func (v *Validation) validateCreateFleetAuthorization(
 	nodeClass *v1.EC2NodeClass,
 	_ *karpv1.NodeClaim,
 	tags map[string]string,
-	instanceTypes []*cloudprovider.InstanceType,
 	launchTemplate *launchtemplate.LaunchTemplate,
 ) (reason string, requeue bool, err error) {
-	fleetLaunchTemplateConfig := getFleetLaunchTemplateConfig(nodeClass, instanceTypes, launchTemplate)
+	fleetLaunchTemplateConfig := getFleetLaunchTemplateConfig(nodeClass, launchTemplate)
 	createFleetInput := instance.NewCreateFleetInputBuilder(karpv1.CapacityTypeOnDemand, tags, fleetLaunchTemplateConfig).Build()
 	createFleetInput.DryRun = lo.ToPtr(true)
 	// Adding NopRetryer to avoid aggressive retry when rate limited
@@ -269,10 +270,9 @@ func (v *Validation) validateRunInstancesAuthorization(
 	nodeClass *v1.EC2NodeClass,
 	_ *karpv1.NodeClaim,
 	tags map[string]string,
-	instanceType *cloudprovider.InstanceType,
 	launchTemplate *launchtemplate.LaunchTemplate,
 ) (reason string, requeue bool, err error) {
-	runInstancesInput := getRunInstancesInput(nodeClass, tags, instanceType, launchTemplate)
+	runInstancesInput := getRunInstancesInput(nodeClass, tags, launchTemplate)
 	// Adding NopRetryer to avoid aggressive retry when rate limited
 	if _, err = v.ec2api.RunInstances(ctx, runInstancesInput, func(o *ec2.Options) {
 		o.Retryer = aws.NopRetryer{}
@@ -335,7 +335,6 @@ func (v *Validation) clearCacheEntries(nodeClass *v1.EC2NodeClass) {
 func getRunInstancesInput(
 	nodeClass *v1.EC2NodeClass,
 	tags map[string]string,
-	instanceType *cloudprovider.InstanceType,
 	launchTemplate *launchtemplate.LaunchTemplate,
 ) *ec2.RunInstancesInput {
 	return &ec2.RunInstancesInput{
@@ -346,7 +345,7 @@ func getRunInstancesInput(
 			LaunchTemplateName: lo.ToPtr(launchTemplate.Name),
 			Version:            lo.ToPtr("$Latest"),
 		},
-		InstanceType: ec2types.InstanceType(instanceType.Name),
+		InstanceType: ec2types.InstanceType(launchTemplate.InstanceTypes[0].Name),
 		ImageId:      lo.ToPtr(launchTemplate.ImageID),
 		NetworkInterfaces: []ec2types.InstanceNetworkInterfaceSpecification{
 			{
@@ -373,11 +372,10 @@ func getRunInstancesInput(
 
 func getFleetLaunchTemplateConfig(
 	nodeClass *v1.EC2NodeClass,
-	instanceTypes []*cloudprovider.InstanceType,
 	launchTemplate *launchtemplate.LaunchTemplate,
 ) []ec2types.FleetLaunchTemplateConfigRequest {
 	var overrides []ec2types.FleetLaunchTemplateOverridesRequest
-	for _, instanceType := range instanceTypes {
+	for _, instanceType := range launchTemplate.InstanceTypes {
 		for _, subnet := range nodeClass.Status.Subnets {
 			overrides = append(overrides,
 				ec2types.FleetLaunchTemplateOverridesRequest{
@@ -398,12 +396,12 @@ func getFleetLaunchTemplateConfig(
 	}
 }
 
-func (v *Validation) getValidationInstanceTypes(
+func (v *Validation) getLaunchTemplateOptions(
 	ctx context.Context,
 	nodeClaim *karpv1.NodeClaim,
 	nodeClass *v1.EC2NodeClass,
 	tags map[string]string,
-) ([]*cloudprovider.InstanceType, error) {
+) (*amifamily.LaunchTemplate, error) {
 	amiOptions, err := v.launchTemplateProvider.CreateAMIOptions(
 		ctx,
 		nodeClass,
@@ -481,7 +479,7 @@ func (v *Validation) getValidationInstanceTypes(
 	if err != nil {
 		return nil, err
 	}
-	return opts[0].InstanceTypes, nil
+	return opts[0], nil
 }
 
 // getInstanceTypesForNodeClass returns the set of instances which could be launched using this NodeClass based on the

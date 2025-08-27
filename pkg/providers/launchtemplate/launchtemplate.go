@@ -154,7 +154,7 @@ func (p *DefaultProvider) EnsureAll(
 	var launchTemplates []*LaunchTemplate
 	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
 		// Ensure the launch template exists, or create it
-		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
+		ec2LaunchTemplate, err := p.EnsureLaunchTemplate(ctx, resolvedLaunchTemplate)
 		if err != nil {
 			return nil, err
 		}
@@ -219,7 +219,7 @@ func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC
 	}, nil
 }
 
-func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (ec2types.LaunchTemplate, error) {
+func (p *DefaultProvider) EnsureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (ec2types.LaunchTemplate, error) {
 	var launchTemplate ec2types.LaunchTemplate
 	name := LaunchTemplateName(options)
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("launch-template-name", name))
