@@ -232,7 +232,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				}, fake.MaxCalls(1))
 			}, nodeclass.ConditionReasonCreateLaunchTemplateAuthFailed),
 		)
-		Context("RunInstances Validation", func() {
+		Context("Instance Type Prioritization Validation", func() {
 			BeforeEach(func() {
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
@@ -281,9 +281,10 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 
 					ExpectApplied(ctx, env.Client, nodeClass)
 					ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-					input := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
-					Expect(input.InstanceType).To(Equal(expectedInstanceType))
-					Expect(input.ImageId).To(PointTo(Equal(expectedAMIID)))
+					launchTemplateInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+					Expect(runInstancesInput.InstanceType).To(Equal(expectedInstanceType))
+					Expect(launchTemplateInput.LaunchTemplateData.ImageId).To(PointTo(Equal(expectedAMIID)))
 				},
 				Entry("m5.large", ec2types.InstanceTypeM5Large, "amd64-ami-id"),
 				Entry("m6g.large", ec2types.InstanceTypeM6gLarge, "arm64-ami-id"),
@@ -312,9 +313,10 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				}}})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-				input := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
-				Expect(input.InstanceType).To(Equal(ec2types.InstanceTypeC6gLarge))
-				Expect(input.ImageId).To(PointTo(Equal("arm64-ami-id")))
+				launchTemplateInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+				runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+				Expect(runInstancesInput.InstanceType).To(Equal(ec2types.InstanceTypeC6gLarge))
+				Expect(launchTemplateInput.LaunchTemplateData.ImageId).To(PointTo(Equal("arm64-ami-id")))
 			})
 			It("should fallback to GPU instances when no non-GPU instances exist", func() {
 				nodePool := coretest.NodePool(karpv1.NodePool{Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{
@@ -339,9 +341,10 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				}}})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-				input := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
-				Expect(input.InstanceType).To(Equal(ec2types.InstanceTypeG4dn8xlarge))
-				Expect(input.ImageId).To(PointTo(Equal("amd64-nvidia-ami-id")))
+				launchTemplateInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+				runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+				Expect(runInstancesInput.InstanceType).To(Equal(ec2types.InstanceTypeG4dn8xlarge))
+				Expect(launchTemplateInput.LaunchTemplateData.ImageId).To(PointTo(Equal("amd64-nvidia-ami-id")))
 			})
 		})
 	})

@@ -152,18 +152,18 @@ func IgnoreRateLimitedError(err error) error {
 	return err
 }
 
-func IsTemporaryServiceError(err error) bool {
+func IsServerError(err error) bool {
 	if err == nil {
 		return false
 	}
 	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
-		return apiErr.ErrorCode() == InternalErrorCode || apiErr.ErrorCode() == ServiceUnavailableErrorCode
+		return apiErr.ErrorFault() == smithy.FaultServer
 	}
 	return false
 }
 
-func IgnoreTemporaryServiceError(err error) error {
-	if IsTemporaryServiceError(err) {
+func IgnoreServerError(err error) error {
+	if IsServerError(err) {
 		return nil
 	}
 	return err

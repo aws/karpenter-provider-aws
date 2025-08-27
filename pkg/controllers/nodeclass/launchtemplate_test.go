@@ -20,7 +20,6 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
-	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -89,7 +88,7 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("10.100.0.0/16"))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.StatusConditions().IsTrue(status.ConditionReady)).To(BeTrue())
+		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeValidationSucceeded)).To(BeTrue())
 	})
 	It("should resolve cluster CIDR for IPv6 clusters", func() {
 		awsEnv.EKSAPI.DescribeClusterBehavior.Output.Set(&eks.DescribeClusterOutput{
@@ -106,6 +105,6 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("2001:db8::/64"))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.StatusConditions().IsTrue(status.ConditionReady)).To(BeTrue())
+		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeValidationSucceeded)).To(BeTrue())
 	})
 })
