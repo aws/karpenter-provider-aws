@@ -31,8 +31,6 @@ const (
 	RateLimitingErrorCode                          = "RequestLimitExceeded"
 	ServiceLinkedRoleCreationNotPermittedErrorCode = "AuthFailure.ServiceLinkedRoleCreationNotPermitted"
 	InsufficientFreeAddressesInSubnetErrorCode     = "InsufficientFreeAddressesInSubnet"
-	InternalErrorCode                              = "InternalError"
-	ServiceUnavailableErrorCode                    = "ServiceUnavailable"
 )
 
 var (
