@@ -231,9 +231,9 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	if err != nil {
 		return "", false, nil, fmt.Errorf("generating options, %w", err)
 	}
-	// this case should never occur
+	// no instance types are compatible with the given AMI, so validation we know fail
 	if len(instanceTypes) == 0 {
-		return "", false, nil, fmt.Errorf("no instance types available")
+		return "", false, nil, fmt.Errorf("no instance types available for AMI")
 	}
 	// pass 1 instance type in EnsureAll to only create 1 launch template
 	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes[:1], karpv1.CapacityTypeOnDemand, tags)
