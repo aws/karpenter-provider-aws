@@ -64,6 +64,7 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 		},
 		Entry(v1.AMIFamilyAL2, v1.AMIFamilyAL2, []v1.AMISelectorTerm{{Alias: "al2@latest"}}),
 		Entry(v1.AMIFamilyBottlerocket, v1.AMIFamilyBottlerocket, []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}),
+		Entry(v1.AMIFamilyBottlerocketFIPS, v1.AMIFamilyBottlerocketFIPS, []v1.AMISelectorTerm{{Alias: "bottlerocket-fips@latest"}}),
 		Entry(v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2019, []v1.AMISelectorTerm{{Alias: "windows2019@latest"}}),
 		Entry(v1.AMIFamilyWindows2022, v1.AMIFamilyWindows2022, []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}),
 		Entry(v1.AMIFamilyCustom, v1.AMIFamilyCustom, []v1.AMISelectorTerm{{ID: "ami-12345"}}),
