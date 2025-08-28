@@ -168,6 +168,10 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		net.ParseIP("10.0.100.10"),
 		"https://test-cluster",
 	)
+	launchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
+	launchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
+	launchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
+	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		"",
@@ -263,6 +267,10 @@ func (env *Environment) Reset() {
 			}
 		}
 	}
+	env.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
+	env.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
+	env.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
+	env.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 }
 
 func NodeInstanceIDFieldIndexer(ctx context.Context) func(ctrlcache.Cache) error {
