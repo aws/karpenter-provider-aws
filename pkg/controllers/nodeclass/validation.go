@@ -177,19 +177,19 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 
-	failureReason, requeue, launchTemplate, err := v.validateCreateLaunchTemplateAuthorization(ctx, nodeClass, nodeClaim, tags)
-	if requeueTime := v.handleValidationResult(failureReason, requeue, err, nodeClass, tags); err != nil || requeueTime > 0 {
-		return reconcile.Result{RequeueAfter: requeueTime}, err
+	launchTemplate, result, err := v.validateCreateLaunchTemplateAuthorization(ctx, nodeClass, nodeClaim, tags)
+	if err != nil || !lo.IsEmpty(result) {
+		return result, err
 	}
 
-	failureReason, requeue, err = v.validateCreateFleetAuthorization(ctx, nodeClass, nodeClaim, tags, launchTemplate)
-	if requeueTime := v.handleValidationResult(failureReason, requeue, err, nodeClass, tags); err != nil || requeueTime > 0 {
-		return reconcile.Result{RequeueAfter: requeueTime}, err
+	result, err = v.validateCreateFleetAuthorization(ctx, nodeClass, tags, launchTemplate)
+	if err != nil || !lo.IsEmpty(result) {
+		return result, err
 	}
 
-	failureReason, requeue, err = v.validateRunInstancesAuthorization(ctx, nodeClass, nodeClaim, tags, launchTemplate)
-	if requeueTime := v.handleValidationResult(failureReason, requeue, err, nodeClass, tags); err != nil || requeueTime > 0 {
-		return reconcile.Result{RequeueAfter: requeueTime}, err
+	result, err = v.validateRunInstancesAuthorization(ctx, nodeClass, tags, launchTemplate)
+	if err != nil || !lo.IsEmpty(result) {
+		return result, err
 	}
 
 	v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
@@ -197,28 +197,13 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 }
 
-func (v *Validation) handleValidationResult(
-	failureReason string,
-	requeue bool,
-	err error,
-	nodeClass *v1.EC2NodeClass,
-	tags map[string]string,
-) time.Duration {
-	if err != nil {
-		// requeue time of 0 tells controller not to requeue
-		return 0
-	} else if requeue {
-		return 1 * time.Minute
-	} else if failureReason != "" {
-		v.cache.SetDefault(v.cacheKey(nodeClass, tags), failureReason)
-		nodeClass.StatusConditions().SetFalse(
-			v1.ConditionTypeValidationSucceeded,
-			failureReason,
-			ValidationConditionMessages[failureReason],
-		)
-		return requeueAfterTime
-	}
-	return 0
+func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[string]string, failureReason string) {
+	v.cache.SetDefault(v.cacheKey(nodeClass, tags), failureReason)
+	nodeClass.StatusConditions().SetFalse(
+		v1.ConditionTypeValidationSucceeded,
+		failureReason,
+		ValidationConditionMessages[failureReason],
+	)
 }
 
 func (v *Validation) validateCreateLaunchTemplateAuthorization(
@@ -226,37 +211,37 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
-) (reason string, requeue bool, launchTemplate *launchtemplate.LaunchTemplate, err error) {
+) (launchTemplate *launchtemplate.LaunchTemplate, result reconcile.Result, err error) {
 	instanceTypes, err := v.getPrioritizedInstanceTypes(ctx, nodeClass)
 	if err != nil {
-		return "", false, nil, fmt.Errorf("generating options, %w", err)
+		return nil, reconcile.Result{}, fmt.Errorf("generating options, %w", err)
 	}
 	// no instance types are compatible with the given AMI, so validation we know fail
 	if len(instanceTypes) == 0 {
-		return "", false, nil, fmt.Errorf("no instance types available for AMI")
+		return nil, reconcile.Result{}, fmt.Errorf("no instance types available for AMI")
 	}
 	// pass 1 instance type in EnsureAll to only create 1 launch template
 	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes[:1], karpv1.CapacityTypeOnDemand, tags)
 	if err != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
-			return "", true, nil, nil
+			return nil, reconcile.Result{Requeue: true}, nil
 		}
-		return ConditionReasonCreateLaunchTemplateAuthFailed, false, nil, nil
+		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateLaunchTemplateAuthFailed)
+		return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 	// this case should never occur as we ensure instance types are compatible with AMI
 	if len(launchTemplates) == 0 {
-		return "", false, nil, fmt.Errorf("no compatible launch templates created")
+		return nil, reconcile.Result{}, fmt.Errorf("no compatible launch templates created")
 	}
-	return "", false, launchTemplates[0], nil
+	return launchTemplates[0], reconcile.Result{}, nil
 }
 
 func (v *Validation) validateCreateFleetAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
-	_ *karpv1.NodeClaim,
 	tags map[string]string,
 	launchTemplate *launchtemplate.LaunchTemplate,
-) (reason string, requeue bool, err error) {
+) (result reconcile.Result, err error) {
 	fleetLaunchTemplateConfig := getFleetLaunchTemplateConfig(nodeClass, launchTemplate)
 	createFleetInput := instance.NewCreateFleetInputBuilder(karpv1.CapacityTypeOnDemand, tags, fleetLaunchTemplateConfig).Build()
 	createFleetInput.DryRun = lo.ToPtr(true)
@@ -265,25 +250,25 @@ func (v *Validation) validateCreateFleetAuthorization(
 		o.Retryer = aws.NopRetryer{}
 	}); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
-			return "", true, nil
+			return reconcile.Result{Requeue: true}, nil
 		}
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
 			// it would be an unexpected state
-			return "", false, fmt.Errorf("validating ec2:CreateFleet authorization, %w", err)
+			return reconcile.Result{}, fmt.Errorf("validating ec2:CreateFleet authorization, %w", err)
 		}
-		return ConditionReasonCreateFleetAuthFailed, false, nil
+		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateFleetAuthFailed)
+		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
-	return "", false, nil
+	return reconcile.Result{}, nil
 }
 
 func (v *Validation) validateRunInstancesAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
-	_ *karpv1.NodeClaim,
 	tags map[string]string,
 	launchTemplate *launchtemplate.LaunchTemplate,
-) (reason string, requeue bool, err error) {
+) (result reconcile.Result, err error) {
 	runInstancesInput := getRunInstancesInput(nodeClass, tags, launchTemplate)
 	// Adding NopRetryer to avoid aggressive retry when rate limited
 	if _, err = v.ec2api.RunInstances(ctx, runInstancesInput, func(o *ec2.Options) {
@@ -292,16 +277,17 @@ func (v *Validation) validateRunInstancesAuthorization(
 		// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
 		// this means there is most likely an eventual consistency issue and we just need to requeue
 		if awserrors.IsInstanceProfileNotFound(err) || awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
-			return "", true, nil
+			return reconcile.Result{Requeue: true}, nil
 		}
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
 			// it would be an unexpected state
-			return "", false, fmt.Errorf("validating ec2:RunInstances authorization, %w", err)
+			return reconcile.Result{}, fmt.Errorf("validating ec2:RunInstances authorization, %w", err)
 		}
-		return ConditionReasonRunInstancesAuthFailed, false, nil
+		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesAuthFailed)
+		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
-	return "", false, nil
+	return reconcile.Result{}, nil
 }
 
 func (*Validation) requiredConditions() []string {
