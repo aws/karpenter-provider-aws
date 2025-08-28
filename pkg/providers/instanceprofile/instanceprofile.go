@@ -21,6 +21,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
+	"github.com/aws/smithy-go"
 	"github.com/awslabs/operatorpkg/serrors"
 	cache "github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -44,11 +45,11 @@ type Provider interface {
 }
 
 type DefaultProvider struct {
-	iamapi                sdk.IAMAPI
-	instanceProfileCache  *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
-	roleCache             RoleCache
-	protectedProfileCache *cache.Cache // Cache to account for eventual consistency delays when garbage collecting
-	region                string
+	iamapi                 sdk.IAMAPI
+	instanceProfileCache   *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
+	roleNotFoundErrorCache RoleNotFoundErrorCache
+	protectedProfileCache  *cache.Cache // Cache to account for eventual consistency delays when garbage collecting
+	region                 string
 }
 
 func NewDefaultProvider(
@@ -59,11 +60,11 @@ func NewDefaultProvider(
 	region string,
 ) *DefaultProvider {
 	return &DefaultProvider{
-		iamapi:                iamapi,
-		instanceProfileCache:  instanceProfileCache,
-		roleCache:             RoleCache{Cache: roleCache},
-		protectedProfileCache: protectedProfileCache,
-		region:                region,
+		iamapi:                 iamapi,
+		instanceProfileCache:   instanceProfileCache,
+		roleNotFoundErrorCache: RoleNotFoundErrorCache{Cache: roleCache},
+		protectedProfileCache:  protectedProfileCache,
+		region:                 region,
 	}
 }
 
@@ -89,7 +90,7 @@ func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (
 func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string, roleName string, tags map[string]string, nodeClassUID string) error {
 	// Don't attempt to create an instance profile if the role hasn't been found. This prevents runaway instance profile
 	// creation by the NodeClass controller when there's a missing role.
-	if err, ok := p.roleCache.HasError(roleName); ok {
+	if err, ok := p.roleNotFoundErrorCache.HasError(roleName); ok {
 		return fmt.Errorf("role not found, %w", err)
 	}
 
@@ -148,15 +149,15 @@ func (p *DefaultProvider) ensureRole(ctx context.Context, instanceProfile *iamty
 		InstanceProfileName: instanceProfile.InstanceProfileName,
 		RoleName:            lo.ToPtr(roleName),
 	}); err != nil {
-		if roleErr, ok := ToRoleNotFoundError(err); ok {
-			err = roleErr
-			p.roleCache.SetError(roleName, err)
-		}
-		return serrors.Wrap(
+		err = serrors.Wrap(
 			fmt.Errorf("adding role to instance profile, %w", err),
 			"role", roleName,
 			"instance-profile", lo.FromPtr(instanceProfile.InstanceProfileName),
 		)
+		if IsRoleNotFoundError(err) {
+			p.roleNotFoundErrorCache.SetError(roleName, err)
+		}
+		return err
 	}
 	return nil
 }
@@ -236,4 +237,40 @@ func (p *DefaultProvider) SetProtectedState(profileName string, protected bool) 
 	} else {
 		p.protectedProfileCache.SetDefault(profileName, struct{}{})
 	}
+}
+
+// IsRoleNotFoundError converts a smithy.APIError returned by AddRoleToInstanceProfile to a RoleNotFoundError.
+func IsRoleNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	apiErr, ok := lo.ErrorsAs[smithy.APIError](err)
+	if !ok {
+		return false
+	}
+	if apiErr.ErrorCode() != "NoSuchEntity" {
+		return false
+	}
+	// Differentiate between the instance profile not being found, and the role.
+	if !strings.Contains(apiErr.ErrorMessage(), "role") {
+		return false
+	}
+	return true
+}
+
+// RoleNotFoundErrorCache is a wrapper around a go-cache for handling role not found errors returned by AddRoleToInstanceProfile.
+type RoleNotFoundErrorCache struct {
+	*cache.Cache
+}
+
+// HasError returns the last RoleNotFoundError encountered when attempting to add the given role to an instance profile.
+func (rc RoleNotFoundErrorCache) HasError(roleName string) (error, bool) {
+	if err, ok := rc.Get(roleName); ok {
+		return err.(error), true
+	}
+	return nil, false
+}
+
+func (rc RoleNotFoundErrorCache) SetError(roleName string, err error) {
+	rc.SetDefault(roleName, err)
 }
