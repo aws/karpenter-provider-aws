@@ -104,12 +104,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	if nodeClass.AMIFamily() == v1.AMIFamilyAL2023 {
 		if err := v.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
 			if awserrors.IsServerError(err) {
-				nodeClass.StatusConditions().SetUnknownWithReason(
-					v1.ConditionTypeValidationSucceeded,
-					"ClusterCIDRResolutionUnknown",
-					"Failed to detect the cluster CIDR",
-				)
-				return reconcile.Result{RequeueAfter: 1 * time.Minute}, nil
+				return reconcile.Result{Requeue: true}, nil
 			}
 			nodeClass.StatusConditions().SetFalse(
 				v1.ConditionTypeValidationSucceeded,
@@ -216,15 +211,15 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	if err != nil {
 		return nil, reconcile.Result{}, fmt.Errorf("generating options, %w", err)
 	}
-	// no instance types are compatible with the given AMI, so validation we know fail
-	if len(instanceTypes) == 0 {
-		return nil, reconcile.Result{}, fmt.Errorf("no instance types available for AMI")
-	}
 	// pass 1 instance type in EnsureAll to only create 1 launch template
 	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes[:1], karpv1.CapacityTypeOnDemand, tags)
 	if err != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
 			return nil, reconcile.Result{Requeue: true}, nil
+		}
+		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
+			// We should only ever receive UnauthorizedOperation so if we receive any other error it would be an unexpected state
+			return nil, reconcile.Result{}, fmt.Errorf("validating ec2:CreateLaunchTemplate authorization, %w", err)
 		}
 		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateLaunchTemplateAuthFailed)
 		return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
@@ -394,6 +389,11 @@ func getFleetLaunchTemplateConfig(
 }
 
 func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
+	// Select an instance type to use for validation. If NodePools exist for this NodeClass, we'll use an instance type
+	// selected by one of those NodePools. We should also prioritize an InstanceType which will launch with a non-GPU
+	// (VariantStandard) AMI, since GPU AMIs may have a larger snapshot size than that supported by the NodeClass'
+	// blockDeviceMappings.
+	// Historical Issue: https://github.com/aws/karpenter-provider-aws/issues/7928
 	instanceTypes, err := v.getInstanceTypesForNodeClass(ctx, nodeClass)
 	if err != nil {
 		return nil, err
@@ -432,30 +432,10 @@ func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass 
 				)...),
 			},
 		}
+		instanceTypes = getAMICompatibleInstanceTypes(instanceTypes, nodeClass)
 	}
 
-	// Select an instance type to use for validation. If NodePools exist for this NodeClass, we'll use an instance type
-	// selected by one of those NodePools. We should also prioritize an InstanceType which will launch with a non-GPU
-	// (VariantStandard) AMI, since GPU AMIs may have a larger snapshot size than that supported by the NodeClass'
-	// blockDeviceMappings.
-	// Historical Issue: https://github.com/aws/karpenter-provider-aws/issues/7928
-	amiMap := amifamily.MapToInstanceTypes(instanceTypes, nodeClass.Status.AMIs)
-	var selectedInstanceTypes []*cloudprovider.InstanceType
-	for _, ami := range nodeClass.Status.AMIs {
-		if len(amiMap[ami.ID]) == 0 {
-			continue
-		}
-		amiRequirements := scheduling.NewNodeSelectorRequirements(ami.Requirements...)
-		if amiRequirements.IsCompatible(amifamily.VariantStandard.Requirements()) {
-			selectedInstanceTypes = append(selectedInstanceTypes, amiMap[ami.ID]...)
-		}
-	}
-	// If we fail to find an instance type compatible with a standard AMI, fallback
-	if len(selectedInstanceTypes) == 0 && len(amiMap) != 0 {
-		selectedInstanceTypes = lo.Flatten(lo.Values(amiMap))
-	}
-
-	return selectedInstanceTypes, nil
+	return instanceTypes, nil
 }
 
 // getInstanceTypesForNodeClass returns the set of instances which could be launched using this NodeClass based on the
@@ -488,5 +468,25 @@ func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass
 			compatibleInstanceTypes = append(compatibleInstanceTypes, it)
 		}
 	}
-	return compatibleInstanceTypes, nil
+	return getAMICompatibleInstanceTypes(instanceTypes, nodeClass), nil
+}
+
+func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass) []*cloudprovider.InstanceType {
+	amiMap := amifamily.MapToInstanceTypes(instanceTypes, nodeClass.Status.AMIs)
+	var selectedInstanceTypes []*cloudprovider.InstanceType
+	for _, ami := range nodeClass.Status.AMIs {
+		if len(amiMap[ami.ID]) == 0 {
+			continue
+		}
+		amiRequirements := scheduling.NewNodeSelectorRequirements(ami.Requirements...)
+		if amiRequirements.IsCompatible(amifamily.VariantStandard.Requirements()) {
+			selectedInstanceTypes = append(selectedInstanceTypes, amiMap[ami.ID]...)
+		}
+	}
+	// If we fail to find an instance type compatible with a standard AMI, fallback
+	if len(selectedInstanceTypes) == 0 && len(amiMap) != 0 {
+		selectedInstanceTypes = lo.Flatten(lo.Values(amiMap))
+	}
+
+	return selectedInstanceTypes
 }
