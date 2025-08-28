@@ -91,7 +91,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Entry(v1.ConditionTypeSubnetsReady, v1.ConditionTypeSubnetsReady),
 		)
 	})
-	Context("CIDR Resolution Precondion", func() {
+	Context("CIDR Resolution Precondition", func() {
 		BeforeEach(func() {
 			nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
 				Spec: v1.EC2NodeClassSpec{
