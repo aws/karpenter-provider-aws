@@ -468,7 +468,7 @@ func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass
 			compatibleInstanceTypes = append(compatibleInstanceTypes, it)
 		}
 	}
-	return getAMICompatibleInstanceTypes(instanceTypes, nodeClass), nil
+	return getAMICompatibleInstanceTypes(compatibleInstanceTypes, nodeClass), nil
 }
 
 func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass) []*cloudprovider.InstanceType {
