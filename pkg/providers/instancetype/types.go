@@ -143,11 +143,17 @@ func NewInstanceType(
 		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, capacityReservations),
 		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead, ENILimitedPods(ctx, info, 0), pods(ctx, info, amiFamily, maxPods, podsPerCore)), kubeReserved),
+			KubeReserved: kubeReservedResources(
+				cpu(info),
+				memory(ctx, info),
+				lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead, ENILimitedPods(ctx, info, 0), pods(ctx, info, amiFamily, maxPods, podsPerCore)),
+				kubeReserved,
+			),
 			SystemReserved:    systemReservedResources(systemReserved),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
 		},
 	}
+
 	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)))) == nil {
 		it.Capacity[v1.ResourcePrivateIPv4Address] = *privateIPv4Address(string(info.InstanceType))
 	}
@@ -489,9 +495,8 @@ func systemReservedResources(systemReserved map[string]string) corev1.ResourceLi
 	})
 }
 
-func kubeReservedResources(cpus, pods *resource.Quantity, kubeReserved map[string]string) corev1.ResourceList {
+func kubeReservedResources(cpus, memory, pods *resource.Quantity, kubeReserved map[string]string) corev1.ResourceList {
 	resources := corev1.ResourceList{
-		corev1.ResourceMemory:           resource.MustParse(fmt.Sprintf("%dMi", (11*pods.Value())+255)),
 		corev1.ResourceEphemeralStorage: resource.MustParse("1Gi"), // default kube-reserved ephemeral-storage
 	}
 	// kube-reserved Computed from
@@ -516,6 +521,43 @@ func kubeReservedResources(cpus, pods *resource.Quantity, kubeReserved map[strin
 			resources[corev1.ResourceCPU] = *cpuOverhead
 		}
 	}
+
+	if _, ok := kubeReserved[string(corev1.ResourceMemory)]; !ok {
+		// TODO: wrap this into a conditional based on some field in the node class
+		// Calculates the amount of memory to reserve for kubeReserved in mebibytes.
+		// We are using these memory ranges from GKE (https://cloud.google.com/kubernetes-engine/docs/concepts/plan-node-sizes):
+		//    255 MiB of memory for machines with less than 1 GiB of memory
+		//    25% of the first 4 GiB of memory
+		//    20% of the next 4 GiB of memory (up to 8 GiB)
+		//    10% of the next 8 GiB of memory (up to 16 GiB)
+		//    6% of the next 112 GiB of memory (up to 128 GiB)
+		//    2% of any memory above 128 GiB
+		bytes := memory.Value()
+		var megs int64 = 1024 * 1024
+		var gigs = 1024 * megs
+		var memoryOverhead int64
+		if bytes < 1*gigs {
+			memoryOverhead += 255 * megs
+		} else {
+			ranges := []struct {
+				step       int64
+				percentage float64
+			}{
+				{step: 4 * gigs, percentage: 0.25},
+				{step: 4 * gigs, percentage: 0.20},
+				{step: 8 * gigs, percentage: 0.10},
+				{step: 112 * gigs, percentage: 0.06},
+			}
+			for _, r := range ranges {
+				inStep := min(r.step, bytes)
+				memoryOverhead += int64(float64(inStep) * r.percentage)
+				bytes -= inStep
+			}
+			memoryOverhead += int64(float64(max(0, bytes)) * 0.02)
+		}
+		resources[corev1.ResourceMemory] = *resource.NewQuantity(memoryOverhead, resource.DecimalSI)
+	}
+
 	return lo.Assign(resources, lo.MapEntries(kubeReserved, func(k string, v string) (corev1.ResourceName, resource.Quantity) {
 		return corev1.ResourceName(k), resource.MustParse(v)
 	}))
