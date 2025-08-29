@@ -53,7 +53,8 @@ podLabels: {}
 # -- Additional annotations for the pod.
 podAnnotations: {}
 podDisruptionBudget:
-  name: karpenter
+  # -- The name of the PodDisruptionBudget. If not set, the chart's fullname will be used.
+  name: ""
   maxUnavailable: 1
 # -- SecurityContext for the pod.
 podSecurityContext:
@@ -63,8 +64,8 @@ podSecurityContext:
 # -- PriorityClass name for the pod.
 priorityClassName: system-cluster-critical
 # -- Override the default termination grace period for the pod.
-terminationGracePeriodSeconds:
-# -- Bind the pod to the host network.
+terminationGracePeriodSeconds: # -- Bind the pod to the host network.
+
 # This is required when using a custom CNI.
 hostNetwork: false
 # -- Specify which Kubernetes scheduler should dispatch the pod.
@@ -89,21 +90,21 @@ affinity:
   nodeAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
-        - matchExpressions:
-            - key: karpenter.sh/nodepool
-              operator: DoesNotExist
+      - matchExpressions:
+        - key: karpenter.sh/nodepool
+          operator: DoesNotExist
   podAntiAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
-      - topologyKey: "kubernetes.io/hostname"
+    - topologyKey: "kubernetes.io/hostname"
 # -- Topology spread constraints to increase the controller resilience by distributing pods across the cluster zones. If an explicit label selector is not provided one will be created from the pod selector labels.
 topologySpreadConstraints:
-  - maxSkew: 1
-    topologyKey: topology.kubernetes.io/zone
-    whenUnsatisfiable: DoNotSchedule
+- maxSkew: 1
+  topologyKey: topology.kubernetes.io/zone
+  whenUnsatisfiable: DoNotSchedule
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
 tolerations:
-  - key: CriticalAddonsOnly
-    operator: Exists
+- key: CriticalAddonsOnly
+  operator: Exists
 # -- Additional volumes for the pod.
 extraVolumes: []
 # - name: aws-iam-token
@@ -167,10 +168,10 @@ controller:
 logLevel: info
 # -- Log outputPaths - defaults to stdout only
 logOutputPaths:
-  - stdout
+- stdout
 # -- Log errorOutputPaths - defaults to stderr only
 logErrorOutputPaths:
-  - stderr
+- stderr
 # -- Global Settings to configure Karpenter
 settings:
   # -- The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
