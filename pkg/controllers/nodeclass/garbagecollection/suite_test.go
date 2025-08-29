@@ -254,11 +254,11 @@ var _ = Describe("Instance Profile GarbageCollection", func() {
 		Expect(awsEnv.IAMAPI.InstanceProfiles).ToNot(HaveKey(profileName))
 	})
 
-	It("should requeue after 5 minutes for a successful run", func() {
+	It("should requeue after 30 minutes for a successful run", func() {
 		// Run GC with no profiles to clean up
 		result, err := gcController.Reconcile(ctx)
 		Expect(err).To(BeNil())
-		Expect(result.RequeueAfter).To(Equal(5 * time.Minute))
+		Expect(result.RequeueAfter).To(Equal(30 * time.Minute))
 	})
 
 	It("should requeue immediately on deletion failure", func() {

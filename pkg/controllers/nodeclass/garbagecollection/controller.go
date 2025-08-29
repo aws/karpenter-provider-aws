@@ -137,7 +137,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	if err := c.cleanupInactiveProfiles(ctx); err != nil {
 		return reconciler.Result{}, err
 	}
-	return reconciler.Result{RequeueAfter: 5 * time.Minute}, nil
+	return reconciler.Result{RequeueAfter: 30 * time.Minute}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

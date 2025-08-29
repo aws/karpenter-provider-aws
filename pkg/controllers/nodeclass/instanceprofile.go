@@ -86,6 +86,10 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 				nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
 				string(nodeClass.UID),
 			); err != nil {
+				// If we failed Create, we may have successfully created the instance profile but failed to either attach the new
+				// role or remove the existing role. To prevent runaway instance profile creation, we'll attempt to delete the
+				// profile. We'll fail open here and rely on the garbage collector as a backstop.
+				_ = ip.instanceProfileProvider.Delete(ctx, newProfileName)
 				return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
 			}
 			ip.recreationCache.SetDefault(generateCacheKey(nodeClass), newProfileName)
