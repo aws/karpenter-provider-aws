@@ -85,6 +85,7 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 				nodeClass.InstanceProfileRole(),
 				nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
 				string(nodeClass.UID),
+				true,
 			); err != nil {
 				// If we failed Create, we may have successfully created the instance profile but failed to either attach the new
 				// role or remove the existing role. To prevent runaway instance profile creation, we'll attempt to delete the

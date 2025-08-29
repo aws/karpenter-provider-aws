@@ -36,7 +36,7 @@ import (
 
 type Provider interface {
 	Get(context.Context, string) (*iamtypes.InstanceProfile, error)
-	Create(context.Context, string, string, map[string]string, string) error
+	Create(context.Context, string, string, map[string]string, string, bool) error
 	Delete(context.Context, string) error
 	ListClusterProfiles(context.Context) ([]*iamtypes.InstanceProfile, error)
 	ListNodeClassProfiles(context.Context, *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error)
@@ -87,7 +87,14 @@ func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (
 	return out.InstanceProfile, nil
 }
 
-func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string, roleName string, tags map[string]string, nodeClassUID string) error {
+func (p *DefaultProvider) Create(
+	ctx context.Context,
+	instanceProfileName string,
+	roleName string,
+	tags map[string]string,
+	nodeClassUID string,
+	usePath bool,
+) error {
 	// Don't attempt to create an instance profile if the role hasn't been found. This prevents runaway instance profile
 	// creation by the NodeClass controller when there's a missing role.
 	if err, ok := p.roleNotFoundErrorCache.HasError(roleName); ok {
@@ -100,11 +107,14 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 		if !awserrors.IsNotFound(err) {
 			return serrors.Wrap(fmt.Errorf("getting instance profile, %w", err), "instance-profile", instanceProfileName)
 		}
-		o, err := p.iamapi.CreateInstanceProfile(ctx, &iam.CreateInstanceProfileInput{
+		input := &iam.CreateInstanceProfileInput{
 			InstanceProfileName: lo.ToPtr(instanceProfileName),
 			Tags:                utils.IAMMergeTags(tags),
-			Path:                lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, nodeClassUID)),
-		})
+		}
+		if usePath {
+			input.Path = lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, nodeClassUID))
+		}
+		o, err := p.iamapi.CreateInstanceProfile(ctx, input)
 		if err != nil {
 			return serrors.Wrap(err, "instance-profile", instanceProfileName)
 		}
