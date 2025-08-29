@@ -21,6 +21,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
+	"github.com/aws/smithy-go"
 	"github.com/awslabs/operatorpkg/serrors"
 	cache "github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -44,18 +45,26 @@ type Provider interface {
 }
 
 type DefaultProvider struct {
-	iamapi            sdk.IAMAPI
-	cache             *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
-	protectedProfiles *cache.Cache // Cache to account for eventual consistency delays when garbage collecting
-	region            string
+	iamapi                 sdk.IAMAPI
+	instanceProfileCache   *cache.Cache // instanceProfileName -> *iamtypes.InstanceProfile
+	roleNotFoundErrorCache RoleNotFoundErrorCache
+	protectedProfileCache  *cache.Cache // Cache to account for eventual consistency delays when garbage collecting
+	region                 string
 }
 
-func NewDefaultProvider(iamapi sdk.IAMAPI, cache *cache.Cache, protectedProfiles *cache.Cache, region string) *DefaultProvider {
+func NewDefaultProvider(
+	iamapi sdk.IAMAPI,
+	instanceProfileCache *cache.Cache,
+	roleCache *cache.Cache,
+	protectedProfileCache *cache.Cache,
+	region string,
+) *DefaultProvider {
 	return &DefaultProvider{
-		iamapi:            iamapi,
-		cache:             cache,
-		protectedProfiles: protectedProfiles,
-		region:            region,
+		iamapi:                 iamapi,
+		instanceProfileCache:   instanceProfileCache,
+		roleNotFoundErrorCache: RoleNotFoundErrorCache{Cache: roleCache},
+		protectedProfileCache:  protectedProfileCache,
+		region:                 region,
 	}
 }
 
@@ -63,13 +72,9 @@ func getProfileCacheKey(profileName string) string {
 	return "instance-profile:" + profileName
 }
 
-func getRoleCacheKey(roleName string) string {
-	return "role:" + roleName
-}
-
 func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
 	profileCacheKey := getProfileCacheKey(instanceProfileName)
-	if instanceProfile, ok := p.cache.Get(profileCacheKey); ok {
+	if instanceProfile, ok := p.instanceProfileCache.Get(profileCacheKey); ok {
 		return instanceProfile.(*iamtypes.InstanceProfile), nil
 	}
 	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
@@ -78,22 +83,18 @@ func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (
 	if err != nil {
 		return nil, err
 	}
-	p.cache.SetDefault(profileCacheKey, out.InstanceProfile)
+	p.instanceProfileCache.SetDefault(profileCacheKey, out.InstanceProfile)
 	return out.InstanceProfile, nil
 }
 
 func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string, roleName string, tags map[string]string, nodeClassUID string) error {
-	profileCacheKey := getProfileCacheKey(instanceProfileName)
-	roleCacheKey := getRoleCacheKey(roleName)
-	if _, ok := p.cache.Get(roleCacheKey); !ok {
-		out, err := p.iamapi.GetRole(ctx, &iam.GetRoleInput{
-			RoleName: lo.ToPtr(roleName),
-		})
-		if err != nil {
-			return serrors.Wrap(fmt.Errorf("role does not exist, %w", err), "role", roleName)
-		}
-		p.cache.SetDefault(roleCacheKey, out.Role)
+	// Don't attempt to create an instance profile if the role hasn't been found. This prevents runaway instance profile
+	// creation by the NodeClass controller when there's a missing role.
+	if err, ok := p.roleNotFoundErrorCache.HasError(roleName); ok {
+		return fmt.Errorf("role not found, %w", err)
 	}
+
+	profileCacheKey := getProfileCacheKey(instanceProfileName)
 	instanceProfile, err := p.Get(ctx, instanceProfileName)
 	if err != nil {
 		if !awserrors.IsNotFound(err) {
@@ -105,37 +106,59 @@ func (p *DefaultProvider) Create(ctx context.Context, instanceProfileName string
 			Path:                lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, nodeClassUID)),
 		})
 		if err != nil {
-			return serrors.Wrap(fmt.Errorf("creating instance profile, %w", err), "instance-profile", instanceProfileName)
+			return serrors.Wrap(err, "instance-profile", instanceProfileName)
 		}
-
 		instanceProfile = o.InstanceProfile
 	}
+	if err := p.ensureRole(ctx, instanceProfile, roleName); err != nil {
+		return fmt.Errorf("ensuring role attached, %w", err)
+	}
+	// Add the role to the cached instance profile for detection in the ensureRole check based on the cache entry
+	instanceProfile.Roles = []iamtypes.Role{{
+		RoleName: lo.ToPtr(roleName),
+	}}
+	p.instanceProfileCache.SetDefault(profileCacheKey, instanceProfile)
+	return nil
+}
+
+// ensureRole ensures that the correct role is attached to the provided instance profile. If a non-matching role is
+// found already attached, it's removed.
+func (p *DefaultProvider) ensureRole(ctx context.Context, instanceProfile *iamtypes.InstanceProfile, roleName string) error {
 	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
 	// https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html
 	if len(instanceProfile.Roles) == 1 {
 		if lo.FromPtr(instanceProfile.Roles[0].RoleName) == roleName {
 			return nil
 		}
-		if _, err = p.iamapi.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
-			InstanceProfileName: lo.ToPtr(instanceProfileName),
+		if _, err := p.iamapi.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
+			InstanceProfileName: instanceProfile.InstanceProfileName,
 			RoleName:            instanceProfile.Roles[0].RoleName,
 		}); err != nil {
-			return serrors.Wrap(fmt.Errorf("removing role for instance profile, %w", err), "role", lo.FromPtr(instanceProfile.Roles[0].RoleName), "instance-profile", instanceProfileName)
+			return serrors.Wrap(
+				fmt.Errorf("removing role for instance profile, %w", err),
+				"role", lo.FromPtr(instanceProfile.Roles[0].RoleName),
+				"instance-profile", lo.FromPtr(instanceProfile.InstanceProfileName),
+			)
 		}
 	}
+
 	// If the role has a path, ignore the path and take the role name only since AddRoleToInstanceProfile
 	// does not support paths in the role name.
 	roleName = lo.LastOr(strings.Split(roleName, "/"), roleName)
-	if _, err = p.iamapi.AddRoleToInstanceProfile(ctx, &iam.AddRoleToInstanceProfileInput{
-		InstanceProfileName: lo.ToPtr(instanceProfileName),
+	if _, err := p.iamapi.AddRoleToInstanceProfile(ctx, &iam.AddRoleToInstanceProfileInput{
+		InstanceProfileName: instanceProfile.InstanceProfileName,
 		RoleName:            lo.ToPtr(roleName),
 	}); err != nil {
-		return serrors.Wrap(fmt.Errorf("adding role to instance profile, %w", err), "role", roleName, "instance-profile", instanceProfileName)
+		err = serrors.Wrap(
+			fmt.Errorf("adding role to instance profile, %w", err),
+			"role", roleName,
+			"instance-profile", lo.FromPtr(instanceProfile.InstanceProfileName),
+		)
+		if IsRoleNotFoundError(err) {
+			p.roleNotFoundErrorCache.SetError(roleName, err)
+		}
+		return err
 	}
-	instanceProfile.Roles = []iamtypes.Role{{
-		RoleName: lo.ToPtr(roleName),
-	}}
-	p.cache.SetDefault(profileCacheKey, instanceProfile)
 	return nil
 }
 
@@ -162,7 +185,7 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 	}); err != nil {
 		return awserrors.IgnoreNotFound(serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", instanceProfileName))
 	}
-	p.cache.Delete(profileCacheKey)
+	p.instanceProfileCache.Delete(profileCacheKey)
 	p.SetProtectedState(instanceProfileName, false)
 	return nil
 }
@@ -204,14 +227,50 @@ func (p *DefaultProvider) ListNodeClassProfiles(ctx context.Context, nodeClass *
 }
 
 func (p *DefaultProvider) IsProtected(profileName string) bool {
-	_, exists := p.protectedProfiles.Get(profileName)
+	_, exists := p.protectedProfileCache.Get(profileName)
 	return exists
 }
 
 func (p *DefaultProvider) SetProtectedState(profileName string, protected bool) {
 	if !protected {
-		p.protectedProfiles.Delete(profileName)
+		p.protectedProfileCache.Delete(profileName)
 	} else {
-		p.protectedProfiles.SetDefault(profileName, struct{}{})
+		p.protectedProfileCache.SetDefault(profileName, struct{}{})
 	}
+}
+
+// IsRoleNotFoundError converts a smithy.APIError returned by AddRoleToInstanceProfile to a RoleNotFoundError.
+func IsRoleNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	apiErr, ok := lo.ErrorsAs[smithy.APIError](err)
+	if !ok {
+		return false
+	}
+	if apiErr.ErrorCode() != "NoSuchEntity" {
+		return false
+	}
+	// Differentiate between the instance profile not being found, and the role.
+	if !strings.Contains(apiErr.ErrorMessage(), "role") {
+		return false
+	}
+	return true
+}
+
+// RoleNotFoundErrorCache is a wrapper around a go-cache for handling role not found errors returned by AddRoleToInstanceProfile.
+type RoleNotFoundErrorCache struct {
+	*cache.Cache
+}
+
+// HasError returns the last RoleNotFoundError encountered when attempting to add the given role to an instance profile.
+func (rc RoleNotFoundErrorCache) HasError(roleName string) (error, bool) {
+	if err, ok := rc.Get(roleName); ok {
+		return err.(error), true
+	}
+	return nil, false
+}
+
+func (rc RoleNotFoundErrorCache) SetError(roleName string, err error) {
+	rc.SetDefault(roleName, err)
 }

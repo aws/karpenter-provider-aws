@@ -77,6 +77,7 @@ type Environment struct {
 	AssociatePublicIPAddressCache        *cache.Cache
 	SecurityGroupCache                   *cache.Cache
 	InstanceProfileCache                 *cache.Cache
+	RoleCache                            *cache.Cache
 	SSMCache                             *cache.Cache
 	DiscoveredCapacityCache              *cache.Cache
 	CapacityReservationCache             *cache.Cache
@@ -124,6 +125,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	associatePublicIPAddressCache := cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval)
 	securityGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceProfileCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	roleCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	protectedProfilesCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -142,7 +144,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	// Version updates are hydrated asynchronously after this, in the event of a failure
 	// the previously resolved value will be used.
 	lo.Must0(versionProvider.UpdateVersion(ctx))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, instanceProfileCache, protectedProfilesCache, fake.DefaultRegion)
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, instanceProfileCache, roleCache, protectedProfilesCache, fake.DefaultRegion)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
 	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
@@ -199,6 +201,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		AssociatePublicIPAddressCache:        associatePublicIPAddressCache,
 		SecurityGroupCache:                   securityGroupCache,
 		InstanceProfileCache:                 instanceProfileCache,
+		RoleCache:                            roleCache,
 		UnavailableOfferingsCache:            unavailableOfferingsCache,
 		SSMCache:                             ssmCache,
 		DiscoveredCapacityCache:              discoveredCapacityCache,

@@ -16,6 +16,7 @@ package instanceprofile_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -319,5 +320,38 @@ var _ = Describe("InstanceProfileProvider", func() {
 		// Set back to unprotected
 		awsEnv.InstanceProfileProvider.SetProtectedState(profileName, false)
 		Expect(awsEnv.InstanceProfileProvider.IsProtected(profileName)).To(BeFalse())
+	})
+
+	Context("Role Cache", func() {
+		const roleName = "test-role"
+		BeforeEach(func() {
+			awsEnv.IAMAPI.EnableRoleValidation = true
+			awsEnv.IAMAPI.Roles = map[string]*iamtypes.Role{
+				roleName: &iamtypes.Role{RoleName: lo.ToPtr(roleName)},
+			}
+		})
+		It("should not cache role not found errors when the role exists", func() {
+			err := awsEnv.InstanceProfileProvider.Create(ctx, "test-profile", roleName, nil, "test-uid")
+			Expect(err).ToNot(HaveOccurred())
+			_, ok := awsEnv.RoleCache.Get(roleName)
+			Expect(ok).To(BeFalse())
+		})
+		It("should cache role not found errors when the role does not", func() {
+			missingRoleName := "non-existent-role"
+			err := awsEnv.InstanceProfileProvider.Create(ctx, "test-profile", missingRoleName, nil, "test-uid")
+			Expect(err).To(HaveOccurred())
+			_, ok := awsEnv.RoleCache.Get(missingRoleName)
+			Expect(ok).To(BeTrue())
+		})
+		It("should not attempt to create instance profile when role is cached as not found", func() {
+			missingRoleName := "non-existent-role"
+			awsEnv.RoleCache.SetDefault(missingRoleName, errors.New("role not found"))
+
+			err := awsEnv.InstanceProfileProvider.Create(ctx, "test-profile", missingRoleName, nil, "test-uid")
+			Expect(err).To(HaveOccurred())
+
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+			Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(BeZero())
+		})
 	})
 })
