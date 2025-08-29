@@ -105,7 +105,6 @@ func NewController(
 			NewSecurityGroupReconciler(securityGroupProvider),
 			NewInstanceProfileReconciler(instanceProfileProvider, region, recreationCache),
 			validation,
-			NewReadinessReconciler(launchTemplateProvider),
 		},
 	}
 }
