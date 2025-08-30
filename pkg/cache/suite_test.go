@@ -20,13 +20,16 @@ import (
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
 
 var ctx context.Context
@@ -39,9 +42,11 @@ func TestAWS(t *testing.T) {
 
 var _ = Describe("Cache", func() {
 	var unavailableOfferingCache *cache.UnavailableOfferings
+	var validationCache *cache.Validation
 
 	BeforeEach(func() {
 		unavailableOfferingCache = cache.NewUnavailableOfferings()
+		validationCache = cache.NewValidation()
 	})
 	Context("Unavailable Offering Cache", func() {
 		It("should mark offerings as unavailable when calling MarkUnavailable", func() {
@@ -174,6 +179,66 @@ var _ = Describe("Cache", func() {
 			unavailableOfferingCache.Delete(ec2types.InstanceTypeM5Xlarge, "test-zone-1a", karpv1.CapacityTypeOnDemand)
 			Expect(unavailableOfferingCache.SeqNum(ec2types.InstanceTypeM5Large)).To(BeNumerically("==", 4))
 			Expect(unavailableOfferingCache.SeqNum(ec2types.InstanceTypeM5Xlarge)).To(BeNumerically("==", 5))
+		})
+	})
+	Context("Validation Cache", func() {
+		var nodeClass *v1.EC2NodeClass
+		var tags map[string]string
+		BeforeEach(func() {
+			nodeClass = test.EC2NodeClass()
+			tags = map[string]string{"a": "b", "c": "d"}
+		})
+		DescribeTable("should return no cache hit when nodeclass fields change",
+			func(changeNodeClass func(*v1.EC2NodeClass)) {
+				validationCache.SetSuccess(nodeClass, tags)
+				_, found := validationCache.Get(nodeClass, tags)
+				Expect(found).To(BeTrue())
+				changeNodeClass(nodeClass)
+				_, found = validationCache.Get(nodeClass, tags)
+				Expect(found).To(BeFalse())
+			},
+			Entry("nodeClass subnets change", func(nc *v1.EC2NodeClass) {
+				nc.Status.Subnets = []v1.Subnet{{ID: "1", Zone: "zone"}}
+			}),
+			Entry("nodeClass security groups change", func(nc *v1.EC2NodeClass) {
+				nc.Status.SecurityGroups = []v1.SecurityGroup{{ID: "1"}}
+			}),
+			Entry("nodeClass AMIs change", func(nc *v1.EC2NodeClass) {
+				nc.Status.AMIs = []v1.AMI{{ID: "1"}}
+			}),
+			Entry("nodeClass instance profile changes", func(nc *v1.EC2NodeClass) {
+				nc.Status.InstanceProfile = "profile"
+			}),
+			Entry("nodeClass metadata options change", func(nc *v1.EC2NodeClass) {
+				nc.Spec.MetadataOptions = &v1.MetadataOptions{HTTPEndpoint: lo.ToPtr("end")}
+			}),
+			Entry("nodeClass block device mappings change", func(nc *v1.EC2NodeClass) {
+				nc.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{DeviceName: lo.ToPtr("name")}}
+			}),
+		)
+		It("should return no cache hit when tags change", func() {
+			validationCache.SetFailure(nodeClass, tags, "failure")
+			_, found := validationCache.Get(nodeClass, tags)
+			Expect(found).To(BeTrue())
+			newTags := map[string]string{"a": "b"}
+			_, found = validationCache.Get(nodeClass, newTags)
+			Expect(found).To(BeFalse())
+		})
+		It("should clear cache entries for a specific nodeclass", func() {
+			validationCache.SetSuccess(nodeClass, tags)
+			validationCache.SetFailure(nodeClass, map[string]string{"a": "b"}, "failure")
+			nodeClassTwo := test.EC2NodeClass(v1.EC2NodeClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "different-nodeclass",
+				},
+			})
+			validationCache.SetSuccess(nodeClassTwo, tags)
+			Expect(len(validationCache.Items())).To(Equal(3))
+
+			validationCache.ClearCacheEntries(nodeClass)
+			Expect(len(validationCache.Items())).To(Equal(1))
+			_, found := validationCache.Get(nodeClassTwo, tags)
+			Expect(found).To(BeTrue())
 		})
 	})
 })
