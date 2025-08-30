@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
@@ -32,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
@@ -72,18 +72,18 @@ func (c *Controller) Name() string {
 	return "capacityreservation.expiration"
 }
 
-func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
 	ncs, err := nodeclaim.ListManaged(ctx, c.kubeClient, c.cloudProvider)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("listing instance types, %w", err)
+		return reconciler.Result{}, fmt.Errorf("listing instance types, %w", err)
 	}
 	ec2CRs, err := c.crProvider.List(ctx, lo.FilterMap(ncs, func(nc *karpv1.NodeClaim, _ int) (v1.CapacityReservationSelectorTerm, bool) {
 		id, ok := nc.Labels[cloudprovider.ReservationIDLabel]
 		return v1.CapacityReservationSelectorTerm{ID: id}, ok
 	})...)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("getting capacity reservations, %w", err)
+		return reconciler.Result{}, fmt.Errorf("getting capacity reservations, %w", err)
 	}
 	expiringCRs := sets.New(lo.FilterMap(ec2CRs, func(ec2CR *ec2types.CapacityReservation, _ int) (string, bool) {
 		cr, err := v1.CapacityReservationFromEC2(c.clk, ec2CR)
@@ -114,7 +114,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 			Info("initiating delete for capacity block expiration")
 	})
 	if lo.ContainsBy(errs, func(err error) bool { return err != nil }) {
-		return reconcile.Result{}, serrors.Wrap(
+		return reconciler.Result{}, serrors.Wrap(
 			fmt.Errorf("deleting nodeclaims, %w", multierr.Combine(errs...)),
 			"NodeClaims", lo.FilterMap(errs, func(err error, i int) (klog.ObjectRef, bool) {
 				if err == nil {
@@ -124,7 +124,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 			}),
 		)
 	}
-	return reconcile.Result{RequeueAfter: time.Minute}, nil
+	return reconciler.Result{RequeueAfter: time.Minute}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

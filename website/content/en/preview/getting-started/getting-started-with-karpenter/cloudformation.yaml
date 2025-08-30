@@ -286,12 +286,6 @@ Resources:
               "Action": "iam:GetInstanceProfile"
             },
             {
-              "Sid": "AllowRoleActions",
-              "Effect": "Allow",
-              "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*",
-              "Action": "iam:GetRole"
-            },
-            {
               "Sid": "AllowUnscopedInstanceProfileListAction",
               "Effect": "Allow",
               "Resource": "*",

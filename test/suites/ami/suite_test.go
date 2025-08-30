@@ -220,6 +220,9 @@ var _ = Describe("AMI", func() {
 		DescribeTable(
 			"should provision a node using an alias",
 			func(alias string) {
+				if strings.Contains(alias, "al2") && env.K8sMinorVersion() > 32 {
+					Skip("AL2 is not supported on versions > 1.32")
+				}
 				pod := coretest.Pod()
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
 				env.ExpectCreated(nodeClass, nodePool, pod)
@@ -293,6 +296,9 @@ var _ = Describe("AMI", func() {
 
 	Context("UserData", func() {
 		It("should merge UserData contents for AL2 AMIFamily", func() {
+			if env.K8sMinorVersion() > 32 {
+				Skip("AL2 is not supported on versions > 1.32")
+			}
 			content, err := os.ReadFile("testdata/al2_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
@@ -315,6 +321,9 @@ var _ = Describe("AMI", func() {
 			Expect(string(actualUserData)).To(ContainSubstring("karpenter.sh/do-not-sync-taints=true"))
 		})
 		It("should merge non-MIME UserData contents for AL2 AMIFamily", func() {
+			if env.K8sMinorVersion() > 32 {
+				Skip("AL2 is not supported on versions > 1.32")
+			}
 			content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}

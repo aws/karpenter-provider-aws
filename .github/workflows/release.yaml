@@ -25,6 +25,8 @@ jobs:
           repo_token: '${{ secrets.GITHUB_TOKEN }}'
           prerelease: false
       - uses: ./.github/actions/install-deps
+        with:
+          use-cache: false
       - uses: ./.github/actions/e2e/install-helm
         with:
           version: v3.12.3 # Pinned to this version since v3.13.0 has issues with pushing to public ECR: https://github.com/helm/helm/issues/12442

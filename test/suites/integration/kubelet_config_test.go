@@ -16,6 +16,7 @@ package integration_test
 
 import (
 	"math"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -84,8 +85,11 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			}
 		})
 		DescribeTable("Linux AMIFamilies",
-			func(term v1.AMISelectorTerm) {
-				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{term}
+			func(alias string) {
+				if strings.Contains(alias, "al2") && env.K8sMinorVersion() > 32 {
+					Skip("AL2 is not supported on versions > 1.32")
+				}
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
 				// TODO (jmdeal@): remove once 22.04 AMIs are supported
 				pod := test.Pod(test.PodOptions{
 					NodeSelector: map[string]string{
@@ -97,9 +101,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				env.EventuallyExpectHealthy(pod)
 				env.ExpectCreatedNodeCount("==", 1)
 			},
-			Entry("when the AMIFamily is AL2", v1.AMISelectorTerm{Alias: "al2@latest"}),
-			Entry("when the AMIFamily is AL2023", v1.AMISelectorTerm{Alias: "al2023@latest"}),
-			Entry("when the AMIFamily is Bottlerocket", v1.AMISelectorTerm{Alias: "bottlerocket@latest"}),
+			Entry("when the AMIFamily is AL2", "al2@latest"),
+			Entry("when the AMIFamily is AL2023", "al2023@latest"),
+			Entry("when the AMIFamily is Bottlerocket", "bottlerocket@latest"),
 		)
 		DescribeTable("Windows AMIFamilies",
 			func(term v1.AMISelectorTerm) {
