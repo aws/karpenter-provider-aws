@@ -197,22 +197,22 @@ var _ = Describe("Cache", func() {
 				_, found = validationCache.Get(nodeClass, tags)
 				Expect(found).To(BeFalse())
 			},
-			Entry("nodeClass subnets change", func(nc *v1.EC2NodeClass) {
+			Entry("nodeClass Subnets change", func(nc *v1.EC2NodeClass) {
 				nc.Status.Subnets = []v1.Subnet{{ID: "1", Zone: "zone"}}
 			}),
-			Entry("nodeClass security groups change", func(nc *v1.EC2NodeClass) {
+			Entry("nodeClass SecurityGroups change", func(nc *v1.EC2NodeClass) {
 				nc.Status.SecurityGroups = []v1.SecurityGroup{{ID: "1"}}
 			}),
 			Entry("nodeClass AMIs change", func(nc *v1.EC2NodeClass) {
 				nc.Status.AMIs = []v1.AMI{{ID: "1"}}
 			}),
-			Entry("nodeClass instance profile changes", func(nc *v1.EC2NodeClass) {
+			Entry("nodeClass InstanceProfile changes", func(nc *v1.EC2NodeClass) {
 				nc.Status.InstanceProfile = "profile"
 			}),
-			Entry("nodeClass metadata options change", func(nc *v1.EC2NodeClass) {
+			Entry("nodeClass MetadataOptionss change", func(nc *v1.EC2NodeClass) {
 				nc.Spec.MetadataOptions = &v1.MetadataOptions{HTTPEndpoint: lo.ToPtr("end")}
 			}),
-			Entry("nodeClass block device mappings change", func(nc *v1.EC2NodeClass) {
+			Entry("nodeClass BlockDeviceMappings change", func(nc *v1.EC2NodeClass) {
 				nc.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{DeviceName: lo.ToPtr("name")}}
 			}),
 		)

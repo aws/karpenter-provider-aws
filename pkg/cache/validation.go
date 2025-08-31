@@ -78,6 +78,9 @@ func (v *Validation) Flush() {
 }
 
 func (v *Validation) key(nodeClass *v1.EC2NodeClass, tags map[string]string) string {
+	// we omit the nodepool tag as this is expected to differ between dry-run validation and CreateFleet calls
+	// the nodepool does not impact the validation of an node class
+	filteredTags := lo.OmitByKeys(tags, []string{v1.NodePoolTagKey})
 	hash := lo.Must(hashstructure.Hash([]interface{}{
 		nodeClass.Status.Subnets,
 		nodeClass.Status.SecurityGroups,
@@ -85,7 +88,7 @@ func (v *Validation) key(nodeClass *v1.EC2NodeClass, tags map[string]string) str
 		nodeClass.Status.InstanceProfile,
 		nodeClass.Spec.MetadataOptions,
 		nodeClass.Spec.BlockDeviceMappings,
-		tags,
+		filteredTags,
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
 	return fmt.Sprintf("%s:%016x", nodeClass.Name, hash)
 }
