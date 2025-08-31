@@ -537,4 +537,15 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		Expect(profile.Roles).To(HaveLen(1))
 		Expect(*profile.Roles[0].RoleName).To(Equal("role-A"))
 	})
+
+	It("should attempt to delete the instance profile if there was a creation failure", func() {
+		awsEnv.IAMAPI.AddRoleToInstanceProfileBehavior.Error.Set(fmt.Errorf("failed to attach role"))
+		nodeClass.Spec.Role = "role-A"
+		ExpectApplied(ctx, env.Client, nodeClass)
+		_ = ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+		Expect(awsEnv.IAMAPI.DeleteInstanceProfileBehavior.CalledWithInput.Len()).To(Equal(1))
+	})
 })

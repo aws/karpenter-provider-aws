@@ -22,6 +22,7 @@ import (
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/util/version"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -130,6 +131,9 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		DescribeTable(
 			"shouldn't resolve cluster CIDR for non-AL2023 NodeClasses",
 			func(family string, terms []v1.AMISelectorTerm) {
+				if version.MustParseGeneric(awsEnv.VersionProvider.Get(ctx)).Minor() > 32 {
+					Skip("AL2 is not supported on versions > 1.32")
+				}
 				nodeClass.Spec.AMIFamily = lo.ToPtr(family)
 				nodeClass.Spec.AMISelectorTerms = terms
 				ExpectApplied(ctx, env.Client, nodeClass)
@@ -264,7 +268,6 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		)
 		Context("Instance Type Prioritization Validation", func() {
 			BeforeEach(func() {
-				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 					Images: []ec2types.Image{
 						{
@@ -292,9 +295,9 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				})
 				version := awsEnv.VersionProvider.Get(ctx)
 				awsEnv.SSMAPI.Parameters = map[string]string{
-					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):       "amd64-ami-id",
-					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):   "amd64-nvidia-ami-id",
-					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version): "arm64-ami-id",
+					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", version): "amd64-ami-id",
+					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/nvidia/recommended/image_id", version):   "amd64-nvidia-ami-id",
+					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version):  "arm64-ami-id",
 				}
 				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())

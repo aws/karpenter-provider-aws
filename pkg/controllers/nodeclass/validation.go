@@ -21,6 +21,7 @@ import (
 
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -219,6 +220,7 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 			// We should only ever receive UnauthorizedOperation so if we receive any other error it would be an unexpected state
 			return nil, reconcile.Result{}, fmt.Errorf("validating ec2:CreateLaunchTemplate authorization, %w", err)
 		}
+		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateLaunchTemplate")
 		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateLaunchTemplateAuthFailed)
 		return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
@@ -250,6 +252,7 @@ func (v *Validation) validateCreateFleetAuthorization(
 			// it would be an unexpected state
 			return reconcile.Result{}, fmt.Errorf("validating ec2:CreateFleet authorization, %w", err)
 		}
+		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateFleet")
 		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateFleetAuthFailed)
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
@@ -277,6 +280,7 @@ func (v *Validation) validateRunInstancesAuthorization(
 			// it would be an unexpected state
 			return reconcile.Result{}, fmt.Errorf("validating ec2:RunInstances authorization, %w", err)
 		}
+		log.FromContext(ctx).Error(err, "unauthorized to call ec2:RunInstances")
 		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesAuthFailed)
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}

@@ -374,6 +374,9 @@ var _ = Describe("Stateful workloads", func() {
 
 var _ = Describe("Ephemeral Storage", func() {
 	DescribeTable("should run a pod with instance-store ephemeral storage that exceeds EBS root block device mappings", func(alias string) {
+		if strings.Contains(alias, "al2") && env.K8sMinorVersion() > 32 {
+			Skip("AL2 is not supported on versions > 1.32")
+		}
 		nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
