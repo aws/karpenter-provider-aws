@@ -150,6 +150,7 @@ var (
 	AnnotationEC2NodeClassHashVersion        = apis.Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                 = apis.Group + "/tagged"
 	AnnotationInstanceProfile                = apis.Group + "/instance-profile-name"
+	AnnotationValidationRefresh              = apis.Group + "/validation-refresh"
 
 	NodeClaimTagKey          = coreapis.Group + "/nodeclaim"
 	NameTagKey               = "Name"
