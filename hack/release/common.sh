@@ -21,7 +21,7 @@ Release Version: ${version}
 Commit: ${commit_sha}
 Helm Chart Version ${helm_chart_version}"
 
-  authenticatePrivateRepo
+  authenticateSnapshotRepo
   build "${SNAPSHOT_REPO_ECR}" "${version}" "${helm_chart_version}" "${commit_sha}"
 }
 
@@ -39,6 +39,9 @@ Helm Chart Version ${helm_chart_version}"
 
   authenticate
   build "${RELEASE_REPO_ECR}" "${version}" "${helm_chart_version}" "${commit_sha}"
+
+  authenticatePrivateRepo
+  pullImages "${version}"
 }
 
 authenticate() {
@@ -46,6 +49,10 @@ authenticate() {
 }
 
 authenticatePrivateRepo() {
+  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${PRIVATE_REPO_ECR}"
+}
+
+authenticateSnapshotRepo() {
   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${SNAPSHOT_ECR}"
 }
 
@@ -131,6 +138,15 @@ buildDate() {
   date_epoch="${1}"
 
   date -u --date="@${date_epoch}" "+%Y-%m-%dT%H:%M:%SZ" 2>/dev/null
+}
+
+pullImages() {
+  local tag="${1}"
+  local repos=("controller" "karpenter" "karpenter-crd")
+
+  for repo in "${repos[@]}"; do
+    docker pull "${PRIVATE_REPO_ECR}".dkr.ecr.us-east-1.amazonaws.com/"${PRIVATE_REPO_NAME}"/"${repo}":"${tag}"
+  done
 }
 
 prepareWebsite() {
