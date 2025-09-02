@@ -7,6 +7,9 @@ RELEASE_REPO_ECR="${RELEASE_REPO_ECR:-public.ecr.aws/${ECR_GALLERY_NAME}/}"
 SNAPSHOT_ECR="021119463062.dkr.ecr.us-east-1.amazonaws.com"
 SNAPSHOT_REPO_ECR="${SNAPSHOT_REPO_ECR:-${SNAPSHOT_ECR}/karpenter/snapshot/}"
 
+CACHED_REPO_ECR="${RELEASE_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
+CACHED_REPO_NAME="${CACHED_ECR_NAME}"
+
 CURRENT_MAJOR_VERSION="0"
 
 snapshot() {
@@ -40,7 +43,7 @@ Helm Chart Version ${helm_chart_version}"
   authenticate
   build "${RELEASE_REPO_ECR}" "${version}" "${helm_chart_version}" "${commit_sha}"
 
-  authenticatePrivateRepo
+  authenticateCachedRepo
   pullImages "${version}"
 }
 
@@ -48,8 +51,8 @@ authenticate() {
   aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${RELEASE_REPO_ECR}"
 }
 
-authenticatePrivateRepo() {
-  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${PRIVATE_REPO_ECR}"
+authenticateCachedRepo() {
+  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${CACHED_REPO_ECR}"
 }
 
 authenticateSnapshotRepo() {
@@ -145,7 +148,7 @@ pullImages() {
   local repos=("controller" "karpenter" "karpenter-crd")
 
   for repo in "${repos[@]}"; do
-    docker pull "${PRIVATE_REPO_ECR}".dkr.ecr.us-east-1.amazonaws.com/"${PRIVATE_REPO_NAME}"/"${repo}":"${tag}"
+    docker pull "${CACHED_REPO_ECR}"/"${CACHED_REPO_NAME}"/"${repo}":"${tag}"
   done
 }
 
