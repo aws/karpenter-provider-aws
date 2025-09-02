@@ -77,6 +77,7 @@ type Environment struct {
 	AssociatePublicIPAddressCache        *cache.Cache
 	SecurityGroupCache                   *cache.Cache
 	InstanceProfileCache                 *cache.Cache
+	RoleCache                            *cache.Cache
 	SSMCache                             *cache.Cache
 	DiscoveredCapacityCache              *cache.Cache
 	CapacityReservationCache             *cache.Cache
@@ -124,6 +125,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	associatePublicIPAddressCache := cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval)
 	securityGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceProfileCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	roleCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	protectedProfilesCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -142,10 +144,10 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	// Version updates are hydrated asynchronously after this, in the event of a failure
 	// the previously resolved value will be used.
 	lo.Must0(versionProvider.UpdateVersion(ctx))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, instanceProfileCache, protectedProfilesCache, fake.DefaultRegion)
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, instanceProfileCache, roleCache, protectedProfilesCache, fake.DefaultRegion)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
-	amiResolver := amifamily.NewDefaultResolver()
+	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
 	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion)
 	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
 	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, unavailableOfferingsCache, instanceTypesResolver)
@@ -166,6 +168,10 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		net.ParseIP("10.0.100.10"),
 		"https://test-cluster",
 	)
+	launchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
+	launchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
+	launchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
+	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		"",
@@ -199,6 +205,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		AssociatePublicIPAddressCache:        associatePublicIPAddressCache,
 		SecurityGroupCache:                   securityGroupCache,
 		InstanceProfileCache:                 instanceProfileCache,
+		RoleCache:                            roleCache,
 		UnavailableOfferingsCache:            unavailableOfferingsCache,
 		SSMCache:                             ssmCache,
 		DiscoveredCapacityCache:              discoveredCapacityCache,
@@ -260,6 +267,10 @@ func (env *Environment) Reset() {
 			}
 		}
 	}
+	env.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
+	env.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
+	env.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
+	env.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 }
 
 func NodeInstanceIDFieldIndexer(ctx context.Context) func(ctrlcache.Cache) error {

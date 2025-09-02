@@ -12,7 +12,7 @@ Content-Type: text/x-shellscript; charset="us-ascii"
 
 #!/bin/bash -xe
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-/etc/eks/bootstrap.sh 'test-cluster' --apiserver-endpoint 'https://test-cluster' --b64-cluster-ca 'ca-bundle' \
+/etc/eks/bootstrap.sh 'test-cluster' --apiserver-endpoint 'https://test-cluster' --b64-cluster-ca 'Y2EtYnVuZGxlCg==' \
 --dns-cluster-ip '10.0.100.10' \
 --use-max-pods false \
 --kubelet-extra-args '--node-labels="karpenter.k8s.aws/ec2nodeclass=%s,karpenter.sh/capacity-type=on-demand,karpenter.sh/do-not-sync-taints=true,%s=%s,testing/cluster=unspecified" --register-with-taints="karpenter.sh/unregistered:NoExecute" --max-pods=110'

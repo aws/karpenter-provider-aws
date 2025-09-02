@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/singleton"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
@@ -42,13 +42,13 @@ func NewController(versionProvider *version.DefaultProvider, updateVersion Updat
 	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	ctx = injection.WithControllerName(ctx, "providers.version")
 
 	if err := c.updateVersion(ctx); err != nil {
-		return reconcile.Result{}, fmt.Errorf("updating version, %w", err)
+		return reconciler.Result{}, fmt.Errorf("updating version, %w", err)
 	}
-	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
+	return reconciler.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
