@@ -20,7 +20,8 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Anthropic | Better utilizing mixes of instance types for more reliable capacity | N/A | [Homepage](https://anthropic.com) |
 | AppsFlyer | Managing statefull workloads like Kafka and more | `@alicvsroxas` `@danielvrog`| [Homepage](https://www.appsflyer.com/)|
 | Astradot | Using Karpenter on all K8s clusters in production and staging | N/A | [Homepage](https://astradot.com) |
-| Beeswax | Using Karpenter to scale our high load AdTech platform efficiently | `@James Wojewoda` | [Homepage](https://www.beeswax.com)
+| Beeswax | Using Karpenter to scale our high load AdTech platform efficiently | `@James Wojewoda` | [Homepage](https://www.beeswax.com) |
+| Cabify | Replace cluster-autoscaler in our EKS clusters | N/A | [Homepage](https://cabify.com/en) |
 | Canva | Using Karpetner to scale CPU and GPU workloads on EKS | `@groodt` | [Canva](https://www.canva.com/) |
 | Cloud Posse, LLC | Karpenter ships out-of-the-box in our Terraform Blueprint for EKS and is offered as part of our comprehensive multi-account [AWS reference architecture](https://cloudposse.com/reference-architecture/). Everything is Open Source (APACHE2). | `@osterman` | [Karpenter : The Cloud Posse Developer Hub](https://docs.cloudposse.com/components/catalog/aws/eks/karpenter/) |
 | Codefresh | Juggling workloads for the SAAS CD/GitOps offering | `@Yonatan Koren`, `@Ilia Medvedev` | [Codefresh](https://codefresh.io/) |
