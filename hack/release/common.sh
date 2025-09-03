@@ -145,11 +145,10 @@ buildDate() {
 
 pullImages() {
   local tag="${1}"
-  local repos=("controller" "karpenter" "karpenter-crd")
 
-  for repo in "${repos[@]}"; do
-    docker pull "${CACHED_REPO_ECR}"/"${CACHED_REPO_NAME}"/"${repo}":"${tag}"
-  done
+  docker pull "${CACHED_REPO_ECR}"/"${CACHED_REPO_NAME}"/controller:"${tag}"
+  helm pull oci://"${CACHED_REPO_ECR}"/"${CACHED_REPO_NAME}"/karpenter --version "${tag}"
+  helm pull oci://"${CACHED_REPO_ECR}"/"${CACHED_REPO_NAME}"/karpenter-crd --version "${tag}"
 }
 
 prepareWebsite() {
