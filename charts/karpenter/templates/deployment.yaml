@@ -126,7 +126,7 @@ spec:
                   divisor: "0"
                   resource: limits.memory
             - name: FEATURE_GATES
-              value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }}"
+              value: "StaticCapacity={{ .Values.settings.featureGates.staticCapacity }},ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }}"
           {{- with .Values.settings.batchMaxDuration }}
             - name: BATCH_MAX_DURATION
               value: "{{ tpl (toString .) $ }}"
@@ -168,6 +168,8 @@ spec:
           {{- with .Values.settings.interruptionQueue }}
             - name: INTERRUPTION_QUEUE
               value: "{{ tpl (toString .) $ }}"
+            - name: AWS_ENDPOINT_URL_EKS
+              value: "https://api.beta.us-west-2.wesley.amazonaws.com"
           {{- end }}
           {{- with .Values.settings.reservedENIs }}
             - name: RESERVED_ENIS
@@ -245,10 +247,11 @@ spec:
       topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
       tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        - key: workload
+          operator: Equal
+          value: isolated
+          effect: NoSchedule
     {{- if .Values.extraVolumes }}
       volumes:
       {{- with .Values.extraVolumes }}
