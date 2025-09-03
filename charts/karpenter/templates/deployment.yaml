@@ -192,14 +192,20 @@ spec:
               containerPort: {{ .Values.controller.healthProbe.port }}
               protocol: TCP
           livenessProbe:
-            initialDelaySeconds: 30
-            timeoutSeconds: 30
+            initialDelaySeconds: {{ .Values.controller.healthProbe.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.controller.healthProbe.livenessProbe.timeoutSeconds }}
+            periodSeconds: {{ .Values.controller.healthProbe.livenessProbe.periodSeconds }}
+            successThreshold: {{ .Values.controller.healthProbe.livenessProbe.successThreshold }}
+            failureThreshold: {{ .Values.controller.healthProbe.livenessProbe.failureThreshold }}
             httpGet:
               path: /healthz
               port: http
           readinessProbe:
-            initialDelaySeconds: 5
-            timeoutSeconds: 30
+            initialDelaySeconds: {{ .Values.controller.healthProbe.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.controller.healthProbe.readinessProbe.timeoutSeconds }}
+            periodSeconds: {{ .Values.controller.healthProbe.readinessProbe.periodSeconds }}
+            successThreshold: {{ .Values.controller.healthProbe.readinessProbe.successThreshold }}
+            failureThreshold: {{ .Values.controller.healthProbe.readinessProbe.failureThreshold }}
             httpGet:
               path: /readyz
               port: http

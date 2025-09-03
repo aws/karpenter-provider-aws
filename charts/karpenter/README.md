@@ -49,6 +49,16 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.6.3 \
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller container. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
+| controller.healthProbe.livenessProbe.failureThreshold | int | `3` | Minimum consecutive failures for the liveness probe to be considered failed after having succeeded. |
+| controller.healthProbe.livenessProbe.initialDelaySeconds | int | `30` | Number of seconds after the container has started before liveness probes are initiated. |
+| controller.healthProbe.livenessProbe.periodSeconds | int | `10` | How often (in seconds) to perform the liveness probe. |
+| controller.healthProbe.livenessProbe.successThreshold | int | `1` | Minimum consecutive successes for the liveness probe to be considered successful after having failed. |
+| controller.healthProbe.livenessProbe.timeoutSeconds | int | `30` | Number of seconds after which the liveness probe times out. |
+| controller.healthProbe.readinessProbe.failureThreshold | int | `3` | Minimum consecutive failures for the readiness probe to be considered failed after having succeeded. |
+| controller.healthProbe.readinessProbe.initialDelaySeconds | int | `5` | Number of seconds after the container has started before readiness probes are initiated. |
+| controller.healthProbe.readinessProbe.periodSeconds | int | `10` | How often (in seconds) to perform the readiness probe. |
+| controller.healthProbe.readinessProbe.successThreshold | int | `1` | Minimum consecutive successes for the readiness probe to be considered successful after having failed. |
+| controller.healthProbe.readinessProbe.timeoutSeconds | int | `30` | Number of seconds after which the readiness probe times out. |
 | controller.image.digest | string | `"sha256:37c761a3a0b485fd34db1390317ef6149141f532c5a699c528b98fb8f9cc722a"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
 | controller.image.tag | string | `"1.6.3"` | Tag of the controller image. |

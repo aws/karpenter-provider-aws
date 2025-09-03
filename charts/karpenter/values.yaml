@@ -163,6 +163,30 @@ controller:
   healthProbe:
     # -- The container port to use for http health probe.
     port: 8081
+    # -- Liveness probe configuration for the controller
+    livenessProbe:
+      # -- Number of seconds after the container has started before liveness probes are initiated.
+      initialDelaySeconds: 30
+      # -- Number of seconds after which the probe times out.
+      timeoutSeconds: 30
+      # -- How often (in seconds) to perform the probe.
+      periodSeconds: 10
+      # -- Minimum consecutive successes for the probe to be considered successful after having failed.
+      successThreshold: 1
+      # -- Minimum consecutive failures for the probe to be considered failed after having succeeded.
+      failureThreshold: 3
+    # -- Readiness probe configuration for the controller
+    readinessProbe:
+      # -- Number of seconds after the container has started before readiness probes are initiated.
+      initialDelaySeconds: 5
+      # -- Number of seconds after which the probe times out.
+      timeoutSeconds: 30
+      # -- How often (in seconds) to perform the probe.
+      periodSeconds: 10
+      # -- Minimum consecutive successes for the probe to be considered successful after having failed.
+      successThreshold: 1
+      # -- Minimum consecutive failures for the probe to be considered failed after having succeeded.
+      failureThreshold: 3
 # -- Global log level, defaults to 'info'
 logLevel: info
 # -- Log outputPaths - defaults to stdout only
