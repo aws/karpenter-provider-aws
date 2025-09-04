@@ -196,6 +196,7 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceEBSBandwidth, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceNetworkBandwidth, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceCategory, corev1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1.LabelInstanceCapacityFlex, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceFamily, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceGeneration, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceLocalNVME, corev1.NodeSelectorOpDoesNotExist),
@@ -245,6 +246,12 @@ func computeRequirements(
 	if info.InstanceStorageInfo != nil && info.InstanceStorageInfo.NvmeSupport != ec2types.EphemeralNvmeSupportUnsupported && info.InstanceStorageInfo.TotalSizeInGB != nil {
 		requirements[v1.LabelInstanceLocalNVME].Insert(fmt.Sprint(lo.FromPtr(info.InstanceStorageInfo.TotalSizeInGB)))
 	}
+	if strings.Contains(instanceTypeParts[0], "-flex") {
+		requirements[v1.LabelInstanceCapacityFlex].Insert("true")
+	} else {
+		requirements[v1.LabelInstanceCapacityFlex].Insert("false")
+	}
+
 	// Network bandwidth
 	if bandwidth, ok := InstanceTypeBandwidthMegabits[string(info.InstanceType)]; ok {
 		requirements[v1.LabelInstanceNetworkBandwidth].Insert(fmt.Sprint(bandwidth))
