@@ -104,6 +104,8 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 
 // syncCapacityType will update the capacity type for the given NodeClaim. This accounts for the fact that capacity
 // reservations will expire, demoting NodeClaims with capacity type "reserved" to "on-demand".
+//
+//nolint:gocyclo
 func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, nc *karpv1.NodeClaim) (bool, error) {
 	// We won't be able to sync deleting NodeClaims, and there's no real need to either as they're already draining.
 	if !nc.DeletionTimestamp.IsZero() {
@@ -119,7 +121,9 @@ func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, 
 	if nc.Labels[karpv1.CapacityTypeLabelKey] == karpv1.CapacityTypeReserved {
 		stored := nc.DeepCopy()
 		nc.Labels[karpv1.CapacityTypeLabelKey] = karpv1.CapacityTypeOnDemand
-		delete(nc.Labels, cloudprovider.ReservationIDLabel)
+		for label := range cloudprovider.ReservedCapacityLabels {
+			delete(nc.Labels, label)
+		}
 		if err := c.kubeClient.Patch(ctx, nc, client.MergeFrom(stored)); client.IgnoreNotFound(err) != nil {
 			return false, serrors.Wrap(fmt.Errorf("patching nodeclaim, %w", err), "NodeClaim", klog.KObj(nc))
 		}
@@ -147,7 +151,9 @@ func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, 
 		}
 		stored := n.DeepCopy()
 		n.Labels[karpv1.CapacityTypeLabelKey] = karpv1.CapacityTypeOnDemand
-		delete(n.Labels, cloudprovider.ReservationIDLabel)
+		for label := range cloudprovider.ReservedCapacityLabels {
+			delete(n.Labels, label)
+		}
 		if err := c.kubeClient.Patch(ctx, n, client.MergeFrom(stored)); client.IgnoreNotFound(err) != nil {
 			return false, serrors.Wrap(fmt.Errorf("patching node, %w", err), "Node", klog.KObj(n))
 		}
