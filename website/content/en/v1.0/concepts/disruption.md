@@ -174,7 +174,7 @@ Pod disruption budgets may be used to rate-limit application disruption.
 ### Expiration
 A node is expired once it's lifetime exceeds the duration set on the owning NodeClaim's `spec.expireAfter` field.
 Changes to `spec.template.spec.expireAfter` on the owning NodePool will not update the field for existing NodeClaims - it will induce NodeClaim drift and the replacements will have the updated value.
-Expiration can be used, in conjunction with [`terminationGracePeriod`](#termination-grace-period), to enforce a maximum Node lifetime.
+Expiration can be used, in conjunction with [`terminationGracePeriod`](#terminationgraceperiod), to enforce a maximum Node lifetime.
 By default, `expireAfter` is set to `720h` (30 days).
 
 {{% alert title="Warning" color="warning" %}}
