@@ -34,6 +34,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -155,7 +156,14 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 
 	if _, exists := nodeClass.Annotations[v1.AnnotationValidationRefresh]; exists {
 		v.clearCacheEntries(nodeClass)
+		stored := nodeClass.DeepCopy()
 		delete(nodeClass.Annotations, v1.AnnotationValidationRefresh)
+		if err := v.kubeClient.Patch(ctx, nodeClass, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); err != nil {
+			if errors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+			return reconcile.Result{}, err
+		}
 	}
 
 	if val, ok := v.cache.Get(v.cacheKey(nodeClass, tags)); ok {
