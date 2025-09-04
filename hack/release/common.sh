@@ -47,6 +47,16 @@ Helm Chart Version ${helm_chart_version}"
   pullImages "${version}"
 }
 
+testPullThroughCache() {
+  local version
+
+  version="${1}"
+  echo "Testing pull through cache with Version: ${version}"
+
+  authenticateCachedRepo
+  pullImages "${version}"
+}
+
 authenticate() {
   aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${RELEASE_REPO_ECR}"
 }

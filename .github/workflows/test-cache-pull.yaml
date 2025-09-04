@@ -1,0 +1,27 @@
+name: Release
+on:
+  pull_request:
+jobs:
+  release:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      contents: write # marvinpinto/action-automatic-releases@v1.2.1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/install-deps
+        with:
+          use-cache: false
+      - uses: ./.github/actions/e2e/install-helm
+        with:
+          version: v3.12.3 # Pinned to this version since v3.13.0 has issues with pushing to public ECR: https://github.com/helm/helm/issues/12442
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: 'arn:aws:iam::${{ vars.RELEASE_ACCOUNT_ID }}:role/${{ vars.RELEASE_ROLE_NAME }}'
+          aws-region: ${{ vars.RELEASE_REGION }}
+      - run: make release
+        env:
+          RELEASE_ACCOUNT_ID: ${{ vars.RELEASE_ACCOUNT_ID }}
+          CACHED_ECR_NAME: ${{ vars.CACHED_ECR_NAME }}
