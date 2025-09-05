@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ECR_GALLERY_NAME="karpenter"
-RELEASE_REPO_ECR="${RELEASE_REPO_ECR:-public.ecr.aws/${ECR_GALLERY_NAME}/}"
+RELEASE_REPO_ECR="public.ecr.aws/${ECR_GALLERY_NAME}/"
 
 SNAPSHOT_ECR="021119463062.dkr.ecr.us-east-1.amazonaws.com"
-SNAPSHOT_REPO_ECR="${SNAPSHOT_REPO_ECR:-${SNAPSHOT_ECR}/karpenter/snapshot/}"
+SNAPSHOT_REPO_ECR="${SNAPSHOT_ECR}/karpenter/snapshot/"
 
 CACHED_REPO_ECR="${RELEASE_ACCOUNT_ID:-}.dkr.ecr.us-east-1.amazonaws.com"
 CACHED_REPO_NAME="${CACHED_ECR_NAME:-}"
