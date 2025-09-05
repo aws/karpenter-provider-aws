@@ -2610,8 +2610,8 @@ func ExpectLaunchTemplatesCreatedWithUserData(expected string) {
 		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 		ExpectWithOffset(2, err).To(BeNil())
 		// Newlines are always added for missing TOML fields, so strip them out before comparisons.
-		actualUserData := strings.Replace(string(userData), "\n", "", -1)
-		expectedUserData := strings.Replace(expected, "\n", "", -1)
+		actualUserData := strings.ReplaceAll(string(userData), "\n", "")
+		expectedUserData := strings.ReplaceAll(expected, "\n", "")
 		ExpectWithOffset(2, actualUserData).To(Equal(expectedUserData))
 	})
 }
