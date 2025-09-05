@@ -143,7 +143,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	nodeClaim := &karpv1.NodeClaim{
 		Spec: karpv1.NodeClaimSpec{
 			NodeClassRef: &karpv1.NodeClassReference{
-				Name: nodeClass.ObjectMeta.Name,
+				Name: nodeClass.Name,
 			},
 		},
 	}
@@ -458,8 +458,8 @@ func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass
 	names := sets.New[string]()
 	for _, np := range nodePools {
 		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
-		if np.Spec.Template.ObjectMeta.Labels != nil {
-			reqs.Add(lo.Values(scheduling.NewLabelRequirements(np.Spec.Template.ObjectMeta.Labels))...)
+		if np.Spec.Template.Labels != nil {
+			reqs.Add(lo.Values(scheduling.NewLabelRequirements(np.Spec.Template.Labels))...)
 		}
 		for _, it := range instanceTypes {
 			if it.Requirements.Intersects(reqs) != nil {
