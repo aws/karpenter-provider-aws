@@ -730,6 +730,18 @@ enableSpotInterruptionDraining: false
 * enableRebalanceDrainin: If true, drain nodes when the rebalance recommendation notice is received. Only used in IMDS mode.
 enableRebalanceDraining: false
 
+## EC2NodeClass Validation
+
+### Force Validation Refresh
+
+If you believe that Karpenter's EC2NodeClass validation cache is stale (e.g., after updating IAM permissions), you can force Karpenter to refresh the cache by adding the `karpenter.k8s.aws/validation-refresh` annotation:
+
+```bash
+kubectl annotate ec2nodeclass {{EC2NodeClassName}} karpenter.k8s.aws/validation-refresh=refresh
+```
+
+The annotation is automatically removed after the cache is cleared and validation is refreshed.
+
 ## Pricing
 
 ### Stale pricing data on isolated subnet
