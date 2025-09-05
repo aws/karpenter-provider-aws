@@ -80,6 +80,8 @@ github.com/docker/docker v28.3.3+incompatible h1:Dypm25kh4rmk49v1eiVbsAtpAsYURjY
 github.com/docker/docker v28.3.3+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/emicklei/go-restful/v3 v3.12.2 h1:DhwDP0vY3k8ZzE0RunuJy8GhNpPL6zqLkDf9B/a0/xU=
 github.com/emicklei/go-restful/v3 v3.12.2/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
+github.com/engedaam/karpenter-core v0.0.0-20250905231327-d0fe9339231c h1:r5OqLP2bCXJOcTmuMjgoYsEO8e9ZfUQZC/biSU6Pi6w=
+github.com/engedaam/karpenter-core v0.0.0-20250905231327-d0fe9339231c/go.mod h1:yrYnKNcnhwNIaRMoNGWfD7soyABBHBwWVyVVcemKEgw=
 github.com/evanphx/json-patch v5.9.0+incompatible h1:fBXyNpNMuTTDdquAq/uisOr2lShz4oaXpDTX2bLe7ls=
 github.com/evanphx/json-patch v5.9.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch/v5 v5.9.11 h1:/8HVnzMq13/3x9TPvjG08wUGqBTmZBsCWzjTM0wiaDU=
@@ -364,8 +366,6 @@ sigs.k8s.io/controller-runtime v0.21.1-0.20250620151452-b9a9ca01fd37 h1:NYuksoVG
 sigs.k8s.io/controller-runtime v0.21.1-0.20250620151452-b9a9ca01fd37/go.mod h1:OwxxJV0s+5ipuaxitJF+UMB9iT+z+0DJNfgf5DmVvF8=
 sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 h1:gBQPwqORJ8d8/YNZWEjoZs7npUVDpVXUUOFfW6CgAqE=
 sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8/go.mod h1:mdzfpAEoE6DHQEN0uh9ZbOCuHbLK5wOm7dK4ctXE9Tg=
-sigs.k8s.io/karpenter v1.6.1-0.20250902234313-3115b8a4f715 h1:0mlok631XQrGgWVoe/mU4HOFPwpNs4FYPNcZh/hkCHY=
-sigs.k8s.io/karpenter v1.6.1-0.20250902234313-3115b8a4f715/go.mod h1:yrYnKNcnhwNIaRMoNGWfD7soyABBHBwWVyVVcemKEgw=
 sigs.k8s.io/randfill v1.0.0 h1:JfjMILfT8A6RbawdsK2JXGBR5AQVfd+9TbzrlneTyrU=
 sigs.k8s.io/randfill v1.0.0/go.mod h1:XeLlZ/jmk4i1HRopwe7/aU3H5n1zNUcX6TM94b3QxOY=
 sigs.k8s.io/structured-merge-diff/v6 v6.3.0 h1:jTijUJbW353oVOd9oTlifJqOGEkUw2jB/fXCbTiQEco=

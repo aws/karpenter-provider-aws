@@ -25,11 +25,13 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
+	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -64,6 +66,7 @@ type CloudProvider struct {
 	amiProvider                 amifamily.Provider
 	securityGroupProvider       securitygroup.Provider
 	capacityReservationProvider capacityreservation.Provider
+	instanceTypeStore           *nodeoverlay.InstanceTypeStore
 }
 
 func New(
@@ -74,6 +77,7 @@ func New(
 	amiProvider amifamily.Provider,
 	securityGroupProvider securitygroup.Provider,
 	capacityReservationProvider capacityreservation.Provider,
+	store *nodeoverlay.InstanceTypeStore,
 ) *CloudProvider {
 	return &CloudProvider{
 		instanceTypeProvider:        instanceTypeProvider,
@@ -83,10 +87,13 @@ func New(
 		securityGroupProvider:       securityGroupProvider,
 		capacityReservationProvider: capacityReservationProvider,
 		recorder:                    recorder,
+		instanceTypeStore:           store,
 	}
 }
 
 // Create a NodeClaim given the constraints.
+//
+//nolint:gocyclo
 func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*karpv1.NodeClaim, error) {
 	nodeClass, err := c.resolveNodeClassFromNodeClaim(ctx, nodeClaim)
 	if err != nil {
@@ -116,6 +123,9 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving instance types, %w", err), "InstanceTypeResolutionFailed", "Error resolving instance types")
+	}
+	if karpoptions.FromContext(ctx).FeatureGates.NodeOverlay {
+		instanceTypes = c.instanceTypeStore.ApplyAll(nodeClaim.Labels[v1.NodePoolTagKey], instanceTypes)
 	}
 	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
 	if err != nil {
@@ -207,7 +217,15 @@ func (c *CloudProvider) getInstanceType(ctx context.Context, nodePool *karpv1.No
 		}
 		return nil, fmt.Errorf("resolving nodeclass, %w", err)
 	}
-	return c.instanceTypeProvider.Get(ctx, nodeClass, name)
+	it, err := c.instanceTypeProvider.Get(ctx, nodeClass, name)
+	if err != nil {
+		return nil, fmt.Errorf("resolving instanceype, %w", err)
+	}
+	if karpoptions.FromContext(ctx).FeatureGates.NodeOverlay {
+		it = c.instanceTypeStore.Apply(nodePool.Name, it)
+	}
+
+	return it, err
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim) error {
