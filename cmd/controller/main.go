@@ -21,6 +21,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider/overlay"
 	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
@@ -40,7 +41,7 @@ func main() {
 		op.CapacityReservationProvider,
 		op.InstanceTypeStore,
 	)
-	cloudProvider := metrics.Decorate(awsCloudProvider)
+	cloudProvider := overlay.Decorate(metrics.Decorate(awsCloudProvider), op.GetClient(), op.InstanceTypeStore)
 	clusterState := state.NewCluster(op.Clock, op.GetClient(), cloudProvider)
 
 	if karpoptions.FromContext(ctx).FeatureGates.ReservedCapacity {

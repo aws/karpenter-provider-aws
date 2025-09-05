@@ -92,6 +92,8 @@ func New(
 }
 
 // Create a NodeClaim given the constraints.
+//
+//nolint:gocyclo
 func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*karpv1.NodeClaim, error) {
 	nodeClass, err := c.resolveNodeClassFromNodeClaim(ctx, nodeClaim)
 	if err != nil {
@@ -123,7 +125,10 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving instance types, %w", err), "InstanceTypeResolutionFailed", "Error resolving instance types")
 	}
 	if karpoptions.FromContext(ctx).FeatureGates.NodeOverlay {
-		instanceTypes = c.instanceTypeStore.ApplyOverlayOnInstanceTypes(nodeClaim.Labels[v1.NodePoolTagKey], instanceTypes)
+		instanceTypes, err = c.instanceTypeStore.ApplyAll(nodeClaim.Labels[v1.NodePoolTagKey], instanceTypes)
+		if err != nil {
+			return nil, fmt.Errorf("creating instance, %w", err)
+		}
 	}
 	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
 	if err != nil {
@@ -217,10 +222,13 @@ func (c *CloudProvider) getInstanceType(ctx context.Context, nodePool *karpv1.No
 	}
 	it, err := c.instanceTypeProvider.Get(ctx, nodeClass, name)
 	if err != nil {
-		return nil, fmt.Errorf("resolving instanceype, %w", err)
+		return nil, fmt.Errorf("resolving instancetype, %w", err)
 	}
 	if karpoptions.FromContext(ctx).FeatureGates.NodeOverlay {
-		it = c.instanceTypeStore.ApplyOverlay(nodePool.Name, it)
+		it, err = c.instanceTypeStore.Apply(nodePool.Name, it)
+		if err != nil {
+			return nil, fmt.Errorf("resolving instancetype, %w", err)
+		}
 	}
 
 	return it, err
