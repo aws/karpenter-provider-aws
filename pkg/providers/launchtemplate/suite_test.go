@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1432,8 +1431,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining(`
 [settings.bootstrap-commands.000-mount-instance-storage]
 commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/containerd', '/var/lib/kubelet', '/var/log/pods']]
-mode = 'always'
 essential = true
+mode = 'always'
 `)
 		})
 		It("should merge bootstrap-commands when instance-store policy is set on Bottlerocket", func() {
@@ -1442,8 +1441,8 @@ essential = true
 			nodeClass.Spec.UserData = lo.ToPtr(`
 [settings.bootstrap-commands.111-say-hello]
 commands = [['echo', 'hello']]
-mode = 'always'
 essential = true
+mode = 'always'
 `)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -1455,13 +1454,13 @@ essential = true
 [settings.bootstrap-commands]
 [settings.bootstrap-commands.000-mount-instance-storage]
 commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/containerd', '/var/lib/kubelet', '/var/log/pods']]
-mode = 'always'
 essential = true
+mode = 'always'
 
 [settings.bootstrap-commands.111-say-hello]
 commands = [['echo', 'hello']]
-mode = 'always'
 essential = true
+mode = 'always'
 `)
 		})
 		Context("Bottlerocket", func() {
@@ -1520,13 +1519,12 @@ essential = true
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 			It("should override system reserved values in user data", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					SystemReserved: map[string]string{
-						string(corev1.ResourceCPU):              "2",
-						string(corev1.ResourceMemory):           "3Gi",
-						string(corev1.ResourceEphemeralStorage): "10Gi",
-					},
-				}
+				nodeClass.Spec.UserData = aws.String(`
+[settings.kubernetes.system-reserved]
+cpu = "2"
+memory = "3Gi"
+ephemeral-storage = "10Gi"
+`)
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1537,61 +1535,68 @@ essential = true
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
-					Expect(len(config.Settings.Kubernetes.SystemReserved)).To(Equal(3))
-					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
-					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
-					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
+
+					settingsSystemReserved := config.GetCustomSettingsAsMap(config.GetKubernetesSettings(), "system-reserved")
+					Expect(len(settingsSystemReserved)).To(Equal(3))
+					Expect(settingsSystemReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
+					Expect(settingsSystemReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
+					Expect(settingsSystemReserved[corev1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
 				})
 			})
 			It("should override kube reserved values in user data", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					KubeReserved: map[string]string{
-						string(corev1.ResourceCPU):              "2",
-						string(corev1.ResourceMemory):           "3Gi",
-						string(corev1.ResourceEphemeralStorage): "10Gi",
-					},
-				}
+				nodeClass.Spec.UserData = aws.String(`
+[settings.kubernetes.kube-reserved]
+cpu = "2"
+memory = "3Gi"
+ephemeral-storage = "10Gi"
+`)
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
 				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
-					Expect(len(config.Settings.Kubernetes.KubeReserved)).To(Equal(3))
-					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
-					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
-					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
+
+					settingsKubeReserved := config.GetCustomSettingsAsMap(
+						config.GetKubernetesSettings(), "kube-reserved")
+					Expect(len(settingsKubeReserved)).To(Equal(3))
+					Expect(settingsKubeReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
+					Expect(settingsKubeReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
+					Expect(settingsKubeReserved[corev1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
 				})
 			})
 			It("should override soft eviction values in user data", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{"memory.available": "10%"},
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory.available": {Duration: time.Minute},
-					},
-				}
+				nodeClass.Spec.UserData = aws.String(`
+[settings.kubernetes.eviction-soft]
+memory.available = '10%'
+[settings.kubernetes.eviction-soft-grace-period]
+memory.available = '1m0s'
+`)
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
 				ExpectLaunchTemplatesCreatedWithUserDataContaining(`
 [settings.kubernetes.eviction-soft]
-'memory.available' = '10%'
+[settings.kubernetes.eviction-soft.memory]
+available = '10%'
 
 [settings.kubernetes.eviction-soft-grace-period]
-'memory.available' = '1m0s'
+[settings.kubernetes.eviction-soft-grace-period.memory]
+available = '1m0s'
 `)
 			})
 			It("should override max pod grace period in user data", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					MaxPods:                   aws.Int32(35),
-					EvictionMaxPodGracePeriod: aws.Int32(10),
-				}
+				nodeClass.Spec.UserData = aws.String(`
+[settings.kubernetes]
+max-pods = 35
+eviction-max-pod-grace-period = 10
+`)
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1601,40 +1606,19 @@ essential = true
 [settings.kubernetes]
 api-server = 'https://test-cluster'
 cluster-certificate = 'Y2EtYnVuZGxlCg=='
-cluster-name = 'test-cluster'
 cluster-dns-ip = '10.0.100.10'
-max-pods = 35
+cluster-name = 'test-cluster'
 eviction-max-pod-grace-period = 10
+max-pods = 35
 `)
 			})
 			It("should override kube reserved values in user data", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionHard: map[string]string{
-						"memory.available":  "10%",
-						"nodefs.available":  "15%",
-						"nodefs.inodesFree": "5%",
-					},
-				}
-				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
-				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
-				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
-					Expect(err).To(BeNil())
-					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
-					Expect(len(config.Settings.Kubernetes.EvictionHard)).To(Equal(3))
-					Expect(config.Settings.Kubernetes.EvictionHard["memory.available"]).To(Equal("10%"))
-					Expect(config.Settings.Kubernetes.EvictionHard["nodefs.available"]).To(Equal("15%"))
-					Expect(config.Settings.Kubernetes.EvictionHard["nodefs.inodesFree"]).To(Equal("5%"))
-				})
-			})
-			It("should specify max pods value when passing maxPods in configuration", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					MaxPods: aws.Int32(10),
-				}
+				nodeClass.Spec.UserData = aws.String(`
+[settings.kubernetes.eviction-hard]
+memory.available = '10%'
+nodefs.available = '15%'
+nodefs.inodesFree = '5%'
+`)
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1645,46 +1629,80 @@ eviction-max-pod-grace-period = 10
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
-					Expect(config.Settings.Kubernetes.MaxPods).ToNot(BeNil())
-					Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 10))
+
+					settingsEvictionHard := config.GetCustomSettingsAsMap(config.GetKubernetesSettings(),
+						"eviction-hard")
+					settingsEvictionHardMemory := config.GetCustomSettingsAsMap(settingsEvictionHard, "memory")
+					settingsEvictionHardNodefs := config.GetCustomSettingsAsMap(settingsEvictionHard, "nodefs")
+					Expect(len(settingsEvictionHard)).To(Equal(2))
+					Expect(settingsEvictionHardMemory["available"]).To(Equal("10%"))
+					Expect(settingsEvictionHardNodefs["available"]).To(Equal("15%"))
+					Expect(settingsEvictionHardNodefs["inodesFree"]).To(Equal("5%"))
 				})
 			})
-			It("should pass ImageGCHighThresholdPercent when specified", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					ImageGCHighThresholdPercent: aws.Int32(50),
-				}
+			It("should specify max pods value when passing maxPods in configuration", func() {
+				nodeClass.Spec.UserData = aws.String(`
+[settings.kubernetes]
+max-pods = 10
+`)
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
 				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
-					Expect(config.Settings.Kubernetes.ImageGCHighThresholdPercent).ToNot(BeNil())
-					percent, err := strconv.Atoi(*config.Settings.Kubernetes.ImageGCHighThresholdPercent)
+
+					settingsKubernetes := config.GetKubernetesSettings()
+					Expect(settingsKubernetes["max-pods"]).ToNot(BeNil())
+					Expect(settingsKubernetes["max-pods"]).To(BeNumerically("==", 10))
+				})
+			})
+			It("should pass ImageGCHighThresholdPercent when specified", func() {
+				nodeClass.Spec.UserData = aws.String(`
+[settings.kubernetes]
+image-gc-high-threshold-percent = 50
+`)
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
+					Expect(err).To(BeNil())
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+
+					settingsKubernetes := config.GetKubernetesSettings()
+					Expect(settingsKubernetes["image-gc-high-threshold-percent"]).ToNot(BeNil())
+					percent := settingsKubernetes["image-gc-high-threshold-percent"]
 					Expect(err).ToNot(HaveOccurred())
 					Expect(percent).To(BeNumerically("==", 50))
 				})
 			})
 			It("should pass ImageGCLowThresholdPercent when specified", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					ImageGCLowThresholdPercent: aws.Int32(50),
-				}
+				nodeClass.Spec.UserData = aws.String(`
+[settings.kubernetes]
+image-gc-low-threshold-percent = 50
+`)
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
 				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
-					Expect(config.Settings.Kubernetes.ImageGCLowThresholdPercent).ToNot(BeNil())
-					percent, err := strconv.Atoi(*config.Settings.Kubernetes.ImageGCLowThresholdPercent)
+
+					settingsKubernetes := config.GetKubernetesSettings()
+					Expect(settingsKubernetes["image-gc-low-threshold-percent"]).ToNot(BeNil())
+					percent := settingsKubernetes["image-gc-low-threshold-percent"]
 					Expect(err).ToNot(HaveOccurred())
 					Expect(percent).To(BeNumerically("==", 50))
 				})
@@ -1700,26 +1718,31 @@ eviction-max-pod-grace-period = 10
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
-					Expect(config.Settings.Kubernetes.ClusterDNSIP).ToNot(BeNil())
-					Expect(*config.Settings.Kubernetes.ClusterDNSIP).To(Equal("10.0.100.10"))
+
+					settingsKubernetes := config.GetKubernetesSettings()
+					Expect(settingsKubernetes["cluster-dns-ip"]).ToNot(BeNil())
+					Expect(settingsKubernetes["cluster-dns-ip"]).To(Equal("10.0.100.10"))
 				})
 			})
 			It("should pass CPUCFSQuota when specified", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					CPUCFSQuota: aws.Bool(false),
-				}
+				nodeClass.Spec.UserData = aws.String(`
+[settings.kubernetes]
+cpu-cfs-quota-enforced = false
+`)
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
 				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
-					Expect(config.Settings.Kubernetes.CPUCFSQuota).ToNot(BeNil())
-					Expect(*config.Settings.Kubernetes.CPUCFSQuota).To(BeFalse())
+
+					settingsKubernetes := config.GetKubernetesSettings()
+					Expect(settingsKubernetes["cpu-cfs-quota-enforced"]).ToNot(BeNil())
+					Expect(settingsKubernetes["cpu-cfs-quota-enforced"]).To(BeFalse())
 				})
 			})
 			It("should specify labels in the Kubelet flags when specified in NodePool", func() {
@@ -1736,8 +1759,9 @@ eviction-max-pod-grace-period = 10
 				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					settingsKubernetes := config.GetKubernetesSettings()
 					for k, v := range desiredLabels {
-						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
+						Expect(settingsKubernetes["node-labels"]).To(HaveKeyWithValue(k, v))
 					}
 				}
 			})
@@ -1763,8 +1787,9 @@ eviction-max-pod-grace-period = 10
 				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					settingsKubernetes := config.GetKubernetesSettings()
 					for k, v := range desiredLabels {
-						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
+						Expect(settingsKubernetes["node-labels"]).To(HaveKeyWithValue(k, v))
 					}
 				}
 			})
