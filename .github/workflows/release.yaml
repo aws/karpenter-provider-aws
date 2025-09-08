@@ -29,7 +29,7 @@ jobs:
           use-cache: false
       - uses: ./.github/actions/e2e/install-helm
         with:
-          version: v3.12.3 # Pinned to this version since v3.13.0 has issues with pushing to public ECR: https://github.com/helm/helm/issues/12442
+          version: v3.18.6
       - uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 # v5.0.0
         with:
           role-to-assume: 'arn:aws:iam::${{ vars.RELEASE_ACCOUNT_ID }}:role/${{ vars.RELEASE_ROLE_NAME }}'
