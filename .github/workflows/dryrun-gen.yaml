@@ -16,7 +16,7 @@ jobs:
       - uses: ./.github/actions/install-deps
         with:
           use-cache: false
-      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+      - uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 # v5.0.0
         with:
           role-to-assume: 'arn:aws:iam::${{ vars.READONLY_ACCOUNT_ID }}:role/${{ vars.READONLY_ROLE_NAME }}'
           aws-region: ${{ vars.READONLY_REGION }}
