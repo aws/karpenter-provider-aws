@@ -46,7 +46,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
 	sigs.k8s.io/controller-runtime v0.22.0
-	sigs.k8s.io/karpenter v1.6.1-0.20250902234313-3115b8a4f715
+	sigs.k8s.io/karpenter v1.6.1-0.20250908174930-91341612ebc6
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -120,6 +120,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/cloud-provider v0.33.4 // indirect
 	k8s.io/component-base v0.35.0-alpha.0 // indirect
+	k8s.io/component-helpers v0.33.4 // indirect
 	k8s.io/csi-translation-lib v0.33.4 // indirect
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
