@@ -147,8 +147,6 @@ pullImages() {
   local tag="${1}"
 
   docker pull "${CACHED_REPO_ECR}"/"${CACHED_REPO_NAME}"/controller:"${tag}"
-  helm pull oci://"${CACHED_REPO_ECR}"/"${CACHED_REPO_NAME}"/karpenter --version "${tag}"
-  helm pull oci://"${CACHED_REPO_ECR}"/"${CACHED_REPO_NAME}"/karpenter-crd --version "${tag}"
 }
 
 prepareWebsite() {
