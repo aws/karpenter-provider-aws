@@ -64,7 +64,7 @@ func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 	return toml.Marshal(c)
 }
 
-func (c *BottlerocketConfig) GetKubernetesSettings() map[string]interface{} {
+func (c *BottlerocketConfig) KubernetesSettings() map[string]interface{} {
 	if c.SettingsRaw == nil {
 		c.SettingsRaw = map[string]interface{}{}
 	}
@@ -76,7 +76,15 @@ func (c *BottlerocketConfig) GetKubernetesSettings() map[string]interface{} {
 	return c.SettingsRaw["kubernetes"].(map[string]interface{})
 }
 
-func (c *BottlerocketConfig) GetCustomSettingsAsMap(parent map[string]interface{}, key string) map[string]interface{} {
+func (c *BottlerocketConfig) BootstrapCommandSettings() BootstrapCommand {
+	return BootstrapCommand{
+		Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}},
+		Mode:      BootstrapCommandModeAlways,
+		Essential: true,
+	}
+}
+
+func (c *BottlerocketConfig) CustomSettingsAsMap(parent map[string]interface{}, key string) map[string]interface{} {
 	if parent == nil || parent[key] == nil {
 		return map[string]interface{}{}
 	} else {

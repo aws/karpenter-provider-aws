@@ -1536,7 +1536,7 @@ ephemeral-storage = "10Gi"
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
 
-					settingsSystemReserved := config.GetCustomSettingsAsMap(config.GetKubernetesSettings(), "system-reserved")
+					settingsSystemReserved := config.CustomSettingsAsMap(config.KubernetesSettings(), "system-reserved")
 					Expect(len(settingsSystemReserved)).To(Equal(3))
 					Expect(settingsSystemReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
 					Expect(settingsSystemReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
@@ -1561,8 +1561,8 @@ ephemeral-storage = "10Gi"
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
 
-					settingsKubeReserved := config.GetCustomSettingsAsMap(
-						config.GetKubernetesSettings(), "kube-reserved")
+					settingsKubeReserved := config.CustomSettingsAsMap(
+						config.KubernetesSettings(), "kube-reserved")
 					Expect(len(settingsKubeReserved)).To(Equal(3))
 					Expect(settingsKubeReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
 					Expect(settingsKubeReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
@@ -1630,10 +1630,10 @@ nodefs.inodesFree = '5%'
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
 
-					settingsEvictionHard := config.GetCustomSettingsAsMap(config.GetKubernetesSettings(),
+					settingsEvictionHard := config.CustomSettingsAsMap(config.KubernetesSettings(),
 						"eviction-hard")
-					settingsEvictionHardMemory := config.GetCustomSettingsAsMap(settingsEvictionHard, "memory")
-					settingsEvictionHardNodefs := config.GetCustomSettingsAsMap(settingsEvictionHard, "nodefs")
+					settingsEvictionHardMemory := config.CustomSettingsAsMap(settingsEvictionHard, "memory")
+					settingsEvictionHardNodefs := config.CustomSettingsAsMap(settingsEvictionHard, "nodefs")
 					Expect(len(settingsEvictionHard)).To(Equal(2))
 					Expect(settingsEvictionHardMemory["available"]).To(Equal("10%"))
 					Expect(settingsEvictionHardNodefs["available"]).To(Equal("15%"))
@@ -1656,7 +1656,7 @@ max-pods = 10
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
 
-					settingsKubernetes := config.GetKubernetesSettings()
+					settingsKubernetes := config.KubernetesSettings()
 					Expect(settingsKubernetes["max-pods"]).ToNot(BeNil())
 					Expect(settingsKubernetes["max-pods"]).To(BeNumerically("==", 10))
 				})
@@ -1677,7 +1677,7 @@ image-gc-high-threshold-percent = 50
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
 
-					settingsKubernetes := config.GetKubernetesSettings()
+					settingsKubernetes := config.KubernetesSettings()
 					Expect(settingsKubernetes["image-gc-high-threshold-percent"]).ToNot(BeNil())
 					percent := settingsKubernetes["image-gc-high-threshold-percent"]
 					Expect(err).ToNot(HaveOccurred())
@@ -1700,7 +1700,7 @@ image-gc-low-threshold-percent = 50
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
 
-					settingsKubernetes := config.GetKubernetesSettings()
+					settingsKubernetes := config.KubernetesSettings()
 					Expect(settingsKubernetes["image-gc-low-threshold-percent"]).ToNot(BeNil())
 					percent := settingsKubernetes["image-gc-low-threshold-percent"]
 					Expect(err).ToNot(HaveOccurred())
@@ -1719,7 +1719,7 @@ image-gc-low-threshold-percent = 50
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
 
-					settingsKubernetes := config.GetKubernetesSettings()
+					settingsKubernetes := config.KubernetesSettings()
 					Expect(settingsKubernetes["cluster-dns-ip"]).ToNot(BeNil())
 					Expect(settingsKubernetes["cluster-dns-ip"]).To(Equal("10.0.100.10"))
 				})
@@ -1740,7 +1740,7 @@ cpu-cfs-quota-enforced = false
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
 
-					settingsKubernetes := config.GetKubernetesSettings()
+					settingsKubernetes := config.KubernetesSettings()
 					Expect(settingsKubernetes["cpu-cfs-quota-enforced"]).ToNot(BeNil())
 					Expect(settingsKubernetes["cpu-cfs-quota-enforced"]).To(BeFalse())
 				})
@@ -1759,7 +1759,7 @@ cpu-cfs-quota-enforced = false
 				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
-					settingsKubernetes := config.GetKubernetesSettings()
+					settingsKubernetes := config.KubernetesSettings()
 					for k, v := range desiredLabels {
 						Expect(settingsKubernetes["node-labels"]).To(HaveKeyWithValue(k, v))
 					}
@@ -1787,7 +1787,7 @@ cpu-cfs-quota-enforced = false
 				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
-					settingsKubernetes := config.GetKubernetesSettings()
+					settingsKubernetes := config.KubernetesSettings()
 					for k, v := range desiredLabels {
 						Expect(settingsKubernetes["node-labels"]).To(HaveKeyWithValue(k, v))
 					}

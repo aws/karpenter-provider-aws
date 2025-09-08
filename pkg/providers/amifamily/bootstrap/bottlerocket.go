@@ -37,7 +37,7 @@ func (b Bottlerocket) Script() (string, error) {
 
 	// Karpenter will overwrite settings present inside custom UserData
 	// based on other fields specified in the NodePool
-	settingsKubernetes := s.GetKubernetesSettings()
+	settingsKubernetes := s.KubernetesSettings()
 	settingsKubernetes["cluster-name"] = b.ClusterName
 	settingsKubernetes["api-server"] = b.ClusterEndpoint
 	settingsKubernetes["cluster-certificate"] = b.CABundle
@@ -46,7 +46,7 @@ func (b Bottlerocket) Script() (string, error) {
 		settingsKubernetes["cluster-dns-ip"] = b.KubeletConfig.ClusterDNS[0]
 	}
 
-	nodeLabelsMap := s.GetCustomSettingsAsMap(settingsKubernetes, "node-labels")
+	nodeLabelsMap := s.CustomSettingsAsMap(settingsKubernetes, "node-labels")
 	nodeLabelAsMapString := make(map[string]string)
 	for k, v := range nodeLabelsMap {
 		nodeLabelAsMapString[k] = v.(string)
@@ -63,13 +63,8 @@ func (b Bottlerocket) Script() (string, error) {
 	settingsKubernetes["node-taints"] = nodTaintsAsMapSliceString
 
 	if lo.FromPtr(b.InstanceStorePolicy) == v1.InstanceStorePolicyRAID0 {
-		bootstrapCommands := make(map[string]interface{})
-		bootstrapCommands["commands"] = [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}}
-		bootstrapCommands["mode"] = BootstrapCommandModeAlways
-		bootstrapCommands["essential"] = true
-
-		settingsBootstrapCommand := s.GetCustomSettingsAsMap(s.SettingsRaw, "bootstrap-commands")
-		settingsBootstrapCommand["000-mount-instance-storage"] = bootstrapCommands
+		settingsBootstrapCommand := s.CustomSettingsAsMap(s.SettingsRaw, "bootstrap-commands")
+		settingsBootstrapCommand["000-mount-instance-storage"] = s.BootstrapCommandSettings()
 		s.SettingsRaw["bootstrap-commands"] = settingsBootstrapCommand
 	}
 
