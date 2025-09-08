@@ -21,6 +21,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.featureGates.reservedCapacity=true \
 			--set settings.featureGates.spotToSpotConsolidation=true \
 			--set settings.preferencePolicy=Ignore \
+			--set logLevel=debug \
 			--create-namespace
 
 # CR for local builds of Karpenter
@@ -160,7 +161,6 @@ apply: verify image ## Deploy the controller from the current state of your git 
 	kubectl apply -f ./pkg/apis/crds/
 	helm upgrade --install karpenter charts/karpenter --namespace ${KARPENTER_NAMESPACE} \
         $(HELM_OPTS) \
-        --set logLevel=debug \
         --set controller.image.repository=$(IMG_REPOSITORY) \
         --set controller.image.tag=$(IMG_TAG) \
         --set controller.image.digest=$(IMG_DIGEST)
