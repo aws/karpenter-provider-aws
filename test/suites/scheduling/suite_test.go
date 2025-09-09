@@ -360,15 +360,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		It("should provision a node for naked pods", func() {
 			pod := test.Pod()
 
-			nodePoolWithMinValues := test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceCategory,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"c"},
-				},
-			})
-
-			env.ExpectCreated(nodeClass, nodePoolWithMinValues, pod)
+			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 		})
