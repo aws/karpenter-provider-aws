@@ -536,6 +536,21 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			Expect(env.GetInstance(pod.Spec.NodeName).InstanceType).To(Equal(ec2types.InstanceType("c5.large")))
 			Expect(env.GetNode(pod.Spec.NodeName).Labels[karpv1.NodePoolLabelKey]).To(Equal(nodePoolHighPri.Name))
 		})
+		It("should provision a flex node for a pod", func() {
+			selectors.Insert(v1.LabelInstanceCapacityFlex)
+			pod := test.Pod()
+			nodePoolWithMinValues := test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceCapacityFlex,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"true"},
+				},
+			})
+			env.ExpectCreated(nodeClass, nodePoolWithMinValues, pod)
+			env.EventuallyExpectHealthy(pod)
+			env.ExpectCreatedNodeCount("==", 1)
+			Expect(env.GetNode(pod.Spec.NodeName).Labels).To(And(HaveKeyWithValue(corev1.LabelInstanceType, ContainSubstring("flex"))))
+		})
 
 		DescribeTable(
 			"should provision a right-sized node when a pod has InitContainers (cpu)",
