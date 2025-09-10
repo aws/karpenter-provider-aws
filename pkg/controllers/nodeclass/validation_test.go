@@ -380,19 +380,18 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			})
 		})
 	})
-	It("should not skip validation when refesh annotation is added", func() {
+	It("should not skip validation when new annotation is added", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(1))
-		nodeClass.SetAnnotations(map[string]string{v1.AnnotationValidationRefresh: "refresh"})
+		nodeClass.SetAnnotations(map[string]string{"testing": "validation"})
 		ExpectApplied(ctx, env.Client, nodeClass)
 
 		awsEnv.EC2API.Reset()
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-		Expect(nodeClass.Annotations).ToNot(HaveKey(v1.AnnotationValidationRefresh))
 		Expect(awsEnv.EC2API.CreateFleetBehavior.Calls()).To(Equal(1))
 		Expect(awsEnv.EC2API.RunInstancesBehavior.Calls()).To(Equal(1))
 	})
