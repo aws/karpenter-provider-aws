@@ -60,6 +60,8 @@ type Options struct {
 	InstanceProfile     string
 	CABundle            *string `hash:"ignore"`
 	InstanceStorePolicy *v1.InstanceStorePolicy
+	AMISelectorTerms    []v1.AMISelectorTerm `hash:"ignore"` // For Bottlerocket version resolution
+	AMIs                []v1.AMI             `hash:"ignore"` // Resolved AMIs for version extraction
 	// Level-triggered fields that may change out of sync.
 	SecurityGroups           []v1.SecurityGroup
 	Tags                     map[string]string
