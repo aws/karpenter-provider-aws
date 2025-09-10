@@ -179,10 +179,7 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
 ) (launchTemplate *launchtemplate.LaunchTemplate, result reconcile.Result, err error) {
-	instanceTypes, err := v.getPrioritizedInstanceTypes(nodeClass)
-	if err != nil {
-		return nil, reconcile.Result{}, fmt.Errorf("generating options, %w", err)
-	}
+	instanceTypes := getAMICompatibleInstanceTypes(nodeClass)
 	// pass 1 instance type in EnsureAll to only create 1 launch template
 	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes[:1], karpv1.CapacityTypeOnDemand, tags)
 	if err != nil {
@@ -360,7 +357,7 @@ func getFleetLaunchTemplateConfig(
 	}
 }
 
-func (v *Validation) getPrioritizedInstanceTypes(nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
+func getAMICompatibleInstanceTypes(nodeClass *v1.EC2NodeClass) []*cloudprovider.InstanceType {
 	instanceTypes := []*cloudprovider.InstanceType{
 		{
 			Name: string(ec2types.InstanceTypeM5Large),
@@ -381,10 +378,7 @@ func (v *Validation) getPrioritizedInstanceTypes(nodeClass *v1.EC2NodeClass) ([]
 			)...),
 		},
 	}
-	return getAMICompatibleInstanceTypes(instanceTypes, nodeClass), nil
-}
 
-func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass) []*cloudprovider.InstanceType {
 	amiMap := amifamily.MapToInstanceTypes(instanceTypes, nodeClass.Status.AMIs)
 	var selectedInstanceTypes []*cloudprovider.InstanceType
 	for _, ami := range nodeClass.Status.AMIs {
