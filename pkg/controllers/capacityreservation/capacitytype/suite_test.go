@@ -31,6 +31,7 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/capacityreservation/capacitytype"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
@@ -108,6 +109,7 @@ var _ = Describe("Capacity Reservation Capacity Type Controller", func() {
 				Labels: map[string]string{
 					karpv1.CapacityTypeLabelKey:          karpv1.CapacityTypeReserved,
 					corecloudprovider.ReservationIDLabel: reservationID,
+					v1.LabelCapacityReservationType:      string(v1.CapacityReservationTypeDefault),
 					karpv1.NodeRegisteredLabelKey:        "true",
 				},
 			},
@@ -125,9 +127,11 @@ var _ = Describe("Capacity Reservation Capacity Type Controller", func() {
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
 		Expect(nodeClaim.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
 		Expect(nodeClaim.Labels).To(HaveKeyWithValue(corecloudprovider.ReservationIDLabel, reservationID))
+		Expect(nodeClaim.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(v1.CapacityReservationTypeDefault)))
 		node = ExpectExists(ctx, env.Client, node)
 		Expect(node.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
 		Expect(node.Labels).To(HaveKeyWithValue(corecloudprovider.ReservationIDLabel, reservationID))
+		Expect(nodeClaim.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(v1.CapacityReservationTypeDefault)))
 
 		out := awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
 		out.Reservations[0].Instances[0].CapacityReservationId = nil
@@ -139,9 +143,11 @@ var _ = Describe("Capacity Reservation Capacity Type Controller", func() {
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
 		Expect(nodeClaim.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
 		Expect(nodeClaim.Labels).ToNot(HaveKey(corecloudprovider.ReservationIDLabel))
+		Expect(nodeClaim.Labels).ToNot(HaveKey(v1.LabelCapacityReservationType))
 		node = ExpectExists(ctx, env.Client, node)
 		Expect(node.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
 		Expect(node.Labels).ToNot(HaveKey(corecloudprovider.ReservationIDLabel))
+		Expect(node.Labels).ToNot(HaveKey(v1.LabelCapacityReservationType))
 	})
 	It("should demote nodes from reserved to on-demand even if their nodeclaim was demoted previously", func() {
 		out := awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
@@ -153,11 +159,13 @@ var _ = Describe("Capacity Reservation Capacity Type Controller", func() {
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
 		Expect(nodeClaim.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
 		Expect(nodeClaim.Labels).ToNot(HaveKey(corecloudprovider.ReservationIDLabel))
+		Expect(nodeClaim.Labels).ToNot(HaveKey(v1.LabelCapacityReservationType))
 
 		ExpectApplied(ctx, env.Client, node)
 		ExpectSingletonReconciled(ctx, controller)
 		node = ExpectExists(ctx, env.Client, node)
 		Expect(node.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
 		Expect(node.Labels).ToNot(HaveKey(corecloudprovider.ReservationIDLabel))
+		Expect(node.Labels).ToNot(HaveKey(v1.LabelCapacityReservationType))
 	})
 })
