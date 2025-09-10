@@ -1014,7 +1014,7 @@ var _ = Describe("Node Overlay", func() {
 		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
 	})
 	It("should consolidate a instance that is the cheepest based on a price adjustment node overlay applied", func() {
-		overlaiedInstanceType := "m7a.32xlarge"
+		overlaiedInstanceType := "m7a.8xlarge"
 		pod := coretest.Pod(coretest.PodOptions{
 			ResourceRequirements: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
@@ -1044,7 +1044,7 @@ var _ = Describe("Node Overlay", func() {
 		Expect(foundInstanceType).To(BeTrue())
 		Expect(instanceType).To(Equal(overlaiedInstanceType))
 
-		overlaiedInstanceType = "c7a.32xlarge"
+		overlaiedInstanceType = "c7a.8xlarge"
 		nodeOverlay = coretest.ReplaceOverlayRequirements(nodeOverlay, corev1.NodeSelectorRequirement{
 			Key:      corev1.LabelInstanceTypeStable,
 			Operator: corev1.NodeSelectorOpIn,
@@ -1065,7 +1065,7 @@ var _ = Describe("Node Overlay", func() {
 
 	})
 	It("should consolidate a instance that is the cheepest based on a price override node overlay applied", func() {
-		overlaiedInstanceType := "m7a.32xlarge"
+		overlaiedInstanceType := "m7a.8xlarge"
 		pod := coretest.Pod(coretest.PodOptions{
 			ResourceRequirements: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
@@ -1095,7 +1095,7 @@ var _ = Describe("Node Overlay", func() {
 		Expect(foundInstanceType).To(BeTrue())
 		Expect(instanceType).To(Equal(overlaiedInstanceType))
 
-		overlaiedInstanceType = "c7a.32xlarge"
+		overlaiedInstanceType = "c7a.8xlarge"
 		nodeOverlay = coretest.ReplaceOverlayRequirements(nodeOverlay, corev1.NodeSelectorRequirement{
 			Key:      corev1.LabelInstanceTypeStable,
 			Operator: corev1.NodeSelectorOpIn,

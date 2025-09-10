@@ -928,7 +928,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 
 var _ = Describe("Node Overlay", func() {
 	It("should provision the instance that is the cheepest based on a price adjustment node overlay applied", func() {
-		overlaiedInstanceType := "m7a.32xlarge"
+		overlaiedInstanceType := "m7a.8xlarge"
 		pod := test.Pod()
 		nodeOverlay := test.NodeOverlay(v1alpha1.NodeOverlay{
 			Spec: v1alpha1.NodeOverlaySpec{
@@ -951,7 +951,7 @@ var _ = Describe("Node Overlay", func() {
 		Expect(instanceType).To(Equal(overlaiedInstanceType))
 	})
 	It("should provision the instance that is the cheepest based on a price override node overlay applied", func() {
-		overlaiedInstanceType := "c7a.32xlarge"
+		overlaiedInstanceType := "c7a.8xlarge"
 		pod := test.Pod()
 		nodeOverlay := test.NodeOverlay(v1alpha1.NodeOverlay{
 			Spec: v1alpha1.NodeOverlaySpec{

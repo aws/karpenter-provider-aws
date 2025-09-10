@@ -55,6 +55,13 @@ func init() {
 		LabelTopologyZoneID,
 		corev1.LabelWindowsBuild,
 	)
+	karpv1.WellKnownResources.Insert(
+		ResourceAWSPodENI,
+		ResourceAWSNeuron,
+		ResourceAWSNeuronCore,
+		ResourceHabanaGaudi,
+		ResourceEFA,
+	)
 }
 
 var (

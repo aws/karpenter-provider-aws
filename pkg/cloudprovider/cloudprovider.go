@@ -125,9 +125,14 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, cloudprovider.NewCreateError(fmt.Errorf("resolving instance types, %w", err), "InstanceTypeResolutionFailed", "Error resolving instance types")
 	}
 	if karpoptions.FromContext(ctx).FeatureGates.NodeOverlay {
-		instanceTypes, err = c.instanceTypeStore.ApplyAll(nodeClaim.Labels[v1.NodePoolTagKey], instanceTypes)
-		if err != nil {
-			return nil, fmt.Errorf("creating instance, %w", err)
+		// NodeOverlays are applied able to a set of instance types defined in a NodePool
+		// This means standalone node claims do not support node overlays.
+		// This choice was made as there are no active use cases for it
+		if nodePoolName, ok := nodeClaim.Labels[v1.NodePoolTagKey]; ok {
+			instanceTypes, err = c.instanceTypeStore.ApplyAll(nodePoolName, instanceTypes)
+			if err != nil {
+				return nil, fmt.Errorf("creating instance, %w", err)
+			}
 		}
 	}
 	instance, err := c.instanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
