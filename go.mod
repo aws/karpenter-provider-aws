@@ -22,7 +22,7 @@ require (
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
 	github.com/aws/smithy-go v1.23.0
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
-	github.com/awslabs/operatorpkg v0.0.0-20250822220536-d4fbec42f646
+	github.com/awslabs/operatorpkg v0.0.0-20250909182303-e8e550b6f339
 	github.com/awslabs/operatorpkg/aws v0.0.0-20250414225955-b47cd315ffe9
 	github.com/docker/docker v28.4.0+incompatible
 	github.com/go-logr/zapr v1.3.0
@@ -45,7 +45,7 @@ require (
 	k8s.io/client-go v0.35.0-alpha.0
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
-	sigs.k8s.io/controller-runtime v0.22.0
+	sigs.k8s.io/controller-runtime v0.22.1
 	sigs.k8s.io/karpenter v1.6.1-0.20250908174930-91341612ebc6
 	sigs.k8s.io/yaml v1.6.0
 )
@@ -111,7 +111,7 @@ require (
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/term v0.34.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
-	golang.org/x/time v0.12.0 // indirect
+	golang.org/x/time v0.13.0 // indirect
 	golang.org/x/tools v0.36.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
