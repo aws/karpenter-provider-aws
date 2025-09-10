@@ -96,7 +96,7 @@ func (b Bottlerocket) Script() (string, error) {
 			s.Settings.BootstrapCommands = map[string]BootstrapCommand{}
 		}
 		s.Settings.BootstrapCommands["000-mount-instance-storage"] = BootstrapCommand{
-			Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}},
+			Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind"}},
 			Essential: true,
 			Mode:      BootstrapCommandModeAlways,
 		}
