@@ -2,9 +2,8 @@
 [settings.kubernetes]
 api-server = 'https://test-cluster'
 cluster-certificate = 'Y2EtYnVuZGxlCg=='
-cluster-name = 'test-cluster'
 cluster-dns-ip = '10.0.100.10'
-max-pods = 110
+cluster-name = 'test-cluster'
 
 [settings.kubernetes.node-labels]
 'karpenter.k8s.aws/ec2nodeclass' = '%s'
