@@ -17,10 +17,11 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
 	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"
-	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
 	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+
+	"sigs.k8s.io/karpenter/pkg/cloudprovider/overlay"
 
 	"github.com/aws/karpenter-provider-aws/kwok/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/kwok/operator"
@@ -41,8 +42,8 @@ func main() {
 		op.CapacityReservationProvider,
 		op.InstanceTypeStore,
 	)
-	instanceTypeStore := nodeoverlay.NewInstanceTypeStore()
-	cloudProvider := metrics.Decorate(kwokAWSCloudProvider)
+	overlayUndecoratedCloudProvider := metrics.Decorate(kwokAWSCloudProvider)
+	cloudProvider := overlay.Decorate(overlayUndecoratedCloudProvider, op.GetClient(), op.InstanceTypeStore)
 	clusterState := state.NewCluster(op.Clock, op.GetClient(), cloudProvider)
 
 	if karpoptions.FromContext(ctx).FeatureGates.ReservedCapacity {
@@ -77,8 +78,9 @@ func main() {
 			op.GetClient(),
 			op.EventRecorder,
 			cloudProvider,
+			overlayUndecoratedCloudProvider,
 			clusterState,
-			instanceTypeStore,
+			op.InstanceTypeStore,
 		)...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,

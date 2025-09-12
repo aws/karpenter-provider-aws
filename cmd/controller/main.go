@@ -41,7 +41,8 @@ func main() {
 		op.CapacityReservationProvider,
 		op.InstanceTypeStore,
 	)
-	cloudProvider := overlay.Decorate(metrics.Decorate(awsCloudProvider), op.GetClient(), op.InstanceTypeStore)
+	overlayUndecoratedCloudProvider := metrics.Decorate(awsCloudProvider)
+	cloudProvider := overlay.Decorate(overlayUndecoratedCloudProvider, op.GetClient(), op.InstanceTypeStore)
 	clusterState := state.NewCluster(op.Clock, op.GetClient(), cloudProvider)
 
 	if karpoptions.FromContext(ctx).FeatureGates.ReservedCapacity {
@@ -56,6 +57,7 @@ func main() {
 			op.GetClient(),
 			op.EventRecorder,
 			cloudProvider,
+			overlayUndecoratedCloudProvider,
 			clusterState,
 			op.InstanceTypeStore,
 		)...).
