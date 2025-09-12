@@ -148,7 +148,11 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			CapacityReservationPreference: lo.Ternary(
 				b.options.CapacityType == karpv1.CapacityTypeReserved,
 				ec2types.CapacityReservationPreferenceCapacityReservationsOnly,
-				ec2types.CapacityReservationPreferenceNone,
+				lo.Ternary(
+					b.options.Labels["karpenter.sh/allow-open-matching"] == "true",
+					ec2types.CapacityReservationPreferenceOpen,
+					ec2types.CapacityReservationPreferenceNone,
+				),
 			),
 			CapacityReservationTarget: lo.Ternary(
 				b.options.CapacityType == karpv1.CapacityTypeReserved,
