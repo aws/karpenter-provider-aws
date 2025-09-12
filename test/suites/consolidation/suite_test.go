@@ -16,6 +16,7 @@ package consolidation_test
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -33,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	"sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -1004,3 +1006,172 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
 	Entry("MinValuesPolicyStrict", options.MinValuesPolicyStrict),
 )
+
+var _ = Describe("Node Overlay", func() {
+	var nodePool *karpv1.NodePool
+	BeforeEach(func() {
+		nodePool = env.DefaultNodePool(nodeClass)
+		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
+	})
+	It("should consolidate a instance that is the cheepest based on a price adjustment node overlay applied", func() {
+		overlaiedInstanceType := "m7a.8xlarge"
+		pod := coretest.Pod(coretest.PodOptions{
+			ResourceRequirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("1"),
+					corev1.ResourceMemory: resource.MustParse("1Gi"),
+				},
+			},
+		})
+		nodeOverlay := coretest.NodeOverlay(v1alpha1.NodeOverlay{
+			Spec: v1alpha1.NodeOverlaySpec{
+				PriceAdjustment: lo.ToPtr("-99.99999999999%"),
+				Requirements: []corev1.NodeSelectorRequirement{
+					{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{overlaiedInstanceType},
+					},
+				},
+			},
+		})
+
+		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
+		env.EventuallyExpectHealthy(pod)
+		nodes := env.EventuallyExpectInitializedNodeCount("==", 1)
+
+		instanceType, foundInstanceType := nodes[0].Labels[corev1.LabelInstanceTypeStable]
+		Expect(foundInstanceType).To(BeTrue())
+		Expect(instanceType).To(Equal(overlaiedInstanceType))
+
+		overlaiedInstanceType = "c7a.8xlarge"
+		nodeOverlay = coretest.ReplaceOverlayRequirements(nodeOverlay, corev1.NodeSelectorRequirement{
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{overlaiedInstanceType},
+		})
+		env.ExpectUpdated(nodeOverlay)
+
+		nodes = env.EventuallyExpectInitializedNodeCount("==", 2)
+		nodes = lo.Filter(nodes, func(n *corev1.Node, _ int) bool {
+			_, ok := lo.Find(n.Spec.Taints, func(t corev1.Taint) bool {
+				return t.MatchTaint(&karpv1.DisruptedNoScheduleTaint)
+			})
+			return !ok
+		})
+		instanceType, foundInstanceType = nodes[0].Labels[corev1.LabelInstanceTypeStable]
+		Expect(foundInstanceType).To(BeTrue())
+		Expect(instanceType).To(Equal(overlaiedInstanceType))
+
+	})
+	It("should consolidate a instance that is the cheepest based on a price override node overlay applied", func() {
+		overlaiedInstanceType := "m7a.8xlarge"
+		pod := coretest.Pod(coretest.PodOptions{
+			ResourceRequirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("1"),
+					corev1.ResourceMemory: resource.MustParse("1Gi"),
+				},
+			},
+		})
+		nodeOverlay := coretest.NodeOverlay(v1alpha1.NodeOverlay{
+			Spec: v1alpha1.NodeOverlaySpec{
+				Price: lo.ToPtr("0.0000000232"),
+				Requirements: []corev1.NodeSelectorRequirement{
+					{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{overlaiedInstanceType},
+					},
+				},
+			},
+		})
+
+		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
+		env.EventuallyExpectHealthy(pod)
+		nodes := env.EventuallyExpectInitializedNodeCount("==", 1)
+
+		instanceType, foundInstanceType := nodes[0].Labels[corev1.LabelInstanceTypeStable]
+		Expect(foundInstanceType).To(BeTrue())
+		Expect(instanceType).To(Equal(overlaiedInstanceType))
+
+		overlaiedInstanceType = "c7a.8xlarge"
+		nodeOverlay = coretest.ReplaceOverlayRequirements(nodeOverlay, corev1.NodeSelectorRequirement{
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{overlaiedInstanceType},
+		})
+		env.ExpectUpdated(nodeOverlay)
+
+		nodes = env.EventuallyExpectInitializedNodeCount("==", 2)
+		nodes = lo.Filter(nodes, func(n *corev1.Node, _ int) bool {
+			_, ok := lo.Find(n.Spec.Taints, func(t corev1.Taint) bool {
+				return t.MatchTaint(&karpv1.DisruptedNoScheduleTaint)
+			})
+			return !ok
+		})
+		instanceType, foundInstanceType = nodes[0].Labels[corev1.LabelInstanceTypeStable]
+		Expect(foundInstanceType).To(BeTrue())
+		Expect(instanceType).To(Equal(overlaiedInstanceType))
+	})
+	It("should consolidate a node that matches hugepages resource requests", func() {
+		overlaiedInstanceType := "c7a.8xlarge"
+		pod := coretest.Pod(coretest.PodOptions{
+			ResourceRequirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:                   coretest.RandomCPU(),
+					corev1.ResourceMemory:                coretest.RandomMemory(),
+					corev1.ResourceName("hugepages-2Mi"): resource.MustParse("100Mi"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceName("hugepages-2Mi"): resource.MustParse("100Mi"),
+				},
+			},
+		})
+		nodeOverlay := coretest.NodeOverlay(v1alpha1.NodeOverlay{
+			Spec: v1alpha1.NodeOverlaySpec{
+				Requirements: []corev1.NodeSelectorRequirement{
+					{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{overlaiedInstanceType},
+					},
+				},
+				Capacity: corev1.ResourceList{
+					corev1.ResourceName("hugepages-2Mi"): resource.MustParse("4Gi"),
+				},
+			},
+		})
+
+		content, err := os.ReadFile("testdata/hugepage_userdata_input.sh")
+		Expect(err).To(BeNil())
+		nodeClass.Spec.UserData = lo.ToPtr(string(content))
+
+		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
+		env.EventuallyExpectHealthy(pod)
+		nodes := env.EventuallyExpectInitializedNodeCount("==", 1)
+
+		instanceType, foundInstanceType := nodes[0].Labels[corev1.LabelInstanceTypeStable]
+		Expect(foundInstanceType).To(BeTrue())
+		Expect(instanceType).To(Equal(overlaiedInstanceType))
+
+		overlaiedInstanceType = "c7a.2xlarge"
+		nodeOverlay = coretest.ReplaceOverlayRequirements(nodeOverlay, corev1.NodeSelectorRequirement{
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{overlaiedInstanceType},
+		})
+		env.ExpectUpdated(nodeOverlay)
+
+		nodes = env.EventuallyExpectInitializedNodeCount("==", 2)
+		nodes = lo.Filter(nodes, func(n *corev1.Node, _ int) bool {
+			_, ok := lo.Find(n.Spec.Taints, func(t corev1.Taint) bool {
+				return t.MatchTaint(&karpv1.DisruptedNoScheduleTaint)
+			})
+			return !ok
+		})
+		instanceType, foundInstanceType = nodes[0].Labels[corev1.LabelInstanceTypeStable]
+		Expect(foundInstanceType).To(BeTrue())
+		Expect(instanceType).To(Equal(overlaiedInstanceType))
+	})
+})
