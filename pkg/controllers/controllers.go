@@ -73,7 +73,7 @@ func NewControllers(
 	recorder events.Recorder,
 	unavailableOfferings *awscache.UnavailableOfferings,
 	ssmCache *cache.Cache,
-	validationCache *cache.Cache,
+	validationCache *awscache.Validation,
 	recreationCache *cache.Cache,
 	cloudProvider cloudprovider.CloudProvider,
 	subnetProvider subnet.Provider,
