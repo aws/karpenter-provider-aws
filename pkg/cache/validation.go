@@ -86,8 +86,8 @@ func (v *Validation) key(nodeClass *v1.EC2NodeClass, tags map[string]string) str
 		nodeClass.Status.SecurityGroups,
 		nodeClass.Status.AMIs,
 		nodeClass.Status.InstanceProfile,
-		nodeClass.Spec.MetadataOptions,
-		nodeClass.Spec.BlockDeviceMappings,
+		nodeClass.Spec,
+		nodeClass.Annotations,
 		filteredTags,
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
 	return fmt.Sprintf("%s:%016x", nodeClass.Name, hash)
