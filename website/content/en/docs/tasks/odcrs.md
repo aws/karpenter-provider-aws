@@ -6,7 +6,7 @@ linkTitle: "Utilizing ODCRs and Capacity Blocks"
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Beta]({{<ref "../reference/settings#feature-gates" >}})
 
 Karpenter introduced native support for [EC2 On-Demand Capacity Reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html)  (ODCRs) in [v1.3](https://github.com/aws/karpenter-provider-aws/releases/tag/v1.3.0), enabling users to select upon and prioritize specific capacity reservations.
-In [v1.6](https://github.com/aws/karpenter-provider-aws/releases/tag/v1.6.0), this support was expanded to include [EC2 Capacity Blocks for ML](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-blocks.html).
+In [v1.6](https://github.com/aws/karpenter-provider-aws/releases/tag/v1.6.2), this support was expanded to include [EC2 Capacity Blocks for ML](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-blocks.html).
 To enable native ODCR support, ensure the [`ReservedCapacity` feature gate]({{< relref "../reference/settings#feature-gates" >}}) is enabled.
 
 {{% alert title="Note" color="primary" %}}
@@ -55,6 +55,11 @@ Additionaly, Karpenter supports the following scheduling labels:
 
 These labels will only be present on reserved nodes.
 They are supported as NodePool requirements and as pod scheduling constaints (e.g. [node affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity)).
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter does **not** support open matching for ODCRs.
+This means that all ODCRs you wish to utilize, even those with `open` instance eligibility, must be included in your NodeClass' `spec.capacityReservationSelectorTerms`.
+{{% /alert %}}
 
 ## Prioritization Behavior
 

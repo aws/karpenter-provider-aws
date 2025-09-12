@@ -12,7 +12,7 @@ jobs:
       statuses: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: ./.github/actions/download-artifact
       - id: website-metadata
         run: |
@@ -23,7 +23,7 @@ jobs:
             echo PR_NUMBER="$pr_number"
             echo BRANCH_NAME="pr-$pr_number"
           } >> "$GITHUB_ENV"
-      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ env.PR_COMMIT }}
       - uses: ./.github/actions/commit-status/start
@@ -31,7 +31,7 @@ jobs:
           name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
           git_ref: ${{ env.PR_COMMIT }}
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 # v5.0.0
         with:
           role-to-assume: arn:aws:iam::${{ vars.RELEASE_PREVIEW_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
           aws-region: ${{ vars.AMPLIFY_REGION }}
@@ -50,22 +50,42 @@ jobs:
           s3-bucket: ${{ vars.AMPLIFY_S3_BUCKET_BETA }}
           s3-prefix: pr-${{ env.PR_NUMBER }}/
           hugo-base-url: ${{ env.PREVIEW_URL }}
-      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           PREVIEW_URL: ${{ env.PREVIEW_URL }}
           PR_COMMIT: ${{ env.PR_COMMIT }}
         with:
           script: |
-            github.rest.issues.createComment({
-              issue_number: process.env.PR_NUMBER,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `**Preview deployment ready!**
+            const commentBody = `**Preview deployment ready!**
             
             **Preview URL:** ${process.env.PREVIEW_URL}
             
-            Built from commit \`${process.env.PR_COMMIT}\``
-            })
+            Built from commit \`${process.env.PR_COMMIT}\``;
+            
+            const existingComment = (await github.rest.issues.listComments({
+              issue_number: process.env.PR_NUMBER,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            })).data.find(comment => 
+              comment.user.login === 'github-actions[bot]' && 
+              comment.body.includes('**Preview deployment ready!**')
+            );
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                comment_id: existingComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: process.env.PR_NUMBER,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+            }
       - if: always()
         uses: ./.github/actions/commit-status/end
         with:

@@ -125,7 +125,13 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(iam.NewFromConfig(cfg), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval), cache.New(awscache.ProtectedProfilesTTL, awscache.DefaultCleanupInterval), cfg.Region)
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(
+		iam.NewFromConfig(cfg),
+		cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.ProtectedProfilesTTL, awscache.DefaultCleanupInterval),
+		cfg.Region,
+	)
 	pricingProvider := pricing.NewDefaultProvider(
 		pricing.NewAPI(cfg),
 		ec2api,
@@ -139,7 +145,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	lo.Must0(versionProvider.UpdateVersion(ctx))
 	ssmProvider := ssmp.NewDefaultProvider(ssm.NewFromConfig(cfg), ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiResolver := amifamily.NewDefaultResolver()
+	amiResolver := amifamily.NewDefaultResolver(cfg.Region)
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),

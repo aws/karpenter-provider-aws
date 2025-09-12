@@ -17,7 +17,6 @@ package cloudprovider_test
 import (
 	"context"
 	"fmt"
-	"net"
 	"strings"
 	"testing"
 	"time"
@@ -108,9 +107,6 @@ var _ = BeforeEach(func() {
 
 	cluster.Reset()
 	awsEnv.Reset()
-
-	awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
-	awsEnv.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 })
 
 var _ = AfterEach(func() {
@@ -231,9 +227,9 @@ var _ = Describe("CloudProvider", func() {
 		})
 		version := awsEnv.VersionProvider.Get(ctx)
 		awsEnv.SSMAPI.Parameters = map[string]string{
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):       "amd64-ami-id",
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):   "amd64-nvidia-ami-id",
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version): "arm64-ami-id",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", version): "amd64-ami-id",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/nvidia/recommended/image_id", version):   "amd64-nvidia-ami-id",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version):  "arm64-ami-id",
 		}
 	})
 	It("should not proceed with instance creation if NodeClass is unknown", func() {
@@ -319,7 +315,7 @@ var _ = Describe("CloudProvider", func() {
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(BeNil())
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
-		_, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1.AnnotationEC2NodeClassHash]
+		_, ok := cloudProviderNodeClaim.Annotations[v1.AnnotationEC2NodeClassHash]
 		Expect(ok).To(BeTrue())
 	})
 	It("should return NodeClass Hash Version on the nodeClaim", func() {
@@ -327,7 +323,7 @@ var _ = Describe("CloudProvider", func() {
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(BeNil())
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
-		v, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1.AnnotationEC2NodeClassHashVersion]
+		v, ok := cloudProviderNodeClaim.Annotations[v1.AnnotationEC2NodeClassHashVersion]
 		Expect(ok).To(BeTrue())
 		Expect(v).To(Equal(v1.EC2NodeClassHashVersion))
 	})
@@ -1164,11 +1160,11 @@ var _ = Describe("CloudProvider", func() {
 				Expect(isDrifted).To(BeEmpty())
 			})
 			It("should not return drifted if the NodeClaim's karpenter.k8s.aws/ec2nodeclass-hash-version annotation does not match the EC2NodeClass's", func() {
-				nodeClass.ObjectMeta.Annotations = map[string]string{
+				nodeClass.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash:        "test-hash-111111",
 					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-1",
 				}
-				nodeClaim.ObjectMeta.Annotations = map[string]string{
+				nodeClaim.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash:        "test-hash-222222",
 					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
 				}
@@ -1178,10 +1174,10 @@ var _ = Describe("CloudProvider", func() {
 				Expect(isDrifted).To(BeEmpty())
 			})
 			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash-version annotation is not present on the NodeClass", func() {
-				nodeClass.ObjectMeta.Annotations = map[string]string{
+				nodeClass.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash: "test-hash-111111",
 				}
-				nodeClaim.ObjectMeta.Annotations = map[string]string{
+				nodeClaim.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash:        "test-hash-222222",
 					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
 				}
@@ -1195,11 +1191,11 @@ var _ = Describe("CloudProvider", func() {
 				Expect(isDrifted).To(BeEmpty())
 			})
 			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash-version annotation is not present on the NodeClaim", func() {
-				nodeClass.ObjectMeta.Annotations = map[string]string{
+				nodeClass.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash:        "test-hash-111111",
 					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-1",
 				}
-				nodeClaim.ObjectMeta.Annotations = map[string]string{
+				nodeClaim.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash: "test-hash-222222",
 				}
 				// should trigger drift
@@ -1249,7 +1245,7 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(100),
 					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
-			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver)
+			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
@@ -1266,7 +1262,7 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(11),
 					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
-			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver)
+			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				MaxPods: aws.Int32(1),
 			}
@@ -1315,7 +1311,7 @@ var _ = Describe("CloudProvider", func() {
 			})
 			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver)
+			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			podSubnet1 := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet1)

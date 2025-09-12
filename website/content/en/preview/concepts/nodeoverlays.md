@@ -6,7 +6,10 @@ description: >
   Understand NodeOverlays and how they enable fine-tuning of Karpenter's scheduling simulation for advanced use cases.
 ---
 
-Karpenter uses NodeOverlays to inject alternative assumptions into the scheduling simulation for more accurate scheduling decisions.
+<i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Alpha]({{<ref "../reference/settings#feature-gates" >}})
+
+
+Karpenter uses NodeOverlays to inject alternative instance type information into the scheduling simulation for more accurate scheduling decisions.
 NodeOverlays enable users to fine-tune instance pricing and add extended resources to instance types that should be considered during Karpenter's decision-making process.
 They provide a flexible way to account for real-world factors like savings plans, licensing costs, and custom hardware resources that aren't captured in the base instance data from cloud providers.
 
@@ -38,6 +41,7 @@ spec:
       operator: Gt
       values: ["32"]
   
+  # Price and priceAdjustment are mutually exclusive
   # Price override (sets absolute price)
   price: "5.00"
   
@@ -52,17 +56,15 @@ spec:
 ```
 
 ## spec.weight
-Optional integer that determines precedence when multiple NodeOverlays match the same instance type. Higher weights take precedence over lower weights. When weights are equal, alphabetical ordering by name is used for conflict resolution.
+Optional integer that determines precedence when multiple NodeOverlays match the same instance type. Higher weights take precedence over lower weights. When weights are equal, alphabetical ordering by name is used for conflict resolution. If not specified, the default weight is 0. If there is a conflict between NodeOverlays with the same weight, it will be indicated in the status and the NodeOverlay will not be applied.
 
 ## spec.requirements
 Array of requirements that determine which instance types this overlay applies to. Uses the same format as NodePool requirements and supports all standard Kubernetes label selectors. An empty requirements array applies the overlay to all instance types. Kubernetes defines the following [Well-Known Labels](https://kubernetes.io/docs/reference/labels-annotations-taints/), and cloud providers (e.g., AWS) implement them.
 
-Currently, requirements sets are defined based on the well-known labels that are discovered for instance types. In cases 
-
-In addition to the well-known labels from Kubernetes, Karpenter supports AWS-specific labels for more advanced scheduling. See the full list [here](../scheduling/#well-known-labels).
+Currently, requirements sets are defined based on the well-known labels that are discovered for instance types. In addition to the well-known labels from Kubernetes, Karpenter supports AWS-specific labels for more advanced scheduling. See the full list [here](../scheduling/#well-known-labels).
 
 {{% alert title="Note" color="primary" %}}
-There is currently a limit of 100 on the total number of requirements on both the NodePool and the NodeClaim. It's important to note that `spec.template.metadata.labels` are also propagated as requirements on the NodeClaim when it's created, meaning that you can't have more than 100 requirements and labels combined set on your NodePool.
+There is currently a limit of 100 on the total number of requirements on both the NodeOverlay.
 {{% /alert %}}
 
 ## spec.price
@@ -161,11 +163,11 @@ When `Ready=False`, the status message provides specific information about the i
 ```yaml
 status:
   conditions:
-  - type: Ready
+  - type: ValidationSucceeded
     status: "False"
     lastTransitionTime: "2024-07-24T18:30:00Z"
-    reason: "ConflictDetected"
-    message: "Conflict with overlay 'competing-overlay' for instance type m5.large (both have weight 10)"
+    reason: "Conflict"
+    message: "conflict with another overlay"
 ```
 
 ## Limitations and Considerations

@@ -113,6 +113,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: CPU_REQUESTS
+              valueFrom:
+                resourceFieldRef:
+                  containerName: {{ include "karpenter.controller.containerName" . }}
+                  divisor: 1m
+                  resource: requests.cpu
             - name: MEMORY_LIMIT
               valueFrom:
                 resourceFieldRef:
@@ -165,6 +171,10 @@ spec:
           {{- end }}
           {{- with .Values.settings.reservedENIs }}
             - name: RESERVED_ENIS
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- with .Values.settings.disableDryRun }}
+            - name: DISABLE_DRY_RUN
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.controller.env }}

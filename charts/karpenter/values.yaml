@@ -121,9 +121,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.6.0
+    tag: 1.6.3
     # -- SHA256 digest of the controller image.
-    digest: sha256:37c761a3a0b485fd34db1390317ef6149141f532c5a699c528b98fb8f9cc722a
+    digest: sha256:80248a5b6141d31d4a2a435df598120a9f274536807d49aea122f5fc3e164b53
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -205,6 +205,8 @@ settings:
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved.
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.
   reservedENIs: "0"
+  # -- Disable dry run validation for EC2NodeClasses.
+  disableDryRun: false
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features.
   featureGates:

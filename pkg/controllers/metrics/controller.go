@@ -18,13 +18,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
@@ -49,17 +49,17 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudPr
 }
 
 //nolint:gocyclo
-func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	nodePools := &karpv1.NodePoolList{}
 	if err := c.kubeClient.List(ctx, nodePools); err != nil {
-		return reconcile.Result{}, err
+		return reconciler.Result{}, err
 	}
 	availability := map[metricDimensions]bool{}
 	price := map[metricDimensions]float64{}
 	for _, nodePool := range nodePools.Items {
 		instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, &nodePool)
 		if err != nil {
-			return reconcile.Result{}, err
+			return reconciler.Result{}, err
 		}
 		for _, instanceType := range instanceTypes {
 			zones := sets.New[string]()
@@ -95,7 +95,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 			zoneLabel:         dimensions.zone,
 		})
 	}
-	return reconcile.Result{RequeueAfter: time.Minute}, nil
+	return reconciler.Result{RequeueAfter: time.Minute}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

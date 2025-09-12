@@ -34,7 +34,7 @@ func EC2NodeClass(overrides ...v1.EC2NodeClass) *v1.EC2NodeClass {
 		}
 	}
 	if len(options.Spec.AMISelectorTerms) == 0 {
-		options.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
+		options.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 		options.Status.AMIs = []v1.AMI{
 			{
 				ID: "ami-test1",

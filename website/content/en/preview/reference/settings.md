@@ -18,6 +18,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | CLUSTER_ENDPOINT | \-\-cluster-endpoint | The external kubernetes cluster endpoint for new nodes to connect with. If not specified, will discover the cluster endpoint using DescribeCluster API.|
 | CLUSTER_NAME | \-\-cluster-name | [REQUIRED] The kubernetes cluster name for resource discovery.|
 | CPU_REQUESTS | \-\-cpu-requests | CPU requests in millicores on the container running the controller. (default = 1000)|
+| DISABLE_DRY_RUN | \-\-disable-dry-run | If true, then disable dry run validation for EC2NodeClasses.|
 | DISABLE_LEADER_ELECTION | \-\-disable-leader-election | Disable the leader election client before executing the main loop. Disable when running replicated components for high availability is not desired.|
 | EKS_CONTROL_PLANE | \-\-eks-control-plane | Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API |
 | ENABLE_PROFILING | \-\-enable-profiling | Enable the profiling on the metric endpoint|
@@ -53,6 +54,7 @@ Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line
 | SpotToSpotConsolidation | false   | Alpha  | v0.34.x |         |
 | NodeRepair              | false   | Alpha  | v1.1.x  |         |
 | ReservedCapacity        | false   | Alpha  | v1.3.x  |         |
+| NodeOverlay             | false   | Alpha  | v1.7.x  |         |
 
 {{% alert title="Note" color="primary" %}}
 In v1, drift has been promoted to stable and the feature gate removed. Users can continue to control drift by using disruption budgets by reason.

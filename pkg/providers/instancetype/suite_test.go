@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"net"
 	"reflect"
 	"sort"
 	"strings"
@@ -102,8 +101,6 @@ var _ = BeforeEach(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	cluster.Reset()
 	awsEnv.Reset()
-	awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
-	awsEnv.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 })
 
 var _ = AfterEach(func() {
@@ -236,6 +233,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "g",
+			v1.LabelInstanceCapacityFlex:                 "false",
 			v1.LabelInstanceGeneration:                   "4",
 			v1.LabelInstanceFamily:                       "g4dn",
 			v1.LabelInstanceSize:                         "8xlarge",
@@ -297,6 +295,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "g",
+			v1.LabelInstanceCapacityFlex:                 "false",
 			v1.LabelInstanceGeneration:                   "4",
 			v1.LabelInstanceFamily:                       "g4dn",
 			v1.LabelInstanceSize:                         "8xlarge",
@@ -353,6 +352,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "inf",
+			v1.LabelInstanceCapacityFlex:                 "false",
 			v1.LabelInstanceGeneration:                   "2",
 			v1.LabelInstanceFamily:                       "inf2",
 			v1.LabelInstanceSize:                         "xlarge",
@@ -635,6 +635,47 @@ var _ = Describe("InstanceTypeProvider", func() {
 			return ok && limits.IsTrunkingCompatible
 		}
 		Expect(supportsPodENI()).To(Equal(true))
+	})
+	It("should launch pod in flex instance type", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			NodeSelector: map[string]string{
+				v1.LabelInstanceCapacityFlex: "true",
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceCapacityFlex, "true"))
+		Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, MatchRegexp(".*flex.*")))
+	})
+	It("should not launch pod when flex instances are disallowed", func() {
+		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceCapacityFlex,
+				Operator: corev1.NodeSelectorOpNotIn,
+				Values:   []string{"true"},
+			},
+		})
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			NodeSelector: map[string]string{
+				v1.LabelInstanceCapacityFlex: "true",
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should launch pod in non-flex instances", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			NodeSelector: map[string]string{
+				v1.LabelInstanceCapacityFlex: "false",
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceCapacityFlex, "false"))
+		Expect(node.Labels).ToNot(HaveKeyWithValue(corev1.LabelInstanceTypeStable, MatchRegexp("^.*flex.*")))
 	})
 	It("should launch vpc.amazonaws.com/PrivateIPv4Address on a compatible instance type", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
@@ -2469,8 +2510,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for AL2023 Root volume", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
-			awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
-			awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2849,6 +2888,62 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}()
 		}
 		wg.Wait()
+	})
+	Context("Capacity Blocks", func() {
+		const crInstanceType = "c6g.large"
+		const crZone = "test-zone-1a"
+		const crID = "cr-123"
+		const crCapacity = 1
+		BeforeEach(func() {
+			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(crID, crCapacity)
+			nodeClass.Status.CapacityReservations = []v1.CapacityReservation{{
+				AvailabilityZone: crZone,
+				ID:               crID,
+				InstanceType:     crInstanceType,
+				ReservationType:  v1.CapacityReservationTypeCapacityBlock,
+			}}
+		})
+		DescribeTable(
+			"should create an offering for a capacity block",
+			func(state v1.CapacityReservationState) {
+				nodeClass.Status.CapacityReservations[0].State = state
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+
+				var instanceType *corecloudprovider.InstanceType
+				for _, it := range instanceTypes {
+					if it.Name == crInstanceType {
+						instanceType = it
+						break
+					}
+				}
+				Expect(instanceType).ToNot(BeNil())
+
+				var offering *corecloudprovider.Offering
+				for _, o := range instanceType.Offerings {
+					if o.CapacityType() == karpv1.CapacityTypeReserved {
+						if offering != nil {
+							Fail("only a single reserved offering should exist")
+						}
+						offering = o
+					}
+				}
+				Expect(offering).ToNot(BeNil())
+
+				Expect(offering.Requirements.Has(karpv1.CapacityTypeLabelKey)).To(BeTrue())
+				Expect(offering.Requirements.Get(karpv1.CapacityTypeLabelKey).Any()).To(Equal(karpv1.CapacityTypeReserved))
+				Expect(offering.Requirements.Has(corev1.LabelTopologyZone)).To(BeTrue())
+				Expect(offering.Requirements.Get(corev1.LabelTopologyZone).Any()).To(Equal(crZone))
+				Expect(offering.Requirements.Has(v1.LabelCapacityReservationType)).To(BeTrue())
+				Expect(offering.Requirements.Get(v1.LabelCapacityReservationType).Any()).To(Equal(string(v1.CapacityReservationTypeCapacityBlock)))
+				Expect(offering.Requirements.Has(v1.LabelCapacityReservationID)).To(BeTrue())
+				Expect(offering.Requirements.Get(v1.LabelCapacityReservationID).Any()).To(Equal(crID))
+				Expect(offering.Available).To(Equal(state != v1.CapacityReservationStateExpiring))
+				Expect(offering.ReservationCapacity).To(Equal(crCapacity))
+			},
+			Entry("when the capacity block is active", v1.CapacityReservationStateActive),
+			Entry("when the capacity block is expiring", v1.CapacityReservationStateExpiring),
+		)
 	})
 })
 
