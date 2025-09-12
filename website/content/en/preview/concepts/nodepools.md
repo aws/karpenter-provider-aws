@@ -212,6 +212,7 @@ For example, an instance type may be specified using a nodeSelector in a pod spe
 - key: `karpenter.k8s.aws/instance-family`
 - key: `karpenter.k8s.aws/instance-category`
 - key: `karpenter.k8s.aws/instance-generation`
+- key: `karpenter.k8s.aws/instance-capacity-flex`
 
 Generally, instance types should be a list and not a single value. Leaving these requirements undefined is recommended, as it maximizes choices for efficiently placing pods.
 

@@ -2,10 +2,13 @@
 set -euo pipefail
 
 ECR_GALLERY_NAME="karpenter"
-RELEASE_REPO_ECR="${RELEASE_REPO_ECR:-public.ecr.aws/${ECR_GALLERY_NAME}/}"
+RELEASE_REPO_ECR="public.ecr.aws/${ECR_GALLERY_NAME}/"
 
 SNAPSHOT_ECR="021119463062.dkr.ecr.us-east-1.amazonaws.com"
-SNAPSHOT_REPO_ECR="${SNAPSHOT_REPO_ECR:-${SNAPSHOT_ECR}/karpenter/snapshot/}"
+SNAPSHOT_REPO_ECR="${SNAPSHOT_ECR}/karpenter/snapshot/"
+
+CACHED_REPO_ECR="${RELEASE_ACCOUNT_ID:-}.dkr.ecr.us-east-1.amazonaws.com"
+CACHED_REPO_NAME="${CACHED_ECR_NAME:-}"
 
 CURRENT_MAJOR_VERSION="0"
 
@@ -21,7 +24,7 @@ Release Version: ${version}
 Commit: ${commit_sha}
 Helm Chart Version ${helm_chart_version}"
 
-  authenticatePrivateRepo
+  authenticateSnapshotRepo
   build "${SNAPSHOT_REPO_ECR}" "${version}" "${helm_chart_version}" "${commit_sha}"
 }
 
@@ -39,13 +42,20 @@ Helm Chart Version ${helm_chart_version}"
 
   authenticate
   build "${RELEASE_REPO_ECR}" "${version}" "${helm_chart_version}" "${commit_sha}"
+
+  authenticateCachedRepo
+  pullImages "${version}"
 }
 
 authenticate() {
   aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${RELEASE_REPO_ECR}"
 }
 
-authenticatePrivateRepo() {
+authenticateCachedRepo() {
+  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${CACHED_REPO_ECR}"
+}
+
+authenticateSnapshotRepo() {
   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${SNAPSHOT_ECR}"
 }
 
@@ -131,6 +141,12 @@ buildDate() {
   date_epoch="${1}"
 
   date -u --date="@${date_epoch}" "+%Y-%m-%dT%H:%M:%SZ" 2>/dev/null
+}
+
+pullImages() {
+  local tag="${1}"
+
+  docker pull "${CACHED_REPO_ECR}"/"${CACHED_REPO_NAME}"/controller:"${tag}"
 }
 
 prepareWebsite() {

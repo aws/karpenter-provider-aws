@@ -36,7 +36,7 @@ func (env *Environment) BeforeEach() {
 
 func (env *Environment) Cleanup() {
 	env.Environment.Cleanup()
-	env.Environment.CleanupObjects(CleanableObjects...)
+	env.CleanupObjects(CleanableObjects...)
 }
 
 func (env *Environment) AfterEach() {
