@@ -49,7 +49,7 @@ import (
 )
 
 const (
-	requeueAfterTime                              = 30 * time.Minute
+	requeueAfterTime                              = 10 * time.Minute
 	ConditionReasonCreateFleetAuthFailed          = "CreateFleetAuthCheckFailed"
 	ConditionReasonCreateLaunchTemplateAuthFailed = "CreateLaunchTemplateAuthCheckFailed"
 	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
