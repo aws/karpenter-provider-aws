@@ -1142,7 +1142,7 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
-		It("should fail if VolumeInitializationRate set but SnapshotID not specified", func() {
+		It("should succeed if VolumeInitializationRate set without SnapshotID when amiSelectorTerms are specified", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
@@ -1154,15 +1154,15 @@ var _ = Describe("CEL/Validation", func() {
 						{
 							DeviceName: aws.String("map-device-1"),
 							EBS: &v1.BlockDevice{
-								VolumeSize:               &resource.Quantity{},
-								VolumeInitializationRate: aws.Int32(100),
+								VolumeSize:               resource.NewScaledQuantity(20, resource.Giga),
+								VolumeInitializationRate: aws.Int32(150),
 							},
 							RootVolume: false,
 						},
 					},
 				},
 			}
-			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
+			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
 		})
 		It("should fail if VolumeInitializationRate too low", func() {
 			nodeClass := &v1.EC2NodeClass{
@@ -1209,6 +1209,140 @@ var _ = Describe("CEL/Validation", func() {
 				},
 			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
+		})
+		It("should succeed with VolumeInitializationRate when using tag-based amiSelectorTerms without SnapshotID", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms: []v1.AMISelectorTerm{{
+						Tags: map[string]string{"Environment": "test"},
+					}},
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					AMIFamily:                  &v1.AMIFamilyAL2,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{
+						{
+							DeviceName: aws.String("map-device-1"),
+							EBS: &v1.BlockDevice{
+								VolumeSize:               resource.NewScaledQuantity(20, resource.Giga),
+								VolumeInitializationRate: aws.Int32(150),
+								// No SnapshotID - should be allowed with amiSelectorTerms
+							},
+							RootVolume: false,
+						},
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
+		})
+		It("should succeed with VolumeInitializationRate when using alias amiSelectorTerms without SnapshotID", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms: []v1.AMISelectorTerm{{
+						Alias: "al2023@latest",
+					}},
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{
+						{
+							DeviceName: aws.String("map-device-1"),
+							EBS: &v1.BlockDevice{
+								VolumeSize:               resource.NewScaledQuantity(20, resource.Giga),
+								VolumeInitializationRate: aws.Int32(150),
+								// No SnapshotID - should be allowed with amiSelectorTerms
+							},
+							RootVolume: false,
+						},
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
+		})
+		It("should fail with VolumeInitializationRate when neither SnapshotID nor amiSelectorTerms are provided", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					// No amiSelectorTerms - should fail
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					AMIFamily:                  &v1.AMIFamilyAL2,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{
+						{
+							DeviceName: aws.String("map-device-1"),
+							EBS: &v1.BlockDevice{
+								VolumeSize:               resource.NewScaledQuantity(20, resource.Giga),
+								VolumeInitializationRate: aws.Int32(150),
+								// No SnapshotID and no amiSelectorTerms - should fail
+							},
+							RootVolume: false,
+						},
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
+		})
+		It("should succeed with VolumeInitializationRate when explicit SnapshotID is provided (backward compatibility)", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					// No amiSelectorTerms but explicit SnapshotID - should succeed
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					AMIFamily:                  &v1.AMIFamilyAL2,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{
+						{
+							DeviceName: aws.String("map-device-1"),
+							EBS: &v1.BlockDevice{
+								VolumeSize:               resource.NewScaledQuantity(20, resource.Giga),
+								VolumeInitializationRate: aws.Int32(150),
+								SnapshotID:               aws.String("snap-0123456789abcdef0"),
+							},
+							RootVolume: false,
+						},
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
+		})
+		It("should succeed with multiple BlockDeviceMappings, some with explicit SnapshotID and some relying on amiSelectorTerms", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms: []v1.AMISelectorTerm{{
+						Tags: map[string]string{"Environment": "test"},
+					}},
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					AMIFamily:                  &v1.AMIFamilyAL2,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{
+						{
+							DeviceName: aws.String("map-device-1"),
+							EBS: &v1.BlockDevice{
+								VolumeSize:               resource.NewScaledQuantity(20, resource.Giga),
+								VolumeInitializationRate: aws.Int32(150),
+								// No SnapshotID - relies on amiSelectorTerms
+							},
+							RootVolume: false,
+						},
+						{
+							DeviceName: aws.String("map-device-2"),
+							EBS: &v1.BlockDevice{
+								VolumeSize:               resource.NewScaledQuantity(30, resource.Giga),
+								VolumeInitializationRate: aws.Int32(200),
+								SnapshotID:               aws.String("snap-0123456789abcdef0"), // Explicit SnapshotID
+							},
+							RootVolume: false,
+						},
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
 		})
 	})
 	Context("Role Immutability", func() {
