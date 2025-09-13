@@ -1220,7 +1220,6 @@ var _ = Describe("CEL/Validation", func() {
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
 					Role:                       nc.Spec.Role,
-					AMIFamily:                  &v1.AMIFamilyAL2,
 					BlockDeviceMappings: []*v1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
