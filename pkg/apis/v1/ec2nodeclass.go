@@ -354,7 +354,6 @@ type BlockDeviceMapping struct {
 	DeviceName *string `json:"deviceName,omitempty"`
 	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
 	// +kubebuilder:validation:XValidation:message="snapshotID or volumeSize must be defined",rule="has(self.snapshotID) || has(self.volumeSize)"
-	// +kubebuilder:validation:XValidation:message="snapshotID must be set when volumeInitializationRate is set, unless AMI is selected via amiSelectorTerms",rule="!has(self.volumeInitializationRate) || (has(self.snapshotID) && self.snapshotID != '') || (has(self.__parent__.__parent__.amiSelectorTerms) && self.__parent__.__parent__.amiSelectorTerms.size() > 0)"
 	// +optional
 	EBS *BlockDevice `json:"ebs,omitempty"`
 	// RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
@@ -469,6 +468,7 @@ type EC2NodeClass struct {
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Windows2019' or 'Custom' when using a Windows2019 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'windows2019') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Windows2019') : true)"
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Windows2022' or 'Custom' when using a Windows2022 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'windows2022') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Windows2022') : true)"
 	// +kubebuilder:validation:XValidation:message="must specify amiFamily if amiSelectorTerms does not contain an alias",rule="self.amiSelectorTerms.exists(x, has(x.alias)) ? true : has(self.amiFamily)"
+	// +kubebuilder:validation:XValidation:message="snapshotID must be set when volumeInitializationRate is set, unless AMI is selected via amiSelectorTerms",rule="!has(self.blockDeviceMappings) || self.blockDeviceMappings.all(m, !has(m.ebs) || !has(m.ebs.volumeInitializationRate) || (has(m.ebs.snapshotID) && m.ebs.snapshotID != '') || (has(self.amiSelectorTerms) && self.amiSelectorTerms.size() > 0))"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
 	Status EC2NodeClassStatus `json:"status,omitempty"`
 }

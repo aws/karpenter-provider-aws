@@ -1217,6 +1217,7 @@ var _ = Describe("CEL/Validation", func() {
 					AMISelectorTerms: []v1.AMISelectorTerm{{
 						Tags: map[string]string{"Environment": "test"},
 					}},
+					AMIFamily:                  &v1.AMIFamilyAL2023,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
 					Role:                       nc.Spec.Role,
@@ -1288,7 +1289,9 @@ var _ = Describe("CEL/Validation", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
-					// No amiSelectorTerms but explicit SnapshotID - should succeed
+					AMISelectorTerms: []v1.AMISelectorTerm{{
+						ID: "ami-12345678",
+					}},
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
 					Role:                       nc.Spec.Role,
