@@ -2054,6 +2054,9 @@ essential = true
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodePool)
+				// reset EC2API CreateLaunchTemplate call from validation
+				awsEnv.EC2API.Reset()
+
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
