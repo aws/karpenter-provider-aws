@@ -233,7 +233,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "g",
-			v1.LabelInstanceCapacityFlex:                 "false",
+			v1.LabelInstanceCapabilityFlex:               "false",
 			v1.LabelInstanceGeneration:                   "4",
 			v1.LabelInstanceFamily:                       "g4dn",
 			v1.LabelInstanceSize:                         "8xlarge",
@@ -295,7 +295,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "g",
-			v1.LabelInstanceCapacityFlex:                 "false",
+			v1.LabelInstanceCapabilityFlex:               "false",
 			v1.LabelInstanceGeneration:                   "4",
 			v1.LabelInstanceFamily:                       "g4dn",
 			v1.LabelInstanceSize:                         "8xlarge",
@@ -352,7 +352,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "inf",
-			v1.LabelInstanceCapacityFlex:                 "false",
+			v1.LabelInstanceCapabilityFlex:               "false",
 			v1.LabelInstanceGeneration:                   "2",
 			v1.LabelInstanceFamily:                       "inf2",
 			v1.LabelInstanceSize:                         "xlarge",
@@ -640,18 +640,18 @@ var _ = Describe("InstanceTypeProvider", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			NodeSelector: map[string]string{
-				v1.LabelInstanceCapacityFlex: "true",
+				v1.LabelInstanceCapabilityFlex: "true",
 			},
 		})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		node := ExpectScheduled(ctx, env.Client, pod)
-		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceCapacityFlex, "true"))
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceCapabilityFlex, "true"))
 		Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, MatchRegexp(".*flex.*")))
 	})
 	It("should not launch pod when flex instances are disallowed", func() {
 		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceCapacityFlex,
+				Key:      v1.LabelInstanceCapabilityFlex,
 				Operator: corev1.NodeSelectorOpNotIn,
 				Values:   []string{"true"},
 			},
@@ -659,7 +659,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			NodeSelector: map[string]string{
-				v1.LabelInstanceCapacityFlex: "true",
+				v1.LabelInstanceCapabilityFlex: "true",
 			},
 		})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -669,12 +669,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			NodeSelector: map[string]string{
-				v1.LabelInstanceCapacityFlex: "false",
+				v1.LabelInstanceCapabilityFlex: "false",
 			},
 		})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		node := ExpectScheduled(ctx, env.Client, pod)
-		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceCapacityFlex, "false"))
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceCapabilityFlex, "false"))
 		Expect(node.Labels).ToNot(HaveKeyWithValue(corev1.LabelInstanceTypeStable, MatchRegexp("^.*flex.*")))
 	})
 	It("should launch vpc.amazonaws.com/PrivateIPv4Address on a compatible instance type", func() {

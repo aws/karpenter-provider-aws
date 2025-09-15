@@ -539,11 +539,11 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			Expect(env.GetNode(pod.Spec.NodeName).Labels[karpv1.NodePoolLabelKey]).To(Equal(nodePoolHighPri.Name))
 		})
 		It("should provision a flex node for a pod", func() {
-			selectors.Insert(v1.LabelInstanceCapacityFlex)
+			selectors.Insert(v1.LabelInstanceCapabilityFlex)
 			pod := test.Pod()
 			nodePoolWithMinValues := test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceCapacityFlex,
+					Key:      v1.LabelInstanceCapabilityFlex,
 					Operator: corev1.NodeSelectorOpIn,
 					Values:   []string{"true"},
 				},
