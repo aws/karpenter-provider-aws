@@ -27,7 +27,7 @@ jobs:
       - uses: ./.github/actions/install-deps
       - uses: ./.github/actions/e2e/install-helm
         with:
-          version: v3.18.6
+          version: v3.12.3 # Pinned to this version since v3.13.0 has issues with pushing to public ECR: https://github.com/helm/helm/issues/12442
       - uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
         with:
           role-to-assume: 'arn:aws:iam::${{ vars.RELEASE_ACCOUNT_ID }}:role/${{ vars.RELEASE_ROLE_NAME }}'
