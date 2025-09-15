@@ -102,6 +102,11 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
       - `iam:ListInstanceProfiles`: Required for managing instance profiles
 * The `karpenter_pods_pods_drained_total` metric has been renamed to `karpenter_pods_drained_total`
 * The `karpenter_nodeclaims_disrupted_total` metric reason `liveness` has been renamed to `registration_timeout`
+* Pods with `ResourceClaim` requests are explicitly ignored. Older revisions of Karpenter are not aware of the field and would ignore those requests. DRA is not currently supported by Karpenter.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.7.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.7.0
 
 ### Upgrading to `1.6.0`+
 
