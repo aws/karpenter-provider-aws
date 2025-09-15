@@ -142,7 +142,7 @@ runs:
         ipFamily: "$IP_FAMILY"
       managedNodeGroups:
         - instanceType: c5.4xlarge
-          amiFamily: AmazonLinux2023
+          amiFamily: AmazonLinux2
           name: "$CLUSTER_NAME-system-pool"
           desiredCapacity: 2
           disableIMDSv1: true
