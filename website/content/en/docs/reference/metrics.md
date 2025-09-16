@@ -384,7 +384,7 @@ How many seconds has the longest running processor for workqueue been running.
 - Stability Level: STABLE
 
 ### `workqueue_depth`
-Current depth of workqueue
+Current depth of workqueue by workqueue and priority
 - Stability Level: STABLE
 
 ### `workqueue_adds_total`

@@ -7,7 +7,8 @@ description: >
   Inspect Karpenter Metrics
 ---
 <!-- this document is generated from hack/docs/metrics_gen_docs.go -->
-Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)
+Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.kube-system.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)
+
 ### `karpenter_ignored_pod_count`
 Number of pods ignored during scheduling by Karpenter
 - Stability Level: ALPHA
@@ -383,7 +384,7 @@ How many seconds has the longest running processor for workqueue been running.
 - Stability Level: STABLE
 
 ### `workqueue_depth`
-Current depth of workqueue
+Current depth of workqueue by workqueue and priority
 - Stability Level: STABLE
 
 ### `workqueue_adds_total`
