@@ -113,12 +113,14 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+          {{- if and .Values.controller.resources.requests .Values.controller.resources.requests.cpu }}
             - name: CPU_REQUESTS
               valueFrom:
                 resourceFieldRef:
                   containerName: {{ include "karpenter.controller.containerName" . }}
                   divisor: 1m
                   resource: requests.cpu
+          {{- end }}
             - name: MEMORY_LIMIT
               valueFrom:
                 resourceFieldRef:
