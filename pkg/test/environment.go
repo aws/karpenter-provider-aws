@@ -26,6 +26,7 @@ import (
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
@@ -55,8 +56,9 @@ func init() {
 
 type Environment struct {
 	// Mock
-	Clock         *clock.FakeClock
-	EventRecorder *coretest.EventRecorder
+	Clock             *clock.FakeClock
+	EventRecorder     *coretest.EventRecorder
+	InstanceTypeStore *nodeoverlay.InstanceTypeStore
 
 	// API
 	EC2API     *fake.EC2API
@@ -77,6 +79,7 @@ type Environment struct {
 	AssociatePublicIPAddressCache        *cache.Cache
 	SecurityGroupCache                   *cache.Cache
 	InstanceProfileCache                 *cache.Cache
+	RoleCache                            *cache.Cache
 	SSMCache                             *cache.Cache
 	DiscoveredCapacityCache              *cache.Cache
 	CapacityReservationCache             *cache.Cache
@@ -104,6 +107,7 @@ type Environment struct {
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
 	// Mock
 	clock := &clock.FakeClock{}
+	store := nodeoverlay.NewInstanceTypeStore()
 
 	// API
 	ec2api := fake.NewEC2API()
@@ -124,6 +128,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	associatePublicIPAddressCache := cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval)
 	securityGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceProfileCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	roleCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	protectedProfilesCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -142,7 +147,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	// Version updates are hydrated asynchronously after this, in the event of a failure
 	// the previously resolved value will be used.
 	lo.Must0(versionProvider.UpdateVersion(ctx))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, instanceProfileCache, protectedProfilesCache, fake.DefaultRegion)
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, instanceProfileCache, roleCache, protectedProfilesCache, fake.DefaultRegion)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
 	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
@@ -166,6 +171,10 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		net.ParseIP("10.0.100.10"),
 		"https://test-cluster",
 	)
+	launchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
+	launchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
+	launchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
+	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		"",
@@ -179,8 +188,9 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	)
 
 	return &Environment{
-		Clock:         clock,
-		EventRecorder: eventRecorder,
+		Clock:             clock,
+		EventRecorder:     eventRecorder,
+		InstanceTypeStore: store,
 
 		EC2API:     ec2api,
 		EKSAPI:     eksapi,
@@ -199,6 +209,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		AssociatePublicIPAddressCache:        associatePublicIPAddressCache,
 		SecurityGroupCache:                   securityGroupCache,
 		InstanceProfileCache:                 instanceProfileCache,
+		RoleCache:                            roleCache,
 		UnavailableOfferingsCache:            unavailableOfferingsCache,
 		SSMCache:                             ssmCache,
 		DiscoveredCapacityCache:              discoveredCapacityCache,
@@ -260,6 +271,10 @@ func (env *Environment) Reset() {
 			}
 		}
 	}
+	env.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
+	env.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
+	env.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
+	env.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 }
 
 func NodeInstanceIDFieldIndexer(ctx context.Context) func(ctrlcache.Cache) error {

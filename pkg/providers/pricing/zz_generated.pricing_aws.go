@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2025-08-25T18:44:44Z for us-east-1
+// generated at 2025-09-01T13:21:52Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -191,6 +191,10 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"i8g.12xlarge": 4.118400, "i8g.16xlarge": 5.491200, "i8g.24xlarge": 8.236800, "i8g.2xlarge": 0.686400,
 		"i8g.48xlarge": 16.473600, "i8g.4xlarge": 1.372800, "i8g.8xlarge": 2.745600, "i8g.large": 0.171600,
 		"i8g.metal-24xl": 9.060480, "i8g.xlarge": 0.343200,
+		// i8ge family
+		"i8ge.12xlarge": 5.695200, "i8ge.18xlarge": 8.542800, "i8ge.24xlarge": 11.390400, "i8ge.2xlarge": 0.949200,
+		"i8ge.3xlarge": 1.423800, "i8ge.48xlarge": 22.780800, "i8ge.6xlarge": 2.847600, "i8ge.large": 0.237300,
+		"i8ge.metal-24xl": 12.131300, "i8ge.metal-48xl": 24.262600, "i8ge.xlarge": 0.474600,
 		// im4gn family
 		"im4gn.16xlarge": 5.820670, "im4gn.2xlarge": 0.727580, "im4gn.4xlarge": 1.455170, "im4gn.8xlarge": 2.910340,
 		"im4gn.large": 0.181900, "im4gn.xlarge": 0.363790,
@@ -292,6 +296,15 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"m8gd.48xlarge": 11.070720, "m8gd.4xlarge": 0.922560, "m8gd.8xlarge": 1.845120, "m8gd.large": 0.115320,
 		"m8gd.medium": 0.057660, "m8gd.metal-24xl": 6.088900, "m8gd.metal-48xl": 11.070720,
 		"m8gd.xlarge": 0.230640,
+		// m8i-flex family
+		"m8i-flex.12xlarge": 2.413200, "m8i-flex.16xlarge": 3.217600, "m8i-flex.2xlarge": 0.402200,
+		"m8i-flex.4xlarge": 0.804400, "m8i-flex.8xlarge": 1.608800, "m8i-flex.large": 0.100550,
+		"m8i-flex.xlarge": 0.201100,
+		// m8i family
+		"m8i.12xlarge": 2.540160, "m8i.16xlarge": 3.386880, "m8i.24xlarge": 5.080320, "m8i.2xlarge": 0.423360,
+		"m8i.32xlarge": 6.773760, "m8i.48xlarge": 10.160640, "m8i.4xlarge": 0.846720, "m8i.8xlarge": 1.693440,
+		"m8i.96xlarge": 20.321280, "m8i.large": 0.105840, "m8i.metal-48xl": 10.160640, "m8i.metal-96xl": 20.321280,
+		"m8i.xlarge": 0.211680,
 		// p2 family
 		"p2.16xlarge": 14.400000, "p2.8xlarge": 7.200000, "p2.xlarge": 0.900000,
 		// p3 family

@@ -636,6 +636,7 @@ func (env *Environment) EventuallyExpectUniqueNodeNames(selector labels.Selector
 
 func (env *Environment) eventuallyExpectScaleDown() {
 	GinkgoHelper()
+	By(fmt.Sprintf("Expecting the cluster to scale down to %d nodes", env.StartingNodeCount))
 	Eventually(func(g Gomega) {
 		// expect the current node count to be what it was when the test started
 		g.Expect(env.Monitor.NodeCount()).To(Equal(env.StartingNodeCount))

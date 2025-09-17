@@ -91,6 +91,7 @@ var _ = BeforeSuite(func() {
 		awsEnv.AMIProvider,
 		awsEnv.SecurityGroupProvider,
 		awsEnv.CapacityReservationProvider,
+		awsEnv.InstanceTypeStore,
 	)
 
 	gcController = garbagecollection.NewController(
@@ -258,8 +259,6 @@ var _ = Describe("Instance Profile GarbageCollection", func() {
 		// Run GC with no profiles to clean up
 		result, err := gcController.Reconcile(ctx)
 		Expect(err).To(BeNil())
-
-		// Verify requeue time is 30 minutes
 		Expect(result.RequeueAfter).To(Equal(30 * time.Minute))
 	})
 

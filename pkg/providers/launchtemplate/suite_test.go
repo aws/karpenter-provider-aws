@@ -103,7 +103,7 @@ var _ = BeforeSuite(func() {
 	fakeClock = &clock.FakeClock{}
 	recorder = events.NewRecorder(&record.FakeRecorder{})
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.InstanceTypeStore)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock)
 })
@@ -118,10 +118,6 @@ var _ = BeforeEach(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	cluster.Reset()
 	awsEnv.Reset()
-
-	awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
-	awsEnv.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
-	awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("ca-bundle")
 })
 
 var _ = AfterEach(func() {
@@ -649,8 +645,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		It("should default AL2023 block device mappings", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
-			awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
-			awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1148,6 +1142,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	})
 	Context("User Data", func() {
 		It("should specify --use-max-pods=false when using ENI-based pod density", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1155,6 +1150,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false")
 		})
 		It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in NodePool", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: aws.Int32(10)}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -1162,7 +1158,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false", "--max-pods=10")
 		})
-		It("should generate different launch templates for different --max-pods values when specifying kubelet configuration", func() {
+		It("should generate different launch templates for different maxPods values when specifying kubelet configuration", func() {
 			// We validate that we no longer combine instance types into the same launch template with the same --max-pods values
 			// that shouldn't have been combined but were combined due to a pointer error
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
@@ -1175,7 +1171,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			// We expect to generate 5 launch templates for our image/max-pods combination where we were only generating 2 before
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
 		})
-		It("should specify --system-reserved when overriding system reserved values", func() {
+		It("should specify systemReserved when overriding system reserved values", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				SystemReserved: map[string]string{
 					string(corev1.ResourceCPU):              "500m",
@@ -1188,21 +1184,16 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
-				Expect(err).To(BeNil())
-
-				// Check whether the arguments are there for --system-reserved
-				arg := "--system-reserved="
-				i := strings.Index(string(userData), arg)
-				rem := string(userData)[(i + len(arg)):]
-				i = strings.Index(rem, "'")
-				for k, v := range nodeClass.Spec.Kubelet.SystemReserved {
-					Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v=%v", k, v)))
-				}
-			})
+			for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+				systemReserved := ExpectParseNodeConfigKubeletField[corev1.ResourceList](userData, "systemReserved")
+				ExpectResources(corev1.ResourceList{
+					corev1.ResourceCPU:              resource.MustParse("500m"),
+					corev1.ResourceMemory:           resource.MustParse("1Gi"),
+					corev1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+				}, systemReserved)
+			}
 		})
-		It("should specify --kube-reserved when overriding system reserved values", func() {
+		It("should specify kubeReserved when overriding system reserved values", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				KubeReserved: map[string]string{
 					string(corev1.ResourceCPU):              "500m",
@@ -1215,21 +1206,16 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
-				Expect(err).To(BeNil())
-
-				// Check whether the arguments are there for --kube-reserved
-				arg := "--kube-reserved="
-				i := strings.Index(string(userData), arg)
-				rem := string(userData)[(i + len(arg)):]
-				i = strings.Index(rem, "'")
-				for k, v := range nodeClass.Spec.Kubelet.KubeReserved {
-					Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v=%v", k, v)))
-				}
-			})
+			for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+				kubeReserved := ExpectParseNodeConfigKubeletField[corev1.ResourceList](userData, "kubeReserved")
+				ExpectResources(corev1.ResourceList{
+					corev1.ResourceCPU:              resource.MustParse("500m"),
+					corev1.ResourceMemory:           resource.MustParse("1Gi"),
+					corev1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+				}, kubeReserved)
+			}
 		})
-		It("should pass eviction hard threshold values when specified", func() {
+		It("should pass evictionHard threshold values when specified", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				EvictionHard: map[string]string{
 					"memory.available":  "10%",
@@ -1242,21 +1228,14 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
-				Expect(err).To(BeNil())
-
-				// Check whether the arguments are there for --kube-reserved
-				arg := "--eviction-hard="
-				i := strings.Index(string(userData), arg)
-				rem := string(userData)[(i + len(arg)):]
-				i = strings.Index(rem, "'")
-				for k, v := range nodeClass.Spec.Kubelet.EvictionHard {
-					Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v<%v", k, v)))
-				}
-			})
+			for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+				evictionHard := ExpectParseNodeConfigKubeletField[map[string]string](userData, "evictionHard")
+				Expect(evictionHard).To(HaveKeyWithValue("memory.available", "10%"))
+				Expect(evictionHard).To(HaveKeyWithValue("nodefs.available", "15%"))
+				Expect(evictionHard).To(HaveKeyWithValue("nodefs.inodesFree", "5%"))
+			}
 		})
-		It("should pass eviction soft threshold values when specified", func() {
+		It("should pass evictionSoft threshold values when specified", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				EvictionSoft: map[string]string{
 					"memory.available":  "10%",
@@ -1274,21 +1253,14 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
-				Expect(err).To(BeNil())
-
-				// Check whether the arguments are there for --kube-reserved
-				arg := "--eviction-soft="
-				i := strings.Index(string(userData), arg)
-				rem := string(userData)[(i + len(arg)):]
-				i = strings.Index(rem, "'")
-				for k, v := range nodeClass.Spec.Kubelet.EvictionSoft {
-					Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v<%v", k, v)))
-				}
-			})
+			for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+				evictionSoft := ExpectParseNodeConfigKubeletField[map[string]string](userData, "evictionSoft")
+				Expect(evictionSoft).To(HaveKeyWithValue("memory.available", "10%"))
+				Expect(evictionSoft).To(HaveKeyWithValue("nodefs.available", "15%"))
+				Expect(evictionSoft).To(HaveKeyWithValue("nodefs.inodesFree", "5%"))
+			}
 		})
-		It("should pass eviction soft grace period values when specified", func() {
+		It("should pass evictionSoftGracePeriod values when specified", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				EvictionSoftGracePeriod: map[string]metav1.Duration{
 					"memory.available":  {Duration: time.Minute},
@@ -1306,21 +1278,14 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
-				Expect(err).To(BeNil())
-
-				// Check whether the arguments are there for --kube-reserved
-				arg := "--eviction-soft-grace-period="
-				i := strings.Index(string(userData), arg)
-				rem := string(userData)[(i + len(arg)):]
-				i = strings.Index(rem, "'")
-				for k, v := range nodeClass.Spec.Kubelet.EvictionSoftGracePeriod {
-					Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v=%v", k, v.Duration.String())))
-				}
-			})
+			for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+				evictionSoftGracePeriod := ExpectParseNodeConfigKubeletField[map[string]string](userData, "evictionSoftGracePeriod")
+				Expect(evictionSoftGracePeriod).To(HaveKeyWithValue("memory.available", "1m0s"))
+				Expect(evictionSoftGracePeriod).To(HaveKeyWithValue("nodefs.available", "3m0s"))
+				Expect(evictionSoftGracePeriod).To(HaveKeyWithValue("nodefs.inodesFree", "5m0s"))
+			}
 		})
-		It("should pass eviction max pod grace period when specified", func() {
+		It("should pass evictionMaxPodGracePeriod when specified", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				EvictionMaxPodGracePeriod: aws.Int32(300),
 			}
@@ -1328,9 +1293,12 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--eviction-max-pod-grace-period=%d", 300))
+			for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+				evictionMaxPodGracePeriod := ExpectParseNodeConfigKubeletField[int64](userData, "evictionMaxPodGracePeriod")
+				Expect(evictionMaxPodGracePeriod).To(BeNumerically("==", 300))
+			}
 		})
-		It("should specify --pods-per-core", func() {
+		It("should specify podsPerCore", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				PodsPerCore: aws.Int32(2),
 			}
@@ -1338,9 +1306,12 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--pods-per-core=%d", 2))
+			for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+				podsPerCore := ExpectParseNodeConfigKubeletField[int64](userData, "podsPerCore")
+				Expect(podsPerCore).To(BeNumerically("==", 2))
+			}
 		})
-		It("should specify --pods-per-core with --max-pods enabled", func() {
+		It("should specify podsPerCore with maxPods enabled", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				PodsPerCore: aws.Int32(2),
 				MaxPods:     aws.Int32(100),
@@ -1349,23 +1320,35 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--pods-per-core=%d", 2), fmt.Sprintf("--max-pods=%d", 100))
+			for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+				podsPerCore := ExpectParseNodeConfigKubeletField[int64](userData, "podsPerCore")
+				Expect(podsPerCore).To(BeNumerically("==", 2))
+				maxPods := ExpectParseNodeConfigKubeletField[int64](userData, "maxPods")
+				Expect(maxPods).To(BeNumerically("==", 100))
+			}
 		})
-		It("should specify --dns-cluster-ip and --ip-family when running in an ipv6 cluster", func() {
+		It("should specify clusterDNS when running in an ipv6 cluster", func() {
 			awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining("--dns-cluster-ip 'fd4b:121b:812b::a'")
-			ExpectLaunchTemplatesCreatedWithUserDataContaining("--ip-family ipv6")
+			for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+				clusterDNS := ExpectParseNodeConfigKubeletField[[]string](userData, "clusterDNS")
+				Expect(clusterDNS).To(HaveLen(1))
+				Expect(clusterDNS[0]).To(Equal("fd4b:121b:812b::a"))
+			}
 		})
-		It("should specify --dns-cluster-ip when running in an ipv4 cluster", func() {
+		It("should specify clusterDNS when running in an ipv4 cluster", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining("--dns-cluster-ip '10.0.100.10'")
+			for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+				clusterDNS := ExpectParseNodeConfigKubeletField[[]string](userData, "clusterDNS")
+				Expect(clusterDNS).To(HaveLen(1))
+				Expect(clusterDNS[0]).To(Equal("10.0.100.10"))
+			}
 		})
 		It("should pass ImageGCHighThresholdPercent when specified", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
@@ -1375,7 +1358,10 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining("--image-gc-high-threshold=50")
+			for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+				imageGCHighThresholdPercent := ExpectParseNodeConfigKubeletField[int64](userData, "imageGCHighThresholdPercent")
+				Expect(imageGCHighThresholdPercent).To(BeNumerically("==", 50))
+			}
 		})
 		It("should pass ImageGCLowThresholdPercent when specified", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
@@ -1385,9 +1371,12 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining("--image-gc-low-threshold=50")
+			for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+				imageGCLowThresholdPercent := ExpectParseNodeConfigKubeletField[int64](userData, "imageGCLowThresholdPercent")
+				Expect(imageGCLowThresholdPercent).To(BeNumerically("==", 50))
+			}
 		})
-		It("should pass --cpu-fs-quota when specified", func() {
+		It("should pass cpuCFSQuota when specified", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				CPUCFSQuota: aws.Bool(false),
 			}
@@ -1395,7 +1384,10 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining("--cpu-cfs-quota=false")
+			for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+				cpuCFSQuota := ExpectParseNodeConfigKubeletField[bool](userData, "cpuCFSQuota")
+				Expect(cpuCFSQuota).To(BeFalse())
+			}
 		})
 		It("should not pass any labels prefixed with the node-restriction.kubernetes.io domain", func() {
 			nodePool.Spec.Template.Labels = lo.Assign(nodePool.Spec.Template.Labels, map[string]string{
@@ -1419,6 +1411,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataNotContaining(corev1.LabelNamespaceNodeRestriction)
 		})
 		It("should specify --local-disks raid0 when instance-store policy is set on AL2", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -1608,7 +1601,7 @@ essential = true
 				ExpectLaunchTemplatesCreatedWithUserDataContaining(`
 [settings.kubernetes]
 api-server = 'https://test-cluster'
-cluster-certificate = 'ca-bundle'
+cluster-certificate = 'Y2EtYnVuZGxlCg=='
 cluster-name = 'test-cluster'
 cluster-dns-ip = '10.0.100.10'
 max-pods = 35
@@ -1780,6 +1773,7 @@ eviction-max-pod-grace-period = 10
 		Context("AL2 Custom UserData", func() {
 			BeforeEach(func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			})
 			It("should merge in custom user data", func() {
 				content, err := os.ReadFile("testdata/al2_userdata_input.golden")
@@ -1835,10 +1829,6 @@ eviction-max-pod-grace-period = 10
 		Context("AL2023", func() {
 			BeforeEach(func() {
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
-
-				// base64 encoded version of "ca-bundle" to ensure the nodeadm bootstrap provider can decode successfully
-				awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
-				awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
 			})
 			Context("Kubelet", func() {
 				It("should specify taints in the KubeletConfiguration when specified in NodePool", func() {
@@ -1862,7 +1852,7 @@ eviction-max-pod-grace-period = 10
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 					ExpectScheduled(ctx, env.Client, pod)
 					for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
-						configs := ExpectUserDataCreatedWithNodeConfigs(userData)
+						configs := ExpectParseNodeConfigs(userData)
 						Expect(len(configs)).To(Equal(1))
 						taintsRaw, ok := configs[0].Spec.Kubelet.Config["registerWithTaints"]
 						Expect(ok).To(BeTrue())
@@ -1886,7 +1876,7 @@ eviction-max-pod-grace-period = 10
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 					ExpectScheduled(ctx, env.Client, pod)
 					for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
-						configs := ExpectUserDataCreatedWithNodeConfigs(userData)
+						configs := ExpectParseNodeConfigs(userData)
 						Expect(len(configs)).To(Equal(1))
 						labelFlag, ok := lo.Find(configs[0].Spec.Kubelet.Flags, func(flag string) bool {
 							return strings.HasPrefix(flag, "--node-labels")
@@ -1917,7 +1907,7 @@ eviction-max-pod-grace-period = 10
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 					ExpectScheduled(ctx, env.Client, pod)
 					for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
-						configs := ExpectUserDataCreatedWithNodeConfigs(userData)
+						configs := ExpectParseNodeConfigs(userData)
 						Expect(len(configs)).To(Equal(1))
 						labelFlag, ok := lo.Find(configs[0].Spec.Kubelet.Flags, func(flag string) bool {
 							return strings.HasPrefix(flag, "--node-labels")
@@ -1950,7 +1940,7 @@ eviction-max-pod-grace-period = 10
 							})
 						}()
 						for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
-							configs := ExpectUserDataCreatedWithNodeConfigs(userData)
+							configs := ExpectParseNodeConfigs(userData)
 							Expect(len(configs)).To(Equal(1))
 							Expect(configs[0].Spec.Kubelet.Config[field]).To(Equal(inlineConfig[field]))
 						}
@@ -2027,7 +2017,7 @@ eviction-max-pod-grace-period = 10
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
-					configs := ExpectUserDataCreatedWithNodeConfigs(userData)
+					configs := ExpectParseNodeConfigs(userData)
 					Expect(len(configs)).To(Equal(1))
 					Expect(configs[0].Spec.Instance.LocalStorage.Strategy).To(Equal(admv1alpha1.LocalStorageRAID0))
 				}
@@ -2299,16 +2289,6 @@ eviction-max-pod-grace-period = 10
 				Entry("AssociatePublicIPAddress is false (EFA)", false, false, true),
 			)
 		})
-		Context("Kubelet Args", func() {
-			It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{ClusterDNS: []string{"10.0.10.100"}}
-				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
-				ExpectLaunchTemplatesCreatedWithUserDataContaining("--dns-cluster-ip '10.0.10.100'")
-			})
-		})
 		Context("Windows Custom UserData", func() {
 			BeforeEach(func() {
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Windows)}}}}
@@ -2426,7 +2406,6 @@ eviction-max-pod-grace-period = 10
 			DescribeTable(
 				"should set Primary IPv6 as true and provision a IPv6 address",
 				func(isPublicAddressSet, isPublic, isEFA bool) {
-					awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
 					awsEnv.LaunchTemplateProvider.ClusterIPFamily = corev1.IPv6Protocol
 					if isPublicAddressSet {
 						nodeClass.Spec.AssociatePublicIPAddress = lo.ToPtr(isPublic)
@@ -2758,8 +2737,8 @@ func ExpectLaunchTemplatesCreatedWithUserData(expected string) {
 		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 		ExpectWithOffset(2, err).To(BeNil())
 		// Newlines are always added for missing TOML fields, so strip them out before comparisons.
-		actualUserData := strings.Replace(string(userData), "\n", "", -1)
-		expectedUserData := strings.Replace(expected, "\n", "", -1)
+		actualUserData := strings.ReplaceAll(string(userData), "\n", "")
+		expectedUserData := strings.ReplaceAll(expected, "\n", "")
 		ExpectWithOffset(2, actualUserData).To(Equal(expectedUserData))
 	})
 }
@@ -2776,7 +2755,7 @@ func ExpectUserDataExistsFromCreatedLaunchTemplates() []string {
 	return userDatas
 }
 
-func ExpectUserDataCreatedWithNodeConfigs(userData string) []admv1alpha1.NodeConfig {
+func ExpectParseNodeConfigs(userData string) []admv1alpha1.NodeConfig {
 	GinkgoHelper()
 	archive, err := mime.NewArchive(userData)
 	Expect(err).To(BeNil())
@@ -2791,4 +2770,14 @@ func ExpectUserDataCreatedWithNodeConfigs(userData string) []admv1alpha1.NodeCon
 	})
 	Expect(len(nodeConfigs)).To(BeNumerically(">=", 1))
 	return nodeConfigs
+}
+
+func ExpectParseNodeConfigKubeletField[T any](userData, fieldName string) T {
+	GinkgoHelper()
+	configs := ExpectParseNodeConfigs(userData)
+	Expect(len(configs)).To(Equal(1))
+	var ret T
+	raw := configs[0].Spec.Kubelet.Config[fieldName]
+	Expect(yaml.Unmarshal(raw.Raw, &ret)).To(Succeed())
+	return ret
 }
