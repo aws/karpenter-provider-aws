@@ -52,6 +52,7 @@ import (
 	pscheduling "sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/utils/daemonset"
 	coreresources "sigs.k8s.io/karpenter/pkg/utils/resources"
 )
 
@@ -1139,7 +1140,7 @@ func (env *Environment) GetDaemonSetOverhead(np *karpv1.NodePool) corev1.Resourc
 	Expect(env.Client.List(env.Context, daemonSetList)).To(Succeed())
 
 	return coreresources.RequestsForPods(lo.FilterMap(daemonSetList.Items, func(ds appsv1.DaemonSet, _ int) (*corev1.Pod, bool) {
-		p := &corev1.Pod{Spec: ds.Spec.Template.Spec}
+		p := daemonset.PodForDaemonSet(&ds)
 		nodeClaimTemplate := pscheduling.NewNodeClaimTemplate(np)
 		if err := scheduling.Taints(nodeClaimTemplate.Spec.Taints).ToleratesPod(p); err != nil {
 			return nil, false
