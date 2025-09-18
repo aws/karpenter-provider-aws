@@ -85,9 +85,6 @@ spec:
     - id: sg-063d7acfb4b06c82c
 
   # Optional, IAM role to use for the node identity.
-  # The "role" field is immutable after EC2NodeClass creation. This may change in the
-  # future, but this restriction is currently in place today to ensure that Karpenter
-  # avoids leaking managed instance profiles in your account.
   # Must specify one of "role" or "instanceProfile" for Karpenter to launch nodes
   role: "KarpenterNodeRole-${CLUSTER_NAME}"
 
@@ -141,6 +138,7 @@ spec:
         deleteOnTermination: true
         throughput: 125
         snapshotID: snap-0123456789
+        volumeInitializationRate: 100
 
   # Optional, use instance-store volumes for node ephemeral-storage
   instanceStorePolicy: RAID0
@@ -202,11 +200,15 @@ status:
       instanceMatchCriteria: targeted
       instanceType: g6.48xlarge
       ownerID: "012345678901"
+      reservationType: capacity-block
+      state: expiring
     - availabilityZone: us-west-2c
       id: cr-12345678901234567
       instanceMatchCriteria: open
       instanceType: g6.48xlarge
       ownerID: "98765432109"
+      reservationType: default
+      state: active
 
   # Generated instance profile name from "role"
   instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
@@ -293,17 +295,6 @@ spec:
 ```
 
 Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kubelet` and `spec.userData`.
-{{% /alert %}}
-
-{{% alert title="Warning" color="warning" %}}
-The Bottlerocket AMIFamily does not support the following fields:
-
-* `evictionSoft`
-* `evictionSoftGracePeriod`
-* `evictionMaxPodGracePeriod`
-
-If any of these fields are specified on a Bottlerocket EC2NodeClass, they will be ommited from generated UserData and ignored for scheduling purposes.
-Support for these fields can be tracked via GitHub issue [#3722](https://github.com/aws/karpenter-provider-aws/issues/3722).
 {{% /alert %}}
 
 #### Pods Per Core
@@ -715,6 +706,10 @@ For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-
 
 {{% /alert %}}
 
+{{% alert title="Warning" color="warning" %}}
+When using `spec.instanceProfile`, ensure you are using pre-provisioned instance profiles that you manage yourself.
+{{% /alert %}}
+
 ## spec.amiSelectorTerms
 
 AMI Selector Terms are __required__ and are used to configure AMIs for Karpenter to use. AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
@@ -765,19 +760,19 @@ The following commands can be used to determine the versions availble for an ali
 {{< tabpane text=true right=false >}}
   {{% tab "AL2023" %}}
   ```bash
-  export K8S_VERSION="1.32"
+  export K8S_VERSION="1.33"
   aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2023/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $10}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
   ```
   {{% /tab %}}
   {{% tab "AL2" %}}
   ```bash
-  export K8S_VERSION="1.32"
+  export K8S_VERSION="1.33"
   aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $8}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
   ```
   {{% /tab %}}
   {{% tab "Bottlerocket" %}}
   ```bash
-  export K8S_VERSION="1.32"
+  export K8S_VERSION="1.33"
   aws ssm get-parameters-by-path --path "/aws/service/bottlerocket/aws-k8s-$K8S_VERSION" --recursive | jq -cr '.Parameters[].Name' | grep -v "latest" | awk -F '/' '{print $7}' | sort | uniq
   ```
   {{% /tab %}}
@@ -879,9 +874,9 @@ When using a custom SSM parameter, you'll need to expand the `ssm:GetParameter` 
 
 ## spec.capacityReservationSelectorTerms
 
-<i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Alpha]({{<ref "../reference/settings#feature-gates" >}})
+<i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Beta]({{<ref "../reference/settings#feature-gates" >}})
 
-Capacity Reservation Selector Terms allow you to select [on-demand capacity reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html), which will be made available to NodePools which select the given EC2NodeClass.
+Capacity Reservation Selector Terms allow you to select [on-demand capacity reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html) (ODCRs), which will be made available to NodePools which select the given EC2NodeClass.
 Karpenter will prioritize utilizing the capacity in these reservations before falling back to on-demand and spot.
 Capacity reservations can be discovered using ids or tags.
 
@@ -889,6 +884,12 @@ This selection logic is modeled as terms.
 A term can specify an ID or a set of tags to select against.
 When specifying tags, it will select all capacity reservations accessible from the account with matching tags.
 This can be further restricted by specifying an owner ID.
+
+For more information on utilizing ODCRs with Karpenter, refer to the [Utilizing ODCRs Task]({{< relref "../tasks/odcrs" >}}).
+
+{{% alert title="Note" color="primary" %}}
+Note that the IAM role Karpenter assumes should have a permissions policy associated with it that grants it permissions to use the [ec2:DescribeCapacityReservations](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-DescribeCapacityReservations) action to discover capacity reservations and the [ec2:RunInstances](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-RunInstances) action to run instances in those capacity reservations.
+{{% /alert %}}
 
 #### Examples
 
@@ -987,6 +988,7 @@ spec:
         deleteOnTermination: true
         throughput: 125
         snapshotID: snap-0123456789
+        volumeInitializationRate: 100
 ```
 
 The following blockDeviceMapping defaults are used for each `AMIFamily` if no `blockDeviceMapping` overrides are specified in the `EC2NodeClass`
@@ -1664,6 +1666,8 @@ status:
 | `instanceMatchCriteria` | `open`                 | The instanceMatchCriteria for the capacity reservation. Can be `open` or `targeted`. |
 | `instanceType`          | `m5.large`             | The EC2 instance type of the capacity reservation                                    |
 | `ownerID`               | `459763720645`         | The account ID that owns the capacity reservation                                    |
+| `reservationType`       | `default`              | The type of the capacity reservation. Can be `default` or `capacity-block`.          |
+| `state`                 | `active`               | The state of the capacity reservation. Can be `active` or `expiring`.                |
 
 #### Examples
 
@@ -1675,11 +1679,15 @@ status:
     instanceMatchCriteria: targeted
     instanceType: g6.48xlarge
     ownerID: "012345678901"
+    reservationType: capacity-block
+    state: expiring
   - availabilityZone: us-west-2c
     id: cr-12345678901234567
     instanceMatchCriteria: open
     instanceType: g6.48xlarge
     ownerID: "98765432109"
+    reservationType: default
+    state: active
 ```
 
 ## status.instanceProfile

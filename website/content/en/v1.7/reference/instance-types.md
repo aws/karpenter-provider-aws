@@ -16,6 +16,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -43,6 +44,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -70,6 +72,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -97,6 +100,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -124,6 +128,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -151,6 +156,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -179,6 +185,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -203,6 +210,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -228,6 +236,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -252,6 +261,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -276,6 +286,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -300,6 +311,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -324,6 +336,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -350,6 +363,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -375,6 +389,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -400,6 +415,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -425,6 +441,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -450,6 +467,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -477,6 +495,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -504,6 +523,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -531,6 +551,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -558,6 +579,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -585,6 +607,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -612,6 +635,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -639,6 +663,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -666,6 +691,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -693,6 +719,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -721,6 +748,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -748,6 +776,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -775,6 +804,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -802,6 +832,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -829,6 +860,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -856,6 +888,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -883,6 +916,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -910,6 +944,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -938,6 +973,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -966,6 +1002,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -994,6 +1031,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1022,6 +1060,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1050,6 +1089,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1078,6 +1118,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1106,6 +1147,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1134,6 +1176,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1163,6 +1206,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1191,6 +1235,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1219,6 +1264,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1247,6 +1293,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1275,6 +1322,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1303,6 +1351,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1331,6 +1380,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1359,6 +1409,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1387,6 +1438,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1416,6 +1468,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1443,6 +1496,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1470,6 +1524,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1497,6 +1552,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1524,6 +1580,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1552,6 +1609,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1580,6 +1638,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1609,6 +1668,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1636,6 +1696,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1663,6 +1724,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1690,6 +1752,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1717,6 +1780,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1744,6 +1808,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1771,6 +1836,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1798,6 +1864,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1825,6 +1892,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1852,6 +1920,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1880,6 +1949,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1909,6 +1979,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -1936,6 +2007,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -1963,6 +2035,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -1990,6 +2063,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2017,6 +2091,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2044,6 +2119,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2071,6 +2147,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2098,6 +2175,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2125,6 +2203,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2153,6 +2232,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2181,6 +2261,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2209,6 +2290,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2237,6 +2319,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2265,6 +2348,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2293,6 +2377,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2321,6 +2406,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2349,6 +2435,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2377,6 +2464,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2406,6 +2494,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2433,6 +2522,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2460,6 +2550,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2487,6 +2578,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2514,6 +2606,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2541,6 +2634,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2568,6 +2662,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2595,6 +2690,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2624,6 +2720,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2651,6 +2748,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2678,6 +2776,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2705,6 +2804,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2732,6 +2832,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2759,6 +2860,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2786,6 +2888,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2813,6 +2916,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2840,6 +2944,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2868,6 +2973,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2897,6 +3003,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2925,6 +3032,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2953,6 +3061,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2981,6 +3090,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3009,6 +3119,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3037,6 +3148,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3065,6 +3177,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3093,6 +3206,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3121,6 +3235,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3150,6 +3265,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3180,6 +3296,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3207,6 +3324,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3234,6 +3352,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3261,6 +3380,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3288,6 +3408,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3315,6 +3436,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3342,6 +3464,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3369,6 +3492,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3396,6 +3520,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3424,6 +3549,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3453,6 +3579,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3480,6 +3607,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3507,6 +3635,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3534,6 +3663,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3561,6 +3691,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3588,6 +3719,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3615,6 +3747,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3642,6 +3775,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3669,6 +3803,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3696,6 +3831,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3723,6 +3859,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3751,6 +3888,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3780,6 +3918,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3807,6 +3946,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3834,6 +3974,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3861,6 +4002,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3888,6 +4030,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3915,6 +4058,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3942,6 +4086,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3969,6 +4114,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3997,6 +4143,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4026,6 +4173,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4054,6 +4202,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4082,6 +4231,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4110,6 +4260,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4138,6 +4289,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4166,6 +4318,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4194,6 +4347,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4222,6 +4376,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4251,6 +4406,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4281,6 +4437,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4308,6 +4465,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4335,6 +4493,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4362,6 +4521,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4389,6 +4549,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4416,6 +4577,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4443,6 +4605,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4470,6 +4633,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4498,6 +4662,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4527,6 +4692,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4554,6 +4720,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4581,6 +4748,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4608,6 +4776,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4635,6 +4804,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4662,6 +4832,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4689,6 +4860,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4716,6 +4888,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4743,6 +4916,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4770,6 +4944,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4798,6 +4973,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4827,6 +5003,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4854,6 +5031,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4881,6 +5059,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4908,6 +5087,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4935,6 +5115,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4962,6 +5143,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4989,6 +5171,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5017,6 +5200,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5044,6 +5228,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5071,6 +5256,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5098,6 +5284,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5125,6 +5312,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5152,6 +5340,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5179,6 +5368,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5206,6 +5396,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5233,6 +5424,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5261,6 +5453,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5289,6 +5482,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5317,6 +5511,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5341,11 +5536,705 @@ below are the resources available with some assumptions and after the instance o
  |pods|737|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
+## c8gd Family
+### `c8gd.medium`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|1|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|59|
+ |karpenter.k8s.aws/instance-memory|2048|
+ |karpenter.k8s.aws/instance-network-bandwidth|520|
+ |karpenter.k8s.aws/instance-size|medium|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gd.medium|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|940m|
+ |ephemeral-storage|17Gi|
+ |memory|1392Mi|
+ |pods|8|
+ |vpc.amazonaws.com/pod-eni|4|
+### `c8gd.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|118|
+ |karpenter.k8s.aws/instance-memory|4096|
+ |karpenter.k8s.aws/instance-network-bandwidth|937|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gd.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|3055Mi|
+ |pods|29|
+ |vpc.amazonaws.com/pod-eni|9|
+### `c8gd.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|237|
+ |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-network-bandwidth|1875|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gd.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|6525Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
+### `c8gd.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|474|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|3750|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gd.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|14103Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
+### `c8gd.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|950|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|7500|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gd.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|27322Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
+### `c8gd.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|15000|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gd.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|57632Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
+### `c8gd.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2850|
+ |karpenter.k8s.aws/instance-memory|98304|
+ |karpenter.k8s.aws/instance-network-bandwidth|22500|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gd.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|87943Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
+### `c8gd.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-network-bandwidth|30000|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gd.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|112720Mi|
+ |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
+### `c8gd.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|5700|
+ |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-network-bandwidth|40000|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gd.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|173341Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+### `c8gd.metal-24xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|5700|
+ |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-network-bandwidth|40000|
+ |karpenter.k8s.aws/instance-size|metal-24xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gd.metal-24xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|173341Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+### `c8gd.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|11400|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gd.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|355203Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+### `c8gd.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|11400|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gd.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|355203Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+## c8gn Family
+### `c8gn.medium`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|1|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|2048|
+ |karpenter.k8s.aws/instance-network-bandwidth|3125|
+ |karpenter.k8s.aws/instance-size|medium|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gn.medium|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|940m|
+ |ephemeral-storage|17Gi|
+ |memory|1392Mi|
+ |pods|8|
+ |vpc.amazonaws.com/pod-eni|4|
+### `c8gn.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|4096|
+ |karpenter.k8s.aws/instance-network-bandwidth|6250|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gn.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|3055Mi|
+ |pods|29|
+ |vpc.amazonaws.com/pod-eni|9|
+### `c8gn.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-network-bandwidth|12500|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gn.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|6525Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
+### `c8gn.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|25000|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gn.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|14103Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
+### `c8gn.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gn.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|27322Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
+### `c8gn.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|100000|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gn.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|56994Mi|
+ |pods|292|
+ |vpc.amazonaws.com/pod-eni|52|
+### `c8gn.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|98304|
+ |karpenter.k8s.aws/instance-network-bandwidth|150000|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gn.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|86667Mi|
+ |pods|350|
+ |vpc.amazonaws.com/pod-eni|50|
+### `c8gn.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-network-bandwidth|200000|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gn.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|112181Mi|
+ |pods|786|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|106|
+### `c8gn.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-network-bandwidth|300000|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gn.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|168490Mi|
+ |pods|1178|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
+### `c8gn.metal-24xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-network-bandwidth|300000|
+ |karpenter.k8s.aws/instance-size|metal-24xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gn.metal-24xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|168490Mi|
+ |pods|1178|
+ |vpc.amazonaws.com/efa|1|
+### `c8gn.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|600000|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gn.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|356820Mi|
+ |pods|590|
+ |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
+### `c8gn.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|600000|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c8gn.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|356820Mi|
+ |pods|590|
+ |vpc.amazonaws.com/efa|2|
 ## d2 Family
 ### `d2.xlarge`
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5371,6 +6260,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5396,6 +6286,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5421,6 +6312,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5448,6 +6340,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5476,6 +6369,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5504,6 +6398,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5532,6 +6427,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5561,6 +6457,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5589,6 +6486,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5617,6 +6515,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5645,6 +6544,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5673,6 +6573,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5701,6 +6602,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5730,6 +6632,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|dl|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5768,6 +6671,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|8|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|qualcomm|
  |karpenter.k8s.aws/instance-accelerator-name|qualcomm-ai100|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|dl|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5797,6 +6701,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|f|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5808,6 +6713,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-local-nvme|470|
  |karpenter.k8s.aws/instance-memory|124928|
+ |karpenter.k8s.aws/instance-network-bandwidth|2500|
  |karpenter.k8s.aws/instance-size|2xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -5823,6 +6729,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|f|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5834,6 +6741,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-local-nvme|940|
  |karpenter.k8s.aws/instance-memory|249856|
+ |karpenter.k8s.aws/instance-network-bandwidth|5000|
  |karpenter.k8s.aws/instance-size|4xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -5849,6 +6757,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|f|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5877,6 +6786,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|f|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5905,6 +6815,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|f|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5933,6 +6844,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|f|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5963,6 +6875,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5996,6 +6909,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6029,6 +6943,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6062,6 +6977,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6095,6 +7011,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6129,6 +7046,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6162,6 +7080,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6195,6 +7114,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6228,6 +7148,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6262,6 +7183,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6296,6 +7218,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6330,6 +7253,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6365,6 +7289,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6398,6 +7323,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6431,6 +7357,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6464,6 +7391,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6498,6 +7426,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6532,6 +7461,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6566,6 +7496,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6600,6 +7531,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6635,6 +7567,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -6667,6 +7600,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -6699,6 +7633,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -6731,6 +7666,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -6763,6 +7699,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -6795,6 +7732,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -6828,6 +7766,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6861,6 +7800,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6894,6 +7834,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6927,6 +7868,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6961,6 +7903,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6995,6 +7938,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7029,6 +7973,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7063,6 +8008,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7098,6 +8044,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7131,6 +8078,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7164,6 +8112,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7197,6 +8146,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7231,6 +8181,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7265,6 +8216,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7299,6 +8251,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7333,6 +8286,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7363,11 +8317,145 @@ below are the resources available with some assumptions and after the instance o
  |pods|492|
  |vpc.amazonaws.com/efa|4|
  |vpc.amazonaws.com/pod-eni|82|
+## g6f Family
+### `g6f.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|g|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|5000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|g6f|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|0|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|2861|
+ |karpenter.k8s.aws/instance-gpu-name|l4|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|100|
+ |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-network-bandwidth|1500|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|g6f.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|7002Mi|
+ |pods|20|
+ |vpc.amazonaws.com/pod-eni|10|
+### `g6f.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|g|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|5000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|g6f|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|0|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|2861|
+ |karpenter.k8s.aws/instance-gpu-name|l4|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|100|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|2500|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|g6f.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|14162Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
+### `g6f.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|g|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|5000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|g6f|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|0|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|5722|
+ |karpenter.k8s.aws/instance-gpu-name|l4|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|200|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|5000|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|g6f.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|29317Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
+### `g6f.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|g|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|g6f|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|0|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|11444|
+ |karpenter.k8s.aws/instance-gpu-name|l4|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|450|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|10000|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|g6f.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|57691Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ## gr6 Family
 ### `gr6.4xlarge`
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|gr|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7401,6 +8489,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|gr|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7431,11 +8520,46 @@ below are the resources available with some assumptions and after the instance o
  |pods|234|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|84|
+## gr6f Family
+### `gr6f.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|gr|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|8000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|gr6f|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|0|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|11444|
+ |karpenter.k8s.aws/instance-gpu-name|l4|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|450|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-network-bandwidth|10000|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|gr6f.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|118312Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ## h1 Family
 ### `h1.2xlarge`
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7462,6 +8586,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7488,6 +8613,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7514,6 +8640,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7541,6 +8668,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7569,6 +8697,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7598,6 +8727,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7625,6 +8755,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7652,6 +8783,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7679,6 +8811,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7707,6 +8840,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7734,6 +8868,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7761,6 +8896,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7789,6 +8925,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7813,6 +8950,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7837,6 +8975,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7861,6 +9000,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7887,6 +9027,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7914,6 +9055,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7941,6 +9083,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7968,6 +9111,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7995,6 +9139,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8022,6 +9167,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8045,39 +9191,12 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|453771Mi|
  |pods|737|
-### `i3.metal`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|i|
- |karpenter.k8s.aws/instance-cpu|72|
- |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2300|
- |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
- |karpenter.k8s.aws/instance-family|i3|
- |karpenter.k8s.aws/instance-generation|3|
- |karpenter.k8s.aws/instance-hypervisor||
- |karpenter.k8s.aws/instance-local-nvme|15200|
- |karpenter.k8s.aws/instance-memory|524288|
- |karpenter.k8s.aws/instance-network-bandwidth|25000|
- |karpenter.k8s.aws/instance-size|metal|
- |kubernetes.io/arch|amd64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|i3.metal|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|71750m|
- |ephemeral-storage|17Gi|
- |memory|476504Mi|
- |pods|737|
- |vpc.amazonaws.com/pod-eni|120|
 ## i3en Family
 ### `i3en.large`
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8106,6 +9225,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8134,6 +9254,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8162,6 +9283,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8190,6 +9312,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8218,6 +9341,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8247,6 +9371,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8276,6 +9401,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8306,6 +9432,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -8334,6 +9461,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -8362,6 +9490,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -8390,6 +9519,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -8418,6 +9548,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -8446,6 +9577,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -8476,6 +9608,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8503,6 +9636,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8531,6 +9665,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8559,6 +9694,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8587,6 +9723,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8615,6 +9752,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8643,6 +9781,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8671,6 +9810,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8699,6 +9839,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8728,6 +9869,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8753,11 +9895,335 @@ below are the resources available with some assumptions and after the instance o
  |pods|737|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|120|
+## i7i Family
+### `i7i.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i7i|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|468|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|1171|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i7i.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|14481Mi|
+ |pods|29|
+ |vpc.amazonaws.com/pod-eni|9|
+### `i7i.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i7i|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|937|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|2343|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i7i.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|29317Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
+### `i7i.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i7i|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1875|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|4687|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i7i.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|59627Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
+### `i7i.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i7i|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3750|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-network-bandwidth|9375|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i7i.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|118312Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
+### `i7i.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i7i|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|7500|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-network-bandwidth|12500|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i7i.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|239554Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|84|
+### `i7i.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i7i|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|11250|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|14063|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i7i.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|360795Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|84|
+### `i7i.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i7i|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|15000|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-network-bandwidth|18750|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i7i.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|476504Mi|
+ |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
+### `i7i.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i7i|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|22500|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|28125|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i7i.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|718987Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+### `i7i.metal-24xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i7i|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|22500|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|28125|
+ |karpenter.k8s.aws/instance-size|metal-24xl|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i7i.metal-24xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|718987Mi|
+ |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
+### `i7i.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i7i|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|45000|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|56250|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i7i.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1446437Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+### `i7i.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i7i|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|45000|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|56250|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i7i.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1446437Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ## i7ie Family
 ### `i7ie.large`
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8786,6 +10252,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8814,6 +10281,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8842,6 +10310,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8870,6 +10339,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8898,6 +10368,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8926,6 +10397,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8954,6 +10426,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8982,6 +10455,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9010,6 +10484,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9039,6 +10514,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9069,6 +10545,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9097,6 +10574,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9125,6 +10603,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9153,6 +10632,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9181,6 +10661,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9209,6 +10690,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9237,6 +10719,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9265,6 +10748,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9293,6 +10777,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9321,6 +10806,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9332,6 +10818,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|45000|
  |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|56250|
  |karpenter.k8s.aws/instance-size|48xlarge|
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
@@ -9345,11 +10832,334 @@ below are the resources available with some assumptions and after the instance o
  |pods|737|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
+## i8ge Family
+### `i8ge.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i8ge|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1250|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|2100|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i8ge.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|14422Mi|
+ |pods|29|
+ |vpc.amazonaws.com/pod-eni|19|
+### `i8ge.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i8ge|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2500|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|4200|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i8ge.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|29258Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|27|
+### `i8ge.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i8ge|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|5000|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|8400|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i8ge.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|59568Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|27|
+### `i8ge.3xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|12|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i8ge|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|7500|
+ |karpenter.k8s.aws/instance-memory|98304|
+ |karpenter.k8s.aws/instance-network-bandwidth|12500|
+ |karpenter.k8s.aws/instance-size|3xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i8ge.3xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|11900m|
+ |ephemeral-storage|17Gi|
+ |memory|88581Mi|
+ |pods|176|
+ |vpc.amazonaws.com/pod-eni|25|
+### `i8ge.6xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|24|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i8ge|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|15000|
+ |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-network-bandwidth|37500|
+ |karpenter.k8s.aws/instance-size|6xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i8ge.6xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|23870m|
+ |ephemeral-storage|17Gi|
+ |memory|178236Mi|
+ |pods|292|
+ |vpc.amazonaws.com/pod-eni|52|
+### `i8ge.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i8ge|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|30000|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|75000|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i8ge.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|359460Mi|
+ |pods|350|
+ |vpc.amazonaws.com/pod-eni|50|
+### `i8ge.18xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|72|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|22500|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i8ge|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|45000|
+ |karpenter.k8s.aws/instance-memory|589824|
+ |karpenter.k8s.aws/instance-network-bandwidth|112500|
+ |karpenter.k8s.aws/instance-size|18xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i8ge.18xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|71750m|
+ |ephemeral-storage|17Gi|
+ |memory|536527Mi|
+ |pods|786|
+ |vpc.amazonaws.com/pod-eni|106|
+### `i8ge.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i8ge|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|60000|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|150000|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i8ge.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|718389Mi|
+ |pods|786|
+ |vpc.amazonaws.com/pod-eni|106|
+### `i8ge.metal-24xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i8ge|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|60000|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|150000|
+ |karpenter.k8s.aws/instance-size|metal-24xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i8ge.metal-24xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|718389Mi|
+ |pods|786|
+ |vpc.amazonaws.com/pod-eni|106|
+### `i8ge.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i8ge|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|120000|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|300000|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i8ge.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1441527Mi|
+ |pods|1178|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
+### `i8ge.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|i|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|i8ge|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|120000|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|300000|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|i8ge.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1441527Mi|
+ |pods|1178|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ## im4gn Family
 ### `im4gn.large`
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9378,6 +11188,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9406,6 +11217,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9434,6 +11246,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9462,6 +11275,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9490,6 +11304,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9523,6 +11338,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|1|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9555,6 +11371,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|1|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9587,6 +11404,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|4|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9619,6 +11437,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|16|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9653,6 +11472,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|1|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia2|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -9685,6 +11505,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|1|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia2|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -9717,6 +11538,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|6|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia2|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -9749,6 +11571,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|12|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia2|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -9779,6 +11602,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9807,6 +11631,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9835,6 +11660,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9863,6 +11689,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9891,6 +11718,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9919,6 +11747,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -9948,6 +11777,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9972,6 +11802,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9996,6 +11827,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10020,6 +11852,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10045,6 +11878,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10069,6 +11903,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10093,6 +11928,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10118,6 +11954,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10142,6 +11979,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10166,6 +12004,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10190,6 +12029,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10215,6 +12055,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10240,6 +12081,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10265,6 +12107,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10290,6 +12133,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10315,6 +12159,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|40|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10341,6 +12186,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10368,6 +12214,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10395,6 +12242,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10422,6 +12270,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10449,6 +12298,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10476,6 +12326,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10503,6 +12354,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10530,6 +12382,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10557,6 +12410,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10584,6 +12438,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10612,6 +12467,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10639,6 +12495,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10666,6 +12523,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10693,6 +12551,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10720,6 +12579,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10747,6 +12607,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10774,6 +12635,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10801,6 +12663,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10829,6 +12692,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10857,6 +12721,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10885,6 +12750,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10913,6 +12779,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10941,6 +12808,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10969,6 +12837,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10997,6 +12866,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -11025,6 +12895,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -11054,6 +12925,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11082,6 +12954,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11110,6 +12983,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11138,6 +13012,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11166,6 +13041,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11194,6 +13070,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11222,6 +13099,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11250,6 +13128,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11278,6 +13157,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11307,6 +13187,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11335,6 +13216,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11363,6 +13245,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11391,6 +13274,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11419,6 +13303,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11447,6 +13332,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11475,6 +13361,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11503,6 +13390,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11532,6 +13420,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11562,6 +13451,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11589,6 +13479,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11616,6 +13507,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11643,6 +13535,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11670,6 +13563,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11697,6 +13591,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11724,6 +13619,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11751,6 +13647,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11779,6 +13676,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11808,6 +13706,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11835,6 +13734,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11862,6 +13762,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11889,6 +13790,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11916,6 +13818,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11943,6 +13846,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11971,6 +13875,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12000,6 +13905,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12027,6 +13933,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12054,6 +13961,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12081,6 +13989,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12108,6 +14017,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12135,6 +14045,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12162,6 +14073,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12189,6 +14101,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12216,6 +14129,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12243,6 +14157,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12271,6 +14186,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12300,6 +14216,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12327,6 +14244,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12354,6 +14272,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12381,6 +14300,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12408,6 +14328,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12435,6 +14356,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12462,6 +14384,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12489,6 +14412,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12516,6 +14440,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12544,6 +14469,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12572,6 +14498,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12600,6 +14527,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12628,6 +14556,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12656,6 +14585,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12684,6 +14614,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12712,6 +14643,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12740,6 +14672,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12768,6 +14701,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12797,6 +14731,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12824,6 +14759,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12851,6 +14787,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12878,6 +14815,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12905,6 +14843,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12932,6 +14871,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12959,6 +14899,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12986,6 +14927,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13013,6 +14955,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13041,6 +14984,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13070,6 +15014,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13098,6 +15043,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13126,6 +15072,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13154,6 +15101,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13182,6 +15130,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13210,6 +15159,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13238,6 +15188,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13266,6 +15217,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13294,6 +15246,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13323,6 +15276,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13353,6 +15307,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13381,6 +15336,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13409,6 +15365,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13437,6 +15394,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13465,6 +15423,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13493,6 +15452,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13521,6 +15481,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13549,6 +15510,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13577,6 +15539,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13606,6 +15569,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13636,6 +15600,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13663,6 +15628,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13690,6 +15656,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13717,6 +15684,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13744,6 +15712,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13771,6 +15740,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13798,6 +15768,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13825,6 +15796,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13852,6 +15824,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13880,6 +15853,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13909,6 +15883,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -13936,6 +15911,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -13963,6 +15939,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -13990,6 +15967,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14017,6 +15995,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14044,6 +16023,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14071,6 +16051,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14098,6 +16079,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14125,6 +16107,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14152,6 +16135,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14179,6 +16163,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14207,6 +16192,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14236,6 +16222,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14263,6 +16250,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14290,6 +16278,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14317,6 +16306,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14344,6 +16334,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14371,6 +16362,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14398,6 +16390,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14425,6 +16418,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14453,6 +16447,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14482,6 +16477,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14510,6 +16506,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14538,6 +16535,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14566,6 +16564,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14594,6 +16593,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14622,6 +16622,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14650,6 +16651,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14678,6 +16680,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14707,6 +16710,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -14737,6 +16741,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14764,6 +16769,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14791,6 +16797,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14818,6 +16825,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14845,6 +16853,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14872,6 +16881,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14899,6 +16909,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14926,6 +16937,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14953,6 +16965,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14980,6 +16993,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15008,6 +17022,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15037,6 +17052,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15064,6 +17080,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15091,6 +17108,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15118,6 +17136,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15145,6 +17164,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15172,6 +17192,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15199,6 +17220,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15227,6 +17249,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15254,6 +17277,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15281,6 +17305,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15308,6 +17333,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15335,6 +17361,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15362,6 +17389,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15389,6 +17417,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15416,6 +17445,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15443,6 +17473,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15471,6 +17502,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15499,6 +17531,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15527,6 +17560,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15551,11 +17585,931 @@ below are the resources available with some assumptions and after the instance o
  |pods|737|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
+## m8gd Family
+### `m8gd.medium`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|1|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|59|
+ |karpenter.k8s.aws/instance-memory|4096|
+ |karpenter.k8s.aws/instance-network-bandwidth|520|
+ |karpenter.k8s.aws/instance-size|medium|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8gd.medium|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|940m|
+ |ephemeral-storage|17Gi|
+ |memory|3286Mi|
+ |pods|8|
+ |vpc.amazonaws.com/pod-eni|4|
+### `m8gd.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|118|
+ |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-network-bandwidth|937|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8gd.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|6844Mi|
+ |pods|29|
+ |vpc.amazonaws.com/pod-eni|9|
+### `m8gd.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|237|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|1875|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8gd.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|14103Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
+### `m8gd.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|474|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|3750|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8gd.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|29258Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
+### `m8gd.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|950|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|7500|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8gd.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|57632Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
+### `m8gd.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-network-bandwidth|15000|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8gd.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|118253Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
+### `m8gd.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2850|
+ |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-network-bandwidth|22500|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8gd.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|178874Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
+### `m8gd.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-network-bandwidth|30000|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8gd.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|233962Mi|
+ |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
+### `m8gd.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|5700|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|40000|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8gd.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|355203Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+### `m8gd.metal-24xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|5700|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|40000|
+ |karpenter.k8s.aws/instance-size|metal-24xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8gd.metal-24xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|355203Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+### `m8gd.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|11400|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8gd.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|718928Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+### `m8gd.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|11400|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8gd.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|718928Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+## m8i Family
+### `m8i.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-network-bandwidth|937|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|6573Mi|
+ |pods|59|
+ |vpc.amazonaws.com/pod-eni|9|
+### `m8i.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|1875|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|13502Mi|
+ |pods|118|
+ |vpc.amazonaws.com/pod-eni|18|
+### `m8i.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|3750|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|28657Mi|
+ |pods|118|
+ |vpc.amazonaws.com/pod-eni|38|
+### `m8i.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|7500|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|55931Mi|
+ |pods|394|
+ |vpc.amazonaws.com/pod-eni|54|
+### `m8i.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-network-bandwidth|15000|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|115474Mi|
+ |pods|492|
+ |vpc.amazonaws.com/pod-eni|82|
+### `m8i.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-network-bandwidth|22500|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|175017Mi|
+ |pods|590|
+ |vpc.amazonaws.com/pod-eni|110|
+### `m8i.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-network-bandwidth|30000|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|231018Mi|
+ |pods|1010|
+ |vpc.amazonaws.com/pod-eni|106|
+### `m8i.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|40000|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|352259Mi|
+ |pods|1010|
+ |vpc.amazonaws.com/pod-eni|106|
+### `m8i.32xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
+ |karpenter.k8s.aws/instance-size|32xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i.32xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|467957Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/pod-eni|98|
+### `m8i.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|75000|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|710440Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
+### `m8i.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|75000|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|710440Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
+### `m8i.96xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|384|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|80000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|100000|
+ |karpenter.k8s.aws/instance-size|96xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i.96xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|382970m|
+ |ephemeral-storage|17Gi|
+ |memory|1437890Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
+### `m8i.metal-96xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|384|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|80000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|100000|
+ |karpenter.k8s.aws/instance-size|metal-96xl|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i.metal-96xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|382970m|
+ |ephemeral-storage|17Gi|
+ |memory|1437890Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
+## m8i-flex Family
+### `m8i-flex.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-network-bandwidth|468|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i-flex.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|6573Mi|
+ |pods|59|
+ |vpc.amazonaws.com/pod-eni|3|
+### `m8i-flex.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|937|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i-flex.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|13502Mi|
+ |pods|118|
+ |vpc.amazonaws.com/pod-eni|8|
+### `m8i-flex.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|1875|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i-flex.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|28657Mi|
+ |pods|118|
+ |vpc.amazonaws.com/pod-eni|18|
+### `m8i-flex.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|3750|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i-flex.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|55931Mi|
+ |pods|394|
+ |vpc.amazonaws.com/pod-eni|34|
+### `m8i-flex.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-network-bandwidth|7500|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i-flex.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|115474Mi|
+ |pods|492|
+ |vpc.amazonaws.com/pod-eni|52|
+### `m8i-flex.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-network-bandwidth|11250|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i-flex.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|175017Mi|
+ |pods|590|
+ |vpc.amazonaws.com/pod-eni|110|
+### `m8i-flex.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-network-bandwidth|15000|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m8i-flex.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|231018Mi|
+ |pods|1010|
+ |vpc.amazonaws.com/pod-eni|106|
 ## p3 Family
 ### `p3.2xlarge`
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15570,6 +18524,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-gpu-name|v100|
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|62464|
+ |karpenter.k8s.aws/instance-network-bandwidth|2500|
  |karpenter.k8s.aws/instance-size|2xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -15586,6 +18541,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15617,6 +18573,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15649,6 +18606,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15684,6 +18642,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15714,11 +18673,83 @@ below are the resources available with some assumptions and after the instance o
  |pods|737|
  |vpc.amazonaws.com/efa|4|
  |vpc.amazonaws.com/pod-eni|62|
+## p4de Family
+### `p4de.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|p|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3000|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|p4de|
+ |karpenter.k8s.aws/instance-generation|4|
+ |karpenter.k8s.aws/instance-gpu-count|8|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|81920|
+ |karpenter.k8s.aws/instance-gpu-name|a100|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|8000|
+ |karpenter.k8s.aws/instance-memory|1179648|
+ |karpenter.k8s.aws/instance-network-bandwidth|400000|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|p4de.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|1082712Mi|
+ |nvidia.com/gpu|8|
+ |pods|737|
+ |vpc.amazonaws.com/efa|4|
+ |vpc.amazonaws.com/pod-eni|62|
 ## p5 Family
+### `p5.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|p|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3600|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|p5|
+ |karpenter.k8s.aws/instance-generation|5|
+ |karpenter.k8s.aws/instance-gpu-count|1|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|81920|
+ |karpenter.k8s.aws/instance-gpu-name|h100|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-network-bandwidth|100000|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|p5.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|240830Mi|
+ |nvidia.com/gpu|1|
+ |pods|118|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|58|
 ### `p5.48xlarge`
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -15754,6 +18785,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -15789,6 +18821,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15819,11 +18852,48 @@ below are the resources available with some assumptions and after the instance o
  |pods|198|
  |vpc.amazonaws.com/efa|16|
  |vpc.amazonaws.com/pod-eni|120|
+## p6-b200 Family
+### `p6-b200.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|p|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|p6-b200|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-gpu-count|8|
+ |karpenter.k8s.aws/instance-gpu-manufacturer|nvidia|
+ |karpenter.k8s.aws/instance-gpu-memory|183359|
+ |karpenter.k8s.aws/instance-gpu-name|b200|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|30400|
+ |karpenter.k8s.aws/instance-memory|2097152|
+ |karpenter.k8s.aws/instance-network-bandwidth|3200000|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|p6-b200.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1937332Mi|
+ |nvidia.com/gpu|8|
+ |pods|198|
+ |vpc.amazonaws.com/efa|8|
+ |vpc.amazonaws.com/pod-eni|120|
 ## r3 Family
 ### `r3.large`
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15848,6 +18918,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15872,6 +18943,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15896,6 +18968,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15920,6 +18993,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15946,6 +19020,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15972,6 +19047,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15998,6 +19074,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16024,6 +19101,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16050,6 +19128,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16076,6 +19155,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16103,6 +19183,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16130,6 +19211,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16157,6 +19239,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16184,6 +19267,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16211,6 +19295,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16238,6 +19323,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16265,6 +19351,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16292,6 +19379,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16319,6 +19407,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16347,6 +19436,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16374,6 +19464,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16401,6 +19492,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16428,6 +19520,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16455,6 +19548,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16482,6 +19576,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16509,6 +19604,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16536,6 +19632,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16564,6 +19661,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16592,6 +19690,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16620,6 +19719,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16648,6 +19748,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16676,6 +19777,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16704,6 +19806,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16732,6 +19835,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16760,6 +19864,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -16789,6 +19894,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16816,6 +19922,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16843,6 +19950,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16870,6 +19978,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16897,6 +20006,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16924,6 +20034,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16951,6 +20062,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16978,6 +20090,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17005,6 +20118,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17033,6 +20147,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17061,6 +20176,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17089,6 +20205,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17117,6 +20234,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17145,6 +20263,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17173,6 +20292,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17201,6 +20321,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17229,6 +20350,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17257,6 +20379,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17286,6 +20409,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17314,6 +20438,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17342,6 +20467,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17370,6 +20496,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17398,6 +20525,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17426,6 +20554,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17454,6 +20583,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17482,6 +20612,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17511,6 +20642,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17541,6 +20673,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17568,6 +20701,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17595,6 +20729,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17622,6 +20757,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17649,6 +20785,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17676,6 +20813,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17703,6 +20841,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17730,6 +20869,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17758,6 +20898,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17787,6 +20928,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17814,6 +20956,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17841,6 +20984,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17868,6 +21012,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17895,6 +21040,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17922,6 +21068,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17949,6 +21096,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17976,6 +21124,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -18003,6 +21152,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -18030,6 +21180,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -18058,6 +21209,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -18087,6 +21239,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18114,6 +21267,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18141,6 +21295,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18168,6 +21323,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18195,6 +21351,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18222,6 +21379,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18249,6 +21407,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18276,6 +21435,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18303,6 +21463,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18331,6 +21492,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18359,6 +21521,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18387,6 +21550,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18415,6 +21579,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18443,6 +21608,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18471,6 +21637,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18499,6 +21666,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18527,6 +21695,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18555,6 +21724,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -18584,6 +21754,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18611,6 +21782,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18638,6 +21810,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18665,6 +21838,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18692,6 +21866,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18719,6 +21894,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18746,6 +21922,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18773,6 +21950,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18800,6 +21978,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18828,6 +22007,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18857,6 +22037,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18885,6 +22066,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18913,6 +22095,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18941,6 +22124,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18969,6 +22153,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18997,6 +22182,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19025,6 +22211,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19053,6 +22240,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19081,6 +22269,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19110,6 +22299,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19140,6 +22330,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19168,6 +22359,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19196,6 +22388,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19224,6 +22417,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19252,6 +22446,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19280,6 +22475,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19308,6 +22504,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19336,6 +22533,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19364,6 +22562,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19393,6 +22592,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19423,6 +22623,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19450,6 +22651,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19477,6 +22679,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19504,6 +22707,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19531,6 +22735,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19558,6 +22763,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19585,6 +22791,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19612,6 +22819,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19639,6 +22847,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19667,6 +22876,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19696,6 +22906,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -19723,6 +22934,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -19750,6 +22962,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -19777,6 +22990,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -19804,6 +23018,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -19831,6 +23046,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -19858,6 +23074,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -19885,6 +23102,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -19912,6 +23130,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -19939,6 +23158,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -19966,6 +23186,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -19994,6 +23215,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -20023,6 +23245,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20050,6 +23273,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20077,6 +23301,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20104,6 +23329,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20131,6 +23357,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20158,6 +23385,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20185,6 +23413,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20212,6 +23441,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20240,6 +23470,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20269,6 +23500,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20297,6 +23529,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20325,6 +23558,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20353,6 +23587,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20381,6 +23616,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20409,6 +23645,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20437,6 +23674,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20465,6 +23703,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20494,6 +23733,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20524,6 +23764,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20551,6 +23792,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20578,6 +23820,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20605,6 +23848,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20632,6 +23876,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20659,6 +23904,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20686,6 +23932,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20713,6 +23960,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20740,6 +23988,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20767,6 +24016,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20795,6 +24045,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20824,6 +24075,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20851,6 +24103,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20878,6 +24131,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20905,6 +24159,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20932,6 +24187,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20959,6 +24215,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20986,6 +24243,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21013,6 +24271,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21040,6 +24299,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21068,6 +24328,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21097,6 +24358,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -21124,6 +24386,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -21151,6 +24414,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -21178,6 +24442,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -21205,6 +24470,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -21232,6 +24498,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -21259,6 +24526,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -21286,6 +24554,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -21313,6 +24582,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -21341,6 +24611,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -21369,6 +24640,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -21397,6 +24669,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -21421,11 +24694,1249 @@ below are the resources available with some assumptions and after the instance o
  |pods|737|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
+## r8gd Family
+### `r8gd.medium`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|1|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|59|
+ |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-network-bandwidth|520|
+ |karpenter.k8s.aws/instance-size|medium|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gd.medium|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|940m|
+ |ephemeral-storage|17Gi|
+ |memory|7075Mi|
+ |pods|8|
+ |vpc.amazonaws.com/pod-eni|4|
+### `r8gd.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|118|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|937|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gd.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|14422Mi|
+ |pods|29|
+ |vpc.amazonaws.com/pod-eni|9|
+### `r8gd.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|237|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|1875|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gd.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|29258Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
+### `r8gd.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|474|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|3750|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gd.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|59568Mi|
+ |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
+### `r8gd.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|950|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-network-bandwidth|7500|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gd.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|118253Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
+### `r8gd.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-network-bandwidth|15000|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gd.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|239495Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
+### `r8gd.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2850|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|22500|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gd.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|360736Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
+### `r8gd.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-network-bandwidth|30000|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gd.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|476445Mi|
+ |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
+### `r8gd.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|5700|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|40000|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gd.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|718928Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+### `r8gd.metal-24xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|5700|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|40000|
+ |karpenter.k8s.aws/instance-size|metal-24xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gd.metal-24xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|718928Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+### `r8gd.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|11400|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gd.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1446378Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+### `r8gd.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gd|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|11400|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gd.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1446378Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
+## r8gn Family
+### `r8gn.medium`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|1|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-size|medium|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gn.medium|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|940m|
+ |ephemeral-storage|17Gi|
+ |memory|7075Mi|
+ |pods|8|
+### `r8gn.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gn.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|14422Mi|
+ |pods|29|
+### `r8gn.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gn.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|29258Mi|
+ |pods|58|
+### `r8gn.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gn.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|59568Mi|
+ |pods|58|
+### `r8gn.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gn.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|118253Mi|
+ |pods|234|
+### `r8gn.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gn.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|238857Mi|
+ |pods|292|
+### `r8gn.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gn.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|359460Mi|
+ |pods|350|
+### `r8gn.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gn.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|475906Mi|
+ |pods|786|
+ |vpc.amazonaws.com/efa|1|
+### `r8gn.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gn.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|714077Mi|
+ |pods|1178|
+ |vpc.amazonaws.com/efa|1|
+### `r8gn.metal-24xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-size|metal-24xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gn.metal-24xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|714077Mi|
+ |pods|1178|
+ |vpc.amazonaws.com/efa|1|
+### `r8gn.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gn.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1447995Mi|
+ |pods|590|
+ |vpc.amazonaws.com/efa|2|
+### `r8gn.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8gn|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8gn.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1447995Mi|
+ |pods|590|
+ |vpc.amazonaws.com/efa|2|
+## r8i Family
+### `r8i.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|937|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|14151Mi|
+ |pods|59|
+ |vpc.amazonaws.com/pod-eni|9|
+### `r8i.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|1875|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|28657Mi|
+ |pods|118|
+ |vpc.amazonaws.com/pod-eni|18|
+### `r8i.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|3750|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|58967Mi|
+ |pods|118|
+ |vpc.amazonaws.com/pod-eni|38|
+### `r8i.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-network-bandwidth|7500|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|116552Mi|
+ |pods|394|
+ |vpc.amazonaws.com/pod-eni|54|
+### `r8i.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-network-bandwidth|15000|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|236716Mi|
+ |pods|492|
+ |vpc.amazonaws.com/pod-eni|82|
+### `r8i.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|22500|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|356879Mi|
+ |pods|590|
+ |vpc.amazonaws.com/pod-eni|110|
+### `r8i.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-network-bandwidth|30000|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|473501Mi|
+ |pods|1010|
+ |vpc.amazonaws.com/pod-eni|106|
+### `r8i.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|40000|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|715984Mi|
+ |pods|1010|
+ |vpc.amazonaws.com/pod-eni|106|
+### `r8i.32xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|1048576|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
+ |karpenter.k8s.aws/instance-size|32xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i.32xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|952923Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/pod-eni|98|
+### `r8i.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|75000|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1437890Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
+### `r8i.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|75000|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1437890Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
+### `r8i.96xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|384|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|80000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|3145728|
+ |karpenter.k8s.aws/instance-network-bandwidth|100000|
+ |karpenter.k8s.aws/instance-size|96xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i.96xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|382970m|
+ |ephemeral-storage|17Gi|
+ |memory|2892789Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
+### `r8i.metal-96xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|384|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|80000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|3145728|
+ |karpenter.k8s.aws/instance-network-bandwidth|100000|
+ |karpenter.k8s.aws/instance-size|metal-96xl|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i.metal-96xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|382970m|
+ |ephemeral-storage|17Gi|
+ |memory|2892789Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
+## r8i-flex Family
+### `r8i-flex.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|468|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i-flex.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|14151Mi|
+ |pods|59|
+ |vpc.amazonaws.com/pod-eni|3|
+### `r8i-flex.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|937|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i-flex.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|28657Mi|
+ |pods|118|
+ |vpc.amazonaws.com/pod-eni|8|
+### `r8i-flex.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|1875|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i-flex.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|58967Mi|
+ |pods|118|
+ |vpc.amazonaws.com/pod-eni|18|
+### `r8i-flex.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-network-bandwidth|3750|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i-flex.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|116552Mi|
+ |pods|394|
+ |vpc.amazonaws.com/pod-eni|34|
+### `r8i-flex.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-network-bandwidth|7500|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i-flex.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|236716Mi|
+ |pods|492|
+ |vpc.amazonaws.com/pod-eni|52|
+### `r8i-flex.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|11250|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i-flex.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|356879Mi|
+ |pods|590|
+ |vpc.amazonaws.com/pod-eni|110|
+### `r8i-flex.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r8i-flex|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-network-bandwidth|15000|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r8i-flex.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|473501Mi|
+ |pods|1010|
+ |vpc.amazonaws.com/pod-eni|106|
 ## t1 Family
 ### `t1.micro`
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21451,6 +25962,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21475,6 +25987,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21499,6 +26012,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21523,6 +26037,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21547,6 +26062,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21571,6 +26087,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21595,6 +26112,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21620,6 +26138,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21646,6 +26165,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21672,6 +26192,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21698,6 +26219,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21724,6 +26246,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21750,6 +26273,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21776,6 +26300,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -21803,6 +26328,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -21829,6 +26355,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -21855,6 +26382,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -21881,6 +26409,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -21907,6 +26436,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -21933,6 +26463,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -21959,6 +26490,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -21986,6 +26518,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -22012,6 +26545,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -22038,6 +26572,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -22064,6 +26599,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -22090,6 +26626,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -22116,6 +26653,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -22142,6 +26680,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -22172,6 +26711,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|1|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|trainium|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22205,6 +26745,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|16|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|trainium|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22240,6 +26781,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|16|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|trainium|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22275,6 +26817,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|16|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|trainium2|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22284,6 +26827,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-family|trn2|
  |karpenter.k8s.aws/instance-generation|2|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|7600|
  |karpenter.k8s.aws/instance-memory|2097152|
  |karpenter.k8s.aws/instance-network-bandwidth|3200000|
  |karpenter.k8s.aws/instance-size|48xlarge|
@@ -22300,92 +26844,12 @@ below are the resources available with some assumptions and after the instance o
  |memory|1938410Mi|
  |pods|100|
  |vpc.amazonaws.com/efa|16|
-## u-12tb1 Family
-### `u-12tb1.112xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|u|
- |karpenter.k8s.aws/instance-cpu|448|
- |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2100|
- |karpenter.k8s.aws/instance-ebs-bandwidth|38000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|u-12tb1|
- |karpenter.k8s.aws/instance-generation|1|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|12582912|
- |karpenter.k8s.aws/instance-network-bandwidth|100000|
- |karpenter.k8s.aws/instance-size|112xlarge|
- |kubernetes.io/arch|amd64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|u-12tb1.112xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|446810m|
- |ephemeral-storage|17Gi|
- |memory|11630731Mi|
- |pods|737|
-## u-18tb1 Family
-### `u-18tb1.112xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|u|
- |karpenter.k8s.aws/instance-cpu|448|
- |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
- |karpenter.k8s.aws/instance-ebs-bandwidth|38000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|u-18tb1|
- |karpenter.k8s.aws/instance-generation|1|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|18874368|
- |karpenter.k8s.aws/instance-network-bandwidth|100000|
- |karpenter.k8s.aws/instance-size|112xlarge|
- |kubernetes.io/arch|amd64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|u-18tb1.112xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|446810m|
- |ephemeral-storage|17Gi|
- |memory|17450328Mi|
- |pods|737|
-## u-24tb1 Family
-### `u-24tb1.112xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|u|
- |karpenter.k8s.aws/instance-cpu|448|
- |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2700|
- |karpenter.k8s.aws/instance-ebs-bandwidth|38000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|u-24tb1|
- |karpenter.k8s.aws/instance-generation|1|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|25165824|
- |karpenter.k8s.aws/instance-network-bandwidth|100000|
- |karpenter.k8s.aws/instance-size|112xlarge|
- |kubernetes.io/arch|amd64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|u-24tb1.112xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|446810m|
- |ephemeral-storage|17Gi|
- |memory|23269925Mi|
- |pods|737|
 ## u-3tb1 Family
 ### `u-3tb1.56xlarge`
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|224|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22414,6 +26878,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|224|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22440,6 +26905,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22462,43 +26928,17 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|5811134Mi|
  |pods|737|
-## u-9tb1 Family
-### `u-9tb1.112xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|u|
- |karpenter.k8s.aws/instance-cpu|448|
- |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2100|
- |karpenter.k8s.aws/instance-ebs-bandwidth|38000|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|u-9tb1|
- |karpenter.k8s.aws/instance-generation|1|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|9437184|
- |karpenter.k8s.aws/instance-network-bandwidth|100000|
- |karpenter.k8s.aws/instance-size|112xlarge|
- |kubernetes.io/arch|amd64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|u-9tb1.112xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|446810m|
- |ephemeral-storage|17Gi|
- |memory|8720933Mi|
- |pods|737|
 ## u7i-12tb Family
 ### `u7i-12tb.224xlarge`
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|896|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
  |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|1900|
- |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|u7i-12tb|
  |karpenter.k8s.aws/instance-generation|7|
@@ -22523,11 +26963,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
  |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|1900|
- |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|u7i-6tb|
  |karpenter.k8s.aws/instance-generation|7|
@@ -22552,11 +26993,12 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
  |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|1900|
- |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|u7i-8tb|
  |karpenter.k8s.aws/instance-generation|7|
@@ -22575,11 +27017,13 @@ below are the resources available with some assumptions and after the instance o
  |memory|7751000Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ## u7in-16tb Family
 ### `u7in-16tb.224xlarge`
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|896|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22609,6 +27053,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|896|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22638,6 +27083,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|896|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22667,6 +27113,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|vt|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22694,6 +27141,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|vt|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22721,6 +27169,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|vt|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22750,6 +27199,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22776,6 +27226,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22803,6 +27254,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22829,6 +27281,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22855,6 +27308,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22881,6 +27335,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22907,6 +27362,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22933,6 +27389,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -22960,6 +27417,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -22988,6 +27446,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23016,6 +27475,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23044,6 +27504,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23072,6 +27533,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23100,6 +27562,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23128,6 +27591,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23156,6 +27620,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23184,6 +27649,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23213,6 +27679,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23241,6 +27708,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23269,6 +27737,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23298,6 +27767,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23328,6 +27798,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23356,6 +27827,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23384,6 +27856,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23412,6 +27885,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23440,6 +27914,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23468,6 +27943,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23496,6 +27972,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23525,6 +28002,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23555,6 +28033,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23582,6 +28061,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23609,6 +28089,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23636,6 +28117,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23663,6 +28145,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23691,6 +28174,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -23720,6 +28204,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23747,6 +28232,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23774,6 +28260,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23801,6 +28288,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23828,6 +28316,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23855,6 +28344,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23882,6 +28372,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23909,6 +28400,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23936,6 +28428,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23964,6 +28457,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -23992,6 +28486,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -24020,6 +28515,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -24049,6 +28545,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -24077,6 +28574,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -24105,6 +28603,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -24133,6 +28632,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -24161,6 +28661,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -24189,6 +28690,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -24217,6 +28719,7 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
