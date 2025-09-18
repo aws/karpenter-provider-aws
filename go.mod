@@ -131,4 +131,4 @@ require (
 // replace sigs.k8s.io/karpenter => /Users/rsumukha/workspace/karpenter/karpenter
 // replace sigs.k8s.io/karpenter => github.com/sumukha-radhakrishna/karpenter stat
 
-replace sigs.k8s.io/karpenter => github.com/sumukha-radhakrishna/karpenter local-feat-static-capacity
+replace sigs.k8s.io/karpenter => github.com/sumukha-radhakrishna/karpenter v0.0.0-20250918005042-af96f82a4b81
