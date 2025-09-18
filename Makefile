@@ -52,6 +52,9 @@ ci-test: test coverage ## Runs tests and submits coverage
 
 ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 
+
+## Some testing
+
 run: ## Run Karpenter controller binary against your local cluster
 	SYSTEM_NAMESPACE=${KARPENTER_NAMESPACE} \
 		KUBERNETES_MIN_VERSION="1.19.0-0" \
