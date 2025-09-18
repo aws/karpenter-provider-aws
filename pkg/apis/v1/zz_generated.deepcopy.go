@@ -298,8 +298,8 @@ func (in *EC2NodeClassSpec) DeepCopyInto(out *EC2NodeClassSpec) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.Ipv4PrefixCount != nil {
-		in, out := &in.Ipv4PrefixCount, &out.Ipv4PrefixCount
+	if in.IpPrefixCount != nil {
+		in, out := &in.IpPrefixCount, &out.IpPrefixCount
 		*out = new(int32)
 		**out = **in
 	}

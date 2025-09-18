@@ -311,8 +311,8 @@ spec:
                   enum:
                     - RAID0
                   type: string
-                ipv4PrefixCount:
-                  description: IPv4PrefixCount sets the number of IPv4 prefixes to be automatically assigned to the network interface.
+                ipPrefixCount:
+                  description: IpPrefixCount sets the number of IPv4 prefixes to be automatically assigned to the network interface.
                   format: int32
                   type: integer
                 kubelet:

@@ -2292,7 +2292,7 @@ eviction-max-pod-grace-period = 10
 			DescribeTable(
 				"should set 'IPv4PrefixCount' based on EC2NodeClass",
 				func(setValue int) {
-					nodeClass.Spec.Ipv4PrefixCount = lo.ToPtr(int32(setValue))
+					nodeClass.Spec.IpPrefixCount = lo.ToPtr(int32(setValue))
 					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 					pod := coretest.UnschedulablePod()
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)

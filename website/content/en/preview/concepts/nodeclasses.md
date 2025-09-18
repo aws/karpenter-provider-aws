@@ -1528,9 +1528,9 @@ If a `NodeClaim` requests `vpc.amazonaws.com/efa` resources, `spec.associatePubl
 requires that the field is only set to true when configuring an instance with a single ENI at launch. When using this field, it is advised that users segregate their EFA workload to use a separate `NodePool` / `EC2NodeClass` pair.
 {{% /alert %}}
 
-## spec.ipv4PrefixCount
+## spec.ipPrefixCount
 
-This value is a integer field that controls how many ipv4 prefixes will be assigned to `NodeClaim`. See the [EC2 Launch Template Network Interface Spec](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ec2-launchtemplate-networkinterface.html) for more information
+This value is a integer field that controls how many ip prefixes will be assigned to `NodeClaim`. See the [EC2 Launch Template Network Interface Spec](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ec2-launchtemplate-networkinterface.html) for more information. Sets ipv4PrefixCount if you are using an IPv4 Cluster, or ipv6PrefixCount if you are using IPv6.
 
 ## status.subnets
 [`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
