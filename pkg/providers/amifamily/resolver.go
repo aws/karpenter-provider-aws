@@ -66,7 +66,7 @@ type Options struct {
 	Labels                   map[string]string `hash:"ignore"`
 	KubeDNSIP                net.IP
 	AssociatePublicIPAddress *bool
-	IpPrefixCount            *int32
+	IPPrefixCount            *int32
 	NodeClassName            string
 }
 

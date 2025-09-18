@@ -215,7 +215,7 @@ func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC
 		CABundle:                 p.CABundle,
 		KubeDNSIP:                p.KubeDNSIP,
 		AssociatePublicIPAddress: nodeClass.Spec.AssociatePublicIPAddress,
-		IpPrefixCount:            nodeClass.Spec.IpPrefixCount,
+		IPPrefixCount:            nodeClass.Spec.IPPrefixCount,
 		NodeClassName:            nodeClass.Name,
 	}, nil
 }
@@ -277,8 +277,8 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 				// Some networking magic to ensure that one network card has higher priority than all the others (important if an instance needs a public IP w/o adding an EIP to every network card)
 				DeviceIndex:     lo.ToPtr(lo.Ternary[int32](i == 0, 0, 1)),
 				InterfaceType:   lo.ToPtr(string(ec2types.NetworkInterfaceTypeEfa)),
-				Ipv4PrefixCount: lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, nil, options.IpPrefixCount),
-				Ipv6PrefixCount: lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, options.IpPrefixCount, nil),
+				Ipv4PrefixCount: lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, nil, options.IPPrefixCount),
+				Ipv6PrefixCount: lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, options.IPPrefixCount, nil),
 				Groups:          lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
 				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
 				// with a single EFA network interface, and we should support those use cases. Launch failures with multiple enis should be considered user misconfiguration.
@@ -293,8 +293,8 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 		{
 			AssociatePublicIpAddress: options.AssociatePublicIPAddress,
 			DeviceIndex:              aws.Int32(0),
-			Ipv4PrefixCount:          lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, nil, options.IpPrefixCount),
-			Ipv6PrefixCount:          lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, options.IpPrefixCount, nil),
+			Ipv4PrefixCount:          lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, nil, options.IPPrefixCount),
+			Ipv6PrefixCount:          lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, options.IPPrefixCount, nil),
 			Groups: lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string {
 				return s.ID
 			}),

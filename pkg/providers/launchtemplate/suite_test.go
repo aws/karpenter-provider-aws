@@ -2288,11 +2288,12 @@ eviction-max-pod-grace-period = 10
 				Entry("AssociatePublicIPAddress is false (EFA)", false, false, true),
 			)
 		})
-		Context("IPv4 Prefix Delegation", func() {
+		Context("IP Prefix Delegation", func() {
 			DescribeTable(
 				"should set 'IPv4PrefixCount' based on EC2NodeClass",
 				func(setValue int) {
-					nodeClass.Spec.IpPrefixCount = lo.ToPtr(int32(setValue))
+					nodeClass.Spec.IPPrefixCount = lo.ToPtr(int32(setValue))
+					awsEnv.LaunchTemplateProvider.ClusterIPFamily = corev1.IPv4Protocol
 					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 					pod := coretest.UnschedulablePod()
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2304,6 +2305,23 @@ eviction-max-pod-grace-period = 10
 				Entry("IPv4PrefixCount is 1", 1),
 				Entry("IPv4PrefixCount is 10", 10),
 				Entry("IPv4PrefixCount is 100", 100),
+			)
+			DescribeTable(
+				"should set 'IPv6PrefixCount' based on EC2NodeClass",
+				func(setValue int) {
+					nodeClass.Spec.IPPrefixCount = lo.ToPtr(int32(setValue))
+					awsEnv.LaunchTemplateProvider.ClusterIPFamily = corev1.IPv6Protocol
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod()
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(*input.LaunchTemplateData.NetworkInterfaces[0].Ipv6PrefixCount).To(Equal(int32(setValue)))
+				},
+				Entry("IPv6PrefixCount is 0", 0),
+				Entry("IPv6PrefixCount is 1", 1),
+				Entry("IPv6PrefixCount is 10", 10),
+				Entry("IPv6PrefixCount is 100", 100),
 			)
 		})
 		Context("Windows Custom UserData", func() {

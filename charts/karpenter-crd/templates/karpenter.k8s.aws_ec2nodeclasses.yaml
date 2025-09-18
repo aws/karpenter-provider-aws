@@ -312,8 +312,9 @@ spec:
                     - RAID0
                   type: string
                 ipPrefixCount:
-                  description: IpPrefixCount sets the number of IPv4 prefixes to be automatically assigned to the network interface.
+                  description: IPPrefixCount sets the number of IPv4 prefixes to be automatically assigned to the network interface.
                   format: int32
+                  minimum: 0
                   type: integer
                 kubelet:
                   description: |-
