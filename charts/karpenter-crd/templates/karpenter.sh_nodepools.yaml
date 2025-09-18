@@ -173,7 +173,7 @@ spec:
                     x-kubernetes-int-or-string: true
                   description: |-
                     Limits define a set of bounds for provisioning capacity.
-                    Limits other than limits.nodes is not supported when replicas is set
+                    Limits other than limits.nodes is not supported when replicas is set.
                   type: object
                 replicas:
                   description: |-
@@ -451,7 +451,7 @@ spec:
                     numerical weight indicates that this nodepool will be ordered
                     ahead of other nodepools with lower weights. A nodepool with no weight
                     will be treated as if it is a nodepool with a weight of 0.
-                    Weight is not supported when replicas is set
+                    Weight is not supported when replicas is set.
                   format: int32
                   maximum: 100
                   minimum: 1
@@ -462,9 +462,9 @@ spec:
               x-kubernetes-validations:
                 - message: Cannot transition NodePool between static (replicas set) and dynamic (replicas unset) provisioning modes
                   rule: has(self.replicas) == has(oldSelf.replicas)
-                - message: When replicas is set, only limits.nodes may be specified
+                - message: only 'limits.nodes' is supported on static NodePools
                   rule: '!has(self.replicas) || (!has(self.limits) || size(self.limits) == 0 || (size(self.limits) == 1 && ''nodes'' in self.limits))'
-                - message: When replicas is set, weight should not be specified
+                - message: '''weight'' is not supported on static NodePools'
                   rule: '!has(self.replicas) || !has(self.weight)'
             status:
               description: NodePoolStatus defines the observed state of NodePool

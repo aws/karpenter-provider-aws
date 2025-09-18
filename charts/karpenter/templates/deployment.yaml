@@ -247,11 +247,10 @@ spec:
       topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.tolerations }}
       tolerations:
-        - key: workload
-          operator: Equal
-          value: isolated
-          effect: NoSchedule
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     {{- if .Values.extraVolumes }}
       volumes:
       {{- with .Values.extraVolumes }}
