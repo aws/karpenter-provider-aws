@@ -304,8 +304,8 @@ func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) 
 		nodeClass.Status.SecurityGroups,
 		nodeClass.Status.AMIs,
 		nodeClass.Status.InstanceProfile,
-		nodeClass.Spec.MetadataOptions,
-		nodeClass.Spec.BlockDeviceMappings,
+		nodeClass.Spec,
+		nodeClass.Annotations,
 		tags,
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
 	return fmt.Sprintf("%s:%016x", nodeClass.Name, hash)

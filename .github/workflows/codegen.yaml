@@ -21,7 +21,7 @@ jobs:
           git config user.email "APICodeGen@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git config pull.rebase false
-      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+      - uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 # v5.0.0
         with:
           role-to-assume: 'arn:aws:iam::${{ vars.READONLY_ACCOUNT_ID }}:role/${{ vars.READONLY_ROLE_NAME }}'
           aws-region: ${{ vars.READONLY_REGION }}
@@ -37,7 +37,7 @@ jobs:
           fi
       - name: Create Pull Request
         if: steps.detect-changes.outputs.APICodeGenUpdate == 'true'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const { repo, owner } = context.repo;

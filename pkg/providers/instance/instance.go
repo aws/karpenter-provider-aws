@@ -39,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/batcher"
@@ -322,6 +323,9 @@ func (p *DefaultProvider) launchInstance(
 	}
 
 	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs)
+	if _, ok := nodeClaim.Annotations[v1alpha1.PriceOverlayAppliedAnnotationKey]; ok {
+		cfiBuilder.WithOverlay()
+	}
 	if nodeClass.Spec.Context != nil && nodeClaim.Annotations[karpv1.NodeClaimMinValuesRelaxedAnnotationKey] != "true" {
 		cfiBuilder.WithContextID(*nodeClass.Spec.Context)
 	}
@@ -461,6 +465,11 @@ func (p *DefaultProvider) getOverrides(
 			// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
 			// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
 			AvailabilityZone: lo.ToPtr(subnet.Zone),
+			// Priority settings for offerings take effect only when node overlays are defined.
+			// Allocation strategies will be applied in the following order:
+			// 1. On-demand instances (prioritized)
+			// 2. Capacity-optimized Spot instances
+			Priority: lo.ToPtr(float64(offering.Price)),
 		})
 	}
 	return overrides

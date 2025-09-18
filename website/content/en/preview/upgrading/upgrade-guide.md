@@ -97,9 +97,16 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
   - Karpenter now creates instance profiles with a specific path structure `/karpenter/{region}/{cluster-name}/{nodeclass-uid}/` instead of the generic root path `/`
   - This change helps with better organization and management of instance profiles
   - No action is required for existing instance profiles, but new ones will use this path structure
-* Additional IAM permissions required:
-  - The following new IAM permissions are required for the Karpenter controller role:
-    - `iam:ListInstanceProfiles`: Required for managing instance profiles
+  - Additional IAM permissions required:
+    - The following new IAM permissions are required for the Karpenter controller role:
+      - `iam:ListInstanceProfiles`: Required for managing instance profiles
+* The `karpenter_pods_pods_drained_total` metric has been renamed to `karpenter_pods_drained_total`
+* The `karpenter_nodeclaims_disrupted_total` metric reason `liveness` has been renamed to `registration_timeout`
+* Pods with `ResourceClaim` requests are explicitly ignored. Older revisions of Karpenter are not aware of the field and would ignore those requests. DRA is not currently supported by Karpenter.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.7.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.7.0
 
 ### Upgrading to `1.6.0`+
 
