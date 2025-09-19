@@ -298,6 +298,11 @@ func (in *EC2NodeClassSpec) DeepCopyInto(out *EC2NodeClassSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.IPPrefixCount != nil {
+		in, out := &in.IPPrefixCount, &out.IPPrefixCount
+		*out = new(int32)
+		**out = **in
+	}
 	if in.AMISelectorTerms != nil {
 		in, out := &in.AMISelectorTerms, &out.AMISelectorTerms
 		*out = make([]AMISelectorTerm, len(*in))
