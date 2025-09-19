@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
@@ -31,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
@@ -60,18 +60,18 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 		Complete(singleton.AsReconciler(c))
 }
 
-func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
 	cpNodeClaims, err := c.cp.List(ctx)
 	if err != nil {
-		return reconciler.Result{}, fmt.Errorf("listing instance types, %w", err)
+		return reconcile.Result{}, fmt.Errorf("listing instance types, %w", err)
 	}
 	providerIDsToCPNodeClaims := lo.SliceToMap(cpNodeClaims, func(nc *karpv1.NodeClaim) (string, *karpv1.NodeClaim) {
 		return nc.Status.ProviderID, nc
 	})
 	ncs := &karpv1.NodeClaimList{}
 	if err := c.kubeClient.List(ctx, ncs); err != nil {
-		return reconciler.Result{}, fmt.Errorf("listing nodeclaims, %w", err)
+		return reconcile.Result{}, fmt.Errorf("listing nodeclaims, %w", err)
 	}
 	updatedNodeClaims := sets.New[string]()
 	var errs []error
@@ -95,11 +95,11 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	}
 	if len(errs) != 0 {
 		if lo.EveryBy(errs, func(err error) bool { return errors.IsConflict(err) }) {
-			return reconciler.Result{Requeue: true}, nil
+			return reconcile.Result{Requeue: true}, nil
 		}
-		return reconciler.Result{}, multierr.Combine(errs...)
+		return reconcile.Result{}, multierr.Combine(errs...)
 	}
-	return reconciler.Result{RequeueAfter: time.Minute}, nil
+	return reconcile.Result{RequeueAfter: time.Minute}, nil
 }
 
 // syncCapacityType will update the capacity type for the given NodeClaim. This accounts for the fact that capacity

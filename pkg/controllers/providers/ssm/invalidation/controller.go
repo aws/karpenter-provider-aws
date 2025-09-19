@@ -18,12 +18,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -52,7 +52,7 @@ func (c *Controller) Name() string {
 	return "providers.ssm.invalidation"
 }
 
-func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
 
 	amiIDsToParameters := map[string]ssm.Parameter{}
@@ -73,7 +73,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	}) {
 		resolvedAMIs, err := c.amiProvider.List(ctx, nodeClass)
 		if err != nil {
-			return reconciler.Result{}, err
+			return reconcile.Result{}, err
 		}
 		amis = append(amis, resolvedAMIs...)
 	}
@@ -84,7 +84,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 		parameter := amiIDsToParameters[ami.AmiID]
 		c.cache.Delete(parameter.CacheKey())
 	}
-	return reconciler.Result{RequeueAfter: 30 * time.Minute}, nil
+	return reconcile.Result{RequeueAfter: 30 * time.Minute}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

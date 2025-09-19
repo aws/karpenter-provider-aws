@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/singleton"
 	lop "github.com/samber/lo/parallel"
 	"go.uber.org/multierr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
@@ -40,7 +40,7 @@ func NewController(pricingProvider pricing.Provider) *Controller {
 	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "providers.pricing")
 
 	work := []func(ctx context.Context) error{
@@ -54,9 +54,9 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 		}
 	})
 	if err := multierr.Combine(errs...); err != nil {
-		return reconciler.Result{}, fmt.Errorf("updating pricing, %w", err)
+		return reconcile.Result{}, fmt.Errorf("updating pricing, %w", err)
 	}
-	return reconciler.Result{RequeueAfter: 12 * time.Hour}, nil
+	return reconcile.Result{RequeueAfter: 12 * time.Hour}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

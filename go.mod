@@ -22,7 +22,7 @@ require (
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
 	github.com/aws/smithy-go v1.22.4
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
-	github.com/awslabs/operatorpkg v0.0.0-20250822220536-d4fbec42f646
+	github.com/awslabs/operatorpkg v0.0.0-20250624064700-e9977193119b
 	github.com/awslabs/operatorpkg/aws v0.0.0-20250414225955-b47cd315ffe9
 	github.com/docker/docker v28.3.3+incompatible
 	github.com/go-logr/zapr v1.3.0
