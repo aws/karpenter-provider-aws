@@ -309,7 +309,7 @@ var _ = Describe("CloudProvider", func() {
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(BeNil())
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
-		_, ok := cloudProviderNodeClaim.Annotations[v1.AnnotationEC2NodeClassHash]
+		_, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1.AnnotationEC2NodeClassHash]
 		Expect(ok).To(BeTrue())
 	})
 	It("should return NodeClass Hash Version on the nodeClaim", func() {
@@ -317,7 +317,7 @@ var _ = Describe("CloudProvider", func() {
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(BeNil())
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
-		v, ok := cloudProviderNodeClaim.Annotations[v1.AnnotationEC2NodeClassHashVersion]
+		v, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1.AnnotationEC2NodeClassHashVersion]
 		Expect(ok).To(BeTrue())
 		Expect(v).To(Equal(v1.EC2NodeClassHashVersion))
 	})
@@ -1154,11 +1154,11 @@ var _ = Describe("CloudProvider", func() {
 				Expect(isDrifted).To(BeEmpty())
 			})
 			It("should not return drifted if the NodeClaim's karpenter.k8s.aws/ec2nodeclass-hash-version annotation does not match the EC2NodeClass's", func() {
-				nodeClass.Annotations = map[string]string{
+				nodeClass.ObjectMeta.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash:        "test-hash-111111",
 					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-1",
 				}
-				nodeClaim.Annotations = map[string]string{
+				nodeClaim.ObjectMeta.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash:        "test-hash-222222",
 					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
 				}
@@ -1168,10 +1168,10 @@ var _ = Describe("CloudProvider", func() {
 				Expect(isDrifted).To(BeEmpty())
 			})
 			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash-version annotation is not present on the NodeClass", func() {
-				nodeClass.Annotations = map[string]string{
+				nodeClass.ObjectMeta.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash: "test-hash-111111",
 				}
-				nodeClaim.Annotations = map[string]string{
+				nodeClaim.ObjectMeta.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash:        "test-hash-222222",
 					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
 				}
@@ -1185,11 +1185,11 @@ var _ = Describe("CloudProvider", func() {
 				Expect(isDrifted).To(BeEmpty())
 			})
 			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash-version annotation is not present on the NodeClaim", func() {
-				nodeClass.Annotations = map[string]string{
+				nodeClass.ObjectMeta.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash:        "test-hash-111111",
 					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-1",
 				}
-				nodeClaim.Annotations = map[string]string{
+				nodeClaim.ObjectMeta.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash: "test-hash-222222",
 				}
 				// should trigger drift

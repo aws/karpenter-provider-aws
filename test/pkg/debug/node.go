@@ -49,11 +49,11 @@ func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (
 	n := &corev1.Node{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, n); err != nil {
 		if errors.IsNotFound(err) {
-			fmt.Printf("[DELETED %s] NODE %s\n", time.Now().Format(time.RFC3339), req.String())
+			fmt.Printf("[DELETED %s] NODE %s\n", time.Now().Format(time.RFC3339), req.NamespacedName.String())
 		}
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
-	fmt.Printf("[CREATED/UPDATED %s] NODE %s %s\n", time.Now().Format(time.RFC3339), req.Name, c.GetInfo(ctx, n))
+	fmt.Printf("[CREATED/UPDATED %s] NODE %s %s\n", time.Now().Format(time.RFC3339), req.NamespacedName.Name, c.GetInfo(ctx, n))
 	return reconcile.Result{}, nil
 }
 

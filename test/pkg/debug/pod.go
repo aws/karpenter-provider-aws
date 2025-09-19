@@ -48,11 +48,11 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 	p := &corev1.Pod{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, p); err != nil {
 		if errors.IsNotFound(err) {
-			fmt.Printf("[DELETED %s] POD %s\n", time.Now().Format(time.RFC3339), req.String())
+			fmt.Printf("[DELETED %s] POD %s\n", time.Now().Format(time.RFC3339), req.NamespacedName.String())
 		}
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
-	fmt.Printf("[CREATED/UPDATED %s] POD %s %s\n", time.Now().Format(time.RFC3339), req.String(), c.GetInfo(p))
+	fmt.Printf("[CREATED/UPDATED %s] POD %s %s\n", time.Now().Format(time.RFC3339), req.NamespacedName.String(), c.GetInfo(p))
 	return reconcile.Result{}, nil
 }
 

@@ -91,8 +91,8 @@ func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k
 func (a AL2) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.EKS{
 		Options: bootstrap.Options{
-			ClusterName:         a.ClusterName,
-			ClusterEndpoint:     a.ClusterEndpoint,
+			ClusterName:         a.Options.ClusterName,
+			ClusterEndpoint:     a.Options.ClusterEndpoint,
 			KubeletConfig:       kubeletConfig,
 			Taints:              taints,
 			Labels:              labels,

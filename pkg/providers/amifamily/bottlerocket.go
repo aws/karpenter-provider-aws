@@ -79,8 +79,8 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 func (b Bottlerocket) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Bottlerocket{
 		Options: bootstrap.Options{
-			ClusterName:         b.ClusterName,
-			ClusterEndpoint:     b.ClusterEndpoint,
+			ClusterName:         b.Options.ClusterName,
+			ClusterEndpoint:     b.Options.ClusterEndpoint,
 			KubeletConfig:       kubeletConfig,
 			Taints:              taints,
 			Labels:              labels,
