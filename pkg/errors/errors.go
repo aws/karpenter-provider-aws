@@ -150,6 +150,23 @@ func IgnoreRateLimitedError(err error) error {
 	return err
 }
 
+func IsServerError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
+		return apiErr.ErrorFault() == smithy.FaultServer
+	}
+	return false
+}
+
+func IgnoreServerError(err error) error {
+	if IsServerError(err) {
+		return nil
+	}
+	return err
+}
+
 // IsUnfulfillableCapacity returns true if the Fleet err means capacity is temporarily unavailable for launching. This
 // could be due to account limits, insufficient ec2 capacity, etc.
 func IsUnfulfillableCapacity(err ec2types.CreateFleetError) bool {
