@@ -92,6 +92,13 @@ Karpenter controller container name
 {{- end -}}
 
 {{/*
+Create the name of the pod disruption budget to use
+*/}}
+{{- define "karpenter.pdbName" -}}
+{{- default (include "karpenter.fullname" .) .Values.podDisruptionBudget.name }}
+{{- end }}
+
+{{/*
 Patch the label selector on an object
 This template will add a labelSelector using matchLabels to the object referenced at _target if there is no labelSelector specified.
 The matchLabels are created with the selectorLabels template.
