@@ -185,7 +185,10 @@ Resources:
             {
               "Sid": "AllowSSMReadActions",
               "Effect": "Allow",
-              "Resource": "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*",
+              "Resource": [
+                "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*",
+                "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/imagebuilder/*"
+              ],
               "Action": "ssm:GetParameter"
             },
             {
