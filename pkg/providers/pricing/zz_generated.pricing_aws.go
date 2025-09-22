@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2025-09-01T13:21:52Z for us-east-1
+// generated at 2025-09-22T13:22:01Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -410,6 +410,11 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"r8gd.48xlarge": 14.108160, "r8gd.4xlarge": 1.175680, "r8gd.8xlarge": 2.351360, "r8gd.large": 0.146960,
 		"r8gd.medium": 0.073480, "r8gd.metal-24xl": 7.759490, "r8gd.metal-48xl": 14.108160,
 		"r8gd.xlarge": 0.293920,
+		// r8gn family
+		"r8gn.12xlarge": 4.372300, "r8gn.16xlarge": 5.829800, "r8gn.24xlarge": 8.744600, "r8gn.2xlarge": 0.728700,
+		"r8gn.48xlarge": 17.489300, "r8gn.4xlarge": 1.457400, "r8gn.8xlarge": 2.914900, "r8gn.large": 0.182200,
+		"r8gn.medium": 0.091100, "r8gn.metal-24xl": 9.269300, "r8gn.metal-48xl": 17.489300,
+		"r8gn.xlarge": 0.364400,
 		// r8i-flex family
 		"r8i-flex.12xlarge": 3.167280, "r8i-flex.16xlarge": 4.223040, "r8i-flex.2xlarge": 0.527880,
 		"r8i-flex.4xlarge": 1.055760, "r8i-flex.8xlarge": 2.111520, "r8i-flex.large": 0.131970,
