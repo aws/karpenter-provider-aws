@@ -23,8 +23,11 @@ import (
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/aws/smithy-go"
 	corev1 "k8s.io/api/core/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -84,6 +87,83 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Entry(v1.ConditionTypeSecurityGroupsReady, v1.ConditionTypeSecurityGroupsReady),
 			Entry(v1.ConditionTypeSubnetsReady, v1.ConditionTypeSubnetsReady),
 		)
+	})
+	Context("CIDR Resolution Precondition", func() {
+		BeforeEach(func() {
+			nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					SubnetSelectorTerms: []v1.SubnetSelectorTerm{
+						{
+							Tags: map[string]string{"*": "*"},
+						},
+					},
+					SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{
+						{
+							Tags: map[string]string{"*": "*"},
+						},
+					},
+					AMIFamily: lo.ToPtr(v1.AMIFamilyCustom),
+					AMISelectorTerms: []v1.AMISelectorTerm{
+						{
+							Tags: map[string]string{"*": "*"},
+						},
+					},
+				},
+			})
+			// Cluster CIDR will only be resolved once per lifetime of the launch template provider, reset to nil between tests
+			awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(nil)
+
+			// Mock EC2 Describe Launch Template API calls to ensure CreateLaunchTemplate validation passes
+			awsEnv.EC2API.DescribeLaunchTemplatesOutput.Set(&ec2.DescribeLaunchTemplatesOutput{
+				LaunchTemplates: []ec2types.LaunchTemplate{
+					{
+						LaunchTemplateName: aws.String("test-lt"),
+						LaunchTemplateId:   aws.String("lt-12345"),
+					},
+				},
+			})
+		})
+		DescribeTable(
+			"shouldn't resolve cluster CIDR for non-AL2023 NodeClasses",
+			func(family string, terms []v1.AMISelectorTerm) {
+				nodeClass.Spec.AMIFamily = lo.ToPtr(family)
+				nodeClass.Spec.AMISelectorTerms = terms
+				ExpectApplied(ctx, env.Client, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				Expect(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load()).To(BeNil())
+			},
+			Entry(v1.AMIFamilyAL2, v1.AMIFamilyAL2, []v1.AMISelectorTerm{{Alias: "al2@latest"}}),
+			Entry(v1.AMIFamilyBottlerocket, v1.AMIFamilyBottlerocket, []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}),
+			Entry(v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2019, []v1.AMISelectorTerm{{Alias: "windows2019@latest"}}),
+			Entry(v1.AMIFamilyWindows2022, v1.AMIFamilyWindows2022, []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}),
+			Entry(v1.AMIFamilyCustom, v1.AMIFamilyCustom, []v1.AMISelectorTerm{{ID: "ami-12345"}}),
+		)
+		It("should resolve cluster CIDR for IPv4 clusters", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("10.100.0.0/16"))
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeValidationSucceeded)).To(BeTrue())
+		})
+		It("should resolve cluster CIDR for IPv6 clusters", func() {
+			awsEnv.EKSAPI.DescribeClusterBehavior.Output.Set(&eks.DescribeClusterOutput{
+				Cluster: &ekstypes.Cluster{
+					KubernetesNetworkConfig: &ekstypes.KubernetesNetworkConfigResponse{
+						ServiceIpv6Cidr: lo.ToPtr("2001:db8::/64"),
+					},
+					Version: lo.ToPtr("1.30"),
+				},
+			})
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("2001:db8::/64"))
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeValidationSucceeded)).To(BeTrue())
+		})
 	})
 	Context("Tag Validation", func() {
 		BeforeEach(func() {
@@ -178,7 +258,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				}, fake.MaxCalls(1))
 			}, nodeclass.ConditionReasonCreateLaunchTemplateAuthFailed),
 		)
-		Context("RunInstances Validation", func() {
+		Context("Instance Type Prioritization Validation", func() {
 			BeforeEach(func() {
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
@@ -227,9 +307,10 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 
 					ExpectApplied(ctx, env.Client, nodeClass)
 					ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-					input := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
-					Expect(input.InstanceType).To(Equal(expectedInstanceType))
-					Expect(input.ImageId).To(PointTo(Equal(expectedAMIID)))
+					launchTemplateInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+					Expect(runInstancesInput.InstanceType).To(Equal(expectedInstanceType))
+					Expect(launchTemplateInput.LaunchTemplateData.ImageId).To(PointTo(Equal(expectedAMIID)))
 				},
 				Entry("m5.large", ec2types.InstanceTypeM5Large, "amd64-ami-id"),
 				Entry("m6g.large", ec2types.InstanceTypeM6gLarge, "arm64-ami-id"),
@@ -258,9 +339,10 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				}}})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-				input := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
-				Expect(input.InstanceType).To(Equal(ec2types.InstanceTypeC6gLarge))
-				Expect(input.ImageId).To(PointTo(Equal("arm64-ami-id")))
+				launchTemplateInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+				runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+				Expect(runInstancesInput.InstanceType).To(Equal(ec2types.InstanceTypeC6gLarge))
+				Expect(launchTemplateInput.LaunchTemplateData.ImageId).To(PointTo(Equal("arm64-ami-id")))
 			})
 			It("should fallback to GPU instances when no non-GPU instances exist", func() {
 				nodePool := coretest.NodePool(karpv1.NodePool{Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{
@@ -285,9 +367,10 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				}}})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-				input := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
-				Expect(input.InstanceType).To(Equal(ec2types.InstanceTypeG4dn8xlarge))
-				Expect(input.ImageId).To(PointTo(Equal("amd64-nvidia-ami-id")))
+				launchTemplateInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+				runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+				Expect(runInstancesInput.InstanceType).To(Equal(ec2types.InstanceTypeG4dn8xlarge))
+				Expect(launchTemplateInput.LaunchTemplateData.ImageId).To(PointTo(Equal("amd64-nvidia-ami-id")))
 			})
 		})
 	})
