@@ -52,6 +52,7 @@ import (
 	pscheduling "sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/utils/daemonset"
 	coreresources "sigs.k8s.io/karpenter/pkg/utils/resources"
 )
 
@@ -636,6 +637,7 @@ func (env *Environment) EventuallyExpectUniqueNodeNames(selector labels.Selector
 
 func (env *Environment) eventuallyExpectScaleDown() {
 	GinkgoHelper()
+	By(fmt.Sprintf("Expecting the cluster to scale down to %d nodes", env.StartingNodeCount))
 	Eventually(func(g Gomega) {
 		// expect the current node count to be what it was when the test started
 		g.Expect(env.Monitor.NodeCount()).To(Equal(env.StartingNodeCount))
@@ -1138,7 +1140,7 @@ func (env *Environment) GetDaemonSetOverhead(np *karpv1.NodePool) corev1.Resourc
 	Expect(env.Client.List(env.Context, daemonSetList)).To(Succeed())
 
 	return coreresources.RequestsForPods(lo.FilterMap(daemonSetList.Items, func(ds appsv1.DaemonSet, _ int) (*corev1.Pod, bool) {
-		p := &corev1.Pod{Spec: ds.Spec.Template.Spec}
+		p := daemonset.PodForDaemonSet(&ds)
 		nodeClaimTemplate := pscheduling.NewNodeClaimTemplate(np)
 		if err := scheduling.Taints(nodeClaimTemplate.Spec.Taints).ToleratesPod(p); err != nil {
 			return nil, false

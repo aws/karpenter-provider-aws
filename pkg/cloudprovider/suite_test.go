@@ -17,7 +17,6 @@ package cloudprovider_test
 import (
 	"context"
 	"fmt"
-	"net"
 	"strings"
 	"testing"
 	"time"
@@ -92,7 +91,7 @@ var _ = BeforeSuite(func() {
 	fakeClock = clock.NewFakeClock(time.Now())
 	recorder = events.NewRecorder(&record.FakeRecorder{})
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.InstanceTypeStore)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock)
 })
@@ -108,9 +107,6 @@ var _ = BeforeEach(func() {
 
 	cluster.Reset()
 	awsEnv.Reset()
-
-	awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
-	awsEnv.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 })
 
 var _ = AfterEach(func() {
@@ -231,9 +227,9 @@ var _ = Describe("CloudProvider", func() {
 		})
 		version := awsEnv.VersionProvider.Get(ctx)
 		awsEnv.SSMAPI.Parameters = map[string]string{
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):       "amd64-ami-id",
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):   "amd64-nvidia-ami-id",
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version): "arm64-ami-id",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", version): "amd64-ami-id",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/nvidia/recommended/image_id", version):   "amd64-nvidia-ami-id",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version):  "arm64-ami-id",
 		}
 	})
 	It("should not proceed with instance creation if NodeClass is unknown", func() {
@@ -319,7 +315,7 @@ var _ = Describe("CloudProvider", func() {
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(BeNil())
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
-		_, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1.AnnotationEC2NodeClassHash]
+		_, ok := cloudProviderNodeClaim.Annotations[v1.AnnotationEC2NodeClassHash]
 		Expect(ok).To(BeTrue())
 	})
 	It("should return NodeClass Hash Version on the nodeClaim", func() {
@@ -327,7 +323,7 @@ var _ = Describe("CloudProvider", func() {
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(BeNil())
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
-		v, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1.AnnotationEC2NodeClassHashVersion]
+		v, ok := cloudProviderNodeClaim.Annotations[v1.AnnotationEC2NodeClassHashVersion]
 		Expect(ok).To(BeTrue())
 		Expect(v).To(Equal(v1.EC2NodeClassHashVersion))
 	})
@@ -1164,11 +1160,11 @@ var _ = Describe("CloudProvider", func() {
 				Expect(isDrifted).To(BeEmpty())
 			})
 			It("should not return drifted if the NodeClaim's karpenter.k8s.aws/ec2nodeclass-hash-version annotation does not match the EC2NodeClass's", func() {
-				nodeClass.ObjectMeta.Annotations = map[string]string{
+				nodeClass.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash:        "test-hash-111111",
 					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-1",
 				}
-				nodeClaim.ObjectMeta.Annotations = map[string]string{
+				nodeClaim.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash:        "test-hash-222222",
 					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
 				}
@@ -1178,10 +1174,10 @@ var _ = Describe("CloudProvider", func() {
 				Expect(isDrifted).To(BeEmpty())
 			})
 			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash-version annotation is not present on the NodeClass", func() {
-				nodeClass.ObjectMeta.Annotations = map[string]string{
+				nodeClass.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash: "test-hash-111111",
 				}
-				nodeClaim.ObjectMeta.Annotations = map[string]string{
+				nodeClaim.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash:        "test-hash-222222",
 					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
 				}
@@ -1195,11 +1191,11 @@ var _ = Describe("CloudProvider", func() {
 				Expect(isDrifted).To(BeEmpty())
 			})
 			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash-version annotation is not present on the NodeClaim", func() {
-				nodeClass.ObjectMeta.Annotations = map[string]string{
+				nodeClass.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash:        "test-hash-111111",
 					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-1",
 				}
-				nodeClaim.ObjectMeta.Annotations = map[string]string{
+				nodeClaim.Annotations = map[string]string{
 					v1.AnnotationEC2NodeClassHash: "test-hash-222222",
 				}
 				// should trigger drift
@@ -1232,9 +1228,9 @@ var _ = Describe("CloudProvider", func() {
 					if ov.InstanceType == "m5.large" {
 						foundNonGPULT = true
 						Expect(v.Overrides).To(ContainElements(
-							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test1"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1a")},
-							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test2"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1b")},
-							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test3"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1c")},
+							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test1"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1a"), Priority: lo.ToPtr(float64(0.096))},
+							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test2"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1b"), Priority: lo.ToPtr(float64(0.096))},
+							ec2types.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test3"), ImageId: ov.ImageId, InstanceType: "m5.large", AvailabilityZone: aws.String("test-zone-1c"), Priority: lo.ToPtr(float64(0.096))},
 						))
 					}
 				}

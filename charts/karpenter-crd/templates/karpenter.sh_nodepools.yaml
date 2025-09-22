@@ -6,7 +6,7 @@ metadata:
     {{- with .Values.additionalAnnotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-    controller-gen.kubebuilder.io/version: v0.18.0
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: nodepools.karpenter.sh
 spec:
   group: karpenter.sh
@@ -210,7 +210,7 @@ spec:
                             - message: label "kubernetes.io/hostname" is restricted
                               rule: self.all(x, x != "kubernetes.io/hostname")
                             - message: label domain "karpenter.k8s.aws" is restricted
-                              rule: self.all(x, x in ["karpenter.k8s.aws/capacity-reservation-type", "karpenter.k8s.aws/capacity-reservation-id", "karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu", "karpenter.k8s.aws/instance-cpu-manufacturer", "karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz", "karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !x.find("^([^/]+)").endsWith("karpenter.k8s.aws"))
+                              rule: self.all(x, x in ["karpenter.k8s.aws/capacity-reservation-type", "karpenter.k8s.aws/capacity-reservation-id", "karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu", "karpenter.k8s.aws/instance-cpu-manufacturer", "karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz", "karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count", "karpenter.k8s.aws/instance-capability-flex"] || !x.find("^([^/]+)").endsWith("karpenter.k8s.aws"))
                       type: object
                     spec:
                       description: |-
@@ -283,7 +283,7 @@ spec:
                                   - message: label "kubernetes.io/hostname" is restricted
                                     rule: self != "kubernetes.io/hostname"
                                   - message: label domain "karpenter.k8s.aws" is restricted
-                                    rule: self in ["karpenter.k8s.aws/capacity-reservation-type", "karpenter.k8s.aws/capacity-reservation-id", "karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu", "karpenter.k8s.aws/instance-cpu-manufacturer", "karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz", "karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
+                                    rule: self in ["karpenter.k8s.aws/capacity-reservation-type", "karpenter.k8s.aws/capacity-reservation-id", "karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu", "karpenter.k8s.aws/instance-cpu-manufacturer", "karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz", "karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count", "karpenter.k8s.aws/instance-capability-flex"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
                               minValues:
                                 description: |-
                                   This field is ALPHA and can be dropped or replaced at any time
@@ -356,9 +356,7 @@ spec:
                                 minLength: 1
                                 pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(\/))?([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
                               timeAdded:
-                                description: |-
-                                  TimeAdded represents the time at which the taint was added.
-                                  It is only written for NoExecute taints.
+                                description: TimeAdded represents the time at which the taint was added.
                                 format: date-time
                                 type: string
                               value:
@@ -393,9 +391,7 @@ spec:
                                 minLength: 1
                                 pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(\/))?([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
                               timeAdded:
-                                description: |-
-                                  TimeAdded represents the time at which the taint was added.
-                                  It is only written for NoExecute taints.
+                                description: TimeAdded represents the time at which the taint was added.
                                 format: date-time
                                 type: string
                               value:

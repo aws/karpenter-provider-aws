@@ -34,6 +34,7 @@ func init() {
 		LabelInstanceHypervisor,
 		LabelInstanceEncryptionInTransitSupported,
 		LabelInstanceCategory,
+		LabelInstanceCapabilityFlex,
 		LabelInstanceFamily,
 		LabelInstanceGeneration,
 		LabelInstanceSize,
@@ -53,6 +54,13 @@ func init() {
 		LabelInstanceAcceleratorCount,
 		LabelTopologyZoneID,
 		corev1.LabelWindowsBuild,
+	)
+	karpv1.WellKnownResources.Insert(
+		ResourceAWSPodENI,
+		ResourceAWSNeuron,
+		ResourceAWSNeuronCore,
+		ResourceHabanaGaudi,
+		ResourceEFA,
 	)
 }
 
@@ -124,6 +132,7 @@ var (
 	LabelInstanceHypervisor                   = apis.Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = apis.Group + "/instance-encryption-in-transit-supported"
 	LabelInstanceCategory                     = apis.Group + "/instance-category"
+	LabelInstanceCapabilityFlex               = apis.Group + "/instance-capability-flex"
 	LabelInstanceFamily                       = apis.Group + "/instance-family"
 	LabelInstanceGeneration                   = apis.Group + "/instance-generation"
 	LabelInstanceLocalNVME                    = apis.Group + "/instance-local-nvme"

@@ -83,7 +83,7 @@ var _ = BeforeSuite(func() {
 	nodeClaim = coretest.NodeClaim()
 	node = coretest.Node()
 	cloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.InstanceTypeStore)
 	controller = controllersinstancetypecapacity.NewController(env.Client, cloudProvider, awsEnv.InstanceTypesProvider)
 })
 
@@ -158,6 +158,7 @@ var _ = Describe("CapacityCache", func() {
 			Capacity: corev1.ResourceList{
 				corev1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi", 3840)),
 			},
+			ProviderID: fake.ProviderID(fake.InstanceID()),
 		})
 		ExpectApplied(ctx, env.Client, node)
 
@@ -174,8 +175,9 @@ var _ = Describe("CapacityCache", func() {
 				Requirements: make([]karpv1.NodeSelectorRequirementWithMinValues, 0),
 			},
 			Status: karpv1.NodeClaimStatus{
-				NodeName: node.Name,
-				ImageID:  nodeClass.Status.AMIs[0].ID,
+				NodeName:   node.Name,
+				ImageID:    nodeClass.Status.AMIs[0].ID,
+				ProviderID: node.Spec.ProviderID,
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClaim)

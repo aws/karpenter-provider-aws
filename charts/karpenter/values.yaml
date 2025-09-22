@@ -121,9 +121,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.6.0
+    tag: 1.7.0
     # -- SHA256 digest of the controller image.
-    digest: sha256:37c761a3a0b485fd34db1390317ef6149141f532c5a699c528b98fb8f9cc722a
+    digest: sha256:40a8887ca47323acecc3c55fbbdde17c925113b5ec1c430733dce0ee67678e42
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -215,6 +215,9 @@ settings:
     # -- nodeRepair is ALPHA and is disabled by default.
     # Setting this to true will enable node repair.
     nodeRepair: false
+    # -- nodeOverlay is ALPHA and is disabled by default.
+    # Setting this will allow the use of node overlay to impact scheduling decisions 
+    nodeOverlay: false
     # -- reservedCapacity is BETA and is enabled by default.
     # Setting this will enable native on-demand capacity reservation support.
     reservedCapacity: true
