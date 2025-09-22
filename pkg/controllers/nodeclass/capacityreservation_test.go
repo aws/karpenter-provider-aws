@@ -19,9 +19,11 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/status"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -248,4 +250,17 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 			Expect(cr.State).To(Equal(v1.CapacityReservationStateActive))
 		}
 	})
+	DescribeTable(
+		"should update status condition on nodeClass as Ready",
+		func(reservedCapacity bool) {
+			coreoptions.FromContext(ctx).FeatureGates.ReservedCapacity = reservedCapacity
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.Status.Conditions).To(HaveLen(lo.Ternary(reservedCapacity, 7, 6)))
+			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
+		},
+		Entry("when reserved capacity feature flag is enabled", true),
+		Entry("when reserved capacity feature flag is disabled", false),
+	)
 })
