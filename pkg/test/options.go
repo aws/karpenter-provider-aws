@@ -48,7 +48,7 @@ func Options(overrides ...OptionsFields) *options.Options {
 		ClusterEndpoint:         lo.FromPtrOr(opts.ClusterEndpoint, "https://test-cluster"),
 		IsolatedVPC:             lo.FromPtrOr(opts.IsolatedVPC, false),
 		EKSControlPlane:         lo.FromPtrOr(opts.EKSControlPlane, false),
-		VMMemoryOverheadPercent: lo.FromPtrOr(opts.VMMemoryOverheadPercent, 0.075),
+		VMMemoryOverheadPercent: lo.FromPtrOr(opts.VMMemoryOverheadPercent, 7.5),
 		InterruptionQueue:       lo.FromPtrOr(opts.InterruptionQueue, ""),
 		ReservedENIs:            lo.FromPtrOr(opts.ReservedENIs, 0),
 		DisableDryRun:           lo.FromPtrOr(opts.DisableDryRun, false),
