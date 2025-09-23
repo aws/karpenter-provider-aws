@@ -105,7 +105,7 @@ func main() {
 		log.Fatalf("Error reading %s: %v\n", redirectsFile, err)
 	}
 	rules = append(rules, RedirectRule{
-		Source: "/<*>",
+		Source: "/",
 		Target: "/index.html",
 		Status: "200",
 	})
