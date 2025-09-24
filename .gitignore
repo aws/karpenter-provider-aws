@@ -6,6 +6,9 @@ coverage.html
 *.heapprofile
 go.work
 go.work.sum
+#Makefile
+#*deployment.yaml
+vendor*
 
 # Environment
 .idea
