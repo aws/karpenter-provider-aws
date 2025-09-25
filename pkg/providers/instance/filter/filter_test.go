@@ -17,6 +17,7 @@ package filter_test
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/awslabs/operatorpkg/option"
@@ -274,7 +275,40 @@ var _ = Describe("InstanceFiltersTest", func() {
 			})
 			expectInstanceTypes(kept, "cheap-instance")
 			expectInstanceTypes(rejected, "expensive-instance")
+			Expect(kept[0].Offerings).To(HaveLen(1))
 		})
+		DescribeTable(
+			"OfferingSelection",
+			func(expectedReservationID string, offerings ...*cloudprovider.Offering) {
+				f := filter.CapacityBlockFilter(
+					scheduling.NewRequirements(scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpExists),
+						scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpNotIn, "forbidden-zone"),
+					))
+				kept, _ := f.FilterReject([]*cloudprovider.InstanceType{makeInstanceType("instance", withOfferings(offerings...))})
+				Expect(kept[0].Offerings).To(HaveLen(1))
+				Expect(kept[0].Offerings[0].ReservationID()).To(Equal(expectedReservationID))
+			},
+			Entry(
+				"should select the cheapest offering",
+				"cheapest",
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(1.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("cheapest")),
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(2.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("expensive")),
+			),
+			Entry(
+				"should not select unavailable offerings",
+				"cheapest-available",
+				makeOffering(karpv1.CapacityTypeReserved, false, withPrice(1.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("cheapest")),
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(1.5), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("cheapest-available")),
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(2.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("expensive")),
+			),
+			Entry(
+				"should not select incompatible offerings",
+				"cheapest-compatible",
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(1.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withZone("forbidden-zone"), withReservationID("cheapest")),
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(1.5), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("cheapest-compatible")),
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(2.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("expensive")),
+			),
+		)
 		DescribeTable(
 			"shouldn't filter instance types when the capacity reservation type is not capacity-block",
 			func(crt v1.CapacityReservationType) {
@@ -291,6 +325,9 @@ var _ = Describe("InstanceFiltersTest", func() {
 				})
 				expectInstanceTypes(kept, "cheap-instance", "expensive-instance")
 				Expect(rejected).To(BeEmpty())
+				for _, it := range kept {
+					Expect(it.Offerings).To(HaveLen(2))
+				}
 			},
 			lo.FilterMap(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) (TableEntry, bool) {
 				return Entry(fmt.Sprintf("when the capacity reservation type is %q", string(crt)), crt), crt != v1.CapacityReservationTypeCapacityBlock
@@ -310,6 +347,9 @@ var _ = Describe("InstanceFiltersTest", func() {
 			})
 			expectInstanceTypes(kept, "cheap-instance", "expensive-instance")
 			Expect(rejected).To(BeEmpty())
+			for _, it := range kept {
+				Expect(it.Offerings).To(HaveLen(2))
+			}
 		})
 	})
 
@@ -666,6 +706,9 @@ func withOfferings(offerings ...*cloudprovider.Offering) mockInstanceTypeOptions
 
 func makeInstanceType(name string, opts ...mockInstanceTypeOptions) *cloudprovider.InstanceType {
 	instanceType := option.Resolve(opts...)
+	rand.Shuffle(len(instanceType.Offerings), func(i, j int) {
+		instanceType.Offerings[i], instanceType.Offerings[j] = instanceType.Offerings[j], instanceType.Offerings[i]
+	})
 	instanceType.Name = name
 	instanceType.Overhead = &cloudprovider.InstanceTypeOverhead{
 		KubeReserved:      corev1.ResourceList{},

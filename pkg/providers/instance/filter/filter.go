@@ -170,6 +170,7 @@ type capacityBlockFilter struct {
 	requirements scheduling.Requirements
 }
 
+//nolint:gocyclo
 func (f capacityBlockFilter) FilterReject(instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
 	if !f.shouldFilter(instanceTypes) {
 		return instanceTypes, nil
@@ -179,6 +180,9 @@ func (f capacityBlockFilter) FilterReject(instanceTypes []*cloudprovider.Instanc
 		var selectedOffering *cloudprovider.Offering
 		for _, o := range it.Offerings {
 			if o.CapacityType() != karpv1.CapacityTypeReserved {
+				continue
+			}
+			if !o.Available || !f.requirements.IsCompatible(o.Requirements, scheduling.AllowUndefinedWellKnownLabels) {
 				continue
 			}
 			if o.Requirements.Get(v1.LabelCapacityReservationType).Any() != string(v1.CapacityReservationTypeCapacityBlock) {
