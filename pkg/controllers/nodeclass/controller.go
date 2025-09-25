@@ -93,7 +93,6 @@ func NewController(
 			NewSecurityGroupReconciler(securityGroupProvider),
 			NewInstanceProfileReconciler(instanceProfileProvider),
 			validation,
-			NewReadinessReconciler(launchTemplateProvider),
 		},
 	}
 }
