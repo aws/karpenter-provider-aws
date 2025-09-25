@@ -1701,7 +1701,50 @@ eviction-max-pod-grace-period = 10
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.ClusterDNSIP).ToNot(BeNil())
-					Expect(*config.Settings.Kubernetes.ClusterDNSIP).To(Equal("10.0.100.10"))
+					Expect(config.Settings.Kubernetes.ClusterDNSIP.String()).To(Equal("10.0.100.10"))
+				})
+			})
+			It("should handle backward compatibility for cluster-dns-ip string", func() {
+				// Test backward compatibility: existing TOML with cluster-dns-ip as string
+				tomlData := `[settings.kubernetes]
+cluster-dns-ip = "10.0.100.10"`
+				config := &bootstrap.BottlerocketConfig{}
+				Expect(config.UnmarshalTOML([]byte(tomlData))).To(Succeed())
+				
+				// ClusterDNSIP should contain the string value
+				Expect(config.Settings.Kubernetes.ClusterDNSIP.String()).To(Equal("10.0.100.10"))
+				Expect(config.Settings.Kubernetes.ClusterDNSIP.Values()).To(Equal([]string{"10.0.100.10"}))
+			})
+			It("should support multiple DNS servers with cluster-dns-ip array", func() {
+				// Test new functionality: multiple DNS servers as array
+				tomlData := `[settings.kubernetes]
+cluster-dns-ip = ["10.0.100.10", "10.0.100.11"]`
+				config := &bootstrap.BottlerocketConfig{}
+				Expect(config.UnmarshalTOML([]byte(tomlData))).To(Succeed())
+				
+				// ClusterDNSIP should contain the array
+				Expect(config.Settings.Kubernetes.ClusterDNSIP.Values()).To(HaveLen(2))
+				Expect(config.Settings.Kubernetes.ClusterDNSIP.Values()[0]).To(Equal("10.0.100.10"))
+				Expect(config.Settings.Kubernetes.ClusterDNSIP.Values()[1]).To(Equal("10.0.100.11"))
+				Expect(config.Settings.Kubernetes.ClusterDNSIP.String()).To(Equal("10.0.100.10")) // First one for backward compatibility
+			})
+			It("should pass multiple ClusterDNS entries", func() {
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					ClusterDNS: []string{"10.0.100.10", "10.0.100.11"},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
+					Expect(err).To(BeNil())
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.Settings.Kubernetes.ClusterDNSIP.Values()).To(HaveLen(2))
+					Expect(config.Settings.Kubernetes.ClusterDNSIP.Values()[0]).To(Equal("10.0.100.10"))
+					Expect(config.Settings.Kubernetes.ClusterDNSIP.Values()[1]).To(Equal("10.0.100.11"))
 				})
 			})
 			It("should pass CPUCFSQuota when specified", func() {
