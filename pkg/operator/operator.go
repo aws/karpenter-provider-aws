@@ -99,7 +99,10 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	cfg.APIOptions = append(cfg.APIOptions, middleware.StructuredErrorHandler)
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
-		region := lo.Must(imds.NewFromConfig(cfg).GetRegion(ctx, nil))
+		region, err := imds.NewFromConfig(cfg).GetRegion(ctx, nil)
+		if err != nil {
+			lo.Must0(fmt.Errorf("unable to determine region from IMDS: %w", err))
+		}
 		cfg.Region = region.Region
 	}
 	ec2api := ec2.NewFromConfig(cfg)
