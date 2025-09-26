@@ -119,6 +119,9 @@ type EC2NodeClassSpec struct {
 	// InstanceStorePolicy specifies how to handle instance-store disks.
 	// +optional
 	InstanceStorePolicy *InstanceStorePolicy `json:"instanceStorePolicy,omitempty"`
+	// DisabledMounts specifies directories that should not be mounted onto local storage
+	// +optional
+	DisabledMounts []DisabledMount `json:"disabledMounts,omitempty"`
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
 	// +optional
 	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
@@ -454,6 +457,17 @@ const (
 	InstanceStorePolicyRAID0 InstanceStorePolicy = "RAID0"
 )
 
+// DisabledMount enumerates options for directories that should not be mounted onto local storage
+// +kubebuilder:validation:Enum={Containerd, PodLogs}
+type DisabledMount string
+
+const (
+	// DisabledMountContainerd refers to `/var/lib/containerd`
+	DisabledMountContainerd DisabledMount = "Containerd"
+	// DisabledMountPodLogs refers to `/var/log/pods`
+	DisabledMountPodLogs DisabledMount = "PodLogs"
+)
+
 // EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
@@ -524,6 +538,10 @@ func (in *EC2NodeClass) BlockDeviceMappings() []*BlockDeviceMapping {
 
 func (in *EC2NodeClass) InstanceStorePolicy() *InstanceStorePolicy {
 	return in.Spec.InstanceStorePolicy
+}
+
+func (in *EC2NodeClass) DisabledMounts() []DisabledMount {
+	return in.Spec.DisabledMounts
 }
 
 func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {

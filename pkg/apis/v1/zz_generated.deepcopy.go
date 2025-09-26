@@ -353,6 +353,11 @@ func (in *EC2NodeClassSpec) DeepCopyInto(out *EC2NodeClassSpec) {
 		*out = new(InstanceStorePolicy)
 		**out = **in
 	}
+	if in.DisabledMounts != nil {
+		in, out := &in.DisabledMounts, &out.DisabledMounts
+		*out = make([]DisabledMount, len(*in))
+		copy(*out, *in)
+	}
 	if in.DetailedMonitoring != nil {
 		in, out := &in.DetailedMonitoring, &out.DetailedMonitoring
 		*out = new(bool)
