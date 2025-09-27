@@ -18,6 +18,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
@@ -29,6 +30,8 @@ import (
 
 type Bottlerocket struct {
 	Options
+	AMIVersion       string
+	AMISelectorTerms []v1.AMISelectorTerm
 }
 
 // nolint:gocyclo
@@ -95,8 +98,17 @@ func (b Bottlerocket) Script() (string, error) {
 		if s.Settings.BootstrapCommands == nil {
 			s.Settings.BootstrapCommands = map[string]BootstrapCommand{}
 		}
+		// Check Bottlerocket version and set appropriate bind command
+		var bindCmd []string
+		// fmt.Println("AMI VERSION", b.AMIVersion)
+		if supportsDefaultBind(b.AMIVersion) {
+			bindCmd = []string{"apiclient", "ephemeral-storage", "bind"}
+		} else {
+			bindCmd = []string{"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}
+		}
+
 		s.Settings.BootstrapCommands["000-mount-instance-storage"] = BootstrapCommand{
-			Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}},
+			Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, bindCmd},
 			Essential: true,
 			Mode:      BootstrapCommandModeAlways,
 		}
@@ -106,4 +118,33 @@ func (b Bottlerocket) Script() (string, error) {
 		return "", fmt.Errorf("constructing toml UserData %w", err)
 	}
 	return base64.StdEncoding.EncodeToString(script), nil
+}
+
+// supportsDefaultBind checks if the AMI version is >= 1.46.0
+func supportsDefaultBind(amiVersion string) bool {
+	if amiVersion == "" {
+		return false
+	}
+
+	// Handle @latest - assume it's the newest version
+	if amiVersion == "latest" {
+		return true
+	}
+
+	version := strings.TrimLeft(amiVersion, "v")
+	parts := strings.Split(version, ".")
+	if len(parts) < 3 {
+		return false
+	}
+
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return false
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return false
+	}
+
+	return major > 1 || (major == 1 && minor >= 46)
 }
