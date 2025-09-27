@@ -483,6 +483,19 @@ The AllowInstanceProfileReadActions Sid gives the Karpenter controller permissio
 }
 ```
 
+#### AllowUnscopedInstanceProfileListAction
+
+The AllowUnscopedInstanceProfileListAction Sid gives the Karpenter controller permission to perform [`iam:ListInstanceProfiles`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListInstanceProfiles.html) action to list instance profiles.
+
+```json
+{
+  "Sid": "AllowUnscopedInstanceProfileListAction",
+  "Effect": "Allow",
+  "Resource": "*",
+  "Action": "iam:ListInstanceProfiles"
+}
+```
+
 #### AllowAPIServerEndpointDiscovery
 
 You can optionally allow the Karpenter controller to discover the Kubernetes cluster's external API endpoint to enable EC2 nodes to successfully join the EKS cluster.
@@ -490,6 +503,7 @@ You can optionally allow the Karpenter controller to discover the Kubernetes clu
 > **Note**: If you are not using an EKS control plane, you will have to specify this endpoint explicitly. See the description of the `aws.clusterEndpoint` setting in the [ConfigMap](.settings/#configmap) documentation for details.
 
 The AllowAPIServerEndpointDiscovery Sid allows the Karpenter controller to get that information (`eks:DescribeCluster`) for the cluster (`cluster/${ClusterName}`).
+
 ```json
 {
   "Sid": "AllowAPIServerEndpointDiscovery",
