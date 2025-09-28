@@ -209,6 +209,7 @@ func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC
 		ClusterCIDR:              p.ClusterCIDR.Load(),
 		InstanceProfile:          nodeClass.Status.InstanceProfile,
 		InstanceStorePolicy:      nodeClass.Spec.InstanceStorePolicy,
+		DisabledMounts:           nodeClass.Spec.DisabledMounts,
 		SecurityGroups:           nodeClass.Status.SecurityGroups,
 		Tags:                     tags,
 		Labels:                   labels,

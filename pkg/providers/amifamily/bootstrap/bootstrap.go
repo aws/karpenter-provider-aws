@@ -38,6 +38,7 @@ type Options struct {
 	ContainerRuntime    *string
 	CustomUserData      *string
 	InstanceStorePolicy *v1.InstanceStorePolicy
+	DisabledMounts      []v1.DisabledMount
 }
 
 func (o Options) kubeletExtraArgs() (args []string) {

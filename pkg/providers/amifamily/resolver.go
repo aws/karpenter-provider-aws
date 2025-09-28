@@ -60,6 +60,7 @@ type Options struct {
 	InstanceProfile     string
 	CABundle            *string `hash:"ignore"`
 	InstanceStorePolicy *v1.InstanceStorePolicy
+	DisabledMounts      []v1.DisabledMount
 	// Level-triggered fields that may change out of sync.
 	SecurityGroups           []v1.SecurityGroup
 	Tags                     map[string]string
@@ -88,7 +89,7 @@ type LaunchTemplate struct {
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
 	DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error)
-	UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper
+	UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy, disableMounts []v1.DisabledMount) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1.MetadataOptions
 	EphemeralBlockDevice() *string
@@ -296,6 +297,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 				instanceTypes,
 				nodeClass.Spec.UserData,
 				options.InstanceStorePolicy,
+				options.DisabledMounts,
 			),
 			BlockDeviceMappings:     nodeClass.Spec.BlockDeviceMappings,
 			MetadataOptions:         nodeClass.Spec.MetadataOptions,

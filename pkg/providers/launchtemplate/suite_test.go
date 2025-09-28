@@ -1431,7 +1431,61 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
 			ExpectLaunchTemplatesCreatedWithUserDataContaining(`
 [settings.bootstrap-commands.000-mount-instance-storage]
-commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/containerd', '/var/lib/kubelet', '/var/log/pods']]
+commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/kubelet', '/var/lib/containerd', '/var/log/pods']]
+mode = 'always'
+essential = true
+`)
+		})
+		It("should specify --no-bind-containerd when DisabledMountContainerd is set on AL2", func() {
+			nodeClass.Spec.DisabledMounts = []v1.DisabledMount{v1.DisabledMountContainerd}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--no-bind-containerd")
+		})
+		It("should not contain /var/lib/containerd bootstrap-command when DisabledMountContainerd is set on Bottlerocket", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
+			nodeClass.Spec.DisabledMounts = []v1.DisabledMount{v1.DisabledMountContainerd}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			ExpectLaunchTemplatesCreatedWithUserDataContaining(`
+[settings.bootstrap-commands.000-mount-instance-storage]
+commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/kubelet', '/var/log/pods']]
+mode = 'always'
+essential = true
+`)
+		})
+		It("should specify --no-bind-pods-logs when DisabledMountPodLogs is set on AL2", func() {
+			nodeClass.Spec.DisabledMounts = []v1.DisabledMount{v1.DisabledMountPodLogs}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--no-bind-pods-logs")
+		})
+		It("should not contain /var/log/pods bootstrap-command when DisabledMountPodLogs is set on Bottlerocket", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
+			nodeClass.Spec.DisabledMounts = []v1.DisabledMount{v1.DisabledMountPodLogs}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			ExpectLaunchTemplatesCreatedWithUserDataContaining(`
+[settings.bootstrap-commands.000-mount-instance-storage]
+commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/kubelet', '/var/lib/containerd']]
 mode = 'always'
 essential = true
 `)
@@ -1454,7 +1508,7 @@ essential = true
 			ExpectLaunchTemplatesCreatedWithUserDataContaining(`
 [settings.bootstrap-commands]
 [settings.bootstrap-commands.000-mount-instance-storage]
-commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/containerd', '/var/lib/kubelet', '/var/log/pods']]
+commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/kubelet', '/var/lib/containerd', '/var/log/pods']]
 mode = 'always'
 essential = true
 
@@ -2019,6 +2073,24 @@ eviction-max-pod-grace-period = 10
 					configs := ExpectParseNodeConfigs(userData)
 					Expect(len(configs)).To(Equal(1))
 					Expect(configs[0].Spec.Instance.LocalStorage.Strategy).To(Equal(admv1alpha1.LocalStorageRAID0))
+				}
+			})
+			It("should set DisabledMounts correctly", func() {
+				nodeClass.Spec.DisabledMounts = []v1.DisabledMount{
+					v1.DisabledMountContainerd,
+					v1.DisabledMountPodLogs,
+				}
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+					configs := ExpectUserDataCreatedWithNodeConfigs(userData)
+					Expect(len(configs)).To(Equal(1))
+					Expect(configs[0].Spec.Instance.LocalStorage.DisabledMounts).To(Equal([]admv1alpha1.DisabledMount{
+						admv1alpha1.DisabledMountContainerd,
+						admv1alpha1.DisabledMountPodLogs,
+					}))
 				}
 			})
 			DescribeTable(

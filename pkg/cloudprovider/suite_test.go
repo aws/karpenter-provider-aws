@@ -1125,6 +1125,15 @@ var _ = Describe("CloudProvider", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(isDrifted).To(Equal(cloudprovider.NodeClassDrift))
 			})
+			It("should return drifted when updating disabledMounts", func() {
+				nodeClass.Spec.DisabledMounts = []v1.DisabledMount{v1.DisabledMountContainerd}
+				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
+
+				ExpectApplied(ctx, env.Client, nodeClass)
+				isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(isDrifted).To(Equal(cloudprovider.NodeClassDrift))
+			})
 			DescribeTable("should not return drifted if dynamic fields are updated",
 				func(changes v1.EC2NodeClass) {
 					ExpectApplied(ctx, env.Client, nodePool, nodeClass)

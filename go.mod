@@ -21,7 +21,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.35.3
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
 	github.com/aws/smithy-go v1.23.0
-	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
+	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20250712001701-a2db3a97ee74
 	github.com/awslabs/operatorpkg v0.0.0-20250909182303-e8e550b6f339
 	github.com/awslabs/operatorpkg/aws v0.0.0-20250414225955-b47cd315ffe9
 	github.com/docker/docker v28.4.0+incompatible

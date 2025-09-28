@@ -25,6 +25,7 @@ import (
 	"net"
 	"net/mail"
 	"net/textproto"
+	"slices"
 	"strings"
 
 	"github.com/samber/lo"
@@ -79,6 +80,12 @@ func (e EKS) eksBootstrapScript() string {
 	}
 	if lo.FromPtr(e.InstanceStorePolicy) == v1.InstanceStorePolicyRAID0 {
 		userData.WriteString(" \\\n--local-disks raid0")
+	}
+	if slices.Contains(e.DisabledMounts, v1.DisabledMountContainerd) {
+		userData.WriteString(" \\\n--no-bind-containerd")
+	}
+	if slices.Contains(e.DisabledMounts, v1.DisabledMountPodLogs) {
+		userData.WriteString(" \\\n--no-bind-pods-logs")
 	}
 	return userData.String()
 }
