@@ -32,11 +32,9 @@ spec:
     - key: node.kubernetes.io/instance-type
       operator: In
       values: ["m5.large", "m5.xlarge"]
-    # or 
     - key: karpenter.sh/capacity-type  
       operator: In
       values: ["spot"]
-    # or 
     - key: karpenter.k8s.aws/instance-cpu 
       operator: Gt
       values: ["32"]
