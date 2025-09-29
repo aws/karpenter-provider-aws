@@ -1700,8 +1700,74 @@ eviction-max-pod-grace-period = 10
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
-					Expect(config.Settings.Kubernetes.ClusterDNSIP).ToNot(BeNil())
-					Expect(*config.Settings.Kubernetes.ClusterDNSIP).To(Equal("10.0.100.10"))
+					Expect(config.Settings.Kubernetes.ClusterDNSIP).ToNot(BeEmpty())
+					Expect(config.Settings.Kubernetes.ClusterDNSIP).To(ContainElement("10.0.100.10"))
+				})
+			})
+			It("should pass multiple ClusterDNSIPs when configured", func() {
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					ClusterDNS: []string{"1.1.1.1", "2.2.2.2"},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
+					Expect(err).To(BeNil())
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.Settings.Kubernetes.ClusterDNSIP).To(HaveLen(2))
+					Expect(config.Settings.Kubernetes.ClusterDNSIP).To(ContainElements("1.1.1.1", "2.2.2.2"))
+				})
+			})
+			It("should handle custom user data with single ClusterDNSIP as string", func() {
+				customUserData := `[settings]
+[settings.kubernetes]
+cluster-dns-ip = "8.8.8.8"
+max-pods = 50`
+				nodeClass.Spec.UserData = aws.String(customUserData)
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
+					Expect(err).To(BeNil())
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.Settings.Kubernetes.ClusterDNSIP).To(HaveLen(1))
+					Expect(config.Settings.Kubernetes.ClusterDNSIP).To(ContainElement("8.8.8.8"))
+					Expect(*config.Settings.Kubernetes.MaxPods).To(Equal(50))
+				})
+			})
+			It("should override custom user data ClusterDNSIP with KubeletConfig values", func() {
+				customUserData := `[settings]
+[settings.kubernetes]
+cluster-dns-ip = "8.8.8.8"
+max-pods = 50`
+				nodeClass.Spec.UserData = aws.String(customUserData)
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					ClusterDNS: []string{"1.1.1.1", "2.2.2.2"},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
+					Expect(err).To(BeNil())
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					// Should have KubeletConfig values, not custom user data values
+					Expect(config.Settings.Kubernetes.ClusterDNSIP).To(HaveLen(2))
+					Expect(config.Settings.Kubernetes.ClusterDNSIP).To(ContainElements("1.1.1.1", "2.2.2.2"))
+					Expect(config.Settings.Kubernetes.ClusterDNSIP).ToNot(ContainElement("8.8.8.8"))
+					// But should preserve other custom settings
+					Expect(*config.Settings.Kubernetes.MaxPods).To(Equal(50))
 				})
 			})
 			It("should pass CPUCFSQuota when specified", func() {

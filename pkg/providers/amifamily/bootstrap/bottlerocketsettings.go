@@ -48,7 +48,7 @@ type BottlerocketKubernetes struct {
 	CloudProvider                      *string                                   `toml:"cloud-provider"`
 	ClusterCertificate                 *string                                   `toml:"cluster-certificate"`
 	ClusterName                        *string                                   `toml:"cluster-name"`
-	ClusterDNSIP                       *string                                   `toml:"cluster-dns-ip,omitempty"`
+	ClusterDNSIP                       []string                                  `toml:"cluster-dns-ip,omitempty"`
 	CredentialProviders                map[string]BottlerocketCredentialProvider `toml:"credential-providers,omitempty"`
 	NodeLabels                         map[string]string                         `toml:"node-labels,omitempty"`
 	NodeTaints                         map[string][]string                       `toml:"node-taints,omitempty"`
@@ -118,15 +118,49 @@ type BootstrapCommand struct {
 }
 
 func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
+	// First unmarshal into a raw structure to handle cluster-dns-ip flexibility
+	var raw map[string]interface{}
+	if err := toml.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	// Handle cluster-dns-ip conversion from string to array if needed
+	if settings, ok := raw["settings"].(map[string]interface{}); ok {
+		if kubernetes, ok := settings["kubernetes"].(map[string]interface{}); ok {
+			if clusterDNSIP, exists := kubernetes["cluster-dns-ip"]; exists {
+				switch v := clusterDNSIP.(type) {
+				case string:
+					// Convert single string to array
+					kubernetes["cluster-dns-ip"] = []string{v}
+				case []interface{}:
+					// Convert []interface{} to []string
+					strArray := make([]string, len(v))
+					for i, item := range v {
+						if str, ok := item.(string); ok {
+							strArray[i] = str
+						}
+					}
+					kubernetes["cluster-dns-ip"] = strArray
+				}
+			}
+		}
+	}
+
+	// Re-marshal the modified data
+	modifiedData, err := toml.Marshal(raw)
+	if err != nil {
+		return err
+	}
+
 	// unmarshal known settings
 	s := struct {
 		Settings BottlerocketSettings `toml:"settings"`
 	}{}
-	if err := toml.Unmarshal(data, &s); err != nil {
+	if err := toml.Unmarshal(modifiedData, &s); err != nil {
 		return err
 	}
 	// unmarshal untyped settings
-	if err := toml.Unmarshal(data, c); err != nil {
+	if err := toml.Unmarshal(modifiedData, c); err != nil {
 		return err
 	}
 	c.Settings = s.Settings
