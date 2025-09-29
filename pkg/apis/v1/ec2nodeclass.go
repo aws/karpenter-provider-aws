@@ -47,8 +47,8 @@ type EC2NodeClassSpec struct {
 	SecurityGroupSelectorTerms []SecurityGroupSelectorTerm `json:"securityGroupSelectorTerms" hash:"ignore"`
 	// CapacityReservationSelectorTerms is a list of capacity reservation selector terms. Each term is ORed together to
 	// determine the set of eligible capacity reservations.
-	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id']",rule="self.all(x, has(x.tags) || has(x.id))"
-	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set along with tags in a capacity reservation selector term",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID)))"
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'instanceMatchCriteria']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.instanceMatchCriteria))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))"
 	// +kubebuilder:validation:MaxItems:=30
 	// +optional
 	CapacityReservationSelectorTerms []CapacityReservationSelectorTerm `json:"capacityReservationSelectorTerms" hash:"ignore"`
@@ -193,6 +193,10 @@ type CapacityReservationSelectorTerm struct {
 	// +kubebuilder:validation:Pattern:="^[0-9]{12}$"
 	// +optional
 	OwnerID string `json:"ownerID,omitempty"`
+	// InstanceMatchCriteria specifies how instances are matched to capacity reservations.
+	// +kubebuilder:validation:Enum:={open,targeted}
+	// +optional
+	InstanceMatchCriteria string `json:"instanceMatchCriteria,omitempty"`
 }
 
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.

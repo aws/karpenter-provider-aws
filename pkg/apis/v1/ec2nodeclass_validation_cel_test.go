@@ -548,6 +548,50 @@ var _ = Describe("CEL/Validation", func() {
 			}}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
+		It("should succeed with a valid instanceMatchCriteria 'open'", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				InstanceMatchCriteria: "open",
+			}}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with a valid instanceMatchCriteria 'targeted'", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				InstanceMatchCriteria: "targeted",
+			}}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with instanceMatchCriteria combined with tags", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				InstanceMatchCriteria: "open",
+				Tags: map[string]string{
+					"test": "testvalue",
+				},
+			}}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with instanceMatchCriteria combined with ownerID and tags", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				InstanceMatchCriteria: "targeted",
+				OwnerID:               "012345678901",
+				Tags: map[string]string{
+					"test": "testvalue",
+				},
+			}}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail with invalid instanceMatchCriteria value", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				InstanceMatchCriteria: "invalid",
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when specifying id with instanceMatchCriteria", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				ID:                    "cr-12345749",
+				InstanceMatchCriteria: "open",
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
 	})
 	Context("AMISelectorTerms", func() {
 		It("should succeed with a valid ami selector on alias", func() {
