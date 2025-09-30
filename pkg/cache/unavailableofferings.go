@@ -90,13 +90,14 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType,
 }
 
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
-func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason string, instanceType ec2types.InstanceType, zone, capacityType string) {
+func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason string, instanceType ec2types.InstanceType, zone, capacityType, fleetID string) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	log.FromContext(ctx).WithValues(
 		"reason", unavailableReason,
 		"instance-type", instanceType,
 		"zone", zone,
 		"capacity-type", capacityType,
+		"fleet-id", fleetID,
 		"ttl", UnavailableOfferingsTTL).V(1).Info("removing offering from offerings")
 	u.offeringCache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
 	u.offeringCacheSeqNumMu.Lock()
@@ -104,10 +105,10 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableR
 	u.offeringCacheSeqNumMu.Unlock()
 }
 
-func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr ec2types.CreateFleetError, capacityType string) {
+func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr ec2types.CreateFleetError, capacityType, fleetID string) {
 	instanceType := fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType
 	zone := aws.ToString(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
-	u.MarkUnavailable(ctx, lo.FromPtr(fleetErr.ErrorCode), instanceType, zone, capacityType)
+	u.MarkUnavailable(ctx, lo.FromPtr(fleetErr.ErrorCode), instanceType, zone, capacityType, fleetID)
 }
 
 func (u *UnavailableOfferings) MarkCapacityTypeUnavailable(capacityType string) {
