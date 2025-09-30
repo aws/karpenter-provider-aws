@@ -171,9 +171,53 @@ func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 	if c.SettingsRaw == nil {
 		c.SettingsRaw = map[string]interface{}{}
 	}
-	c.SettingsRaw["kubernetes"] = c.Settings.Kubernetes
+
+	// Create a copy of Kubernetes settings with proper DNS IP formatting
+	kubernetesSettings := c.FormatKubernetesSettings()
+	c.SettingsRaw["kubernetes"] = kubernetesSettings
+
 	if c.Settings.BootstrapCommands != nil {
 		c.SettingsRaw["bootstrap-commands"] = c.Settings.BootstrapCommands
 	}
 	return toml.Marshal(c)
+}
+
+// FormatKubernetesSettings creates a properly formatted map for Kubernetes settings
+// with special handling for cluster-dns-ip to output single IPs as strings
+func (c *BottlerocketConfig) FormatKubernetesSettings() map[string]interface{} {
+	// Convert struct to map
+	kubernetesBytes, err := toml.Marshal(c.Settings.Kubernetes)
+	if err != nil {
+		// Fallback to direct conversion if marshaling fails
+		return map[string]interface{}{}
+	}
+
+	var kubernetesMap map[string]interface{}
+	if err := toml.Unmarshal(kubernetesBytes, &kubernetesMap); err != nil {
+		return map[string]interface{}{}
+	}
+
+	// Format cluster-dns-ip for optimal TOML output
+	c.formatClusterDNSIP(kubernetesMap)
+
+	return kubernetesMap
+}
+
+// formatClusterDNSIP formats the cluster-dns-ip field for TOML serialization
+// Single IPs are output as strings, multiple IPs as arrays
+func (c *BottlerocketConfig) formatClusterDNSIP(kubernetesMap map[string]interface{}) {
+	clusterDNSIP, exists := kubernetesMap["cluster-dns-ip"]
+	if !exists {
+		return
+	}
+
+	dnsArray, ok := clusterDNSIP.([]interface{})
+	if !ok {
+		return
+	}
+
+	// Convert single-element array to string for cleaner TOML output
+	if len(dnsArray) == 1 {
+		kubernetesMap["cluster-dns-ip"] = dnsArray[0]
+	}
 }

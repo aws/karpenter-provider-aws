@@ -58,7 +58,7 @@ var _ = Describe("Bottlerocket Configuration", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			tomlContent := string(decoded)
-			Expect(tomlContent).To(ContainSubstring("cluster-dns-ip = ['10.0.0.10']"))
+			Expect(tomlContent).To(ContainSubstring("cluster-dns-ip = '10.0.0.10'"))
 		})
 
 		It("should handle multiple DNS IPs from KubeletConfig", func() {
@@ -251,6 +251,48 @@ cluster-dns-ip = ["8.8.8.8", "8.8.4.4"]`
 			Expect(tomlContent).To(ContainSubstring("max-pods = 250"))
 			Expect(tomlContent).To(ContainSubstring("[settings.kubernetes.system-reserved]"))
 			Expect(tomlContent).To(ContainSubstring("[settings.kubernetes.kube-reserved]"))
+		})
+	})
+
+	Context("DNS IP Formatting", func() {
+		It("should format single DNS IP as string in TOML", func() {
+			config := &bootstrap.BottlerocketConfig{
+				Settings: bootstrap.BottlerocketSettings{
+					Kubernetes: bootstrap.BottlerocketKubernetes{
+						ClusterDNSIP: []string{"10.0.0.10"},
+					},
+				},
+			}
+
+			formatted := config.FormatKubernetesSettings()
+			Expect(formatted["cluster-dns-ip"]).To(Equal("10.0.0.10"))
+		})
+
+		It("should format multiple DNS IPs as array in TOML", func() {
+			config := &bootstrap.BottlerocketConfig{
+				Settings: bootstrap.BottlerocketSettings{
+					Kubernetes: bootstrap.BottlerocketKubernetes{
+						ClusterDNSIP: []string{"1.1.1.1", "2.2.2.2"},
+					},
+				},
+			}
+
+			formatted := config.FormatKubernetesSettings()
+			Expect(formatted["cluster-dns-ip"]).To(Equal([]interface{}{"1.1.1.1", "2.2.2.2"}))
+		})
+
+		It("should handle empty DNS IP array", func() {
+			config := &bootstrap.BottlerocketConfig{
+				Settings: bootstrap.BottlerocketSettings{
+					Kubernetes: bootstrap.BottlerocketKubernetes{
+						ClusterDNSIP: []string{},
+					},
+				},
+			}
+
+			formatted := config.FormatKubernetesSettings()
+			// Empty arrays are omitted from TOML output, so the key should not exist
+			Expect(formatted).ToNot(HaveKey("cluster-dns-ip"))
 		})
 	})
 })
