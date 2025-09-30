@@ -118,36 +118,8 @@ type BootstrapCommand struct {
 }
 
 func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
-	// First unmarshal into a raw structure to handle cluster-dns-ip flexibility
-	var raw map[string]interface{}
-	if err := toml.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-
-	// Handle cluster-dns-ip conversion from string to array if needed
-	if settings, ok := raw["settings"].(map[string]interface{}); ok {
-		if kubernetes, ok := settings["kubernetes"].(map[string]interface{}); ok {
-			if clusterDNSIP, exists := kubernetes["cluster-dns-ip"]; exists {
-				switch v := clusterDNSIP.(type) {
-				case string:
-					// Convert single string to array
-					kubernetes["cluster-dns-ip"] = []string{v}
-				case []interface{}:
-					// Convert []interface{} to []string
-					strArray := make([]string, len(v))
-					for i, item := range v {
-						if str, ok := item.(string); ok {
-							strArray[i] = str
-						}
-					}
-					kubernetes["cluster-dns-ip"] = strArray
-				}
-			}
-		}
-	}
-
-	// Re-marshal the modified data
-	modifiedData, err := toml.Marshal(raw)
+	// Handle cluster-dns-ip flexibility by preprocessing the TOML
+	processedData, err := c.preprocessTOML(data)
 	if err != nil {
 		return err
 	}
@@ -156,15 +128,36 @@ func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
 	s := struct {
 		Settings BottlerocketSettings `toml:"settings"`
 	}{}
-	if err := toml.Unmarshal(modifiedData, &s); err != nil {
+	if err := toml.Unmarshal(processedData, &s); err != nil {
 		return err
 	}
 	// unmarshal untyped settings
-	if err := toml.Unmarshal(modifiedData, c); err != nil {
+	if err := toml.Unmarshal(processedData, c); err != nil {
 		return err
 	}
 	c.Settings = s.Settings
 	return nil
+}
+
+// preprocessTOML handles cluster-dns-ip flexibility by converting strings to arrays
+func (c *BottlerocketConfig) preprocessTOML(data []byte) ([]byte, error) {
+	var raw map[string]interface{}
+	if err := toml.Unmarshal(data, &raw); err != nil {
+		return data, err // Return original data if parsing fails
+	}
+
+	// Convert cluster-dns-ip from string to array if needed
+	if settings, ok := raw["settings"].(map[string]interface{}); ok {
+		if kubernetes, ok := settings["kubernetes"].(map[string]interface{}); ok {
+			if clusterDNSIP, exists := kubernetes["cluster-dns-ip"]; exists {
+				if str, ok := clusterDNSIP.(string); ok {
+					kubernetes["cluster-dns-ip"] = []string{str}
+				}
+			}
+		}
+	}
+
+	return toml.Marshal(raw)
 }
 
 func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
