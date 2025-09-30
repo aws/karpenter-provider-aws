@@ -160,7 +160,7 @@ func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 		c.SettingsRaw = map[string]interface{}{}
 	}
 
-	kubernetesSettings := c.FormatKubernetesSettings()
+	kubernetesSettings := c.formatKubernetesSettings()
 	c.SettingsRaw["kubernetes"] = kubernetesSettings
 
 	if c.Settings.BootstrapCommands != nil {
@@ -169,7 +169,7 @@ func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 	return toml.Marshal(c)
 }
 
-func (c *BottlerocketConfig) FormatKubernetesSettings() map[string]interface{} {
+func (c *BottlerocketConfig) formatKubernetesSettings() map[string]interface{} {
 	kubernetesBytes, err := toml.Marshal(c.Settings.Kubernetes)
 	if err != nil {
 		return map[string]interface{}{}
@@ -180,22 +180,11 @@ func (c *BottlerocketConfig) FormatKubernetesSettings() map[string]interface{} {
 		return map[string]interface{}{}
 	}
 
-	c.formatClusterDNSIP(kubernetesMap)
+	if clusterDNSIP, exists := kubernetesMap["cluster-dns-ip"]; exists {
+		if dnsArray, ok := clusterDNSIP.([]interface{}); ok && len(dnsArray) == 1 {
+			kubernetesMap["cluster-dns-ip"] = dnsArray[0]
+		}
+	}
+
 	return kubernetesMap
-}
-
-func (c *BottlerocketConfig) formatClusterDNSIP(kubernetesMap map[string]interface{}) {
-	clusterDNSIP, exists := kubernetesMap["cluster-dns-ip"]
-	if !exists {
-		return
-	}
-
-	dnsArray, ok := clusterDNSIP.([]interface{})
-	if !ok {
-		return
-	}
-
-	if len(dnsArray) == 1 {
-		kubernetesMap["cluster-dns-ip"] = dnsArray[0]
-	}
 }
