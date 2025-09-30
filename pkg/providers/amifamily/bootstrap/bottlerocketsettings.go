@@ -118,20 +118,17 @@ type BootstrapCommand struct {
 }
 
 func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
-	// Handle cluster-dns-ip flexibility by preprocessing the TOML
 	processedData, err := c.preprocessTOML(data)
 	if err != nil {
 		return err
 	}
 
-	// unmarshal known settings
 	s := struct {
 		Settings BottlerocketSettings `toml:"settings"`
 	}{}
 	if err := toml.Unmarshal(processedData, &s); err != nil {
 		return err
 	}
-	// unmarshal untyped settings
 	if err := toml.Unmarshal(processedData, c); err != nil {
 		return err
 	}
@@ -139,14 +136,12 @@ func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
 	return nil
 }
 
-// preprocessTOML handles cluster-dns-ip flexibility by converting strings to arrays
 func (c *BottlerocketConfig) preprocessTOML(data []byte) ([]byte, error) {
 	var raw map[string]interface{}
 	if err := toml.Unmarshal(data, &raw); err != nil {
-		return data, err // Return original data if parsing fails
+		return data, err
 	}
 
-	// Convert cluster-dns-ip from string to array if needed
 	if settings, ok := raw["settings"].(map[string]interface{}); ok {
 		if kubernetes, ok := settings["kubernetes"].(map[string]interface{}); ok {
 			if clusterDNSIP, exists := kubernetes["cluster-dns-ip"]; exists {
@@ -165,7 +160,6 @@ func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 		c.SettingsRaw = map[string]interface{}{}
 	}
 
-	// Create a copy of Kubernetes settings with proper DNS IP formatting
 	kubernetesSettings := c.FormatKubernetesSettings()
 	c.SettingsRaw["kubernetes"] = kubernetesSettings
 
@@ -175,13 +169,9 @@ func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 	return toml.Marshal(c)
 }
 
-// FormatKubernetesSettings creates a properly formatted map for Kubernetes settings
-// with special handling for cluster-dns-ip to output single IPs as strings
 func (c *BottlerocketConfig) FormatKubernetesSettings() map[string]interface{} {
-	// Convert struct to map
 	kubernetesBytes, err := toml.Marshal(c.Settings.Kubernetes)
 	if err != nil {
-		// Fallback to direct conversion if marshaling fails
 		return map[string]interface{}{}
 	}
 
@@ -190,14 +180,10 @@ func (c *BottlerocketConfig) FormatKubernetesSettings() map[string]interface{} {
 		return map[string]interface{}{}
 	}
 
-	// Format cluster-dns-ip for optimal TOML output
 	c.formatClusterDNSIP(kubernetesMap)
-
 	return kubernetesMap
 }
 
-// formatClusterDNSIP formats the cluster-dns-ip field for TOML serialization
-// Single IPs are output as strings, multiple IPs as arrays
 func (c *BottlerocketConfig) formatClusterDNSIP(kubernetesMap map[string]interface{}) {
 	clusterDNSIP, exists := kubernetesMap["cluster-dns-ip"]
 	if !exists {
@@ -209,7 +195,6 @@ func (c *BottlerocketConfig) formatClusterDNSIP(kubernetesMap map[string]interfa
 		return
 	}
 
-	// Convert single-element array to string for cleaner TOML output
 	if len(dnsArray) == 1 {
 		kubernetesMap["cluster-dns-ip"] = dnsArray[0]
 	}
