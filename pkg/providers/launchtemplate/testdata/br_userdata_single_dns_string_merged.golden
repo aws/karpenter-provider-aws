@@ -3,7 +3,7 @@
 api-server = 'https://test-cluster'
 cluster-certificate = 'Y2EtYnVuZGxlCg=='
 cluster-name = 'test-cluster'
-cluster-dns-ip = ['8.8.8.8']
+cluster-dns-ip = '8.8.8.8'
 max-pods = 75
 
 [settings.kubernetes.node-labels]
