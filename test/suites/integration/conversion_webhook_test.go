@@ -118,8 +118,8 @@ var _ = Describe("Conversion Webhooks", func() {
 			v1beta1NodePool = env.ExpectExists(storedv1beta1NodePool.DeepCopy()).(*karpv1beta1.NodePool)
 			Expect(v1beta1NodePool.Generation).To(BeNumerically("==", 1))
 			Expect(v1beta1NodePool.Spec.Template.Spec.NodeClassRef.APIVersion).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.NodeClassRef.APIVersion))
-			Expect(v1beta1NodePool.Spec.Disruption.ConsolidateAfter.Duration.String()).To(Equal(storedv1beta1NodePool.Spec.Disruption.ConsolidateAfter.Duration.String()))
-			Expect(v1beta1NodePool.Spec.Disruption.ExpireAfter.Duration.String()).To(Equal(storedv1beta1NodePool.Spec.Disruption.ExpireAfter.Duration.String()))
+			Expect(v1beta1NodePool.Spec.Disruption.ConsolidateAfter.Duration.String()).To(Equal(storedv1beta1NodePool.Spec.Disruption.ConsolidateAfter.String()))
+			Expect(v1beta1NodePool.Spec.Disruption.ExpireAfter.Duration.String()).To(Equal(storedv1beta1NodePool.Spec.Disruption.ExpireAfter.String()))
 			// Kubelet Validation
 			Expect(v1beta1NodePool.Spec.Template.Spec.Kubelet.MaxPods).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.Kubelet.MaxPods))
 			Expect(v1beta1NodePool.Spec.Template.Spec.Kubelet.PodsPerCore).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.Kubelet.PodsPerCore))
@@ -152,8 +152,8 @@ var _ = Describe("Conversion Webhooks", func() {
 			v1NodePool = env.ExpectExists(nodePool).(*karpv1.NodePool)
 			Expect(v1NodePool.Generation).To(BeNumerically("==", 1))
 			Expect(v1NodePool.Spec.Template.Spec.NodeClassRef.Group).To(Equal(nodePool.Spec.Template.Spec.NodeClassRef.Group))
-			Expect(v1NodePool.Spec.Disruption.ConsolidateAfter.Duration.String()).To(Equal(nodePool.Spec.Disruption.ConsolidateAfter.Duration.String()))
-			Expect(v1NodePool.Spec.Template.Spec.ExpireAfter.Duration.String()).To(Equal(nodePool.Spec.Template.Spec.ExpireAfter.Duration.String()))
+			Expect(v1NodePool.Spec.Disruption.ConsolidateAfter.Duration.String()).To(Equal(nodePool.Spec.Disruption.ConsolidateAfter.String()))
+			Expect(v1NodePool.Spec.Template.Spec.ExpireAfter.Duration.String()).To(Equal(nodePool.Spec.Template.Spec.ExpireAfter.String()))
 		})
 	})
 	Context("EC2NodeClass", func() {

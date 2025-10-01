@@ -72,8 +72,8 @@ func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provide
 func (w Windows) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Windows{
 		Options: bootstrap.Options{
-			ClusterName:     w.Options.ClusterName,
-			ClusterEndpoint: w.Options.ClusterEndpoint,
+			ClusterName:     w.ClusterName,
+			ClusterEndpoint: w.ClusterEndpoint,
 			KubeletConfig:   kubeletConfig,
 			Taints:          taints,
 			Labels:          labels,

@@ -25,5 +25,5 @@ type Custom struct {
 }
 
 func (e Custom) Script() (string, error) {
-	return base64.StdEncoding.EncodeToString([]byte(aws.StringValue(e.Options.CustomUserData))), nil
+	return base64.StdEncoding.EncodeToString([]byte(aws.StringValue(e.CustomUserData))), nil
 }

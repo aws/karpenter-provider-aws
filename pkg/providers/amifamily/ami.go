@@ -177,7 +177,7 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 					if v, ok := images[reqsHash]; ok {
 						candidateCreationTime, _ := time.Parse(time.RFC3339, lo.FromPtr(image.CreationDate))
 						existingCreationTime, _ := time.Parse(time.RFC3339, v.CreationDate)
-						if existingCreationTime == candidateCreationTime && lo.FromPtr(image.Name) < v.Name {
+						if existingCreationTime.Equal(candidateCreationTime) && lo.FromPtr(image.Name) < v.Name {
 							continue
 						}
 						if candidateCreationTime.Unix() < existingCreationTime.Unix() {
