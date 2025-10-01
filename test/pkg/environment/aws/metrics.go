@@ -80,7 +80,7 @@ func (env *Environment) MeasureDurationFor(f func(), eventType EventType, dimens
 	start := time.Now()
 	f()
 	gitRef := "n/a"
-	if env.Context.Value(common.GitRefContextKey) != nil {
+	if env.Value(common.GitRefContextKey) != nil {
 		gitRef = env.Value(common.GitRefContextKey).(string)
 	}
 
