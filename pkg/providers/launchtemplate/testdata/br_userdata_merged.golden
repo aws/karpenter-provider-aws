@@ -3,9 +3,13 @@
 api-server = 'https://test-cluster'
 cloud-provider = 'external'
 cluster-certificate = 'Y2EtYnVuZGxlCg=='
-cluster-name = 'test-cluster'
 cluster-dns-ip = '10.0.100.10'
-max-pods = 110
+cluster-name = 'test-cluster'
+max-pods = 9999999999
+unknown-setting = 'unknown'
+
+[settings.kubernetes.eviction-hard]
+'memory.available' = '12%%'
 
 [settings.kubernetes.node-labels]
 custom-node-label = 'custom'
@@ -19,9 +23,6 @@ custom-node-label = 'custom'
 baz = ['bin:NoExecute']
 foo = ['bar:NoExecute']
 'karpenter.sh/unregistered' = [':NoExecute']
-
-[settings.kubernetes.eviction-hard]
-'memory.available' = '12%%'
 
 [settings.network]
 hostname = 'test.local'

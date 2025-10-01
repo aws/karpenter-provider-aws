@@ -17,12 +17,9 @@ package bootstrap
 import (
 	"encoding/base64"
 	"fmt"
-	"strconv"
 
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
@@ -37,70 +34,40 @@ func (b Bottlerocket) Script() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid UserData %w", err)
 	}
+
 	// Karpenter will overwrite settings present inside custom UserData
 	// based on other fields specified in the NodePool
-	s.Settings.Kubernetes.ClusterName = &b.ClusterName
-	s.Settings.Kubernetes.APIServer = &b.ClusterEndpoint
-	s.Settings.Kubernetes.ClusterCertificate = b.CABundle
-	if err := mergo.MergeWithOverwrite(&s.Settings.Kubernetes.NodeLabels, b.Labels); err != nil {
+	settingsKubernetes := s.KubernetesSettings()
+	settingsKubernetes["cluster-name"] = b.ClusterName
+	settingsKubernetes["api-server"] = b.ClusterEndpoint
+	settingsKubernetes["cluster-certificate"] = b.CABundle
+
+	if b.KubeletConfig != nil && len(b.KubeletConfig.ClusterDNS) > 0 {
+		settingsKubernetes["cluster-dns-ip"] = b.KubeletConfig.ClusterDNS[0]
+	}
+
+	nodeLabelsMap := s.CustomSettingsAsMap(settingsKubernetes, "node-labels")
+	nodeLabelAsMapString := make(map[string]string)
+	for k, v := range nodeLabelsMap {
+		nodeLabelAsMapString[k] = v.(string)
+	}
+	if err := mergo.Merge(&nodeLabelAsMapString, b.Labels, mergo.WithOverride); err != nil {
 		return "", err
 	}
+	settingsKubernetes["node-labels"] = nodeLabelAsMapString
 
-	if b.KubeletConfig != nil && b.KubeletConfig.MaxPods != nil {
-		s.Settings.Kubernetes.MaxPods = aws.Int(int(lo.FromPtr(b.KubeletConfig.MaxPods)))
-	}
-
-	if b.KubeletConfig != nil {
-		if len(b.KubeletConfig.ClusterDNS) > 0 {
-			s.Settings.Kubernetes.ClusterDNSIP = &b.KubeletConfig.ClusterDNS[0]
-		}
-		if b.KubeletConfig.SystemReserved != nil {
-			s.Settings.Kubernetes.SystemReserved = b.KubeletConfig.SystemReserved
-		}
-		if b.KubeletConfig.KubeReserved != nil {
-			s.Settings.Kubernetes.KubeReserved = b.KubeletConfig.KubeReserved
-		}
-		if b.KubeletConfig.EvictionHard != nil {
-			s.Settings.Kubernetes.EvictionHard = b.KubeletConfig.EvictionHard
-		}
-		if b.KubeletConfig.EvictionSoft != nil {
-			s.Settings.Kubernetes.EvictionSoft = b.KubeletConfig.EvictionSoft
-		}
-		if b.KubeletConfig.EvictionSoftGracePeriod != nil {
-			s.Settings.Kubernetes.EvictionSoftGracePeriod = map[string]string{}
-			for k, v := range b.KubeletConfig.EvictionSoftGracePeriod {
-				s.Settings.Kubernetes.EvictionSoftGracePeriod[k] = v.Duration.String()
-			}
-		}
-		if b.KubeletConfig.EvictionMaxPodGracePeriod != nil {
-			s.Settings.Kubernetes.EvictionMaxPodGracePeriod = aws.Int(int(lo.FromPtr(b.KubeletConfig.EvictionMaxPodGracePeriod)))
-		}
-		if b.KubeletConfig.ImageGCHighThresholdPercent != nil {
-			s.Settings.Kubernetes.ImageGCHighThresholdPercent = lo.ToPtr(strconv.FormatInt(int64(*b.KubeletConfig.ImageGCHighThresholdPercent), 10))
-		}
-		if b.KubeletConfig.ImageGCLowThresholdPercent != nil {
-			s.Settings.Kubernetes.ImageGCLowThresholdPercent = lo.ToPtr(strconv.FormatInt(int64(*b.KubeletConfig.ImageGCLowThresholdPercent), 10))
-		}
-		if b.KubeletConfig.CPUCFSQuota != nil {
-			s.Settings.Kubernetes.CPUCFSQuota = b.KubeletConfig.CPUCFSQuota
-		}
-	}
-
-	s.Settings.Kubernetes.NodeTaints = map[string][]string{}
+	nodTaintsAsMapSliceString := make(map[string][]string)
 	for _, taint := range b.Taints {
-		s.Settings.Kubernetes.NodeTaints[taint.Key] = append(s.Settings.Kubernetes.NodeTaints[taint.Key], fmt.Sprintf("%s:%s", taint.Value, taint.Effect))
+		nodTaintsAsMapSliceString[taint.Key] = append(nodTaintsAsMapSliceString[taint.Key], fmt.Sprintf("%s:%s", taint.Value, taint.Effect))
 	}
+	settingsKubernetes["node-taints"] = nodTaintsAsMapSliceString
 
 	if lo.FromPtr(b.InstanceStorePolicy) == v1.InstanceStorePolicyRAID0 {
-		if s.Settings.BootstrapCommands == nil {
-			s.Settings.BootstrapCommands = map[string]BootstrapCommand{}
-		}
-		s.Settings.BootstrapCommands["000-mount-instance-storage"] = BootstrapCommand{
-			Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}},
-			Essential: true,
-			Mode:      BootstrapCommandModeAlways,
-		}
+		settingsBootstrapCommand := s.CustomSettingsAsMap(s.SettingsRaw, "bootstrap-commands")
+		settingsBootstrapCommand["000-mount-instance-storage"] = s.BootstrapCommandSettings()
+		s.SettingsRaw["bootstrap-commands"] = settingsBootstrapCommand
 	}
+
 	script, err := s.MarshalTOML()
 	if err != nil {
 		return "", fmt.Errorf("constructing toml UserData %w", err)
