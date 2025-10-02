@@ -1,5 +1,6 @@
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
+## For testing purpose
 ## Inject the app version into operator.Version
 LDFLAGS ?= -ldflags=-X=sigs.k8s.io/karpenter/pkg/operator.Version=$(shell git describe --tags --always | cut -d"v" -f2)
 
@@ -18,6 +19,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set controller.resources.limits.cpu=1 \
 			--set controller.resources.limits.memory=1Gi \
 			--set settings.featureGates.nodeRepair=true \
+			--set settings.featureGates.staticCapacity=true \
 			--set settings.featureGates.reservedCapacity=true \
 			--set settings.featureGates.spotToSpotConsolidation=true \
 			--set settings.featureGates.nodeOverlay=true \
