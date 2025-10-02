@@ -494,7 +494,21 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	if capacityType != karpv1.CapacityTypeReserved {
 		for _, err := range errs {
 			if awserrors.IsUnfulfillableCapacity(err) {
-				p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, err, capacityType, fleetID)
+				// Custom logging for unfulfillable capacity errors with Fleet ID
+				instanceType := err.LaunchTemplateAndOverrides.Overrides.InstanceType
+				zone := aws.ToString(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+				
+				log.FromContext(ctx).WithValues(
+					"reason", lo.FromPtr(err.ErrorCode),
+					"instance-type", instanceType,
+					"zone", zone,
+					"capacity-type", capacityType,
+					"fleet-id", fleetID,
+					"ttl", awscache.UnavailableOfferingsTTL,
+				).V(1).Info("removing offering from offerings")
+				
+				// Mark unavailable without Fleet ID in cache
+				p.unavailableOfferings.MarkUnavailable(ctx, lo.FromPtr(err.ErrorCode), instanceType, zone, capacityType)
 			}
 			if awserrors.IsServiceLinkedRoleCreationNotPermitted(err) {
 				p.unavailableOfferings.MarkCapacityTypeUnavailable(karpv1.CapacityTypeSpot)

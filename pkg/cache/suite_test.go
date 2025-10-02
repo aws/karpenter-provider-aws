@@ -50,17 +50,17 @@ var _ = Describe("Cache", func() {
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeFalse())
 
 			// m5.large on-demand should return that it's unavailable when we mark it
-			unavailableOfferingCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeOnDemand, "test-fleet-id")
+			unavailableOfferingCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeOnDemand)
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeTrue())
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeFalse())
 
 			// m5.xlarge shouldn't return that it's unavailable when marking an unrelated instance type
-			unavailableOfferingCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Large, "test-zone-1b", karpv1.CapacityTypeOnDemand, "test-fleet-id")
+			unavailableOfferingCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Large, "test-zone-1b", karpv1.CapacityTypeOnDemand)
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeTrue())
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeFalse())
 
 			// m5.xlarge spot should return that it's unavailable when we mark it
-			unavailableOfferingCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot, "test-fleet-id")
+			unavailableOfferingCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot)
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeTrue())
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeTrue())
 		})
@@ -77,7 +77,7 @@ var _ = Describe("Cache", func() {
 						AvailabilityZone: lo.ToPtr("test-zone-1a"),
 					},
 				},
-			}, karpv1.CapacityTypeOnDemand, "test-fleet-id")
+			}, karpv1.CapacityTypeOnDemand)
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeTrue())
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeFalse())
 
@@ -89,7 +89,7 @@ var _ = Describe("Cache", func() {
 						AvailabilityZone: lo.ToPtr("test-zone-1b"),
 					},
 				},
-			}, karpv1.CapacityTypeOnDemand, "test-fleet-id")
+			}, karpv1.CapacityTypeOnDemand)
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeTrue())
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeFalse())
 
@@ -101,7 +101,7 @@ var _ = Describe("Cache", func() {
 						AvailabilityZone: lo.ToPtr("test-zone-1b"),
 					},
 				},
-			}, karpv1.CapacityTypeSpot, "test-fleet-id")
+			}, karpv1.CapacityTypeSpot)
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeTrue())
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeTrue())
 		})
@@ -146,12 +146,12 @@ var _ = Describe("Cache", func() {
 			Expect(unavailableOfferingCache.SeqNum(ec2types.InstanceTypeM5Xlarge)).To(BeNumerically("==", 0))
 
 			// marking m5.large as unavailable should increase the sequence number for that instance type but not others
-			unavailableOfferingCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeOnDemand, "test-fleet-id")
+			unavailableOfferingCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeOnDemand)
 			Expect(unavailableOfferingCache.SeqNum(ec2types.InstanceTypeM5Large)).To(BeNumerically("==", 1))
 			Expect(unavailableOfferingCache.SeqNum(ec2types.InstanceTypeM5Xlarge)).To(BeNumerically("==", 0))
 
 			// marking m5.xlarge as unavailable should increase the sequence number for that instance type but not others
-			unavailableOfferingCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Xlarge, "test-zone-1a", karpv1.CapacityTypeOnDemand, "test-fleet-id")
+			unavailableOfferingCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Xlarge, "test-zone-1a", karpv1.CapacityTypeOnDemand)
 			Expect(unavailableOfferingCache.SeqNum(ec2types.InstanceTypeM5Large)).To(BeNumerically("==", 1))
 			Expect(unavailableOfferingCache.SeqNum(ec2types.InstanceTypeM5Xlarge)).To(BeNumerically("==", 1))
 
