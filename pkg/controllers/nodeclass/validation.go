@@ -120,7 +120,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	nodeClaim := &karpv1.NodeClaim{
 		Spec: karpv1.NodeClaimSpec{
 			NodeClassRef: &karpv1.NodeClassReference{
-				Name: nodeClass.ObjectMeta.Name,
+				Name: nodeClass.Name,
 			},
 		},
 	}

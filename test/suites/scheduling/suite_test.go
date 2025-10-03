@@ -141,7 +141,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					{
 						Key:      v1.LabelTopologyZoneID,
 						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})[0].ZoneInfo.ZoneID},
+						Values:   []string{env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})[0].ZoneID},
 					},
 				},
 			}})
