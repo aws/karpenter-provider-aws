@@ -1492,40 +1492,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				Expect(it.Overhead.EvictionThreshold.StorageEphemeral().AsApproximateFloat64()).To(BeNumerically("~", resources.Quantity("2Gi").AsApproximateFloat64()))
 			})
-			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					SystemReserved: map[string]string{
-						string(corev1.ResourceMemory): "20Gi",
-					},
-					KubeReserved: map[string]string{
-						string(corev1.ResourceMemory): "10Gi",
-					},
-					EvictionSoft: map[string]string{
-						instancetype.MemoryAvailable: "3Gi",
-					},
-					EvictionHard: map[string]string{
-						instancetype.MemoryAvailable: "1Gi",
-					},
-				}
-				it := instancetype.NewInstanceType(ctx,
-					info,
-					fake.DefaultRegion,
-					nil,
-					nil,
-					nodeClass.Spec.BlockDeviceMappings,
-					nodeClass.Spec.InstanceStorePolicy,
-					nodeClass.Spec.Kubelet.MaxPods,
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
-					nodeClass.AMIFamily(),
-					nil,
-				)
-				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("3Gi"))
-			})
-			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
+			It("should take evictionHard instead of evictionSoft if both are given for overhead as a value", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceMemory): "20Gi",
@@ -1558,7 +1525,40 @@ var _ = Describe("InstanceTypeProvider", func() {
 				)
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.05, 10))
 			})
-			It("should take the greater of evictionHard and evictionSoft for overhead with mixed percentage/value", func() {
+			It("should take evictionHard instead of evictionSoft if both are given for overhead as a value", func() {
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					SystemReserved: map[string]string{
+						string(corev1.ResourceMemory): "20Gi",
+					},
+					KubeReserved: map[string]string{
+						string(corev1.ResourceMemory): "10Gi",
+					},
+					EvictionSoft: map[string]string{
+						instancetype.MemoryAvailable: "3Gi",
+					},
+					EvictionHard: map[string]string{
+						instancetype.MemoryAvailable: "1Gi",
+					},
+				}
+				it := instancetype.NewInstanceType(ctx,
+					info,
+					fake.DefaultRegion,
+					nil,
+					nil,
+					nodeClass.Spec.BlockDeviceMappings,
+					nodeClass.Spec.InstanceStorePolicy,
+					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.PodsPerCore,
+					nodeClass.Spec.Kubelet.KubeReserved,
+					nodeClass.Spec.Kubelet.SystemReserved,
+					nodeClass.Spec.Kubelet.EvictionHard,
+					nodeClass.Spec.Kubelet.EvictionSoft,
+					nodeClass.AMIFamily(),
+					nil,
+				)
+				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
+			})
+			It("should take evictionHard instead of evictionSoft if both are given for overhead with mixed percentage/value", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceMemory): "20Gi",
@@ -1589,9 +1589,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
-				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
+				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
 			})
-		})
 		It("should default max pods based off of network interfaces", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
