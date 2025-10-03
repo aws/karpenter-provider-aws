@@ -20,6 +20,9 @@ spec:
   selector:
     matchLabels:
       {{- include "karpenter.selectorLabels" . | nindent 6 }}
+  {{- if not (eq .Values.serviceMonitor.sampleLimit nil) }}
+  sampleLimit: {{ .Values.serviceMonitor.sampleLimit }}
+  {{- end }}
   endpoints:
     - port: http-metrics
       path: /metrics
