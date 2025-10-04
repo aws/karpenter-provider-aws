@@ -1255,6 +1255,70 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
 	})
+	Context("ConnectionTracking", func() {
+		It("should succeed with valid tcpEstablishedTimeout", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				TCPEstablishedTimeout: &metav1.Duration{Duration: 60 * time.Second},
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with valid udpStreamTimeout", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPStreamTimeout: &metav1.Duration{Duration: 120 * time.Second},
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with valid udpTimeout", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPTimeout: &metav1.Duration{Duration: 45 * time.Second},
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with all valid connection tracking settings", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				TCPEstablishedTimeout: &metav1.Duration{Duration: 432000 * time.Second}, // 5 days
+				UDPStreamTimeout:      &metav1.Duration{Duration: 180 * time.Second},
+				UDPTimeout:            &metav1.Duration{Duration: 60 * time.Second},
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail when tcpEstablishedTimeout is below minimum (60s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				TCPEstablishedTimeout: &metav1.Duration{Duration: 59 * time.Second},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when tcpEstablishedTimeout is above maximum (432000s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				TCPEstablishedTimeout: &metav1.Duration{Duration: 432001 * time.Second},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when udpStreamTimeout is below minimum (60s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPStreamTimeout: &metav1.Duration{Duration: 59 * time.Second},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when udpStreamTimeout is above maximum (180s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPStreamTimeout: &metav1.Duration{Duration: 181 * time.Second},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when udpTimeout is below minimum (30s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPTimeout: &metav1.Duration{Duration: 29 * time.Second},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when udpTimeout is above maximum (60s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPTimeout: &metav1.Duration{Duration: 61 * time.Second},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+	})
 	Context("Role Immutability", func() {
 		It("should fail if role is not defined", func() {
 			nc.Spec.Role = ""
