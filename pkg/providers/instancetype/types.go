@@ -547,8 +547,6 @@ func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, am
 			override[corev1.ResourceEphemeralStorage] = computeEvictionSignal(*storage, v)
 		}
 	}
-	// Note: evictionSoft is intentionally ignored for allocatable capacity calculation
-	// as per Kubernetes specification and Issue #8407 fix
 	// Assign merges maps from left to right so overrides will always be taken last
 	return lo.Assign(overhead, override)
 }
