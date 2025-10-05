@@ -536,24 +536,19 @@ func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, am
 	}
 
 	override := corev1.ResourceList{}
-	var evictionSignals []map[string]string
+	// Only use evictionHard for allocatable memory calculation
+	// evictionSoft should not impact allocatable capacity as it's only a warning threshold
+	// See: https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#eviction-thresholds
 	if evictionHard != nil {
-		evictionSignals = append(evictionSignals, evictionHard)
-	}
-	if evictionSoft != nil && amiFamily.FeatureFlags().EvictionSoftEnabled {
-		evictionSignals = append(evictionSignals, evictionSoft)
-	}
-
-	for _, m := range evictionSignals {
-		temp := corev1.ResourceList{}
-		if v, ok := m[MemoryAvailable]; ok {
-			temp[corev1.ResourceMemory] = computeEvictionSignal(*memory, v)
+		if v, ok := evictionHard[MemoryAvailable]; ok {
+			override[corev1.ResourceMemory] = computeEvictionSignal(*memory, v)
 		}
-		if v, ok := m[NodeFSAvailable]; ok {
-			temp[corev1.ResourceEphemeralStorage] = computeEvictionSignal(*storage, v)
+		if v, ok := evictionHard[NodeFSAvailable]; ok {
+			override[corev1.ResourceEphemeralStorage] = computeEvictionSignal(*storage, v)
 		}
-		override = resources.MaxResources(override, temp)
 	}
+	// Note: evictionSoft is intentionally ignored for allocatable capacity calculation
+	// as per Kubernetes specification and Issue #8407 fix
 	// Assign merges maps from left to right so overrides will always be taken last
 	return lo.Assign(overhead, override)
 }

@@ -1476,7 +1476,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				Expect(it.Overhead.EvictionThreshold.StorageEphemeral().AsApproximateFloat64()).To(BeNumerically("~", resources.Quantity("2Gi").AsApproximateFloat64()))
 			})
-			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
+			It("should use only evictionHard for overhead, ignoring evictionSoft", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceMemory): "20Gi",
@@ -1507,9 +1507,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
-				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("3Gi"))
+				// Should use evictionHard (1Gi), not evictionSoft (3Gi)
+				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
 			})
-			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
+			It("should use only evictionHard percentage for overhead, ignoring evictionSoft", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceMemory): "20Gi",
@@ -1540,9 +1541,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
+				// Should use evictionHard (5%), not evictionSoft (2%)
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.05, 10))
 			})
-			It("should take the greater of evictionHard and evictionSoft for overhead with mixed percentage/value", func() {
+			It("should use only evictionHard value with mixed percentage/value types", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceMemory): "20Gi",
@@ -1573,7 +1575,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
-				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
+				// Should use evictionHard (1Gi), not evictionSoft (10%)
+				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
 			})
 		})
 		It("should default max pods based off of network interfaces", func() {
