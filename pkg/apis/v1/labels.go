@@ -55,11 +55,11 @@ func init() {
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
 		LabelTopologyZoneID,
-		LabelTenancy,
+		LabelInstanceTenancy,
 		corev1.LabelWindowsBuild,
 	)
 
-	karpv1.WellKnownValuesForRequirements[LabelTenancy] = sets.New(string(ec2types.TenancyDedicated), string(ec2types.TenancyDefault))
+	karpv1.WellKnownValuesForRequirements[LabelInstanceTenancy] = sets.New(string(ec2types.TenancyDedicated), string(ec2types.TenancyDefault))
 
 	karpv1.WellKnownResources.Insert(
 		ResourceAWSPodENI,
@@ -157,7 +157,7 @@ var (
 	LabelInstanceAcceleratorManufacturer      = apis.Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
 	LabelNodeClass                            = apis.Group + "/ec2nodeclass"
-	LabelTenancy                              = apis.Group + "/instance-tenancy"
+	LabelInstanceTenancy                      = apis.Group + "/instance-tenancy"
 
 	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
 

@@ -415,7 +415,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
 									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      v1.LabelTenancy,
+										Key:      v1.LabelInstanceTenancy,
 										Operator: corev1.NodeSelectorOpIn,
 										Values:   values,
 									},

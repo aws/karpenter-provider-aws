@@ -74,7 +74,7 @@ var _ = Describe("CEL/Validation", func() {
 		})
 		It("should allow well known label exceptions", func() {
 			oldNodePool := nodePool.DeepCopy()
-			for label := range karpv1.WellKnownLabels.Difference(sets.New(karpv1.NodePoolLabelKey, karpv1.CapacityTypeLabelKey, v1.LabelTenancy)) {
+			for label := range karpv1.WellKnownLabels.Difference(sets.New(karpv1.NodePoolLabelKey, karpv1.CapacityTypeLabelKey, v1.LabelInstanceTenancy)) {
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: label, Operator: corev1.NodeSelectorOpIn, Values: []string{"test"}}},
 				}
@@ -131,7 +131,7 @@ var _ = Describe("CEL/Validation", func() {
 			oldNodePool := nodePool.DeepCopy()
 			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelTenancy,
+					Key:      v1.LabelInstanceTenancy,
 					Operator: corev1.NodeSelectorOpIn,
 					Values:   []string{"xdedicated"}, // Invalid value
 				},
@@ -145,7 +145,7 @@ var _ = Describe("CEL/Validation", func() {
 			oldNodePool := nodePool.DeepCopy()
 			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelTenancy,
+					Key:      v1.LabelInstanceTenancy,
 					Operator: corev1.NodeSelectorOpIn,
 					Values:   []string{string(ec2types.TenancyDefault)}, // Valid value
 				},
@@ -159,7 +159,7 @@ var _ = Describe("CEL/Validation", func() {
 			oldNodePool := nodePool.DeepCopy()
 			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelTenancy,
+					Key:      v1.LabelInstanceTenancy,
 					Operator: corev1.NodeSelectorOpIn,
 					Values:   []string{string(ec2types.TenancyDefault), "xdedicated"}, // Valid and invalid value
 				},

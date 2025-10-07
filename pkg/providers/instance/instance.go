@@ -545,7 +545,7 @@ func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zon
 func getTenancyType(nodeClaim *karpv1.NodeClaim) string {
 	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 
-	requirement := requirements.Get(v1.LabelTenancy)
+	requirement := requirements.Get(v1.LabelInstanceTenancy)
 
 	if requirement == nil {
 		return string(ec2types.TenancyDefault)
