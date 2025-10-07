@@ -484,7 +484,7 @@ func (v *Validation) getTenancyType(ctx context.Context, nodeClass *v1.EC2NodeCl
 
 	for _, np := range nodePools {
 		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
-		if reqs.Has(v1.LabelTenancy) && reqs.Get(v1.LabelTenancy).Has(string(ec2types.TenancyDedicated)) {
+		if reqs.Has(v1.LabelInstanceTenancy) && reqs.Get(v1.LabelInstanceTenancy).Has(string(ec2types.TenancyDedicated)) {
 			return ec2types.TenancyDedicated, nil
 		}
 	}

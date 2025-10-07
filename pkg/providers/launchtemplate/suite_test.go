@@ -2513,7 +2513,7 @@ eviction-max-pod-grace-period = 10
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				nodeSelector := map[string]string{}
 				if tenancy != "" {
-					nodeSelector[v1.LabelTenancy] = string(tenancy)
+					nodeSelector[v1.LabelInstanceTenancy] = string(tenancy)
 				}
 				pod := coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: nodeSelector,

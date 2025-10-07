@@ -358,7 +358,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		)
 		It("should support well-known labels for capacity tenancy", func() {
 			nodeSelector := map[string]string{
-				v1.LabelTenancy: string(ec2types.CapacityReservationTenancyDedicated),
+				v1.LabelInstanceTenancy: string(ec2types.CapacityReservationTenancyDedicated),
 			}
 			selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 			requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {

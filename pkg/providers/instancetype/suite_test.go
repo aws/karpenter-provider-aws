@@ -230,7 +230,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			corev1.LabelArchStable:         "amd64",
 			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
-			v1.LabelTenancy:                              "default",
+			v1.LabelInstanceTenancy:                      "default",
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "g",
@@ -293,7 +293,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			corev1.LabelArchStable:         "amd64",
 			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
-			v1.LabelTenancy:                              "default",
+			v1.LabelInstanceTenancy:                      "default",
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "g",
@@ -351,7 +351,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			corev1.LabelArchStable:         "amd64",
 			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
-			v1.LabelTenancy:                              "default",
+			v1.LabelInstanceTenancy:                      "default",
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "inf",
@@ -2863,13 +2863,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTenancy, string(ec2types.TenancyDefault)))
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTenancy, string(ec2types.TenancyDefault)))
 		})
 		It("Should use default tenancy if tenancy requirement specifies both default and dedicated tenancies", func() {
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
 					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      v1.LabelTenancy,
+						Key:      v1.LabelInstanceTenancy,
 						Operator: corev1.NodeSelectorOpIn,
 						Values: []string{
 							string(ec2types.TenancyDefault),
@@ -2882,29 +2882,29 @@ var _ = Describe("InstanceTypeProvider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTenancy, string(ec2types.TenancyDefault)))
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTenancy, string(ec2types.TenancyDefault)))
 		})
 		It("Should launch with default tenancy when required", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
-				NodeSelector: map[string]string{v1.LabelTenancy: string(ec2types.TenancyDefault)},
+				NodeSelector: map[string]string{v1.LabelInstanceTenancy: string(ec2types.TenancyDefault)},
 			})
 
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTenancy, string(ec2types.TenancyDefault)))
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTenancy, string(ec2types.TenancyDefault)))
 		})
 		It("Should launch with dedicated tenancy when required", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
-				NodeSelector: map[string]string{v1.LabelTenancy: string(ec2types.TenancyDedicated)},
+				NodeSelector: map[string]string{v1.LabelInstanceTenancy: string(ec2types.TenancyDedicated)},
 			})
 
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTenancy, string(ec2types.TenancyDedicated)))
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTenancy, string(ec2types.TenancyDedicated)))
 		})
 		DescribeTable(
 			"does not allow tenancy violations",
@@ -2912,7 +2912,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{
 						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-							Key:      v1.LabelTenancy,
+							Key:      v1.LabelInstanceTenancy,
 							Operator: corev1.NodeSelectorOpIn,
 							Values: []string{
 								npTenancy,
@@ -2922,7 +2922,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod(coretest.PodOptions{
-					NodeSelector: map[string]string{v1.LabelTenancy: podTenancy},
+					NodeSelector: map[string]string{v1.LabelInstanceTenancy: podTenancy},
 				})
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectNotScheduled(ctx, env.Client, pod)
