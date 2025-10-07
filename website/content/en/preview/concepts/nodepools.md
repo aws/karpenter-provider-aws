@@ -264,7 +264,7 @@ Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key 
 
 #### Tenancy
 
-- key: `karpenter.k8s.aws/tenancy`
+- key: `karpenter.k8s.aws/instance-tenancy`
 - values
     - `default`
     - `dedicated`
