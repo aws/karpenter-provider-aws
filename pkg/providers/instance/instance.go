@@ -159,11 +159,11 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 	if lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) {
 		opts = append(opts, WithEFAEnabled())
 	}
-	opts = append(opts, WithTenancy(tenancyType))
 	return NewInstanceFromFleet(
 		fleetInstance,
 		capacityType,
 		tags,
+		tenancyType,
 		opts...,
 	), nil
 }
