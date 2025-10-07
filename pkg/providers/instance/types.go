@@ -114,14 +114,11 @@ func WithEFAEnabled() NewInstanceFromFleetOpts {
 	return func(i *Instance) { i.EFAEnabled = true }
 }
 
-func WithTenancy(tenancy string) NewInstanceFromFleetOpts {
-	return func(i *Instance) { i.Tenancy = tenancy }
-}
-
 func NewInstanceFromFleet(
 	out ec2types.CreateFleetInstance,
 	capacityType string,
 	tags map[string]string,
+	tenancyType string,
 	opts ...NewInstanceFromFleetOpts,
 ) *Instance {
 	resolved := option.Resolve(opts...)
@@ -135,6 +132,7 @@ func NewInstanceFromFleet(
 		CapacityType: capacityType,
 		SubnetID:     lo.FromPtr(out.LaunchTemplateAndOverrides.Overrides.SubnetId),
 		Tags:         tags,
+		Tenancy:      tenancyType,
 	}))
 	return resolved
 }
