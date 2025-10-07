@@ -222,3 +222,6 @@ settings:
     # -- spotToSpotConsolidation is ALPHA and is disabled by default.
     # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
     spotToSpotConsolidation: false
+     # -- staticCapacity is ALPHA and is disabled by default.
+    # Setting this to true will enable static capacity provisioning.
+    StaticCapacity: false
