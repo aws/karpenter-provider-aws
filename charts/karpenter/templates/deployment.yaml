@@ -173,6 +173,14 @@ spec:
             - name: RESERVED_ENIS
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.ignoreDRARequests }}
+            - name: IGNORE_DRA_REQUESTS
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- with .Values.settings.disableClusterStateObservability }}
+            - name: DISABLE_CLUSTER_STATE_OBSERVABILITY
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.settings.disableDryRun }}
             - name: DISABLE_DRY_RUN
               value: "{{ tpl (toString .) $ }}"

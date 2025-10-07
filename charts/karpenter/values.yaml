@@ -205,6 +205,10 @@ settings:
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved.
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.
   reservedENIs: "0"
+  # -- Ignore pods' DRA requests during scheduling simulations.
+  ignoreDRARequests: true
+  # -- Disable cluster state metrics and events.
+  disableClusterStateObservability: false
   # -- Disable dry run validation for EC2NodeClasses.
   disableDryRun: false
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
