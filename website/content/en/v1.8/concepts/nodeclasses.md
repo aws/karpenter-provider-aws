@@ -85,9 +85,6 @@ spec:
     - id: sg-063d7acfb4b06c82c
 
   # Optional, IAM role to use for the node identity.
-  # The "role" field is immutable after EC2NodeClass creation. This may change in the
-  # future, but this restriction is currently in place today to ensure that Karpenter
-  # avoids leaking managed instance profiles in your account.
   # Must specify one of "role" or "instanceProfile" for Karpenter to launch nodes
   role: "KarpenterNodeRole-${CLUSTER_NAME}"
 
@@ -116,6 +113,7 @@ spec:
     - tags:
         karpenter.sh/discovery: ${CLUSTER_NAME}
     - id: cr-123
+    - instanceMatchCriteria: open
 
   # Optional, propagates tags to underlying EC2 resources
   tags:
@@ -203,11 +201,15 @@ status:
       instanceMatchCriteria: targeted
       instanceType: g6.48xlarge
       ownerID: "012345678901"
+      reservationType: capacity-block
+      state: expiring
     - availabilityZone: us-west-2c
       id: cr-12345678901234567
       instanceMatchCriteria: open
       instanceType: g6.48xlarge
       ownerID: "98765432109"
+      reservationType: default
+      state: active
 
   # Generated instance profile name from "role"
   instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
@@ -705,6 +707,10 @@ For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-
 
 {{% /alert %}}
 
+{{% alert title="Warning" color="warning" %}}
+When using `spec.instanceProfile`, ensure you are using pre-provisioned instance profiles that you manage yourself.
+{{% /alert %}}
+
 ## spec.amiSelectorTerms
 
 AMI Selector Terms are __required__ and are used to configure AMIs for Karpenter to use. AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
@@ -761,7 +767,7 @@ The following commands can be used to determine the versions availble for an ali
   {{% /tab %}}
   {{% tab "AL2" %}}
   ```bash
-  export K8S_VERSION="1.32"
+  export K8S_VERSION="1.33"
   aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $8}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
   ```
   {{% /tab %}}
@@ -869,16 +875,19 @@ When using a custom SSM parameter, you'll need to expand the `ssm:GetParameter` 
 
 ## spec.capacityReservationSelectorTerms
 
-<i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Alpha]({{<ref "../reference/settings#feature-gates" >}})
+<i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Beta]({{<ref "../reference/settings#feature-gates" >}})
 
-Capacity Reservation Selector Terms allow you to select [on-demand capacity reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html), which will be made available to NodePools which select the given EC2NodeClass.
+Capacity Reservation Selector Terms allow you to select [on-demand capacity reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html) (ODCRs), which will be made available to NodePools which select the given EC2NodeClass.
 Karpenter will prioritize utilizing the capacity in these reservations before falling back to on-demand and spot.
-Capacity reservations can be discovered using ids or tags.
+Capacity reservations can be discovered using ids, tags, or instance match criteria.
 
 This selection logic is modeled as terms.
-A term can specify an ID or a set of tags to select against.
+A term can specify an ID, a set of tags, or instance match criteria to select against.
 When specifying tags, it will select all capacity reservations accessible from the account with matching tags.
+When specifying instance match criteria, it selects reservations by their matching behavior: `open` (matches all compatible instances) or `targeted` (matches only explicitly targeted instances).
 This can be further restricted by specifying an owner ID.
+
+For more information on utilizing ODCRs with Karpenter, refer to the [Utilizing ODCRs Task]({{< relref "../tasks/odcrs" >}}).
 
 {{% alert title="Note" color="primary" %}}
 Note that the IAM role Karpenter assumes should have a permissions policy associated with it that grants it permissions to use the [ec2:DescribeCapacityReservations](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-DescribeCapacityReservations) action to discover capacity reservations and the [ec2:RunInstances](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-RunInstances) action to run instances in those capacity reservations.
@@ -919,6 +928,26 @@ spec:
   - tags:
       key: foo
     ownerID: 012345678901
+```
+
+Select by instance match criteria:
+
+```yaml
+spec:
+  capacityReservationSelectorTerms:
+  # Select all open capacity reservations
+  - instanceMatchCriteria: open
+```
+
+Select by instance match criteria and tags:
+
+```yaml
+spec:
+  capacityReservationSelectorTerms:
+  # Select targeted capacity reservations with matching tags
+  - instanceMatchCriteria: targeted
+    tags:
+      key: foo
 ```
 
 ## spec.tags
@@ -1521,6 +1550,10 @@ If a `NodeClaim` requests `vpc.amazonaws.com/efa` resources, `spec.associatePubl
 requires that the field is only set to true when configuring an instance with a single ENI at launch. When using this field, it is advised that users segregate their EFA workload to use a separate `NodePool` / `EC2NodeClass` pair.
 {{% /alert %}}
 
+## spec.ipPrefixCount
+
+This value is a integer field that controls how many ip prefixes will be assigned to `NodeClaim`. See the [EC2 Launch Template Network Interface Spec](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ec2-launchtemplate-networkinterface.html) for more information. Sets ipv4PrefixCount if you are using an IPv4 Cluster, or ipv6PrefixCount if you are using IPv6.
+
 ## status.subnets
 [`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
 
@@ -1659,6 +1692,8 @@ status:
 | `instanceMatchCriteria` | `open`                 | The instanceMatchCriteria for the capacity reservation. Can be `open` or `targeted`. |
 | `instanceType`          | `m5.large`             | The EC2 instance type of the capacity reservation                                    |
 | `ownerID`               | `459763720645`         | The account ID that owns the capacity reservation                                    |
+| `reservationType`       | `default`              | The type of the capacity reservation. Can be `default` or `capacity-block`.          |
+| `state`                 | `active`               | The state of the capacity reservation. Can be `active` or `expiring`.                |
 
 #### Examples
 
@@ -1670,11 +1705,15 @@ status:
     instanceMatchCriteria: targeted
     instanceType: g6.48xlarge
     ownerID: "012345678901"
+    reservationType: capacity-block
+    state: expiring
   - availabilityZone: us-west-2c
     id: cr-12345678901234567
     instanceMatchCriteria: open
     instanceType: g6.48xlarge
     ownerID: "98765432109"
+    reservationType: default
+    state: active
 ```
 
 ## status.instanceProfile
