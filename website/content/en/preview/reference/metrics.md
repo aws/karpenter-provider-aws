@@ -357,6 +357,10 @@ Total number of reconciliation errors per controller
 Maximum number of concurrent reconciles per controller
 - Stability Level: STABLE
 
+### `controller_runtime_conversion_webhook_panics_total`
+Total number of conversion webhook panics
+- Stability Level: STABLE
+
 ### `controller_runtime_active_workers`
 Number of currently used workers per controller
 - Stability Level: STABLE
@@ -450,3 +454,4 @@ Total number of slow path exercised in renewing leader leases. 'name' is the str
 ### `leader_election_master_status`
 Gauge of if the reporting system is master of the relevant lease, 0 indicates backup, 1 indicates master. 'name' is the string used to identify the lease. Please make sure to group by name.
 - Stability Level: STABLE
+

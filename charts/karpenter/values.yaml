@@ -121,9 +121,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.7.0
+    tag: 1.8.0
     # -- SHA256 digest of the controller image.
-    digest: sha256:40a8887ca47323acecc3c55fbbdde17c925113b5ec1c430733dce0ee67678e42
+    digest: sha256:f913075cdd31cfcdfaa9726ca7a0b264832fc42e8a48eb573a2a0f454b38b112
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -226,6 +226,6 @@ settings:
     # -- spotToSpotConsolidation is ALPHA and is disabled by default.
     # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
     spotToSpotConsolidation: false
-     # -- staticCapacity is ALPHA and is disabled by default.
+    # -- staticCapacity is ALPHA and is disabled by default.
     # Setting this to true will enable static capacity provisioning.
     StaticCapacity: false
