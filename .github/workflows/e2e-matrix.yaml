@@ -103,7 +103,7 @@ jobs:
       statuses: write # ./.github/actions/commit-status/start
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      from_git_ref: 44f29302321f4ccc336888489b91a43c15d388b4
+      from_git_ref: 60270318502c30259aca0b64f49092946db8f594
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
