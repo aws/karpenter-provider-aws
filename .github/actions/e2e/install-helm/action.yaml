@@ -16,4 +16,5 @@ runs:
     - name: install helm-diff
       shell: bash
       run: |
-        helm plugin install https://github.com/databus23/helm-diff || true
+        helm plugin uninstall diff || true
+        helm plugin install https://github.com/databus23/helm-diff --version v3.9.11 || true
