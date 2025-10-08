@@ -27,7 +27,7 @@ Here are things you should know about NodePools:
 Objects for setting Kubelet features have been moved from the NodePool spec to the EC2NodeClasses spec, to not require other Karpenter providers to support those features.
 {{% /alert %}}
 
-For some example `NodePool` configurations, see the [examples in the Karpenter GitHub repository](https://github.com/aws/karpenter/blob/v1.0.10/examples/v1/).
+For some example `NodePool` configurations, see the [examples in the Karpenter GitHub repository](https://github.com/aws/karpenter/blob/v1.0.11/examples/v1/).
 
 ```yaml
 apiVersion: karpenter.sh/v1
