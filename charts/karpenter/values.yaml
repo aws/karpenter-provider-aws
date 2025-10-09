@@ -228,4 +228,4 @@ settings:
     spotToSpotConsolidation: false
     # -- staticCapacity is ALPHA and is disabled by default.
     # Setting this to true will enable static capacity provisioning.
-    StaticCapacity: false
+    staticCapacity: false
