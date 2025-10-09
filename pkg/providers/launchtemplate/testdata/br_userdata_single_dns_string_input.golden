@@ -1,0 +1,12 @@
+[settings.kubernetes]
+api-server = 'replaceme'
+cluster-certificate = "replaceme"
+cluster-name = 'replaceme'
+cluster-dns-ip = "8.8.8.8"
+max-pods = 75
+
+[settings.kubernetes.node-labels]
+"custom-node-label" = "custom"
+
+[settings.network]
+hostname = "test.local"
