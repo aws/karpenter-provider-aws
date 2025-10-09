@@ -76,7 +76,7 @@ params:
         url: "https://slack.k8s.io/"
         icon: fab fa-slack
         desc: "Chat with us on Slack in the #aws-provider channel"
-  latest_release_version: "1.8.0"
+  latest_release_version: "1.8.1"
   latest_k8s_version: "1.34"
   versions:
     - v1.8
