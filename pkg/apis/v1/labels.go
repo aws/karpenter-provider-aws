@@ -113,6 +113,7 @@ var (
 	AMIFamilyWindows2019                           = "Windows2019"
 	AMIFamilyWindows2022                           = "Windows2022"
 	AMIFamilyCustom                                = "Custom"
+	AMIFamilyCustomNodeadm                         = "CustomNodeadm"
 	Windows2019                                    = "2019"
 	Windows2022                                    = "2022"
 	WindowsCore                                    = "Core"
