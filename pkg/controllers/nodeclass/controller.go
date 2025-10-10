@@ -193,14 +193,17 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaims.Items, func(nc karpv1.NodeClaim, _ int) string { return nc.Name })))
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
-	// Deletes karpenter managed instance profiles for this nodeclass
-	if err := c.cleanupInstanceProfiles(ctx, nodeClass); err != nil {
-		return reconcile.Result{}, err
-	}
-	// Ensure to clean up instance profile that may have been created pre-upgrade
-	legacyProfileName := nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
-	if err := c.instanceProfileProvider.Delete(ctx, legacyProfileName); err != nil {
-		return reconcile.Result{}, serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", legacyProfileName)
+	// Instance profile cleanup should be skipped in isolated VPCs to avoid IAM calls.
+	if !options.FromContext(ctx).IsolatedVPC {
+		// Deletes karpenter managed instance profiles for this nodeclass
+		if err := c.cleanupInstanceProfiles(ctx, nodeClass); err != nil {
+			return reconcile.Result{}, err
+		}
+		// Ensure to clean up instance profile that may have been created pre-upgrade
+		legacyProfileName := nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
+		if err := c.instanceProfileProvider.Delete(ctx, legacyProfileName); err != nil {
+			return reconcile.Result{}, serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", legacyProfileName)
+		}
 	}
 
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {

@@ -82,6 +82,7 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
+	ctx = options.ToContext(ctx, test.Options())
 	nodeClass = test.EC2NodeClass()
 	awsEnv.Reset()
 	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
@@ -327,5 +328,23 @@ var _ = Describe("NodeClass Termination", func() {
 
 		Expect(awsEnv.IAMAPI.DeleteInstanceProfileBehavior.Calls()).To(BeZero())
 		Expect(awsEnv.IAMAPI.RemoveRoleFromInstanceProfileBehavior.Calls()).To(BeZero())
+	})
+	It("should skip instance profile cleanup in isolated VPCs", func() {
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{IsolatedVPC: lo.ToPtr(true)}))
+
+		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+
+		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		Expect(awsEnv.IAMAPI.DeleteInstanceProfileBehavior.Calls()).To(BeZero())
+		Expect(awsEnv.IAMAPI.RemoveRoleFromInstanceProfileBehavior.Calls()).To(BeZero())
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
 })
