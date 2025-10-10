@@ -103,6 +103,8 @@ func NewControllers(
 		crexpiration.NewController(clk, kubeClient, cloudProvider, capacityReservationProvider),
 		metrics.NewController(kubeClient, cloudProvider),
 	}
+	// Instance profile garbage collection requires IAM API access. Skip registering the controller when running
+	// in isolated VPC mode to avoid initiating calls to public AWS endpoints that won’t be reachable.
 	if !options.FromContext(ctx).IsolatedVPC {
 		controllers = append(controllers, nodeclassgarbagecollection.NewController(kubeClient, cloudProvider, instanceProfileProvider, cfg.Region))
 	}
