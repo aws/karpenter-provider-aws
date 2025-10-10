@@ -328,4 +328,24 @@ var _ = Describe("NodeClass Termination", func() {
 		Expect(awsEnv.IAMAPI.DeleteInstanceProfileBehavior.Calls()).To(BeZero())
 		Expect(awsEnv.IAMAPI.RemoveRoleFromInstanceProfileBehavior.Calls()).To(BeZero())
 	})
+	It("should skip instance profile cleanup in isolated VPCs", func() {
+		oldCtx := ctx
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{IsolatedVPC: lo.ToPtr(true)}))
+		DeferCleanup(func() { ctx = oldCtx })
+
+		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+
+		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		Expect(awsEnv.IAMAPI.DeleteInstanceProfileBehavior.Calls()).To(BeZero())
+		Expect(awsEnv.IAMAPI.RemoveRoleFromInstanceProfileBehavior.Calls()).To(BeZero())
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		ExpectNotFound(ctx, env.Client, nodeClass)
+	})
 })
