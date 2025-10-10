@@ -82,6 +82,7 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
+	ctx = options.ToContext(ctx, test.Options())
 	nodeClass = test.EC2NodeClass()
 	awsEnv.Reset()
 	Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
@@ -329,9 +330,7 @@ var _ = Describe("NodeClass Termination", func() {
 		Expect(awsEnv.IAMAPI.RemoveRoleFromInstanceProfileBehavior.Calls()).To(BeZero())
 	})
 	It("should skip instance profile cleanup in isolated VPCs", func() {
-		oldCtx := ctx
 		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{IsolatedVPC: lo.ToPtr(true)}))
-		DeferCleanup(func() { ctx = oldCtx })
 
 		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		ExpectApplied(ctx, env.Client, nodeClass)
