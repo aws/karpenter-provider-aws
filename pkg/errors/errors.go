@@ -221,6 +221,9 @@ func ToReasonMessage(err error) (string, string) {
 		if strings.Contains(err.Error(), "with an explicit deny in a service control policy") {
 			return "Unauthorized", "User is not authorized to perform this operation due to a service control policy"
 		}
+		if strings.Contains(err.Error(), "not authorized for images") {
+			return "AMIAuthorizationFailure", "User is not authorized for AMI used in instance launch"
+		}
 		return "Unauthorized", "User is not authorized to perform this operation because no identity-based policy allows it"
 	}
 	if strings.Contains(err.Error(), "iamInstanceProfile.name is invalid") {
