@@ -121,9 +121,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.7.0
+    tag: 1.8.1
     # -- SHA256 digest of the controller image.
-    digest: sha256:40a8887ca47323acecc3c55fbbdde17c925113b5ec1c430733dce0ee67678e42
+    digest: sha256:41c28a606cbad86869384ff8ae8345203b63f81612b6fcfd2e136197dccc03ef
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -205,6 +205,10 @@ settings:
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved.
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.
   reservedENIs: "0"
+  # -- Ignore pods' DRA requests during scheduling simulations.
+  ignoreDRARequests: true
+  # -- Disable cluster state metrics and events.
+  disableClusterStateObservability: false
   # -- Disable dry run validation for EC2NodeClasses.
   disableDryRun: false
   # -- Override the AWS region for Pricing API requests
@@ -224,3 +228,6 @@ settings:
     # -- spotToSpotConsolidation is ALPHA and is disabled by default.
     # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
     spotToSpotConsolidation: false
+    # -- staticCapacity is ALPHA and is disabled by default.
+    # Setting this to true will enable static capacity provisioning.
+    staticCapacity: false
