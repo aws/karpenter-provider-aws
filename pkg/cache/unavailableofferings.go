@@ -111,13 +111,6 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType
 	u.offeringCacheSeqNumMu.Unlock()
 }
 
-func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr ec2types.CreateFleetError, capacityType string) {
-	instanceType := fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType
-	zone := aws.ToString(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
-	u.MarkUnavailable(ctx, instanceType, zone, capacityType, map[string]string{
-		"reason": lo.FromPtr(fleetErr.ErrorCode),
-	})
-}
 
 func (u *UnavailableOfferings) MarkCapacityTypeUnavailable(capacityType string) {
 	u.capacityTypeCache.SetDefault(capacityType, struct{}{})

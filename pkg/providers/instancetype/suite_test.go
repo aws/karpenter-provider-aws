@@ -2279,8 +2279,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(m5InstanceType.Offerings.Available()).To(HaveLen(6))
 
 			// Mark spot m5.xlarge instance as unavailable in a few zones, nothing should change
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Xlarge, "test-zone-1a", karpv1.CapacityTypeSpot, map[string]interface{}{"reason": "test"})
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot, map[string]interface{}{"reason": "test"})
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Xlarge, "test-zone-1a", karpv1.CapacityTypeSpot, map[string]string{"reason": "test"})
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot, map[string]string{"reason": "test"})
 			Expect(err).ToNot(HaveOccurred())
 			m5InstanceType, ok = lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
 				return it.Name == string(ec2types.InstanceTypeM5Large)
@@ -2289,7 +2289,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(m5InstanceType.Offerings.Available()).To(HaveLen(6))
 
 			// Mark spot m5.large instance in test-zone-1a as unavailable
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeSpot, map[string]interface{}{"reason": "test"})
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeSpot, map[string]string{"reason": "test"})
 			instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
 			m5InstanceType, ok = lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
@@ -2303,8 +2303,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}))[0].Available).To(BeFalse())
 
 			// Mark on-demand m5.large instance in test-zone-1b and test-zone-1c as unavailable
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1b", karpv1.CapacityTypeOnDemand, map[string]interface{}{"reason": "test"})
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1c", karpv1.CapacityTypeOnDemand, map[string]interface{}{"reason": "test"})
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1b", karpv1.CapacityTypeOnDemand, map[string]string{"reason": "test"})
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1c", karpv1.CapacityTypeOnDemand, map[string]string{"reason": "test"})
 
 			instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
@@ -2795,7 +2795,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			list1, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
 
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot, map[string]interface{}{"reason": "test"})
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot, map[string]string{"reason": "test"})
 			list2, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
 
