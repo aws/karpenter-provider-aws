@@ -496,14 +496,14 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 				instanceType := err.LaunchTemplateAndOverrides.Overrides.InstanceType
 				zone := aws.ToString(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
 				
-				extraContext := map[string]interface{}{
+				unavailableReason := map[string]string{
 					"reason": lo.FromPtr(err.ErrorCode),
 				}
 				if fleetID != "" {
-					extraContext["fleet-id"] = fleetID
+					unavailableReason["fleet-id"] = fleetID
 				}
 				
-				p.unavailableOfferings.MarkUnavailable(ctx, instanceType, zone, capacityType, extraContext)
+				p.unavailableOfferings.MarkUnavailable(ctx, instanceType, zone, capacityType, unavailableReason)
 			}
 			if awserrors.IsServiceLinkedRoleCreationNotPermitted(err) {
 				p.unavailableOfferings.MarkCapacityTypeUnavailable(karpv1.CapacityTypeSpot)
