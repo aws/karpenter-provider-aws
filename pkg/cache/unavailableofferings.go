@@ -99,11 +99,9 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType
 		"ttl", UnavailableOfferingsTTL,
 	}
 
-	// Add unavailable reason if provided and not empty
+	// Add unavailable reason if provided
 	for k, v := range unavailableReason {
-		if v != "" {
-			logValues = append(logValues, k, v)
-		}
+		logValues = append(logValues, k, v)
 	}
 
 	log.FromContext(ctx).WithValues(logValues...).V(1).Info("removing offering from offerings")
