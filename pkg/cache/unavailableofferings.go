@@ -90,7 +90,7 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType,
 }
 
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
-func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType ec2types.InstanceType, zone, capacityType string, extraContext map[string]interface{}) {
+func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType ec2types.InstanceType, zone, capacityType string, unavailableReason map[string]string) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	logValues := []interface{}{
 		"instance-type", instanceType,
@@ -98,14 +98,14 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType
 		"capacity-type", capacityType,
 		"ttl", UnavailableOfferingsTTL,
 	}
-	
-	// Add extra context if provided and not empty
-	for k, v := range extraContext {
-		if v != nil && v != "" {
+
+	// Add unavailable reason if provided and not empty
+	for k, v := range unavailableReason {
+		if v != "" {
 			logValues = append(logValues, k, v)
 		}
 	}
-	
+
 	log.FromContext(ctx).WithValues(logValues...).V(1).Info("removing offering from offerings")
 	u.offeringCache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
 	u.offeringCacheSeqNumMu.Lock()
@@ -116,10 +116,10 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType
 func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr ec2types.CreateFleetError, capacityType string) {
 	instanceType := fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType
 	zone := aws.ToString(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
-	extraContext := map[string]interface{}{
+	unavailableReason := map[string]string{
 		"reason": lo.FromPtr(fleetErr.ErrorCode),
 	}
-	u.MarkUnavailable(ctx, instanceType, zone, capacityType, extraContext)
+	u.MarkUnavailable(ctx, instanceType, zone, capacityType, unavailableReason)
 }
 
 func (u *UnavailableOfferings) MarkCapacityTypeUnavailable(capacityType string) {
