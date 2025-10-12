@@ -114,10 +114,9 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType
 func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr ec2types.CreateFleetError, capacityType string) {
 	instanceType := fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType
 	zone := aws.ToString(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
-	unavailableReason := map[string]string{
+	u.MarkUnavailable(ctx, instanceType, zone, capacityType, map[string]string{
 		"reason": lo.FromPtr(fleetErr.ErrorCode),
-	}
-	u.MarkUnavailable(ctx, instanceType, zone, capacityType, unavailableReason)
+	})
 }
 
 func (u *UnavailableOfferings) MarkCapacityTypeUnavailable(capacityType string) {
