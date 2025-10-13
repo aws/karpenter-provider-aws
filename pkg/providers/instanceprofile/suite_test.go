@@ -16,8 +16,10 @@ package instanceprofile_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -27,6 +29,7 @@ import (
 
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
@@ -111,7 +114,7 @@ var _ = Describe("InstanceProfileProvider", func() {
 		func(roleWithPath, role string) {
 			const profileName = "profile-A"
 			nodeClass.Spec.Role = roleWithPath
-			Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, role, nil, string(nodeClass.UID))).To(Succeed())
+			Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, role, nil, string(nodeClass.UID), true)).To(Succeed())
 			Expect(profileName).ToNot(BeNil())
 			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
 			Expect(aws.ToString(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName)).To(Equal(role))
@@ -268,7 +271,7 @@ var _ = Describe("InstanceProfileProvider", func() {
 		nodeClassUID := "test-uid"
 		expectedPath := fmt.Sprintf("/karpenter/%s/%s/%s/", fake.DefaultRegion, options.FromContext(ctx).ClusterName, nodeClassUID)
 
-		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, nodeRole, nil, nodeClassUID)).To(Succeed())
+		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, nodeRole, nil, nodeClassUID, true)).To(Succeed())
 
 		// Get the created profile
 		profile, err := awsEnv.InstanceProfileProvider.Get(ctx, profileName)
@@ -286,7 +289,7 @@ var _ = Describe("InstanceProfileProvider", func() {
 		profileName := "profile-A"
 		nodeClassUID := "test-uid"
 
-		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, nodeRole, nil, nodeClassUID)).To(Succeed())
+		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, nodeRole, nil, nodeClassUID, true)).To(Succeed())
 
 		// Verify profile exists
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(profileName))
@@ -307,7 +310,7 @@ var _ = Describe("InstanceProfileProvider", func() {
 	It("should reflect IsProtected updates", func() {
 		// Create a profile
 		profileName := "profile-A"
-		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, nodeRole, nil, "test-uid")).To(Succeed())
+		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, nodeRole, nil, "test-uid", true)).To(Succeed())
 
 		// Initially should not be protected (protection is set in instance profile reconciler)
 		Expect(awsEnv.InstanceProfileProvider.IsProtected(profileName)).To(BeFalse())
@@ -319,5 +322,54 @@ var _ = Describe("InstanceProfileProvider", func() {
 		// Set back to unprotected
 		awsEnv.InstanceProfileProvider.SetProtectedState(profileName, false)
 		Expect(awsEnv.InstanceProfileProvider.IsProtected(profileName)).To(BeFalse())
+	})
+
+	It("should not update instance profile cache item on multiple create calls", func() {
+		roleName := "test-role"
+		profileName := "test-profile"
+		err := awsEnv.InstanceProfileProvider.Create(ctx, profileName, roleName, nil, "test-uid", true)
+		_, initialExpirationTime, found := awsEnv.InstanceProfileCache.GetWithExpiration(instanceprofile.GetProfileCacheKey(profileName))
+		Expect(found).To(BeTrue())
+		Expect(err).ToNot(HaveOccurred())
+		time.Sleep(time.Second)
+
+		err = awsEnv.InstanceProfileProvider.Create(ctx, profileName, roleName, nil, "test-uid", true)
+		Expect(err).ToNot(HaveOccurred())
+		_, expirationTime, found := awsEnv.InstanceProfileCache.GetWithExpiration(instanceprofile.GetProfileCacheKey(profileName))
+		Expect(found).To(BeTrue())
+		Expect(expirationTime).To(Equal(initialExpirationTime))
+	})
+
+	Context("Role Cache", func() {
+		const roleName = "test-role"
+		BeforeEach(func() {
+			awsEnv.IAMAPI.EnableRoleValidation = true
+			awsEnv.IAMAPI.Roles = map[string]*iamtypes.Role{
+				roleName: &iamtypes.Role{RoleName: lo.ToPtr(roleName)},
+			}
+		})
+		It("should not cache role not found errors when the role exists", func() {
+			err := awsEnv.InstanceProfileProvider.Create(ctx, "test-profile", roleName, nil, "test-uid", true)
+			Expect(err).ToNot(HaveOccurred())
+			_, ok := awsEnv.RoleCache.Get(roleName)
+			Expect(ok).To(BeFalse())
+		})
+		It("should cache role not found errors when the role does not", func() {
+			missingRoleName := "non-existent-role"
+			err := awsEnv.InstanceProfileProvider.Create(ctx, "test-profile", missingRoleName, nil, "test-uid", true)
+			Expect(err).To(HaveOccurred())
+			_, ok := awsEnv.RoleCache.Get(missingRoleName)
+			Expect(ok).To(BeTrue())
+		})
+		It("should not attempt to create instance profile when role is cached as not found", func() {
+			missingRoleName := "non-existent-role"
+			awsEnv.RoleCache.SetDefault(missingRoleName, errors.New("role not found"))
+
+			err := awsEnv.InstanceProfileProvider.Create(ctx, "test-profile", missingRoleName, nil, "test-uid", true)
+			Expect(err).To(HaveOccurred())
+
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+			Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(BeZero())
+		})
 	})
 })

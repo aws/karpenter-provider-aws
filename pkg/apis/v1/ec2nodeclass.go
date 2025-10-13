@@ -47,14 +47,18 @@ type EC2NodeClassSpec struct {
 	SecurityGroupSelectorTerms []SecurityGroupSelectorTerm `json:"securityGroupSelectorTerms" hash:"ignore"`
 	// CapacityReservationSelectorTerms is a list of capacity reservation selector terms. Each term is ORed together to
 	// determine the set of eligible capacity reservations.
-	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id']",rule="self.all(x, has(x.tags) || has(x.id))"
-	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set along with tags in a capacity reservation selector term",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID)))"
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'instanceMatchCriteria']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.instanceMatchCriteria))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))"
 	// +kubebuilder:validation:MaxItems:=30
 	// +optional
 	CapacityReservationSelectorTerms []CapacityReservationSelectorTerm `json:"capacityReservationSelectorTerms" hash:"ignore"`
 	// AssociatePublicIPAddress controls if public IP addresses are assigned to instances that are launched with the nodeclass.
 	// +optional
 	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
+	// IPPrefixCount sets the number of IPv4 prefixes to be automatically assigned to the network interface.
+	// +kubebuilder:validation:Minimum:=0
+	// +optional
+	IPPrefixCount *int32 `json:"ipPrefixCount,omitempty" hash:"ignore"`
 	// AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name', 'alias', 'ssmParameter']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias) || has(x.ssmParameter))"
 	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.exists(x, has(x.id) && (has(x.alias) || has(x.tags) || has(x.name) || has(x.owner)))"
@@ -189,6 +193,10 @@ type CapacityReservationSelectorTerm struct {
 	// +kubebuilder:validation:Pattern:="^[0-9]{12}$"
 	// +optional
 	OwnerID string `json:"ownerID,omitempty"`
+	// InstanceMatchCriteria specifies how instances are matched to capacity reservations.
+	// +kubebuilder:validation:Enum:={open,targeted}
+	// +optional
+	InstanceMatchCriteria string `json:"instanceMatchCriteria,omitempty"`
 }
 
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.

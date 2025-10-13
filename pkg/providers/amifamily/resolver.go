@@ -25,6 +25,7 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -47,7 +48,9 @@ type Resolver interface {
 }
 
 // DefaultResolver is able to fill-in dynamic launch template parameters
-type DefaultResolver struct{}
+type DefaultResolver struct {
+	region string
+}
 
 // Options define the static launch template parameters
 type Options struct {
@@ -57,12 +60,15 @@ type Options struct {
 	InstanceProfile     string
 	CABundle            *string `hash:"ignore"`
 	InstanceStorePolicy *v1.InstanceStorePolicy
+	AMISelectorTerms    []v1.AMISelectorTerm `hash:"ignore"` // For Bottlerocket version resolution
+	AMIs                []v1.AMI             `hash:"ignore"` // Resolved AMIs for version extraction
 	// Level-triggered fields that may change out of sync.
 	SecurityGroups           []v1.SecurityGroup
 	Tags                     map[string]string
 	Labels                   map[string]string `hash:"ignore"`
 	KubeDNSIP                net.IP
 	AssociatePublicIPAddress *bool
+	IPPrefixCount            *int32
 	NodeClassName            string
 }
 
@@ -117,8 +123,10 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // NewDefaultResolver constructs a new launch template DefaultResolver
-func NewDefaultResolver() *DefaultResolver {
-	return &DefaultResolver{}
+func NewDefaultResolver(region string) *DefaultResolver {
+	return &DefaultResolver{
+		region: region,
+	}
 }
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
@@ -270,6 +278,15 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	if len(capacityReservationIDs) == 0 {
 		capacityReservationIDs = append(capacityReservationIDs, "")
 	}
+	httpProtocolUnsupportedRegions := sets.New[string](
+		"eu-isoe-west-1",
+		"us-iso-east-1",
+		"us-iso-west-1",
+		"us-isob-east-1",
+		"us-isob-west-1",
+		"us-isof-south-1",
+		"us-isof-east-1",
+	)
 	return lo.Map(capacityReservationIDs, func(id string, _ int) *LaunchTemplate {
 		resolved := &LaunchTemplate{
 			Options: options,
@@ -297,6 +314,9 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		}
 		if resolved.MetadataOptions == nil {
 			resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
+		}
+		if httpProtocolUnsupportedRegions.Has(r.region) {
+			resolved.MetadataOptions.HTTPProtocolIPv6 = nil
 		}
 		return resolved
 	})

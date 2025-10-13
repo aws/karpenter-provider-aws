@@ -19,9 +19,11 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/status"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -97,6 +99,16 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 					State:                  ec2types.CapacityReservationStateActive,
 					ReservationType:        ec2types.CapacityReservationTypeDefault,
 				},
+				{
+					AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+					InstanceType:           lo.ToPtr("m5.large"),
+					OwnerId:                lo.ToPtr(selfOwnerID),
+					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaOpen,
+					CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-3"),
+					AvailableInstanceCount: lo.ToPtr[int32](5),
+					State:                  ec2types.CapacityReservationStateActive,
+					ReservationType:        ec2types.CapacityReservationTypeDefault,
+				},
 			},
 		})
 	})
@@ -147,6 +159,66 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 		Expect(lo.Map(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation, _ int) string {
 			return cr.ID
 		})).To(ContainElements("cr-m5.large-1a-2"))
+	})
+	It("should resolve capacity reservations by instance match criteria 'open'", func() {
+		nodeClass.Spec.CapacityReservationSelectorTerms = append(nodeClass.Spec.CapacityReservationSelectorTerms, v1.CapacityReservationSelectorTerm{
+			InstanceMatchCriteria: "open",
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeCapacityReservationsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.Status.CapacityReservations).To(HaveLen(1))
+		Expect(nodeClass.Status.CapacityReservations[0].ID).To(Equal("cr-m5.large-1a-3"))
+		Expect(nodeClass.Status.CapacityReservations[0].InstanceMatchCriteria).To(Equal("open"))
+	})
+	It("should resolve capacity reservations by instance match criteria 'targeted'", func() {
+		nodeClass.Spec.CapacityReservationSelectorTerms = append(nodeClass.Spec.CapacityReservationSelectorTerms, v1.CapacityReservationSelectorTerm{
+			InstanceMatchCriteria: "targeted",
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeCapacityReservationsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.Status.CapacityReservations).To(HaveLen(5))
+		Expect(lo.Map(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation, _ int) string {
+			return cr.ID
+		})).To(ContainElements("cr-m5.large-1a-1", "cr-m5.large-1a-2", "cr-p5.48xlarge-1a", "cr-m5.large-1b-1", "cr-m5.large-1b-2"))
+		for _, cr := range nodeClass.Status.CapacityReservations {
+			Expect(cr.InstanceMatchCriteria).To(Equal("targeted"))
+		}
+	})
+	It("should resolve capacity reservations by instance match criteria with tags", func() {
+		nodeClass.Spec.CapacityReservationSelectorTerms = append(nodeClass.Spec.CapacityReservationSelectorTerms, v1.CapacityReservationSelectorTerm{
+			InstanceMatchCriteria: "targeted",
+			Tags:                  discoveryTags,
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeCapacityReservationsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.Status.CapacityReservations).To(HaveLen(2))
+		Expect(lo.Map(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation, _ int) string {
+			return cr.ID
+		})).To(ContainElements("cr-m5.large-1a-2", "cr-m5.large-1b-2"))
+		for _, cr := range nodeClass.Status.CapacityReservations {
+			Expect(cr.InstanceMatchCriteria).To(Equal("targeted"))
+		}
+	})
+	It("should resolve capacity reservations by instance match criteria with tags and owner", func() {
+		nodeClass.Spec.CapacityReservationSelectorTerms = append(nodeClass.Spec.CapacityReservationSelectorTerms, v1.CapacityReservationSelectorTerm{
+			InstanceMatchCriteria: "targeted",
+			Tags:                  discoveryTags,
+			OwnerID:               selfOwnerID,
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeCapacityReservationsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.Status.CapacityReservations).To(HaveLen(1))
+		Expect(nodeClass.Status.CapacityReservations[0].ID).To(Equal("cr-m5.large-1a-2"))
+		Expect(nodeClass.Status.CapacityReservations[0].InstanceMatchCriteria).To(Equal("targeted"))
+		Expect(nodeClass.Status.CapacityReservations[0].OwnerID).To(Equal(selfOwnerID))
 	})
 	It("should exclude expired capacity reservations", func() {
 		out := awsEnv.EC2API.DescribeCapacityReservationsOutput.Clone()
@@ -248,4 +320,17 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 			Expect(cr.State).To(Equal(v1.CapacityReservationStateActive))
 		}
 	})
+	DescribeTable(
+		"should update status condition on nodeClass as Ready",
+		func(reservedCapacity bool) {
+			coreoptions.FromContext(ctx).FeatureGates.ReservedCapacity = reservedCapacity
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.Status.Conditions).To(HaveLen(lo.Ternary(reservedCapacity, 7, 6)))
+			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
+		},
+		Entry("when reserved capacity feature flag is enabled", true),
+		Entry("when reserved capacity feature flag is disabled", false),
+	)
 })

@@ -2,5 +2,5 @@
 Write-Host "Running custom user data script"
 Write-Host "Finished running custom user data script"
 [string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
-& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.k8s.aws/ec2nodeclass=%s,karpenter.sh/capacity-type=spot,karpenter.sh/do-not-sync-taints=true,%s=%s,testing/cluster=unspecified" --register-with-taints="karpenter.sh/unregistered:NoExecute" --max-pods=110' -DNSClusterIP '10.0.100.10'
+& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'Y2EtYnVuZGxlCg==' -KubeletExtraArgs '--node-labels="karpenter.k8s.aws/ec2nodeclass=%s,karpenter.sh/capacity-type=spot,karpenter.sh/do-not-sync-taints=true,%s=%s,testing/cluster=unspecified" --register-with-taints="karpenter.sh/unregistered:NoExecute" --max-pods=110' -DNSClusterIP '10.0.100.10'
 </powershell>

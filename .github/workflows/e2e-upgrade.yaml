@@ -16,14 +16,14 @@ on:
       k8s_version:
         type: choice
         options:
-          - "1.26"
-          - "1.27"
           - "1.28"
           - "1.29"
           - "1.30"
           - "1.31"
           - "1.32"
-        default: "1.32"
+          - "1.33"
+          - "1.34"
+        default: "1.34"
       cleanup:
         required: true
         default: true
@@ -43,7 +43,7 @@ on:
         default: "us-east-2"
       k8s_version:
         type: string
-        default: "1.32"
+        default: "1.34"
       cleanup:
         required: true
         type: boolean
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This additional checkout can be removed when the commit status action is added to the from_git_ref version of Karpenter
-      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ inputs.to_git_ref }}
       - if: always() && github.event_name == 'workflow_run'
@@ -73,11 +73,11 @@ jobs:
           name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (Upgrade)
           git_ref: ${{ inputs.to_git_ref }}
       - uses: ./.github/actions/install-deps
-      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ inputs.from_git_ref }}
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 # v5.0.0
         with:
           role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
           aws-region: ${{ inputs.region }}
@@ -103,7 +103,7 @@ jobs:
           ecr_region: ${{ vars.SNAPSHOT_REGION }}
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
-      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ inputs.to_git_ref }}
       - name: upgrade crds

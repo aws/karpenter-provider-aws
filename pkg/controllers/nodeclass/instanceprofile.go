@@ -67,7 +67,7 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 			profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile)
 			if err != nil {
 				if !awserrors.IsNotFound(err) {
-					return reconcile.Result{}, fmt.Errorf("getting instance profile %s: %w", nodeClass.Status.InstanceProfile, err)
+					return reconcile.Result{}, fmt.Errorf("getting instance profile %s, %w", nodeClass.Status.InstanceProfile, err)
 				}
 			} else if len(profile.Roles) > 0 {
 				currentRole = lo.FromPtr(profile.Roles[0].RoleName)
@@ -85,7 +85,12 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 				nodeClass.InstanceProfileRole(),
 				nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
 				string(nodeClass.UID),
+				true,
 			); err != nil {
+				// If we failed Create, we may have successfully created the instance profile but failed to either attach the new
+				// role or remove the existing role. To prevent runaway instance profile creation, we'll attempt to delete the
+				// profile. We'll fail open here and rely on the garbage collector as a backstop.
+				_ = ip.instanceProfileProvider.Delete(ctx, newProfileName)
 				return reconcile.Result{}, fmt.Errorf("creating instance profile, %w", err)
 			}
 			ip.recreationCache.SetDefault(generateCacheKey(nodeClass), newProfileName)

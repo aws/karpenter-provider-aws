@@ -16,6 +16,7 @@ package scheduling_test
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	"sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/test"
 
@@ -143,7 +145,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					{
 						Key:      v1.LabelTopologyZoneID,
 						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})[0].ZoneInfo.ZoneID},
+						Values:   []string{env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})[0].ZoneID},
 					},
 				},
 			}})
@@ -258,8 +260,6 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
 			}})
-			// Use AL2 AMIs instead of AL2023 since accelerated AMIs aren't yet available
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			env.ExpectCreated(nodeClass, nodePool, deployment)
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 			env.ExpectCreatedNodeCount("==", 1)
@@ -279,8 +279,6 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
 			}})
-			// Use AL2 AMIs instead of AL2023 since accelerated AMIs aren't yet available
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			env.ExpectCreated(nodeClass, nodePool, deployment)
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 			env.ExpectCreatedNodeCount("==", 1)
@@ -539,6 +537,21 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			env.ExpectCreatedNodeCount("==", 1)
 			Expect(env.GetInstance(pod.Spec.NodeName).InstanceType).To(Equal(ec2types.InstanceType("c5.large")))
 			Expect(env.GetNode(pod.Spec.NodeName).Labels[karpv1.NodePoolLabelKey]).To(Equal(nodePoolHighPri.Name))
+		})
+		It("should provision a flex node for a pod", func() {
+			selectors.Insert(v1.LabelInstanceCapabilityFlex)
+			pod := test.Pod()
+			nodePoolWithMinValues := test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceCapabilityFlex,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"true"},
+				},
+			})
+			env.ExpectCreated(nodeClass, nodePoolWithMinValues, pod)
+			env.EventuallyExpectHealthy(pod)
+			env.ExpectCreatedNodeCount("==", 1)
+			Expect(env.GetNode(pod.Spec.NodeName).Labels).To(And(HaveKeyWithValue(corev1.LabelInstanceType, ContainSubstring("flex"))))
 		})
 
 		DescribeTable(
@@ -912,6 +925,96 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
 	Entry("MinValuesPolicyStrict", options.MinValuesPolicyStrict),
 )
+
+var _ = Describe("Node Overlay", func() {
+	It("should provision the instance that is the cheepest based on a price adjustment node overlay applied", func() {
+		overlaiedInstanceType := "m7a.8xlarge"
+		pod := test.Pod()
+		nodeOverlay := test.NodeOverlay(v1alpha1.NodeOverlay{
+			Spec: v1alpha1.NodeOverlaySpec{
+				PriceAdjustment: lo.ToPtr("-99.99999999999%"),
+				Requirements: []corev1.NodeSelectorRequirement{
+					{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{overlaiedInstanceType},
+					},
+				},
+			},
+		})
+		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)
+
+		instanceType, foundInstanceType := node[0].Labels[corev1.LabelInstanceTypeStable]
+		Expect(foundInstanceType).To(BeTrue())
+		Expect(instanceType).To(Equal(overlaiedInstanceType))
+	})
+	It("should provision the instance that is the cheepest based on a price override node overlay applied", func() {
+		overlaiedInstanceType := "c7a.8xlarge"
+		pod := test.Pod()
+		nodeOverlay := test.NodeOverlay(v1alpha1.NodeOverlay{
+			Spec: v1alpha1.NodeOverlaySpec{
+				Price: lo.ToPtr("0.0000000232"),
+				Requirements: []corev1.NodeSelectorRequirement{
+					{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{overlaiedInstanceType},
+					},
+				},
+			},
+		})
+		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)
+
+		instanceType, foundInstanceType := node[0].Labels[corev1.LabelInstanceTypeStable]
+		Expect(foundInstanceType).To(BeTrue())
+		Expect(instanceType).To(Equal(overlaiedInstanceType))
+	})
+	It("should provision a node that matches hugepages resource requests", func() {
+		overlaiedInstanceType := "c7a.2xlarge"
+		pod := test.Pod(test.PodOptions{
+			ResourceRequirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:                   test.RandomCPU(),
+					corev1.ResourceMemory:                test.RandomMemory(),
+					corev1.ResourceName("hugepages-2Mi"): resource.MustParse("100Mi"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceName("hugepages-2Mi"): resource.MustParse("100Mi"),
+				},
+			},
+		})
+		nodeOverlay := test.NodeOverlay(v1alpha1.NodeOverlay{
+			Spec: v1alpha1.NodeOverlaySpec{
+				Requirements: []corev1.NodeSelectorRequirement{
+					{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{overlaiedInstanceType},
+					},
+				},
+				Capacity: corev1.ResourceList{
+					corev1.ResourceName("hugepages-2Mi"): resource.MustParse("4Gi"),
+				},
+			},
+		})
+
+		content, err := os.ReadFile("testdata/hugepage_userdata_input.sh")
+		Expect(err).To(BeNil())
+		nodeClass.Spec.UserData = lo.ToPtr(string(content))
+
+		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)
+
+		instanceType, foundInstanceType := node[0].Labels[corev1.LabelInstanceTypeStable]
+		Expect(foundInstanceType).To(BeTrue())
+		Expect(instanceType).To(Equal(overlaiedInstanceType))
+	})
+})
 
 func ephemeralInitContainer(requirements corev1.ResourceRequirements) corev1.Container {
 	return corev1.Container{
