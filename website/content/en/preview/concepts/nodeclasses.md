@@ -298,6 +298,47 @@ spec:
 Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kubelet` and `spec.userData`.
 {{% /alert %}}
 
+#### Configuring Unsafe Sysctls
+
+Similarly, you can configure `allowedUnsafeSysctls` for AL2023 using the NodeConfig format in UserData:
+
+{{% alert title="Warning" color="warning" %}}
+Unsafe sysctls are disabled by default because they can potentially affect the stability and security of the node or other pods on the same node. Only enable unsafe sysctls if you understand the implications and have a specific use case that requires them. Make sure to test thoroughly in non-production environments first.
+{{% /alert %}}
+
+**Use Case:** Some applications require specific kernel parameter modifications to achieve optimal performance or functionality. For example:
+- High-performance networking applications may need to adjust `net.core.somaxconn` to handle more simultaneous connections
+- Applications handling many short-lived connections may benefit from `net.ipv4.tcp_tw_reuse` to reuse TIME-WAIT sockets faster
+
+**Node Configuration Example:**
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: unsafe-sysctls
+spec:
+  amiSelectorTerms:
+    - alias: al2023@latest
+  userData: |
+    apiVersion: node.eks.aws/v1alpha1
+    kind: NodeConfig
+    spec:
+      kubelet:
+        config:
+          allowedUnsafeSysctls:
+            - net.core.somaxconn
+            - net.ipv4.tcp_tw_reuse
+```
+
+**Using Sysctls in Pods:**
+
+Once the node is configured with `allowedUnsafeSysctls`, you can use the sysctls in your Pod specifications via the `securityContext.sysctls` field. For detailed information on how to configure sysctls in your Pods, see the [Kubernetes documentation on sysctls](https://kubernetes.io/docs/tasks/administer-cluster/sysctl-cluster/).
+
+{{% alert title="Note" color="primary" %}}
+The sysctls specified in the Pod must be included in the node's `allowedUnsafeSysctls` list. If you try to use a sysctl that is not allowed, the Pod will fail to start with a `SysctlsForbidden` error.
+{{% /alert %}}
+
 #### Pods Per Core
 
 An alternative way to dynamically set the maximum density of pods on a node is to use the `.spec.kubelet.podsPerCore` value. Karpenter will calculate the pod density during scheduling by multiplying this value by the number of logical cores (vCPUs) on an instance type. This value will also be passed through to the `--pods-per-core` value on kubelet startup to configure the number of allocatable pods the kubelet can assign to the node instance.
