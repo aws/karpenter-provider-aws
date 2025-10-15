@@ -178,13 +178,11 @@ status:
 Optional field that enables static capacity mode. When specified, the NodePool maintains a fixed number of nodes regardless of pod demand.
 
 **Static NodePool Constraints:**
-- Cannot be changed once set (NodePool cannot switch between static and dynamic modes)
-- Consolidation settings are ignored when replicas is specified
+- Cannot be removed once set (NodePool cannot switch between static and dynamic modes)
 - Only `limits.nodes` is allowed in limits section
 - `weight` field cannot be set
 - Nodes are not considered as consolidation candidates
-- Scale operations bypass disruption budgets but respect PodDisruptionBudgets
-- Karpenter-driven actions (e.g., drift) respect disruption budgets and scheduling safety
+- Scale operations bypass node disruption budgets but respect PodDisruptionBudgets
 
 **Scaling:** Use `kubectl scale nodepool <name> --replicas=<count>` to change replica count.
 
@@ -231,10 +229,10 @@ For example, an instance type may be specified using a nodeSelector in a pod spe
 
 **Static NodePool**
 
-The requirements for static NodePool behaves identically to dynamic pools—it defines the constraints for all NodeClaims launched under that NodePool.
+The requirements for static NodePool behaves identically to dynamic pools — it defines the constraints for all NodeClaims launched under that NodePool.
 
 The NodeClaim requirements are directly derived from the NodeClaimTemplate on the NodePool. These are evaluated once per NodeClaim at creation, meaning the selection is based solely on what the template allows.
-As a result, even though all NodeClaims come from the same static NodePool, they may still result in different instance types (shapes/flavors), depending on availability, since that decision happens during cloud-provider Create() call.
+As a result, NodeClaims created for the same static NodePool could result in different instance types being launched depending on instance availability so long as those instance types are compatible with the NodePool's requirements.
 
 ### Well-Known Labels
 
@@ -264,7 +262,6 @@ IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 **Static NodePool**
 
 Topology requirement field is the source of truth for topology decisions. Users who want to spread nodes across zones can do so explicitly by:
-- Specifying multiple zones in the topology.kubernetes.io/zone requirement, or
 - Creating multiple static NodePools, each pinned to a specific AZ.
 
 #### Architecture
