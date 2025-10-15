@@ -503,7 +503,11 @@ In order for a pod to run on a node defined in this NodePool, it must tolerate `
 
 ### Static NodePool
 
-A NodePool can be configured for static capacity by setting the `replicas` field. This maintains a fixed number of nodes regardless of pod demand:
+A NodePool can be configured for static capacity by setting the `replicas` field. This maintains a fixed number of nodes regardless of pod demand.
+Users who want to spread nodes across zones can do so explicitly by:
+- Creating multiple static NodePools, each pinned to a specific AZ.
+
+The following example creates a static NodePool with 10 replicas:
 
 ```yaml
 apiVersion: karpenter.sh/v1
@@ -520,16 +524,13 @@ spec:
         values: ["m5.large", "m5.xlarge"]
       - key: topology.kubernetes.io/zone
         operator: In
-        values: ["us-west-2a"]
+        values: ["us-west-2a"]  # All replicas will come up in specified zone
   limits:
     nodes: 15  # Maximum nodes during scaling/drift
   disruption:
     budgets:
     - nodes: 20%  # Disruption budget for drift replacement
 ```
-
-Users who want to spread nodes across zones can do so explicitly by:
-- Creating multiple static NodePools, each pinned to a specific AZ.
 
 ### Cilium Startup Taint
 
