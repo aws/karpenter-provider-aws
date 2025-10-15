@@ -181,7 +181,7 @@ Optional field that enables static capacity mode. When specified, the NodePool m
 - Cannot be removed once set (NodePool cannot switch between static and dynamic modes)
 - Only `limits.nodes` is allowed in limits section
 - `weight` field cannot be set
-- Nodes are not considered as consolidation candidates
+- Nodes are not considered for consolidation
 - Scale operations bypass node disruption budgets but respect PodDisruptionBudgets
 
 **Scaling:** Use `kubectl scale nodepool <name> --replicas=<count>` to change replica count.
@@ -259,10 +259,6 @@ Karpenter can be configured to create nodes in a particular zone. Note that the 
 [Learn more about Availability Zone
 IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 
-**Static NodePool**
-
-Topology requirement field is the source of truth for topology decisions. Users who want to spread nodes across zones can do so explicitly by:
-- Creating multiple static NodePools, each pinned to a specific AZ.
 
 #### Architecture
 
@@ -531,6 +527,9 @@ spec:
     budgets:
     - nodes: 20%  # Disruption budget for drift replacement
 ```
+
+Users who want to spread nodes across zones can do so explicitly by:
+- Creating multiple static NodePools, each pinned to a specific AZ.
 
 ### Cilium Startup Taint
 
