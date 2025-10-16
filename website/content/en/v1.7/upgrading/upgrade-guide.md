@@ -86,19 +86,6 @@ If you get the error `invalid ownership metadata; label validation error:` while
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
-### Upgrading to `1.8.0`+
-
-{{% alert title="Warning" color="warning" %}}
-Karpenter `1.1.0` drops the support for `v1beta1` APIs.
-**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
-{{% /alert %}}
-
-* This version adds support for [Static Capacity](https://github.com/kubernetes-sigs/karpenter/pull/2521). Make sure to upgrade your karpenter CRDs to use this feature.
-
-Full Changelog:
-* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.8.0
-* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.8.0
-
 ### Upgrading to `1.7.0`+
 
 {{% alert title="Warning" color="warning" %}}
