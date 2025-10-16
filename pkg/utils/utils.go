@@ -121,3 +121,7 @@ func GetTags(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, clusterNam
 	}
 	return lo.Assign(nodeClass.Spec.Tags, staticTags), nil
 }
+
+func GetNodeClassHash(nodeClass *v1.EC2NodeClass) string {
+	return fmt.Sprintf("%s-%d", nodeClass.UID, nodeClass.Generation)
+}
