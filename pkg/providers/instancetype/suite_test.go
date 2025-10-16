@@ -1883,7 +1883,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("shouldn't report more resources than are actually available on instances", func() {
-			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{
 				Subnets: []ec2types.Subnet{
 					{
 						AvailabilityZone: aws.String("us-west-2a"),
