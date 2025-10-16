@@ -27,11 +27,13 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/utils/clock"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
@@ -68,17 +70,13 @@ func NewDefaultProvider(clock clock.Clock, versionProvider version.Provider, ssm
 func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) (AMIs, error) {
 	p.Lock()
 	defer p.Unlock()
-	queries, err := p.DescribeImageQueries(ctx, nodeClass)
-	if err != nil {
-		return nil, fmt.Errorf("getting AMI queries, %w", err)
-	}
 	// Discover deprecated AMIs if automatic AMI discovery and upgrade is enabled. This ensures we'll be able to
 	// provision in the event of an EKS optimized AMI being deprecated.
 	includeDeprecated := false
 	if alias := nodeClass.Alias(); alias != nil {
 		includeDeprecated = alias.Version == v1.AliasVersionLatest
 	}
-	amis, err := p.amis(ctx, queries, includeDeprecated)
+	amis, err := p.amis(ctx, nodeClass, includeDeprecated)
 	if err != nil {
 		return nil, err
 	}
@@ -151,12 +149,13 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 }
 
 //nolint:gocyclo
-func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery, includeDeprecated bool) (AMIs, error) {
-	hash, err := hashstructure.Hash(queries, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+func (p *DefaultProvider) amis(ctx context.Context, nodeClass *v1.EC2NodeClass, includeDeprecated bool) (AMIs, error) {
+	queries, err := p.DescribeImageQueries(ctx, nodeClass)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting AMI queries, %w", err)
 	}
-	if images, ok := p.cache.Get(fmt.Sprintf("%d", hash)); ok {
+	hash := utils.GetNodeClassHash(nodeClass)
+	if images, ok := p.cache.Get(hash); ok {
 		// Ensure what's returned from this function is a deep-copy of AMIs so alterations
 		// to the data don't affect the original
 		return append(AMIs{}, images.(AMIs)...), nil
@@ -198,7 +197,7 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 			return nil, fmt.Errorf("describing images, %w", err)
 		}
 	}
-	p.cache.SetDefault(fmt.Sprintf("%d", hash), AMIs(lo.Values(images)))
+	p.cache.SetDefault(hash, AMIs(lo.Values(images)))
 	return lo.Values(images), nil
 }
 

@@ -177,3 +177,7 @@ func ResolveNodePoolFromNodeClaim(ctx context.Context, kubeClient client.Client,
 	// There will be no nodePool referenced inside the nodeClaim in case of standalone nodeClaims
 	return nil, nil
 }
+
+func GetNodeClassHash(nodeClass *v1.EC2NodeClass) string {
+	return fmt.Sprintf("%s-%d", nodeClass.UID, nodeClass.Generation)
+}
