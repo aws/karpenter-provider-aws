@@ -22,6 +22,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 var (
@@ -65,4 +67,8 @@ func PrettySlice[T any](s []T, maxItems int) string {
 		fmt.Fprint(&sb, elem)
 	}
 	return sb.String()
+}
+
+func GetNodeClassHash(nodeClass *v1beta1.EC2NodeClass) string {
+	return fmt.Sprintf("%s-%d", nodeClass.UID, nodeClass.Generation)
 }

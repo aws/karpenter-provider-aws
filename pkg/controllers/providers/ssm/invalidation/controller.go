@@ -25,6 +25,9 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/controller"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
@@ -65,6 +68,9 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	amis := []amifamily.AMI{}
 	for _, nodeClass := range lo.Map(lo.Keys(amiIDsToParameters), func(amiID string, _ int) *v1beta1.EC2NodeClass {
 		return &v1beta1.EC2NodeClass{
+			ObjectMeta: metav1.ObjectMeta{
+				UID: uuid.NewUUID(), // ensures that this doesn't hit the AMI cache.
+			},
 			Spec: v1beta1.EC2NodeClassSpec{
 				AMISelectorTerms: []v1beta1.AMISelectorTerm{{ID: amiID}},
 			},

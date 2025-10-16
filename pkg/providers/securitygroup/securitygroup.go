@@ -22,7 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -30,6 +29,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
 type Provider interface {
@@ -56,9 +56,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	p.Lock()
 	defer p.Unlock()
 
-	// Get SecurityGroups
-	filterSets := getFilterSets(nodeClass.Spec.SecurityGroupSelectorTerms)
-	securityGroups, err := p.getSecurityGroups(ctx, filterSets)
+	securityGroups, err := p.getSecurityGroups(ctx, nodeClass)
 	if err != nil {
 		return nil, err
 	}
@@ -72,12 +70,10 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	return securityGroups, nil
 }
 
-func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]*ec2.Filter) ([]*ec2.SecurityGroup, error) {
-	hash, err := hashstructure.Hash(filterSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	if err != nil {
-		return nil, err
-	}
-	if sg, ok := p.cache.Get(fmt.Sprint(hash)); ok {
+func (p *DefaultProvider) getSecurityGroups(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]*ec2.SecurityGroup, error) {
+	filterSets := getFilterSets(nodeClass.Spec.SecurityGroupSelectorTerms)
+	hash := utils.GetNodeClassHash(nodeClass)
+	if sg, ok := p.cache.Get(hash); ok {
 		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
 		// so that modifications to the ordering of the data don't affect the original
 		return append([]*ec2.SecurityGroup{}, sg.([]*ec2.SecurityGroup)...), nil
@@ -92,7 +88,7 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]
 			securityGroups[lo.FromPtr(output.SecurityGroups[i].GroupId)] = output.SecurityGroups[i]
 		}
 	}
-	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(securityGroups))
+	p.cache.SetDefault(hash, lo.Values(securityGroups))
 	return lo.Values(securityGroups), nil
 }
 

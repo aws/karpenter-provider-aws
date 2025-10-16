@@ -23,13 +23,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -83,11 +83,8 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	if len(filterSets) == 0 {
 		return []*ec2.Subnet{}, nil
 	}
-	hash, err := hashstructure.Hash(filterSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	if err != nil {
-		return nil, err
-	}
-	if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
+	hash := utils.GetNodeClassHash(nodeClass)
+	if subnets, ok := p.cache.Get(hash); ok {
 		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
 		// so that modifications to the ordering of the data don't affect the original
 		return append([]*ec2.Subnet{}, subnets.([]*ec2.Subnet)...), nil
@@ -109,8 +106,8 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 			delete(p.inflightIPs, lo.FromPtr(output.Subnets[i].SubnetId)) // remove any previously tracked IP addresses since we just refreshed from EC2
 		}
 	}
-	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(subnets))
-	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), subnets) {
+	p.cache.SetDefault(hash, lo.Values(subnets))
+	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), lo.Keys(subnets)) {
 		log.FromContext(ctx).
 			WithValues("subnets", lo.Map(lo.Values(subnets), func(s *ec2.Subnet, _ int) v1beta1.Subnet {
 				return v1beta1.Subnet{

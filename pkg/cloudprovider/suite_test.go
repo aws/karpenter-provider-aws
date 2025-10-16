@@ -618,7 +618,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			awsEnv.EC2API.DescribeSecurityGroupsOutput.Set(&ec2.DescribeSecurityGroupsOutput{
+			awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Set(&ec2.DescribeSecurityGroupsOutput{
 				SecurityGroups: []*ec2.SecurityGroup{
 					{
 						GroupId:   aws.String(validSecurityGroup),
@@ -632,7 +632,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{
 				Subnets: []*ec2.Subnet{
 					{
 						SubnetId:         aws.String(validSubnet1),
@@ -1084,7 +1084,7 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should launch instances into subnet with the most available IP addresses", func() {
 			awsEnv.SubnetCache.Flush()
-			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
 				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(10),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(100),
@@ -1101,7 +1101,7 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should launch instances into subnet with the most available IP addresses in-between cache refreshes", func() {
 			awsEnv.SubnetCache.Flush()
-			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
 				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(10),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(11),
@@ -1126,7 +1126,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
 		})
 		It("should update in-flight IPs when a CreateFleet error occurs", func() {
-			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
 				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
 			}})
@@ -1137,12 +1137,20 @@ var _ = Describe("CloudProvider", func() {
 			Expect(len(bindings)).To(Equal(0))
 		})
 		It("should launch instances into subnets that are excluded by another NodePool", func() {
-			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(10),
-					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
-				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(100),
-					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
-			}})
+			awsEnv.EC2API.Subnets.Store("test-zone-1a", &ec2.Subnet{
+				SubnetId:                aws.String("test-subnet-1"),
+				AvailabilityZone:        aws.String("test-zone-1a"),
+				AvailabilityZoneId:      aws.String("tstz1-1a"),
+				AvailableIpAddressCount: aws.Int64(10),
+				Tags:                    []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}},
+			})
+			awsEnv.EC2API.Subnets.Store("test-zone-1b", &ec2.Subnet{
+				SubnetId:                aws.String("test-subnet-2"),
+				AvailabilityZone:        aws.String("test-zone-1b"),
+				AvailabilityZoneId:      aws.String("tstz1-1a"),
+				AvailableIpAddressCount: aws.Int64(100),
+				Tags:                    []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}},
+			})
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
