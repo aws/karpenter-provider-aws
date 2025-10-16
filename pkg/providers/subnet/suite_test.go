@@ -296,7 +296,13 @@ var _ = Describe("SubnetProvider", func() {
 	})
 	Context("Provider Cache", func() {
 		It("should resolve subnets from cache that are filtered by id", func() {
-			expectedSubnets := awsEnv.EC2API.DescribeSubnetsBehavior.Output.Clone().Subnets
+			expectedSubnets := []ec2types.Subnet{
+				{
+					SubnetId: aws.String("test-subnet-id-1"), SubnetArn: aws.String("test-subnet-arn-1"),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}},
+				},
+			}
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{Subnets: expectedSubnets})
 			for _, subnet := range expectedSubnets {
 				nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 					{
@@ -308,6 +314,7 @@ var _ = Describe("SubnetProvider", func() {
 				Expect(err).To(BeNil())
 			}
 
+			Expect(awsEnv.SubnetCache.Items()).To(HaveLen(1))
 			for _, cachedObject := range awsEnv.SubnetCache.Items() {
 				cachedSubnet := cachedObject.Object.([]ec2types.Subnet)
 				Expect(cachedSubnet).To(HaveLen(1))
@@ -315,7 +322,13 @@ var _ = Describe("SubnetProvider", func() {
 			}
 		})
 		It("should resolve subnets from cache that are filtered by tags", func() {
-			expectedSubnets := awsEnv.EC2API.DescribeSubnetsBehavior.Output.Clone().Subnets
+			expectedSubnets := []ec2types.Subnet{
+				{
+					SubnetId: aws.String("test-subnet-id-1"), SubnetArn: aws.String("test-subnet-arn-1"),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}},
+				},
+			}
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{Subnets: expectedSubnets})
 			tagSet := lo.Map(expectedSubnets, func(subnet ec2types.Subnet, _ int) map[string]string {
 				tag, _ := lo.Find(subnet.Tags, func(tag ec2types.Tag) bool {
 					return lo.FromPtr(tag.Key) == "Name"
@@ -333,11 +346,97 @@ var _ = Describe("SubnetProvider", func() {
 				Expect(err).To(BeNil())
 			}
 
+			Expect(awsEnv.SubnetCache.Items()).To(HaveLen(1))
 			for _, cachedObject := range awsEnv.SubnetCache.Items() {
 				cachedSubnet := cachedObject.Object.([]ec2types.Subnet)
 				Expect(cachedSubnet).To(HaveLen(1))
 				lo.Contains(lo.ToSlicePtr(expectedSubnets), lo.ToPtr(cachedSubnet[0]))
 			}
+		})
+		It("should correctly disambiguate AND vs OR semantics for tags", func() {
+			// AND semantics
+			awsEnv.EC2API.DescribeSubnetsBehavior.MultiOut.Add(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
+				{
+					SubnetId: aws.String("test-subnet-id-3"), SubnetArn: aws.String("test-subnet-arn-3"),
+					Tags: []ec2types.Tag{{Key: aws.String("tag-key-1"), Value: aws.String("tag-value-1")}, {Key: aws.String("tag-key-2"), Value: aws.String("tag-value-2")}},
+				},
+			}})
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
+				{
+					Tags: map[string]string{"tag-key-1": "tag-value-1", "tag-key-2": "tag-value-2"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
+				{
+					SubnetId:  aws.String("test-subnet-id-3"),
+					SubnetArn: aws.String("test-subnet-arn-3"),
+				},
+			}, subnets)
+
+			// OR semantics
+			awsEnv.EC2API.DescribeSubnetsBehavior.MultiOut.Add(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
+				{SubnetId: aws.String("test-subnet-id-2"), SubnetArn: aws.String("test-subnet-arn-2"), Tags: []ec2types.Tag{{Key: aws.String("tag-key-2"), Value: aws.String("tag-value-2")}}},
+			}})
+			awsEnv.EC2API.DescribeSubnetsBehavior.MultiOut.Add(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
+				{SubnetId: aws.String("test-subnet-id-1"), SubnetArn: aws.String("test-subnet-arn-1"), Tags: []ec2types.Tag{{Key: aws.String("tag-key-1"), Value: aws.String("tag-value-1")}}},
+			}})
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
+				{
+					Tags: map[string]string{"tag-key-1": "tag-value-1"},
+				},
+				{
+					Tags: map[string]string{"tag-key-2": "tag-value-2"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			subnets, err = awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{
+				{
+					SubnetId:  aws.String("test-subnet-id-1"),
+					SubnetArn: aws.String("test-subnet-arn-1"),
+				},
+				{
+					SubnetId:  aws.String("test-subnet-id-2"),
+					SubnetArn: aws.String("test-subnet-arn-2"),
+				},
+			}, subnets)
+
+			cacheItems := awsEnv.SubnetCache.Items()
+			// There should be 2 cache entries one for each semantic.
+			Expect(cacheItems).To(HaveLen(2))
+			// Extract cached subnet arrays for comparison
+			cachedSubnets := make([][]ec2types.Subnet, 0, len(cacheItems))
+			for _, item := range cacheItems {
+				cachedSubnets = append(cachedSubnets, item.Object.([]ec2types.Subnet))
+			}
+			// Expect cache to contain result of both look ups.
+			Expect(cachedSubnets).To(ContainElement(ContainElements(
+				[]ec2types.Subnet{
+					{
+						SubnetId:  aws.String("test-subnet-id-1"),
+						SubnetArn: aws.String("test-subnet-arn-1"),
+						Tags:      []ec2types.Tag{{Key: aws.String("tag-key-1"), Value: aws.String("tag-value-1")}},
+					},
+					{
+						SubnetId:  aws.String("test-subnet-id-2"),
+						SubnetArn: aws.String("test-subnet-arn-2"),
+						Tags:      []ec2types.Tag{{Key: aws.String("tag-key-2"), Value: aws.String("tag-value-2")}},
+					},
+				},
+			)))
+			Expect(cachedSubnets).To(ContainElement(
+				[]ec2types.Subnet{
+					{
+						SubnetId:  aws.String("test-subnet-id-3"),
+						SubnetArn: aws.String("test-subnet-arn-3"),
+						Tags:      []ec2types.Tag{{Key: aws.String("tag-key-1"), Value: aws.String("tag-value-1")}, {Key: aws.String("tag-key-2"), Value: aws.String("tag-value-2")}},
+					},
+				},
+			))
 		})
 	})
 	It("should not cause data races when calling List() simultaneously", func() {
