@@ -279,7 +279,6 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		capacityReservationIDs = append(capacityReservationIDs, "")
 	}
 	httpProtocolUnsupportedRegions := sets.New[string](
-		"eu-isoe-west-1",
 		"us-iso-east-1",
 		"us-iso-west-1",
 		"us-isob-east-1",
