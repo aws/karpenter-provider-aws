@@ -15,6 +15,7 @@ limitations under the License.
 package bootstrap
 
 import (
+	"fmt"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -86,7 +87,7 @@ type BottlerocketKubernetes struct {
 	SingleProcessOOMKill               *bool                                     `toml:"single-process-oom-kill,omitempty"`
 	ContainerLogMaxWorkers             *int                                      `toml:"container-log-max-workers,omitempty"`
 	ContainerLogMonitorInterval        *string                                   `toml:"container-log-monitor-interval,omitempty"`
-	Logging                            map[string]string                         `toml:"log-level,omitempty"`
+	VerbosityLevel                     *uint32                                   `toml:"log-level,omitempty"`
 }
 type BottlerocketStaticPod struct {
 	Enabled  *bool   `toml:"enabled,omitempty"`
