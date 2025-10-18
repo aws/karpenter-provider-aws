@@ -115,6 +115,15 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"c8gn.48xlarge": 11.376000, "c8gn.4xlarge": 0.948000, "c8gn.8xlarge": 1.896000, "c8gn.large": 0.118500,
 		"c8gn.medium": 0.059300, "c8gn.metal-24xl": 6.029300, "c8gn.metal-48xl": 11.376000,
 		"c8gn.xlarge": 0.237000,
+		// c8i family
+		"c8i.12xlarge": 2.248900, "c8i.16xlarge": 2.998500, "c8i.24xlarge": 4.497800, "c8i.2xlarge": 0.374840,
+		"c8i.32xlarge": 5.997000, "c8i.48xlarge": 8.995600, "c8i.4xlarge": 1.020080, "c8i.8xlarge": 1.499200,
+		"c8i.96xlarge": 17.991200, "c8i.large": 0.093710, "c8i.metal-48xl": 8.995600, "c8i.metal-96xl": 17.991200,
+		"c8i.xlarge": 0.187420,
+		// c8i-flex family
+		"c8i-flex.12xlarge": 2.136500, "c8i-flex.16xlarge": 2.848700, "c8i-flex.2xlarge": 0.356100,
+		"c8i-flex.4xlarge": 0.712200, "c8i-flex.8xlarge": 1.424400, "c8i-flex.large": 0.089050,
+		"c8i-flex.xlarge": 0.178100,
 		// cr1 family
 		"cr1.8xlarge": 3.500000,
 		// d2 family
