@@ -15,7 +15,6 @@ limitations under the License.
 package bootstrap
 
 import (
-	"fmt"
 	"github.com/pelletier/go-toml/v2"
 )
 
