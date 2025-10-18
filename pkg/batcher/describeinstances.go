@@ -136,12 +136,5 @@ func prepareAggregatedInput(inputs []*ec2.DescribeInstancesInput) *ec2.DescribeI
 		aggregatedInput.InstanceIds = append(aggregatedInput.InstanceIds, input.InstanceIds...)
 	}
 
-	// MaxResults is not supported when the request includes instanceids
-	// Ref: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html#api-pagination
-	if len(aggregatedInput.InstanceIds) == 0 {
-		// MaxResults for DescribeInstances is capped at 1000
-		aggregatedInput.MaxResults = lo.ToPtr[int32](1000)
-	}
-
 	return aggregatedInput
 }
