@@ -273,7 +273,13 @@ var _ = Describe("SecurityGroupProvider", func() {
 	})
 	Context("Provider Cache", func() {
 		It("should resolve security groups from cache that are filtered by id", func() {
-			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Clone().SecurityGroups
+			expectedSecurityGroups := []ec2types.SecurityGroup{
+				{
+					GroupId: aws.String("test-sg-id-1"), GroupName: aws.String("test-sg-name-1"),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-sg-1")}},
+				},
+			}
+			awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Set(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: expectedSecurityGroups})
 			for _, sg := range expectedSecurityGroups {
 				nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 					{
@@ -285,6 +291,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 				Expect(err).To(BeNil())
 			}
 
+			Expect(awsEnv.SecurityGroupCache.Items()).To(HaveLen(1))
 			for _, cachedObject := range awsEnv.SecurityGroupCache.Items() {
 				cachedSecurityGroup := cachedObject.Object.([]ec2types.SecurityGroup)
 				Expect(cachedSecurityGroup).To(HaveLen(1))
@@ -292,7 +299,13 @@ var _ = Describe("SecurityGroupProvider", func() {
 			}
 		})
 		It("should resolve security groups from cache that are filtered by Name", func() {
-			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Clone().SecurityGroups
+			expectedSecurityGroups := []ec2types.SecurityGroup{
+				{
+					GroupId: aws.String("test-sg-id-1"), GroupName: aws.String("test-sg-name-1"),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-sg-1")}},
+				},
+			}
+			awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Set(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: expectedSecurityGroups})
 			for _, sg := range expectedSecurityGroups {
 				nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 					{
@@ -304,6 +317,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 				Expect(err).To(BeNil())
 			}
 
+			Expect(awsEnv.SecurityGroupCache.Items()).To(HaveLen(1))
 			for _, cachedObject := range awsEnv.SecurityGroupCache.Items() {
 				cachedSecurityGroup := cachedObject.Object.([]ec2types.SecurityGroup)
 				Expect(cachedSecurityGroup).To(HaveLen(1))
@@ -311,7 +325,13 @@ var _ = Describe("SecurityGroupProvider", func() {
 			}
 		})
 		It("should resolve security groups from cache that are filtered by tags", func() {
-			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Clone().SecurityGroups
+			expectedSecurityGroups := []ec2types.SecurityGroup{
+				{
+					GroupId: aws.String("test-sg-id-1"), GroupName: aws.String("test-sg-name-1"),
+					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-sg-1")}},
+				},
+			}
+			awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Set(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: expectedSecurityGroups})
 			tagSet := lo.Map(expectedSecurityGroups, func(sg ec2types.SecurityGroup, _ int) map[string]string {
 				tag, _ := lo.Find(sg.Tags, func(tag ec2types.Tag) bool {
 					return lo.FromPtr(tag.Key) == "Name"
@@ -329,11 +349,94 @@ var _ = Describe("SecurityGroupProvider", func() {
 				Expect(err).To(BeNil())
 			}
 
-			for _, cachedObject := range awsEnv.SubnetCache.Items() {
+			Expect(awsEnv.SecurityGroupCache.Items()).To(HaveLen(1))
+			for _, cachedObject := range awsEnv.SecurityGroupCache.Items() {
 				cachedSecurityGroup := cachedObject.Object.([]ec2types.SecurityGroup)
 				Expect(cachedSecurityGroup).To(HaveLen(1))
 				lo.Contains(lo.ToSlicePtr(expectedSecurityGroups), lo.ToPtr(cachedSecurityGroup[0]))
 			}
+		})
+		It("should correctly disambiguate AND vs OR semantics for tags", func() {
+			// AND semantics
+			awsEnv.EC2API.DescribeSecurityGroupsBehavior.MultiOut.Add(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: []ec2types.SecurityGroup{
+				{GroupName: aws.String("test-sgName-3"), GroupId: aws.String("test-sg-3"), Tags: []ec2types.Tag{{Key: aws.String("tag-key-1"), Value: aws.String("tag-value-1")}, {Key: aws.String("tag-key-2"), Value: aws.String("tag-value-2")}}},
+			}})
+			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+				{
+					Tags: map[string]string{"tag-key-1": "tag-value-1", "tag-key-2": "tag-value-2"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{
+				{
+					GroupId:   aws.String("test-sg-3"),
+					GroupName: aws.String("test-sgName-3"),
+				},
+			}, securityGroups)
+
+			// OR semantics
+			awsEnv.EC2API.DescribeSecurityGroupsBehavior.MultiOut.Add(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: []ec2types.SecurityGroup{
+				{GroupName: aws.String("test-sgName-2"), GroupId: aws.String("test-sg-2"), Tags: []ec2types.Tag{{Key: aws.String("tag-key-2"), Value: aws.String("tag-value-2")}}},
+			}})
+			awsEnv.EC2API.DescribeSecurityGroupsBehavior.MultiOut.Add(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: []ec2types.SecurityGroup{
+				{GroupName: aws.String("test-sgName-1"), GroupId: aws.String("test-sg-1"), Tags: []ec2types.Tag{{Key: aws.String("tag-key-1"), Value: aws.String("tag-value-1")}}},
+			}})
+			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+				{
+					Tags: map[string]string{"tag-key-1": "tag-value-1"},
+				},
+				{
+					Tags: map[string]string{"tag-key-2": "tag-value-2"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			securityGroups, err = awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{
+				{
+					GroupId:   aws.String("test-sg-1"),
+					GroupName: aws.String("test-sgName-1"),
+				},
+				{
+					GroupId:   aws.String("test-sg-2"),
+					GroupName: aws.String("test-sgName-2"),
+				},
+			}, securityGroups)
+
+			cacheItems := awsEnv.SecurityGroupCache.Items()
+			// There should be 2 cache entries one for each semantic.
+			Expect(cacheItems).To(HaveLen(2))
+			// Extract cached security group arrays for comparison
+			cachedSecurityGroups := make([][]ec2types.SecurityGroup, 0, len(cacheItems))
+			for _, item := range cacheItems {
+				cachedSecurityGroups = append(cachedSecurityGroups, item.Object.([]ec2types.SecurityGroup))
+			}
+			// Expect cache to contain result of both look ups.
+			Expect(cachedSecurityGroups).To(ContainElement(ContainElements(
+				[]ec2types.SecurityGroup{
+					{
+						GroupId:   aws.String("test-sg-1"),
+						GroupName: aws.String("test-sgName-1"),
+						Tags:      []ec2types.Tag{{Key: aws.String("tag-key-1"), Value: aws.String("tag-value-1")}},
+					},
+					{
+						GroupId:   aws.String("test-sg-2"),
+						GroupName: aws.String("test-sgName-2"),
+						Tags:      []ec2types.Tag{{Key: aws.String("tag-key-2"), Value: aws.String("tag-value-2")}},
+					},
+				},
+			)))
+			Expect(cachedSecurityGroups).To(ContainElement(
+				[]ec2types.SecurityGroup{
+					{
+						GroupId:   aws.String("test-sg-3"),
+						GroupName: aws.String("test-sgName-3"),
+						Tags:      []ec2types.Tag{{Key: aws.String("tag-key-1"), Value: aws.String("tag-value-1")}, {Key: aws.String("tag-key-2"), Value: aws.String("tag-value-2")}},
+					},
+				},
+			))
 		})
 	})
 	It("should not cause data races when calling List() simultaneously", func() {
