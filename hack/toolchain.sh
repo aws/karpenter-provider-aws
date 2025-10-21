@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-K8S_VERSION="${K8S_VERSION:="1.33.x"}"
+K8S_VERSION="${K8S_VERSION:="1.34.x"}"
 KUBEBUILDER_ASSETS="${KUBEBUILDER_ASSETS:-/usr/local/kubebuilder/bin}"
 
 
@@ -19,7 +19,7 @@ tools() {
     go install github.com/google/ko@latest
     go install github.com/mikefarah/yq/v4@latest
     go install github.com/norwoodj/helm-docs/cmd/helm-docs@latest
-    go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+    go install sigs.k8s.io/controller-runtime/tools/setup-envtest@b9bccfd419149d26d14130887a5e5819e4a3b2be
     go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
     go install github.com/sigstore/cosign/v2/cmd/cosign@latest
     go install -tags extended github.com/gohugoio/hugo@v0.110.0
