@@ -24,13 +24,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -85,11 +85,8 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	if len(filterSets) == 0 {
 		return []ec2types.Subnet{}, nil
 	}
-	hash, err := hashstructure.Hash(filterSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	if err != nil {
-		return nil, err
-	}
-	if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
+	hash := utils.GetNodeClassHash(nodeClass)
+	if subnets, ok := p.cache.Get(hash); ok {
 		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
 		// so that modifications to the ordering of the data don't affect the original
 		return append([]ec2types.Subnet{}, subnets.([]ec2types.Subnet)...), nil
@@ -116,7 +113,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			}
 		}
 	}
-	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(subnets))
+	p.cache.SetDefault(hash, lo.Values(subnets))
 	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), lo.Keys(subnets)) {
 		log.FromContext(ctx).
 			WithValues("subnets", lo.Map(lo.Values(subnets), func(s ec2types.Subnet, _ int) v1.Subnet {
