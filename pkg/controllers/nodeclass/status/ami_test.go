@@ -607,7 +607,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			awsEnv.Clock.Step(40 * time.Minute)
 
 			// Flush Cache
-			awsEnv.EC2Cache.Flush()
+			awsEnv.AMICache.Flush()
 
 			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -706,7 +706,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			})
 
-			awsEnv.EC2Cache.Flush()
+			awsEnv.AMICache.Flush()
 
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
