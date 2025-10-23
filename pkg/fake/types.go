@@ -25,6 +25,7 @@ import (
 
 type MockedFunction[I any, O any] struct {
 	Output          AtomicPtr[O] // Output to return on call to this function
+	MultiOut        AtomicPtrSlice[O]
 	OutputPages     AtomicPtrSlice[O]
 	CalledWithInput AtomicPtrSlice[I] // Slice used to keep track of passed input to this function
 	Error           AtomicError       // Error to return a certain number of times defined by custom error options
@@ -38,6 +39,7 @@ type MockedFunction[I any, O any] struct {
 // each other.
 func (m *MockedFunction[I, O]) Reset() {
 	m.Output.Reset()
+	m.MultiOut.Reset()
 	m.OutputPages.Reset()
 	m.CalledWithInput.Reset()
 	m.Error.Reset()
@@ -59,6 +61,11 @@ func (m *MockedFunction[I, O]) Invoke(input *I, defaultTransformer func(*I) (*O,
 	if !m.Output.IsNil() {
 		m.successfulCalls.Add(1)
 		return m.Output.Clone(), nil
+	}
+
+	if m.MultiOut.Len() > 0 {
+		m.successfulCalls.Add(1)
+		return m.MultiOut.Pop(), nil
 	}
 	// This output pages multi-threaded handling isn't perfect
 	// It will fail if pages are asynchronously requested from the same NextToken
