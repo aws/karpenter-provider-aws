@@ -538,8 +538,7 @@ func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, am
 	var evictionSignals []map[string]string
 	if evictionHard != nil {
 		evictionSignals = append(evictionSignals, evictionHard)
-	}
-	if evictionSoft != nil && amiFamily.FeatureFlags().EvictionSoftEnabled {
+	} else if evictionSoft != nil && amiFamily.FeatureFlags().EvictionSoftEnabled {
 		evictionSignals = append(evictionSignals, evictionSoft)
 	}
 
