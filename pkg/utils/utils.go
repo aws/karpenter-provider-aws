@@ -24,6 +24,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+
 	"github.com/samber/lo"
 )
 
@@ -82,4 +84,7 @@ func WithDefaultFloat64(key string, def float64) float64 {
 		return def
 	}
 	return f
+}
+func GetNodeClassHash(nodeClass *v1.EC2NodeClass) string {
+	return fmt.Sprintf("%s-%d", nodeClass.UID, nodeClass.Generation)
 }

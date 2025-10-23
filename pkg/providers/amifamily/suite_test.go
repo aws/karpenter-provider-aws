@@ -30,6 +30,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gstruct"
 	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 
 	"github.com/samber/lo"
@@ -45,6 +46,8 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
+
+	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
 var ctx context.Context
@@ -530,6 +533,219 @@ var _ = Describe("AMIProvider", func() {
 					scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
 				),
 			}))
+		})
+	})
+	Context("Provider Cache", func() {
+		It("should resolve AMIs from cache that are filtered by id", func() {
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+				{
+					Name:         aws.String(coretest.RandomName()),
+					ImageId:      aws.String("ami-123"),
+					Architecture: "x86_64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+				{
+					Name:         aws.String(coretest.RandomName()),
+					ImageId:      aws.String("ami-456"),
+					Architecture: "arm64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+			}})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					ID: "ami-123",
+				},
+				{
+					ID: "ami-456",
+				},
+			}
+			_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			Expect(awsEnv.AMICache.Items()).To(HaveLen(1))
+			cachedImages := lo.Values(awsEnv.AMICache.Items())[0].Object.(amifamily.AMIs)
+			Expect(cachedImages).To(ContainElements(
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"AmiID": Equal("ami-123"),
+				}),
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"AmiID": Equal("ami-456"),
+				}),
+			))
+		})
+		It("should resolve AMIs from cache that are filtered by name", func() {
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+				{
+					Name:         aws.String("ami-name-1"),
+					ImageId:      aws.String("ami-123"),
+					Architecture: "x86_64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+				{
+					Name:         aws.String("ami-name-2"),
+					ImageId:      aws.String("ami-456"),
+					Architecture: "arm64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+			}})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					Name: "ami-name-1",
+				},
+				{
+					Name: "ami-name-2",
+				},
+			}
+			_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			Expect(awsEnv.AMICache.Items()).To(HaveLen(1))
+			cachedImages := lo.Values(awsEnv.AMICache.Items())[0].Object.(amifamily.AMIs)
+			Expect(cachedImages).To(ContainElements(
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-1"),
+				}),
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-2"),
+				}),
+			))
+		})
+		It("should resolve AMIs from cache that are filtered by tags", func() {
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+				{
+					Name:         aws.String("ami-name-1"),
+					ImageId:      aws.String("ami-123"),
+					Architecture: "x86_64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+				{
+					Name:         aws.String("ami-name-2"),
+					ImageId:      aws.String("ami-456"),
+					Architecture: "arm64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+			}})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					Tags: map[string]string{"test": "test"},
+				},
+			}
+			_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			Expect(awsEnv.AMICache.Items()).To(HaveLen(1))
+			cachedImages := lo.Values(awsEnv.AMICache.Items())[0].Object.(amifamily.AMIs)
+			Expect(cachedImages).To(ContainElements(
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-1"),
+				}),
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-2"),
+				}),
+			))
+		})
+		It("should correctly disambiguate AND vs OR semantics for tags", func() {
+			// AND semantics
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+				{
+					Name:         aws.String("ami-name-3"),
+					ImageId:      aws.String("ami-789"),
+					Architecture: "x86_64",
+					Tags:         []ec2types.Tag{{Key: aws.String("tag-key-1"), Value: aws.String("tag-value-1")}, {Key: aws.String("tag-key-2"), Value: aws.String("tag-value-2")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+			}})
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					Tags: map[string]string{"tag-key-1": "tag-value-1", "tag-key-2": "tag-value-2"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			Expect(amis).To(ContainElements(
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-3"),
+				}),
+			))
+
+			// OR semantics
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+				{
+					Name:         aws.String("ami-name-1"),
+					ImageId:      aws.String("ami-123"),
+					Architecture: "x86_64",
+					Tags:         []ec2types.Tag{{Key: aws.String("tag-key-1"), Value: aws.String("tag-value-1")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+				{
+					Name:         aws.String("ami-name-2"),
+					ImageId:      aws.String("ami-456"),
+					Architecture: "arm64",
+					Tags:         []ec2types.Tag{{Key: aws.String("tag-key-2"), Value: aws.String("tag-value-2")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+			}})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					Tags: map[string]string{"tag-key-1": "tag-value-1"},
+				},
+				{
+					Tags: map[string]string{"tag-key-2": "tag-value-2"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			amis, err = awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			Expect(amis).To(ContainElements(
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-1"),
+				}),
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-2"),
+				}),
+			))
+
+			cacheItems := awsEnv.AMICache.Items()
+			Expect(cacheItems).To(HaveLen(2))
+			cachedImages := make([]amifamily.AMIs, 0, len(cacheItems))
+			for _, item := range cacheItems {
+				cachedImages = append(cachedImages, item.Object.(amifamily.AMIs))
+			}
+
+			Expect(cachedImages).To(ConsistOf(
+				ConsistOf(
+					gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+						"Name": Equal("ami-name-3"),
+					}),
+				),
+				ConsistOf(
+					gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+						"Name": Equal("ami-name-1"),
+					}),
+					gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+						"Name": Equal("ami-name-2"),
+					}),
+				),
+			))
 		})
 	})
 	Context("AMI Selectors", func() {
