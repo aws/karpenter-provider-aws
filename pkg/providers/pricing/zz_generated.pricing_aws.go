@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2025-09-01T13:21:52Z for us-east-1
+// generated at 2025-10-23T00:24:00Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -115,6 +115,15 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"c8gn.48xlarge": 11.376000, "c8gn.4xlarge": 0.948000, "c8gn.8xlarge": 1.896000, "c8gn.large": 0.118500,
 		"c8gn.medium": 0.059300, "c8gn.metal-24xl": 6.029300, "c8gn.metal-48xl": 11.376000,
 		"c8gn.xlarge": 0.237000,
+		// c8i-flex family
+		"c8i-flex.12xlarge": 2.136480, "c8i-flex.16xlarge": 2.848640, "c8i-flex.2xlarge": 0.356080,
+		"c8i-flex.4xlarge": 0.712160, "c8i-flex.8xlarge": 1.424320, "c8i-flex.large": 0.089020,
+		"c8i-flex.xlarge": 0.178040,
+		// c8i family
+		"c8i.12xlarge": 2.249040, "c8i.16xlarge": 2.998720, "c8i.24xlarge": 4.498080, "c8i.2xlarge": 0.374840,
+		"c8i.32xlarge": 5.997440, "c8i.48xlarge": 8.996160, "c8i.4xlarge": 0.749680, "c8i.8xlarge": 1.499360,
+		"c8i.96xlarge": 17.992320, "c8i.large": 0.093710, "c8i.metal-48xl": 9.895780, "c8i.metal-96xl": 17.992320,
+		"c8i.xlarge": 0.187420,
 		// cr1 family
 		"cr1.8xlarge": 3.500000,
 		// d2 family
@@ -405,11 +414,20 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"r8g.12xlarge": 2.827680, "r8g.16xlarge": 3.770240, "r8g.24xlarge": 5.655360, "r8g.2xlarge": 0.471280,
 		"r8g.48xlarge": 11.310720, "r8g.4xlarge": 0.942560, "r8g.8xlarge": 1.885120, "r8g.large": 0.117820,
 		"r8g.medium": 0.058910, "r8g.metal-24xl": 6.220900, "r8g.metal-48xl": 11.310720, "r8g.xlarge": 0.235640,
+		// r8gb family
+		"r8gb.12xlarge": 4.372320, "r8gb.16xlarge": 5.829760, "r8gb.24xlarge": 8.744640, "r8gb.2xlarge": 0.728720,
+		"r8gb.4xlarge": 1.457440, "r8gb.8xlarge": 2.914880, "r8gb.large": 0.182180, "r8gb.medium": 0.091090,
+		"r8gb.metal-24xl": 18.538640, "r8gb.xlarge": 0.364360,
 		// r8gd family
 		"r8gd.12xlarge": 3.527040, "r8gd.16xlarge": 4.702720, "r8gd.24xlarge": 7.054080, "r8gd.2xlarge": 0.587840,
 		"r8gd.48xlarge": 14.108160, "r8gd.4xlarge": 1.175680, "r8gd.8xlarge": 2.351360, "r8gd.large": 0.146960,
 		"r8gd.medium": 0.073480, "r8gd.metal-24xl": 7.759490, "r8gd.metal-48xl": 14.108160,
 		"r8gd.xlarge": 0.293920,
+		// r8gn family
+		"r8gn.12xlarge": 4.372300, "r8gn.16xlarge": 5.829800, "r8gn.24xlarge": 8.744600, "r8gn.2xlarge": 0.728700,
+		"r8gn.48xlarge": 17.489300, "r8gn.4xlarge": 1.457400, "r8gn.8xlarge": 2.914900, "r8gn.large": 0.182200,
+		"r8gn.medium": 0.091100, "r8gn.metal-24xl": 9.269300, "r8gn.metal-48xl": 17.489300,
+		"r8gn.xlarge": 0.364400,
 		// r8i-flex family
 		"r8i-flex.12xlarge": 3.167280, "r8i-flex.16xlarge": 4.223040, "r8i-flex.2xlarge": 0.527880,
 		"r8i-flex.4xlarge": 1.055760, "r8i-flex.8xlarge": 2.111520, "r8i-flex.large": 0.131970,
