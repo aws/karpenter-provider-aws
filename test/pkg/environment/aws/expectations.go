@@ -142,13 +142,13 @@ func (env *Environment) GetInstanceProfileName(nodeClass *v1beta1.EC2NodeClass) 
 }
 
 func (env *Environment) GetInstance(nodeName string) ec2.Instance {
-	node := env.Environment.GetNode(nodeName)
+	node := env.GetNode(nodeName)
 	return env.GetInstanceByID(env.ExpectParsedProviderID(node.Spec.ProviderID))
 }
 
 func (env *Environment) ExpectInstanceStopped(nodeName string) {
 	GinkgoHelper()
-	node := env.Environment.GetNode(nodeName)
+	node := env.GetNode(nodeName)
 	_, err := env.EC2API.StopInstances(&ec2.StopInstancesInput{
 		Force:       aws.Bool(true),
 		InstanceIds: aws.StringSlice([]string{env.ExpectParsedProviderID(node.Spec.ProviderID)}),
@@ -158,7 +158,7 @@ func (env *Environment) ExpectInstanceStopped(nodeName string) {
 
 func (env *Environment) ExpectInstanceTerminated(nodeName string) {
 	GinkgoHelper()
-	node := env.Environment.GetNode(nodeName)
+	node := env.GetNode(nodeName)
 	_, err := env.EC2API.TerminateInstances(&ec2.TerminateInstancesInput{
 		InstanceIds: aws.StringSlice([]string{env.ExpectParsedProviderID(node.Spec.ProviderID)}),
 	})

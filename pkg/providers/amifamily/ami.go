@@ -211,7 +211,7 @@ func (p *DefaultProvider) getAMIs(ctx context.Context, terms []v1beta1.AMISelect
 				if v, ok := images[reqsHash]; ok {
 					candidateCreationTime, _ := time.Parse(time.RFC3339, lo.FromPtr(page.Images[i].CreationDate))
 					existingCreationTime, _ := time.Parse(time.RFC3339, v.CreationDate)
-					if existingCreationTime == candidateCreationTime && lo.FromPtr(page.Images[i].Name) < v.Name {
+					if existingCreationTime.Equal(candidateCreationTime) && lo.FromPtr(page.Images[i].Name) < v.Name {
 						continue
 					}
 					if candidateCreationTime.Unix() < existingCreationTime.Unix() {

@@ -58,7 +58,7 @@ var _ = Describe("GarbageCollection", func() {
 				Name: aws.String(instanceProfileName),
 			},
 			SecurityGroupIds: lo.Map(securityGroups, func(s environmentaws.SecurityGroup, _ int) *string {
-				return s.GroupIdentifier.GroupId
+				return s.GroupId
 			}),
 			SubnetId: aws.String(subnets[0].ID),
 			BlockDeviceMappings: []*ec2.BlockDeviceMapping{
