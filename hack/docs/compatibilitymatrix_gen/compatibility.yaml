@@ -60,3 +60,6 @@ compatibility:
   - appVersion: 1.1.x
     minK8sVersion: 1.25
     maxK8sVersion: 1.31
+  - appVersion: 1.1.8.x
+    minK8sVersion: 1.25
+    maxK8sVersion: 1.31
