@@ -350,7 +350,7 @@ func (p *DefaultProvider) launchInstance(
 		}
 		return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w", err), reason, fmt.Sprintf("Error creating fleet request: %s", message))
 	}
-	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, nodeClaim, instanceTypes)
+	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, nodeClaim, instanceTypes, aws.ToString(createFleetOutput.FleetId))
 	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
 		requestID, _ := awsmiddleware.GetRequestIDMetadata(createFleetOutput.ResultMetadata)
 		return ec2types.CreateFleetInstance{}, serrors.Wrap(
@@ -481,6 +481,7 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	capacityType string,
 	nodeClaim *karpv1.NodeClaim,
 	instanceTypes []*cloudprovider.InstanceType,
+	fleetID string,
 ) {
 	for _, err := range errs {
 		zone := lo.FromPtr(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
@@ -492,10 +493,21 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	if capacityType != karpv1.CapacityTypeReserved {
 		for _, err := range errs {
 			if awserrors.IsUnfulfillableCapacity(err) {
-				p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, err, capacityType)
+				instanceType := err.LaunchTemplateAndOverrides.Overrides.InstanceType
+				zone := aws.ToString(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+
+				unavailableReason := map[string]string{
+					"reason": lo.FromPtr(err.ErrorCode),
+				}
+				if fleetID != "" {
+					unavailableReason["fleet-id"] = fleetID
+				}
+
+				p.unavailableOfferings.MarkUnavailable(ctx, instanceType, zone, capacityType, unavailableReason)
 			}
 			if awserrors.IsServiceLinkedRoleCreationNotPermitted(err) {
 				p.unavailableOfferings.MarkCapacityTypeUnavailable(karpv1.CapacityTypeSpot)
+
 				p.recorder.Publish(SpotServiceLinkedRoleCreationFailure(nodeClaim))
 			}
 		}
