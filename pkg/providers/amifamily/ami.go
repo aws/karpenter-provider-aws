@@ -34,6 +34,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -115,7 +116,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 			return nil, err
 		}
 	} else {
-		amis, err = p.getAMIs(ctx, nodeClass.Spec.AMISelectorTerms)
+		amis, err = p.getAMIs(ctx, nodeClass)
 		if err != nil {
 			return nil, err
 		}
@@ -130,7 +131,8 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 }
 
 func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (res AMIs, err error) {
-	if images, ok := p.cache.Get(lo.FromPtr(nodeClass.Spec.AMIFamily)); ok {
+	hash := utils.GetNodeClassHash(nodeClass)
+	if images, ok := p.cache.Get(hash); ok {
 		// Ensure what's returned from this function is a deep-copy of AMIs so alterations
 		// to the data don't affect the original
 		return append(AMIs{}, images.(AMIs)...), nil
@@ -167,7 +169,7 @@ func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1
 	}); err != nil {
 		return nil, fmt.Errorf("describing images, %w", err)
 	}
-	p.cache.SetDefault(lo.FromPtr(nodeClass.Spec.AMIFamily), res)
+	p.cache.SetDefault(hash, res)
 	return res, nil
 }
 
@@ -182,20 +184,18 @@ func (p *DefaultProvider) resolveSSMParameter(ctx context.Context, name string) 
 	return imageID, nil
 }
 
-func (p *DefaultProvider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm) (AMIs, error) {
-	filterAndOwnerSets := GetFilterAndOwnerSets(terms)
-	hash, err := hashstructure.Hash(filterAndOwnerSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	if err != nil {
-		return nil, err
-	}
-	if images, ok := p.cache.Get(fmt.Sprintf("%d", hash)); ok {
+//nolint:gocyclo
+func (p *DefaultProvider) getAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (AMIs, error) {
+	filterAndOwnerSets := GetFilterAndOwnerSets(nodeClass.Spec.AMISelectorTerms)
+	hash := utils.GetNodeClassHash(nodeClass)
+	if images, ok := p.cache.Get(hash); ok {
 		// Ensure what's returned from this function is a deep-copy of AMIs so alterations
 		// to the data don't affect the original
 		return append(AMIs{}, images.(AMIs)...), nil
 	}
 	images := map[uint64]AMI{}
 	for _, filtersAndOwners := range filterAndOwnerSets {
-		if err = p.ec2api.DescribeImagesPagesWithContext(ctx, &ec2.DescribeImagesInput{
+		if err := p.ec2api.DescribeImagesPagesWithContext(ctx, &ec2.DescribeImagesInput{
 			// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
 			Filters:    lo.Ternary(len(filtersAndOwners.Filters) > 0, filtersAndOwners.Filters, nil),
 			Owners:     lo.Ternary(len(filtersAndOwners.Owners) > 0, aws.StringSlice(filtersAndOwners.Owners), nil),
@@ -231,7 +231,7 @@ func (p *DefaultProvider) getAMIs(ctx context.Context, terms []v1beta1.AMISelect
 			return nil, fmt.Errorf("describing images, %w", err)
 		}
 	}
-	p.cache.SetDefault(fmt.Sprintf("%d", hash), AMIs(lo.Values(images)))
+	p.cache.SetDefault(hash, AMIs(lo.Values(images)))
 	return lo.Values(images), nil
 }
 
