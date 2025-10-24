@@ -51,3 +51,6 @@ compatibility:
   - appVersion: 0.37.0
     minK8sVersion: 1.23
     maxK8sVersion: 1.30
+  - appVersion: 1.0.12
+    minK8sVersion: 1.25
+    maxK8sVersion: 1.31
