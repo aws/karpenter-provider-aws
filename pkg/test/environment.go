@@ -59,6 +59,7 @@ type Environment struct {
 	PricingAPI *fake.PricingAPI
 
 	// Cache
+	AMICache                      *cache.Cache
 	EC2Cache                      *cache.Cache
 	KubernetesVersionCache        *cache.Cache
 	InstanceTypeCache             *cache.Cache
@@ -96,6 +97,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	iamapi := fake.NewIAMAPI()
 
 	// cache
+	amiCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	kubernetesVersionCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceTypeCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -116,7 +118,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, kubernetesVersionCache)
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
-	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, ec2Cache)
+	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, amiCache)
 	amiResolver := amifamily.NewResolver(amiProvider)
 	instanceTypesProvider := instancetype.NewDefaultProvider(fake.DefaultRegion, instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider :=
@@ -150,6 +152,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		IAMAPI:     iamapi,
 		PricingAPI: fakePricingAPI,
 
+		AMICache:                      amiCache,
 		EC2Cache:                      ec2Cache,
 		KubernetesVersionCache:        kubernetesVersionCache,
 		LaunchTemplateCache:           launchTemplateCache,
@@ -187,6 +190,7 @@ func (env *Environment) Reset() {
 	env.PricingProvider.Reset()
 	env.InstanceTypesProvider.Reset()
 
+	env.AMICache.Flush()
 	env.EC2Cache.Flush()
 	env.KubernetesVersionCache.Flush()
 	env.UnavailableOfferingsCache.Flush()
