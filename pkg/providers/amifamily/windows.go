@@ -58,8 +58,8 @@ func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
 func (w Windows) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1beta1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Windows{
 		Options: bootstrap.Options{
-			ClusterName:     w.Options.ClusterName,
-			ClusterEndpoint: w.Options.ClusterEndpoint,
+			ClusterName:     w.ClusterName,
+			ClusterEndpoint: w.ClusterEndpoint,
 			KubeletConfig:   kubeletConfig,
 			Taints:          taints,
 			Labels:          labels,

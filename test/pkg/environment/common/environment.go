@@ -32,7 +32,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
-	. "sigs.k8s.io/karpenter/pkg/utils/testing" //nolint:stylecheck
+	. "sigs.k8s.io/karpenter/pkg/utils/testing" //nolint:stylecheck,staticcheck
 
 	"knative.dev/pkg/system"
 	controllerruntime "sigs.k8s.io/controller-runtime"

@@ -45,11 +45,11 @@ func (c *NodeClaimController) Reconcile(ctx context.Context, req reconcile.Reque
 	nc := &corev1beta1.NodeClaim{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, nc); err != nil {
 		if errors.IsNotFound(err) {
-			fmt.Printf("[DELETED %s] NODECLAIM %s\n", time.Now().Format(time.RFC3339), req.NamespacedName.String())
+			fmt.Printf("[DELETED %s] NODECLAIM %s\n", time.Now().Format(time.RFC3339), req.String())
 		}
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
-	fmt.Printf("[CREATED/UPDATED %s] NODECLAIM %s %s\n", time.Now().Format(time.RFC3339), req.NamespacedName.Name, c.GetInfo(nc))
+	fmt.Printf("[CREATED/UPDATED %s] NODECLAIM %s %s\n", time.Now().Format(time.RFC3339), req.Name, c.GetInfo(nc))
 	return reconcile.Result{}, nil
 }
 
