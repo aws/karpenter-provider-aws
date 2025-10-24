@@ -31,11 +31,11 @@ A Cluster Developer has the ability to create pods via `Deployments`, `ReplicaSe
 
 Karpenter has permissions to create and manage cloud instances. Karpenter has Kubernetes API permissions to create, update, and remove nodes, as well as evict pods. For a full list of the permissions, see the RBAC rules in the helm chart template. Karpenter also has AWS IAM permissions to create instances with IAM roles.
 
-* [aggregate-clusterrole.yaml](https://github.com/aws/karpenter/blob/v1.5.2/charts/karpenter/templates/aggregate-clusterrole.yaml)
-* [clusterrole-core.yaml](https://github.com/aws/karpenter/blob/v1.5.2/charts/karpenter/templates/clusterrole-core.yaml)
-* [clusterrole.yaml](https://github.com/aws/karpenter/blob/v1.5.2/charts/karpenter/templates/clusterrole.yaml)
-* [rolebinding.yaml](https://github.com/aws/karpenter/blob/v1.5.2/charts/karpenter/templates/rolebinding.yaml)
-* [role.yaml](https://github.com/aws/karpenter/blob/v1.5.2/charts/karpenter/templates/role.yaml)
+* [aggregate-clusterrole.yaml](https://github.com/aws/karpenter/blob/v1.6.5/charts/karpenter/templates/aggregate-clusterrole.yaml)
+* [clusterrole-core.yaml](https://github.com/aws/karpenter/blob/v1.6.5/charts/karpenter/templates/clusterrole-core.yaml)
+* [clusterrole.yaml](https://github.com/aws/karpenter/blob/v1.6.5/charts/karpenter/templates/clusterrole.yaml)
+* [rolebinding.yaml](https://github.com/aws/karpenter/blob/v1.6.5/charts/karpenter/templates/rolebinding.yaml)
+* [role.yaml](https://github.com/aws/karpenter/blob/v1.6.5/charts/karpenter/templates/role.yaml)
 
 ## Assumptions
 
