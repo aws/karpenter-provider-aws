@@ -38,7 +38,7 @@ runs:
       ref: ${{ inputs.git_ref }}
   - uses: ./.github/actions/e2e/install-helm
     with:
-      version: v3.12.3 # Pinned to this version since v3.13.0 has issues with anonymous pulls: https://github.com/helm/helm/issues/12423
+      version: v3.18.6
   # Label namespace to enforce security stranded and scrape prometheus metrics
   # https://kubernetes.io/docs/concepts/security/pod-security-standards/
   - name: add labels to kube-system namespace
