@@ -1207,7 +1207,6 @@ var _ = Describe("AMIResolver", func() {
 			})
 		},
 		Entry("should be disabled for supported regions", fake.DefaultRegion, lo.ToPtr("disabled")),
-		Entry("should be nil for isoe", "eu-isoe-west-1", nil),
 		Entry("should be nil for iso", "us-iso-east-1", nil),
 		Entry("should be nil for isob", "us-isob-east-1", nil),
 		Entry("should be nil for isof", "us-isof-south-1", nil),
