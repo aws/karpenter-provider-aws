@@ -97,9 +97,14 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType
 		"ttl", UnavailableOfferingsTTL,
 	}
 
-	// Add unavailable reason if provided
-	for k, v := range unavailableReason {
-		logValues = append(logValues, k, v)
+	// Add "reason" and "fleet-id" if provided
+	unavailableKeys := []string{"reason", "fleet-id"}
+	for _, key := range unavailableKeys {
+		_, ok := unavailableReason[key]
+		if ok {
+			logValues = append(logValues, key, unavailableReason[key])
+		}
+
 	}
 
 	log.FromContext(ctx).WithValues(logValues...).V(1).Info("removing offering from offerings")
