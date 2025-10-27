@@ -220,7 +220,14 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 		zone := nodeClaim.Labels[corev1.LabelTopologyZone]
 		instanceType := nodeClaim.Labels[corev1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), ec2types.InstanceType(instanceType), zone, karpv1.CapacityTypeSpot)
+			log.FromContext(ctx).WithValues(
+				"reason", string(msg.Kind()),
+				"instance-type", instanceType,
+				"zone", zone,
+				"capacity-type", karpv1.CapacityTypeSpot,
+				"ttl", cache.UnavailableOfferingsTTL,
+			).V(1).Info("removing offering from offerings")
+			c.unavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(instanceType), zone, karpv1.CapacityTypeSpot)
 		}
 	}
 	if action != NoAction {
