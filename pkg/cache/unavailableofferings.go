@@ -24,7 +24,6 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/patrickmn/go-cache"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // UnavailableOfferings stores any offerings that return ICE (insufficient capacity errors) when
@@ -88,26 +87,28 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType,
 }
 
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
-func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType ec2types.InstanceType, zone, capacityType string, unavailableReason map[string]string) {
+func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType ec2types.InstanceType, zone, capacityType string) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
-	logValues := []interface{}{
-		"instance-type", instanceType,
-		"zone", zone,
-		"capacity-type", capacityType,
-		"ttl", UnavailableOfferingsTTL,
-	}
-
-	// Add "reason" and "fleet-id" if provided
-	unavailableKeys := []string{"reason", "fleet-id"}
-	for _, key := range unavailableKeys {
-		_, ok := unavailableReason[key]
-		if ok {
-			logValues = append(logValues, key, unavailableReason[key])
+	/*
+		logValues := []interface{}{
+			"instance-type", instanceType,
+			"zone", zone,
+			"capacity-type", capacityType,
+			"ttl", UnavailableOfferingsTTL,
 		}
 
-	}
+		// Add "reason" and "fleet-id" if provided
+		unavailableKeys := []string{"reason", "fleet-id"}
+		for _, key := range unavailableKeys {
+			_, ok := unavailableReason[key]
+			if ok {
+				logValues = append(logValues, key, unavailableReason[key])
+			}
 
-	log.FromContext(ctx).WithValues(logValues...).V(1).Info("removing offering from offerings")
+		}
+
+		log.FromContext(ctx).WithValues(logValues...).V(1).Info("removing offering from offerings")
+	*/
 	u.offeringCache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
 	u.offeringCacheSeqNumMu.Lock()
 	u.offeringCacheSeqNum[instanceType]++
