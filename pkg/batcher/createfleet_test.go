@@ -12,9 +12,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package batcher_test
+package batcher
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,20 +23,19 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/samber/lo"
-
-	"github.com/aws/karpenter-provider-aws/pkg/batcher"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("CreateFleet Batching", func() {
-	var cfb *batcher.CreateFleetBatcher
+	var cfb *CreateFleetBatcher
 
 	BeforeEach(func() {
 		fakeEC2API.Reset()
-		cfb = batcher.NewCreateFleetBatcher(ctx, fakeEC2API)
+		cfb = NewCreateFleetBatcher(ctx, fakeEC2API)
 	})
 
 	It("should batch the same inputs into a single call", func() {
@@ -261,36 +261,10 @@ var _ = Describe("CreateFleet Batching", func() {
 		}
 
 		fakeEC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
-			Errors: []ec2types.CreateFleetError{
-				{
-					ErrorCode:    aws.String("some-error"),
-					ErrorMessage: aws.String("some-error"),
-					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
-						LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecification{
-							LaunchTemplateName: aws.String("my-template"),
-						},
-						Overrides: &ec2types.FleetLaunchTemplateOverrides{
-							AvailabilityZone: aws.String("us-east-1"),
-						},
-					},
-				},
-				{
-					ErrorCode:    aws.String("some-other-error"),
-					ErrorMessage: aws.String("some-other-error"),
-					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
-						LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecification{
-							LaunchTemplateName: aws.String("my-template"),
-						},
-						Overrides: &ec2types.FleetLaunchTemplateOverrides{
-							AvailabilityZone: aws.String("us-east-1"),
-						},
-					},
-				},
-			},
-			FleetId: aws.String("some-id"),
+			FleetId: aws.String("some-id2"),
 			Instances: []ec2types.CreateFleetInstance{
 				{
-					InstanceIds:                []string{"id-1", "id-2", "id-3"},
+					InstanceIds:                []string{"id-1", "id-2"},
 					InstanceType:               "",
 					LaunchTemplateAndOverrides: nil,
 					Lifecycle:                  "",
@@ -298,10 +272,11 @@ var _ = Describe("CreateFleet Batching", func() {
 				},
 			},
 		})
+
 		var wg sync.WaitGroup
 		var receivedInstance int64
 		var numErrors int64
-		for i := 0; i < 5; i++ {
+		for i := 0; i < 7; i++ {
 			wg.Add(1)
 			go func() {
 				defer GinkgoRecover()
@@ -325,12 +300,62 @@ var _ = Describe("CreateFleet Batching", func() {
 		}
 		wg.Wait()
 
-		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+		// 3 Retries
+		Expect(fakeEC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 3))
 		call := fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
-		// requested 5 instances
+		// Last call for last 3
+		Expect(*call.TargetCapacitySpecification.TotalTargetCapacity).To(BeNumerically("==", 3))
+		call = fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		// Second call for remaining 5 instances
 		Expect(*call.TargetCapacitySpecification.TotalTargetCapacity).To(BeNumerically("==", 5))
-		// but got three instances and the errors were returned to all five calls
-		Expect(receivedInstance).To(BeNumerically("==", 3))
-		Expect(numErrors).To(BeNumerically("==", 5))
+		call = fakeEC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		// First call for all 7 instances
+		Expect(*call.TargetCapacitySpecification.TotalTargetCapacity).To(BeNumerically("==", 7))
+
+		// Got 6 out of 7 instances due to request only returning 2 per call * 3 retries
+		Expect(receivedInstance).To(BeNumerically("==", 6))
+
+		// 1 error due to the last call failing to return all instances
+		Expect(numErrors).To(BeNumerically("==", 1))
+	})
+	It("should retry failed createfleet requests up to 3 times", func() {
+		input := &ec2.CreateFleetInput{
+			LaunchTemplateConfigs: []ec2types.FleetLaunchTemplateConfigRequest{
+				{
+					LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
+						LaunchTemplateName: aws.String("my-template"),
+					},
+					Overrides: []ec2types.FleetLaunchTemplateOverridesRequest{
+						{
+							AvailabilityZone: aws.String("us-east-1"),
+						},
+					},
+				},
+			},
+			TargetCapacitySpecification: &ec2types.TargetCapacitySpecificationRequest{
+				TotalTargetCapacity: aws.Int32(1),
+			},
+		}
+
+		fakeEC2API.CreateFleetBehavior.Error.Set(fmt.Errorf("some error"), fake.MaxCalls(3))
+
+		var numErrors int64
+		var wg sync.WaitGroup
+		for i := 0; i < 2; i++ {
+			wg.Add(1)
+			go func() {
+				defer GinkgoRecover()
+				defer wg.Done()
+				rsp, err := cfb.CreateFleet(ctx, input)
+				Expect(err).To(BeNil())
+				if len(rsp.Errors) != 0 {
+					atomic.AddInt64(&numErrors, 1)
+				}
+			}()
+		}
+		wg.Wait()
+
+		Expect(numErrors).To(BeNumerically("==", 2))
+		Expect(fakeEC2API.CreateFleetBehavior.Calls()).To(BeNumerically("==", 3))
 	})
 })

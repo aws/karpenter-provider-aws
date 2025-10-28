@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package batcher_test
+package batcher
 
 import (
 	"fmt"
@@ -23,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
-	"github.com/aws/karpenter-provider-aws/pkg/batcher"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -31,11 +30,11 @@ import (
 )
 
 var _ = Describe("DescribeInstances Batcher", func() {
-	var cfb *batcher.DescribeInstancesBatcher
+	var cfb *DescribeInstancesBatcher
 
 	BeforeEach(func() {
 		fakeEC2API.Reset()
-		cfb = batcher.NewDescribeInstancesBatcher(ctx, fakeEC2API)
+		cfb = NewDescribeInstancesBatcher(ctx, fakeEC2API)
 	})
 
 	It("should batch input into a single call", func() {
