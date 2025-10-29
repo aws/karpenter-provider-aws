@@ -9,7 +9,7 @@
 /v0.32/concepts/threat-model /v0.32/reference/threat-model
 
 # Redirect any v1beta1-migration reference to the v0.32 version
-/*/upgrading/v1beta1-migration /v0.32/upgrading/v1beta1-migration
+/*/upgrading/v1beta1-migration /v1.0/upgrading/v1beta1-migration
 
 # Redirect old "Managing AMIs" Task path
 /preview/tasks/amitasks /preview/tasks/managing-amis
