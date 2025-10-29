@@ -68,12 +68,12 @@ func NewDefaultProvider(
 	}
 }
 
-func getProfileCacheKey(profileName string) string {
+func GetProfileCacheKey(profileName string) string {
 	return "instance-profile:" + profileName
 }
 
 func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
-	profileCacheKey := getProfileCacheKey(instanceProfileName)
+	profileCacheKey := GetProfileCacheKey(instanceProfileName)
 	if instanceProfile, ok := p.instanceProfileCache.Get(profileCacheKey); ok {
 		return instanceProfile.(*iamtypes.InstanceProfile), nil
 	}
@@ -101,7 +101,8 @@ func (p *DefaultProvider) Create(
 		return fmt.Errorf("role not found, %w", err)
 	}
 
-	profileCacheKey := getProfileCacheKey(instanceProfileName)
+	shouldUpdate := false
+	profileCacheKey := GetProfileCacheKey(instanceProfileName)
 	instanceProfile, err := p.Get(ctx, instanceProfileName)
 	if err != nil {
 		if !awserrors.IsNotFound(err) {
@@ -119,32 +120,40 @@ func (p *DefaultProvider) Create(
 			return serrors.Wrap(err, "instance-profile", instanceProfileName)
 		}
 		instanceProfile = o.InstanceProfile
+		shouldUpdate = true
 	}
-	if err := p.ensureRole(ctx, instanceProfile, roleName); err != nil {
+
+	updatedRole, err := p.ensureRole(ctx, instanceProfile, roleName)
+	if err != nil {
 		return fmt.Errorf("ensuring role attached, %w", err)
 	}
 	// Add the role to the cached instance profile for detection in the ensureRole check based on the cache entry
 	instanceProfile.Roles = []iamtypes.Role{{
 		RoleName: lo.ToPtr(roleName),
 	}}
-	p.instanceProfileCache.SetDefault(profileCacheKey, instanceProfile)
+
+	if shouldUpdate || updatedRole {
+		p.instanceProfileCache.SetDefault(profileCacheKey, instanceProfile)
+	}
 	return nil
 }
 
 // ensureRole ensures that the correct role is attached to the provided instance profile. If a non-matching role is
 // found already attached, it's removed.
-func (p *DefaultProvider) ensureRole(ctx context.Context, instanceProfile *iamtypes.InstanceProfile, roleName string) error {
+func (p *DefaultProvider) ensureRole(ctx context.Context, instanceProfile *iamtypes.InstanceProfile, roleName string) (bool, error) {
 	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
 	// https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html
 	if len(instanceProfile.Roles) == 1 {
 		if lo.FromPtr(instanceProfile.Roles[0].RoleName) == roleName {
-			return nil
+			return false, nil
 		}
+		// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
+		// https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html
 		if _, err := p.iamapi.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
 			InstanceProfileName: instanceProfile.InstanceProfileName,
 			RoleName:            instanceProfile.Roles[0].RoleName,
 		}); err != nil {
-			return serrors.Wrap(
+			return false, serrors.Wrap(
 				fmt.Errorf("removing role for instance profile, %w", err),
 				"role", lo.FromPtr(instanceProfile.Roles[0].RoleName),
 				"instance-profile", lo.FromPtr(instanceProfile.InstanceProfileName),
@@ -167,13 +176,13 @@ func (p *DefaultProvider) ensureRole(ctx context.Context, instanceProfile *iamty
 		if IsRoleNotFoundError(err) {
 			p.roleNotFoundErrorCache.SetError(roleName, err)
 		}
-		return err
+		return true, err
 	}
-	return nil
+	return true, nil
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string) error {
-	profileCacheKey := getProfileCacheKey(instanceProfileName)
+	profileCacheKey := GetProfileCacheKey(instanceProfileName)
 	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
 		InstanceProfileName: lo.ToPtr(instanceProfileName),
 	})
