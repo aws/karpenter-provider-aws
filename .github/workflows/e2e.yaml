@@ -36,7 +36,8 @@ on:
           - "1.31"
           - "1.32"
           - "1.33"
-        default: "1.33"
+          - "1.34"
+        default: "1.34"
       cluster_name:
         type: string
       cleanup:
@@ -66,7 +67,7 @@ on:
         required: true
       k8s_version:
         type: string
-        default: "1.33"
+        default: "1.34"
       enable_metrics:
         type: boolean
         default: false
@@ -103,7 +104,7 @@ jobs:
           git_ref: ${{ inputs.git_ref }}
       - uses: ./.github/actions/install-deps
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 # v5.0.0
+        uses: aws-actions/configure-aws-credentials@00943011d9042930efac3dcd3a170e4273319bc8 # v5.1.0
         with:
           role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
           aws-region: ${{ inputs.region }}

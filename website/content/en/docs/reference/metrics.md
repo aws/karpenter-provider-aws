@@ -357,6 +357,10 @@ Total number of reconciliation errors per controller
 Maximum number of concurrent reconciles per controller
 - Stability Level: STABLE
 
+### `controller_runtime_conversion_webhook_panics_total`
+Total number of conversion webhook panics
+- Stability Level: STABLE
+
 ### `controller_runtime_active_workers`
 Number of currently used workers per controller
 - Stability Level: STABLE
