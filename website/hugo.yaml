@@ -83,7 +83,6 @@ params:
     - v1.7
     - v1.6
     - v1.0
-    - v0.32
     - preview
 menu:
   main:
