@@ -67,22 +67,7 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 	}
 
 	nodeClass.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1.AMI {
-		reqs := lo.Map(ami.Requirements.NodeSelectorRequirements(), func(item karpv1.NodeSelectorRequirementWithMinValues, _ int) corev1.NodeSelectorRequirement {
-			return item.NodeSelectorRequirement
-		})
-
-		sort.Slice(reqs, func(i, j int) bool {
-			if len(reqs[i].Key) != len(reqs[j].Key) {
-				return len(reqs[i].Key) < len(reqs[j].Key)
-			}
-			return reqs[i].Key < reqs[j].Key
-		})
-		return v1.AMI{
-			Name:         ami.Name,
-			ID:           ami.AmiID,
-			Deprecated:   ami.Deprecated,
-			Requirements: reqs,
-		}
+		return ami.ToV1AMI()
 	})
 
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeAMIsReady)

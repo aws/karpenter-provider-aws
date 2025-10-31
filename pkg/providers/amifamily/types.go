@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
@@ -39,6 +40,24 @@ type AMI struct {
 	CreationDate string
 	Deprecated   bool
 	Requirements scheduling.Requirements
+}
+
+func (a AMI) ToV1AMI() v1.AMI {
+	reqs := lo.Map(a.Requirements.NodeSelectorRequirements(), func(item karpv1.NodeSelectorRequirementWithMinValues, _ int) corev1.NodeSelectorRequirement {
+		return item.NodeSelectorRequirement
+	})
+	sort.Slice(reqs, func(i, j int) bool {
+		if len(reqs[i].Key) != len(reqs[j].Key) {
+			return len(reqs[i].Key) < len(reqs[j].Key)
+		}
+		return reqs[i].Key < reqs[j].Key
+	})
+	return v1.AMI{
+		Name:         a.Name,
+		ID:           a.AmiID,
+		Deprecated:   a.Deprecated,
+		Requirements: reqs,
+	}
 }
 
 type AMIs []AMI
