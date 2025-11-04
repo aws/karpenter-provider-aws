@@ -1322,11 +1322,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.AMIFamily(),
 						nil,
 					)
-					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("50Mi"))
+					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				})
 			})
 			Context("Eviction Soft", func() {
-				It("should override eviction threshold when specified as a quantity", func() {
+				It("should use default threshold when only evictionSoft is specified", func() {
 					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
@@ -1354,9 +1354,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.AMIFamily(),
 						nil,
 					)
-					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
+					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				})
-				It("should override eviction threshold when specified as a percentage value", func() {
+				It("should use evictionHard percentage and ignore evictionSoft percentage", func() {
 					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
@@ -1387,9 +1387,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.AMIFamily(),
 						nil,
 					)
-					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
+					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.05, 10))
 				})
-				It("should consider the eviction threshold disabled when specified as 100%", func() {
+				It("should use default threshold when evictionSoft is 100% (ignored)", func() {
 					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
@@ -1417,7 +1417,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.AMIFamily(),
 						nil,
 					)
-					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
+					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				})
 				It("should ignore eviction threshold when using Bottlerocket AMI", func() {
 					nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
@@ -2599,7 +2599,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// kubelet.kubeReserved
 			// kubelet.systemReserved
 			// kubelet.evictionHard
-			// kubelet.evictionSoft
 			// kubelet.maxPods
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				KubeReserved:   map[string]string{string(corev1.ResourceCPU): "1"},
@@ -2615,7 +2614,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				{KubeReserved: map[string]string{string(corev1.ResourceCPU): "20"}},
 				{SystemReserved: map[string]string{string(corev1.ResourceMemory): "10Gi"}},
 				{EvictionHard: map[string]string{"memory.available": "52%"}},
-				{EvictionSoft: map[string]string{"nodefs.available": "132%"}},
 				{MaxPods: aws.Int32(20)},
 			}
 			ExpectApplied(ctx, env.Client, nodeClass)
@@ -2637,7 +2635,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				instanceTypeResults = append(instanceTypeResults, instancetypes)
 			}
 
-			// Based on the nodeclass configuration, we expect to have 5 unique set of instance types
+			// Based on the nodeclass configuration, we expect to have 4 unique set of instance types
 			ExpectUniqueInstanceTypeLists(instanceTypeResults...)
 		})
 		It("changes to nodeclass fields should result in a different set of instances types", func() {
