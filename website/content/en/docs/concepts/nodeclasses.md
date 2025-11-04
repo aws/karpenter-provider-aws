@@ -1107,7 +1107,7 @@ This automatic disk configuration is only available on Bottlerocket v1.22.0 and 
 
 #### Others
 
-For all other AMI families (such as Custom), you must configure the disks yourself. Check out the [`setup-local-disks`](https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/bin/setup-local-disks) script in [amazon-eks-ami](https://github.com/awslabs/amazon-eks-ami) to see how this is done for AL2.
+For all other AMI families, you must configure the disks yourself. Check out the [`setup-local-disks`](https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/bin/setup-local-disks) script in [amazon-eks-ami](https://github.com/awslabs/amazon-eks-ami) to see how this is done for AL2.
 
 {{% alert title="Tip" color="secondary" %}}
 Since the Kubelet & Containerd will be using the instance-store filesystem, you may consider using a more minimal root volume size.
