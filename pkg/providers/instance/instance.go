@@ -491,7 +491,7 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 
 	if capacityType != karpv1.CapacityTypeReserved {
 		for _, err := range errs {
-			if awserrors.IsUnfulfillableCapacity(err) {
+			if awserrors.IsUnfulfillableCapacity(err) || awserrors.IsInstanceTypesNotEligibleForFreeTier(err) {
 				p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, err, capacityType)
 			}
 			if awserrors.IsServiceLinkedRoleCreationNotPermitted(err) {

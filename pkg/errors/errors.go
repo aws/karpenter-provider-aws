@@ -31,6 +31,7 @@ const (
 	RateLimitingErrorCode                          = "RequestLimitExceeded"
 	ServiceLinkedRoleCreationNotPermittedErrorCode = "AuthFailure.ServiceLinkedRoleCreationNotPermitted"
 	InsufficientFreeAddressesInSubnetErrorCode     = "InsufficientFreeAddressesInSubnet"
+	InvalidParameterCombinationErrorCode           = "InvalidParameterCombination"
 )
 
 var (
@@ -52,6 +53,7 @@ var (
 
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
 	unfulfillableCapacityErrorCodes = sets.New[string](
+		"InvalidParameterCombination",
 		"InsufficientInstanceCapacity",
 		"MaxSpotInstanceCountExceeded",
 		"VcpuLimitExceeded",
@@ -179,6 +181,10 @@ func IsServiceLinkedRoleCreationNotPermitted(err ec2types.CreateFleetError) bool
 
 func IsInsufficientFreeAddressesInSubnet(err ec2types.CreateFleetError) bool {
 	return *err.ErrorCode == InsufficientFreeAddressesInSubnetErrorCode
+}
+
+func IsInstanceTypesNotEligibleForFreeTier(err ec2types.CreateFleetError) bool {
+	return *err.ErrorCode == InvalidParameterCombinationErrorCode && strings.Contains(lo.FromPtr(err.ErrorMessage), "The specified instance type is not eligible for Free Tier")
 }
 
 // IsReservationCapacityExceeded returns true if the fleet error means there is no remaining capacity for the provided
