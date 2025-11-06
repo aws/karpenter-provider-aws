@@ -26,6 +26,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
 )
 
+// HTTPProtocolUnsupportedRegions contains regions that don't support HTTPProtocolIPv6
+var HTTPProtocolUnsupportedRegions = []string{
+	"us-iso-east-1",
+	"us-iso-west-1",
+	"us-isob-east-1",
+	"us-isob-west-1",
+	"us-isof-south-1",
+	"us-isof-east-1",
+}
+
 type EC2API interface {
 	DescribeCapacityReservations(context.Context, *ec2.DescribeCapacityReservationsInput, ...func(*ec2.Options)) (*ec2.DescribeCapacityReservationsOutput, error)
 	DescribeImages(context.Context, *ec2.DescribeImagesInput, ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error)

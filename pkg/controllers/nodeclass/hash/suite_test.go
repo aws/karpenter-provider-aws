@@ -60,7 +60,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	hashController = hash.NewController(env.Client)
+	hashController = hash.NewController(env.Client, "us-west-2")
 })
 
 var _ = AfterSuite(func() {
