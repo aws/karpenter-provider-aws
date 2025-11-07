@@ -191,13 +191,12 @@ removeOldWebsiteDirectories() {
   local n=3 last_n_versions all
 
   # Get all the directories except the last n directories sorted from earliest to latest version
-  # preview, docs, and v0.32 are special directories that we always propagate into the set of directory options
-  # Keep the v0.32 version around while we are supporting v1beta1 migration
-  # Drop it once we no longer want to maintain the v0.32 version in the docs
-  last_n_versions=$(find website/content/en/* -maxdepth 0 -type d -name "*" | grep -v "preview\|docs\|v0.32\|v1.0" | sort | tail -n "${n}")
+  # preview, docs, and v1.0 are special directories that we always propagate into the set of directory options
+  # Keep the v1.0 version around while we are supporting v1beta1 migration
+  # Drop it once we no longer want to maintain the v1.00 version in the docs
+  last_n_versions=$(find website/content/en/* -maxdepth 0 -type d -name "*" | grep -v "preview\|docs\|v1.0" | sort | tail -n "${n}")
   last_n_versions+=$(echo -e "\nwebsite/content/en/preview")
   last_n_versions+=$(echo -e "\nwebsite/content/en/docs")
-  last_n_versions+=$(echo -e "\nwebsite/content/en/v0.32")
   last_n_versions+=$(echo -e "\nwebsite/content/en/v1.0")
   all=$(find website/content/en/* -maxdepth 0 -type d -name "*")
 
