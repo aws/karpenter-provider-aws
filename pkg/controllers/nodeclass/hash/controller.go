@@ -36,11 +36,13 @@ import (
 
 type Controller struct {
 	kubeClient client.Client
+	region     string
 }
 
-func NewController(kubeClient client.Client) *Controller {
+func NewController(kubeClient client.Client, region string) *Controller {
 	return &Controller{
 		kubeClient: kubeClient,
+		region:     region,
 	}
 }
 
@@ -55,7 +57,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		}
 	}
 	nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-		v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
+		v1.AnnotationEC2NodeClassHash:        nodeClass.HashForRegion(c.region),
 		v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
 	})
 
@@ -103,7 +105,7 @@ func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *v1.EC2N
 			// Since the hashing mechanism has changed we will not be able to determine if the drifted status of the NodeClaim has changed
 			if nc.StatusConditions().Get(karpv1.ConditionTypeDrifted) == nil {
 				nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
-					v1.AnnotationEC2NodeClassHash: nodeClass.Hash(),
+					v1.AnnotationEC2NodeClassHash: nodeClass.HashForRegion(c.region),
 				})
 			}
 

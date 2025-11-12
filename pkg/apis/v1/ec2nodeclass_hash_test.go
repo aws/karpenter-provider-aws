@@ -15,6 +15,8 @@ limitations under the License.
 package v1_test
 
 import (
+	"fmt"
+
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -24,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awssdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -204,5 +207,74 @@ var _ = Describe("Hash", func() {
 			Spec: nodeClass.Spec,
 		}
 		Expect(nodeClass.Hash()).To(Equal(otherNodeClass.Hash()))
+	})
+
+	Context("Region-specific filtering", func() {
+		It("should filter HTTPProtocolIPv6 for unsupported regions", func() {
+			nodeClass.Spec.MetadataOptions = &v1.MetadataOptions{
+				HTTPEndpoint:            lo.ToPtr("enabled"),
+				HTTPProtocolIPv6:        lo.ToPtr("enabled"),
+				HTTPPutResponseHopLimit: lo.ToPtr(int64(1)),
+				HTTPTokens:              lo.ToPtr("required"),
+			}
+
+			// Hash for supported region should include HTTPProtocolIPv6
+			supportedRegionHash := nodeClass.HashForRegion("us-west-2")
+
+			// Hash for unsupported region should exclude HTTPProtocolIPv6
+			unsupportedRegionHash := nodeClass.HashForRegion("us-iso-east-1")
+
+			// The hashes should be different because HTTPProtocolIPv6 is filtered out
+			Expect(supportedRegionHash).ToNot(Equal(unsupportedRegionHash))
+		})
+
+		It("should have same hash for unsupported regions regardless of HTTPProtocolIPv6 value", func() {
+			nodeClass1 := nodeClass.DeepCopy()
+			nodeClass1.Spec.MetadataOptions = &v1.MetadataOptions{
+				HTTPEndpoint:            lo.ToPtr("enabled"),
+				HTTPProtocolIPv6:        lo.ToPtr("enabled"),
+				HTTPPutResponseHopLimit: lo.ToPtr(int64(1)),
+				HTTPTokens:              lo.ToPtr("required"),
+			}
+
+			nodeClass2 := nodeClass.DeepCopy()
+			nodeClass2.Spec.MetadataOptions = &v1.MetadataOptions{
+				HTTPEndpoint:            lo.ToPtr("enabled"),
+				HTTPProtocolIPv6:        lo.ToPtr("disabled"),
+				HTTPPutResponseHopLimit: lo.ToPtr(int64(1)),
+				HTTPTokens:              lo.ToPtr("required"),
+			}
+
+			// Both should have the same hash for unsupported regions since HTTPProtocolIPv6 is filtered out
+			hash1 := nodeClass1.HashForRegion("us-iso-east-1")
+			hash2 := nodeClass2.HashForRegion("us-iso-east-1")
+			Expect(hash1).To(Equal(hash2))
+		})
+
+		It("should not filter HTTPProtocolIPv6 when MetadataOptions is nil", func() {
+			nodeClass.Spec.MetadataOptions = nil
+
+			supportedRegionHash := nodeClass.HashForRegion("us-west-2")
+			unsupportedRegionHash := nodeClass.HashForRegion("us-iso-east-1")
+
+			// Should be the same since there's nothing to filter
+			Expect(supportedRegionHash).To(Equal(unsupportedRegionHash))
+		})
+
+		It("should match all unsupported regions", func() {
+			nodeClass.Spec.MetadataOptions = &v1.MetadataOptions{
+				HTTPEndpoint:            lo.ToPtr("enabled"),
+				HTTPProtocolIPv6:        lo.ToPtr("enabled"),
+				HTTPPutResponseHopLimit: lo.ToPtr(int64(1)),
+				HTTPTokens:              lo.ToPtr("required"),
+			}
+
+			supportedRegionHash := nodeClass.HashForRegion("us-west-2")
+
+			for _, region := range awssdk.HTTPProtocolUnsupportedRegions {
+				unsupportedRegionHash := nodeClass.HashForRegion(region)
+				Expect(unsupportedRegionHash).ToNot(Equal(supportedRegionHash), fmt.Sprintf("Region %s should filter HTTPProtocolIPv6", region))
+			}
+		})
 	})
 })

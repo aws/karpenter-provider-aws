@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awssdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
@@ -278,14 +279,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	if len(capacityReservationIDs) == 0 {
 		capacityReservationIDs = append(capacityReservationIDs, "")
 	}
-	httpProtocolUnsupportedRegions := sets.New[string](
-		"us-iso-east-1",
-		"us-iso-west-1",
-		"us-isob-east-1",
-		"us-isob-west-1",
-		"us-isof-south-1",
-		"us-isof-east-1",
-	)
+	httpProtocolUnsupportedRegions := sets.New(awssdk.HTTPProtocolUnsupportedRegions...)
 	return lo.Map(capacityReservationIDs, func(id string, _ int) *LaunchTemplate {
 		resolved := &LaunchTemplate{
 			Options: options,

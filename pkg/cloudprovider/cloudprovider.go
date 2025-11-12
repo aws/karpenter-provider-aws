@@ -147,7 +147,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	})
 	nc := c.instanceToNodeClaim(instance, instanceType, nodeClass)
 	nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
-		v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
+		v1.AnnotationEC2NodeClassHash:        nodeClass.HashForRegion(c.instanceProvider.Region()),
 		v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
 		v1.AnnotationInstanceProfile:         nodeClass.Status.InstanceProfile,
 	})
