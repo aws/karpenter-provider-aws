@@ -8,5 +8,9 @@ ARG TARGETARCH
 COPY --from=builder /go/src/github.com/openshift/aws-karpenter-provider-aws/karpenter-provider-aws-${TARGETARCH} /usr/bin/karpenter-provider-aws
 LABEL io.k8s.display-name="Karpenter AWS provider for OpenShift" \
       io.k8s.description="Karpenter is a Kubernetes Node Autoscaler built for flexibility, performance, and simplicity."
+# TODO(jkyros): The right way to do this is eventually to put it in the hypershift image references, but if 
+# we do that before it's in the payload, it will break hypershift builds. Once it's in hypershift's image-references
+# we should take the label off so we get included because hypershift asks for us, not because we said we were important
+LABEL io.openshift.release.operator=true
 # the upstream image has an entrypoint set, this entrypoint is for parity so the args to the pod can be the same and they are interchangeable
 ENTRYPOINT ["/usr/bin/karpenter-provider-aws"]
