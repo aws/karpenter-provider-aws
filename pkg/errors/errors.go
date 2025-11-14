@@ -31,6 +31,7 @@ const (
 	RateLimitingErrorCode                          = "RequestLimitExceeded"
 	ServiceLinkedRoleCreationNotPermittedErrorCode = "AuthFailure.ServiceLinkedRoleCreationNotPermitted"
 	InsufficientFreeAddressesInSubnetErrorCode     = "InsufficientFreeAddressesInSubnet"
+	MaxFleetCountExceededErrorCode                 = "MaxFleetCountExceeded"
 )
 
 var (
@@ -58,6 +59,7 @@ var (
 		"UnfulfillableCapacity",
 		"Unsupported",
 		"InsufficientFreeAddressesInSubnet",
+		"MaxFleetCountExceeded",
 		reservationCapacityExceededErrorCode,
 	)
 )
