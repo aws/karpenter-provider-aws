@@ -53,7 +53,7 @@ func (b Bottlerocket) Script() (string, error) {
 
 	if b.KubeletConfig != nil {
 		if len(b.KubeletConfig.ClusterDNS) > 0 {
-			s.Settings.Kubernetes.ClusterDNSIP = &b.KubeletConfig.ClusterDNS[0]
+			s.Settings.Kubernetes.ClusterDNSIP = b.KubeletConfig.ClusterDNS
 		}
 		if b.KubeletConfig.SystemReserved != nil {
 			s.Settings.Kubernetes.SystemReserved = b.KubeletConfig.SystemReserved
