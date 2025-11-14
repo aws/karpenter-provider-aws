@@ -17,6 +17,7 @@ package amifamily
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/awslabs/operatorpkg/serrors"
@@ -39,6 +40,9 @@ import (
 type Bottlerocket struct {
 	DefaultFamily
 	*Options
+
+	// Defaults to false, set to true to use the FIPS variant of Bottlerocket
+	FIPSVariant bool
 }
 
 func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
@@ -50,7 +54,14 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):         {VariantStandard},
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion): {VariantNvidia},
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):  {VariantNvidia},
+		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-fips/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion):   {VariantStandard, VariantNeuron, VariantFIPS},
+		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-fips/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):    {VariantStandard, VariantFIPS},
 	} {
+		// If the FIPS variant is not requested, skip the FIPS paths
+		if b.FIPSVariant != slices.Contains(variants, VariantFIPS) {
+			continue
+		}
+
 		imageID, err := ssmProvider.Get(ctx, ssm.Parameter{
 			Name:      path,
 			IsMutable: amiVersion == v1.AliasVersionLatest,
@@ -60,6 +71,7 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 		}
 		ids[imageID] = variants
 	}
+
 	// Failed to discover any AMIs, we should short circuit AMI discovery
 	if len(ids) == 0 {
 		return DescribeImageQuery{}, serrors.Wrap(fmt.Errorf(`failed to discover any AMIs for alias`), "alias", fmt.Sprintf("bottlerocket@%s", amiVersion))

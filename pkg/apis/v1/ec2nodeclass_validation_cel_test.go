@@ -84,7 +84,7 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("AMIFamily", func() {
-		amiFamilies := []string{v1.AMIFamilyAL2, v1.AMIFamilyAL2023, v1.AMIFamilyBottlerocket, v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2022, v1.AMIFamilyCustom}
+		amiFamilies := []string{v1.AMIFamilyAL2, v1.AMIFamilyAL2023, v1.AMIFamilyBottlerocket, v1.AMIFamilyBottlerocketFIPS, v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2022, v1.AMIFamilyCustom}
 		DescribeTable("should succeed with valid families", func() []interface{} {
 			f := func(amiFamily string) {
 				// Set a custom AMI family so it's compatible with all ami family types
@@ -755,6 +755,8 @@ var _ = Describe("CEL/Validation", func() {
 			Entry("al2023 (pinned)", "al2023@v20240625", v1.AMIFamilyAL2023),
 			Entry("bottlerocket (latest)", "bottlerocket@latest", v1.AMIFamilyBottlerocket),
 			Entry("bottlerocket (pinned)", "bottlerocket@1.10.0", v1.AMIFamilyBottlerocket),
+			Entry("bottlerocket-fips (latest)", "bottlerocket-fips@latest", v1.AMIFamilyBottlerocketFIPS),
+			Entry("bottlerocket-fips (pinned)", "bottlerocket-fips@1.10.0", v1.AMIFamilyBottlerocketFIPS),
 			Entry("windows2019 (latest)", "windows2019@latest", v1.AMIFamilyWindows2019),
 			Entry("windows2022 (latest)", "windows2022@latest", v1.AMIFamilyWindows2022),
 		)

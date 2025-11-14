@@ -397,6 +397,7 @@ var _ = Describe("Ephemeral Storage", func() {
 		Entry("AL2", "al2@latest"),
 		Entry("AL2023", "al2023@latest"),
 		Entry("Bottlerocket", "bottlerocket@latest"),
+		Entry("Bottlerocket FIPS", "bottlerocket-fips@latest"),
 	)
 })
 

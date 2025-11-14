@@ -236,6 +236,9 @@ var _ = Describe("AMI", func() {
 			Entry("Bottlerocket (latest)", "bottlerocket@latest"),
 			Entry("Bottlerocket (pinned with v prefix)", "bottlerocket@v1.47.0"),
 			Entry("Bottlerocket (pinned without v prefix)", "bottlerocket@1.47.0"),
+			Entry("Bottlerocket FIPS (latest)", "bottlerocket-fips@latest"),
+			Entry("Bottlerocket FIPS (pinned with v prefix)", "bottlerocket-fips@v1.47.0"),
+			Entry("Bottlerocket FIPS (pinned without v prefix)", "bottlerocket-fips@1.47.0"),
 		)
 		It("should support Custom AMIFamily with AMI Selectors", func() {
 			al2023AMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
@@ -345,29 +348,33 @@ var _ = Describe("AMI", func() {
 			Expect(string(actualUserData)).To(ContainSubstring("Running custom user data script"))
 			Expect(string(actualUserData)).To(ContainSubstring("karpenter.sh/do-not-sync-taints=true"))
 		})
-		It("should merge UserData contents for Bottlerocket AMIFamily", func() {
-			content, err := os.ReadFile("testdata/br_userdata_input.sh")
-			Expect(err).ToNot(HaveOccurred())
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-			nodeClass.Spec.UserData = awssdk.String(string(content))
-			nodePool.Spec.Template.Spec.Taints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
-			nodePool.Spec.Template.Spec.StartupTaints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
-			pod := coretest.Pod(coretest.PodOptions{Tolerations: []corev1.Toleration{{Key: "example.com", Operator: corev1.TolerationOpExists}}})
+		DescribeTable("should merge UserData contents for Bottlerocket AMIFamily",
+			func(alias string) {
+				content, err := os.ReadFile("testdata/br_userdata_input.sh")
+				Expect(err).ToNot(HaveOccurred())
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+				nodeClass.Spec.UserData = awssdk.String(string(content))
+				nodePool.Spec.Template.Spec.Taints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
+				nodePool.Spec.Template.Spec.StartupTaints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
+				pod := coretest.Pod(coretest.PodOptions{Tolerations: []corev1.Toleration{{Key: "example.com", Operator: corev1.TolerationOpExists}}})
 
-			env.ExpectCreated(pod, nodeClass, nodePool)
-			env.EventuallyExpectHealthy(pod)
-			Expect(env.GetNode(pod.Spec.NodeName).Spec.Taints).To(ContainElements(
-				corev1.Taint{Key: "example.com", Value: "value", Effect: "NoExecute"},
-				corev1.Taint{Key: "example.com", Value: "value", Effect: "NoSchedule"},
-			))
-			actualUserData, err := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(string(actualUserData)).To(ContainSubstring("kube-api-qps = 30"))
-			Expect(string(actualUserData)).To(ContainSubstring("'karpenter.sh/do-not-sync-taints' = 'true'"))
-			Expect(string(actualUserData)).To(ContainSubstring("eviction-max-pod-grace-period = 40"))
-			Expect(string(actualUserData)).To(ContainSubstring("[settings.kubernetes.eviction-soft]\n'memory.available' = '100Mi'"))
-			Expect(string(actualUserData)).To(ContainSubstring("[settings.kubernetes.eviction-soft-grace-period]\n'memory.available' = '30s'"))
-		})
+				env.ExpectCreated(pod, nodeClass, nodePool)
+				env.EventuallyExpectHealthy(pod)
+				Expect(env.GetNode(pod.Spec.NodeName).Spec.Taints).To(ContainElements(
+					corev1.Taint{Key: "example.com", Value: "value", Effect: "NoExecute"},
+					corev1.Taint{Key: "example.com", Value: "value", Effect: "NoSchedule"},
+				))
+				actualUserData, err := base64.StdEncoding.DecodeString(*getInstanceAttribute(pod.Spec.NodeName, "userData").UserData.Value)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(string(actualUserData)).To(ContainSubstring("kube-api-qps = 30"))
+				Expect(string(actualUserData)).To(ContainSubstring("'karpenter.sh/do-not-sync-taints' = 'true'"))
+				Expect(string(actualUserData)).To(ContainSubstring("eviction-max-pod-grace-period = 40"))
+				Expect(string(actualUserData)).To(ContainSubstring("[settings.kubernetes.eviction-soft]\n'memory.available' = '100Mi'"))
+				Expect(string(actualUserData)).To(ContainSubstring("[settings.kubernetes.eviction-soft-grace-period]\n'memory.available' = '30s'"))
+			},
+			Entry("bottlerocket@latest", "bottlerocket@latest"),
+			Entry("bottlerocket-fips@latest", "bottlerocket-fips@latest"),
+		)
 		// Windows tests are can flake due to the instance types that are used in testing.
 		// The VPC Resource controller will need to support the instance types that are used.
 		// If the instance type is not supported by the controller resource `vpc.amazonaws.com/PrivateIPv4Address` will not register.
