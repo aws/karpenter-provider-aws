@@ -185,6 +185,10 @@ spec:
             - name: DISABLE_DRY_RUN
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.pricingRegionOverride }}
+            - name: PRICING_REGION_OVERRIDE
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
