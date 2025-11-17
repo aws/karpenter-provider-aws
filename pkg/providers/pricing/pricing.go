@@ -103,15 +103,23 @@ func newZonalPricing(defaultPrice float64) zonal {
 // NewPricingAPI returns a pricing API configured based on a particular region
 func NewAPI(cfg aws.Config) *pricing.Client {
 	// pricing API doesn't have an endpoint in all regions
+	pricingAPIExistingRegions := []string{
+		"ap-south-1", "ap-southeast-1",
+		"eu-central-1", "eu-west-1",
+		"us-east-1", "us-west-2",
+		"cn-northwest-1",
+	}
 	pricingAPIRegion := "us-east-1"
-	if strings.HasPrefix(cfg.Region, "ap-") {
+	if lo.Contains(pricingAPIExistingRegions, cfg.Region) {
+		pricingAPIRegion = cfg.Region
+	} else if strings.HasPrefix(cfg.Region, "ap-") {
 		pricingAPIRegion = "ap-south-1"
 	} else if strings.HasPrefix(cfg.Region, "cn-") {
 		pricingAPIRegion = "cn-northwest-1"
 	} else if strings.HasPrefix(cfg.Region, "eu-") {
 		pricingAPIRegion = "eu-central-1"
 	}
-	//create pricing config using pricing endpoint
+	// create pricing config using pricing endpoint
 	pricingCfg := cfg.Copy()
 	pricingCfg.Region = pricingAPIRegion
 	return pricing.NewFromConfig(pricingCfg)
