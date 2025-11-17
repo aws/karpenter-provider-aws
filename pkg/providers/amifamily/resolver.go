@@ -44,7 +44,7 @@ var DefaultEBS = v1.BlockDevice{
 }
 
 type Resolver interface {
-	Resolve(*v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, *Options) ([]*LaunchTemplate, error)
+	Resolve(*v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, string, *Options) ([]*LaunchTemplate, error)
 }
 
 // DefaultResolver is able to fill-in dynamic launch template parameters
@@ -85,6 +85,7 @@ type LaunchTemplate struct {
 	CapacityType            string
 	CapacityReservationID   string
 	CapacityReservationType v1.CapacityReservationType
+	Tenancy                 string
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -131,7 +132,7 @@ func NewDefaultResolver(region string) *DefaultResolver {
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
+func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.AMIFamily(), options)
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
@@ -189,7 +190,7 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 
 		for params, instanceTypes := range paramsToInstanceTypes {
 			reservationIDs := strings.Split(params.reservationIDs, ",")
-			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, options)...)
+			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, options, tenancyType)...)
 		}
 	}
 	return resolvedTemplates, nil
@@ -250,6 +251,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	capacityReservationIDs []string,
 	capacityReservationType v1.CapacityReservationType,
 	options *Options,
+	tenancyType string,
 ) []*LaunchTemplate {
 	kubeletConfig := &v1.KubeletConfiguration{}
 	if nodeClass.Spec.Kubelet != nil {
@@ -307,6 +309,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			CapacityType:            capacityType,
 			CapacityReservationID:   id,
 			CapacityReservationType: capacityReservationType,
+			Tenancy:                 tenancyType,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
