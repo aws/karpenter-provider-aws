@@ -339,6 +339,19 @@ func (p *DefaultProvider) launchInstance(
 		}
 		cfiBuilder.WithCapacityReservationType(*crt)
 	}
+	// Apply allocation strategies from EC2NodeClass if specified
+	if nodeClass.Spec.AllocationStrategy != nil {
+		if nodeClass.Spec.AllocationStrategy.OnDemandAllocationStrategy != nil {
+			if onDemandStrategy := parseOnDemandAllocationStrategy(*nodeClass.Spec.AllocationStrategy.OnDemandAllocationStrategy); onDemandStrategy != nil {
+				cfiBuilder.WithOnDemandAllocationStrategy(*onDemandStrategy)
+			}
+		}
+		if nodeClass.Spec.AllocationStrategy.SpotAllocationStrategy != nil {
+			if spotStrategy := parseSpotAllocationStrategy(*nodeClass.Spec.AllocationStrategy.SpotAllocationStrategy); spotStrategy != nil {
+				cfiBuilder.WithSpotAllocationStrategy(*spotStrategy)
+			}
+		}
+	}
 	createFleetInput := cfiBuilder.Build()
 
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
@@ -587,6 +600,32 @@ func getCapacityReservationType(instanceTypes []*cloudprovider.InstanceType) *v1
 		}
 	}
 	return nil
+}
+
+func parseOnDemandAllocationStrategy(strategy string) *ec2types.FleetOnDemandAllocationStrategy {
+	switch strategy {
+	case "lowest-price":
+		return lo.ToPtr(ec2types.FleetOnDemandAllocationStrategyLowestPrice)
+	case "prioritized":
+		return lo.ToPtr(ec2types.FleetOnDemandAllocationStrategyPrioritized)
+	default:
+		return nil
+	}
+}
+
+func parseSpotAllocationStrategy(strategy string) *ec2types.SpotAllocationStrategy {
+	switch strategy {
+	case "lowest-price":
+		return lo.ToPtr(ec2types.SpotAllocationStrategyLowestPrice)
+	case "price-capacity-optimized":
+		return lo.ToPtr(ec2types.SpotAllocationStrategyPriceCapacityOptimized)
+	case "capacity-optimized":
+		return lo.ToPtr(ec2types.SpotAllocationStrategyCapacityOptimized)
+	case "capacity-optimized-prioritized":
+		return lo.ToPtr(ec2types.SpotAllocationStrategyCapacityOptimizedPrioritized)
+	default:
+		return nil
+	}
 }
 
 func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) ([]*Instance, error) {

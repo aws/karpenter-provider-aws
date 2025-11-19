@@ -57,6 +57,34 @@ spec:
                 EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
                 This will contain configuration necessary to launch instances in AWS.
               properties:
+                allocationStrategy:
+                  description: |-
+                    AllocationStrategy specifies the EC2 Fleet allocation strategy for on-demand and spot instances.
+                    If not specified, defaults to "lowest-price" for on-demand instances and "price-capacity-optimized" for spot instances.
+                    For on-demand instances, valid values are: "lowest-price", "prioritized".
+                    For spot instances, valid values are: "lowest-price", "price-capacity-optimized", "capacity-optimized", "capacity-optimized-prioritized".
+                  properties:
+                    onDemandAllocationStrategy:
+                      description: |-
+                        OnDemandAllocationStrategy specifies the allocation strategy for on-demand instances.
+                        Valid values are: "lowest-price", "prioritized".
+                        If not specified, defaults to "lowest-price".
+                      enum:
+                        - lowest-price
+                        - prioritized
+                      type: string
+                    spotAllocationStrategy:
+                      description: |-
+                        SpotAllocationStrategy specifies the allocation strategy for spot instances.
+                        Valid values are: "lowest-price", "price-capacity-optimized", "capacity-optimized", "capacity-optimized-prioritized".
+                        If not specified, defaults to "price-capacity-optimized".
+                      enum:
+                        - lowest-price
+                        - price-capacity-optimized
+                        - capacity-optimized
+                        - capacity-optimized-prioritized
+                      type: string
+                  type: object
                 amiFamily:
                   description: |-
                     AMIFamily dictates the UserData format and default BlockDeviceMappings used when generating launch templates.
