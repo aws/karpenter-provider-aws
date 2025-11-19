@@ -34,6 +34,7 @@ import (
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/reservedinstance"
 )
 
 type Provider interface {
@@ -48,6 +49,7 @@ type NodeClass interface {
 type DefaultProvider struct {
 	pricingProvider                pricing.Provider
 	capacityReservationProvider    capacityreservation.Provider
+	reservedInstanceProvider.      reservedinstance.Provider,
 	unavailableOfferings           *awscache.UnavailableOfferings
 	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
 	cache                          *cache.Cache
@@ -56,12 +58,14 @@ type DefaultProvider struct {
 func NewDefaultProvider(
 	pricingProvider pricing.Provider,
 	capacityReservationProvider capacityreservation.Provider,
+	reservedInstanceProvider reservedinstance.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	offeringCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		pricingProvider:             pricingProvider,
 		capacityReservationProvider: capacityReservationProvider,
+		reservedInstanceProvider:    reservedInstanceProvider,
 		unavailableOfferings:        unavailableOfferingsCache,
 		cache:                       offeringCache,
 	}
@@ -191,6 +195,32 @@ func (p *DefaultProvider) createOfferings(
 			offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
 		}
 		offerings = append(offerings, offering)
+	}
+
+	// Handle reserved instances if the feature is enabled
+    if ris, err := p.reservedInstanceProvider.GetReservedInstances(ctx); err == nil {
+        for _, ri := range ris {
+			if ec2types.InstanceType(ri.InstanceType) != ec2types.InstanceType(it.Name) {
+						continue
+				}
+				price := 0.0
+				if odPrice, ok := p.pricingProvider.OnDemandPrice(ec2types.InstanceType(it.Name)); ok {
+						price = odPrice / 10_000_000.0
+				}
+				offering := &cloudprovider.Offering{
+						Requirements: scheduling.NewRequirements(
+								scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, karpv1.CapacityTypeReserved),
+								scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, ri.AvailabilityZone),
+						),
+						Price:               price,
+						Available:           ri.InstanceCount > 0 && itZones.Has(ri.AvailabilityZone) && ri.State == ec2types.ReservedInstanceStateActive,
+						ReservationCapacity: int(ri.InstanceCount),
+				}
+				if id, ok := subnetZonesToZoneIDs[ri.AvailabilityZone]; ok {
+						offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
+				}
+				offerings = append(offerings, offering)
+		}
 	}
 	return offerings
 }

@@ -57,6 +57,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/reservedinstance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
@@ -91,6 +92,7 @@ type Operator struct {
 	InstanceProvider            instance.Provider
 	SSMProvider                 ssmp.Provider
 	CapacityReservationProvider capacityreservation.Provider
+	ReservedInstanceProvider  reservedinstance.Provider
 	EC2API                      *ec2.Client
 }
 
@@ -171,6 +173,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.CapacityReservationAvailabilityTTL, awscache.DefaultCleanupInterval),
 	)
+	reservedInstanceProvider := reservedinstance.NewDefaultProvider(ec2api)
 	instanceTypeProvider := instancetype.NewDefaultProvider(
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
@@ -179,6 +182,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		pricingProvider,
 		capacityReservationProvider,
+		reservedInstanceProvider,
 		unavailableOfferingsCache,
 		instancetype.NewDefaultResolver(cfg.Region),
 	)
@@ -221,6 +225,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		InstanceProvider:            instanceProvider,
 		SSMProvider:                 ssmProvider,
 		CapacityReservationProvider: capacityReservationProvider,
+		ReservedInstanceProvider:  reservedInstanceProvider,
 		EC2API:                      ec2api,
 	}
 }
