@@ -18,8 +18,14 @@ package reservedinstance
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/patrickmn/go-cache"
+	"k8s.io/utils/clock"
 )
 
 // ReservedInstance is a struct that defines the parameters for an EC2 Reserved Instance.
@@ -31,8 +37,58 @@ type ReservedInstance struct {
 	State            ec2types.ReservedInstanceState
 }
 
-// Provider is an interface for getting reserved instance data.
-type Provider interface {
-	// GetReservedInstances returns all reserved instances for a given set of queries.
-	GetReservedInstances(context.Context) ([]*ReservedInstance, error)
+type availabilityCache struct {
+	mu    sync.RWMutex
+	cache *cache.Cache
+	clk   clock.Clock
+}
+
+type availabilityCacheEntry struct {
+	count    int32
+	total    int32
+	syncTime time.Time
+}
+
+func (c *availabilityCache) makeCacheKey(instanceType ec2types.InstanceType, zone string) string {
+	return fmt.Sprintf("%s/%s", instanceType, zone)
+}
+
+func (c *availabilityCache) decodeCacheKey(key string) (ec2types.InstanceType, string) {
+	parts := strings.Split(key, "/")
+	return ec2types.InstanceType(parts[0]), parts[1]
+}
+
+func (c *availabilityCache) syncAvailability(availability map[string]*availabilityCacheEntry) {
+	now := c.clk.Now()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cache.Flush()
+	for key, entry := range availability {
+		entry.syncTime = now
+		c.cache.SetDefault(key, entry)
+	}
+}
+
+func (c *availabilityCache) MarkLaunched(instanceType ec2types.InstanceType, zone string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	key := c.makeCacheKey(instanceType, zone)
+	if entry, ok := c.cache.Get(key); ok {
+		cacheEntry := entry.(*availabilityCacheEntry)
+		if cacheEntry.count > 0 {
+			cacheEntry.count--
+		}
+	}
+}
+
+func (c *availabilityCache) MarkTerminated(instanceType ec2types.InstanceType, zone string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	key := c.makeCacheKey(instanceType, zone)
+	if entry, ok := c.cache.Get(key); ok {
+		cacheEntry := entry.(*availabilityCacheEntry)
+		if cacheEntry.count < cacheEntry.total {
+			cacheEntry.count++
+		}
+	}
 }

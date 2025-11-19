@@ -49,6 +49,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	instancefilter "github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/reservedinstance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 
 	"github.com/patrickmn/go-cache"
@@ -103,6 +104,7 @@ type DefaultProvider struct {
 	launchTemplateProvider      launchtemplate.Provider
 	ec2Batcher                  *batcher.EC2API
 	capacityReservationProvider capacityreservation.Provider
+	reservedInstanceProvider    reservedinstance.Provider
 	instanceCache               *cache.Cache
 }
 
@@ -115,6 +117,7 @@ func NewDefaultProvider(
 	subnetProvider subnet.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	capacityReservationProvider capacityreservation.Provider,
+	reservedInstanceProvider reservedinstance.Provider,
 	instanceCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
@@ -126,6 +129,7 @@ func NewDefaultProvider(
 		launchTemplateProvider:      launchTemplateProvider,
 		ec2Batcher:                  batcher.EC2(ctx, ec2api),
 		capacityReservationProvider: capacityReservationProvider,
+		reservedInstanceProvider:    reservedInstanceProvider,
 		instanceCache:               instanceCache,
 	}
 }
@@ -149,12 +153,31 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 
 	var opts []NewInstanceFromFleetOpts
 	if capacityType == karpv1.CapacityTypeReserved {
-		id, crt := p.getCapacityReservationDetailsForInstance(
-			string(fleetInstance.InstanceType),
-			*fleetInstance.LaunchTemplateAndOverrides.Overrides.AvailabilityZone,
-			instanceTypes,
-		)
-		opts = append(opts, WithCapacityReservationDetails(id, crt))
+		launchedInstanceType := string(fleetInstance.InstanceType)
+		launchedZone := *fleetInstance.LaunchTemplateAndOverrides.Overrides.AvailabilityZone
+
+		// Determine if this was a CR or RI launch by inspecting the offerings
+		isCapacityReservation := false
+		for _, it := range instanceTypes {
+			if it.Name == launchedInstanceType {
+				for _, o := range it.Offerings {
+					if o.Zone() == launchedZone && o.CapacityType() == karpv1.CapacityTypeReserved && o.ReservationID() != "" {
+						isCapacityReservation = true
+						break
+					}
+				}
+			}
+			if isCapacityReservation {
+				break
+			}
+		}
+
+		if isCapacityReservation {
+			id, crt := p.getCapacityReservationDetailsForInstance(launchedInstanceType, launchedZone, instanceTypes)
+			opts = append(opts, WithCapacityReservationDetails(id, crt))
+		} else {
+			p.reservedInstanceProvider.MarkLaunched(ec2types.InstanceType(launchedInstanceType), launchedZone)
+		}
 	}
 	if lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) {
 		opts = append(opts, WithEFAEnabled())
@@ -238,6 +261,10 @@ func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 	out, err := p.Get(ctx, id, SkipCache)
 	if err != nil {
 		return err
+	}
+	// If this was a reserved launch that wasn't a CR, it must have been an RI
+	if out.capacityType == karpv1.CapacityTypeReserved && out.capacityReservationID == "" {
+		p.reservedInstanceProvider.MarkTerminated(ec2types.InstanceType(out.Type), out.Zone)
 	}
 	// Check if the instance is already shutting-down to reduce the number of terminate-instance calls we make thereby
 	// reducing our overall QPS. Due to EC2's eventual consistency model, the result of the terminate-instance or
