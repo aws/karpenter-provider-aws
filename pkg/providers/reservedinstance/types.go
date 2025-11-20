@@ -75,9 +75,7 @@ func (c *availabilityCache) MarkLaunched(instanceType ec2types.InstanceType, zon
 	key := c.makeCacheKey(instanceType, zone)
 	if entry, ok := c.cache.Get(key); ok {
 		cacheEntry := entry.(*availabilityCacheEntry)
-		if cacheEntry.count > 0 {
-			cacheEntry.count--
-		}
+		cacheEntry.count--
 	}
 }
 

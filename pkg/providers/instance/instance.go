@@ -175,9 +175,8 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 		if isCapacityReservation {
 			id, crt := p.getCapacityReservationDetailsForInstance(launchedInstanceType, launchedZone, instanceTypes)
 			opts = append(opts, WithCapacityReservationDetails(id, crt))
-		} else {
-			p.reservedInstanceProvider.MarkLaunched(ec2types.InstanceType(launchedInstanceType), launchedZone)
 		}
+		p.reservedInstanceProvider.MarkLaunched(ec2types.InstanceType(launchedInstanceType), launchedZone)
 	}
 	if lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) {
 		opts = append(opts, WithEFAEnabled())
@@ -262,8 +261,8 @@ func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	// If this was a reserved launch that wasn't a CR, it must have been an RI
-	if out.capacityType == karpv1.CapacityTypeReserved && out.capacityReservationID == "" {
+
+	if out.capacityType == karpv1.CapacityTypeReserved {
 		p.reservedInstanceProvider.MarkTerminated(ec2types.InstanceType(out.Type), out.Zone)
 	}
 	// Check if the instance is already shutting-down to reduce the number of terminate-instance calls we make thereby
