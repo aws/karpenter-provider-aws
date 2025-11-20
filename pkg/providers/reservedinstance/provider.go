@@ -25,8 +25,6 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/utils/clock"
-	"sigs.k8s.io/karpenter/pkg/utils/pretty"
-
 	"github.com/aws/karpenter-provider-aws/pkg/aws"
 )
 
@@ -48,7 +46,6 @@ type Provider interface {
 type DefaultProvider struct {
 	ec2   sdk.EC2API
 	cache *availabilityCache
-	cm    *pretty.ChangeMonitor
 	mu    sync.Mutex
 }
 
@@ -58,7 +55,6 @@ type instanceCounts map[ec2types.InstanceType]map[string]int32
 func NewDefaultProvider(ec2 sdk.EC2API, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ec2: ec2,
-		cm:  pretty.NewChangeMonitor(),
 		cache: &availabilityCache{
 			cache: cache,
 			clk:   clock.RealClock{},
@@ -114,9 +110,6 @@ func (p *DefaultProvider) GetReservedInstances(ctx context.Context) ([]*Reserved
 	p.updateCache(riOutput.ReservedInstances, instanceOutput.Reservations)
 
 	reservedInstances = p.buildReservedInstancesFromCache()
-	if p.cm.HasChanged(cacheKey, reservedInstances) {
-		pretty.FriendlyDiff(p.cm.Previous(cacheKey), p.cm.Current(cacheKey))
-	}
 	return reservedInstances, nil
 }
 

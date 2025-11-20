@@ -262,7 +262,7 @@ func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 		return err
 	}
 
-	if out.capacityType == karpv1.CapacityTypeReserved {
+	if out.CapacityType == karpv1.CapacityTypeReserved {
 		p.reservedInstanceProvider.MarkTerminated(ec2types.InstanceType(out.Type), out.Zone)
 	}
 	// Check if the instance is already shutting-down to reduce the number of terminate-instance calls we make thereby
