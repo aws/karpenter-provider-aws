@@ -162,7 +162,7 @@ func (p *DefaultProvider) updateCache(ris []ec2types.ReservedInstances, reservat
 			availableCount := count - runningCount
 			key := p.cache.makeCacheKey(instType, zone)
 			availability[key] = &availabilityCacheEntry{
-				count: lo.Max(0, availableCount),
+				count: availableCount,
 				total: count,
 			}
 		}
@@ -171,6 +171,8 @@ func (p *DefaultProvider) updateCache(ris []ec2types.ReservedInstances, reservat
 }
 
 func (p *DefaultProvider) buildReservedInstancesFromCache() []*ReservedInstance {
+	p.cache.mu.RLock()
+	defer p.cache.mu.RUnlock()
 	var reservedInstances []*ReservedInstance
 	for key, item := range p.cache.cache.Items() {
 		entry := item.Object.(*availabilityCacheEntry)

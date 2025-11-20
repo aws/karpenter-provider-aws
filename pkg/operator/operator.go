@@ -173,7 +173,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.CapacityReservationAvailabilityTTL, awscache.DefaultCleanupInterval),
 	)
-	reservedInstanceProvider := reservedinstance.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	reservedInstanceProvider := reservedinstance.NewDefaultProvider(ec2api, cache.New(awscache.ReservedInstancePriceTTL, awscache.DefaultCleanupInterval))
 	instanceTypeProvider := instancetype.NewDefaultProvider(
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
