@@ -182,8 +182,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		pricingProvider,
 		capacityReservationProvider,
-		reservedInstanceProvider,
 		unavailableOfferingsCache,
+		reservedInstanceProvider,
 		instancetype.NewDefaultResolver(cfg.Region),
 	)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.

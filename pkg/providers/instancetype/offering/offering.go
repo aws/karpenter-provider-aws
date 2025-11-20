@@ -49,7 +49,7 @@ type NodeClass interface {
 type DefaultProvider struct {
 	pricingProvider                pricing.Provider
 	capacityReservationProvider    capacityreservation.Provider
-	reservedInstanceProvider.      reservedinstance.Provider,
+	reservedInstanceProvider       reservedinstance.Provider
 	unavailableOfferings           *awscache.UnavailableOfferings
 	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
 	cache                          *cache.Cache

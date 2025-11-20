@@ -59,6 +59,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/reservedinstance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
@@ -165,6 +166,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.CapacityReservationAvailabilityTTL, awscache.DefaultCleanupInterval),
 	)
+	reservedInstanceProvider := reservedinstance.NewDefaultProvider(ec2api, cache.New(awscache.ReservedInstancePriceTTL, awscache.DefaultCleanupInterval))
 	instanceTypeProvider := instancetype.NewDefaultProvider(
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
@@ -174,6 +176,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		pricingProvider,
 		capacityReservationProvider,
 		unavailableOfferingsCache,
+		reservedInstanceProvider,
 		instancetype.NewDefaultResolver(cfg.Region),
 	)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.

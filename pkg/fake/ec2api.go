@@ -57,6 +57,7 @@ type EC2Behavior struct {
 	DescribeSubnetsBehavior             MockedFunction[ec2.DescribeSubnetsInput, ec2.DescribeSubnetsOutput]
 	DescribeSecurityGroupsBehavior      MockedFunction[ec2.DescribeSecurityGroupsInput, ec2.DescribeSecurityGroupsOutput]
 	DescribeSpotPriceHistoryBehavior    MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
+	DescribeReservedInstancesBehavior   MockedFunction[ec2.DescribeReservedInstancesInput, ec2.DescribeReservedInstancesOutput]
 	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
 	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
@@ -101,6 +102,7 @@ func (e *EC2API) Reset() {
 	e.CreateLaunchTemplateBehavior.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
 	e.DescribeSpotPriceHistoryBehavior.Reset()
+	e.DescribeReservedInstancesBehavior.Reset()
 	e.Subnets.Range(func(k, v any) bool {
 		e.Subnets.Delete(k)
 		return true
@@ -610,6 +612,18 @@ func (e *EC2API) DescribeSpotPriceHistory(_ context.Context, input *ec2.Describe
 	return e.DescribeSpotPriceHistoryBehavior.Invoke(input, func(input *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {
 		// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
 		return nil, errors.New("no pricing data provided")
+	})
+}
+
+func (e *EC2API) DescribeReservedInstances(_ context.Context, input *ec2.DescribeReservedInstancesInput, _ ...func(*ec2.Options)) (*ec2.DescribeReservedInstancesOutput, error) {
+	return e.DescribeReservedInstancesBehavior.Invoke(input, func(input *ec2.DescribeReservedInstancesInput) (*ec2.DescribeReservedInstancesOutput, error) {
+		if !e.NextError.IsNil() {
+			defer e.NextError.Reset()
+			return nil, e.NextError.Get()
+		}
+		return &ec2.DescribeReservedInstancesOutput{
+			ReservedInstances: []ec2types.ReservedInstances{},
+		}, nil
 	})
 }
 
