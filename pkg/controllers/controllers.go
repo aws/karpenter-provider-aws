@@ -89,7 +89,7 @@ func NewControllers(
 	amiResolver amifamily.Resolver,
 ) []controller.Controller {
 	controllers := []controller.Controller{
-		nodeclasshash.NewController(kubeClient),
+		nodeclasshash.NewController(kubeClient, cfg.Region),
 		nodeclass.NewController(clk, kubeClient, cloudProvider, recorder, cfg.Region, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, instanceTypeProvider, launchTemplateProvider, capacityReservationProvider, ec2api, validationCache, recreationCache, amiResolver, options.FromContext(ctx).DisableDryRun),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, cloudProvider, instanceProvider),
