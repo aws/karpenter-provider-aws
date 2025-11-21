@@ -356,6 +356,23 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			Entry("node.kubernetes.io", "node.kubernetes.io"),
 			Entry("kops.k8s.io", "kops.k8s.io"),
 		)
+		It("should support well-known labels for capacity tenancy", func() {
+			nodeSelector := map[string]string{
+				v1.LabelInstanceTenancy: string(ec2types.CapacityReservationTenancyDedicated),
+			}
+			selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
+			requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {
+				return corev1.NodeSelectorRequirement{Key: key, Operator: corev1.NodeSelectorOpIn, Values: []string{value}}
+			})
+			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
+				NodeSelector:     nodeSelector,
+				NodePreferences:  requirements,
+				NodeRequirements: requirements,
+			}})
+			env.ExpectCreated(nodeClass, nodePool, deployment)
+			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			env.ExpectCreatedNodeCount("==", 1)
+		})
 	})
 
 	Context("Provisioning", func() {
@@ -921,6 +938,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			env.EventuallyExpectNodeCount("==", 2)
 		})
 	})
+
 },
 	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
 	Entry("MinValuesPolicyStrict", options.MinValuesPolicyStrict),

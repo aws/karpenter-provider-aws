@@ -32,7 +32,7 @@ import (
 
 type Provider interface {
 	EnsureAll(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim,
-		[]*cloudprovider.InstanceType, string, map[string]string) ([]*LaunchTemplate, error)
+		[]*cloudprovider.InstanceType, string, map[string]string, string) ([]*LaunchTemplate, error)
 	DeleteAll(context.Context, *v1.EC2NodeClass) error
 	InvalidateCache(context.Context, string, string)
 	ResolveClusterCIDR(context.Context) error
@@ -134,6 +134,9 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			NetworkInterfaces: networkInterfaces,
 			TagSpecifications: launchTemplateDataTags,
 			EnclaveOptions:    enclaveOptions(b.options.EnclaveOptions),
+			Placement: &ec2types.LaunchTemplatePlacementRequest{
+				Tenancy: ec2types.Tenancy(b.options.Tenancy),
+			},
 		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{

@@ -1432,7 +1432,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
 			ExpectLaunchTemplatesCreatedWithUserDataContaining(`
 [settings.bootstrap-commands.000-mount-instance-storage]
-commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/containerd', '/var/lib/kubelet', '/var/log/pods']]
+commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind']]
 mode = 'always'
 essential = true
 `)
@@ -1455,12 +1455,44 @@ essential = true
 			ExpectLaunchTemplatesCreatedWithUserDataContaining(`
 [settings.bootstrap-commands]
 [settings.bootstrap-commands.000-mount-instance-storage]
-commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/containerd', '/var/lib/kubelet', '/var/log/pods']]
+commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind']]
 mode = 'always'
 essential = true
 
 [settings.bootstrap-commands.111-say-hello]
 commands = [['echo', 'hello']]
+mode = 'always'
+essential = true
+`)
+		})
+		It("should use explicit directories for Bottlerocket v1.45.0", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@v1.45.0"}}
+			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			ExpectLaunchTemplatesCreatedWithUserDataContaining(`
+[settings.bootstrap-commands.000-mount-instance-storage]
+commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind', '--dirs', '/var/lib/containerd', '/var/lib/kubelet', '/var/log/pods']]
+mode = 'always'
+essential = true
+`)
+		})
+		It("should use default bind for Bottlerocket v1.46.0", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@v1.46.0"}}
+			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			ExpectLaunchTemplatesCreatedWithUserDataContaining(`
+[settings.bootstrap-commands.000-mount-instance-storage]
+commands = [['apiclient', 'ephemeral-storage', 'init'], ['apiclient', 'ephemeral-storage', 'bind']]
 mode = 'always'
 essential = true
 `)
@@ -2475,6 +2507,29 @@ eviction-max-pod-grace-period = 10
 				Entry("AssociatePublicIPAddress is set as false and EFA is false", true, false, false),
 			)
 		})
+	})
+	Context("Tenancy", func() {
+		DescribeTable("should set tenancy on launch template",
+			func(specTenancy *string, tenancy ec2types.Tenancy) {
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				nodeSelector := map[string]string{}
+				if tenancy != "" {
+					nodeSelector[v1.LabelInstanceTenancy] = string(tenancy)
+				}
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					NodeSelector: nodeSelector,
+				})
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					Expect(ltInput.LaunchTemplateData.Placement.Tenancy).To(Equal(tenancy))
+				})
+			},
+			Entry("when not specified", nil, ec2types.TenancyDefault),
+			Entry("when default specified", lo.ToPtr("default"), ec2types.TenancyDefault),
+			Entry("when dedicated specified", lo.ToPtr("dedicated"), ec2types.TenancyDedicated),
+		)
 	})
 	It("should generate a unique launch template per capacity reservation", func() {
 		crs := []ec2types.CapacityReservation{

@@ -21,6 +21,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.featureGates.reservedCapacity=true \
 			--set settings.featureGates.spotToSpotConsolidation=true \
 			--set settings.featureGates.nodeOverlay=true \
+			--set settings.featureGates.staticCapacity=true \
 			--set settings.preferencePolicy=Ignore \
 			--set logLevel=debug \
 			--create-namespace
@@ -58,7 +59,7 @@ run: ## Run Karpenter controller binary against your local cluster
 		DISABLE_LEADER_ELECTION=true \
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
-		FEATURE_GATES="SpotToSpotConsolidation=true,NodeOverlay=true" \
+		FEATURE_GATES="SpotToSpotConsolidation=true,NodeOverlay=true,StaticCapacity=true" \
 		LOG_LEVEL="debug" \
 		go run ./cmd/controller/main.go
 
@@ -95,11 +96,11 @@ e2etests: ## Run the e2e suite against your local cluster
 
 upstream-e2etests: tidy download
 	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/default_ec2nodeclass.yaml > ${TMPFILE}
-	go test \
+	cd $(KARPENTER_CORE_DIR) && go test \
 		-count 1 \
 		-timeout 3.25h \
 		-v \
-		$(KARPENTER_CORE_DIR)/test/suites/... \
+		./test/suites/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.timeout=3h \
 		--ginkgo.grace-period=5m \

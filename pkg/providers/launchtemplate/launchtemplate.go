@@ -135,6 +135,7 @@ func (p *DefaultProvider) EnsureAll(
 	instanceTypes []*cloudprovider.InstanceType,
 	capacityType string,
 	tags map[string]string,
+	tenancyType string,
 ) ([]*LaunchTemplate, error) {
 	p.Lock()
 	defer p.Unlock()
@@ -147,7 +148,7 @@ func (p *DefaultProvider) EnsureAll(
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, opts)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, tenancyType, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +210,8 @@ func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC
 		ClusterCIDR:              p.ClusterCIDR.Load(),
 		InstanceProfile:          nodeClass.Status.InstanceProfile,
 		InstanceStorePolicy:      nodeClass.Spec.InstanceStorePolicy,
+		AMISelectorTerms:         nodeClass.Spec.AMISelectorTerms,
+		AMIs:                     nodeClass.Status.AMIs,
 		SecurityGroups:           nodeClass.Status.SecurityGroups,
 		Tags:                     tags,
 		Labels:                   labels,

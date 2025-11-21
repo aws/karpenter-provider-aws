@@ -136,11 +136,12 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 		return nil, err
 	}
 	capacityType := getCapacityType(nodeClaim, instanceTypes)
-	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, capacityType, instanceTypes, tags)
+	tenancyType := getTenancyType(nodeClaim)
+	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, capacityType, instanceTypes, tags, tenancyType)
 	if awserrors.IsLaunchTemplateNotFound(err) {
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
 		// cache was out-of-sync on the first try
-		fleetInstance, err = p.launchInstance(ctx, nodeClass, nodeClaim, capacityType, instanceTypes, tags)
+		fleetInstance, err = p.launchInstance(ctx, nodeClass, nodeClaim, capacityType, instanceTypes, tags, tenancyType)
 	}
 	if err != nil {
 		return nil, err
@@ -162,6 +163,7 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 		fleetInstance,
 		capacityType,
 		tags,
+		tenancyType,
 		opts...,
 	), nil
 }
@@ -306,6 +308,7 @@ func (p *DefaultProvider) launchInstance(
 	capacityType string,
 	instanceTypes []*cloudprovider.InstanceType,
 	tags map[string]string,
+	tenancyType string,
 ) (ec2types.CreateFleetInstance, error) {
 	zonalSubnets, err := p.subnetProvider.ZonalSubnetsForLaunch(ctx, nodeClass, instanceTypes, capacityType)
 	if err != nil {
@@ -313,7 +316,7 @@ func (p *DefaultProvider) launchInstance(
 	}
 
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
-	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, nodeClass, nodeClaim, instanceTypes, zonalSubnets, capacityType, tags)
+	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, nodeClass, nodeClaim, instanceTypes, zonalSubnets, capacityType, tags, tenancyType)
 	if err != nil {
 		reason, message := awserrors.ToReasonMessage(err)
 		return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("getting launch template configs, %w", err), reason, fmt.Sprintf("Error getting launch template configs: %s", message))
@@ -393,9 +396,10 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(
 	zonalSubnets map[string]*subnet.Subnet,
 	capacityType string,
 	tags map[string]string,
+	tenancyType string,
 ) ([]ec2types.FleetLaunchTemplateConfigRequest, error) {
 	var launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest
-	launchTemplates, err := p.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, capacityType, tags)
+	launchTemplates, err := p.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, capacityType, tags, tenancyType)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
@@ -534,6 +538,26 @@ func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zon
 	}
 	// note: this is an invariant that the caller must enforce, should not occur at runtime
 	panic("reservation ID doesn't exist for reserved launch")
+}
+
+// getTenancyType selects the tenancy for the nodeclaim.
+// If both default and dedicated are allowed by the claim then it will select default tenancy.
+func getTenancyType(nodeClaim *karpv1.NodeClaim) string {
+	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+
+	requirement := requirements.Get(v1.LabelInstanceTenancy)
+
+	if requirement == nil {
+		return string(ec2types.TenancyDefault)
+	}
+
+	for _, tenancyType := range []string{string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)} {
+		if requirement.Has(tenancyType) {
+			return tenancyType
+		}
+	}
+
+	return string(ec2types.TenancyDefault)
 }
 
 // getCapacityType selects the capacity type based on the flexibility of the NodeClaim and the available offerings.

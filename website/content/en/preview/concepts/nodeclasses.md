@@ -113,6 +113,7 @@ spec:
     - tags:
         karpenter.sh/discovery: ${CLUSTER_NAME}
     - id: cr-123
+    - instanceMatchCriteria: open
 
   # Optional, propagates tags to underlying EC2 resources
   tags:
@@ -878,11 +879,12 @@ When using a custom SSM parameter, you'll need to expand the `ssm:GetParameter` 
 
 Capacity Reservation Selector Terms allow you to select [on-demand capacity reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html) (ODCRs), which will be made available to NodePools which select the given EC2NodeClass.
 Karpenter will prioritize utilizing the capacity in these reservations before falling back to on-demand and spot.
-Capacity reservations can be discovered using ids or tags.
+Capacity reservations can be discovered using ids, tags, or instance match criteria.
 
 This selection logic is modeled as terms.
-A term can specify an ID or a set of tags to select against.
+A term can specify an ID, a set of tags, or instance match criteria to select against.
 When specifying tags, it will select all capacity reservations accessible from the account with matching tags.
+When specifying instance match criteria, it selects reservations by their matching behavior: `open` (matches all compatible instances) or `targeted` (matches only explicitly targeted instances).
 This can be further restricted by specifying an owner ID.
 
 For more information on utilizing ODCRs with Karpenter, refer to the [Utilizing ODCRs Task]({{< relref "../tasks/odcrs" >}}).
@@ -926,6 +928,26 @@ spec:
   - tags:
       key: foo
     ownerID: 012345678901
+```
+
+Select by instance match criteria:
+
+```yaml
+spec:
+  capacityReservationSelectorTerms:
+  # Select all open capacity reservations
+  - instanceMatchCriteria: open
+```
+
+Select by instance match criteria and tags:
+
+```yaml
+spec:
+  capacityReservationSelectorTerms:
+  # Select targeted capacity reservations with matching tags
+  - instanceMatchCriteria: targeted
+    tags:
+      key: foo
 ```
 
 ## spec.tags
@@ -1074,6 +1096,14 @@ On AL2, Karpenter automatically configures the disks through an additional boost
 #### AL2023
 
 On AL2023, Karpenter automatically configures the disks via the generated `NodeConfig` object. Like AL2, the device name is `/dev/md/0` and its mount point is `/mnt/k8s-disks/0`. You should ensure any additional disk setup does not interfere with these.
+
+#### Bottlerocket
+
+On Bottlerocket, Karpenter automatically configures the disks by adding the required bootstrap commands to the settings. The ephemeral storage configuration is handled automatically, so you should not manually configure ephemeral storage settings in your userData.
+
+{{% alert title="Note" color="primary" %}}
+This automatic disk configuration is only available on Bottlerocket v1.22.0 and later.
+{{% /alert %}}
 
 #### Others
 

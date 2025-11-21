@@ -86,6 +86,8 @@ type BottlerocketKubernetes struct {
 	SingleProcessOOMKill               *bool                                     `toml:"single-process-oom-kill,omitempty"`
 	ContainerLogMaxWorkers             *int                                      `toml:"container-log-max-workers,omitempty"`
 	ContainerLogMonitorInterval        *string                                   `toml:"container-log-monitor-interval,omitempty"`
+	HostnameOverrideSource             *string                                   `toml:"hostname-override-source,omitempty"`
+	VerbosityLevel                     *uint32                                   `toml:"log-level,omitempty"`
 }
 type BottlerocketStaticPod struct {
 	Enabled  *bool   `toml:"enabled,omitempty"`
