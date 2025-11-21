@@ -46,6 +46,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/reservedinstance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -144,6 +145,7 @@ below are the resources available with some assumptions and after the instance o
 			),
 			nil,
 			awscache.NewUnavailableOfferings(),
+			reservedinstance.NewDefaultProvider(ec2api, cache.New(awscache.ReservedInstancePriceTTL, awscache.DefaultCleanupInterval)),
 			instancetype.NewDefaultResolver(
 				region,
 			),
