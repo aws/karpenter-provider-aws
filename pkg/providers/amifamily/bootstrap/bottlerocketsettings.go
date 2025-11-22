@@ -48,7 +48,7 @@ type BottlerocketKubernetes struct {
 	CloudProvider                      *string                                   `toml:"cloud-provider"`
 	ClusterCertificate                 *string                                   `toml:"cluster-certificate"`
 	ClusterName                        *string                                   `toml:"cluster-name"`
-	ClusterDNSIP                       *string                                   `toml:"cluster-dns-ip,omitempty"`
+	ClusterDNSIP                       []string                                  `toml:"cluster-dns-ip,omitempty"`
 	CredentialProviders                map[string]BottlerocketCredentialProvider `toml:"credential-providers,omitempty"`
 	NodeLabels                         map[string]string                         `toml:"node-labels,omitempty"`
 	NodeTaints                         map[string][]string                       `toml:"node-taints,omitempty"`
@@ -120,28 +120,73 @@ type BootstrapCommand struct {
 }
 
 func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
-	// unmarshal known settings
+	processedData, err := c.preprocessTOML(data)
+	if err != nil {
+		return err
+	}
+
 	s := struct {
 		Settings BottlerocketSettings `toml:"settings"`
 	}{}
-	if err := toml.Unmarshal(data, &s); err != nil {
+	if err := toml.Unmarshal(processedData, &s); err != nil {
 		return err
 	}
-	// unmarshal untyped settings
-	if err := toml.Unmarshal(data, c); err != nil {
+	if err := toml.Unmarshal(processedData, c); err != nil {
 		return err
 	}
 	c.Settings = s.Settings
 	return nil
 }
 
+func (c *BottlerocketConfig) preprocessTOML(data []byte) ([]byte, error) {
+	var raw map[string]interface{}
+	if err := toml.Unmarshal(data, &raw); err != nil {
+		return data, err
+	}
+
+	if settings, ok := raw["settings"].(map[string]interface{}); ok {
+		if kubernetes, ok := settings["kubernetes"].(map[string]interface{}); ok {
+			if clusterDNSIP, exists := kubernetes["cluster-dns-ip"]; exists {
+				if str, ok := clusterDNSIP.(string); ok {
+					kubernetes["cluster-dns-ip"] = []string{str}
+				}
+			}
+		}
+	}
+
+	return toml.Marshal(raw)
+}
+
 func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 	if c.SettingsRaw == nil {
 		c.SettingsRaw = map[string]interface{}{}
 	}
-	c.SettingsRaw["kubernetes"] = c.Settings.Kubernetes
+
+	kubernetesSettings := c.formatKubernetesSettings()
+	c.SettingsRaw["kubernetes"] = kubernetesSettings
+
 	if c.Settings.BootstrapCommands != nil {
 		c.SettingsRaw["bootstrap-commands"] = c.Settings.BootstrapCommands
 	}
 	return toml.Marshal(c)
+}
+
+func (c *BottlerocketConfig) formatKubernetesSettings() map[string]interface{} {
+	kubernetesBytes, err := toml.Marshal(c.Settings.Kubernetes)
+	if err != nil {
+		return map[string]interface{}{}
+	}
+
+	var kubernetesMap map[string]interface{}
+	if err := toml.Unmarshal(kubernetesBytes, &kubernetesMap); err != nil {
+		return map[string]interface{}{}
+	}
+
+	if clusterDNSIP, exists := kubernetesMap["cluster-dns-ip"]; exists {
+		if dnsArray, ok := clusterDNSIP.([]interface{}); ok && len(dnsArray) == 1 {
+			kubernetesMap["cluster-dns-ip"] = dnsArray[0]
+		}
+	}
+
+	return kubernetesMap
 }
