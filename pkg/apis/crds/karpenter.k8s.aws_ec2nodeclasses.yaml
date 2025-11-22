@@ -547,6 +547,13 @@ spec:
                         x-kubernetes-validations:
                           - message: empty tag keys or values aren't supported
                             rule: self.all(k, k != '' && self[k] != '')
+                      vpcID:
+                        description: |-
+                          VPCID is the VPC ID to filter security groups by.
+                          When specified with Name or Tags, only security groups in this VPC will be selected.
+                          This is useful when multiple VPCs have security groups with the same name.
+                        pattern: vpc-[0-9a-z]+
+                        type: string
                     type: object
                   maxItems: 30
                   type: array

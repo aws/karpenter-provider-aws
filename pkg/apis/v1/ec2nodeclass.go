@@ -176,6 +176,12 @@ type SecurityGroupSelectorTerm struct {
 	// Name is the security group name in EC2.
 	// This value is the name field, which is different from the name tag.
 	Name string `json:"name,omitempty"`
+	// VPCID is the VPC ID to filter security groups by.
+	// When specified with Name or Tags, only security groups in this VPC will be selected.
+	// This is useful when multiple VPCs have security groups with the same name.
+	// +kubebuilder:validation:Pattern:="vpc-[0-9a-z]+"
+	// +optional
+	VPCID string `json:"vpcID,omitempty"`
 }
 
 type CapacityReservationSelectorTerm struct {
