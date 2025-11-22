@@ -1,0 +1,49 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: security-group-with-vpc
+spec:
+  # Select security groups by name within a specific VPC
+  # This is useful when multiple VPCs have security groups with the same name
+  securityGroupSelectorTerms:
+    # Select 'k8s-node' security group only from vpc-12345678
+    - name: k8s-node
+      vpcID: vpc-12345678
+    # You can also use tags with VPC ID
+    - tags:
+        karpenter.sh/discovery: my-cluster
+        Environment: production
+      vpcID: vpc-12345678
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: my-cluster
+  amiSelectorTerms:
+    - alias: al2023@latest
+  role: "KarpenterNodeRole-my-cluster"
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: security-group-with-vpc
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot", "on-demand"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+  limits:
+    cpu: 1000
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 1m
