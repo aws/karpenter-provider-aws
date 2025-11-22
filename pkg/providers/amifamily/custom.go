@@ -30,14 +30,40 @@ import (
 type Custom struct {
 	DefaultFamily
 	*Options
+	OutputOption OutputOption
 }
 
+// Enum for the output option
+type OutputOption string
+
+const (
+	OutputOptionBase64  OutputOption = "base64"
+	OutputOptionNodeadm OutputOption = "nodeadm"
+)
+
 // UserData returns the default userdata script for the AMI Family
-func (c Custom) UserData(_ *v1.KubeletConfiguration, _ []corev1.Taint, _ map[string]string, _ *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
-	return bootstrap.Custom{
-		Options: bootstrap.Options{
-			CustomUserData: customUserData,
-		},
+func (c Custom) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
+	switch c.OutputOption {
+	case OutputOptionBase64:
+		return bootstrap.Custom{
+			Options: bootstrap.Options{
+				CustomUserData: customUserData,
+			},
+		}
+	case OutputOptionNodeadm:
+		return bootstrap.Nodeadm{
+			Options: bootstrap.Options{
+				ClusterName:         c.ClusterName,
+				ClusterEndpoint:     c.ClusterEndpoint,
+				ClusterCIDR:         c.ClusterCIDR,
+				KubeletConfig:       kubeletConfig,
+				Taints:              taints,
+				Labels:              labels,
+				CABundle:            caBundle,
+				CustomUserData:      customUserData,
+				InstanceStorePolicy: instanceStorePolicy,
+			},
+		}
 	}
 }
 
