@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mig-nvidia
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: mig-nvidia
+  template:
+    metadata:
+      labels:
+        app: mig-nvidia
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 3000
+        fsGroup: 2000
+      containers:
+      - image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
+        name: mig-nvidia
+        resources:
+          limits:
+            nvidia.com/mig-1g.5gb: "1"
+          requests:
+            cpu: "1"
+            memory: 256M
+        securityContext:
+          allowPrivilegedEscalation: false
