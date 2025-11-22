@@ -15,8 +15,6 @@ limitations under the License.
 package securitygroup
 
 import (
-	"testing"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	. "github.com/onsi/ginkgo/v2"
@@ -24,11 +22,6 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
-
-func TestGetFilterSets(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "SecurityGroup Provider Suite")
-}
 
 var _ = Describe("getFilterSets", func() {
 	It("should create filters for security group by ID", func() {
@@ -278,20 +271,26 @@ var _ = Describe("getFilterSets", func() {
 
 		for _, filterSet := range filterSets {
 			hasVPCFilter := false
+			var vpcValue string
 			for _, filter := range filterSet {
 				if *filter.Name == "vpc-id" {
 					hasVPCFilter = true
-					Expect(filter.Values).To(Equal([]string{"vpc-123"}))
-				}
-				if *filter.Name == "group-name" {
-					if hasVPCFilter {
-						foundWithVPC = true
-						Expect(filter.Values).To(Equal([]string{"sg-2"}))
-					}
+					vpcValue = filter.Values[0]
 				}
 			}
-			if !hasVPCFilter {
+
+			if hasVPCFilter {
+				foundWithVPC = true
+				Expect(vpcValue).To(Equal("vpc-123"))
+				// Find the group-name filter
+				for _, filter := range filterSet {
+					if *filter.Name == "group-name" {
+						Expect(filter.Values).To(ConsistOf("sg-2"))
+					}
+				}
+			} else {
 				foundNoVPC = true
+				// Find the group-name filter
 				for _, filter := range filterSet {
 					if *filter.Name == "group-name" {
 						Expect(filter.Values).To(ConsistOf("sg-1", "sg-3"))
