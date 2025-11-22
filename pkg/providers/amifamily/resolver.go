@@ -199,7 +199,9 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 func GetAMIFamily(amiFamily string, options *Options) AMIFamily {
 	switch amiFamily {
 	case v1.AMIFamilyBottlerocket:
-		return &Bottlerocket{Options: options}
+		return &Bottlerocket{Options: options, FIPSVariant: false}
+	case v1.AMIFamilyBottlerocketFIPS:
+		return &Bottlerocket{Options: options, FIPSVariant: true}
 	case v1.AMIFamilyWindows2019:
 		return &Windows{Options: options, Version: v1.Windows2019, Build: v1.Windows2019Build}
 	case v1.AMIFamilyWindows2022:
