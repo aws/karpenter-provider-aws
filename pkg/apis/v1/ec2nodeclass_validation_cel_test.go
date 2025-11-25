@@ -431,6 +431,35 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
+		It("should succeed with a valid security group selector on name with vpcID", func() {
+			nc.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+				{
+					Name:  "my-security-group",
+					VPCID: "vpc-12345678",
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with a valid security group selector on tags with vpcID", func() {
+			nc.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+				{
+					Tags: map[string]string{
+						"test": "testvalue",
+					},
+					VPCID: "vpc-12345678",
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with a valid security group selector on id with vpcID", func() {
+			nc.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+				{
+					ID:    "sg-12345749",
+					VPCID: "vpc-12345678",
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
 	})
 	Context("CapacityReservationSelectorTerms", func() {
 		It("should succeed with a valid capacity reservation selector on tags", func() {
