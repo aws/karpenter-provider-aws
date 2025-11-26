@@ -80,7 +80,7 @@ var _ = Describe("Hash", func() {
 		"should match static hash on field value change",
 		func(hash string, changes v1.EC2NodeClass) {
 			Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride, mergo.WithSliceDeepCopy)).To(Succeed())
-			Expect(nodeClass.Hash()).To(Equal(hash))
+			Expect(nodeClass.HashForRegion("us-west-2")).To(Equal(hash))
 		},
 		Entry("Base EC2NodeClass", staticHash, v1.EC2NodeClass{}),
 		// Static fields, expect changed hash from base
@@ -114,25 +114,25 @@ var _ = Describe("Hash", func() {
 	// doesn't work well with unexported fields, like the ones that are present in resource.Quantity
 	It("should match static hash when updating blockDeviceMapping volumeSize", func() {
 		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resource.NewScaledQuantity(10, resource.Giga)
-		Expect(nodeClass.Hash()).To(Equal("5906178522470964189"))
+		Expect(nodeClass.HashForRegion("us-west-2")).To(Equal("5906178522470964189"))
 	})
 	It("should match static hash for instanceProfile", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-		Expect(nodeClass.Hash()).To(Equal("5855570904022890593"))
+		Expect(nodeClass.HashForRegion("us-west-2")).To(Equal("5855570904022890593"))
 	})
 	It("should match static hash when reordering tags", func() {
 		nodeClass.Spec.Tags = map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}
-		Expect(nodeClass.Hash()).To(Equal(staticHash))
+		Expect(nodeClass.HashForRegion("us-west-2")).To(Equal(staticHash))
 	})
 	It("should match static hash when reordering blockDeviceMappings", func() {
 		nodeClass.Spec.BlockDeviceMappings[0], nodeClass.Spec.BlockDeviceMappings[1] = nodeClass.Spec.BlockDeviceMappings[1], nodeClass.Spec.BlockDeviceMappings[0]
-		Expect(nodeClass.Hash()).To(Equal(staticHash))
+		Expect(nodeClass.HashForRegion("us-west-2")).To(Equal(staticHash))
 	})
 	DescribeTable("should change hash when static fields are updated", func(changes v1.EC2NodeClass) {
-		hash := nodeClass.Hash()
+		hash := nodeClass.HashForRegion("us-west-2")
 		Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride, mergo.WithSliceDeepCopy)).To(Succeed())
-		updatedHash := nodeClass.Hash()
+		updatedHash := nodeClass.HashForRegion("us-west-2")
 		Expect(hash).ToNot(Equal(updatedHash))
 	},
 		Entry("UserData", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
@@ -158,33 +158,33 @@ var _ = Describe("Hash", func() {
 	// We create a separate test for updating blockDeviceMapping volumeSize, since resource.Quantity is a struct, and mergo.WithSliceDeepCopy
 	// doesn't work well with unexported fields, like the ones that are present in resource.Quantity
 	It("should change hash blockDeviceMapping volumeSize is updated", func() {
-		hash := nodeClass.Hash()
+		hash := nodeClass.HashForRegion("us-west-2")
 		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resource.NewScaledQuantity(10, resource.Giga)
-		updatedHash := nodeClass.Hash()
+		updatedHash := nodeClass.HashForRegion("us-west-2")
 		Expect(hash).ToNot(Equal(updatedHash))
 	})
 	It("should change hash when instanceProfile is updated", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-		hash := nodeClass.Hash()
+		hash := nodeClass.HashForRegion("us-west-2")
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("other-instance-profile")
-		updatedHash := nodeClass.Hash()
+		updatedHash := nodeClass.HashForRegion("us-west-2")
 		Expect(hash).ToNot(Equal(updatedHash))
 	})
 	It("should not change hash when tags are re-ordered", func() {
-		hash := nodeClass.Hash()
+		hash := nodeClass.HashForRegion("us-west-2")
 		nodeClass.Spec.Tags = map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}
-		updatedHash := nodeClass.Hash()
+		updatedHash := nodeClass.HashForRegion("us-west-2")
 		Expect(hash).To(Equal(updatedHash))
 	})
 	It("should not change hash when blockDeviceMappings are re-ordered", func() {
-		hash := nodeClass.Hash()
+		hash := nodeClass.HashForRegion("us-west-2")
 		nodeClass.Spec.BlockDeviceMappings[0], nodeClass.Spec.BlockDeviceMappings[1] = nodeClass.Spec.BlockDeviceMappings[1], nodeClass.Spec.BlockDeviceMappings[0]
-		updatedHash := nodeClass.Hash()
+		updatedHash := nodeClass.HashForRegion("us-west-2")
 		Expect(hash).To(Equal(updatedHash))
 	})
 	It("should not change hash when behavior/dynamic fields are updated", func() {
-		hash := nodeClass.Hash()
+		hash := nodeClass.HashForRegion("us-west-2")
 
 		// Update a behavior/dynamic field
 		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{
@@ -199,14 +199,14 @@ var _ = Describe("Hash", func() {
 		nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
 			Tags: map[string]string{"cr-test-key": "cr-test-value"},
 		}}
-		updatedHash := nodeClass.Hash()
+		updatedHash := nodeClass.HashForRegion("us-west-2")
 		Expect(hash).To(Equal(updatedHash))
 	})
 	It("should expect two EC2NodeClasses with the same spec to have the same hash", func() {
 		otherNodeClass := &v1.EC2NodeClass{
 			Spec: nodeClass.Spec,
 		}
-		Expect(nodeClass.Hash()).To(Equal(otherNodeClass.Hash()))
+		Expect(nodeClass.HashForRegion("us-west-2")).To(Equal(otherNodeClass.HashForRegion("us-west-2")))
 	})
 
 	Context("Region-specific filtering", func() {
@@ -271,10 +271,46 @@ var _ = Describe("Hash", func() {
 
 			supportedRegionHash := nodeClass.HashForRegion("us-west-2")
 
-			for _, region := range awssdk.HTTPProtocolUnsupportedRegions {
+			for region := range awssdk.HTTPProtocolUnsupportedRegions {
 				unsupportedRegionHash := nodeClass.HashForRegion(region)
 				Expect(unsupportedRegionHash).ToNot(Equal(supportedRegionHash), fmt.Sprintf("Region %s should filter HTTPProtocolIPv6", region))
 			}
 		})
+	})
+
+	It("should produce same hash for unsupported regions regardless of HTTPProtocolIPv6 value", func() {
+		nodeClass.Spec.MetadataOptions = &v1.MetadataOptions{
+			HTTPEndpoint:            lo.ToPtr("enabled"),
+			HTTPProtocolIPv6:        lo.ToPtr("enabled"),
+			HTTPPutResponseHopLimit: lo.ToPtr(int64(1)),
+			HTTPTokens:              lo.ToPtr("required"),
+		}
+
+		hashWithEnabled := nodeClass.HashForRegion("us-iso-east-1")
+
+		nodeClass.Spec.MetadataOptions.HTTPProtocolIPv6 = lo.ToPtr("disabled")
+		hashWithDisabled := nodeClass.HashForRegion("us-iso-east-1")
+
+		nodeClass.Spec.MetadataOptions.HTTPProtocolIPv6 = nil
+		hashWithNil := nodeClass.HashForRegion("us-iso-east-1")
+
+		Expect(hashWithEnabled).To(Equal(hashWithDisabled))
+		Expect(hashWithEnabled).To(Equal(hashWithNil))
+	})
+
+	It("should produce different hashes for supported regions when HTTPProtocolIPv6 changes", func() {
+		nodeClass.Spec.MetadataOptions = &v1.MetadataOptions{
+			HTTPEndpoint:            lo.ToPtr("enabled"),
+			HTTPProtocolIPv6:        lo.ToPtr("enabled"),
+			HTTPPutResponseHopLimit: lo.ToPtr(int64(1)),
+			HTTPTokens:              lo.ToPtr("required"),
+		}
+
+		hashWithEnabled := nodeClass.HashForRegion("us-west-2")
+
+		nodeClass.Spec.MetadataOptions.HTTPProtocolIPv6 = lo.ToPtr("disabled")
+		hashWithDisabled := nodeClass.HashForRegion("us-west-2")
+
+		Expect(hashWithEnabled).ToNot(Equal(hashWithDisabled))
 	})
 })

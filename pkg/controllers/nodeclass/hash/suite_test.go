@@ -119,7 +119,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, hashController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-		expectedHash := nodeClass.Hash()
+		expectedHash := nodeClass.HashForRegion("us-west-2")
 		Expect(nodeClass.ObjectMeta.Annotations[v1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 
 		Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride)).To(Succeed())
@@ -128,7 +128,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, hashController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-		expectedHashTwo := nodeClass.Hash()
+		expectedHashTwo := nodeClass.HashForRegion("us-west-2")
 		Expect(nodeClass.Annotations[v1.AnnotationEC2NodeClassHash]).To(Equal(expectedHashTwo))
 		Expect(expectedHash).ToNot(Equal(expectedHashTwo))
 
@@ -145,7 +145,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, hashController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-		expectedHash := nodeClass.Hash()
+		expectedHash := nodeClass.HashForRegion("us-west-2")
 		Expect(nodeClass.Annotations[v1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 
 		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
@@ -179,7 +179,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, hashController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-		expectedHash := nodeClass.Hash()
+		expectedHash := nodeClass.HashForRegion("us-west-2")
 		// Expect ec2nodeclass-hash on the NodeClass to be updated
 		Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1.AnnotationEC2NodeClassHash, expectedHash))
 		Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1.AnnotationEC2NodeClassHashVersion, v1.EC2NodeClassHashVersion))
@@ -229,7 +229,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		nodeClaimOne = ExpectExists(ctx, env.Client, nodeClaimOne)
 		nodeClaimTwo = ExpectExists(ctx, env.Client, nodeClaimTwo)
 
-		expectedHash := nodeClass.Hash()
+		expectedHash := nodeClass.HashForRegion("us-west-2")
 		// Expect ec2nodeclass-hash on the NodeClaims to be updated
 		Expect(nodeClaimOne.Annotations).To(HaveKeyWithValue(v1.AnnotationEC2NodeClassHash, expectedHash))
 		Expect(nodeClaimOne.Annotations).To(HaveKeyWithValue(v1.AnnotationEC2NodeClassHashVersion, v1.EC2NodeClassHashVersion))
@@ -263,7 +263,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
 
-		expectedHash := nodeClass.Hash()
+		expectedHash := nodeClass.HashForRegion("us-west-2")
 
 		// Expect ec2nodeclass-hash on the NodeClass to be updated
 		Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1.AnnotationEC2NodeClassHash, expectedHash))

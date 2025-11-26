@@ -24,17 +24,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // HTTPProtocolUnsupportedRegions contains regions that don't support HTTPProtocolIPv6
-var HTTPProtocolUnsupportedRegions = []string{
+var HTTPProtocolUnsupportedRegions = sets.New[string](
 	"us-iso-east-1",
 	"us-iso-west-1",
 	"us-isob-east-1",
 	"us-isob-west-1",
 	"us-isof-south-1",
 	"us-isof-east-1",
-}
+)
 
 type EC2API interface {
 	DescribeCapacityReservations(context.Context, *ec2.DescribeCapacityReservationsInput, ...func(*ec2.Options)) (*ec2.DescribeCapacityReservationsOutput, error)

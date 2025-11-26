@@ -489,20 +489,6 @@ type EC2NodeClass struct {
 // 3. A field is removed from the hash calculations
 const EC2NodeClassHashVersion = "v4"
 
-func (in *EC2NodeClass) Hash() string {
-	return fmt.Sprint(lo.Must(hashstructure.Hash([]interface{}{
-		in.Spec,
-		// AMIFamily should be hashed using the dynamically resolved value rather than the literal value of the field.
-		// This ensures that scenarios such as changing the field from nil to AL2023 with the alias "al2023@latest"
-		// doesn't trigger drift.
-		in.AMIFamily(),
-	}, hashstructure.FormatV2, &hashstructure.HashOptions{
-		SlicesAsSets:    true,
-		IgnoreZeroValue: true,
-		ZeroNil:         true,
-	})))
-}
-
 // HashForRegion returns a hash of the EC2NodeClass with region-specific filtering applied.
 // This ensures that unsupported features in certain regions don't cause drift.
 func (in *EC2NodeClass) HashForRegion(region string) string {
@@ -510,7 +496,7 @@ func (in *EC2NodeClass) HashForRegion(region string) string {
 
 	// Filter out HTTPProtocolIPv6 for regions that don't support it
 	// This matches the filtering logic in pkg/providers/amifamily/resolver.go
-	if lo.Contains(awssdk.HTTPProtocolUnsupportedRegions, region) && spec.MetadataOptions != nil {
+	if awssdk.HTTPProtocolUnsupportedRegions.Has(region) && spec.MetadataOptions != nil {
 		// Create a copy of MetadataOptions without HTTPProtocolIPv6
 		filteredMetadataOptions := &MetadataOptions{
 			HTTPEndpoint:            spec.MetadataOptions.HTTPEndpoint,
