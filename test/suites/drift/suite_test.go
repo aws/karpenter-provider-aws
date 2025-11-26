@@ -467,7 +467,7 @@ var _ = Describe("Drift", Ordered, func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 		nodeClass = env.ExpectExists(nodeClass).(*v1.EC2NodeClass)
-		expectedHash := nodeClass.Hash()
+		expectedHash := nodeClass.HashForRegion("us-west-2")
 
 		By(fmt.Sprintf("expect nodeclass %s and nodeclaim %s to contain %s and %s annotations", nodeClass.Name, nodeClaim.Name, v1.AnnotationEC2NodeClassHash, v1.AnnotationEC2NodeClassHashVersion))
 		Eventually(func(g Gomega) {
@@ -497,7 +497,7 @@ var _ = Describe("Drift", Ordered, func() {
 
 		// The nodeclaim will need to be updated first, as the hash controller will only be triggered on changes to the nodeclass
 		env.ExpectUpdated(nodeClaim, nodeClass)
-		expectedHash = nodeClass.Hash()
+		expectedHash = nodeClass.HashForRegion("us-west-2")
 
 		// Expect all nodeclaims not to be drifted and contain an updated `nodepool-hash` and `nodepool-hash-version` annotation
 		Eventually(func(g Gomega) {
