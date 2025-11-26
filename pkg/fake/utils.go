@@ -16,6 +16,7 @@ package fake
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
@@ -88,7 +89,7 @@ func SubnetsFromFleetRequest(createFleetInput *ec2.CreateFleetInput) []string {
 // Filters are chained with a logical "AND"
 func FilterDescribeSecurtyGroups(sgs []ec2types.SecurityGroup, filters []ec2types.Filter) []ec2types.SecurityGroup {
 	return lo.Filter(sgs, func(group ec2types.SecurityGroup, _ int) bool {
-		return Filter(filters, *group.GroupId, *group.GroupName, "", "", group.Tags)
+		return Filter(filters, *group.GroupId, *group.GroupName, "", "", "", group.Tags)
 	})
 }
 
@@ -96,7 +97,7 @@ func FilterDescribeSecurtyGroups(sgs []ec2types.SecurityGroup, filters []ec2type
 // Filters are chained with a logical "AND"
 func FilterDescribeSubnets(subnets []ec2types.Subnet, filters []ec2types.Filter) []ec2types.Subnet {
 	return lo.Filter(subnets, func(subnet ec2types.Subnet, _ int) bool {
-		return Filter(filters, *subnet.SubnetId, "", "", "", subnet.Tags)
+		return Filter(filters, aws.ToString(subnet.SubnetId), "", "", "", aws.ToString(subnet.CidrBlock), subnet.Tags)
 	})
 }
 
@@ -112,12 +113,12 @@ func FilterDescribeCapacityReservations(crs []ec2types.CapacityReservation, ids 
 
 func FilterDescribeImages(images []ec2types.Image, filters []ec2types.Filter) []ec2types.Image {
 	return lo.Filter(images, func(image ec2types.Image, _ int) bool {
-		return Filter(filters, *image.ImageId, *image.Name, "", string(image.State), image.Tags)
+		return Filter(filters, *image.ImageId, *image.Name, "", string(image.State), "", image.Tags)
 	})
 }
 
 //nolint:gocyclo
-func Filter(filters []ec2types.Filter, id, name, owner, state string, tags []ec2types.Tag) bool {
+func Filter(filters []ec2types.Filter, id, name, owner, state, cidrBlock string, tags []ec2types.Tag) bool {
 	return lo.EveryBy(filters, func(filter ec2types.Filter) bool {
 		switch filterName := aws.ToString(filter.Name); {
 		case filterName == "state":
@@ -144,6 +145,12 @@ func Filter(filters []ec2types.Filter, id, name, owner, state string, tags []ec2
 					return true
 				}
 			}
+		case filterName == "cidr-block":
+			for _, val := range filter.Values {
+				if wildcardMatch(val, cidrBlock) {
+					return true
+				}
+			}
 		case strings.HasPrefix(filterName, "tag"):
 			if matchTags(tags, filter) {
 				return true
@@ -160,8 +167,12 @@ func FilterCapacityReservation(filters []ec2types.Filter, id, name, owner, state
 		if aws.ToString(filter.Name) == "instance-match-criteria" {
 			return lo.Contains(filter.Values, instanceMatchCriteria)
 		}
-		return Filter([]ec2types.Filter{filter}, id, name, owner, state, tags)
+		return Filter([]ec2types.Filter{filter}, id, name, owner, state, "", tags)
 	})
+}
+
+func wildcardMatch(pattern, text string) bool {
+	return regexp.MustCompile("^" + strings.ReplaceAll(regexp.QuoteMeta(pattern), `\*`, `.*`) + "$").MatchString(text)
 }
 
 // matchTags is a predicate that matches a slice of tags with a tag:<key> or tag-keys filter
