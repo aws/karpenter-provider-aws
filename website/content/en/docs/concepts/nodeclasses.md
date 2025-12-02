@@ -1577,7 +1577,7 @@ To use Nitro Enclaves with Karpenter, you must enable the `NodeOverlay` feature 
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
-When `enclaveOptions.enabled` is set to `true`, Karpenter will only provision instance types that support Nitro Enclaves. Not all instance types support enclaves - see the [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}) guide for supported instance families.
+When `enclaveOptions.enabled` is set to `true`, instance types that do not support Nitro Enclaves will not launch properly. Not all instance types support enclaves - see the [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}) guide for supported instance families. Separate nodeclasses can be used to launch Nitro Enclave instances and non-Nitro Enclave instances in the same cluster.
 {{% /alert %}}
 
 ### Example
