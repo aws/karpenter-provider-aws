@@ -15,6 +15,8 @@ limitations under the License.
 package bootstrap
 
 import (
+	"strings"
+
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -124,7 +126,10 @@ func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
 	s := struct {
 		Settings BottlerocketSettings `toml:"settings"`
 	}{}
-	if err := toml.Unmarshal(data, &s); err != nil {
+	r := strings.NewReader(string(data))
+	d := toml.NewDecoder(r)
+	d.DisallowUnknownFields()
+	if err := d.Decode(&s); err != nil {
 		return err
 	}
 	// unmarshal untyped settings
