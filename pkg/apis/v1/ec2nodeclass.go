@@ -25,6 +25,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	awssdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 )
 
 // EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
@@ -487,9 +489,26 @@ type EC2NodeClass struct {
 // 3. A field is removed from the hash calculations
 const EC2NodeClassHashVersion = "v4"
 
-func (in *EC2NodeClass) Hash() string {
+// HashForRegion returns a hash of the EC2NodeClass with region-specific filtering applied.
+// This ensures that unsupported features in certain regions don't cause drift.
+func (in *EC2NodeClass) HashForRegion(region string) string {
+	spec := in.Spec.DeepCopy()
+
+	// Filter out HTTPProtocolIPv6 for regions that don't support it
+	// This matches the filtering logic in pkg/providers/amifamily/resolver.go
+	if awssdk.HTTPProtocolUnsupportedRegions.Has(region) && spec.MetadataOptions != nil {
+		// Create a copy of MetadataOptions without HTTPProtocolIPv6
+		filteredMetadataOptions := &MetadataOptions{
+			HTTPEndpoint:            spec.MetadataOptions.HTTPEndpoint,
+			HTTPPutResponseHopLimit: spec.MetadataOptions.HTTPPutResponseHopLimit,
+			HTTPTokens:              spec.MetadataOptions.HTTPTokens,
+			// HTTPProtocolIPv6 is intentionally omitted for unsupported regions
+		}
+		spec.MetadataOptions = filteredMetadataOptions
+	}
+
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]interface{}{
-		in.Spec,
+		spec,
 		// AMIFamily should be hashed using the dynamically resolved value rather than the literal value of the field.
 		// This ensures that scenarios such as changing the field from nil to AL2023 with the alias "al2023@latest"
 		// doesn't trigger drift.
