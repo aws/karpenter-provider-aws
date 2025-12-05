@@ -10,6 +10,6 @@ set -euo pipefail
 DIRS=($(find .github/actions -name "action.yaml" -type f -print0 | xargs -0 dirname | sort))
 i=3 # Set the index to the starting index after all of the manually configured dependabot entries
 for DIR in "${DIRS[@]}"; do
-  i=$i dir=$DIR yq -i '.updates[env(i)] = {"package-ecosystem": "github-actions", "directory": env(dir), "schedule": {"interval": "weekly"}, "groups": {"action-deps": {"patterns": ["*"]}}}' .github/dependabot.yaml
+  i=$i dir=$DIR go tool yq -i '.updates[env(i)] = {"package-ecosystem": "github-actions", "directory": env(dir), "schedule": {"interval": "weekly"}, "groups": {"action-deps": {"patterns": ["*"]}}}' .github/dependabot.yaml
   i=$((i+1))
 done
