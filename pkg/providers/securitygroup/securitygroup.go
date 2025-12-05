@@ -99,15 +99,25 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, nodeClass *v1.E
 }
 
 func getFilterSets(terms []v1.SecurityGroupSelectorTerm) (res [][]ec2types.Filter) {
-	idFilter := ec2types.Filter{Name: aws.String("group-id")}
-	nameFilter := ec2types.Filter{Name: aws.String("group-name")}
+	nameFilters := make(map[string][]string) // VPC ID -> Names mapping
 	for _, term := range terms {
 		switch {
 		case term.ID != "":
-			idFilter.Values = append(idFilter.Values, term.ID)
+			// IDs are unique, but still respect VPC filter if specified
+			filters := []ec2types.Filter{{Name: aws.String("group-id"), Values: []string{term.ID}}}
+			if term.VPCID != "" {
+				filters = append(filters, ec2types.Filter{
+					Name:   aws.String("vpc-id"),
+					Values: []string{term.VPCID},
+				})
+			}
+			res = append(res, filters)
 		case term.Name != "":
-			nameFilter.Values = append(nameFilter.Values, term.Name)
+			// Group names with VPC ID - create separate filter sets per VPC
+			vpcKey := term.VPCID // empty string for no VPC filter
+			nameFilters[vpcKey] = append(nameFilters[vpcKey], term.Name)
 		default:
+			// Tag-based selection
 			var filters []ec2types.Filter
 			for k, v := range term.Tags {
 				if v == "*" {
@@ -122,14 +132,28 @@ func getFilterSets(terms []v1.SecurityGroupSelectorTerm) (res [][]ec2types.Filte
 					})
 				}
 			}
-			res = append(res, filters)
+			// Add VPC filter if specified
+			if term.VPCID != "" {
+				filters = append(filters, ec2types.Filter{
+					Name:   aws.String("vpc-id"),
+					Values: []string{term.VPCID},
+				})
+			}
+			if len(filters) > 0 {
+				res = append(res, filters)
+			}
 		}
 	}
-	if len(idFilter.Values) > 0 {
-		res = append(res, []ec2types.Filter{idFilter})
-	}
-	if len(nameFilter.Values) > 0 {
-		res = append(res, []ec2types.Filter{nameFilter})
+	// Add name filters grouped by VPC
+	for vpcID, names := range nameFilters {
+		filters := []ec2types.Filter{{Name: aws.String("group-name"), Values: names}}
+		if vpcID != "" {
+			filters = append(filters, ec2types.Filter{
+				Name:   aws.String("vpc-id"),
+				Values: []string{vpcID},
+			})
+		}
+		res = append(res, filters)
 	}
 	return res
 }
