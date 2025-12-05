@@ -100,7 +100,9 @@ Karpenter batches pending pods and then binpacks them based on CPU, memory, and 
 After the pods are binpacked on the most efficient instance type (i.e. the smallest instance type that can fit the pod batch), Karpenter takes 59 other instance types that are larger than the most efficient packing, and passes all 60 instance type options to an API called Amazon EC2 Fleet.
 
 
-The EC2 fleet API attempts to provision the instance type based on the [Price Capacity Optimized allocation strategy](https://aws.amazon.com/blogs/compute/introducing-price-capacity-optimized-allocation-strategy-for-ec2-spot-instances/). For the on-demand capacity type, this is effectively equivalent to the `lowest-price` allocation strategy. For the spot capacity type, Fleet will determine an instance type that has both the lowest price combined with the lowest chance of being interrupted. Note that this may not give you the instance type with the strictly lowest price for spot.
+The EC2 fleet API attempts to provision the instance type based on the allocation strategy configured in the EC2NodeClass. By default, Karpenter uses the [Price Capacity Optimized allocation strategy](https://aws.amazon.com/blogs/compute/introducing-price-capacity-optimized-allocation-strategy-for-ec2-spot-instances/) for spot instances and the `lowest-price` allocation strategy for on-demand instances. For the spot capacity type, Fleet will determine an instance type that has both the lowest price combined with the lowest chance of being interrupted. Note that this may not give you the instance type with the strictly lowest price for spot.
+
+You can customize the allocation strategy by setting `spec.allocationStrategy` in your EC2NodeClass. See the [NodeClasses documentation]({{<ref "concepts/nodeclasses#specallocationstrategy" >}}) for more details.
 
 ### How does Karpenter calculate the resource usage of Daemonsets when simulating scheduling?
 

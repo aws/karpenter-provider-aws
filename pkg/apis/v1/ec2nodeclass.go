@@ -143,6 +143,12 @@ type EC2NodeClassSpec struct {
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
 	Context *string `json:"context,omitempty"`
+	// AllocationStrategy specifies the EC2 Fleet allocation strategy for on-demand and spot instances.
+	// If not specified, defaults to "lowest-price" for on-demand instances and "price-capacity-optimized" for spot instances.
+	// For on-demand instances, valid values are: "lowest-price", "prioritized".
+	// For spot instances, valid values are: "lowest-price", "price-capacity-optimized", "capacity-optimized", "capacity-optimized-prioritized".
+	// +optional
+	AllocationStrategy *AllocationStrategy `json:"allocationStrategy,omitempty" hash:"ignore"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
@@ -457,6 +463,22 @@ const (
 	// pods that request ephemeral storage and container images that are downloaded to the node.
 	InstanceStorePolicyRAID0 InstanceStorePolicy = "RAID0"
 )
+
+// AllocationStrategy specifies the EC2 Fleet allocation strategy configuration.
+type AllocationStrategy struct {
+	// OnDemandAllocationStrategy specifies the allocation strategy for on-demand instances.
+	// Valid values are: "lowest-price", "prioritized".
+	// If not specified, defaults to "lowest-price".
+	// +kubebuilder:validation:Enum:={lowest-price,prioritized}
+	// +optional
+	OnDemandAllocationStrategy *string `json:"onDemandAllocationStrategy,omitempty"`
+	// SpotAllocationStrategy specifies the allocation strategy for spot instances.
+	// Valid values are: "lowest-price", "price-capacity-optimized", "capacity-optimized", "capacity-optimized-prioritized".
+	// If not specified, defaults to "price-capacity-optimized".
+	// +kubebuilder:validation:Enum:={lowest-price,price-capacity-optimized,capacity-optimized,capacity-optimized-prioritized}
+	// +optional
+	SpotAllocationStrategy *string `json:"spotAllocationStrategy,omitempty"`
+}
 
 // EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true

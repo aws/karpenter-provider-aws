@@ -142,9 +142,11 @@ type CreateFleetInputBuilder struct {
 	tagSpecifications     []ec2types.TagSpecification
 	launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest
 
-	contextID               *string
-	capacityReservationType v1.CapacityReservationType
-	overlay                 bool
+	contextID                  *string
+	capacityReservationType    v1.CapacityReservationType
+	overlay                    bool
+	onDemandAllocationStrategy *ec2types.FleetOnDemandAllocationStrategy
+	spotAllocationStrategy     *ec2types.SpotAllocationStrategy
 }
 
 func NewCreateFleetInputBuilder(capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) *CreateFleetInputBuilder {
@@ -181,6 +183,16 @@ func (b *CreateFleetInputBuilder) WithCapacityReservationType(crt v1.CapacityRes
 	return b
 }
 
+func (b *CreateFleetInputBuilder) WithOnDemandAllocationStrategy(strategy ec2types.FleetOnDemandAllocationStrategy) *CreateFleetInputBuilder {
+	b.onDemandAllocationStrategy = &strategy
+	return b
+}
+
+func (b *CreateFleetInputBuilder) WithSpotAllocationStrategy(strategy ec2types.SpotAllocationStrategy) *CreateFleetInputBuilder {
+	b.spotAllocationStrategy = &strategy
+	return b
+}
+
 func (b *CreateFleetInputBuilder) defaultTargetCapacityType() ec2types.DefaultTargetCapacityType {
 	switch b.capacityType {
 	case karpv1.CapacityTypeReserved:
@@ -207,12 +219,26 @@ func (b *CreateFleetInputBuilder) Build() *ec2.CreateFleetInput {
 		TagSpecifications: b.tagSpecifications,
 	}
 	if b.capacityType == karpv1.CapacityTypeSpot {
+		var spotStrategy ec2types.SpotAllocationStrategy
+		if b.spotAllocationStrategy != nil {
+			spotStrategy = *b.spotAllocationStrategy
+		} else {
+			// Default behavior: use capacity-optimized-prioritized with overlay, otherwise price-capacity-optimized
+			spotStrategy = lo.Ternary(b.overlay, ec2types.SpotAllocationStrategyCapacityOptimizedPrioritized, ec2types.SpotAllocationStrategyPriceCapacityOptimized)
+		}
 		input.SpotOptions = &ec2types.SpotOptionsRequest{
-			AllocationStrategy: lo.Ternary(b.overlay, ec2types.SpotAllocationStrategyCapacityOptimizedPrioritized, ec2types.SpotAllocationStrategyPriceCapacityOptimized),
+			AllocationStrategy: spotStrategy,
 		}
 	} else if b.capacityReservationType != v1.CapacityReservationTypeCapacityBlock {
+		var onDemandStrategy ec2types.FleetOnDemandAllocationStrategy
+		if b.onDemandAllocationStrategy != nil {
+			onDemandStrategy = *b.onDemandAllocationStrategy
+		} else {
+			// Default behavior: use prioritized with overlay, otherwise lowest-price
+			onDemandStrategy = lo.Ternary(b.overlay, ec2types.FleetOnDemandAllocationStrategyPrioritized, ec2types.FleetOnDemandAllocationStrategyLowestPrice)
+		}
 		input.OnDemandOptions = &ec2types.OnDemandOptionsRequest{
-			AllocationStrategy: lo.Ternary(b.overlay, ec2types.FleetOnDemandAllocationStrategyPrioritized, ec2types.FleetOnDemandAllocationStrategyLowestPrice),
+			AllocationStrategy: onDemandStrategy,
 		}
 	}
 	return input
