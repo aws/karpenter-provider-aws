@@ -1,0 +1,21 @@
+[settings]
+[settings.kubernetes]
+api-server = 'https://test-cluster'
+cluster-certificate = 'Y2EtYnVuZGxlCg=='
+cluster-name = 'test-cluster'
+cluster-dns-ip = '8.8.8.8'
+max-pods = 75
+
+[settings.kubernetes.node-labels]
+custom-node-label = 'custom'
+'karpenter.k8s.aws/ec2nodeclass' = '%s'
+'karpenter.sh/capacity-type' = 'on-demand'
+'karpenter.sh/do-not-sync-taints' = 'true'
+'%s' = '%s'
+'testing/cluster' = 'unspecified'
+
+[settings.kubernetes.node-taints]
+'karpenter.sh/unregistered' = [':NoExecute']
+
+[settings.network]
+hostname = 'test.local'
