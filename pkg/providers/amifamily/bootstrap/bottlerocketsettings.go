@@ -136,6 +136,7 @@ func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
 	if err := toml.Unmarshal(data, c); err != nil {
 		return err
 	}
+
 	c.Settings = s.Settings
 	return nil
 }
