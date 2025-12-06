@@ -96,11 +96,11 @@ e2etests: ## Run the e2e suite against your local cluster
 
 upstream-e2etests: tidy download
 	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/default_ec2nodeclass.yaml > ${TMPFILE}
-	go test \
+	cd $(KARPENTER_CORE_DIR) && go test \
 		-count 1 \
 		-timeout 3.25h \
 		-v \
-		$(KARPENTER_CORE_DIR)/test/suites/... \
+		./test/suites/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.timeout=3h \
 		--ginkgo.grace-period=5m \
