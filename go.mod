@@ -30,7 +30,7 @@ require (
 	github.com/imdario/mergo v0.3.16
 	github.com/jonathan-innis/aws-sdk-go-prometheus v0.1.1
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/onsi/ginkgo/v2 v2.27.1
+	github.com/onsi/ginkgo/v2 v2.27.2
 	github.com/onsi/gomega v1.38.2
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-toml/v2 v2.2.4
@@ -39,13 +39,13 @@ require (
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.17.0
-	k8s.io/api v0.35.0-alpha.2
-	k8s.io/apiextensions-apiserver v0.35.0-alpha.2
-	k8s.io/apimachinery v0.35.0-alpha.2
-	k8s.io/client-go v0.35.0-alpha.2
+	k8s.io/api v0.36.0-alpha.0
+	k8s.io/apiextensions-apiserver v0.36.0-alpha.0
+	k8s.io/apimachinery v0.36.0-alpha.0
+	k8s.io/client-go v0.36.0-alpha.0
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
-	sigs.k8s.io/controller-runtime v0.22.3
+	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
+	sigs.k8s.io/controller-runtime v0.22.4
 	sigs.k8s.io/karpenter v1.8.1-0.20251111002453-7de3cedace19
 	sigs.k8s.io/yaml v1.6.0
 )
@@ -101,14 +101,13 @@ require (
 	github.com/spf13/cobra v1.10.1 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	go.uber.org/automaxprocs v1.6.0 // indirect
-	go.yaml.in/yaml/v2 v2.4.2 // indirect
+	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/mod v0.28.0 // indirect
 	golang.org/x/net v0.44.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
-	golang.org/x/term v0.35.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
+	golang.org/x/term v0.36.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.37.0 // indirect
@@ -118,7 +117,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/cloud-provider v0.34.1 // indirect
-	k8s.io/component-base v0.35.0-alpha.2 // indirect
+	k8s.io/component-base v0.36.0-alpha.0 // indirect
 	k8s.io/component-helpers v0.34.1 // indirect
 	k8s.io/csi-translation-lib v0.34.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
