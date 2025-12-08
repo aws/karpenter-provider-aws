@@ -15,9 +15,12 @@ limitations under the License.
 package bootstrap
 
 import (
+	"context"
+	"errors"
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func NewBottlerocketConfig(userdata *string) (*BottlerocketConfig, error) {
@@ -126,17 +129,25 @@ func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
 	s := struct {
 		Settings BottlerocketSettings `toml:"settings"`
 	}{}
+	// use strict mode first to check if userData contains an unsupported value and log this, but don't return an error
 	r := strings.NewReader(string(data))
 	d := toml.NewDecoder(r)
 	d.DisallowUnknownFields()
 	if err := d.Decode(&s); err != nil {
+		// only log in case we got an error of type toml.StrictMissingError
+		var details *toml.StrictMissingError
+		if errors.As(err, &details) {
+			log.FromContext(context.Background()).Error(err, "Unknown parameter in userData K8s settings", "reason", details.String())
+		}
+	}
+	// proceed without strict mode
+	if err := toml.Unmarshal(data, &s); err != nil {
 		return err
 	}
 	// unmarshal untyped settings
 	if err := toml.Unmarshal(data, c); err != nil {
 		return err
 	}
-
 	c.Settings = s.Settings
 	return nil
 }
