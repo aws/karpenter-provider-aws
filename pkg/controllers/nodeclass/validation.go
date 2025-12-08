@@ -39,6 +39,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
@@ -50,6 +51,7 @@ import (
 
 const (
 	requeueAfterTime                              = 10 * time.Minute
+	authRetryCountSuffix                          = ":authRetryCount"
 	ConditionReasonCreateFleetAuthFailed          = "CreateFleetAuthCheckFailed"
 	ConditionReasonCreateLaunchTemplateAuthFailed = "CreateLaunchTemplateAuthCheckFailed"
 	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
@@ -189,6 +191,8 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	}
 
 	v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
+	// Clear auth retry count on successful validation
+	v.clearAuthRetryCount(nodeClass, tags)
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 	return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 }
@@ -200,6 +204,32 @@ func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[s
 		failureReason,
 		ValidationConditionMessages[failureReason],
 	)
+}
+
+// getAuthRetryDelay calculates exponential backoff delay for authorization failures
+// Returns increasing delays: 30s, 60s, 120s, 240s, up to max of 5 minutes
+func (v *Validation) getAuthRetryDelay(nodeClass *v1.EC2NodeClass, tags map[string]string) time.Duration {
+	retryCountKey := v.cacheKey(nodeClass, tags) + authRetryCountSuffix
+	retryCount := 0
+	if val, ok := v.cache.Get(retryCountKey); ok {
+		retryCount = val.(int)
+	}
+
+	// Exponential backoff: 10s * 2^retryCount
+	delay := awscache.AuthRetryInitialDelay * (1 << retryCount)
+	if delay > awscache.AuthRetryMaxDelay {
+		delay = awscache.AuthRetryMaxDelay
+	}
+
+	// Increment retry count and cache it
+	v.cache.SetDefault(retryCountKey, retryCount+1)
+	return delay
+}
+
+// clearAuthRetryCount clears the authorization retry count from cache
+func (v *Validation) clearAuthRetryCount(nodeClass *v1.EC2NodeClass, tags map[string]string) {
+	retryCountKey := v.cacheKey(nodeClass, tags) + authRetryCountSuffix
+	v.cache.Delete(retryCountKey)
 }
 
 func (v *Validation) validateCreateLaunchTemplateAuthorization(
@@ -225,7 +255,8 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateLaunchTemplate")
 		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateLaunchTemplateAuthFailed)
-		return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+		retryDelay := v.getAuthRetryDelay(nodeClass, tags)
+		return nil, reconcile.Result{RequeueAfter: retryDelay}, nil
 	}
 	// this case should never occur as we ensure instance types are compatible with AMI
 	if len(launchTemplates) == 0 {
@@ -257,7 +288,8 @@ func (v *Validation) validateCreateFleetAuthorization(
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateFleet")
 		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateFleetAuthFailed)
-		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+		retryDelay := v.getAuthRetryDelay(nodeClass, tags)
+		return reconcile.Result{RequeueAfter: retryDelay}, nil
 	}
 	return reconcile.Result{}, nil
 }
@@ -285,7 +317,8 @@ func (v *Validation) validateRunInstancesAuthorization(
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:RunInstances")
 		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesAuthFailed)
-		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+		retryDelay := v.getAuthRetryDelay(nodeClass, tags)
+		return reconcile.Result{RequeueAfter: retryDelay}, nil
 	}
 	return reconcile.Result{}, nil
 }
