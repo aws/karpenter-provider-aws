@@ -71,7 +71,7 @@ test: ## Run tests
 		--ginkgo.vv
 
 deflake: ## Run randomized, racing tests until the test fails to catch flakes
-	ginkgo \
+	go tool ginkgo \
 		--race \
 		--focus="${FOCUS}" \
 		--randomize-all \
@@ -109,7 +109,7 @@ upstream-e2etests: tidy download
 		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml"
 
 e2etests-deflake: ## Run the e2e suite against your local cluster
-	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} go tool ginkgo \
 		--focus="${FOCUS}" \
 		--timeout=3h \
 		--grace-period=3m \
@@ -141,17 +141,17 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 		fi;}
 	@echo "Validating codegen/docgen build scripts..."
 	@find hack/code hack/docs -name "*.go" -type f -print0 | xargs -0 -I {} go build -o /dev/null {}
-	actionlint -oneline
+	go tool actionlint -oneline
 
 vulncheck: ## Verify code vulnerabilities
-	@govulncheck ./pkg/...
+	@go tool govulncheck ./pkg/...
 
 licenses: download ## Verifies dependency licenses
 	# TODO: remove nodeadm check once license is updated
-	! go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0' -e 'github.com/awslabs/amazon-eks-ami/nodeadm'
+	! go tool go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0' -e 'github.com/awslabs/amazon-eks-ami/nodeadm'
 
 image: ## Build the Karpenter controller images using ko build
-	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build --bare github.com/aws/karpenter-provider-aws/cmd/controller))
+	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" go tool ko build --bare github.com/aws/karpenter-provider-aws/cmd/controller))
 	$(eval IMG_REPOSITORY=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 1))
 	$(eval IMG_TAG=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 2 -s))
 	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
