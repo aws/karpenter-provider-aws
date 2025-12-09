@@ -57,10 +57,27 @@ runs:
       CLUSTER_NAME: ${{ inputs.cluster_name }}
       PRIVATE_CLUSTER: ${{ inputs.private_cluster }}
     run: |
+      set +e
       output=$(./test/hack/e2e_scripts/install_karpenter.sh 2>&1)
+      exit_code=$?
+      set -e
+
+      echo "===== install_karpenter.sh output ====="
+      echo "$output"
+      echo "===== End of output ====="
+      echo "Script exit code: $exit_code"
+
+      if [ $exit_code -ne 0 ]; then
+        echo "ERROR: install_karpenter.sh failed with exit code $exit_code"
+        exit 1
+      fi
+
       if echo "$output" | grep -i "warning.*violate.*podsecurity"; then
         echo "ERROR: Karpenter does not respect restricted Pod Security Standard"
+        echo "Found PodSecurity violation in output above"
         exit 1
+      else
+        echo "No PodSecurity violations detected"
       fi
   - name: diff-karpenter
     shell: bash
