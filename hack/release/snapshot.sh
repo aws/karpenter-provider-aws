@@ -9,6 +9,8 @@ commit_sha="$(git rev-parse HEAD)"
 
 # Don't release with a dirty commit!
 if [[ "$(git status --porcelain)" != "" ]]; then
+  echo "Error: Git working tree is dirty. Uncommitted changes detected:"
+  git status --porcelain
   exit 1
 fi
 
