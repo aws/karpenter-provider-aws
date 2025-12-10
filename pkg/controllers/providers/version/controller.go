@@ -31,11 +31,11 @@ import (
 type UpdateVersion func(context.Context) error
 
 type Controller struct {
-	versionProvider *version.DefaultProvider
+	versionProvider version.Provider
 	updateVersion   UpdateVersion
 }
 
-func NewController(versionProvider *version.DefaultProvider, updateVersion UpdateVersion) *Controller {
+func NewController(versionProvider version.Provider, updateVersion UpdateVersion) *Controller {
 	return &Controller{
 		versionProvider: versionProvider,
 		updateVersion:   updateVersion,
