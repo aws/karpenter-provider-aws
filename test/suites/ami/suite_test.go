@@ -93,7 +93,7 @@ var _ = Describe("AMI", func() {
 	})
 	It("should use the most recent AMI when discovering multiple", func() {
 		// choose an old static image that will definitely have an older creation date
-		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%[1]s/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-%[1]s-v20241213/image_id", env.K8sVersionWithOffset(1)))
+		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%[1]s/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-%[1]s-v20251120/image_id", env.K8sVersionWithOffset(1)))
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{ID: customAMI},
@@ -230,12 +230,12 @@ var _ = Describe("AMI", func() {
 				env.ExpectCreatedNodeCount("==", 1)
 			},
 			Entry("AL2023 (latest)", "al2023@latest"),
-			Entry("AL2023 (pinned)", "al2023@v20250116"),
+			Entry("AL2023 (pinned)", "al2023@v20251120"),
 			Entry("AL2 (latest)", "al2@latest"),
 			Entry("AL2 (pinned)", "al2@v20250116"),
 			Entry("Bottlerocket (latest)", "bottlerocket@latest"),
-			Entry("Bottlerocket (pinned with v prefix)", "bottlerocket@v1.30.0"),
-			Entry("Bottlerocket (pinned without v prefix)", "bottlerocket@1.30.0"),
+			Entry("Bottlerocket (pinned with v prefix)", "bottlerocket@v1.50.0"),
+			Entry("Bottlerocket (pinned without v prefix)", "bottlerocket@1.50.0"),
 		)
 		It("should support Custom AMIFamily with AMI Selectors", func() {
 			al2023AMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
