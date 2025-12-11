@@ -41,7 +41,7 @@ const (
 	// If a user runs a karpenter image on a k8s version outside the min and max,
 	// One error message will be fired to notify
 	MinK8sVersion = "1.26"
-	MaxK8sVersion = "1.33"
+	MaxK8sVersion = "1.34"
 )
 
 type Provider interface {
