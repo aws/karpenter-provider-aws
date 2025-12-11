@@ -24,23 +24,23 @@ tool (
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/PuerkitoBio/goquery v1.10.3
+	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/aws/amazon-vpc-resource-controller-k8s v1.7.15
-	github.com/aws/aws-sdk-go-v2 v1.39.6
-	github.com/aws/aws-sdk-go-v2/config v1.31.17
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.13
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.258.1
-	github.com/aws/aws-sdk-go-v2/service/eks v1.74.5
-	github.com/aws/aws-sdk-go-v2/service/fis v1.37.7
-	github.com/aws/aws-sdk-go-v2/service/iam v1.48.1
-	github.com/aws/aws-sdk-go-v2/service/pricing v1.40.1
-	github.com/aws/aws-sdk-go-v2/service/sqs v1.42.11
-	github.com/aws/aws-sdk-go-v2/service/ssm v1.66.2
-	github.com/aws/aws-sdk-go-v2/service/sts v1.39.1
-	github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.35.7
+	github.com/aws/amazon-vpc-resource-controller-k8s v1.7.16
+	github.com/aws/aws-sdk-go-v2 v1.41.0
+	github.com/aws/aws-sdk-go-v2/config v1.32.5
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.16
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.276.1
+	github.com/aws/aws-sdk-go-v2/service/eks v1.76.3
+	github.com/aws/aws-sdk-go-v2/service/fis v1.37.15
+	github.com/aws/aws-sdk-go-v2/service/iam v1.53.1
+	github.com/aws/aws-sdk-go-v2/service/pricing v1.40.10
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.42.20
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.67.7
+	github.com/aws/aws-sdk-go-v2/service/sts v1.41.5
+	github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.35.15
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
-	github.com/aws/smithy-go v1.23.2
+	github.com/aws/smithy-go v1.24.0
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
 	github.com/awslabs/operatorpkg v0.0.0-20250909182303-e8e550b6f339
 	github.com/awslabs/operatorpkg/aws v0.0.0-20250414225955-b47cd315ffe9
@@ -50,14 +50,14 @@ require (
 	github.com/imdario/mergo v0.3.16
 	github.com/jonathan-innis/aws-sdk-go-prometheus v0.1.1
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/onsi/ginkgo/v2 v2.27.2
-	github.com/onsi/gomega v1.38.2
+	github.com/onsi/ginkgo/v2 v2.27.3
+	github.com/onsi/gomega v1.38.3
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/prometheus/client_golang v1.23.2
 	github.com/samber/lo v1.52.0
 	go.uber.org/multierr v1.11.0
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.27.1
 	golang.org/x/sync v0.19.0
 	k8s.io/api v0.35.0-alpha.2
 	k8s.io/apiextensions-apiserver v0.35.0-alpha.2
@@ -129,18 +129,19 @@ require (
 	github.com/aliyun/credentials-go v1.3.2 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.18.21 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.13 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.13 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.5 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.16 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.16 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.51.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ecrpublic v1.38.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.3 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.11.11 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.11.16 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.16 // indirect
 	github.com/aws/aws-sdk-go-v2/service/kms v1.44.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.30.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.0.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.30.7 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.12 // indirect
 	github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.11.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
@@ -183,7 +184,6 @@ require (
 	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
-	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
@@ -418,7 +418,7 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	helm.sh/helm/v3 v3.15.2 // indirect
+	helm.sh/helm/v3 v3.17.3 // indirect
 	k8s.io/cloud-provider v0.34.1 // indirect
 	k8s.io/code-generator v0.35.0-alpha.2 // indirect
 	k8s.io/component-base v0.35.0-alpha.2 // indirect
