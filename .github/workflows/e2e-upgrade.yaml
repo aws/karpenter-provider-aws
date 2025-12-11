@@ -22,14 +22,15 @@ on:
           - "1.31"
           - "1.32"
           - "1.33"
-        default: "1.33"
+          - "1.34"
+        default: "1.34"
       cleanup:
         required: true
         default: true
         type: boolean
       source:
         type: string
-        default: "aws" 
+        default: "aws"
   workflow_call:
     inputs:
       from_git_ref:
@@ -42,7 +43,7 @@ on:
         default: "us-east-2"
       k8s_version:
         type: string
-        default: "1.33"
+        default: "1.34"
       cleanup:
         required: true
         type: boolean
@@ -50,7 +51,7 @@ on:
         type: string
       source:
         type: string
-        default: "aws" 
+        default: "aws"
     secrets:
       SLACK_WEBHOOK_URL:
         required: true

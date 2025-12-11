@@ -5,7 +5,7 @@ inputs:
     description: "Account ID to access AWS"
     required: true
   suite:
-    type: string
+    description: "Test suite to run"
     required: true
   ecr_account_id:
     description: "Account ID to access ECR Repository"
@@ -33,7 +33,7 @@ inputs:
     required: true
   k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
-    default: "1.33"
+    default: "1.34"
   private_cluster:
     description: "Whether to create a private cluster which does not add access to the public internet. Valid values are 'true' or 'false'"
     default: 'false'
