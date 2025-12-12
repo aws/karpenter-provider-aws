@@ -15,6 +15,7 @@ limitations under the License.
 package bootstrap
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"strconv"
@@ -33,8 +34,8 @@ type Bottlerocket struct {
 }
 
 // nolint:gocyclo
-func (b Bottlerocket) Script() (string, error) {
-	s, err := NewBottlerocketConfig(b.CustomUserData)
+func (b Bottlerocket) Script(ctx context.Context) (string, error) {
+	s, err := NewBottlerocketConfig(b.CustomUserData, ctx)
 	if err != nil {
 		return "", fmt.Errorf("invalid UserData %w", err)
 	}

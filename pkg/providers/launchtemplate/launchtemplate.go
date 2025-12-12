@@ -257,7 +257,7 @@ func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *ami
 }
 
 func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (ec2types.LaunchTemplate, error) {
-	userData, err := options.UserData.Script()
+	userData, err := options.UserData.Script(ctx)
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
 	}
