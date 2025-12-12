@@ -1,0 +1,100 @@
+name: 'Deploy Website to Amplify'
+description: 'Build Hugo site and deploy to AWS Amplify'
+inputs:
+  role:
+    description: 'AWS IAM role ARN to assume'
+    required: true
+  region:
+    description: 'AWS region for Amplify'
+    required: true
+  amplify-app-id:
+    description: 'AWS Amplify App ID'
+    required: true
+  amplify-branch-name:
+    description: 'AWS Amplify branch name'
+    required: true
+  s3-bucket:
+    description: 'S3 bucket for website files'
+    required: true
+  s3-prefix:
+    description: 'S3 prefix/path for website files'
+    required: false
+    default: ''
+  hugo-base-url:
+    description: 'Base URL for Hugo build'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Go
+      uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      with:
+        go-version-file: hack/docs/parse-redirects/go.mod
+        check-latest: true
+    - name: Install Hugo
+      uses: peaceiris/actions-hugo@16361eb4acea8698b220b76c0d4e84e1fd22c61d # v2.6.0
+      with:
+        hugo-version: '0.120.3'
+        extended: true
+    - name: Build Hugo site (preview)
+      working-directory: website
+      shell: bash
+      env:
+        HUGO_ENV: production
+        HUGO_ENABLEGITINFO: true
+        TZ: America/Los_Angeles
+        HUGO_CACHEDIR: ${{ github.workspace }}/.hugo
+        NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
+      if: github.event_name == 'workflow_run'
+      run: |
+        npm ci --prefer-offline
+        hugo --gc --minify --buildFuture -b "${{ inputs.hugo-base-url }}"
+    - name: Build Hugo site (production) 
+      working-directory: website
+      shell: bash
+      env:
+        HUGO_ENV: production
+        HUGO_ENABLEGITINFO: true
+        TZ: America/Los_Angeles
+        HUGO_CACHEDIR: ${{ github.workspace }}/.hugo
+        NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
+      if: github.event_name == 'push'
+      run: |
+        npm ci --prefer-offline
+        hugo --gc --minify
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df # v4.2.1
+      with:
+        role-to-assume: ${{ inputs.role }}
+        aws-region: ${{ inputs.region }}
+    - name: Upload to S3
+      shell: bash
+      run: |
+        S3_PATH="s3://${{ inputs.s3-bucket }}/${{ inputs.s3-prefix }}"
+        aws s3 sync website/public/ "$S3_PATH" --delete
+    - name: Create Amplify branch (if preview and doesn't exist)
+      shell: bash
+      if: github.event_name == 'workflow_run'
+      run: |
+        if ! aws amplify get-branch --app-id ${{ inputs.amplify-app-id }} --branch-name "${{ inputs.amplify-branch-name }}" 2>/dev/null; then
+          aws amplify create-branch \
+            --app-id ${{ inputs.amplify-app-id }} \
+            --branch-name "${{ inputs.amplify-branch-name }}"
+        fi
+    - name: Configure redirects
+      shell: bash
+      run: |
+        REDIRECT_RULES=$(go run hack/docs/parse-redirects/main.go)
+        aws amplify update-app \
+          --app-id ${{ inputs.amplify-app-id }} \
+          --custom-rules "$REDIRECT_RULES"
+    - name: Deploy to Amplify
+      shell: bash
+      run: |
+        SOURCE_URL="s3://${{ inputs.s3-bucket }}/${{ inputs.s3-prefix }}"
+        aws amplify start-deployment \
+          --app-id ${{ inputs.amplify-app-id }} \
+          --branch-name "${{ inputs.amplify-branch-name }}" \
+          --source-url "$SOURCE_URL" \
+          --source-url-type BUCKET_PREFIX

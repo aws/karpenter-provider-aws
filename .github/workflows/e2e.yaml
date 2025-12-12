@@ -30,14 +30,14 @@ on:
       k8s_version:
         type: choice
         options:
-          - "1.26"
-          - "1.27"
           - "1.28"
           - "1.29"
           - "1.30"
           - "1.31"
           - "1.32"
-        default: "1.32"
+          - "1.33"
+          - "1.34"
+        default: "1.34"
       cluster_name:
         type: string
       cleanup:
@@ -67,7 +67,7 @@ on:
         required: true
       k8s_version:
         type: string
-        default: "1.32"
+        default: "1.34"
       enable_metrics:
         type: boolean
         default: false
@@ -94,7 +94,7 @@ jobs:
     name: suite-${{ inputs.suite }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ inputs.git_ref }}
       - if: always() && github.event_name == 'workflow_run'
@@ -104,7 +104,7 @@ jobs:
           git_ref: ${{ inputs.git_ref }}
       - uses: ./.github/actions/install-deps
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df # v4.2.1
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
         with:
           role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
           aws-region: ${{ inputs.region }}

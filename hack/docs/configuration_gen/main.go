@@ -37,8 +37,8 @@ func main() {
 		os.Exit(2)
 	}
 
-	genStart := "[comment]: <> (the content below is generated from hack/docs/configuration_gen_docs.go)"
-	genEnd := "[comment]: <> (end docs generated content from hack/docs/configuration_gen_docs.go)"
+	genStart := "[comment]: <> (the content below is generated from hack/docs/configuration_gen/main.go)"
+	genEnd := "[comment]: <> (end docs generated content from hack/docs/configuration_gen/main.go)"
 	startDocSections := strings.Split(string(mdFile), genStart)
 	if len(startDocSections) != 2 {
 		log.Fatalf("expected one generated comment block start but got %d", len(startDocSections)-1)

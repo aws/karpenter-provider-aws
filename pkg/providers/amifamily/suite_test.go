@@ -27,30 +27,42 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"k8s.io/apimachinery/pkg/util/version"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gstruct"
 	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/awslabs/operatorpkg/object"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	corecloudfake "sigs.k8s.io/karpenter/pkg/cloudprovider/fake"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
+
+	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
 var ctx context.Context
 var env *coretest.Environment
 var awsEnv *test.Environment
 var nodeClass *v1.EC2NodeClass
+var nodePool *karpv1.NodePool
+var nodeClaim *karpv1.NodeClaim
+var instanceTypes []*corecloudprovider.InstanceType
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -146,9 +158,9 @@ func amiProviderWithEKSVersionOverride(version string) *amifamily.DefaultProvide
 }
 
 var _ = Describe("AMIProvider", func() {
-	var version string
+	var k8sVersion string
 	BeforeEach(func() {
-		version = awsEnv.VersionProvider.Get(ctx)
+		k8sVersion = awsEnv.VersionProvider.Get(ctx)
 		nodeClass = test.EC2NodeClass()
 	})
 	DescribeTable(
@@ -170,11 +182,14 @@ var _ = Describe("AMIProvider", func() {
 	)
 
 	It("should succeed to resolve AMIs (AL2)", func() {
+		if version.MustParseGeneric(k8sVersion).Minor() > 32 {
+			Skip("AL2 is not supported on versions > 1.32")
+		}
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 		awsEnv.SSMAPI.Parameters = map[string]string{
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):       amd64AMI,
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):   amd64NvidiaAMI,
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version): arm64AMI,
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", k8sVersion):       amd64AMI,
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", k8sVersion):   amd64NvidiaAMI,
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", k8sVersion): arm64AMI,
 		}
 		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
@@ -183,8 +198,8 @@ var _ = Describe("AMIProvider", func() {
 	It("should succeed to resolve AMIs (AL2023)", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 		awsEnv.SSMAPI.Parameters = map[string]string{
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", version): amd64AMI,
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version):  arm64AMI,
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", k8sVersion): amd64AMI,
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", k8sVersion):  arm64AMI,
 		}
 		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
@@ -193,10 +208,10 @@ var _ = Describe("AMIProvider", func() {
 	It("should succeed to resolve AMIs (Bottlerocket)", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 		awsEnv.SSMAPI.Parameters = map[string]string{
-			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version):        amd64AMI,
-			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version): amd64NvidiaAMI,
-			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", version):         arm64AMI,
-			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/latest/image_id", version):  arm64NvidiaAMI,
+			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", k8sVersion):        amd64AMI,
+			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", k8sVersion): amd64NvidiaAMI,
+			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", k8sVersion):         arm64AMI,
+			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/latest/image_id", k8sVersion):  arm64NvidiaAMI,
 		}
 		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
@@ -205,7 +220,7 @@ var _ = Describe("AMIProvider", func() {
 	It("should succeed to resolve AMIs (Windows2019)", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2019@latest"}}
 		awsEnv.SSMAPI.Parameters = map[string]string{
-			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-EKS_Optimized-%s/image_id", version): amd64AMI,
+			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-EKS_Optimized-%s/image_id", k8sVersion): amd64AMI,
 		}
 		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
@@ -214,7 +229,7 @@ var _ = Describe("AMIProvider", func() {
 	It("should succeed to resolve AMIs (Windows2022)", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
 		awsEnv.SSMAPI.Parameters = map[string]string{
-			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-%s/image_id", version): amd64AMI,
+			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-%s/image_id", k8sVersion): amd64AMI,
 		}
 		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
@@ -305,11 +320,14 @@ var _ = Describe("AMIProvider", func() {
 
 	Context("SSM Alias Missing", func() {
 		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Al2)", func() {
+			if version.MustParseGeneric(k8sVersion).Minor() > 32 {
+				Skip("AL2 is not supported on versions > 1.32")
+			}
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			// No GPU AMI exists here
 			awsEnv.SSMAPI.Parameters = map[string]string{
-				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):       amd64AMI,
-				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version): arm64AMI,
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", k8sVersion):       amd64AMI,
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", k8sVersion): arm64AMI,
 			}
 			// Only 2 of the requirements sets for the SSM aliases will resolve
 			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
@@ -319,7 +337,7 @@ var _ = Describe("AMIProvider", func() {
 		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (AL2023)", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 			awsEnv.SSMAPI.Parameters = map[string]string{
-				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", version): amd64AMI,
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", k8sVersion): amd64AMI,
 			}
 			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
@@ -329,9 +347,9 @@ var _ = Describe("AMIProvider", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			// No GPU AMI exists for AM64 here
 			awsEnv.SSMAPI.Parameters = map[string]string{
-				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version):        amd64AMI,
-				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version): amd64NvidiaAMI,
-				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", version):         arm64AMI,
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", k8sVersion):        amd64AMI,
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", k8sVersion): amd64NvidiaAMI,
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", k8sVersion):         arm64AMI,
 			}
 			// Only 4 of the requirements sets for the SSM aliases will resolve
 			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
@@ -562,6 +580,219 @@ var _ = Describe("AMIProvider", func() {
 					scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
 				),
 			}))
+		})
+	})
+	Context("Provider Cache", func() {
+		It("should resolve AMIs from cache that are filtered by id", func() {
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+				{
+					Name:         aws.String(coretest.RandomName()),
+					ImageId:      aws.String("ami-123"),
+					Architecture: "x86_64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+				{
+					Name:         aws.String(coretest.RandomName()),
+					ImageId:      aws.String("ami-456"),
+					Architecture: "arm64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+			}})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					ID: "ami-123",
+				},
+				{
+					ID: "ami-456",
+				},
+			}
+			_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			Expect(awsEnv.AMICache.Items()).To(HaveLen(1))
+			cachedImages := lo.Values(awsEnv.AMICache.Items())[0].Object.(amifamily.AMIs)
+			Expect(cachedImages).To(ContainElements(
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"AmiID": Equal("ami-123"),
+				}),
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"AmiID": Equal("ami-456"),
+				}),
+			))
+		})
+		It("should resolve AMIs from cache that are filtered by name", func() {
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+				{
+					Name:         aws.String("ami-name-1"),
+					ImageId:      aws.String("ami-123"),
+					Architecture: "x86_64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+				{
+					Name:         aws.String("ami-name-2"),
+					ImageId:      aws.String("ami-456"),
+					Architecture: "arm64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+			}})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					Name: "ami-name-1",
+				},
+				{
+					Name: "ami-name-2",
+				},
+			}
+			_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			Expect(awsEnv.AMICache.Items()).To(HaveLen(1))
+			cachedImages := lo.Values(awsEnv.AMICache.Items())[0].Object.(amifamily.AMIs)
+			Expect(cachedImages).To(ContainElements(
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-1"),
+				}),
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-2"),
+				}),
+			))
+		})
+		It("should resolve AMIs from cache that are filtered by tags", func() {
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+				{
+					Name:         aws.String("ami-name-1"),
+					ImageId:      aws.String("ami-123"),
+					Architecture: "x86_64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+				{
+					Name:         aws.String("ami-name-2"),
+					ImageId:      aws.String("ami-456"),
+					Architecture: "arm64",
+					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+			}})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					Tags: map[string]string{"test": "test"},
+				},
+			}
+			_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			Expect(awsEnv.AMICache.Items()).To(HaveLen(1))
+			cachedImages := lo.Values(awsEnv.AMICache.Items())[0].Object.(amifamily.AMIs)
+			Expect(cachedImages).To(ContainElements(
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-1"),
+				}),
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-2"),
+				}),
+			))
+		})
+		It("should correctly disambiguate AND vs OR semantics for tags", func() {
+			// AND semantics
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+				{
+					Name:         aws.String("ami-name-3"),
+					ImageId:      aws.String("ami-789"),
+					Architecture: "x86_64",
+					Tags:         []ec2types.Tag{{Key: aws.String("tag-key-1"), Value: aws.String("tag-value-1")}, {Key: aws.String("tag-key-2"), Value: aws.String("tag-value-2")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+			}})
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					Tags: map[string]string{"tag-key-1": "tag-value-1", "tag-key-2": "tag-value-2"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			Expect(amis).To(ContainElements(
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-3"),
+				}),
+			))
+
+			// OR semantics
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+				{
+					Name:         aws.String("ami-name-1"),
+					ImageId:      aws.String("ami-123"),
+					Architecture: "x86_64",
+					Tags:         []ec2types.Tag{{Key: aws.String("tag-key-1"), Value: aws.String("tag-value-1")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+				{
+					Name:         aws.String("ami-name-2"),
+					ImageId:      aws.String("ami-456"),
+					Architecture: "arm64",
+					Tags:         []ec2types.Tag{{Key: aws.String("tag-key-2"), Value: aws.String("tag-value-2")}},
+					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					State:        ec2types.ImageStateAvailable,
+				},
+			}})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					Tags: map[string]string{"tag-key-1": "tag-value-1"},
+				},
+				{
+					Tags: map[string]string{"tag-key-2": "tag-value-2"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			amis, err = awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			Expect(amis).To(ContainElements(
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-1"),
+				}),
+				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+					"Name": Equal("ami-name-2"),
+				}),
+			))
+
+			cacheItems := awsEnv.AMICache.Items()
+			Expect(cacheItems).To(HaveLen(2))
+			cachedImages := make([]amifamily.AMIs, 0, len(cacheItems))
+			for _, item := range cacheItems {
+				cachedImages = append(cachedImages, item.Object.(amifamily.AMIs))
+			}
+
+			Expect(cachedImages).To(ConsistOf(
+				ConsistOf(
+					gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+						"Name": Equal("ami-name-3"),
+					}),
+				),
+				ConsistOf(
+					gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+						"Name": Equal("ami-name-1"),
+					}),
+					gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+						"Name": Equal("ami-name-2"),
+					}),
+				),
+			))
 		})
 	})
 	Context("AMI Selectors", func() {
@@ -882,10 +1113,10 @@ var _ = Describe("AMIProvider", func() {
 		})
 		It("should succeed to resolve AMIs that use an SSM parameter", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
-				SSMParameter: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version),
+				SSMParameter: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", k8sVersion),
 			}}
 			awsEnv.SSMAPI.Parameters = map[string]string{
-				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version): amd64AMI,
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", k8sVersion): amd64AMI,
 			}
 			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
@@ -927,6 +1158,59 @@ var _ = Describe("AMIProvider", func() {
 			Expect(amis).To(HaveLen(0))
 		})
 	})
+})
+
+var _ = Describe("AMIResolver", func() {
+	BeforeEach(func() {
+		nodeClass = test.EC2NodeClass()
+		nodePool = coretest.NodePool(karpv1.NodePool{
+			Spec: karpv1.NodePoolSpec{
+				Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimTemplateSpec{
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
+						},
+					},
+				},
+			},
+		})
+		nodeClaim = coretest.NodeClaim(karpv1.NodeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					karpv1.NodePoolLabelKey: nodePool.Name,
+				},
+			},
+			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
+					Group: object.GVK(nodeClass).Group,
+					Kind:  object.GVK(nodeClass).Kind,
+					Name:  nodeClass.Name,
+				},
+			},
+		})
+		instanceTypes = []*corecloudprovider.InstanceType{
+			corecloudfake.NewInstanceType(corecloudfake.InstanceTypeOptions{Name: "t3.medium"}),
+			corecloudfake.NewInstanceType(corecloudfake.InstanceTypeOptions{Name: "m5.large"}),
+		}
+	})
+	DescribeTable(
+		"should set launch template metadata options correctly per region",
+		func(region string, expect *string) {
+			amiResolver := amifamily.NewDefaultResolver(region)
+			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(launchTemplates).To(HaveLen(1))
+			lo.ForEach(launchTemplates, func(launchTemplate *amifamily.LaunchTemplate, _ int) {
+				Expect(launchTemplate.MetadataOptions.HTTPProtocolIPv6).To(Equal(expect))
+			})
+		},
+		Entry("should be disabled for supported regions", fake.DefaultRegion, lo.ToPtr("disabled")),
+		Entry("should be nil for iso", "us-iso-east-1", nil),
+		Entry("should be nil for isob", "us-isob-east-1", nil),
+		Entry("should be nil for isof", "us-isof-south-1", nil),
+	)
 })
 
 func ExpectConsistsOfAMIQueries(expected, actual []amifamily.DescribeImageQuery) {

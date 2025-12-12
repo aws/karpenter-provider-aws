@@ -25,6 +25,7 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -43,11 +44,13 @@ var DefaultEBS = v1.BlockDevice{
 }
 
 type Resolver interface {
-	Resolve(*v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, *Options) ([]*LaunchTemplate, error)
+	Resolve(*v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, string, *Options) ([]*LaunchTemplate, error)
 }
 
 // DefaultResolver is able to fill-in dynamic launch template parameters
-type DefaultResolver struct{}
+type DefaultResolver struct {
+	region string
+}
 
 // Options define the static launch template parameters
 type Options struct {
@@ -57,12 +60,15 @@ type Options struct {
 	InstanceProfile     string
 	CABundle            *string `hash:"ignore"`
 	InstanceStorePolicy *v1.InstanceStorePolicy
+	AMISelectorTerms    []v1.AMISelectorTerm `hash:"ignore"` // For Bottlerocket version resolution
+	AMIs                []v1.AMI             `hash:"ignore"` // Resolved AMIs for version extraction
 	// Level-triggered fields that may change out of sync.
 	SecurityGroups           []v1.SecurityGroup
 	Tags                     map[string]string
 	Labels                   map[string]string `hash:"ignore"`
 	KubeDNSIP                net.IP
 	AssociatePublicIPAddress *bool
+	IPPrefixCount            *int32
 	NodeClassName            string
 }
 
@@ -79,6 +85,7 @@ type LaunchTemplate struct {
 	CapacityType            string
 	CapacityReservationID   string
 	CapacityReservationType v1.CapacityReservationType
+	Tenancy                 string
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -117,13 +124,15 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // NewDefaultResolver constructs a new launch template DefaultResolver
-func NewDefaultResolver() *DefaultResolver {
-	return &DefaultResolver{}
+func NewDefaultResolver(region string) *DefaultResolver {
+	return &DefaultResolver{
+		region: region,
+	}
 }
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
+func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.AMIFamily(), options)
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
@@ -181,7 +190,7 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 
 		for params, instanceTypes := range paramsToInstanceTypes {
 			reservationIDs := strings.Split(params.reservationIDs, ",")
-			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, options)...)
+			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, options, tenancyType)...)
 		}
 	}
 	return resolvedTemplates, nil
@@ -242,6 +251,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	capacityReservationIDs []string,
 	capacityReservationType v1.CapacityReservationType,
 	options *Options,
+	tenancyType string,
 ) []*LaunchTemplate {
 	kubeletConfig := &v1.KubeletConfiguration{}
 	if nodeClass.Spec.Kubelet != nil {
@@ -270,6 +280,14 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	if len(capacityReservationIDs) == 0 {
 		capacityReservationIDs = append(capacityReservationIDs, "")
 	}
+	httpProtocolUnsupportedRegions := sets.New[string](
+		"us-iso-east-1",
+		"us-iso-west-1",
+		"us-isob-east-1",
+		"us-isob-west-1",
+		"us-isof-south-1",
+		"us-isof-east-1",
+	)
 	return lo.Map(capacityReservationIDs, func(id string, _ int) *LaunchTemplate {
 		resolved := &LaunchTemplate{
 			Options: options,
@@ -291,12 +309,16 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			CapacityType:            capacityType,
 			CapacityReservationID:   id,
 			CapacityReservationType: capacityReservationType,
+			Tenancy:                 tenancyType,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
 		}
 		if resolved.MetadataOptions == nil {
 			resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
+		}
+		if httpProtocolUnsupportedRegions.Has(r.region) {
+			resolved.MetadataOptions.HTTPProtocolIPv6 = nil
 		}
 		return resolved
 	})

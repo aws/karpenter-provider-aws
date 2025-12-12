@@ -40,6 +40,11 @@ serviceMonitor:
   # Not to be used to add additional endpoints.
   # See the Prometheus operator documentation for configurable fields https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#endpoint
   endpointConfig: {}
+  # -- Specifies the sampleLimit for prometheus scrapes.
+  # Per-scrape limit on the number of scraped samples that will be accepted.
+  # If more than this number of samples are present after metric relabeling
+  # the entire scrape will be treated as failed. 0 means no limit.
+  sampleLimit: null
 # -- Number of replicas.
 replicas: 2
 # -- The number of old ReplicaSets to retain to allow rollback.
@@ -57,7 +62,6 @@ podDisruptionBudget:
   maxUnavailable: 1
 # -- SecurityContext for the pod.
 podSecurityContext:
-  runAsNonRoot: false
   fsGroup: 65532
   seccompProfile:
     type: RuntimeDefault
@@ -122,9 +126,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.5.0
+    tag: 1.8.1
     # -- SHA256 digest of the controller image.
-    digest: sha256:339aef3f5ecdf6f94d1c7cc9d0e1d359c281b4f9b842877bdbf2acd3fa360521
+    digest: sha256:41c28a606cbad86869384ff8ae8345203b63f81612b6fcfd2e136197dccc03ef
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -184,6 +188,8 @@ settings:
   # -- How the Karpenter scheduler should treat preferences. Preferences include preferredDuringSchedulingIgnoreDuringExecution
   # node and pod affinities/anti-affinities and ScheduleAnyways topologySpreadConstraints. Can be one of 'Ignore' and 'Respect'
   preferencePolicy: Respect
+  # -- How the Karpenter scheduler treats min values. Options include 'Strict' (fails scheduling when min values can't be met) and 'BestEffort' (relaxes min values when they can't be met).
+  minValuesPolicy: Strict
   # -- Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server.
   clusterCABundle: ""
   # -- Cluster name.
@@ -204,15 +210,27 @@ settings:
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved.
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.
   reservedENIs: "0"
+  # -- Ignore pods' DRA requests during scheduling simulations.
+  ignoreDRARequests: true
+  # -- Disable cluster state metrics and events.
+  disableClusterStateObservability: false
+  # -- Disable dry run validation for EC2NodeClasses.
+  disableDryRun: false
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features.
   featureGates:
     # -- nodeRepair is ALPHA and is disabled by default.
     # Setting this to true will enable node repair.
     nodeRepair: false
-    # -- reservedCapacity is ALPHA and is disabled by default.
+    # -- nodeOverlay is ALPHA and is disabled by default.
+    # Setting this will allow the use of node overlay to impact scheduling decisions
+    nodeOverlay: false
+    # -- reservedCapacity is BETA and is enabled by default.
     # Setting this will enable native on-demand capacity reservation support.
-    reservedCapacity: false
+    reservedCapacity: true
     # -- spotToSpotConsolidation is ALPHA and is disabled by default.
     # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
     spotToSpotConsolidation: false
+    # -- staticCapacity is ALPHA and is disabled by default.
+    # Setting this to true will enable static capacity provisioning.
+    staticCapacity: false

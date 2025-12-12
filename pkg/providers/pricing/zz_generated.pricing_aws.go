@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2025-06-23T13:18:30Z for us-east-1
+// generated at 2025-12-08T13:25:46Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -102,6 +102,10 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"c7i.12xlarge": 2.142000, "c7i.16xlarge": 2.856000, "c7i.24xlarge": 4.284000, "c7i.2xlarge": 0.357000,
 		"c7i.48xlarge": 8.568000, "c7i.4xlarge": 0.714000, "c7i.8xlarge": 1.428000, "c7i.large": 0.089250,
 		"c7i.metal-24xl": 4.712400, "c7i.metal-48xl": 8.568000, "c7i.xlarge": 0.178500,
+		// c8a family
+		"c8a.12xlarge": 2.586480, "c8a.16xlarge": 3.448640, "c8a.24xlarge": 5.172960, "c8a.2xlarge": 0.431080,
+		"c8a.48xlarge": 10.345920, "c8a.4xlarge": 0.862160, "c8a.8xlarge": 1.724320, "c8a.large": 0.107770,
+		"c8a.medium": 0.053890, "c8a.metal-24xl": 5.690260, "c8a.metal-48xl": 10.345920, "c8a.xlarge": 0.215540,
 		// c8g family
 		"c8g.12xlarge": 1.914240, "c8g.16xlarge": 2.552320, "c8g.24xlarge": 3.828480, "c8g.2xlarge": 0.319040,
 		"c8g.48xlarge": 7.656960, "c8g.4xlarge": 0.638080, "c8g.8xlarge": 1.276160, "c8g.large": 0.079760,
@@ -110,6 +114,20 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"c8gd.12xlarge": 2.351520, "c8gd.16xlarge": 3.135360, "c8gd.24xlarge": 4.703040, "c8gd.2xlarge": 0.391920,
 		"c8gd.48xlarge": 9.406080, "c8gd.4xlarge": 0.783840, "c8gd.8xlarge": 1.567680, "c8gd.large": 0.097980,
 		"c8gd.medium": 0.048990, "c8gd.metal-24xl": 5.173340, "c8gd.metal-48xl": 9.406080, "c8gd.xlarge": 0.195960,
+		// c8gn family
+		"c8gn.12xlarge": 2.844000, "c8gn.16xlarge": 3.792000, "c8gn.24xlarge": 5.688000, "c8gn.2xlarge": 0.474000,
+		"c8gn.48xlarge": 11.376000, "c8gn.4xlarge": 0.948000, "c8gn.8xlarge": 1.896000, "c8gn.large": 0.118500,
+		"c8gn.medium": 0.059300, "c8gn.metal-24xl": 6.029300, "c8gn.metal-48xl": 11.376000,
+		"c8gn.xlarge": 0.237000,
+		// c8i-flex family
+		"c8i-flex.12xlarge": 2.136480, "c8i-flex.16xlarge": 2.848640, "c8i-flex.2xlarge": 0.356080,
+		"c8i-flex.4xlarge": 0.712160, "c8i-flex.8xlarge": 1.424320, "c8i-flex.large": 0.089020,
+		"c8i-flex.xlarge": 0.178040,
+		// c8i family
+		"c8i.12xlarge": 2.249040, "c8i.16xlarge": 2.998720, "c8i.24xlarge": 4.498080, "c8i.2xlarge": 0.374840,
+		"c8i.32xlarge": 5.997440, "c8i.48xlarge": 8.996160, "c8i.4xlarge": 0.749680, "c8i.8xlarge": 1.499360,
+		"c8i.96xlarge": 17.992320, "c8i.large": 0.093710, "c8i.metal-48xl": 9.895780, "c8i.metal-96xl": 17.992320,
+		"c8i.xlarge": 0.187420,
 		// cr1 family
 		"cr1.8xlarge": 3.500000,
 		// d2 family
@@ -149,8 +167,12 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		// g6e family
 		"g6e.12xlarge": 10.492640, "g6e.16xlarge": 7.577190, "g6e.24xlarge": 15.065590, "g6e.2xlarge": 2.242080,
 		"g6e.48xlarge": 30.131180, "g6e.4xlarge": 3.004240, "g6e.8xlarge": 4.528560, "g6e.xlarge": 1.861000,
+		// g6f family
+		"g6f.2xlarge": 0.475000, "g6f.4xlarge": 0.950000, "g6f.large": 0.202000, "g6f.xlarge": 0.237500,
 		// gr6 family
 		"gr6.4xlarge": 1.539200, "gr6.8xlarge": 2.446400,
+		// gr6f family
+		"gr6f.4xlarge": 1.066000,
 		// h1 family
 		"h1.16xlarge": 3.744000, "h1.2xlarge": 0.468000, "h1.4xlarge": 0.936000, "h1.8xlarge": 1.872000,
 		// hpc7g family
@@ -182,6 +204,10 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"i8g.12xlarge": 4.118400, "i8g.16xlarge": 5.491200, "i8g.24xlarge": 8.236800, "i8g.2xlarge": 0.686400,
 		"i8g.48xlarge": 16.473600, "i8g.4xlarge": 1.372800, "i8g.8xlarge": 2.745600, "i8g.large": 0.171600,
 		"i8g.metal-24xl": 9.060480, "i8g.xlarge": 0.343200,
+		// i8ge family
+		"i8ge.12xlarge": 5.695200, "i8ge.18xlarge": 8.542800, "i8ge.24xlarge": 11.390400, "i8ge.2xlarge": 0.949200,
+		"i8ge.3xlarge": 1.423800, "i8ge.48xlarge": 22.780800, "i8ge.6xlarge": 2.847600, "i8ge.large": 0.237300,
+		"i8ge.metal-24xl": 12.131300, "i8ge.metal-48xl": 24.262600, "i8ge.xlarge": 0.474600,
 		// im4gn family
 		"im4gn.16xlarge": 5.820670, "im4gn.2xlarge": 0.727580, "im4gn.4xlarge": 1.455170, "im4gn.8xlarge": 2.910340,
 		"im4gn.large": 0.181900, "im4gn.xlarge": 0.363790,
@@ -274,6 +300,10 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"m7i.12xlarge": 2.419200, "m7i.16xlarge": 3.225600, "m7i.24xlarge": 4.838400, "m7i.2xlarge": 0.403200,
 		"m7i.48xlarge": 9.676800, "m7i.4xlarge": 0.806400, "m7i.8xlarge": 1.612800, "m7i.large": 0.100800,
 		"m7i.metal-24xl": 5.322240, "m7i.metal-48xl": 9.676800, "m7i.xlarge": 0.201600,
+		// m8a family
+		"m8a.12xlarge": 2.921280, "m8a.16xlarge": 3.895040, "m8a.24xlarge": 5.842560, "m8a.2xlarge": 0.486880,
+		"m8a.48xlarge": 11.685120, "m8a.4xlarge": 0.973760, "m8a.8xlarge": 1.947520, "m8a.large": 0.121720,
+		"m8a.medium": 0.060860, "m8a.metal-24xl": 6.426820, "m8a.metal-48xl": 11.685120, "m8a.xlarge": 0.243440,
 		// m8g family
 		"m8g.12xlarge": 2.154240, "m8g.16xlarge": 2.872320, "m8g.24xlarge": 4.308480, "m8g.2xlarge": 0.359040,
 		"m8g.48xlarge": 8.616960, "m8g.4xlarge": 0.718080, "m8g.8xlarge": 1.436160, "m8g.large": 0.089760,
@@ -283,6 +313,15 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"m8gd.48xlarge": 11.070720, "m8gd.4xlarge": 0.922560, "m8gd.8xlarge": 1.845120, "m8gd.large": 0.115320,
 		"m8gd.medium": 0.057660, "m8gd.metal-24xl": 6.088900, "m8gd.metal-48xl": 11.070720,
 		"m8gd.xlarge": 0.230640,
+		// m8i-flex family
+		"m8i-flex.12xlarge": 2.413200, "m8i-flex.16xlarge": 3.217600, "m8i-flex.2xlarge": 0.402200,
+		"m8i-flex.4xlarge": 0.804400, "m8i-flex.8xlarge": 1.608800, "m8i-flex.large": 0.100550,
+		"m8i-flex.xlarge": 0.201100,
+		// m8i family
+		"m8i.12xlarge": 2.540160, "m8i.16xlarge": 3.386880, "m8i.24xlarge": 5.080320, "m8i.2xlarge": 0.423360,
+		"m8i.32xlarge": 6.773760, "m8i.48xlarge": 10.160640, "m8i.4xlarge": 0.846720, "m8i.8xlarge": 1.693440,
+		"m8i.96xlarge": 20.321280, "m8i.large": 0.105840, "m8i.metal-48xl": 10.160640, "m8i.metal-96xl": 20.321280,
+		"m8i.xlarge": 0.211680,
 		// p2 family
 		"p2.16xlarge": 14.400000, "p2.8xlarge": 7.200000, "p2.xlarge": 0.900000,
 		// p3 family
@@ -294,9 +333,11 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		// p4de family
 		"p4de.24xlarge": 27.447050,
 		// p5 family
-		"p5.48xlarge": 55.040000,
+		"p5.48xlarge": 55.040000, "p5.4xlarge": 6.880000,
 		// p5en family
 		"p5en.48xlarge": 63.296000,
+		// p6-b200 family
+		"p6-b200.48xlarge": 113.932800,
 		// r3 family
 		"r3.2xlarge": 0.665000, "r3.4xlarge": 1.330000, "r3.8xlarge": 2.660000, "r3.large": 0.166000,
 		"r3.xlarge": 0.333000,
@@ -377,15 +418,37 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"r7iz.12xlarge": 4.464000, "r7iz.16xlarge": 5.952000, "r7iz.2xlarge": 0.744000, "r7iz.32xlarge": 11.904000,
 		"r7iz.4xlarge": 1.488000, "r7iz.8xlarge": 2.976000, "r7iz.large": 0.186000, "r7iz.metal-16xl": 6.547200,
 		"r7iz.metal-32xl": 13.094400, "r7iz.xlarge": 0.372000,
+		// r8a family
+		"r8a.12xlarge": 3.834240, "r8a.16xlarge": 5.112320, "r8a.24xlarge": 7.668480, "r8a.2xlarge": 0.639040,
+		"r8a.48xlarge": 15.336960, "r8a.4xlarge": 1.278080, "r8a.8xlarge": 2.556160, "r8a.large": 0.159760,
+		"r8a.medium": 0.079880, "r8a.metal-24xl": 8.435330, "r8a.metal-48xl": 15.336960, "r8a.xlarge": 0.319520,
 		// r8g family
 		"r8g.12xlarge": 2.827680, "r8g.16xlarge": 3.770240, "r8g.24xlarge": 5.655360, "r8g.2xlarge": 0.471280,
 		"r8g.48xlarge": 11.310720, "r8g.4xlarge": 0.942560, "r8g.8xlarge": 1.885120, "r8g.large": 0.117820,
 		"r8g.medium": 0.058910, "r8g.metal-24xl": 6.220900, "r8g.metal-48xl": 11.310720, "r8g.xlarge": 0.235640,
+		// r8gb family
+		"r8gb.12xlarge": 4.372320, "r8gb.16xlarge": 5.829760, "r8gb.24xlarge": 8.744640, "r8gb.2xlarge": 0.728720,
+		"r8gb.4xlarge": 1.457440, "r8gb.8xlarge": 2.914880, "r8gb.large": 0.182180, "r8gb.medium": 0.091090,
+		"r8gb.metal-24xl": 18.538640, "r8gb.xlarge": 0.364360,
 		// r8gd family
 		"r8gd.12xlarge": 3.527040, "r8gd.16xlarge": 4.702720, "r8gd.24xlarge": 7.054080, "r8gd.2xlarge": 0.587840,
 		"r8gd.48xlarge": 14.108160, "r8gd.4xlarge": 1.175680, "r8gd.8xlarge": 2.351360, "r8gd.large": 0.146960,
 		"r8gd.medium": 0.073480, "r8gd.metal-24xl": 7.759490, "r8gd.metal-48xl": 14.108160,
 		"r8gd.xlarge": 0.293920,
+		// r8gn family
+		"r8gn.12xlarge": 4.372300, "r8gn.16xlarge": 5.829800, "r8gn.24xlarge": 8.744600, "r8gn.2xlarge": 0.728700,
+		"r8gn.48xlarge": 17.489300, "r8gn.4xlarge": 1.457400, "r8gn.8xlarge": 2.914900, "r8gn.large": 0.182200,
+		"r8gn.medium": 0.091100, "r8gn.metal-24xl": 9.269300, "r8gn.metal-48xl": 17.489300,
+		"r8gn.xlarge": 0.364400,
+		// r8i-flex family
+		"r8i-flex.12xlarge": 3.167280, "r8i-flex.16xlarge": 4.223040, "r8i-flex.2xlarge": 0.527880,
+		"r8i-flex.4xlarge": 1.055760, "r8i-flex.8xlarge": 2.111520, "r8i-flex.large": 0.131970,
+		"r8i-flex.xlarge": 0.263940,
+		// r8i family
+		"r8i.12xlarge": 3.334080, "r8i.16xlarge": 4.445440, "r8i.24xlarge": 6.668160, "r8i.2xlarge": 0.555680,
+		"r8i.32xlarge": 8.890880, "r8i.48xlarge": 13.336320, "r8i.4xlarge": 1.111360, "r8i.8xlarge": 2.222720,
+		"r8i.96xlarge": 26.672640, "r8i.large": 0.138920, "r8i.metal-48xl": 14.669950, "r8i.metal-96xl": 26.672640,
+		"r8i.xlarge": 0.277840,
 		// t1 family
 		"t1.micro": 0.020000,
 		// t2 family
@@ -417,7 +480,7 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		// u-9tb1 family
 		"u-9tb1.112xlarge": 81.900000,
 		// u7i-12tb family
-		"u7i-12tb.224xlarge": 135.227750,
+		"u7i-12tb.224xlarge": 125.581820,
 		// u7i-6tb family
 		"u7i-6tb.112xlarge": 62.790000,
 		// u7i-8tb family

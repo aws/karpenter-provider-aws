@@ -31,6 +31,7 @@ const (
 	RateLimitingErrorCode                          = "RequestLimitExceeded"
 	ServiceLinkedRoleCreationNotPermittedErrorCode = "AuthFailure.ServiceLinkedRoleCreationNotPermitted"
 	InsufficientFreeAddressesInSubnetErrorCode     = "InsufficientFreeAddressesInSubnet"
+	MaxFleetCountExceededErrorCode                 = "MaxFleetCountExceeded"
 )
 
 var (
@@ -58,6 +59,7 @@ var (
 		"UnfulfillableCapacity",
 		"Unsupported",
 		"InsufficientFreeAddressesInSubnet",
+		"MaxFleetCountExceeded",
 		reservationCapacityExceededErrorCode,
 	)
 )
@@ -150,6 +152,23 @@ func IgnoreRateLimitedError(err error) error {
 	return err
 }
 
+func IsServerError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
+		return apiErr.ErrorFault() == smithy.FaultServer
+	}
+	return false
+}
+
+func IgnoreServerError(err error) error {
+	if IsServerError(err) {
+		return nil
+	}
+	return err
+}
+
 // IsUnfulfillableCapacity returns true if the Fleet err means capacity is temporarily unavailable for launching. This
 // could be due to account limits, insufficient ec2 capacity, etc.
 func IsUnfulfillableCapacity(err ec2types.CreateFleetError) bool {
@@ -203,6 +222,9 @@ func ToReasonMessage(err error) (string, string) {
 		}
 		if strings.Contains(err.Error(), "with an explicit deny in a service control policy") {
 			return "Unauthorized", "User is not authorized to perform this operation due to a service control policy"
+		}
+		if strings.Contains(err.Error(), "Not authorized for images") {
+			return "AMIAuthorizationFailure", "User is not authorized for AMI used in instance launch"
 		}
 		return "Unauthorized", "User is not authorized to perform this operation because no identity-based policy allows it"
 	}

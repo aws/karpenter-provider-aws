@@ -138,6 +138,7 @@ func getDescribeInstanceTypeOfferingsOutput() string {
 		"c6g.large":      {"test-zone-1a"},
 		"m5.metal":       {"test-zone-1a", "test-zone-1b"},
 		"m6idn.32xlarge": {"test-zone-1a", "test-zone-1b", "test-zone-1c"},
+		"m7i-flex.large": {"test-zone-1a"},
 	}
 
 	fmt.Fprintln(src, "var defaultDescribeInstanceTypeOfferingsOutput = &ec2.DescribeInstanceTypeOfferingsOutput{")

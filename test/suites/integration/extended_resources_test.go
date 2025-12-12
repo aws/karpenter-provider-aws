@@ -72,6 +72,13 @@ var _ = Describe("Extended Resources", func() {
 				Operator: corev1.NodeSelectorOpExists,
 			},
 		})
+		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceFamily,
+				Operator: corev1.NodeSelectorOpNotIn,
+				Values:   []string{"g6f"},
+			},
+		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -103,6 +110,13 @@ var _ = Describe("Extended Resources", func() {
 				Key:      v1.LabelInstanceCategory,
 				Operator: corev1.NodeSelectorOpExists,
 			}})
+		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceFamily,
+				Operator: corev1.NodeSelectorOpNotIn,
+				Values:   []string{"g6f"},
+			},
+		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -110,8 +124,6 @@ var _ = Describe("Extended Resources", func() {
 	})
 	It("should provision nodes for a deployment that requests aws.amazon.com/neuron", func() {
 		ExpectNeuronDevicePluginCreated()
-		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -152,8 +164,6 @@ var _ = Describe("Extended Resources", func() {
 	})
 	It("should provision nodes for a deployment that requests aws.amazon.com/neuroncore", func() {
 		ExpectNeuronDevicePluginCreated()
-		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -279,7 +289,7 @@ var _ = Describe("Extended Resources", func() {
 		Skip("skipping test on an exotic instance type")
 		ExpectHabanaDevicePluginCreated()
 
-		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2)
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
 				ID: "ami-0fae925f94979981f",

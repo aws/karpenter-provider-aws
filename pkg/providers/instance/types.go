@@ -29,7 +29,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	"sigs.k8s.io/karpenter/pkg/operator/options"
+	karpopts "sigs.k8s.io/karpenter/pkg/operator/options"
 )
 
 // Instance is an internal data representation of either an ec2.Instance or an ec2.FleetInstance
@@ -48,6 +48,7 @@ type Instance struct {
 	EFAEnabled              bool
 	CapacityReservationID   *string
 	CapacityReservationType *v1.CapacityReservationType
+	Tenancy                 string
 }
 
 func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
@@ -79,14 +80,20 @@ func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
 		CapacityReservationType: lo.If[*v1.CapacityReservationType](capacityType != karpv1.CapacityTypeReserved, nil).
 			ElseIf(instance.InstanceLifecycle == ec2types.InstanceLifecycleTypeCapacityBlock, lo.ToPtr(v1.CapacityReservationTypeCapacityBlock)).
 			Else(lo.ToPtr(v1.CapacityReservationTypeDefault)),
+		Tenancy: tenancyFromInstance(instance),
 	}
+}
+
+func tenancyFromInstance(instance ec2types.Instance) string {
+	tenancy := instance.Placement.Tenancy
+	return string(lo.Ternary(tenancy == "", ec2types.TenancyDefault, tenancy))
 }
 
 func capacityTypeFromInstance(ctx context.Context, instance ec2types.Instance) string {
 	if instance.SpotInstanceRequestId != nil {
 		return karpv1.CapacityTypeSpot
 	}
-	if options.FromContext(ctx).FeatureGates.ReservedCapacity &&
+	if karpopts.FromContext(ctx).FeatureGates.ReservedCapacity &&
 		instance.CapacityReservationId != nil &&
 		instance.CapacityReservationSpecification.CapacityReservationPreference == ec2types.CapacityReservationPreferenceCapacityReservationsOnly {
 		return karpv1.CapacityTypeReserved
@@ -111,6 +118,7 @@ func NewInstanceFromFleet(
 	out ec2types.CreateFleetInstance,
 	capacityType string,
 	tags map[string]string,
+	tenancyType string,
 	opts ...NewInstanceFromFleetOpts,
 ) *Instance {
 	resolved := option.Resolve(opts...)
@@ -124,6 +132,7 @@ func NewInstanceFromFleet(
 		CapacityType: capacityType,
 		SubnetID:     lo.FromPtr(out.LaunchTemplateAndOverrides.Overrides.SubnetId),
 		Tags:         tags,
+		Tenancy:      tenancyType,
 	}))
 	return resolved
 }
@@ -135,6 +144,7 @@ type CreateFleetInputBuilder struct {
 
 	contextID               *string
 	capacityReservationType v1.CapacityReservationType
+	overlay                 bool
 }
 
 func NewCreateFleetInputBuilder(capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) *CreateFleetInputBuilder {
@@ -149,11 +159,17 @@ func NewCreateFleetInputBuilder(capacityType string, tags map[string]string, lau
 			return ec2types.TagSpecification{ResourceType: resource, Tags: utils.EC2MergeTags(tags)}
 		}),
 		launchTemplateConfigs: launchTemplateConfigs,
+		overlay:               false,
 	}
 }
 
 func (b *CreateFleetInputBuilder) WithContextID(contextID string) *CreateFleetInputBuilder {
 	b.contextID = &contextID
+	return b
+}
+
+func (b *CreateFleetInputBuilder) WithOverlay() *CreateFleetInputBuilder {
+	b.overlay = true
 	return b
 }
 
@@ -192,11 +208,11 @@ func (b *CreateFleetInputBuilder) Build() *ec2.CreateFleetInput {
 	}
 	if b.capacityType == karpv1.CapacityTypeSpot {
 		input.SpotOptions = &ec2types.SpotOptionsRequest{
-			AllocationStrategy: ec2types.SpotAllocationStrategyPriceCapacityOptimized,
+			AllocationStrategy: lo.Ternary(b.overlay, ec2types.SpotAllocationStrategyCapacityOptimizedPrioritized, ec2types.SpotAllocationStrategyPriceCapacityOptimized),
 		}
 	} else if b.capacityReservationType != v1.CapacityReservationTypeCapacityBlock {
 		input.OnDemandOptions = &ec2types.OnDemandOptionsRequest{
-			AllocationStrategy: ec2types.FleetOnDemandAllocationStrategyLowestPrice,
+			AllocationStrategy: lo.Ternary(b.overlay, ec2types.FleetOnDemandAllocationStrategyPrioritized, ec2types.FleetOnDemandAllocationStrategyLowestPrice),
 		}
 	}
 	return input

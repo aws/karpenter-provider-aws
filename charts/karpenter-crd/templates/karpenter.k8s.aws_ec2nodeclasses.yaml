@@ -6,7 +6,7 @@ metadata:
     {{- with .Values.additionalAnnotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-    controller-gen.kubebuilder.io/version: v0.18.0
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: ec2nodeclasses.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws
@@ -265,6 +265,12 @@ spec:
                         description: ID is the capacity reservation id in EC2
                         pattern: ^cr-[0-9a-z]+$
                         type: string
+                      instanceMatchCriteria:
+                        description: InstanceMatchCriteria specifies how instances are matched to capacity reservations.
+                        enum:
+                          - open
+                          - targeted
+                        type: string
                       ownerID:
                         description: Owner is the owner id for the ami.
                         pattern: ^[0-9]{12}$
@@ -284,10 +290,10 @@ spec:
                   maxItems: 30
                   type: array
                   x-kubernetes-validations:
-                    - message: expected at least one, got none, ['tags', 'id']
-                      rule: self.all(x, has(x.tags) || has(x.id))
-                    - message: '''id'' is mutually exclusive, cannot be set along with tags in a capacity reservation selector term'
-                      rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID)))'
+                    - message: expected at least one, got none, ['tags', 'id', 'instanceMatchCriteria']
+                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.instanceMatchCriteria))
+                    - message: '''id'' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term'
+                      rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))'
                 context:
                   description: |-
                     Context is a Reserved field in EC2 APIs
@@ -311,6 +317,11 @@ spec:
                   enum:
                     - RAID0
                   type: string
+                ipPrefixCount:
+                  description: IPPrefixCount sets the number of IPv4 prefixes to be automatically assigned to the network interface.
+                  format: int32
+                  minimum: 0
+                  type: integer
                 kubelet:
                   description: |-
                     Kubelet defines args to be used when configuring kubelet on provisioned nodes.
@@ -506,17 +517,12 @@ spec:
                   type: object
                 role:
                   description: |-
-                    Role is the AWS identity that nodes use. This field is immutable.
+                    Role is the AWS identity that nodes use.
                     This field is mutually exclusive from instanceProfile.
-                    Marking this field as immutable avoids concerns around terminating managed instance profiles from running instances.
-                    This field may be made mutable in the future, assuming the correct garbage collection and drift handling is implemented
-                    for the old instance profiles on an update.
                   type: string
                   x-kubernetes-validations:
                     - message: role cannot be empty
                       rule: self != ''
-                    - message: immutable field changed
-                      rule: self == oldSelf
                 securityGroupSelectorTerms:
                   description: SecurityGroupSelectorTerms is a list of security group selector terms. The terms are ORed.
                   items:
@@ -620,8 +626,6 @@ spec:
               x-kubernetes-validations:
                 - message: must specify exactly one of ['role', 'instanceProfile']
                   rule: (has(self.role) && !has(self.instanceProfile)) || (!has(self.role) && has(self.instanceProfile))
-                - message: changing from 'instanceProfile' to 'role' is not supported. You must delete and recreate this node class if you want to change this.
-                  rule: (has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))
                 - message: if set, amiFamily must be 'AL2' or 'Custom' when using an AL2 alias
                   rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find(''^[^@]+'') == ''al2'') ? (self.amiFamily == ''Custom'' || self.amiFamily == ''AL2'') : true)'
                 - message: if set, amiFamily must be 'AL2023' or 'Custom' when using an AL2023 alias

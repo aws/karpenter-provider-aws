@@ -35,7 +35,7 @@ The following annotations, labels, and tags have been removed in `v1.0.0`:
 |`karpenter.sh/do-not-evict`|annotation|
 |`karpenter.sh/managed-by`|tag|
 
-Both the `karpenter.sh/do-not-consolidate` and the `karpenter.sh/do-not-evict` annotations were [deprecated in `v0.32.0`]({{<ref "../../v0.32/upgrading/v1beta1-migration/#annotations-labels-and-status-conditions">}}).
+Both the `karpenter.sh/do-not-consolidate` and the `karpenter.sh/do-not-evict` annotations were [deprecated in `v0.32.0`]({{<ref "../../v1.0/upgrading/v1beta1-migration/#annotations-labels-and-status-conditions">}}).
 They have now been dropped in-favor of their replacement, `karpenter.sh/do-not-disrupt`.
 
 The `karpenter.sh/managed-by`, which currently stores the cluster name in its value, is replaced by `eks:eks-cluster-name`, to allow
@@ -43,7 +43,7 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
 
 #### Zap Logging Config Removed
 
-Support for setting the Zap logging config was [deprecated in `v0.32.0`]({{<ref "../../v0.32/upgrading/v1beta1-migration#logging-configuration-is-no-longer-dynamic" >}}) and has been been removed in `v1.0.0`.
+Support for setting the Zap logging config was [deprecated in `v0.32.0`]({{<ref "../../v1.0/upgrading/v1beta1-migration#logging-configuration-is-no-longer-dynamic" >}}) and has been been removed in `v1.0.0`.
 The following environment variables are now available to configure logging:
 
 * `LOG_LEVEL`
@@ -255,7 +255,7 @@ You should still review the upgrade procedure; the sequence of operations remain
 7. We're now ready to begin the upgrade to `v1`. Set the `KARPENTER_VERSION` environment variable to the latest `v1.0.x` release.
 
     ```bash
-    export KARPENTER_VERSION="1.0.10"
+    export KARPENTER_VERSION="1.0.11"
     ```
 
 8. Attach the v1 policy to your existing NodeRole.

@@ -32,8 +32,9 @@ When a Karpenter node is deleted, the Karpenter finalizer will block deletion an
 1. Add the `karpenter.sh/disrupted:NoSchedule` taint to the node to prevent pods from scheduling to it.
 2. Begin evicting the pods on the node with the [Kubernetes Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/) to respect PDBs, while ignoring all [static pods](https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/), pods tolerating the `karpenter.sh/disrupted:NoSchedule` taint, and succeeded/failed pods. Wait for the node to be fully drained before proceeding to Step (3).
    * While waiting, if the underlying NodeClaim for the node no longer exists, remove the finalizer to allow the APIServer to delete the node, completing termination.
-3. Terminate the NodeClaim in the Cloud Provider.
-4. Remove the finalizer from the node to allow the APIServer to delete the node, completing termination.
+3. Verify that all [VolumeAttachment](https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/volume-attachment-v1/) resources for drain-able pods are deleted.
+4. Terminate the NodeClaim in the Cloud Provider.
+5. Remove the finalizer from the node to allow the APIServer to delete the node, completing termination.
 
 ## Manual Methods
 * **Node Deletion**: You can use `kubectl` to manually remove a single Karpenter node or nodeclaim. Since each Karpenter node is owned by a NodeClaim, deleting either the node or the nodeclaim will cause cascade deletion of the other:
@@ -78,6 +79,7 @@ Disruption is configured through the NodePool's disruption block by the `consoli
 spec:
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 0s
 ```
 {{% /alert %}}
 
@@ -173,7 +175,7 @@ Pod disruption budgets may be used to rate-limit application disruption.
 
 A node is expired once it's lifetime exceeds the duration set on the owning NodeClaim's `spec.expireAfter` field.
 Changes to `spec.template.spec.expireAfter` on the owning NodePool will not update the field for existing NodeClaims - it will induce NodeClaim drift and the replacements will have the updated value.
-Expiration can be used, in conjunction with [`terminationGracePeriod`](#termination-grace-period), to enforce a maximum Node lifetime.
+Expiration can be used, in conjunction with [`terminationGracePeriod`](#terminationgraceperiod), to enforce a maximum Node lifetime.
 By default, `expireAfter` is set to `720h` (30 days).
 
 {{% alert title="Warning" color="warning" %}}

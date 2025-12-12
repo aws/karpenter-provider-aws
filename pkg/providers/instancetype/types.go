@@ -196,6 +196,7 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceEBSBandwidth, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceNetworkBandwidth, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceCategory, corev1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1.LabelInstanceCapabilityFlex, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceFamily, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceGeneration, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceLocalNVME, corev1.NodeSelectorOpDoesNotExist),
@@ -209,6 +210,7 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceHypervisor, corev1.NodeSelectorOpIn, string(info.Hypervisor)),
 		scheduling.NewRequirement(v1.LabelInstanceEncryptionInTransitSupported, corev1.NodeSelectorOpIn, fmt.Sprint(aws.ToBool(info.NetworkInfo.EncryptionInTransitSupported))),
+		scheduling.NewRequirement(v1.LabelInstanceTenancy, corev1.NodeSelectorOpIn, string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)),
 	)
 	// Only add zone-id label when available in offerings. It may not be available if a user has upgraded from a
 	// previous version of Karpenter w/o zone-id support and the nodeclass subnet status has not yet updated.
@@ -245,6 +247,12 @@ func computeRequirements(
 	if info.InstanceStorageInfo != nil && info.InstanceStorageInfo.NvmeSupport != ec2types.EphemeralNvmeSupportUnsupported && info.InstanceStorageInfo.TotalSizeInGB != nil {
 		requirements[v1.LabelInstanceLocalNVME].Insert(fmt.Sprint(lo.FromPtr(info.InstanceStorageInfo.TotalSizeInGB)))
 	}
+	if strings.Contains(instanceTypeParts[0], "-flex") {
+		requirements[v1.LabelInstanceCapabilityFlex].Insert("true")
+	} else {
+		requirements[v1.LabelInstanceCapabilityFlex].Insert("false")
+	}
+
 	// Network bandwidth
 	if bandwidth, ok := InstanceTypeBandwidthMegabits[string(info.InstanceType)]; ok {
 		requirements[v1.LabelInstanceNetworkBandwidth].Insert(fmt.Sprint(bandwidth))

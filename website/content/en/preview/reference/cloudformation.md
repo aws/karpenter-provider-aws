@@ -113,7 +113,7 @@ Someone wanting to add Karpenter to an existing cluster, instead of using `cloud
 
 The AllowScopedEC2InstanceAccessActions statement ID (Sid) identifies a set of EC2 resources that are allowed to be accessed with
 [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html) and [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html) actions.
-For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read (but not create) `image`, `snapshot`, `security-group`, `subnet` and `launch-template` EC2 resources, scoped for the particular AWS partition and region.
+For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read (but not create) `image`, `snapshot`, `security-group`, `subnet` and `capacity-reservation` EC2 resources, scoped for the particular AWS partition and region.
 
 ```json
 {
@@ -123,7 +123,8 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read 
     "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
-    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*"
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*"
   ],
   "Action": [
     "ec2:RunInstances",
@@ -298,6 +299,7 @@ This allows the Karpenter controller to do any of those read-only actions across
   "Effect": "Allow",
   "Resource": "*",
   "Action": [
+    "ec2:DescribeCapacityReservations",
     "ec2:DescribeImages",
     "ec2:DescribeInstances",
     "ec2:DescribeInstanceTypeOfferings",
@@ -481,6 +483,19 @@ The AllowInstanceProfileReadActions Sid gives the Karpenter controller permissio
 }
 ```
 
+#### AllowUnscopedInstanceProfileListAction
+
+The AllowUnscopedInstanceProfileListAction Sid gives the Karpenter controller permission to perform [`iam:ListInstanceProfiles`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListInstanceProfiles.html) action to list instance profiles.
+
+```json
+{
+  "Sid": "AllowUnscopedInstanceProfileListAction",
+  "Effect": "Allow",
+  "Resource": "*",
+  "Action": "iam:ListInstanceProfiles"
+}
+```
+
 #### AllowAPIServerEndpointDiscovery
 
 You can optionally allow the Karpenter controller to discover the Kubernetes cluster's external API endpoint to enable EC2 nodes to successfully join the EKS cluster.
@@ -488,6 +503,7 @@ You can optionally allow the Karpenter controller to discover the Kubernetes clu
 > **Note**: If you are not using an EKS control plane, you will have to specify this endpoint explicitly. See the description of the `aws.clusterEndpoint` setting in the [ConfigMap](.settings/#configmap) documentation for details.
 
 The AllowAPIServerEndpointDiscovery Sid allows the Karpenter controller to get that information (`eks:DescribeCluster`) for the cluster (`cluster/${ClusterName}`).
+
 ```json
 {
   "Sid": "AllowAPIServerEndpointDiscovery",

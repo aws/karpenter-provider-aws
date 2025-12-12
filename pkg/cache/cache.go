@@ -46,7 +46,11 @@ const (
 	// if it is not updated by a node creation event or refreshed during controller reconciliation
 	DiscoveredCapacityCacheTTL = 60 * 24 * time.Hour
 	// ValidationTTL is time to check authorization errors with validation controller
-	ValidationTTL = 10 * time.Minute
+	ValidationTTL = 30 * time.Minute
+	// RecreationTTL is the duration to suppress instance profile recreation for the same role to avoid duplicates
+	RecreationTTL = 1 * time.Minute
+	// ProtectedProfilesTTL is the duration to keep profiles as protected before nodeclass garbagecollector considers deletion
+	ProtectedProfilesTTL = 1 * time.Hour
 )
 
 const (

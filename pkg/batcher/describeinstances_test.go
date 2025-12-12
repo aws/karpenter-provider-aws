@@ -153,6 +153,7 @@ var _ = Describe("DescribeInstances Batcher", func() {
 		Expect(*lastCall.Filters[0].Name).To(Equal("instance-state-name"))
 		Expect(receivedInstance).To(BeNumerically("==", 3))
 		Expect(numUnfulfilled).To(BeNumerically("==", 0))
+		Expect(firstCall.MaxResults).To(BeNil())
 	})
 	It("should return errors to all callers when erroring on the batched call", func() {
 		instanceIDs := []string{"i-1", "i-2", "i-3", "i-4", "i-5"}

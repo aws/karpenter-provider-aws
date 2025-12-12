@@ -30,9 +30,10 @@ import (
 )
 
 type Query struct {
-	ID      string
-	OwnerID string
-	Tags    map[string]string
+	ID                    string
+	OwnerID               string
+	Tags                  map[string]string
+	InstanceMatchCriteria string
 }
 
 func QueriesFromSelectorTerms(terms ...v1.CapacityReservationSelectorTerm) []*Query {
@@ -41,10 +42,11 @@ func QueriesFromSelectorTerms(terms ...v1.CapacityReservationSelectorTerm) []*Qu
 		if id := terms[i].ID; id != "" {
 			queries = append(queries, &Query{ID: id})
 		}
-		if len(terms[i].Tags) != 0 {
+		if len(terms[i].Tags) != 0 || terms[i].InstanceMatchCriteria != "" {
 			queries = append(queries, &Query{
-				OwnerID: terms[i].OwnerID,
-				Tags:    terms[i].Tags,
+				OwnerID:               terms[i].OwnerID,
+				Tags:                  terms[i].Tags,
+				InstanceMatchCriteria: terms[i].InstanceMatchCriteria,
 			})
 		}
 	}
@@ -63,6 +65,7 @@ func (q *Query) DescribeCapacityReservationsInput() *ec2.DescribeCapacityReserva
 		Values: []string{string(ec2types.CapacityReservationStateActive)},
 	}}
 	if len(q.ID) != 0 {
+		// MaxResults can't be used when listing a capacity reservation by id
 		return &ec2.DescribeCapacityReservationsInput{
 			Filters:                filters,
 			CapacityReservationIds: []string{q.ID},
@@ -88,8 +91,16 @@ func (q *Query) DescribeCapacityReservationsInput() *ec2.DescribeCapacityReserva
 			}
 		})...)
 	}
+	if q.InstanceMatchCriteria != "" {
+		filters = append(filters, ec2types.Filter{
+			Name:   lo.ToPtr("instance-match-criteria"),
+			Values: []string{q.InstanceMatchCriteria},
+		})
+	}
 	return &ec2.DescribeCapacityReservationsInput{
 		Filters: filters,
+		// MaxResults for DescribeCapacityReservations is capped at 1000
+		MaxResults: lo.ToPtr[int32](1000),
 	}
 }
 

@@ -17,6 +17,7 @@ package filter_test
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/awslabs/operatorpkg/option"
@@ -274,7 +275,40 @@ var _ = Describe("InstanceFiltersTest", func() {
 			})
 			expectInstanceTypes(kept, "cheap-instance")
 			expectInstanceTypes(rejected, "expensive-instance")
+			Expect(kept[0].Offerings).To(HaveLen(1))
 		})
+		DescribeTable(
+			"OfferingSelection",
+			func(expectedReservationID string, offerings ...*cloudprovider.Offering) {
+				f := filter.CapacityBlockFilter(
+					scheduling.NewRequirements(scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpExists),
+						scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpNotIn, "forbidden-zone"),
+					))
+				kept, _ := f.FilterReject([]*cloudprovider.InstanceType{makeInstanceType("instance", withOfferings(offerings...))})
+				Expect(kept[0].Offerings).To(HaveLen(1))
+				Expect(kept[0].Offerings[0].ReservationID()).To(Equal(expectedReservationID))
+			},
+			Entry(
+				"should select the cheapest offering",
+				"cheapest",
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(1.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("cheapest")),
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(2.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("expensive")),
+			),
+			Entry(
+				"should not select unavailable offerings",
+				"cheapest-available",
+				makeOffering(karpv1.CapacityTypeReserved, false, withPrice(1.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("cheapest")),
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(1.5), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("cheapest-available")),
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(2.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("expensive")),
+			),
+			Entry(
+				"should not select incompatible offerings",
+				"cheapest-compatible",
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(1.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withZone("forbidden-zone"), withReservationID("cheapest")),
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(1.5), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("cheapest-compatible")),
+				makeOffering(karpv1.CapacityTypeReserved, true, withPrice(2.0), withCapacityReservationType(v1.CapacityReservationTypeCapacityBlock), withReservationID("expensive")),
+			),
+		)
 		DescribeTable(
 			"shouldn't filter instance types when the capacity reservation type is not capacity-block",
 			func(crt v1.CapacityReservationType) {
@@ -291,6 +325,9 @@ var _ = Describe("InstanceFiltersTest", func() {
 				})
 				expectInstanceTypes(kept, "cheap-instance", "expensive-instance")
 				Expect(rejected).To(BeEmpty())
+				for _, it := range kept {
+					Expect(it.Offerings).To(HaveLen(2))
+				}
 			},
 			lo.FilterMap(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) (TableEntry, bool) {
 				return Entry(fmt.Sprintf("when the capacity reservation type is %q", string(crt)), crt), crt != v1.CapacityReservationTypeCapacityBlock
@@ -310,6 +347,9 @@ var _ = Describe("InstanceFiltersTest", func() {
 			})
 			expectInstanceTypes(kept, "cheap-instance", "expensive-instance")
 			Expect(rejected).To(BeEmpty())
+			for _, it := range kept {
+				Expect(it.Offerings).To(HaveLen(2))
+			}
 		})
 	})
 
@@ -468,143 +508,130 @@ var _ = Describe("InstanceFiltersTest", func() {
 		})
 	})
 
-	Context("SpotInstanceFilter", func() {
-		It("should reject spot instances whose cheapest offering is more expensive than the cheapest on-demand offering", func() {
-			f := filter.SpotInstanceFilter(scheduling.NewRequirements(scheduling.NewRequirement(
-				karpv1.CapacityTypeLabelKey,
-				corev1.NodeSelectorOpExists,
-			)))
-			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
-				// Include an expensive on-demand offering to ensure we're comparing against the cheapest. On-demand instances
-				// should always be kept.
-				makeInstanceType("expensive-od-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(15.0)),
-					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(15.0)),
-				)),
-				// On-demand instances should always be kept
-				makeInstanceType("od-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(5.0)), // cheapest od offering
-					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(10.0)),
-				)),
-				// Instance should be kept because all offerings are cheaper than the cheapest od instance
-				makeInstanceType("cheap-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(1.0)),
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(2.0)),
-				)),
-				// Instance should be kept since it contains a single cheaper offering
-				makeInstanceType("mixed-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(1.0)),
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0)),
-				)),
-				// Instance should be rejected because although it has a cheaper offering, that offering is not available
-				makeInstanceType("mixed-unavailable-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, false, withPrice(1.0)),
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0)),
-				)),
-				// Instance should be rejected because all offerings are more expensive than the cheapest on-demand offering
-				makeInstanceType("expensive-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0)),
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0)),
-				)),
-			})
-			expectInstanceTypes(kept, "expensive-od-instance", "od-instance", "cheap-spot-instance", "mixed-spot-instance")
-			expectInstanceTypes(rejected, "mixed-unavailable-spot-instance", "expensive-spot-instance")
-		})
-		It("should not reject spot instances whose cheapest offering is more expensive than the cheapest on-demand offering if it is only compatible with spot", func() {
-			f := filter.SpotInstanceFilter(scheduling.NewRequirements(
+	Context("SpotOfferingFilter", func() {
+		It("should filter out expensive spot offerings while keeping instance types with remaining offerings", func() {
+			f := filter.SpotOfferingFilter(scheduling.NewRequirements(
 				scheduling.NewRequirement(
 					karpv1.CapacityTypeLabelKey,
 					corev1.NodeSelectorOpExists,
 				),
 				scheduling.NewRequirement(
-					corev1.LabelTopologyZone,
-					corev1.NodeSelectorOpIn,
-					"zone-1a",
-					"zone-1b",
+					"test.karpenter.sh/tag",
+					corev1.NodeSelectorOpExists,
 				),
 			))
-
-			keptInstanceTypes := []*cloudprovider.InstanceType{
-				// Include an expensive on-demand offering to ensure we're comparing against the cheapest. On-demand instances
-				// should always be kept.
-				makeInstanceType("expensive-od-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(15.0), withZone("zone-1a")),
-					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(15.0), withZone("zone-1b")),
-				)),
-				// On-demand instances should always be kept
-				makeInstanceType("od-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(5.0), withZone("zone-1a")), // cheapest od offering
-					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(10.0), withZone("zone-1b")),
-				)),
-				// Instance should be kept because all offerings are cheaper than the cheapest od instance
-				makeInstanceType("cheap-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(1.0), withZone("zone-1a")),
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(2.0), withZone("zone-1b")),
-				)),
-				// Instance should be kept since it contains a single cheaper offering
-				makeInstanceType("mixed-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(1.0), withZone("zone-1a")),
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0), withZone("zone-1b")),
-				)),
-				// Instance should be kept since it contains an offering in a compatible zone cheaper than the cheapest od offering
-				makeInstanceType("mixed-compatible-available-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(1.0), withZone("zone-1a")),
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0), withZone("zone-1c")),
-				)),
-				// Instance should be kept since it contains a reserved offering
-				makeInstanceType("reserved-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0), withZone("zone-1a")),
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0), withZone("zone-1b")),
-					makeOffering(karpv1.CapacityTypeReserved, true, withZone("zone-1b")),
-				)),
-			}
-			rejectedInstanceTypes := []*cloudprovider.InstanceType{
-				// Instance should be rejected because although it has a cheaper offering, that offering is not available
-				makeInstanceType("mixed-unavailable-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, false, withPrice(1.0), withZone("zone-1a")),
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0), withZone("zone-1b")),
-				)),
-				// Instance should be rejected since it does not contain an offering in a compatible zone cheaper than the
-				// cheapest od offering
-				makeInstanceType("mixed-compatible-unavailable-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0), withZone("zone-1a")),
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(1.0), withZone("zone-1c")),
-				)),
-				// Instance should be rejected because all offerings are more expensive than the cheapest on-demand offering
-				makeInstanceType("expensive-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0), withZone("zone-1a")),
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0), withZone("zone-1b")),
-				)),
-			}
-
-			kept, rejected := f.FilterReject(lo.Flatten([][]*cloudprovider.InstanceType{keptInstanceTypes, rejectedInstanceTypes}))
-			expectInstanceTypes(kept, lo.Map(keptInstanceTypes, func(it *cloudprovider.InstanceType, _ int) string { return it.Name })...)
-			expectInstanceTypes(rejected, lo.Map(rejectedInstanceTypes, func(it *cloudprovider.InstanceType, _ int) string { return it.Name })...)
-		})
-		It("should not reject instances if the nodeclaim is only compatible with spot", func() {
-			f := filter.SpotInstanceFilter(scheduling.NewRequirements(scheduling.NewRequirement(
-				karpv1.CapacityTypeLabelKey,
-				corev1.NodeSelectorOpIn,
-				karpv1.CapacityTypeSpot,
-			)))
 			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
+				// On-demand instance should be kept with all offerings
 				makeInstanceType("od-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(5.0)),
+					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(5.0), withTag("kept")), // cheapest od offering
+					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(10.0), withTag("kept")),
 				)),
+				// Instance with cheap spot offerings should be kept with all offerings
 				makeInstanceType("cheap-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(1.0)),
+					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(1.0), withTag("kept")),
+					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(2.0), withTag("kept")),
 				)),
-				makeInstanceType("expensive-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0)),
+				// Instance with mixed spot offerings should be kept but expensive spot offering filtered out
+				makeInstanceType("mixed-spot-instance", withOfferings(
+					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(1.0), withTag("kept")),
+					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0), withTag("rejected")), // should be filtered
 				)),
 			})
-			expectInstanceTypes(kept, "od-instance", "cheap-spot-instance", "expensive-spot-instance")
+			expectInstanceTypes(kept, "od-instance", "cheap-spot-instance", "mixed-spot-instance")
 			Expect(rejected).To(BeEmpty())
+			Expect(lo.Map(kept, func(it *cloudprovider.InstanceType, _ int) int {
+				return len(it.Offerings)
+			})).To(ConsistOf(2, 2, 1))
+			// Check that all kept offerings have tag="kept"
+			for _, it := range kept {
+				for _, o := range it.Offerings {
+					Expect(o.Requirements.Get("test.karpenter.sh/tag").Any()).To(Equal("kept"))
+				}
+			}
 		})
-		It("should not reject instances if minValues is set", func() {
-			f := filter.SpotInstanceFilter(scheduling.NewRequirements(
+		It("should reject instance types with no remaining offerings after filtering", func() {
+			f := filter.SpotOfferingFilter(scheduling.NewRequirements(
 				scheduling.NewRequirement(
 					karpv1.CapacityTypeLabelKey,
+					corev1.NodeSelectorOpExists,
+				),
+				scheduling.NewRequirement(
+					"test.karpenter.sh/tag",
+					corev1.NodeSelectorOpExists,
+				),
+			))
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
+				makeInstanceType("od-instance", withOfferings(
+					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(5.0), withTag("kept")),
+				)),
+				// Instance with only expensive spot offerings should be rejected
+				makeInstanceType("expensive-spot-instance", withOfferings(
+					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0), withTag("kept")),
+					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(15.0), withTag("kept")),
+				)),
+			})
+			expectInstanceTypes(kept, "od-instance")
+			expectInstanceTypes(rejected, "expensive-spot-instance")
+			Expect(kept[0].Offerings).To(HaveLen(1))
+			for _, o := range kept[0].Offerings {
+				Expect(o.Requirements.Get("test.karpenter.sh/tag").Any()).To(Equal("kept"))
+			}
+		})
+		It("should not filter when no on-demand offerings exist", func() {
+			f := filter.SpotOfferingFilter(scheduling.NewRequirements(
+				scheduling.NewRequirement(
+					karpv1.CapacityTypeLabelKey,
+					corev1.NodeSelectorOpExists,
+				),
+				scheduling.NewRequirement(
+					"test.karpenter.sh/tag",
+					corev1.NodeSelectorOpExists,
+				),
+			))
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
+				makeInstanceType("spot-instance", withOfferings(
+					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0), withTag("kept")),
+				)),
+			})
+			expectInstanceTypes(kept, "spot-instance")
+			Expect(rejected).To(BeEmpty())
+			Expect(kept[0].Offerings).To(HaveLen(1))
+			for _, o := range kept[0].Offerings {
+				Expect(o.Requirements.Get("test.karpenter.sh/tag").Any()).To(Equal("kept"))
+			}
+		})
+		It("should not filter when requirements don't support both spot and on-demand", func() {
+			f := filter.SpotOfferingFilter(scheduling.NewRequirements(
+				scheduling.NewRequirement(
+					karpv1.CapacityTypeLabelKey,
+					corev1.NodeSelectorOpIn,
+					karpv1.CapacityTypeSpot,
+				),
+				scheduling.NewRequirement(
+					"test.karpenter.sh/tag",
+					corev1.NodeSelectorOpExists,
+				),
+			))
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
+				makeInstanceType("spot-instance", withOfferings(
+					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0), withTag("kept")),
+				)),
+			})
+			expectInstanceTypes(kept, "spot-instance")
+			Expect(rejected).To(BeEmpty())
+			Expect(kept[0].Offerings).To(HaveLen(1))
+			for _, o := range kept[0].Offerings {
+				Expect(o.Requirements.Get("test.karpenter.sh/tag").Any()).To(Equal("kept"))
+			}
+		})
+		It("should not filter when minValues is set", func() {
+			f := filter.SpotOfferingFilter(scheduling.NewRequirements(
+				scheduling.NewRequirement(
+					karpv1.CapacityTypeLabelKey,
+					corev1.NodeSelectorOpExists,
+				),
+				scheduling.NewRequirement(
+					"test.karpenter.sh/tag",
 					corev1.NodeSelectorOpExists,
 				),
 				scheduling.NewRequirementWithFlexibility(
@@ -615,17 +642,22 @@ var _ = Describe("InstanceFiltersTest", func() {
 			))
 			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType("od-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(5.0)),
-				)),
-				makeInstanceType("cheap-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(1.0)),
+					makeOffering(karpv1.CapacityTypeOnDemand, true, withPrice(5.0), withTag("kept")),
 				)),
 				makeInstanceType("expensive-spot-instance", withOfferings(
-					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0)),
+					makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0), withTag("kept")),
 				)),
 			})
-			expectInstanceTypes(kept, "od-instance", "cheap-spot-instance", "expensive-spot-instance")
+			expectInstanceTypes(kept, "od-instance", "expensive-spot-instance")
 			Expect(rejected).To(BeEmpty())
+			Expect(lo.Map(kept, func(it *cloudprovider.InstanceType, _ int) int {
+				return len(it.Offerings)
+			})).To(ConsistOf(1, 1))
+			for _, it := range kept {
+				for _, o := range it.Offerings {
+					Expect(o.Requirements.Get("test.karpenter.sh/tag").Any()).To(Equal("kept"))
+				}
+			}
 		})
 	})
 })
@@ -666,6 +698,9 @@ func withOfferings(offerings ...*cloudprovider.Offering) mockInstanceTypeOptions
 
 func makeInstanceType(name string, opts ...mockInstanceTypeOptions) *cloudprovider.InstanceType {
 	instanceType := option.Resolve(opts...)
+	rand.Shuffle(len(instanceType.Offerings), func(i, j int) {
+		instanceType.Offerings[i], instanceType.Offerings[j] = instanceType.Offerings[j], instanceType.Offerings[i]
+	})
 	instanceType.Name = name
 	instanceType.Overhead = &cloudprovider.InstanceTypeOverhead{
 		KubeReserved:      corev1.ResourceList{},
@@ -725,6 +760,19 @@ func withZone(zone string) mockOfferingOptions {
 func withPrice(price float64) mockOfferingOptions {
 	return func(o *cloudprovider.Offering) {
 		o.Price = price
+	}
+}
+
+func withTag(tag string) mockOfferingOptions {
+	return func(o *cloudprovider.Offering) {
+		if o.Requirements == nil {
+			o.Requirements = scheduling.NewRequirements()
+		}
+		o.Requirements.Add(scheduling.NewRequirement(
+			"test.karpenter.sh/tag",
+			corev1.NodeSelectorOpIn,
+			tag,
+		))
 	}
 }
 

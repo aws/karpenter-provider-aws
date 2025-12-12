@@ -2,7 +2,7 @@
 [settings.kubernetes]
 api-server = 'https://test-cluster'
 cloud-provider = 'external'
-cluster-certificate = 'ca-bundle'
+cluster-certificate = 'Y2EtYnVuZGxlCg=='
 cluster-name = 'test-cluster'
 cluster-dns-ip = '10.0.100.10'
 max-pods = 110

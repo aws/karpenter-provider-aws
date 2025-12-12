@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"regexp"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
@@ -34,6 +36,7 @@ func init() {
 		LabelInstanceHypervisor,
 		LabelInstanceEncryptionInTransitSupported,
 		LabelInstanceCategory,
+		LabelInstanceCapabilityFlex,
 		LabelInstanceFamily,
 		LabelInstanceGeneration,
 		LabelInstanceSize,
@@ -52,7 +55,18 @@ func init() {
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
 		LabelTopologyZoneID,
+		LabelInstanceTenancy,
 		corev1.LabelWindowsBuild,
+	)
+
+	karpv1.WellKnownValuesForRequirements[LabelInstanceTenancy] = sets.New(string(ec2types.TenancyDedicated), string(ec2types.TenancyDefault))
+
+	karpv1.WellKnownResources.Insert(
+		ResourceAWSPodENI,
+		ResourceAWSNeuron,
+		ResourceAWSNeuronCore,
+		ResourceHabanaGaudi,
+		ResourceEFA,
 	)
 }
 
@@ -124,6 +138,7 @@ var (
 	LabelInstanceHypervisor                   = apis.Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = apis.Group + "/instance-encryption-in-transit-supported"
 	LabelInstanceCategory                     = apis.Group + "/instance-category"
+	LabelInstanceCapabilityFlex               = apis.Group + "/instance-capability-flex"
 	LabelInstanceFamily                       = apis.Group + "/instance-family"
 	LabelInstanceGeneration                   = apis.Group + "/instance-generation"
 	LabelInstanceLocalNVME                    = apis.Group + "/instance-local-nvme"
@@ -142,6 +157,7 @@ var (
 	LabelInstanceAcceleratorManufacturer      = apis.Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
 	LabelNodeClass                            = apis.Group + "/ec2nodeclass"
+	LabelInstanceTenancy                      = apis.Group + "/instance-tenancy"
 
 	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
 
@@ -149,6 +165,7 @@ var (
 	AnnotationClusterNameTaggedCompatability = apis.CompatibilityGroup + "/cluster-name-tagged"
 	AnnotationEC2NodeClassHashVersion        = apis.Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                 = apis.Group + "/tagged"
+	AnnotationInstanceProfile                = apis.Group + "/instance-profile-name"
 
 	NodeClaimTagKey          = coreapis.Group + "/nodeclaim"
 	NameTagKey               = "Name"

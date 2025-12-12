@@ -35,6 +35,10 @@ kind: NodePool
 metadata:
   name: default
 spec:
+  # Optional: Number of nodes to maintain for static capacity
+  # When set, NodePool operates in static mode maintaining fixed node count
+  replicas: 5
+  
   # Template section that describes how to template out NodeClaim resources that Karpenter will provision
   # Karpenter will consider this template to be the minimum requirements needed to provision a Node using this NodePool
   # It will overlay this NodePool with Pods that need to schedule to further constrain the NodeClaims
@@ -145,10 +149,14 @@ spec:
   limits:
     cpu: "1000"
     memory: 1000Gi
+    # For static NodePools, limits.nodes constrains maximum node count during scaling/drift
+    # Note : Supported only for static NodePools
+    nodes: 10
 
   # Priority given to the NodePool when the scheduler considers which NodePool
   # to select. Higher weights indicate higher priority when comparing NodePools.
   # Specifying no weight is equivalent to specifying a weight of 0.
+  # Note: weight cannot be set when replicas is specified
   weight: 10
 status:
   conditions:
@@ -158,11 +166,26 @@ status:
       lastTransitionTime: "2024-02-02T19:54:34Z"
       reason: NodeClaimNotLaunched
       message: "NodeClaim hasn't succeeded launch"
+  # Current node count for the NodePool
+  nodes: 5
   resources:
     cpu: "20"
     memory: "8192Mi"
     ephemeral-storage: "100Gi"
 ```
+## spec.replicas
+
+Optional field that enables static capacity mode. When specified, the NodePool maintains a fixed number of nodes regardless of pod demand.
+
+**Static NodePool Constraints:**
+- Cannot be removed once set (NodePool cannot switch between static and dynamic modes)
+- Only `limits.nodes` is allowed in limits section
+- `weight` field cannot be set
+- Nodes are not considered for consolidation
+- Scale operations bypass node disruption budgets but respect PodDisruptionBudgets
+
+**Scaling:** Use `kubectl scale nodepool <name> --replicas=<count>` to change replica count.
+
 ## metadata.name
 The name of the NodePool.
 
@@ -204,6 +227,13 @@ These well-known labels may be specified at the NodePool level, or in a workload
 
 For example, an instance type may be specified using a nodeSelector in a pod spec. If the instance type requested is not included in the NodePool list and the NodePool has instance type requirements, Karpenter will not create a node or schedule the pod.
 
+**Static NodePool**
+
+The requirements for static NodePool behaves identically to dynamic pools — it defines the constraints for all NodeClaims launched under that NodePool.
+
+The NodeClaim requirements are directly derived from the NodeClaimTemplate on the NodePool. These are evaluated once per NodeClaim at creation, meaning the selection is based solely on what the template allows.
+As a result, NodeClaims created for the same static NodePool could result in different instance types being launched depending on instance availability so long as those instance types are compatible with the NodePool's requirements.
+
 ### Well-Known Labels
 
 #### Instance Types
@@ -212,6 +242,7 @@ For example, an instance type may be specified using a nodeSelector in a pod spe
 - key: `karpenter.k8s.aws/instance-family`
 - key: `karpenter.k8s.aws/instance-category`
 - key: `karpenter.k8s.aws/instance-generation`
+- key: `karpenter.k8s.aws/instance-capability-flex`
 
 Generally, instance types should be a list and not a single value. Leaving these requirements undefined is recommended, as it maximizes choices for efficiently placing pods.
 
@@ -227,6 +258,7 @@ Karpenter can be configured to create nodes in a particular zone. Note that the 
 
 [Learn more about Availability Zone
 IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
+
 
 #### Architecture
 
@@ -253,7 +285,7 @@ Karpenter supports `linux` and `windows` operating systems.
   - `on-demand`
   - `reserved`
 
-Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html).
+Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html). Note that the `reserved` capacity type refers to [capacity reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-reservation-overview.html) (on-demand capacity reservations and capacity blocks) not [reserved instances](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-reserved-instances.html) (RIs).
 
 If a NodePool is compatible with multiple capacity types, Karpenter will prioritize `reserved` capacity, followed by `spot`, then finally `on-demand`.
 If the provider API (e.g. EC2 Fleet's API) indicates capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 3 minutes.
@@ -267,7 +299,7 @@ There is currently a limit of 100 on the total number of requirements on both th
 
 ### Min Values
 
-Along with the combination of [key,operator,values] in the requirements, Karpenter also supports `minValues` in the NodePool requirements block, allowing the scheduler to be aware of user-specified flexibility minimums while scheduling pods to a cluster. If Karpenter cannot meet this minimum flexibility for each key when scheduling a pod, it will fail the scheduling loop for that NodePool, either falling back to another NodePool which meets the pod requirements or failing scheduling the pod altogether.
+Along with the combination of [key,operator,values] in the requirements, Karpenter also supports `minValues` in the NodePool requirements block, allowing the scheduler to be aware of user-specified flexibility minimums while scheduling pods to a cluster. Depending on the policy configured via the flag `--min-values-policy` or environment variable `MIN_VALUES_POLICY`, if Karpenter cannot meet this minimum flexibility for each key when scheduling a pod, it will either fail the scheduling loop for that NodePool, either falling back to another NodePool which meets the pod requirements or failing scheduling the pod altogether (when policy is set to `Strict`) or relax `minValues` until they can be met (when policy is set to `BestEffort`).
 
 For example, the below spec will use spot instance type for all provisioned instances and enforces `minValues` to various keys where it is defined
 i.e at least 2 unique instance families from [c,m,r], 5 unique instance families [eg: "m5","m5d","r4","c5","c5d","c4" etc], 10 unique instance types [eg: "c5.2xlarge","c4.xlarge" etc] is required for scheduling the pods.
@@ -372,12 +404,15 @@ The NodePool spec includes a limits section (`spec.limits`), which constrains th
 
 If the `NodePool.spec.limits` section is unspecified, it means that there is no default limitation on resource allocation. In this case, the maximum resource consumption is governed by the quotas set by your cloud provider. If a limit has been exceeded, nodes provisioning is prevented until some nodes have been terminated.
 
+**For Static NodePools:** Only `limits.nodes` is supported. This field constrains the maximum number of nodes during scaling operations or drift replacement. Note that `limits.nodes` is support only on static NodePools.
+
 ```yaml
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
 spec:
+  replicas: 10
   template:
     spec:
       requirements:
@@ -388,6 +423,8 @@ spec:
     cpu: 1000
     memory: 1000Gi
     nvidia.com/gpu: 2
+    # For static NodePools, only nodes limit is allowed
+    nodes: 20
 ```
 
 {{% alert title="Note" color="primary" %}}
@@ -430,6 +467,9 @@ NodePools have the following status conditions:
 
 If a NodePool is not ready, it will not be considered for scheduling.
 
+## status.nodes
+This field shows the current number of nodes managed by the NodePool.
+
 ## status.resources
 Objects under `status.resources` provide information about the status of resources such as `cpu`, `memory`, and `ephemeral-storage`.
 
@@ -460,6 +500,37 @@ spec:
         effect: NoSchedule
 ```
 In order for a pod to run on a node defined in this NodePool, it must tolerate `nvidia.com/gpu` in its pod spec.
+
+### Static NodePool
+
+A NodePool can be configured for static capacity by setting the `replicas` field. This maintains a fixed number of nodes regardless of pod demand.
+Users who want to spread nodes across zones can do so explicitly by:
+- Creating multiple static NodePools, each pinned to a specific AZ.
+
+The following example creates a static NodePool with 10 replicas:
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: static-capacity
+spec:
+  replicas: 10
+  template:
+    spec:
+      requirements:
+      - key: node.kubernetes.io/instance-type
+        operator: In
+        values: ["m5.large", "m5.xlarge"]
+      - key: topology.kubernetes.io/zone
+        operator: In
+        values: ["us-west-2a"]  # All replicas will come up in specified zone
+  limits:
+    nodes: 15  # Maximum nodes during scaling/drift
+  disruption:
+    budgets:
+    - nodes: 20%  # Disruption budget for drift replacement
+```
 
 ### Cilium Startup Taint
 

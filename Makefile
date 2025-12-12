@@ -20,7 +20,10 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.featureGates.nodeRepair=true \
 			--set settings.featureGates.reservedCapacity=true \
 			--set settings.featureGates.spotToSpotConsolidation=true \
+			--set settings.featureGates.nodeOverlay=true \
+			--set settings.featureGates.staticCapacity=true \
 			--set settings.preferencePolicy=Ignore \
+			--set logLevel=debug \
 			--create-namespace
 
 # CR for local builds of Karpenter
@@ -56,7 +59,7 @@ run: ## Run Karpenter controller binary against your local cluster
 		DISABLE_LEADER_ELECTION=true \
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
-		FEATURE_GATES="SpotToSpotConsolidation=true" \
+		FEATURE_GATES="SpotToSpotConsolidation=true,NodeOverlay=true,StaticCapacity=true" \
 		LOG_LEVEL="debug" \
 		go run ./cmd/controller/main.go
 
@@ -68,7 +71,7 @@ test: ## Run tests
 		--ginkgo.vv
 
 deflake: ## Run randomized, racing tests until the test fails to catch flakes
-	ginkgo \
+	go tool ginkgo \
 		--race \
 		--focus="${FOCUS}" \
 		--randomize-all \
@@ -93,11 +96,11 @@ e2etests: ## Run the e2e suite against your local cluster
 
 upstream-e2etests: tidy download
 	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/default_ec2nodeclass.yaml > ${TMPFILE}
-	go test \
+	cd $(KARPENTER_CORE_DIR) && go test \
 		-count 1 \
 		-timeout 3.25h \
 		-v \
-		$(KARPENTER_CORE_DIR)/test/suites/... \
+		./test/suites/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.timeout=3h \
 		--ginkgo.grace-period=5m \
@@ -106,7 +109,7 @@ upstream-e2etests: tidy download
 		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml"
 
 e2etests-deflake: ## Run the e2e suite against your local cluster
-	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} go tool ginkgo \
 		--focus="${FOCUS}" \
 		--timeout=3h \
 		--grace-period=3m \
@@ -138,17 +141,17 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 		fi;}
 	@echo "Validating codegen/docgen build scripts..."
 	@find hack/code hack/docs -name "*.go" -type f -print0 | xargs -0 -I {} go build -o /dev/null {}
-	actionlint -oneline
+	go tool actionlint -oneline
 
 vulncheck: ## Verify code vulnerabilities
-	@govulncheck ./pkg/...
+	@go tool govulncheck ./pkg/...
 
 licenses: download ## Verifies dependency licenses
 	# TODO: remove nodeadm check once license is updated
-	! go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0' -e 'github.com/awslabs/amazon-eks-ami/nodeadm'
+	! go tool go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0' -e 'github.com/awslabs/amazon-eks-ami/nodeadm'
 
 image: ## Build the Karpenter controller images using ko build
-	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build --bare github.com/aws/karpenter-provider-aws/cmd/controller))
+	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" go tool ko build --bare github.com/aws/karpenter-provider-aws/cmd/controller))
 	$(eval IMG_REPOSITORY=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 1))
 	$(eval IMG_TAG=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 2 -s))
 	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
@@ -160,7 +163,6 @@ apply: verify image ## Deploy the controller from the current state of your git 
 	kubectl apply -f ./pkg/apis/crds/
 	helm upgrade --install karpenter charts/karpenter --namespace ${KARPENTER_NAMESPACE} \
         $(HELM_OPTS) \
-        --set logLevel=debug \
         --set controller.image.repository=$(IMG_REPOSITORY) \
         --set controller.image.tag=$(IMG_TAG) \
         --set controller.image.digest=$(IMG_DIGEST)
@@ -212,6 +214,15 @@ download: ## Recursively "go mod download" on all directories where go.mod exist
 update-karpenter: ## Update kubernetes-sigs/karpenter to latest
 	go get -u sigs.k8s.io/karpenter@HEAD
 	go mod tidy
+
+.PHONY: deploy-cfn
+deploy-cfn: ## Deploys the cloudformation stack defined in the docs preview directory
+	aws cloudformation deploy \
+		--stack-name "Karpenter-${CLUSTER_NAME}" \
+		--template-file "./website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml" \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameter-overrides "ClusterName=${CLUSTER_NAME}"
+
 
 .PHONY: help presubmit ci-test ci-non-test run test deflake e2etests e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
 

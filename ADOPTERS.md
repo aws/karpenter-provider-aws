@@ -20,7 +20,8 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Anthropic | Better utilizing mixes of instance types for more reliable capacity | N/A | [Homepage](https://anthropic.com) |
 | AppsFlyer | Managing statefull workloads like Kafka and more | `@alicvsroxas` `@danielvrog`| [Homepage](https://www.appsflyer.com/)|
 | Astradot | Using Karpenter on all K8s clusters in production and staging | N/A | [Homepage](https://astradot.com) |
-| Beeswax | Using Karpenter to scale our high load AdTech platform efficiently | `@James Wojewoda` | [Homepage](https://www.beeswax.com)
+| Beeswax | Using Karpenter to scale our high load AdTech platform efficiently | `@James Wojewoda` | [Homepage](https://www.beeswax.com) |
+| Cabify | Replace cluster-autoscaler in our EKS clusters | N/A | [Homepage](https://tech.cabify.com) |
 | Canva | Using Karpetner to scale CPU and GPU workloads on EKS | `@groodt` | [Canva](https://www.canva.com/) |
 | Cloud Posse, LLC | Karpenter ships out-of-the-box in our Terraform Blueprint for EKS and is offered as part of our comprehensive multi-account [AWS reference architecture](https://cloudposse.com/reference-architecture/). Everything is Open Source (APACHE2). | `@osterman` | [Karpenter : The Cloud Posse Developer Hub](https://docs.cloudposse.com/components/catalog/aws/eks/karpenter/) |
 | Codefresh | Juggling workloads for the SAAS CD/GitOps offering | `@Yonatan Koren`, `@Ilia Medvedev` | [Codefresh](https://codefresh.io/) |
@@ -48,6 +49,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Rapid7 | Using Karpenter across all of our Kubernetes infrastructure for efficient autoscaling, both in terms of speed and cost | `@arobinson`, `@Ross Kirk`, `@Ryan Williams` | [Homepage](https://www.rapid7.com/) |
 | Sendcloud | Using Karpenter to scale our k8s clusters for Europe’s #1 shipping automation platform  | N/A | [Homepage](https://www.sendcloud.com/) |
 | Sentra | Using Karpenter to scale our EKS clusters, running our platform and workflows while maximizing cost-efficiency with minimal operational overhead | `@Roei Jacobovich` | [Homepage](https://sentra.io/) |
+| Sophotech | We rely on Karpenter to keep our clients' Kubernetes clusters fast, efficient, and cost-optimized. It is an irreplaceable part of our infrastructure toolkit, instantly scaling nodes to match demand. Once you use Karpenter, there is no going back. | `@archy-rock3t-cloud` | [Homepage](https://sopho.tech) |
 | SternumIOT | Using Karpenter to efficiently autoscale & manage our EKS clusters with GitOps, optimizing node lifecycle management for both performance and cost-effectiveness across our Kubernetes workloads | `@itayvolo` `@amitde69` | [SternumIOT](https://sternumiot.com/) |
 | Stone Pagamentos | Using Karpenter to do smart sizing of our clusters  | `@fabiano-amaral` | [Stone Pagamentos](https://www.stone.com.br/) |
 | Stytch | Powering the scaling needs of Stytch's authentication and user-management APIs  | `@Elijah Chanakira`, `@Ovadia Harary` | [Homepage](https://www.stytch.com/) |

@@ -66,13 +66,10 @@ func FilterHasher(ctx context.Context, input *ec2.DescribeInstancesInput) uint64
 func execDescribeInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput] {
 	return func(ctx context.Context, inputs []*ec2.DescribeInstancesInput) []Result[ec2.DescribeInstancesOutput] {
 		results := make([]Result[ec2.DescribeInstancesOutput], len(inputs))
-		firstInput := inputs[0]
-		// aggregate instanceIDs into 1 input
-		for _, input := range inputs[1:] {
-			firstInput.InstanceIds = append(firstInput.InstanceIds, input.InstanceIds...)
-		}
-		missingInstanceIDs := sets.NewString(lo.Map(firstInput.InstanceIds, func(i string, _ int) string { return i })...)
-		paginator := ec2.NewDescribeInstancesPaginator(ec2api, firstInput)
+		aggregatedInput := prepareAggregatedInput(inputs)
+
+		missingInstanceIDs := sets.NewString(lo.Map(aggregatedInput.InstanceIds, func(i string, _ int) string { return i })...)
+		paginator := ec2.NewDescribeInstancesPaginator(ec2api, aggregatedInput)
 
 		for paginator.HasMorePages() {
 			output, err := paginator.NextPage(ctx)
@@ -114,7 +111,7 @@ func execDescribeInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.DescribeIns
 				defer wg.Done()
 				// try to execute separately
 				out, err := ec2api.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
-					Filters:     firstInput.Filters,
+					Filters:     aggregatedInput.Filters,
 					InstanceIds: []string{instanceID},
 				})
 
@@ -129,4 +126,15 @@ func execDescribeInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.DescribeIns
 		wg.Wait()
 		return results
 	}
+}
+
+func prepareAggregatedInput(inputs []*ec2.DescribeInstancesInput) *ec2.DescribeInstancesInput {
+	aggregatedInput := inputs[0]
+
+	// aggregate instanceIDs into 1 input
+	for _, input := range inputs[1:] {
+		aggregatedInput.InstanceIds = append(aggregatedInput.InstanceIds, input.InstanceIds...)
+	}
+
+	return aggregatedInput
 }
