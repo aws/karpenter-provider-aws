@@ -260,13 +260,22 @@ func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, r
 }
 
 func getFilterSets(terms []v1.SubnetSelectorTerm) (res [][]ec2types.Filter) {
-	idFilter := ec2types.Filter{Name: aws.String("subnet-id")}
 	for _, term := range terms {
+		var filters []ec2types.Filter
+
 		switch {
 		case term.ID != "":
-			idFilter.Values = append(idFilter.Values, term.ID)
+			filters = append(filters, ec2types.Filter{
+				Name:   aws.String("subnet-id"),
+				Values: []string{term.ID},
+			})
+
+		case term.CidrBlock != "":
+			filters = append(filters, ec2types.Filter{
+				Name:   aws.String("cidr-block"),
+				Values: []string{term.CidrBlock},
+			})
 		default:
-			var filters []ec2types.Filter
 			for k, v := range term.Tags {
 				if v == "*" {
 					filters = append(filters, ec2types.Filter{
@@ -280,11 +289,11 @@ func getFilterSets(terms []v1.SubnetSelectorTerm) (res [][]ec2types.Filter) {
 					})
 				}
 			}
+		}
+		if len(filters) > 0 {
 			res = append(res, filters)
 		}
 	}
-	if len(idFilter.Values) > 0 {
-		res = append(res, []ec2types.Filter{idFilter})
-	}
+
 	return res
 }
