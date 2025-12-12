@@ -741,25 +741,29 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.VolumeSize)).To(BeNumerically("==", 2))
 			})
 		})
-		It("should default bottlerocket second volume with root volume size", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(len(ltInput.LaunchTemplateData.BlockDeviceMappings)).To(Equal(2))
-				// Bottlerocket control volume
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(Equal(int32(4)))
-				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal(ec2types.VolumeType("gp3")))
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops)).To(Equal(int32(0)))
-				// Bottlerocket user volume
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.VolumeSize)).To(Equal(int32(20)))
-				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.VolumeType).To(Equal(ec2types.VolumeType("gp3")))
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.Iops)).To(Equal(int32(0)))
-			})
-		})
+		DescribeTable("should default bottlerocket second volume with root volume size",
+			func(alias string) {
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					Expect(len(ltInput.LaunchTemplateData.BlockDeviceMappings)).To(Equal(2))
+					// Bottlerocket control volume
+					Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(Equal(int32(4)))
+					Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal(ec2types.VolumeType("gp3")))
+					Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops)).To(Equal(int32(0)))
+					// Bottlerocket user volume
+					Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.VolumeSize)).To(Equal(int32(20)))
+					Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.VolumeType).To(Equal(ec2types.VolumeType("gp3")))
+					Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs.Iops)).To(Equal(int32(0)))
+				})
+			},
+			Entry("bottlerocket@latest", "bottlerocket@latest"),
+			Entry("bottlerocket-fips@latest", "bottlerocket-fips@latest"),
+		)
 		It("should not default block device mappings for custom AMIFamilies", func() {
 			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
