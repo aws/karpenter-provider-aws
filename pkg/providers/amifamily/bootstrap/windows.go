@@ -16,6 +16,7 @@ package bootstrap
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -28,7 +29,7 @@ type Windows struct {
 }
 
 // nolint:gocyclo
-func (w Windows) Script() (string, error) {
+func (w Windows) Script(ctx context.Context) (string, error) {
 	var userData bytes.Buffer
 	userData.WriteString("<powershell>\n")
 

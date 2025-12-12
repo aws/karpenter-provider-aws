@@ -23,12 +23,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func NewBottlerocketConfig(userdata *string) (*BottlerocketConfig, error) {
+func NewBottlerocketConfig(userdata *string, ctx context.Context) (*BottlerocketConfig, error) {
 	c := &BottlerocketConfig{}
 	if userdata == nil {
 		return c, nil
 	}
-	if err := c.UnmarshalTOML([]byte(*userdata)); err != nil {
+	if err := c.UnmarshalTOML([]byte(*userdata), ctx); err != nil {
 		return c, err
 	}
 	return c, nil
@@ -124,7 +124,7 @@ type BootstrapCommand struct {
 	Essential bool                 `toml:"essential"`
 }
 
-func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
+func (c *BottlerocketConfig) UnmarshalTOML(data []byte, ctx context.Context) error {
 	// unmarshal known settings
 	s := struct {
 		Settings BottlerocketSettings `toml:"settings"`
@@ -137,7 +137,7 @@ func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
 		// only log in case we got an error of type toml.StrictMissingError
 		var details *toml.StrictMissingError
 		if errors.As(err, &details) {
-			log.FromContext(context.Background()).Error(err, "Unknown parameter in userData K8s settings", "reason", details.String())
+			log.FromContext(ctx).Error(err, "Unknown parameter in userData K8s settings", "reason", details.String())
 		}
 	}
 	// proceed without strict mode

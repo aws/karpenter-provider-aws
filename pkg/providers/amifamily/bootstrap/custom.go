@@ -15,6 +15,7 @@ limitations under the License.
 package bootstrap
 
 import (
+	"context"
 	"encoding/base64"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -24,6 +25,6 @@ type Custom struct {
 	Options
 }
 
-func (e Custom) Script() (string, error) {
+func (e Custom) Script(ctx context.Context) (string, error) {
 	return base64.StdEncoding.EncodeToString([]byte(aws.ToString(e.CustomUserData))), nil
 }
