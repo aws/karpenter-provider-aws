@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2025-10-20T13:22:37Z for us-east-1
+// generated at 2025-11-19T08:10:27Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -296,6 +296,10 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"m7i.12xlarge": 2.419200, "m7i.16xlarge": 3.225600, "m7i.24xlarge": 4.838400, "m7i.2xlarge": 0.403200,
 		"m7i.48xlarge": 9.676800, "m7i.4xlarge": 0.806400, "m7i.8xlarge": 1.612800, "m7i.large": 0.100800,
 		"m7i.metal-24xl": 5.322240, "m7i.metal-48xl": 9.676800, "m7i.xlarge": 0.201600,
+		// m8a family
+		"m8a.12xlarge": 2.921280, "m8a.16xlarge": 3.895040, "m8a.24xlarge": 5.842560, "m8a.2xlarge": 0.486880,
+		"m8a.48xlarge": 11.685120, "m8a.4xlarge": 0.973760, "m8a.8xlarge": 1.947520, "m8a.large": 0.121720,
+		"m8a.medium": 0.060860, "m8a.metal-24xl": 6.426820, "m8a.metal-48xl": 11.685120, "m8a.xlarge": 0.243440,
 		// m8g family
 		"m8g.12xlarge": 2.154240, "m8g.16xlarge": 2.872320, "m8g.24xlarge": 4.308480, "m8g.2xlarge": 0.359040,
 		"m8g.48xlarge": 8.616960, "m8g.4xlarge": 0.718080, "m8g.8xlarge": 1.436160, "m8g.large": 0.089760,
@@ -410,6 +414,10 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"r7iz.12xlarge": 4.464000, "r7iz.16xlarge": 5.952000, "r7iz.2xlarge": 0.744000, "r7iz.32xlarge": 11.904000,
 		"r7iz.4xlarge": 1.488000, "r7iz.8xlarge": 2.976000, "r7iz.large": 0.186000, "r7iz.metal-16xl": 6.547200,
 		"r7iz.metal-32xl": 13.094400, "r7iz.xlarge": 0.372000,
+		// r8a family
+		"r8a.12xlarge": 3.834240, "r8a.16xlarge": 5.112320, "r8a.24xlarge": 7.668480, "r8a.2xlarge": 0.639040,
+		"r8a.48xlarge": 15.336960, "r8a.4xlarge": 1.278080, "r8a.8xlarge": 2.556160, "r8a.large": 0.159760,
+		"r8a.medium": 0.079880, "r8a.metal-24xl": 8.435330, "r8a.metal-48xl": 15.336960, "r8a.xlarge": 0.319520,
 		// r8g family
 		"r8g.12xlarge": 2.827680, "r8g.16xlarge": 3.770240, "r8g.24xlarge": 5.655360, "r8g.2xlarge": 0.471280,
 		"r8g.48xlarge": 11.310720, "r8g.4xlarge": 0.942560, "r8g.8xlarge": 1.885120, "r8g.large": 0.117820,

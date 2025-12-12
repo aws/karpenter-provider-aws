@@ -528,4 +528,210 @@ var _ = Describe("InstanceProvider", func() {
 
 		Expect(priotiztied.SpotOptions.AllocationStrategy).To(Equal(ec2types.SpotAllocationStrategyPriceCapacityOptimized))
 	})
+	Context("Allocation Strategy from EC2NodeClass", func() {
+		It("should use on-demand allocation strategy from EC2NodeClass", func() {
+			nodeClass.Spec.AllocationStrategy = &v1.AllocationStrategy{
+				OnDemandAllocationStrategy: lo.ToPtr("prioritized"),
+			}
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      karpv1.CapacityTypeLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values: []string{
+							"on-demand",
+						},
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+
+			Expect(createFleetInput.OnDemandOptions).ToNot(BeNil())
+			Expect(createFleetInput.OnDemandOptions.AllocationStrategy).To(Equal(ec2types.FleetOnDemandAllocationStrategyPrioritized))
+		})
+		It("should use spot allocation strategy from EC2NodeClass", func() {
+			nodeClass.Spec.AllocationStrategy = &v1.AllocationStrategy{
+				SpotAllocationStrategy: lo.ToPtr("capacity-optimized"),
+			}
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      karpv1.CapacityTypeLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values: []string{
+							"spot",
+						},
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+
+			Expect(createFleetInput.SpotOptions).ToNot(BeNil())
+			Expect(createFleetInput.SpotOptions.AllocationStrategy).To(Equal(ec2types.SpotAllocationStrategyCapacityOptimized))
+		})
+		It("should use lowest-price spot allocation strategy from EC2NodeClass", func() {
+			nodeClass.Spec.AllocationStrategy = &v1.AllocationStrategy{
+				SpotAllocationStrategy: lo.ToPtr("lowest-price"),
+			}
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      karpv1.CapacityTypeLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values: []string{
+							"spot",
+						},
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+
+			Expect(createFleetInput.SpotOptions).ToNot(BeNil())
+			Expect(createFleetInput.SpotOptions.AllocationStrategy).To(Equal(ec2types.SpotAllocationStrategyLowestPrice))
+		})
+		It("should use capacity-optimized-prioritized spot allocation strategy from EC2NodeClass", func() {
+			nodeClass.Spec.AllocationStrategy = &v1.AllocationStrategy{
+				SpotAllocationStrategy: lo.ToPtr("capacity-optimized-prioritized"),
+			}
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      karpv1.CapacityTypeLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values: []string{
+							"spot",
+						},
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+
+			Expect(createFleetInput.SpotOptions).ToNot(BeNil())
+			Expect(createFleetInput.SpotOptions.AllocationStrategy).To(Equal(ec2types.SpotAllocationStrategyCapacityOptimizedPrioritized))
+		})
+		It("should use both on-demand and spot allocation strategies from EC2NodeClass", func() {
+			nodeClass.Spec.AllocationStrategy = &v1.AllocationStrategy{
+				OnDemandAllocationStrategy: lo.ToPtr("prioritized"),
+				SpotAllocationStrategy:     lo.ToPtr("capacity-optimized"),
+			}
+			// Test with on-demand
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      karpv1.CapacityTypeLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values: []string{
+							"on-demand",
+						},
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+
+			Expect(createFleetInput.OnDemandOptions).ToNot(BeNil())
+			Expect(createFleetInput.OnDemandOptions.AllocationStrategy).To(Equal(ec2types.FleetOnDemandAllocationStrategyPrioritized))
+		})
+		It("should use default allocation strategy when EC2NodeClass allocation strategy is not set", func() {
+			nodeClass.Spec.AllocationStrategy = nil
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      karpv1.CapacityTypeLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values: []string{
+							"on-demand",
+						},
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+
+			Expect(createFleetInput.OnDemandOptions).ToNot(BeNil())
+			Expect(createFleetInput.OnDemandOptions.AllocationStrategy).To(Equal(ec2types.FleetOnDemandAllocationStrategyLowestPrice))
+		})
+		It("should use default spot allocation strategy when EC2NodeClass spot allocation strategy is not set", func() {
+			nodeClass.Spec.AllocationStrategy = &v1.AllocationStrategy{
+				OnDemandAllocationStrategy: lo.ToPtr("prioritized"),
+				// SpotAllocationStrategy not set
+			}
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      karpv1.CapacityTypeLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values: []string{
+							"spot",
+						},
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+
+			Expect(createFleetInput.SpotOptions).ToNot(BeNil())
+			Expect(createFleetInput.SpotOptions.AllocationStrategy).To(Equal(ec2types.SpotAllocationStrategyPriceCapacityOptimized))
+		})
+	})
 })

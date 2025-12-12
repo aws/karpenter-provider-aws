@@ -154,6 +154,12 @@ spec:
   # Optional, configures if the instance should be launched with an associated public IP address.
   # If not specified, the default value depends on the subnet's public IP auto-assign setting.
   associatePublicIPAddress: true
+
+  # Optional, specifies the EC2 Fleet allocation strategy for on-demand and spot instances.
+  # If not specified, defaults to "lowest-price" for on-demand instances and "price-capacity-optimized" for spot instances.
+  allocationStrategy:
+    onDemandAllocationStrategy: prioritized  # Valid values: "lowest-price", "prioritized"
+    spotAllocationStrategy: capacity-optimized  # Valid values: "lowest-price", "price-capacity-optimized", "capacity-optimized", "capacity-optimized-prioritized"
 status:
   # Resolved subnets
   subnets:
@@ -1561,6 +1567,50 @@ requires that the field is only set to true when configuring an instance with a 
 ## spec.ipPrefixCount
 
 This value is a integer field that controls how many ip prefixes will be assigned to `NodeClaim`. See the [EC2 Launch Template Network Interface Spec](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ec2-launchtemplate-networkinterface.html) for more information. Sets ipv4PrefixCount if you are using an IPv4 Cluster, or ipv6PrefixCount if you are using IPv6.
+
+## spec.allocationStrategy
+
+The `allocationStrategy` field specifies the EC2 Fleet allocation strategy for on-demand and spot instances. This allows you to control how EC2 selects instance types when launching nodes.
+
+### Default Behavior
+
+If `allocationStrategy` is not specified, Karpenter uses the following defaults:
+- **On-demand instances**: `lowest-price` - selects the instance type with the lowest price
+- **Spot instances**: `price-capacity-optimized` - balances price with capacity availability to minimize interruptions
+
+### On-Demand Allocation Strategies
+
+- **`lowest-price`** (default): Selects the instance type with the lowest price from the available options. This is the default behavior when the field is not specified.
+- **`prioritized`**: Uses the priority order specified in the launch template overrides. This is useful when using node overlays or when you want to prioritize specific instance types.
+
+### Spot Allocation Strategies
+
+- **`lowest-price`**: Selects the instance type with the lowest spot price. This may result in higher interruption rates.
+- **`price-capacity-optimized`** (default): Balances price with capacity availability. EC2 selects the instance type that has both the lowest price and the lowest chance of interruption. This is the default behavior when the field is not specified.
+- **`capacity-optimized`**: Prioritizes capacity availability over price. EC2 selects the instance type with the lowest chance of interruption, regardless of price.
+- **`capacity-optimized-prioritized`**: Combines capacity optimization with priority ordering. EC2 selects from the instance types with the lowest chance of interruption, then applies priority ordering. This is automatically used when node overlays are enabled.
+
+### Examples
+
+```yaml
+spec:
+  # Use prioritized allocation for on-demand instances
+  allocationStrategy:
+    onDemandAllocationStrategy: prioritized
+
+  # Use capacity-optimized allocation for spot instances
+  allocationStrategy:
+    spotAllocationStrategy: capacity-optimized
+
+  # Configure both strategies
+  allocationStrategy:
+    onDemandAllocationStrategy: prioritized
+    spotAllocationStrategy: capacity-optimized-prioritized
+```
+
+{{% alert title="Note" color="info" %}}
+When using node overlays, the allocation strategy automatically switches to `prioritized` for on-demand instances and `capacity-optimized-prioritized` for spot instances, unless explicitly overridden by setting `allocationStrategy` in the EC2NodeClass.
+{{% /alert %}}
 
 ## status.subnets
 [`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
