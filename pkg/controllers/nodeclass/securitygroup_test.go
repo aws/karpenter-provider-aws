@@ -228,4 +228,40 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		Expect(nodeClass.Status.SecurityGroups).To(BeNil())
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsFalse()).To(BeTrue())
 	})
+	It("Should resolve a valid selector for Security Groups by name with VPC ID", func() {
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+			{
+				Name:  "securityGroup-test1",
+				VPCID: "vpc-test123",
+			},
+		}
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
+			{
+				ID:   "sg-test1",
+				Name: "securityGroup-test1",
+			},
+		}))
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
+	})
+	It("Should resolve a valid selector for Security Groups by tags with VPC ID", func() {
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+			{
+				Tags:  map[string]string{"Name": "test-security-group-1"},
+				VPCID: "vpc-test123",
+			},
+		}
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
+			{
+				ID:   "sg-test1",
+				Name: "securityGroup-test1",
+			},
+		}))
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
+	})
 })
