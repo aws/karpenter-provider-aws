@@ -538,6 +538,7 @@ func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSe
 			{
 				GroupId:   aws.String("sg-test1"),
 				GroupName: aws.String("securityGroup-test1"),
+				VpcId:     aws.String("vpc-test1"),
 				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String("test-security-group-1")},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
@@ -546,6 +547,7 @@ func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSe
 			{
 				GroupId:   aws.String("sg-test2"),
 				GroupName: aws.String("securityGroup-test2"),
+				VpcId:     aws.String("vpc-test1"),
 				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String("test-security-group-2")},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
@@ -554,6 +556,7 @@ func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSe
 			{
 				GroupId:   aws.String("sg-test3"),
 				GroupName: aws.String("securityGroup-test3"),
+				VpcId:     aws.String("vpc-test1"),
 				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String("test-security-group-3")},
 					{Key: aws.String("TestTag")},

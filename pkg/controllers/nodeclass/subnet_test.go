@@ -60,30 +60,34 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 				ID:     "subnet-test1",
 				Zone:   "test-zone-1a",
 				ZoneID: "tstz1-1a",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test2",
 				Zone:   "test-zone-1b",
 				ZoneID: "tstz1-1b",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test3",
 				Zone:   "test-zone-1c",
 				ZoneID: "tstz1-1c",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test4",
 				Zone:   "test-zone-1a-local",
 				ZoneID: "tstz1-1alocal",
+			VpcID:  "vpc-test1",
 			},
 		}))
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeSubnetsReady)).To(BeTrue())
 	})
 	It("Should have the correct ordering for the Subnets", func() {
 		awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
-			{SubnetId: aws.String("subnet-test1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(20)},
-			{SubnetId: aws.String("subnet-test2"), AvailabilityZone: aws.String("test-zone-1b"), AvailabilityZoneId: aws.String("tstz1-1b"), AvailableIpAddressCount: aws.Int32(100)},
-			{SubnetId: aws.String("subnet-test3"), AvailabilityZone: aws.String("test-zone-1c"), AvailabilityZoneId: aws.String("tstz1-1c"), AvailableIpAddressCount: aws.Int32(50)},
+			{SubnetId: aws.String("subnet-test1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(20), VpcId: aws.String("vpc-test1")},
+			{SubnetId: aws.String("subnet-test2"), AvailabilityZone: aws.String("test-zone-1b"), AvailabilityZoneId: aws.String("tstz1-1b"), AvailableIpAddressCount: aws.Int32(100), VpcId: aws.String("vpc-test1")},
+			{SubnetId: aws.String("subnet-test3"), AvailabilityZone: aws.String("test-zone-1c"), AvailabilityZoneId: aws.String("tstz1-1c"), AvailableIpAddressCount: aws.Int32(50), VpcId: aws.String("vpc-test1")},
 		}})
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
@@ -93,16 +97,19 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 				ID:     "subnet-test2",
 				Zone:   "test-zone-1b",
 				ZoneID: "tstz1-1b",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test3",
 				Zone:   "test-zone-1c",
 				ZoneID: "tstz1-1c",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test1",
 				Zone:   "test-zone-1a",
 				ZoneID: "tstz1-1a",
+			VpcID:  "vpc-test1",
 			},
 		}))
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeSubnetsReady)).To(BeTrue())
@@ -124,11 +131,13 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 				ID:     "subnet-test1",
 				Zone:   "test-zone-1a",
 				ZoneID: "tstz1-1a",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test2",
 				Zone:   "test-zone-1b",
 				ZoneID: "tstz1-1b",
+			VpcID:  "vpc-test1",
 			},
 		}))
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeSubnetsReady)).To(BeTrue())
@@ -147,6 +156,7 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 				ID:     "subnet-test1",
 				Zone:   "test-zone-1a",
 				ZoneID: "tstz1-1a",
+			VpcID:  "vpc-test1",
 			},
 		}))
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeSubnetsReady)).To(BeTrue())
@@ -160,21 +170,25 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 				ID:     "subnet-test1",
 				Zone:   "test-zone-1a",
 				ZoneID: "tstz1-1a",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test2",
 				Zone:   "test-zone-1b",
 				ZoneID: "tstz1-1b",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test3",
 				Zone:   "test-zone-1c",
 				ZoneID: "tstz1-1c",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test4",
 				Zone:   "test-zone-1a-local",
 				ZoneID: "tstz1-1alocal",
+			VpcID:  "vpc-test1",
 			},
 		}))
 
@@ -198,11 +212,13 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 				ID:     "subnet-test1",
 				Zone:   "test-zone-1a",
 				ZoneID: "tstz1-1a",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test2",
 				Zone:   "test-zone-1b",
 				ZoneID: "tstz1-1b",
+			VpcID:  "vpc-test1",
 			},
 		}))
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeSubnetsReady)).To(BeTrue())
@@ -216,21 +232,25 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 				ID:     "subnet-test1",
 				Zone:   "test-zone-1a",
 				ZoneID: "tstz1-1a",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test2",
 				Zone:   "test-zone-1b",
 				ZoneID: "tstz1-1b",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test3",
 				Zone:   "test-zone-1c",
 				ZoneID: "tstz1-1c",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test4",
 				Zone:   "test-zone-1a-local",
 				ZoneID: "tstz1-1alocal",
+			VpcID:  "vpc-test1",
 			},
 		}))
 
@@ -247,6 +267,7 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 				ID:     "subnet-test1",
 				Zone:   "test-zone-1a",
 				ZoneID: "tstz1-1a",
+			VpcID:  "vpc-test1",
 			},
 		}))
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeSubnetsReady)).To(BeTrue())
@@ -272,21 +293,25 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 				ID:     "subnet-test1",
 				Zone:   "test-zone-1a",
 				ZoneID: "tstz1-1a",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test2",
 				Zone:   "test-zone-1b",
 				ZoneID: "tstz1-1b",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test3",
 				Zone:   "test-zone-1c",
 				ZoneID: "tstz1-1c",
+			VpcID:  "vpc-test1",
 			},
 			{
 				ID:     "subnet-test4",
 				Zone:   "test-zone-1a-local",
 				ZoneID: "tstz1-1alocal",
+			VpcID:  "vpc-test1",
 			},
 		}))
 
