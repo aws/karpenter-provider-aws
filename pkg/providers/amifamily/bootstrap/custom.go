@@ -25,6 +25,6 @@ type Custom struct {
 	Options
 }
 
-func (e Custom) Script(ctx context.Context) (string, error) {
+func (e Custom) Script(_ context.Context) (string, error) {
 	return base64.StdEncoding.EncodeToString([]byte(aws.ToString(e.CustomUserData))), nil
 }

@@ -35,7 +35,7 @@ type Bottlerocket struct {
 
 // nolint:gocyclo
 func (b Bottlerocket) Script(ctx context.Context) (string, error) {
-	s, err := NewBottlerocketConfig(b.CustomUserData, ctx)
+	s, err := NewBottlerocketConfig(ctx, b.CustomUserData)
 	if err != nil {
 		return "", fmt.Errorf("invalid UserData %w", err)
 	}

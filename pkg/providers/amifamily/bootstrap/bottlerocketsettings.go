@@ -23,12 +23,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func NewBottlerocketConfig(userdata *string, ctx context.Context) (*BottlerocketConfig, error) {
+func NewBottlerocketConfig(ctx context.Context, userdata *string) (*BottlerocketConfig, error) {
 	c := &BottlerocketConfig{}
 	if userdata == nil {
 		return c, nil
 	}
-	if err := c.UnmarshalTOML([]byte(*userdata), ctx); err != nil {
+	if err := c.UnmarshalTOML(ctx, []byte(*userdata)); err != nil {
 		return c, err
 	}
 	return c, nil
@@ -124,7 +124,7 @@ type BootstrapCommand struct {
 	Essential bool                 `toml:"essential"`
 }
 
-func (c *BottlerocketConfig) UnmarshalTOML(data []byte, ctx context.Context) error {
+func (c *BottlerocketConfig) UnmarshalTOML(ctx context.Context, data []byte) error {
 	// unmarshal known settings
 	s := struct {
 		Settings BottlerocketSettings `toml:"settings"`

@@ -37,7 +37,7 @@ type Nodeadm struct {
 	Options
 }
 
-func (n Nodeadm) Script(ctx context.Context) (string, error) {
+func (n Nodeadm) Script(_ context.Context) (string, error) {
 	nodeConfigYAML, err := n.getNodeConfigYAML()
 	if err != nil {
 		return "", fmt.Errorf("generating NodeConfig, %w", err)
