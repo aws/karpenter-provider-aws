@@ -7,6 +7,11 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        type: string
+
 jobs:
   release:
     permissions:
@@ -16,17 +21,19 @@ jobs:
     if: github.repository == 'aws/karpenter-provider-aws'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          fetch-depth: 0
-      - name: Create GitHub Release
-        uses: marvinpinto/action-automatic-releases@919008cf3f741b179569b7a6fb4d8860689ab7f0 # v1.2.1
-        with:
-          repo_token: '${{ secrets.GITHUB_TOKEN }}'
-          prerelease: false
+      # TEMP: Skip the GitHub release process and
+      # - name: Create GitHub Release
+      #   uses: marvinpinto/action-automatic-releases@919008cf3f741b179569b7a6fb4d8860689ab7f0 # v1.2.1
+      #   with:
+      #     repo_token: '${{ secrets.GITHUB_TOKEN }}'
+      #     prerelease: false
       - uses: ./.github/actions/install-deps
         with:
           use-cache: false
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.git_ref != '' && inputs.git_ref || github.ref }}
       - uses: ./.github/actions/e2e/install-helm
         with:
           version: v3.18.6
