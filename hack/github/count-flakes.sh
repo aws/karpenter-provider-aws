@@ -18,20 +18,23 @@ for REPO in "${REPOS[@]}"; do
         [[ -z "$pr_num" ]] && continue
         ((total_prs++))
         
-        reruns=$(gh api "repos/$REPO/pulls/$pr_num/commits" -q '.[].sha' 2>/dev/null | while read -r sha; do
-            gh api "repos/$REPO/actions/runs?head_sha=$sha" -q '.workflow_runs[] | select(.run_attempt > 1 and .conclusion == "success") | "\(.id) \(.name) attempt:\(.run_attempt)"' 2>/dev/null || true
-        done | while read -r run_id rest; do
-            [[ -z "$run_id" ]] && continue
-            first=$(gh api "repos/$REPO/actions/runs/$run_id/attempts/1" -q '.conclusion' 2>/dev/null || true)
-            [[ "$first" != "action_required" ]] && echo "$rest"
-        done)
+        pr_flakes=0
+        while read -r sha; do
+            [[ -z "$sha" ]] && continue
+            while read -r run_id name attempt; do
+                [[ -z "$run_id" ]] && continue
+                for ((i=1; i<attempt; i++)); do
+                    conclusion=$(gh api "repos/$REPO/actions/runs/$run_id/attempts/$i" -q '.conclusion' 2>/dev/null || true)
+                    [[ "$conclusion" == "action_required" ]] && continue
+                    echo "  https://github.com/$REPO/pull/$pr_num: $name attempt:$i"
+                    ((pr_flakes++))
+                done
+            done < <(gh api "repos/$REPO/actions/runs?head_sha=$sha" -q '.workflow_runs[] | select(.run_attempt > 1 and .conclusion == "success") | "\(.id) \(.name) \(.run_attempt)"' 2>/dev/null || true)
+        done < <(gh api "repos/$REPO/pulls/$pr_num/commits" -q '.[].sha' 2>/dev/null)
         
-        if [[ -n "$reruns" ]]; then
+        if [[ $pr_flakes -gt 0 ]]; then
             ((flaky_pr_count++))
-            while IFS= read -r line; do
-                echo "  https://github.com/$REPO/pull/$pr_num: $line"
-                ((flake_count++))
-            done <<< "$reruns"
+            ((flake_count+=pr_flakes))
         fi
     done < <(gh api --paginate "repos/$REPO/pulls?state=all&sort=updated&direction=desc&per_page=100" -q ".[] | select(.updated_at >= \"${SINCE}T00:00:00Z\") | .number")
 
