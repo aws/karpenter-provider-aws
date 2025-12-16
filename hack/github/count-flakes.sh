@@ -18,23 +18,26 @@ for REPO in "${REPOS[@]}"; do
         [[ -z "$pr_num" ]] && continue
         ((total_prs++))
         
-        pr_flakes=0
+        flake_lines=()
         while read -r sha; do
             [[ -z "$sha" ]] && continue
-            while read -r run_id name attempt; do
+            while IFS=$'\t' read -r run_id name attempt; do
                 [[ -z "$run_id" ]] && continue
                 for ((i=1; i<attempt; i++)); do
                     conclusion=$(gh api "repos/$REPO/actions/runs/$run_id/attempts/$i" -q '.conclusion' 2>/dev/null || true)
-                    [[ "$conclusion" == "action_required" ]] && continue
-                    echo "  https://github.com/$REPO/pull/$pr_num: $name attempt:$i"
-                    ((pr_flakes++))
+                    [[ "$conclusion" != "failure" ]] && continue
+                    flake_lines+=("    └─ https://github.com/$REPO/actions/runs/$run_id/attempts/$i ($name)")
                 done
-            done < <(gh api "repos/$REPO/actions/runs?head_sha=$sha" -q '.workflow_runs[] | select(.run_attempt > 1 and .conclusion == "success") | "\(.id) \(.name) \(.run_attempt)"' 2>/dev/null || true)
+            done < <(gh api "repos/$REPO/actions/runs?head_sha=$sha" -q '.workflow_runs[] | select(.run_attempt > 1 and .conclusion == "success") | "\(.id)\t\(.name)\t\(.run_attempt)"' 2>/dev/null || true)
         done < <(gh api "repos/$REPO/pulls/$pr_num/commits" -q '.[].sha' 2>/dev/null)
         
-        if [[ $pr_flakes -gt 0 ]]; then
+        if [[ ${#flake_lines[@]} -gt 0 ]]; then
+            echo "✗ #$pr_num https://github.com/$REPO/pull/$pr_num"
+            printf '%s\n' "${flake_lines[@]}"
             ((flaky_pr_count++))
-            ((flake_count+=pr_flakes))
+            ((flake_count+=${#flake_lines[@]}))
+        else
+            echo "✓ #$pr_num https://github.com/$REPO/pull/$pr_num"
         fi
     done < <(gh api --paginate "repos/$REPO/pulls?state=all&sort=updated&direction=desc&per_page=100" -q ".[] | select(.updated_at >= \"${SINCE}T00:00:00Z\") | .number")
 
