@@ -116,7 +116,7 @@ publishHelmChart() {
   rm "${helm_chart_artifact}"
   cd ..
 
-  helm_chart_digest="$(go tool -modfile=../go.tools.mod crane digest "${oci_repo}/${helm_chart}:${version}")"
+  helm_chart_digest="$(go tool -modfile=go.tools.mod crane digest "${oci_repo}/${helm_chart}:${version}")"
   cosignOciArtifact "${version}" "${commit_sha}" "${build_date}" "${oci_repo}${helm_chart}:${version}@${helm_chart_digest}"
 }
 

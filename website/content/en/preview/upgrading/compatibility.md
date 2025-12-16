@@ -13,13 +13,13 @@ Before you begin upgrading Karpenter, consider Karpenter compatibility issues re
 
 ## Compatibility Matrix
 
-[comment]: <> (the content below is generated from hack/docs/compataiblitymetrix_gen_docs.go)
+[comment]: <> (the content below is generated from hack/docs/compatibilitymatrix_gen/main.go)
 
 | KUBERNETES |   1.28   |   1.29   |   1.30   |   1.31    |  1.32   |  1.33   |  1.34   |
 |------------|----------|----------|----------|-----------|---------|---------|---------|
 | karpenter  | \>= 0.31 | \>= 0.34 | \>= 0.37 | \>= 1.0.5 | \>= 1.2 | \>= 1.5 | \>= 1.6 |
 
-[comment]: <> (end docs generated content from hack/docs/compataiblitymetrix_gen_docs.go)
+[comment]: <> (end docs generated content from hack/docs/compatibilitymatrix_gen/main.go)
 
 ## Compatibility issues
 
