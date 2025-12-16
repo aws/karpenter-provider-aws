@@ -33,7 +33,7 @@ for REPO in "${REPOS[@]}"; do
                 ((flake_count++))
             done <<< "$reruns"
         fi
-    done < <(gh pr list --repo "$REPO" --state all --search "updated:>=$SINCE" --limit 500 --json number -q '.[].number')
+    done < <(gh api --paginate "repos/$REPO/pulls?state=all&sort=updated&direction=desc&per_page=100" -q ".[] | select(.updated_at >= \"${SINCE}T00:00:00Z\") | .number")
 
     pct=$(awk "BEGIN {printf \"%.1f\", ($total_prs > 0) ? $flaky_pr_count * 100 / $total_prs : 0}")
     echo "Summary: $flaky_pr_count/$total_prs PRs with flakes ($pct%) ($flake_count reruns)"
