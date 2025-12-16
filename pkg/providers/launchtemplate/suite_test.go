@@ -1568,7 +1568,7 @@ essential = true
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.SystemReserved)).To(Equal(3))
 					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
 					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
@@ -1592,7 +1592,7 @@ essential = true
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.KubeReserved)).To(Equal(3))
 					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
 					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
@@ -1656,7 +1656,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.EvictionHard)).To(Equal(3))
 					Expect(config.Settings.Kubernetes.EvictionHard["memory.available"]).To(Equal("10%"))
 					Expect(config.Settings.Kubernetes.EvictionHard["nodefs.available"]).To(Equal("15%"))
@@ -1676,7 +1676,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.MaxPods).ToNot(BeNil())
 					Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 10))
 				})
@@ -1694,7 +1694,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.ImageGCHighThresholdPercent).ToNot(BeNil())
 					percent, err := strconv.Atoi(*config.Settings.Kubernetes.ImageGCHighThresholdPercent)
 					Expect(err).ToNot(HaveOccurred())
@@ -1714,7 +1714,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.ImageGCLowThresholdPercent).ToNot(BeNil())
 					percent, err := strconv.Atoi(*config.Settings.Kubernetes.ImageGCLowThresholdPercent)
 					Expect(err).ToNot(HaveOccurred())
@@ -1731,7 +1731,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.ClusterDNSIP).ToNot(BeNil())
 					Expect(*config.Settings.Kubernetes.ClusterDNSIP).To(Equal("10.0.100.10"))
 				})
@@ -1749,7 +1749,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.CPUCFSQuota).ToNot(BeNil())
 					Expect(*config.Settings.Kubernetes.CPUCFSQuota).To(BeFalse())
 				})
@@ -1767,7 +1767,7 @@ eviction-max-pod-grace-period = 10
 				ExpectScheduled(ctx, env.Client, pod)
 				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, []byte(userData))).To(Succeed())
 					for k, v := range desiredLabels {
 						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
 					}
@@ -1794,7 +1794,7 @@ eviction-max-pod-grace-period = 10
 				ExpectScheduled(ctx, env.Client, pod)
 				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, []byte(userData))).To(Succeed())
 					for k, v := range desiredLabels {
 						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
 					}
