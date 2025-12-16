@@ -15,9 +15,11 @@ limitations under the License.
 package filter
 
 import (
+	"fmt"
 	"math"
 	"strings"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -145,7 +147,13 @@ func (f capacityReservationTypeFilter) Partition(instanceTypes []*cloudprovider.
 			t := v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any())
 			p, ok := partitions[t]
 			if !ok {
-				panic("invalid capacity type in requirement")
+				// SAFETY: Valid reservation types are enforced during capacity reservation construction in the NodeClass
+				// controller. An invalid value indicates a user manually edited their NodeClass' status, breaking an invariant.
+				lo.Must0(serrors.Wrap(
+					fmt.Errorf("failed to partition capacity reservations, invalid capacity reservation type"),
+					"type", string(t),
+					"valid-types", lo.Map(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) string { return string(crt) }),
+				))
 			}
 			if p.cheapestPrice > o.Price {
 				p.cheapestPrice = o.Price
