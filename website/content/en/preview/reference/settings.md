@@ -8,7 +8,7 @@ description: >
 
 Karpenter surfaces environment variables and CLI parameters to allow you to configure certain global settings on the controllers. These settings are described below.
 
-[comment]: <> (the content below is generated from hack/docs/configuration_gen_docs.go)
+[comment]: <> (the content below is generated from hack/docs/configuration_gen/main.go)
 
 | Environment Variable | CLI Flag | Description |
 |--|--|--|
@@ -43,7 +43,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | RESERVED_ENIS | \-\-reserved-enis | Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html. (default = 0)|
 | VM_MEMORY_OVERHEAD_PERCENT | \-\-vm-memory-overhead-percent | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types when cached information is unavailable. (default = 0.075)|
 
-[comment]: <> (end docs generated content from hack/docs/configuration_gen_docs.go)
+[comment]: <> (end docs generated content from hack/docs/configuration_gen/main.go)
 
 ### Feature Gates
 

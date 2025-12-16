@@ -100,8 +100,8 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 
 
 Full Changelog:
-* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.6.2
-* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.6.1
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.6.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.6.0
 
 ### Upgrading to `1.5.0`+
 

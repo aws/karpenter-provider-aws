@@ -16,6 +16,7 @@ package bootstrap
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -43,7 +44,7 @@ const (
 	MIMEContentTypeHeaderTemplate = "Content-Type: multipart/mixed; boundary=\"%s\""
 )
 
-func (e EKS) Script() (string, error) {
+func (e EKS) Script(_ context.Context) (string, error) {
 	userData, err := e.mergeCustomUserData(lo.Compact([]string{lo.FromPtr(e.CustomUserData), e.eksBootstrapScript()})...)
 	if err != nil {
 		return "", err
