@@ -113,6 +113,7 @@ var (
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(NodeClaimTagKey))),
 	}
 	AMIFamilyBottlerocket                          = "Bottlerocket"
+	AMIFamilyBottlerocketFIPS                      = "Bottlerocket-FIPS"
 	AMIFamilyAL2                                   = "AL2"
 	AMIFamilyAL2023                                = "AL2023"
 	AMIFamilyUbuntu                                = "Ubuntu"
