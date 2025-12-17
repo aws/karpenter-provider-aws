@@ -34,7 +34,7 @@ var _ = Describe("CRD Hash", func() {
 
 			hash, found := nc.Annotations[v1.AnnotationEC2NodeClassHash]
 			g.Expect(found).To(BeTrue())
-			g.Expect(hash).To(Equal(nc.Hash()))
+			g.Expect(hash).To(Equal(nc.HashForRegion("us-west-2")))
 		})
 	})
 })

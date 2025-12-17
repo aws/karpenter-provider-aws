@@ -812,13 +812,13 @@ var _ = Describe("CloudProvider", func() {
 				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
 			})
 			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-				v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
+				v1.AnnotationEC2NodeClassHash:        nodeClass.HashForRegion("us-west-2"),
 				v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
 			})
 			nodeClaim.Status.ProviderID = fake.ProviderID(lo.FromPtr(instance.InstanceId))
 			nodeClaim.Status.ImageID = amdAMIID
 			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
-				v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
+				v1.AnnotationEC2NodeClassHash:        nodeClass.HashForRegion("us-west-2"),
 				v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
 			})
 			nodeClaim.Labels = lo.Assign(nodeClaim.Labels, map[string]string{corev1.LabelInstanceTypeStable: selectedInstanceType.Name})
@@ -1076,8 +1076,8 @@ var _ = Describe("CloudProvider", func() {
 						},
 					},
 				}
-				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
-				nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
+				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.HashForRegion("us-west-2")})
+				nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.HashForRegion("us-west-2")})
 			})
 			DescribeTable("should return drifted if a statically drifted EC2NodeClass.Spec field is updated",
 				func(changes v1.EC2NodeClass) {
@@ -1087,7 +1087,7 @@ var _ = Describe("CloudProvider", func() {
 					Expect(isDrifted).To(BeEmpty())
 
 					Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride, mergo.WithSliceDeepCopy)).To(Succeed())
-					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
+					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.HashForRegion("us-west-2")})
 
 					ExpectApplied(ctx, env.Client, nodeClass)
 					isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -1118,7 +1118,7 @@ var _ = Describe("CloudProvider", func() {
 			// doesn't work well with unexported fields, like the ones that are present in resource.Quantity
 			It("should return drifted when updating blockDeviceMapping volumeSize", func() {
 				nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resource.NewScaledQuantity(10, resource.Giga)
-				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
+				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.HashForRegion("us-west-2")})
 
 				ExpectApplied(ctx, env.Client, nodeClass)
 				isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -1133,7 +1133,7 @@ var _ = Describe("CloudProvider", func() {
 					Expect(isDrifted).To(BeEmpty())
 
 					Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride))
-					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
+					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.HashForRegion("us-west-2")})
 
 					ExpectApplied(ctx, env.Client, nodeClass)
 					isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
