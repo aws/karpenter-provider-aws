@@ -50,13 +50,31 @@ func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeCla
 		// Returning 'ok' in this case means that the nodeclass will remain in an unready state until the component is restarted.
 		return reconcile.Result{RequeueAfter: time.Minute}, nil
 	}
+
+	// Filter security groups to only include those in the same VPCs as the subnets
+	vpcIDs := lo.Uniq(lo.Map(nodeClass.Status.Subnets, func(subnet v1.Subnet, _ int) string {
+		return subnet.VpcID
+	}))
+	if len(vpcIDs) > 0 {
+		securityGroups = lo.Filter(securityGroups, func(sg ec2types.SecurityGroup, _ int) bool {
+			return lo.Contains(vpcIDs, *sg.VpcId)
+		})
+	}
+
+	if len(securityGroups) == 0 && len(nodeClass.Spec.SecurityGroupSelectorTerms) > 0 {
+		nodeClass.Status.SecurityGroups = nil
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeSecurityGroupsReady, "SecurityGroupsNotFound", "SecurityGroupSelector did not match any SecurityGroups in the same VPC as the subnets")
+		return reconcile.Result{RequeueAfter: time.Minute}, nil
+	}
+
 	sort.Slice(securityGroups, func(i, j int) bool {
 		return *securityGroups[i].GroupId < *securityGroups[j].GroupId
 	})
 	nodeClass.Status.SecurityGroups = lo.Map(securityGroups, func(securityGroup ec2types.SecurityGroup, _ int) v1.SecurityGroup {
 		return v1.SecurityGroup{
-			ID:   *securityGroup.GroupId,
-			Name: *securityGroup.GroupName,
+			ID:    *securityGroup.GroupId,
+			Name:  *securityGroup.GroupName,
+			VpcID: *securityGroup.VpcId,
 		}
 	})
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeSecurityGroupsReady)

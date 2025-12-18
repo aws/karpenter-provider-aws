@@ -51,6 +51,9 @@ type Subnet struct {
 	// The associated availability zone ID
 	// +optional
 	ZoneID string `json:"zoneID,omitempty"`
+	// The associated VPC ID
+	// +optional
+	VpcID string `json:"vpcID,omitempty"`
 }
 
 // SecurityGroup contains resolved SecurityGroup selector values utilized for node launch
@@ -61,6 +64,9 @@ type SecurityGroup struct {
 	// Name of the security group
 	// +optional
 	Name string `json:"name,omitempty"`
+	// The associated VPC ID
+	// +optional
+	VpcID string `json:"vpcID,omitempty"`
 }
 
 // AMI contains resolved AMI selector values utilized for node launch
