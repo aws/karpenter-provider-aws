@@ -265,6 +265,71 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				}, fake.MaxCalls(1))
 			}, nodeclass.ConditionReasonCreateLaunchTemplateAuthFailed),
 		)
+		It("should use exponential backoff for auth failures", func() {
+			// Create reconciler for this specific test
+			testReconciler := nodeclass.NewValidationReconciler(env.Client, cloudProvider, awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache, options.FromContext(ctx).DisableDryRun)
+
+			// Set required conditions to true
+			for _, cond := range []string{
+				v1.ConditionTypeAMIsReady,
+				v1.ConditionTypeInstanceProfileReady,
+				v1.ConditionTypeSecurityGroupsReady,
+				v1.ConditionTypeSubnetsReady,
+			} {
+				nodeClass.StatusConditions().SetTrue(cond)
+			}
+
+			// Simulate repeated RunInstances auth failures
+			awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+				Code: "UnauthorizedOperation",
+			})
+
+			ExpectApplied(ctx, env.Client, nodeClass)
+
+			// First failure should retry after 30s
+			result, err := testReconciler.Reconcile(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(30 * time.Second))
+
+			// Second failure should retry after 60s
+			result, err = testReconciler.Reconcile(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(60 * time.Second))
+
+			// Third failure should retry after 120s (2m)
+			result, err = testReconciler.Reconcile(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(120 * time.Second))
+
+			// Fourth failure should retry after 240s (4m)
+			result, err = testReconciler.Reconcile(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(240 * time.Second))
+
+			// Fifth and subsequent failures should cap at 5m
+			result, err = testReconciler.Reconcile(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(5 * time.Minute))
+
+			result, err = testReconciler.Reconcile(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(5 * time.Minute))
+
+			// After success, retry count should be cleared
+			awsEnv.EC2API.RunInstancesBehavior.Error.Reset()
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+
+			// Next failure should start from 10s again
+			awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+				Code: "UnauthorizedOperation",
+			})
+			awsEnv.ValidationCache.Flush()
+			result, err = testReconciler.Reconcile(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(30 * time.Second))
+		})
 		Context("Instance Type Prioritization Validation", func() {
 			BeforeEach(func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
