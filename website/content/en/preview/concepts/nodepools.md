@@ -281,8 +281,18 @@ There is currently a limit of 100 on the total number of requirements on both th
 
 Along with the combination of [key,operator,values] in the requirements, Karpenter also supports `minValues` in the NodePool requirements block, allowing the scheduler to be aware of user-specified flexibility minimums while scheduling pods to a cluster. Depending on the policy configured via the flag `--min-values-policy` or environment variable `MIN_VALUES_POLICY`, if Karpenter cannot meet this minimum flexibility for each key when scheduling a pod, it will either fail the scheduling loop for that NodePool, either falling back to another NodePool which meets the pod requirements or failing scheduling the pod altogether (when policy is set to `Strict`) or relax `minValues` until they can be met (when policy is set to `BestEffort`).
 
-For example, the below spec will use spot instance type for all provisioned instances and enforces `minValues` to various keys where it is defined
-i.e at least 2 unique instance families from [c,m,r], 5 unique instance families [eg: "m5","m5d","r4","c5","c5d","c4" etc], 10 unique instance types [eg: "c5.2xlarge","c4.xlarge" etc] is required for scheduling the pods.
+For example, the below spec enforces `minValues` to various keys where it is defined:
+at least 2 unique instance categories from [c,m,r], 5 unique instance families [eg: "m5","m5d","r4","c5","c5d","c4" etc], and 10 unique instance types [eg: "c5.2xlarge","c4.xlarge" etc] are required for scheduling the pods.
+
+{{% alert title="Note" color="primary" %}}
+This example does not specify `karpenter.sh/capacity-type`, so Karpenter will consider both Spot and On-Demand instances, preferring Spot when available due to lower cost. If Spot capacity is unavailable, On-Demand instances may be provisioned. To explicitly use only Spot instances, add:
+
+```yaml
+- key: karpenter.sh/capacity-type
+  operator: In
+  values: ["spot"]
+```
+{{% /alert %}}
 
 ```yaml
 spec:
