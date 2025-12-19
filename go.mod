@@ -2,6 +2,8 @@ module github.com/aws/karpenter-provider-aws
 
 go 1.24.6
 
+replace sigs.k8s.io/karpenter => github.com/ryan-mist/karpenter v0.0.0-20251219224046-2af2b40b26fd
+
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/PuerkitoBio/goquery v1.10.3
