@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/ptr"
+
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -2504,6 +2506,41 @@ eviction-max-pod-grace-period = 10
 				Entry("AssociatePublicIPAddress is not set and EFA is true", false, false, true),
 				Entry("AssociatePublicIPAddress is set as true and EFA is true", true, true, true),
 				Entry("AssociatePublicIPAddress is set as false and EFA is false", true, false, false),
+			)
+		})
+		Context("Connection Tracking settings", func() {
+			DescribeTable(
+				"should set 'ConnectionTracking' based on EC2NodeClass",
+				func(connTrack *v1.ConnectionTracking, expected *ec2types.ConnectionTrackingSpecificationRequest) {
+					nodeClass.Spec.ConnectionTracking = connTrack
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod(coretest.PodOptions{})
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].ConnectionTrackingSpecification).To(Equal(expected))
+				},
+				Entry("ConnectionTracking is nil", nil, nil),
+				Entry("ConnectionTracking with AWS defaults",
+					&v1.ConnectionTracking{
+						TCPEstablishedTimeout: ptr.To(metav1.Duration{Duration: time.Hour * 24 * 5}),
+						UDPStreamTimeout:      ptr.To(metav1.Duration{Duration: time.Second * 180}),
+						UDPTimeout:            ptr.To(metav1.Duration{Duration: time.Second * 30}),
+					},
+					&ec2types.ConnectionTrackingSpecificationRequest{
+						TcpEstablishedTimeout: aws.Int32(432000),
+						UdpStreamTimeout:      aws.Int32(180),
+						UdpTimeout:            aws.Int32(30),
+					},
+				),
+				Entry("ConnectionTracking with non-default TCP timeout",
+					&v1.ConnectionTracking{
+						TCPEstablishedTimeout: ptr.To(metav1.Duration{Duration: time.Hour * 24}),
+					},
+					&ec2types.ConnectionTrackingSpecificationRequest{
+						TcpEstablishedTimeout: aws.Int32(86400),
+					},
+				),
 			)
 		})
 	})
