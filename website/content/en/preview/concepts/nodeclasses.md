@@ -1023,6 +1023,10 @@ Timeout for idle UDP flows that have seen traffic only in a single direction or 
 Value must be between 30 and 60 seconds. AWS API defaults to 30 seconds.
 For high volume short-lived, stateless UDP transactions it may be preferable to use a lower timeout.
 
+{{% alert title="Note" color="primary" %}}
+Changing any `connectionTracking` field will cause Karpenter to detect drift and replace existing nodes with new ones that have the updated configuration.
+{{% /alert %}}
+
 ## spec.blockDeviceMappings
 
 The `blockDeviceMappings` field in an `EC2NodeClass` can be used to control the [Elastic Block Storage (EBS) volumes](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/block-device-mapping-concepts.html#instance-block-device-mapping) that Karpenter attaches to provisioned nodes. Karpenter uses default block device mappings for the AMIFamily specified. For example, the `Bottlerocket` AMI Family defaults with two block device mappings, one for Bottlerocket's control volume and the other for container resources such as images and logs.
