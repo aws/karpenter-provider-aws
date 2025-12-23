@@ -230,6 +230,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			corev1.LabelArchStable:         "amd64",
 			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
+			v1.LabelInstanceTenancy:                      "default",
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "g",
@@ -292,6 +293,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			corev1.LabelArchStable:         "amd64",
 			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
+			v1.LabelInstanceTenancy:                      "default",
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "g",
@@ -349,6 +351,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			corev1.LabelArchStable:         "amd64",
 			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
+			v1.LabelInstanceTenancy:                      "default",
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "inf",
@@ -2279,8 +2282,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(m5InstanceType.Offerings.Available()).To(HaveLen(6))
 
 			// Mark spot m5.xlarge instance as unavailable in a few zones, nothing should change
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Xlarge, "test-zone-1a", karpv1.CapacityTypeSpot)
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot)
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Xlarge, "test-zone-1a", karpv1.CapacityTypeSpot, map[string]string{"reason": "test"})
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot, map[string]string{"reason": "test"})
 			Expect(err).ToNot(HaveOccurred())
 			m5InstanceType, ok = lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
 				return it.Name == string(ec2types.InstanceTypeM5Large)
@@ -2289,7 +2292,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(m5InstanceType.Offerings.Available()).To(HaveLen(6))
 
 			// Mark spot m5.large instance in test-zone-1a as unavailable
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeSpot)
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeSpot, map[string]string{"reason": "test"})
 			instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
 			m5InstanceType, ok = lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
@@ -2303,8 +2306,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}))[0].Available).To(BeFalse())
 
 			// Mark on-demand m5.large instance in test-zone-1b and test-zone-1c as unavailable
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Large, "test-zone-1b", karpv1.CapacityTypeOnDemand)
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Large, "test-zone-1c", karpv1.CapacityTypeOnDemand)
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1b", karpv1.CapacityTypeOnDemand, map[string]string{"reason": "test"})
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1c", karpv1.CapacityTypeOnDemand, map[string]string{"reason": "test"})
 
 			instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
@@ -2795,7 +2798,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			list1, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
 
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "test", "m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot)
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot, map[string]string{"reason": "test"})
 			list2, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -2853,6 +2856,80 @@ var _ = Describe("InstanceTypeProvider", func() {
 				}
 			}
 		})
+	})
+	Context("Tenancy", func() {
+		It("Should use default tenancy when no requirement is given for tenancy", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTenancy, string(ec2types.TenancyDefault)))
+		})
+		It("Should use default tenancy if tenancy requirement specifies both default and dedicated tenancies", func() {
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      v1.LabelInstanceTenancy,
+						Operator: corev1.NodeSelectorOpIn,
+						Values: []string{
+							string(ec2types.TenancyDefault),
+							string(ec2types.TenancyDedicated),
+						},
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTenancy, string(ec2types.TenancyDefault)))
+		})
+		It("Should launch with default tenancy when required", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			pod := coretest.UnschedulablePod(coretest.PodOptions{
+				NodeSelector: map[string]string{v1.LabelInstanceTenancy: string(ec2types.TenancyDefault)},
+			})
+
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTenancy, string(ec2types.TenancyDefault)))
+		})
+		It("Should launch with dedicated tenancy when required", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			pod := coretest.UnschedulablePod(coretest.PodOptions{
+				NodeSelector: map[string]string{v1.LabelInstanceTenancy: string(ec2types.TenancyDedicated)},
+			})
+
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTenancy, string(ec2types.TenancyDedicated)))
+		})
+		DescribeTable(
+			"does not allow tenancy violations",
+			func(npTenancy string, podTenancy string) {
+				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+					{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      v1.LabelInstanceTenancy,
+							Operator: corev1.NodeSelectorOpIn,
+							Values: []string{
+								npTenancy,
+							},
+						},
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					NodeSelector: map[string]string{v1.LabelInstanceTenancy: podTenancy},
+				})
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectNotScheduled(ctx, env.Client, pod)
+			},
+			Entry("dedicated np", string(ec2types.TenancyDedicated), string(ec2types.TenancyDefault)),
+			Entry("default np", string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)),
+		)
 	})
 	It("should not cause data races when calling List() simultaneously", func() {
 		mu := sync.RWMutex{}

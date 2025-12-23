@@ -70,16 +70,16 @@ build() {
   date_epoch="$(dateEpoch)"
   build_date="$(buildDate "${date_epoch}")"
 
-  img="$(GOFLAGS=${GOFLAGS:-} SOURCE_DATE_EPOCH="${date_epoch}" KO_DATA_DATE_EPOCH="${date_epoch}" KO_DOCKER_REPO="${oci_repo}" ko publish -B -t "${version}" ./cmd/controller)"
+  img="$(GOFLAGS=${GOFLAGS:-} SOURCE_DATE_EPOCH="${date_epoch}" KO_DATA_DATE_EPOCH="${date_epoch}" KO_DOCKER_REPO="${oci_repo}" go tool -modfile=go.tools.mod ko publish -B -t "${version}" ./cmd/controller)"
   img_repo="$(echo "${img}" | cut -d "@" -f 1 | cut -d ":" -f 1)"
   img_tag="$(echo "${img}" | cut -d "@" -f 1 | cut -d ":" -f 2 -s)"
   img_digest="$(echo "${img}" | cut -d "@" -f 2)"
 
   cosignOciArtifact "${version}" "${commit_sha}" "${build_date}" "${img}"
 
-  yq e -i ".controller.image.repository = \"${img_repo}\"" charts/karpenter/values.yaml
-  yq e -i ".controller.image.tag = \"${img_tag}\"" charts/karpenter/values.yaml
-  yq e -i ".controller.image.digest = \"${img_digest}\"" charts/karpenter/values.yaml
+  go tool -modfile=go.tools.mod yq e -i ".controller.image.repository = \"${img_repo}\"" charts/karpenter/values.yaml
+  go tool -modfile=go.tools.mod yq e -i ".controller.image.tag = \"${img_tag}\"" charts/karpenter/values.yaml
+  go tool -modfile=go.tools.mod yq e -i ".controller.image.digest = \"${img_digest}\"" charts/karpenter/values.yaml
 
   publishHelmChart "${oci_repo}" "karpenter" "${helm_chart_version}" "${commit_sha}" "${build_date}"
   publishHelmChart "${oci_repo}" "karpenter-crd" "${helm_chart_version}" "${commit_sha}" "${build_date}"
@@ -97,8 +97,8 @@ publishHelmChart() {
   ah_config_file_name="${helm_chart}/artifacthub-repo.yaml"
   helm_chart_artifact="${helm_chart}-${version}.tgz"
 
-  yq e -i ".appVersion = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
-  yq e -i ".version = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
+  go tool -modfile=go.tools.mod yq e -i ".appVersion = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
+  go tool -modfile=go.tools.mod yq e -i ".version = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
 
   cd charts
   if [[ -s "${ah_config_file_name}" ]] && [[ "$oci_repo" == "${RELEASE_REPO_ECR}" ]]; then
@@ -107,7 +107,7 @@ publishHelmChart() {
     # https://github.com/aws/containers-roadmap/issues/1074
     temp=$(mktemp)
     echo {} > "${temp}"
-    oras push "${oci_repo}${helm_chart}:artifacthub.io" --config "${temp}:application/vnd.cncf.artifacthub.config.v1+yaml" "${ah_config_file_name}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
+    go tool -modfile=../go.tools.mod oras push "${oci_repo}${helm_chart}:artifacthub.io" --config "${temp}:application/vnd.cncf.artifacthub.config.v1+yaml" "${ah_config_file_name}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
   fi
   helm dependency update "${helm_chart}"
   helm lint "${helm_chart}"
@@ -116,7 +116,7 @@ publishHelmChart() {
   rm "${helm_chart_artifact}"
   cd ..
 
-  helm_chart_digest="$(crane digest "${oci_repo}/${helm_chart}:${version}")"
+  helm_chart_digest="$(go tool -modfile=go.tools.mod crane digest "${oci_repo}/${helm_chart}:${version}")"
   cosignOciArtifact "${version}" "${commit_sha}" "${build_date}" "${oci_repo}${helm_chart}:${version}@${helm_chart_digest}"
 }
 
@@ -128,7 +128,7 @@ cosignOciArtifact() {
   build_date="${3}"
   artifact="${4}"
 
-  cosign sign --yes -a version="${version}" -a commitSha="${commit_sha}" -a buildDate="${build_date}" "${artifact}"
+  go tool -modfile=go.tools.mod cosign sign --yes -a version="${version}" -a commitSha="${commit_sha}" -a buildDate="${build_date}" "${artifact}"
 }
 
 dateEpoch() {
@@ -176,7 +176,7 @@ createNewWebsiteDirectory() {
   # shellcheck disable=SC2038
   find "website/content/en/v${short_version}/" -type f -print | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${version}/g;"
   # shellcheck disable=SC2038
-  find "website/content/en/v${short_version}/" -type f | xargs perl -i -p -e "s/{{< param \"latest_k8s_version\" >}}/$(yq .params.latest_k8s_version website/hugo.yaml)/g;"
+  find "website/content/en/v${short_version}/" -type f | xargs perl -i -p -e "s/{{< param \"latest_k8s_version\" >}}/$(go tool -modfile=go.tools.mod yq .params.latest_k8s_version website/hugo.yaml)/g;"
   # shellcheck disable=SC2038
   find "website/content/en/v${short_version}/"*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/v${short_version}/g;"
   # shellcheck disable=SC2038
@@ -191,13 +191,12 @@ removeOldWebsiteDirectories() {
   local n=3 last_n_versions all
 
   # Get all the directories except the last n directories sorted from earliest to latest version
-  # preview, docs, and v0.32 are special directories that we always propagate into the set of directory options
-  # Keep the v0.32 version around while we are supporting v1beta1 migration
-  # Drop it once we no longer want to maintain the v0.32 version in the docs
-  last_n_versions=$(find website/content/en/* -maxdepth 0 -type d -name "*" | grep -v "preview\|docs\|v0.32\|v1.0" | sort | tail -n "${n}")
+  # preview, docs, and v1.0 are special directories that we always propagate into the set of directory options
+  # Keep the v1.0 version around while we are supporting v1beta1 migration
+  # Drop it once we no longer want to maintain the v1.00 version in the docs
+  last_n_versions=$(find website/content/en/* -maxdepth 0 -type d -name "*" | grep -v "preview\|docs\|v1.0" | sort | tail -n "${n}")
   last_n_versions+=$(echo -e "\nwebsite/content/en/preview")
   last_n_versions+=$(echo -e "\nwebsite/content/en/docs")
-  last_n_versions+=$(echo -e "\nwebsite/content/en/v0.32")
   last_n_versions+=$(echo -e "\nwebsite/content/en/v1.0")
   all=$(find website/content/en/* -maxdepth 0 -type d -name "*")
 
@@ -209,7 +208,7 @@ removeOldWebsiteDirectories() {
 editWebsiteConfig() {
   local version="${1}"
 
-  yq -i ".params.latest_release_version = \"${version}\"" website/hugo.yaml
+  go tool -modfile=go.tools.mod yq -i ".params.latest_release_version = \"${version}\"" website/hugo.yaml
 }
 
 # editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
@@ -222,9 +221,9 @@ editWebsiteVersionsMenu() {
   versions=($(find website/content/en/* -maxdepth 0 -type d -name "*" -print0 | xargs -0 -r -n 1 basename | grep -v "docs\|preview" | sort -r))
   versions+=('preview')
 
-  yq -i '.params.versions = []' website/hugo.yaml
+  go tool -modfile=go.tools.mod yq -i '.params.versions = []' website/hugo.yaml
 
   for version in "${versions[@]}"; do
-    yq -i ".params.versions += \"${version}\"" website/hugo.yaml
+    go tool -modfile=go.tools.mod yq -i ".params.versions += \"${version}\"" website/hugo.yaml
   done
 }

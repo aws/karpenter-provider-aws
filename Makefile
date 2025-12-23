@@ -21,6 +21,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.featureGates.reservedCapacity=true \
 			--set settings.featureGates.spotToSpotConsolidation=true \
 			--set settings.featureGates.nodeOverlay=true \
+			--set settings.featureGates.staticCapacity=true \
 			--set settings.preferencePolicy=Ignore \
 			--set logLevel=debug \
 			--create-namespace
@@ -58,7 +59,7 @@ run: ## Run Karpenter controller binary against your local cluster
 		DISABLE_LEADER_ELECTION=true \
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
-		FEATURE_GATES="SpotToSpotConsolidation=true,NodeOverlay=true" \
+		FEATURE_GATES="SpotToSpotConsolidation=true,NodeOverlay=true,StaticCapacity=true" \
 		LOG_LEVEL="debug" \
 		go run ./cmd/controller/main.go
 
@@ -70,7 +71,7 @@ test: ## Run tests
 		--ginkgo.vv
 
 deflake: ## Run randomized, racing tests until the test fails to catch flakes
-	ginkgo \
+	go tool -modfile=go.tools.mod ginkgo \
 		--race \
 		--focus="${FOCUS}" \
 		--randomize-all \
@@ -95,11 +96,11 @@ e2etests: ## Run the e2e suite against your local cluster
 
 upstream-e2etests: tidy download
 	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/default_ec2nodeclass.yaml > ${TMPFILE}
-	go test \
+	cd $(KARPENTER_CORE_DIR) && go test \
 		-count 1 \
 		-timeout 3.25h \
 		-v \
-		$(KARPENTER_CORE_DIR)/test/suites/... \
+		./test/suites/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.timeout=3h \
 		--ginkgo.grace-period=5m \
@@ -108,7 +109,7 @@ upstream-e2etests: tidy download
 		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml"
 
 e2etests-deflake: ## Run the e2e suite against your local cluster
-	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} go tool -modfile=../go.tools.mod ginkgo \
 		--focus="${FOCUS}" \
 		--timeout=3h \
 		--grace-period=3m \
@@ -132,7 +133,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	cp pkg/apis/crds/* charts/karpenter-crd/templates
 	hack/mutation/crd_annotations.sh
 	hack/github/dependabot.sh
-	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
+	$(foreach dir,$(MOD_DIRS),cd $(dir) && go tool -modfile=$(CURDIR)/go.tools.mod golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
 		if [ "${CI}" = true ]; then\
@@ -140,17 +141,17 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 		fi;}
 	@echo "Validating codegen/docgen build scripts..."
 	@find hack/code hack/docs -name "*.go" -type f -print0 | xargs -0 -I {} go build -o /dev/null {}
-	actionlint -oneline
+	go tool -modfile=go.tools.mod actionlint -oneline
 
 vulncheck: ## Verify code vulnerabilities
-	@govulncheck ./pkg/...
+	@go tool -modfile=go.tools.mod govulncheck ./pkg/...
 
 licenses: download ## Verifies dependency licenses
 	# TODO: remove nodeadm check once license is updated
-	! go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0' -e 'github.com/awslabs/amazon-eks-ami/nodeadm'
+	! go tool -modfile=go.tools.mod go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0' -e 'github.com/awslabs/amazon-eks-ami/nodeadm'
 
 image: ## Build the Karpenter controller images using ko build
-	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build --bare github.com/aws/karpenter-provider-aws/cmd/controller))
+	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" go tool -modfile=go.tools.mod ko build --bare github.com/aws/karpenter-provider-aws/cmd/controller))
 	$(eval IMG_REPOSITORY=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 1))
 	$(eval IMG_TAG=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 2 -s))
 	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
@@ -206,9 +207,11 @@ website: ## Serve the docs website locally
 
 tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod tidy $(newline))
+	go mod tidy -modfile=go.tools.mod
 
 download: ## Recursively "go mod download" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod download $(newline))
+	go mod download -modfile=go.tools.mod
 
 update-karpenter: ## Update kubernetes-sigs/karpenter to latest
 	go get -u sigs.k8s.io/karpenter@HEAD

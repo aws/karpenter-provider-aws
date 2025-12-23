@@ -1127,6 +1127,14 @@ On AL2, Karpenter automatically configures the disks through an additional boost
 
 On AL2023, Karpenter automatically configures the disks via the generated `NodeConfig` object. Like AL2, the device name is `/dev/md/0` and its mount point is `/mnt/k8s-disks/0`. You should ensure any additional disk setup does not interfere with these.
 
+#### Bottlerocket
+
+On Bottlerocket, Karpenter automatically configures the disks by adding the required bootstrap commands to the settings. The ephemeral storage configuration is handled automatically, so you should not manually configure ephemeral storage settings in your userData.
+
+{{% alert title="Note" color="primary" %}}
+This automatic disk configuration is only available on Bottlerocket v1.22.0 and later.
+{{% /alert %}}
+
 #### Others
 
 For all other AMI families, you must configure the disks yourself. Check out the [`setup-local-disks`](https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/bin/setup-local-disks) script in [amazon-eks-ami](https://github.com/awslabs/amazon-eks-ami) to see how this is done for AL2.

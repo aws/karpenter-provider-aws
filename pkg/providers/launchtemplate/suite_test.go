@@ -1570,7 +1570,7 @@ essential = true
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.SystemReserved)).To(Equal(3))
 					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
 					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
@@ -1594,7 +1594,7 @@ essential = true
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.KubeReserved)).To(Equal(3))
 					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
 					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
@@ -1658,7 +1658,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.EvictionHard)).To(Equal(3))
 					Expect(config.Settings.Kubernetes.EvictionHard["memory.available"]).To(Equal("10%"))
 					Expect(config.Settings.Kubernetes.EvictionHard["nodefs.available"]).To(Equal("15%"))
@@ -1678,7 +1678,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.MaxPods).ToNot(BeNil())
 					Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 10))
 				})
@@ -1696,7 +1696,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.ImageGCHighThresholdPercent).ToNot(BeNil())
 					percent, err := strconv.Atoi(*config.Settings.Kubernetes.ImageGCHighThresholdPercent)
 					Expect(err).ToNot(HaveOccurred())
@@ -1716,7 +1716,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.ImageGCLowThresholdPercent).ToNot(BeNil())
 					percent, err := strconv.Atoi(*config.Settings.Kubernetes.ImageGCLowThresholdPercent)
 					Expect(err).ToNot(HaveOccurred())
@@ -1733,7 +1733,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.ClusterDNSIP).ToNot(BeNil())
 					Expect(*config.Settings.Kubernetes.ClusterDNSIP).To(Equal("10.0.100.10"))
 				})
@@ -1751,7 +1751,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.CPUCFSQuota).ToNot(BeNil())
 					Expect(*config.Settings.Kubernetes.CPUCFSQuota).To(BeFalse())
 				})
@@ -1769,7 +1769,7 @@ eviction-max-pod-grace-period = 10
 				ExpectScheduled(ctx, env.Client, pod)
 				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, []byte(userData))).To(Succeed())
 					for k, v := range desiredLabels {
 						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
 					}
@@ -1796,7 +1796,7 @@ eviction-max-pod-grace-period = 10
 				ExpectScheduled(ctx, env.Client, pod)
 				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, []byte(userData))).To(Succeed())
 					for k, v := range desiredLabels {
 						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
 					}
@@ -2543,6 +2543,29 @@ eviction-max-pod-grace-period = 10
 				),
 			)
 		})
+	})
+	Context("Tenancy", func() {
+		DescribeTable("should set tenancy on launch template",
+			func(specTenancy *string, tenancy ec2types.Tenancy) {
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				nodeSelector := map[string]string{}
+				if tenancy != "" {
+					nodeSelector[v1.LabelInstanceTenancy] = string(tenancy)
+				}
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					NodeSelector: nodeSelector,
+				})
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					Expect(ltInput.LaunchTemplateData.Placement.Tenancy).To(Equal(tenancy))
+				})
+			},
+			Entry("when not specified", nil, ec2types.TenancyDefault),
+			Entry("when default specified", lo.ToPtr("default"), ec2types.TenancyDefault),
+			Entry("when dedicated specified", lo.ToPtr("dedicated"), ec2types.TenancyDedicated),
+		)
 	})
 	It("should generate a unique launch template per capacity reservation", func() {
 		crs := []ec2types.CapacityReservation{

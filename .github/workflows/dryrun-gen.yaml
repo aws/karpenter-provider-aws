@@ -12,11 +12,11 @@ jobs:
     if: github.repository == 'aws/karpenter-provider-aws'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
       - uses: ./.github/actions/install-deps
         with:
           use-cache: false
-      - uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838 # v5.0.0
+      - uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
         with:
           role-to-assume: 'arn:aws:iam::${{ vars.READONLY_ACCOUNT_ID }}:role/${{ vars.READONLY_ROLE_NAME }}'
           aws-region: ${{ vars.READONLY_REGION }}

@@ -135,6 +135,7 @@ func (p *DefaultProvider) EnsureAll(
 	instanceTypes []*cloudprovider.InstanceType,
 	capacityType string,
 	tags map[string]string,
+	tenancyType string,
 ) ([]*LaunchTemplate, error) {
 	p.Lock()
 	defer p.Unlock()
@@ -147,7 +148,7 @@ func (p *DefaultProvider) EnsureAll(
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, opts)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, tenancyType, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +257,7 @@ func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *ami
 }
 
 func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (ec2types.LaunchTemplate, error) {
-	userData, err := options.UserData.Script()
+	userData, err := options.UserData.Script(ctx)
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
 	}
