@@ -47,17 +47,15 @@ var _ = Describe("TerminateInstances Batcher", func() {
 		var wg sync.WaitGroup
 		var receivedInstance int64
 		for _, instanceID := range instanceIDs {
-			wg.Add(1)
-			go func(instanceID string) {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				rsp, err := cfb.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
 					InstanceIds: []string{instanceID},
 				})
 				Expect(err).To(BeNil())
 				atomic.AddInt64(&receivedInstance, 1)
 				Expect(rsp.TerminatingInstances).To(HaveLen(1))
-			}(instanceID)
+			})
 		}
 		wg.Wait()
 
@@ -75,17 +73,15 @@ var _ = Describe("TerminateInstances Batcher", func() {
 		var wg sync.WaitGroup
 		var receivedInstance int64
 		for _, instanceID := range instanceIDs {
-			wg.Add(1)
-			go func(instanceID string) {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				rsp, err := cfb.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
 					InstanceIds: []string{instanceID},
 				})
 				Expect(err).To(BeNil())
 				atomic.AddInt64(&receivedInstance, 1)
 				Expect(rsp.TerminatingInstances).To(HaveLen(1))
-			}(instanceID)
+			})
 		}
 		wg.Wait()
 
@@ -110,10 +106,8 @@ var _ = Describe("TerminateInstances Batcher", func() {
 		var receivedInstance int64
 		var numUnfulfilled int64
 		for _, instanceID := range instanceIDs {
-			wg.Add(1)
-			go func(instanceID string) {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				rsp, err := cfb.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
 					InstanceIds: []string{instanceID},
 				})
@@ -124,7 +118,7 @@ var _ = Describe("TerminateInstances Batcher", func() {
 				} else {
 					atomic.AddInt64(&receivedInstance, 1)
 				}
-			}(instanceID)
+			})
 		}
 		wg.Wait()
 
@@ -144,15 +138,13 @@ var _ = Describe("TerminateInstances Batcher", func() {
 		fakeEC2API.TerminateInstancesBehavior.Error.Set(fmt.Errorf("error"), fake.MaxCalls(6))
 		var wg sync.WaitGroup
 		for _, instanceID := range instanceIDs {
-			wg.Add(1)
-			go func(instanceID string) {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				_, err := cfb.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
 					InstanceIds: []string{instanceID},
 				})
 				Expect(err).ToNot(BeNil())
-			}(instanceID)
+			})
 		}
 		wg.Wait()
 		// We expect 6 calls since we do one full batched call and 5 individual since the batched call returns an error
