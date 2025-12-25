@@ -456,10 +456,8 @@ var _ = Describe("SubnetProvider", func() {
 	})
 	It("should not cause data races when calling List() simultaneously", func() {
 		wg := sync.WaitGroup{}
-		for i := 0; i < 10000; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+		for range 10000 {
+			wg.Go(func() {
 				defer GinkgoRecover()
 				subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 				Expect(err).ToNot(HaveOccurred())
@@ -545,7 +543,7 @@ var _ = Describe("SubnetProvider", func() {
 						VpcId: lo.ToPtr("vpc-test1"),
 					},
 				}))
-			}()
+			})
 		}
 		wg.Wait()
 	})

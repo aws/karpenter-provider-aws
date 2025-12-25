@@ -55,11 +55,10 @@ func New(ctx context.Context, config *rest.Config, kubeClient client.Client) *Mo
 
 // MustStart starts the debug monitor
 func (m *Monitor) MustStart() {
-	m.wg.Add(1)
-	go func() {
+	m.wg.Go(func() {
 		defer m.wg.Done()
 		lo.Must0(m.mgr.Start(m.ctx))
-	}()
+	})
 }
 
 // Stop stops the monitor

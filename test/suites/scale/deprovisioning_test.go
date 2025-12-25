@@ -181,15 +181,13 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			By("waiting for the deployment to deploy all of its pods")
 			var wg sync.WaitGroup
-			for _, d := range deploymentMap {
-				wg.Add(1)
-				go func(dep *appsv1.Deployment) {
+			for _, dep := range deploymentMap {
+				wg.Go(func() {
 					defer GinkgoRecover()
-					defer wg.Done()
 
 					env.ExpectCreated(dep)
 					env.EventuallyExpectPendingPodCount(labels.SelectorFromSet(dep.Spec.Selector.MatchLabels), int(lo.FromPtr(dep.Spec.Replicas)))
-				}(d)
+				})
 			}
 			wg.Wait()
 
@@ -218,14 +216,12 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 				// Wait for all pods across all deployments we have created to be in a healthy state
 				wg = sync.WaitGroup{}
-				for _, d := range deploymentMap {
-					wg.Add(1)
-					go func(dep *appsv1.Deployment) {
+				for _, dep := range deploymentMap {
+					wg.Go(func() {
 						defer GinkgoRecover()
-						defer wg.Done()
 
 						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(dep.Spec.Selector.MatchLabels), int(lo.FromPtr(dep.Spec.Replicas)))
-					}(d)
+					})
 				}
 				wg.Wait()
 			}, map[string]string{
@@ -309,11 +305,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 				By("waiting for the nodes across all deprovisioners to get deleted")
 				wg = sync.WaitGroup{}
-				for k, v := range assertionMap {
-					wg.Add(1)
-					go func(d string, assertions testAssertions) {
+				for d, assertions := range assertionMap {
+					wg.Go(func() {
 						defer GinkgoRecover()
-						defer wg.Done()
 
 						// Provide a default selector based on the original nodePool name if one isn't specified
 						selector = assertions.deletedNodeCountSelector
@@ -330,7 +324,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 						env.EventuallyExpectNodeCountWithSelector("==", assertions.nodeCount, selector)
 						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[d].Spec.Selector.MatchLabels), int(lo.FromPtr(deploymentMap[d].Spec.Replicas)))
 
-					}(k, v)
+					})
 				}
 				wg.Wait()
 			}, map[string]string{
