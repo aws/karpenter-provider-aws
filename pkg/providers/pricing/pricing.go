@@ -194,9 +194,7 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 	p.muOnDemand.Lock()
 	defer p.muOnDemand.Unlock()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		onDemandPrices, onDemandErr = p.fetchOnDemandPricing(ctx,
 			pricingtypes.Filter{
 				Field: aws.String("tenancy"),
@@ -208,12 +206,10 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 				Type:  "TERM_MATCH",
 				Value: aws.String("Compute Instance"),
 			})
-	}()
+	})
 
 	// bare metal on-demand prices
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		onDemandMetalPrices, onDemandMetalErr = p.fetchOnDemandPricing(ctx,
 			pricingtypes.Filter{
 				Field: aws.String("tenancy"),
@@ -225,7 +221,7 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 				Type:  "TERM_MATCH",
 				Value: aws.String("Compute Instance (bare metal)"),
 			})
-	}()
+	})
 
 	wg.Wait()
 
