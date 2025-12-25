@@ -2935,10 +2935,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 		mu := sync.RWMutex{}
 		var instanceTypeOrder []string
 		wg := sync.WaitGroup{}
-		for i := 0; i < 10000; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+		for range 10000 {
+			wg.Go(func() {
 				defer GinkgoRecover()
 				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).ToNot(HaveOccurred())
@@ -2962,7 +2960,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					Expect(tempInstanceTypeOrder).To(BeEquivalentTo(instanceTypeOrder))
 				}
 				mu.Unlock()
-			}()
+			})
 		}
 		wg.Wait()
 	})
