@@ -201,7 +201,7 @@ func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 		fmt.Fprintf(src, "NeuronInfo: &ec2types.NeuronInfo{\n")
 		fmt.Fprintf(src, "NeuronDevices: []ec2types.NeuronDeviceInfo{\n")
 		for _, elem := range info.NeuronInfo.NeuronDevices {
-			fmt.Fprintf(src, getNeuronDeviceInfo(elem))
+			fmt.Fprint(src, getNeuronDeviceInfo(elem))
 		}
 		fmt.Fprintf(src, "},\n")
 		fmt.Fprintf(src, "},\n")
@@ -210,7 +210,7 @@ func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 		fmt.Fprintf(src, "GpuInfo: &ec2types.GpuInfo{\n")
 		fmt.Fprintf(src, "Gpus: []ec2types.GpuDeviceInfo{\n")
 		for _, elem := range info.GpuInfo.Gpus {
-			fmt.Fprintf(src, getGPUDeviceInfo(elem))
+			fmt.Fprint(src, getGPUDeviceInfo(elem))
 		}
 		fmt.Fprintf(src, "},\n")
 		fmt.Fprintf(src, "},\n")
@@ -233,7 +233,7 @@ func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 	fmt.Fprintf(src, "DefaultNetworkCardIndex: aws.Int32(%d),\n", lo.FromPtr(info.NetworkInfo.DefaultNetworkCardIndex))
 	fmt.Fprintf(src, "NetworkCards: []ec2types.NetworkCardInfo{\n")
 	for _, networkCard := range info.NetworkInfo.NetworkCards {
-		fmt.Fprintf(src, getNetworkCardInfo(networkCard))
+		fmt.Fprint(src, getNetworkCardInfo(networkCard))
 	}
 	fmt.Fprintf(src, "},\n")
 	fmt.Fprintf(src, "},\n")
