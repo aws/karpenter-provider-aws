@@ -488,7 +488,7 @@ type EC2NodeClass struct {
 const EC2NodeClassHashVersion = "v4"
 
 func (in *EC2NodeClass) Hash() string {
-	return fmt.Sprint(lo.Must(hashstructure.Hash([]interface{}{
+	return fmt.Sprint(lo.Must(hashstructure.Hash([]any{
 		in.Spec,
 		// AMIFamily should be hashed using the dynamically resolved value rather than the literal value of the field.
 		// This ensures that scenarios such as changing the field from nil to AL2023 with the alias "al2023@latest"

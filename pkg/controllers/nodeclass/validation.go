@@ -303,7 +303,7 @@ func (*Validation) requiredConditions() []string {
 }
 
 func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) string {
-	hash := lo.Must(hashstructure.Hash([]interface{}{
+	hash := lo.Must(hashstructure.Hash([]any{
 		nodeClass.Status.Subnets,
 		nodeClass.Status.SecurityGroups,
 		nodeClass.Status.AMIs,

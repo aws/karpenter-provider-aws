@@ -196,7 +196,7 @@ func (p *providerSet) cleanupInfrastructure(queueURL string) error {
 	return nil
 }
 
-func (p *providerSet) provisionMessages(ctx context.Context, messages ...interface{}) error {
+func (p *providerSet) provisionMessages(ctx context.Context, messages ...any) error {
 	errs := make([]error, len(messages))
 	workqueue.ParallelizeUntil(ctx, 20, len(messages), func(i int) {
 		_, err := p.sqsProvider.SendMessage(ctx, messages[i])
@@ -235,8 +235,8 @@ func provisionNodes(ctx context.Context, kubeClient client.Client, nodes []*core
 	return multierr.Combine(errs...)
 }
 
-func makeDiverseMessagesAndNodes(count int) ([]interface{}, []*corev1.Node) {
-	var messages []interface{}
+func makeDiverseMessagesAndNodes(count int) ([]any, []*corev1.Node) {
+	var messages []any
 	var nodes []*corev1.Node
 
 	newMessages, newNodes := makeScheduledChangeMessagesAndNodes(count / 3)
@@ -256,8 +256,8 @@ func makeDiverseMessagesAndNodes(count int) ([]interface{}, []*corev1.Node) {
 	return messages, nodes
 }
 
-func makeScheduledChangeMessagesAndNodes(count int) ([]interface{}, []*corev1.Node) {
-	var msgs []interface{}
+func makeScheduledChangeMessagesAndNodes(count int) ([]any, []*corev1.Node) {
+	var msgs []any
 	var nodes []*corev1.Node
 	for i := 0; i < count; i++ {
 		instanceID := fake.InstanceID()
@@ -274,8 +274,8 @@ func makeScheduledChangeMessagesAndNodes(count int) ([]interface{}, []*corev1.No
 	return msgs, nodes
 }
 
-func makeStateChangeMessagesAndNodes(count int, states []string) ([]interface{}, []*corev1.Node) {
-	var msgs []interface{}
+func makeStateChangeMessagesAndNodes(count int, states []string) ([]any, []*corev1.Node) {
+	var msgs []any
 	var nodes []*corev1.Node
 	for i := 0; i < count; i++ {
 		state := states[r.Intn(len(states))]
@@ -293,8 +293,8 @@ func makeStateChangeMessagesAndNodes(count int, states []string) ([]interface{},
 	return msgs, nodes
 }
 
-func makeSpotInterruptionMessagesAndNodes(count int) ([]interface{}, []*corev1.Node) {
-	var msgs []interface{}
+func makeSpotInterruptionMessagesAndNodes(count int) ([]any, []*corev1.Node) {
+	var msgs []any
 	var nodes []*corev1.Node
 	for i := 0; i < count; i++ {
 		instanceID := fake.InstanceID()

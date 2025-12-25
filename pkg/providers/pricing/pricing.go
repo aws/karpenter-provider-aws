@@ -329,7 +329,7 @@ func (p *DefaultProvider) spotPage(ctx context.Context, output *ec2.DescribeSpot
 }
 
 // turning off cyclo here, it measures as a 12 due to all of the type checks of the pricing data which returns a deeply
-// nested map[string]interface{}
+// nested map[string]any
 // nolint: gocyclo
 func (p *DefaultProvider) onDemandPage(ctx context.Context, output *pricing.GetProductsOutput) map[ec2types.InstanceType]float64 {
 	// this isn't the full pricing struct, just the portions we care about

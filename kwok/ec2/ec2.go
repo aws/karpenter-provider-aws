@@ -150,7 +150,7 @@ func (c *Client) ReadBackup(ctx context.Context) {
 //nolint:gocyclo
 func (c *Client) backupInstances(ctx context.Context) error {
 	var instances []ec2types.Instance
-	c.instances.Range(func(k, v interface{}) bool {
+	c.instances.Range(func(k, v any) bool {
 		instances = append(instances, v.(ec2types.Instance))
 		return true
 	})
@@ -281,7 +281,7 @@ func (c *Client) StartKillNodeThread(ctx context.Context) {
 }
 
 func removeNullFields(bytes []byte) []byte {
-	var mapSlice []map[string]interface{}
+	var mapSlice []map[string]any
 	lo.Must0(json.Unmarshal(bytes, &mapSlice))
 	for _, elem := range mapSlice {
 		for k, v := range elem {
@@ -338,7 +338,7 @@ func (c *Client) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 	for _, filter := range input.Filters {
 		switch lo.FromPtr(filter.Name) {
 		case "create-time":
-			c.launchTemplates.Range(func(k, v interface{}) bool {
+			c.launchTemplates.Range(func(k, v any) bool {
 				lt := v.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
 				for _, value := range filter.Values {
 					if lo.FromPtr(lt.A.CreateTime).Equal(lo.Must(time.Parse(time.RFC3339, value))) {
@@ -348,7 +348,7 @@ func (c *Client) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 				return true
 			})
 		case "launch-template-name":
-			c.launchTemplates.Range(func(k, v interface{}) bool {
+			c.launchTemplates.Range(func(k, v any) bool {
 				lt := v.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
 				for _, value := range filter.Values {
 					if lo.FromPtr(lt.A.LaunchTemplateName) == value {
@@ -358,7 +358,7 @@ func (c *Client) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 				return true
 			})
 		case "tag-key":
-			c.launchTemplates.Range(func(k, v interface{}) bool {
+			c.launchTemplates.Range(func(k, v any) bool {
 				lt := v.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
 				for _, value := range filter.Values {
 					for _, t := range lt.A.Tags {
@@ -373,7 +373,7 @@ func (c *Client) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 			// This looks for a tag with a specific value
 			if strings.Contains(lo.FromPtr(filter.Name), "tag:") {
 				key := strings.Split(lo.FromPtr(filter.Name), "tag:")[1]
-				c.launchTemplates.Range(func(k, v interface{}) bool {
+				c.launchTemplates.Range(func(k, v any) bool {
 					lt := v.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
 					for _, value := range filter.Values {
 						for _, t := range lt.A.Tags {
@@ -707,7 +707,7 @@ func (c *Client) DescribeInstances(_ context.Context, input *ec2.DescribeInstanc
 			instances = append(instances, raw.(ec2types.Instance))
 		}
 	} else {
-		c.instances.Range(func(k, v interface{}) bool {
+		c.instances.Range(func(k, v any) bool {
 			instances = append(instances, v.(ec2types.Instance))
 			return true
 		})

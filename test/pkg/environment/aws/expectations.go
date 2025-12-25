@@ -338,7 +338,7 @@ func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGrou
 	return securityGroups
 }
 
-func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
+func (env *Environment) ExpectMessagesCreated(msgs ...any) {
 	GinkgoHelper()
 	wg := &sync.WaitGroup{}
 	mu := &sync.Mutex{}
@@ -346,7 +346,7 @@ func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
 	var err error
 	for _, msg := range msgs {
 		wg.Add(1)
-		go func(m interface{}) {
+		go func(m any) {
 			defer wg.Done()
 			defer GinkgoRecover()
 			_, e := env.SQSProvider.SendMessage(env.Context, m)
