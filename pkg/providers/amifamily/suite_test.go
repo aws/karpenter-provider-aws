@@ -1230,5 +1230,5 @@ func ExpectConsistsOfAMIQueries(expected, actual []amifamily.DescribeImageQuery)
 			})
 		}
 	}
-	Expect(actual).To(ConsistOf(lo.Map(expected, func(q amifamily.DescribeImageQuery, _ int) interface{} { return q })...))
+	Expect(actual).To(ConsistOf(lo.Map(expected, func(q amifamily.DescribeImageQuery, _ int) any { return q })...))
 }
