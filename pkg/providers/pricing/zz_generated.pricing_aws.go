@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2025-12-08T13:25:46Z for us-east-1
+// generated at 2025-12-29T13:20:43Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -110,6 +110,10 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"c8g.12xlarge": 1.914240, "c8g.16xlarge": 2.552320, "c8g.24xlarge": 3.828480, "c8g.2xlarge": 0.319040,
 		"c8g.48xlarge": 7.656960, "c8g.4xlarge": 0.638080, "c8g.8xlarge": 1.276160, "c8g.large": 0.079760,
 		"c8g.medium": 0.039880, "c8g.metal-24xl": 4.211330, "c8g.metal-48xl": 7.656960, "c8g.xlarge": 0.159520,
+		// c8gb family
+		"c8gb.12xlarge": 2.844000, "c8gb.16xlarge": 3.792000, "c8gb.24xlarge": 5.688000, "c8gb.2xlarge": 0.474000,
+		"c8gb.4xlarge": 0.948000, "c8gb.8xlarge": 1.896000, "c8gb.large": 0.118500, "c8gb.medium": 0.059250,
+		"c8gb.metal-24xl": 6.029280, "c8gb.xlarge": 0.237000,
 		// c8gd family
 		"c8gd.12xlarge": 2.351520, "c8gd.16xlarge": 3.135360, "c8gd.24xlarge": 4.703040, "c8gd.2xlarge": 0.391920,
 		"c8gd.48xlarge": 9.406080, "c8gd.4xlarge": 0.783840, "c8gd.8xlarge": 1.567680, "c8gd.large": 0.097980,
@@ -308,11 +312,19 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"m8g.12xlarge": 2.154240, "m8g.16xlarge": 2.872320, "m8g.24xlarge": 4.308480, "m8g.2xlarge": 0.359040,
 		"m8g.48xlarge": 8.616960, "m8g.4xlarge": 0.718080, "m8g.8xlarge": 1.436160, "m8g.large": 0.089760,
 		"m8g.medium": 0.044880, "m8g.metal-24xl": 4.739330, "m8g.metal-48xl": 8.616960, "m8g.xlarge": 0.179520,
+		// m8gb family
+		"m8gb.12xlarge": 3.492000, "m8gb.16xlarge": 4.656000, "m8gb.24xlarge": 6.984000, "m8gb.2xlarge": 0.582000,
+		"m8gb.4xlarge": 1.164000, "m8gb.8xlarge": 2.328000, "m8gb.large": 0.145500, "m8gb.medium": 0.072750,
+		"m8gb.xlarge": 0.291000,
 		// m8gd family
 		"m8gd.12xlarge": 2.767680, "m8gd.16xlarge": 3.690240, "m8gd.24xlarge": 5.535360, "m8gd.2xlarge": 0.461280,
 		"m8gd.48xlarge": 11.070720, "m8gd.4xlarge": 0.922560, "m8gd.8xlarge": 1.845120, "m8gd.large": 0.115320,
 		"m8gd.medium": 0.057660, "m8gd.metal-24xl": 6.088900, "m8gd.metal-48xl": 11.070720,
 		"m8gd.xlarge": 0.230640,
+		// m8gn family
+		"m8gn.12xlarge": 3.492000, "m8gn.16xlarge": 4.656000, "m8gn.24xlarge": 6.984000, "m8gn.2xlarge": 0.582000,
+		"m8gn.48xlarge": 13.968000, "m8gn.4xlarge": 1.164000, "m8gn.8xlarge": 2.328000, "m8gn.large": 0.145500,
+		"m8gn.medium": 0.072800, "m8gn.xlarge": 0.291000,
 		// m8i-flex family
 		"m8i-flex.12xlarge": 2.413200, "m8i-flex.16xlarge": 3.217600, "m8i-flex.2xlarge": 0.402200,
 		"m8i-flex.4xlarge": 0.804400, "m8i-flex.8xlarge": 1.608800, "m8i-flex.large": 0.100550,
