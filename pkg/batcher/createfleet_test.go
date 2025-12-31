@@ -117,7 +117,6 @@ var _ = Describe("CreateFleet Batching", func() {
 		for i := range 5 {
 			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				input := east1input
 				// 4 instances for us-east-1 and 1 instance in us-east-2
 				if i == 3 {
