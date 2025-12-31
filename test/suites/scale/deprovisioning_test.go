@@ -87,18 +87,15 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 		nodePool.Spec.Limits = nil
 		test.ReplaceRequirements(nodePool, []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.LabelInstanceHypervisor,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"nitro"},
-				},
+				Key:      v1.LabelInstanceHypervisor,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"nitro"},
 			},
 			// Ensure that all pods can fit on to the provisioned nodes including all daemonsets
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceSize,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"large"},
-				},
+				Key:      v1.LabelInstanceSize,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"large"},
 			},
 		}...)
 		nodePool.Spec.Disruption.Budgets = []karpv1.Budget{{
@@ -458,11 +455,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			// Add in a instance type size requirement that's larger than the smallest that fits the pods.
 			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceSize,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"2xlarge"},
-				}})
+				Key:      v1.LabelInstanceSize,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"2xlarge"},
+			})
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 			// Hostname anti-affinity to require one pod on each node

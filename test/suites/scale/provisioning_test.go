@@ -52,11 +52,9 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			Nodes: "70%",
 		}}
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceHypervisor,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"nitro"},
-			},
+			Key:      v1.LabelInstanceHypervisor,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"nitro"},
 		})
 		deployment = test.Deployment(test.DeploymentOptions{
 			PodOptions: test.PodOptions{
@@ -149,10 +147,8 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 			// minValues is restricted to 30 to have enough instance types to be sent to launch API and not make this test flaky.
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      corev1.LabelInstanceTypeStable,
-				Operator: corev1.NodeSelectorOpExists,
-			},
+			Key:       corev1.LabelInstanceTypeStable,
+			Operator:  corev1.NodeSelectorOpExists,
 			MinValues: lo.ToPtr(30),
 		})
 
@@ -187,11 +183,9 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		}
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 			// With Prefix Delegation enabled, .large instances can have 434 pods.
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceSize,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"large"},
-			},
+			Key:      v1.LabelInstanceSize,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"large"},
 		},
 		)
 
@@ -224,18 +218,14 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		test.ReplaceRequirements(nodePool,
 			karpv1.NodeSelectorRequirementWithMinValues{
 				// With Prefix Delegation enabled, .large instances can have 434 pods.
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceSize,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"large"},
-				},
+				Key:      v1.LabelInstanceSize,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"large"},
 			},
 			karpv1.NodeSelectorRequirementWithMinValues{
 				// minValues is restricted to 30 to have enough instance types to be sent to launch API and not make this test flaky.
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceTypeStable,
-					Operator: corev1.NodeSelectorOpExists,
-				},
+				Key:       corev1.LabelInstanceTypeStable,
+				Operator:  corev1.NodeSelectorOpExists,
 				MinValues: lo.ToPtr(30),
 			},
 		)

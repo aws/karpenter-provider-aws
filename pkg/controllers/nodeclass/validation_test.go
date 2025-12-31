@@ -326,13 +326,11 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      corev1.LabelInstanceTypeStable,
-									Operator: corev1.NodeSelectorOpIn,
-									Values: []string{
-										string(ec2types.InstanceTypeC6gLarge),
-										string(ec2types.InstanceTypeG4dn8xlarge),
-									},
+								Key:      corev1.LabelInstanceTypeStable,
+								Operator: corev1.NodeSelectorOpIn,
+								Values: []string{
+									string(ec2types.InstanceTypeC6gLarge),
+									string(ec2types.InstanceTypeG4dn8xlarge),
 								},
 							},
 						},
@@ -355,12 +353,10 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      corev1.LabelInstanceTypeStable,
-									Operator: corev1.NodeSelectorOpIn,
-									Values: []string{
-										string(ec2types.InstanceTypeG4dn8xlarge),
-									},
+								Key:      corev1.LabelInstanceTypeStable,
+								Operator: corev1.NodeSelectorOpIn,
+								Values: []string{
+									string(ec2types.InstanceTypeG4dn8xlarge),
 								},
 							},
 						},
@@ -414,11 +410,9 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 						Spec: karpv1.NodeClaimTemplateSpec{
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      v1.LabelInstanceTenancy,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   values,
-									},
+									Key:      v1.LabelInstanceTenancy,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   values,
 								},
 							},
 							NodeClassRef: &karpv1.NodeClassReference{

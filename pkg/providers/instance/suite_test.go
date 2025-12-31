@@ -280,11 +280,11 @@ var _ = Describe("InstanceProvider", func() {
 		})
 		nodeClaim.Spec.Requirements = append(
 			nodeClaim.Spec.Requirements,
-			karpv1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+			karpv1.NodeSelectorRequirementWithMinValues{
 				Key:      karpv1.CapacityTypeLabelKey,
 				Operator: corev1.NodeSelectorOpIn,
 				Values:   []string{karpv1.CapacityTypeReserved},
-			}},
+			},
 		)
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
 
@@ -430,12 +430,10 @@ var _ = Describe("InstanceProvider", func() {
 		nodeClaim.Annotations = map[string]string{v1alpha1.PriceOverlayAppliedAnnotationKey: "true"}
 		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values: []string{
-						"on-demand",
-					},
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values: []string{
+					"on-demand",
 				},
 			},
 		}
@@ -455,12 +453,10 @@ var _ = Describe("InstanceProvider", func() {
 	It("should use lowest price allocation stragaty by default for on-demand nodeclaims", func() {
 		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values: []string{
-						"on-demand",
-					},
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values: []string{
+					"on-demand",
 				},
 			},
 		}
@@ -481,12 +477,10 @@ var _ = Describe("InstanceProvider", func() {
 		nodeClaim.Annotations = map[string]string{v1alpha1.PriceOverlayAppliedAnnotationKey: "true"}
 		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values: []string{
-						"spot",
-					},
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values: []string{
+					"spot",
 				},
 			},
 		}
@@ -506,12 +500,10 @@ var _ = Describe("InstanceProvider", func() {
 	It("should use price capacity optimized allocation stragaty by default for spot nodeclaims", func() {
 		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values: []string{
-						"spot",
-					},
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values: []string{
+					"spot",
 				},
 			},
 		}
