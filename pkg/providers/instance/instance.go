@@ -82,6 +82,7 @@ type Provider interface {
 	List(context.Context) ([]*Instance, error)
 	Delete(context.Context, string) error
 	CreateTags(context.Context, string, map[string]string) error
+	Region() string
 }
 
 type options struct {
@@ -614,6 +615,10 @@ func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) 
 		return aws.ToString(instances[i].InstanceId) < aws.ToString(instances[j].InstanceId)
 	})
 	return lo.Map(instances, func(i ec2types.Instance, _ int) *Instance { return NewInstance(ctx, i) }), nil
+}
+
+func (p *DefaultProvider) Region() string {
+	return p.region
 }
 
 func combineFleetErrors(fleetErrs []ec2types.CreateFleetError) (errs error) {
