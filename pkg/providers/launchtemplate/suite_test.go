@@ -1880,8 +1880,8 @@ eviction-max-pod-grace-period = 10
 						taints := []corev1.Taint{}
 						Expect(yaml.Unmarshal(taintsRaw.Raw, &taints)).To(Succeed())
 						Expect(len(taints)).To(Equal(3))
-						Expect(taints).To(ContainElements(lo.Map(desiredTaints, func(t corev1.Taint, _ int) interface{} {
-							return interface{}(t)
+						Expect(taints).To(ContainElements(lo.Map(desiredTaints, func(t corev1.Taint, _ int) any {
+							return any(t)
 						})))
 					}
 				})
@@ -1950,9 +1950,9 @@ eviction-max-pod-grace-period = 10
 						inlineConfig := func() map[string]runtime.RawExtension {
 							configYAML, err := yaml.Marshal(kc)
 							Expect(err).To(BeNil())
-							configMap := map[string]interface{}{}
+							configMap := map[string]any{}
 							Expect(yaml.Unmarshal(configYAML, &configMap)).To(Succeed())
-							return lo.MapValues(configMap, func(v interface{}, _ string) runtime.RawExtension {
+							return lo.MapValues(configMap, func(v any, _ string) runtime.RawExtension {
 								val, err := json.Marshal(v)
 								Expect(err).To(BeNil())
 								return runtime.RawExtension{Raw: val}

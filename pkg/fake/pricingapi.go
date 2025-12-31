@@ -48,19 +48,19 @@ func NewOnDemandPrice(instanceType string, price float64) string {
 }
 
 func NewOnDemandPriceWithCurrency(instanceType string, price float64, currency string) string {
-	data := map[string]interface{}{
-		"product": map[string]interface{}{
-			"attributes": map[string]interface{}{
+	data := map[string]any{
+		"product": map[string]any{
+			"attributes": map[string]any{
 				"instanceType": instanceType,
 			},
 		},
-		"terms": map[string]interface{}{
-			"OnDemand": map[string]interface{}{
-				"JRTCKXETXF.foo": map[string]interface{}{
+		"terms": map[string]any{
+			"OnDemand": map[string]any{
+				"JRTCKXETXF.foo": map[string]any{
 					"offerTermCode": "JRTCKXETXF",
-					"priceDimensions": map[string]interface{}{
-						"JRTCKXETXF.foo.bar": map[string]interface{}{
-							"pricePerUnit": map[string]interface{}{currency: fmt.Sprintf("%f", price)},
+					"priceDimensions": map[string]any{
+						"JRTCKXETXF.foo.bar": map[string]any{
+							"pricePerUnit": map[string]any{currency: fmt.Sprintf("%f", price)},
 						},
 					},
 				},

@@ -723,7 +723,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
 
-			var msgs []interface{}
+			var msgs []any
 			for _, node := range nodes {
 				instanceID, err := utils.ParseInstanceID(node.Spec.ProviderID)
 				Expect(err).ToNot(HaveOccurred())
