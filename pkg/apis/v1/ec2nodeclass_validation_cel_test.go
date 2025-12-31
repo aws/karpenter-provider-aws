@@ -84,7 +84,7 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("AMIFamily", func() {
-		amiFamilies := []string{v1.AMIFamilyAL2, v1.AMIFamilyAL2023, v1.AMIFamilyBottlerocket, v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2022, v1.AMIFamilyCustom}
+		amiFamilies := []string{v1.AMIFamilyAL2, v1.AMIFamilyAL2023, v1.AMIFamilyBottlerocket, v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2022, v1.AMIFamilyCustom, v1.AMIFamilyCustomNodeadm}
 		DescribeTable("should succeed with valid families", func() []interface{} {
 			f := func(amiFamily string) {
 				// Set a custom AMI family so it's compatible with all ami family types
