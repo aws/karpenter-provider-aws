@@ -1705,12 +1705,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 				// 11 * pods + 255
 				Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal(memory))
 			},
-			Entry("al2 (latest)", "al2@latest", v1.AMIFamilyAL2, 10, "640Mi"),                            // 11 * 35 + 255
-			Entry("al2023 (latest)", "al2023@latest", v1.AMIFamilyAL2023, 10, "640Mi"),                   // 11 * 35 + 255
-			Entry("bottlerocket (latest)", "bottlerocket@latest", v1.AMIFamilyBottlerocket, 10, "365Mi"), // 11 * 10 + 255
-			Entry("windows2019 (latest)", "windows2019@latest", v1.AMIFamilyWindows2019, 10, "365Mi"),    // 11 * 10 + 255
-			Entry("windows2022 (latest)", "windows2022@latest", v1.AMIFamilyWindows2022, 10, "365Mi"),    // 11 * 10 + 255
-			Entry("custom", fake.ImageID(), v1.AMIFamilyCustom, 10, "640Mi"),                             // 11 * 35 + 255
+			Entry("al2 (latest)", "al2@latest", v1.AMIFamilyAL2, 10, "640Mi"),                                          // 11 * 35 + 255
+			Entry("al2023 (latest)", "al2023@latest", v1.AMIFamilyAL2023, 10, "640Mi"),                                 // 11 * 35 + 255
+			Entry("bottlerocket (latest)", "bottlerocket@latest", v1.AMIFamilyBottlerocket, 10, "365Mi"),               // 11 * 10 + 255
+			Entry("bottlerocket-fips (latest)", "bottlerocket-fips@latest", v1.AMIFamilyBottlerocketFIPS, 10, "365Mi"), // 11 * 10 + 255
+			Entry("windows2019 (latest)", "windows2019@latest", v1.AMIFamilyWindows2019, 10, "365Mi"),                  // 11 * 10 + 255
+			Entry("windows2022 (latest)", "windows2022@latest", v1.AMIFamilyWindows2022, 10, "365Mi"),                  // 11 * 10 + 255
+			Entry("custom", fake.ImageID(), v1.AMIFamilyCustom, 10, "640Mi"),                                           // 11 * 35 + 255
 		)
 		It("should override max-pods value", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
@@ -1779,12 +1780,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 				// 11 * pods + 255
 				Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal(memory))
 			},
-			Entry("al2 (latest)", "al2@latest", v1.AMIFamilyAL2, 24, "640Mi"),                            // 11 * 35 + 255
-			Entry("al2023 (latest)", "al2023@latest", v1.AMIFamilyAL2023, 24, "640Mi"),                   // 11 * 35 + 255
-			Entry("bottlerocket (latest)", "bottlerocket@latest", v1.AMIFamilyBottlerocket, 24, "519Mi"), // 11 * 24 + 255
-			Entry("windows2019 (latest)", "windows2019@latest", v1.AMIFamilyWindows2019, 110, "1465Mi"),  // 11 * 110 + 255
-			Entry("windows2022 (latest)", "windows2022@latest", v1.AMIFamilyWindows2022, 110, "1465Mi"),  // 11 * 110 + 255
-			Entry("custom", fake.ImageID(), v1.AMIFamilyCustom, 24, "640Mi"),                             // 11 * 35 + 255
+			Entry("al2 (latest)", "al2@latest", v1.AMIFamilyAL2, 24, "640Mi"),                                          // 11 * 35 + 255
+			Entry("al2023 (latest)", "al2023@latest", v1.AMIFamilyAL2023, 24, "640Mi"),                                 // 11 * 35 + 255
+			Entry("bottlerocket (latest)", "bottlerocket@latest", v1.AMIFamilyBottlerocket, 24, "519Mi"),               // 11 * 24 + 255
+			Entry("bottlerocket-fips (latest)", "bottlerocket-fips@latest", v1.AMIFamilyBottlerocketFIPS, 24, "519Mi"), // 11 * 24 + 255
+			Entry("windows2019 (latest)", "windows2019@latest", v1.AMIFamilyWindows2019, 110, "1465Mi"),                // 11 * 110 + 255
+			Entry("windows2022 (latest)", "windows2022@latest", v1.AMIFamilyWindows2022, 110, "1465Mi"),                // 11 * 110 + 255
+			Entry("custom", fake.ImageID(), v1.AMIFamilyCustom, 24, "640Mi"),                                           // 11 * 35 + 255
 		)
 		It("should reserve ENIs when aws.reservedENIs is set and not go below 0 ENIs in max-pods calculation", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
@@ -2526,23 +2528,27 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeInitializationRate).To(Equal(int32(100)))
 			})
 		})
-		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for Bottlerocket Root volume", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-			nodeClass.Spec.BlockDeviceMappings[0].DeviceName = aws.String("/dev/xvdb")
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("20Gi")))
-			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/xvdb"))
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
-				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeInitializationRate).To(Equal(int32(100)))
-			})
-		})
+		DescribeTable("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for Bottlerocket Root volume",
+			func(alias string) {
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+				nodeClass.Spec.BlockDeviceMappings[0].DeviceName = aws.String("/dev/xvdb")
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("20Gi")))
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+					Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
+					Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/xvdb"))
+					Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+					Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeInitializationRate).To(Equal(int32(100)))
+				})
+			},
+			Entry("bottlerocket@latest", "bottlerocket@latest"),
+			Entry("bottlerocket-fips@latest", "bottlerocket-fips@latest"),
+		)
 	})
 	Context("Metadata Options", func() {
 		It("should default metadata options on generated launch template", func() {
