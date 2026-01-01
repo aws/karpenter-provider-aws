@@ -61,6 +61,31 @@ var _ = Describe("Subnets", func() {
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SubnetId", HaveValue(Equal(firstSubnet))))
 	})
+	It("should use the cidr-block selector", func() {
+		subnets := env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})
+		Expect(len(subnets)).ToNot(Equal(0))
+		firstSubnet := subnets[0]
+
+		subnetDetails, err := env.EC2API.DescribeSubnets(env.Context, &ec2.DescribeSubnetsInput{
+			SubnetIds: []string{firstSubnet.ID},
+		})
+		Expect(err).To(BeNil())
+		Expect(len(subnetDetails.Subnets)).To(Equal(1))
+		cidrBlock := lo.FromPtr(subnetDetails.Subnets[0].CidrBlock)
+
+		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
+			{
+				CidrBlock: cidrBlock,
+			},
+		}
+		pod := test.Pod()
+
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SubnetId", HaveValue(Equal(firstSubnet.ID))))
+	})
 	It("should use resource based naming as node names", func() {
 		subnets := env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(len(subnets)).ToNot(Equal(0))

@@ -32,7 +32,7 @@ import (
 type EC2NodeClassSpec struct {
 	// SubnetSelectorTerms is a list of subnet selector terms. The terms are ORed.
 	// +kubebuilder:validation:XValidation:message="subnetSelectorTerms cannot be empty",rule="self.size() != 0"
-	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id']",rule="self.all(x, has(x.tags) || has(x.id))"
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'cidrBlock']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.cidrBlock))"
 	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in a subnet selector term",rule="!self.all(x, has(x.id) && has(x.tags))"
 	// +kubebuilder:validation:MaxItems:=30
 	// +required
@@ -158,6 +158,11 @@ type SubnetSelectorTerm struct {
 	// +kubebuilder:validation:Pattern="subnet-[0-9a-z]+"
 	// +optional
 	ID string `json:"id,omitempty"`
+	// CidrBlock is the CidrBlock of the subnet
+	// Supports CIDR notation and wildcards (e.g., "10.0.1.0/24", "2001:db8::/32", "10.0.*", "*/24")
+	// +kubebuilder:validation:Pattern="^[0-9a-fA-F.:/*]+$"
+	// +optional
+	CidrBlock string `json:"cidrBlock,omitempty"`
 }
 
 // SecurityGroupSelectorTerm defines selection logic for a security group used by Karpenter to launch nodes.
