@@ -150,11 +150,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      karpv1.CapacityTypeLabelKey,
-									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{karpv1.CapacityTypeOnDemand},
-								},
+								Key:      karpv1.CapacityTypeLabelKey,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{karpv1.CapacityTypeOnDemand},
 							},
 						},
 						NodeClassRef: &karpv1.NodeClassReference{
@@ -195,11 +193,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      karpv1.CapacityTypeLabelKey,
-									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{karpv1.CapacityTypeOnDemand},
-								},
+								Key:      karpv1.CapacityTypeLabelKey,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{karpv1.CapacityTypeOnDemand},
 							},
 						},
 						NodeClassRef: &karpv1.NodeClassReference{
@@ -467,13 +463,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values: []string{
-						karpv1.CapacityTypeSpot,
-						karpv1.CapacityTypeOnDemand,
-					},
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values: []string{
+					karpv1.CapacityTypeSpot,
+					karpv1.CapacityTypeOnDemand,
 				},
 			},
 		}
@@ -530,11 +524,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 		// Construct requirements with minValues for capacityType requirement.
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{karpv1.CapacityTypeSpot},
-				},
+				Key:       karpv1.CapacityTypeLabelKey,
+				Operator:  corev1.NodeSelectorOpIn,
+				Values:    []string{karpv1.CapacityTypeSpot},
 				MinValues: lo.ToPtr(1),
 			},
 		}
@@ -604,10 +596,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 	It("should launch on metal", func() {
 		// add a nodePool requirement for instance type exists to remove our default filter for metal sizes
 		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      corev1.LabelInstanceTypeStable,
-				Operator: corev1.NodeSelectorOpExists,
-			},
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpExists,
 		})
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
@@ -653,11 +643,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 	})
 	It("should not launch pod when flex instances are disallowed", func() {
 		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceCapabilityFlex,
-				Operator: corev1.NodeSelectorOpNotIn,
-				Values:   []string{"true"},
-			},
+			Key:      v1.LabelInstanceCapabilityFlex,
+			Operator: corev1.NodeSelectorOpNotIn,
+			Values:   []string{"true"},
 		})
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
@@ -736,11 +724,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
 		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      corev1.LabelInstanceTypeStable,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"test"},
-			},
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"test"},
 		})
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -854,11 +840,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 		nodeNames := sets.NewString()
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceTypeStable,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"trn1.2xlarge"},
-				},
+				Key:      corev1.LabelInstanceTypeStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"trn1.2xlarge"},
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -882,11 +866,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 		nodeNames := sets.NewString()
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceTypeStable,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"inf2.xlarge"},
-				},
+
+				Key:      corev1.LabelInstanceTypeStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"inf2.xlarge"},
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -909,11 +892,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 	It("should launch instances for vpc.amazonaws.com/efa resource requests", func() {
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceTypeStable,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"dl1.24xlarge"},
-				},
+				Key:      corev1.LabelInstanceTypeStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"dl1.24xlarge"},
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2105,11 +2086,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 				{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
 			})
 			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceType,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"m5.large", "m5.xlarge"},
-				},
+				Key:      corev1.LabelInstanceType,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"m5.large", "m5.xlarge"},
 			})
 			pods := []*corev1.Pod{}
 			for i := 0; i < 2; i++ {
@@ -2202,8 +2181,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 				return nil
 			}()).To(Succeed())
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand}}},
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}}},
+				{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand}},
+				{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
 			}
 			// Spot Unavailable
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2225,19 +2204,15 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 			nodePool.Spec.Template.Spec.Requirements = nil
 			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceType,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"m5.xlarge"},
-				},
+				Key:      corev1.LabelInstanceType,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"m5.xlarge"},
 			},
 			)
 			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"spot", "on-demand"},
-				},
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"spot", "on-demand"},
 			})
 
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2402,7 +2377,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		It("should launch spot capacity if flexible to both spot and on demand", func() {
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand}}}}
+				{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2424,9 +2399,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot}}},
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelInstanceTypeStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"m5.large"}}},
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1b"}}},
+				{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot}},
+				{Key: corev1.LabelInstanceTypeStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"m5.large"}},
+				{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1b"}},
 			}
 
 			// Instance type with no zonal availability for spot shouldn't be scheduled
@@ -2451,8 +2426,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 			// not restricting to the zone so we can get any zone
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot}}},
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelInstanceTypeStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"m5.large"}}},
+				{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot}},
+				{Key: corev1.LabelInstanceTypeStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"m5.large"}},
 			}
 
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2868,13 +2843,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 		It("Should use default tenancy if tenancy requirement specifies both default and dedicated tenancies", func() {
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      v1.LabelInstanceTenancy,
-						Operator: corev1.NodeSelectorOpIn,
-						Values: []string{
-							string(ec2types.TenancyDefault),
-							string(ec2types.TenancyDedicated),
-						},
+					Key:      v1.LabelInstanceTenancy,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						string(ec2types.TenancyDefault),
+						string(ec2types.TenancyDedicated),
 					},
 				},
 			}
@@ -2911,12 +2884,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 			func(npTenancy string, podTenancy string) {
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{
-						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-							Key:      v1.LabelInstanceTenancy,
-							Operator: corev1.NodeSelectorOpIn,
-							Values: []string{
-								npTenancy,
-							},
+						Key:      v1.LabelInstanceTenancy,
+						Operator: corev1.NodeSelectorOpIn,
+						Values: []string{
+							npTenancy,
 						},
 					},
 				}

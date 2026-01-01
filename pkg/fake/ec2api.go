@@ -320,7 +320,7 @@ func (e *EC2API) DescribeInstances(_ context.Context, input *ec2.DescribeInstanc
 
 		// If it's a list call and no instance ids are specified
 		if len(input.InstanceIds) == 0 {
-			e.Instances.Range(func(k interface{}, v interface{}) bool {
+			e.Instances.Range(func(k any, v any) bool {
 				instances = append(instances, v.(ec2types.Instance))
 				return true
 			})
@@ -434,7 +434,7 @@ func (e *EC2API) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 		return e.DescribeLaunchTemplatesOutput.Clone(), nil
 	}
 	output := &ec2.DescribeLaunchTemplatesOutput{}
-	e.LaunchTemplates.Range(func(key, value interface{}) bool {
+	e.LaunchTemplates.Range(func(key, value any) bool {
 		launchTemplate := value.(ec2types.LaunchTemplate)
 		if lo.Contains(input.LaunchTemplateNames, lo.FromPtr(launchTemplate.LaunchTemplateName)) || len(input.Filters) != 0 && Filter(input.Filters, aws.ToString(launchTemplate.LaunchTemplateId), aws.ToString(launchTemplate.LaunchTemplateName), "", "", launchTemplate.Tags) {
 			output.LaunchTemplates = append(output.LaunchTemplates, launchTemplate)

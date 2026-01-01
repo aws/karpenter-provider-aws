@@ -36,8 +36,8 @@ func NewBottlerocketConfig(ctx context.Context, userdata *string) (*Bottlerocket
 
 // BottlerocketConfig is the root of the bottlerocket config, see more here https://github.com/bottlerocket-os/bottlerocket#using-user-data
 type BottlerocketConfig struct {
-	SettingsRaw map[string]interface{} `toml:"settings"`
-	Settings    BottlerocketSettings   `toml:"-"`
+	SettingsRaw map[string]any       `toml:"settings"`
+	Settings    BottlerocketSettings `toml:"-"`
 }
 
 // BottlerocketSettings is a subset of all configuration in https://github.com/bottlerocket-os/bottlerocket/blob/d427c40931cba6e6bedc5b75e9c084a6e1818db9/sources/models/src/lib.rs#L260
@@ -154,7 +154,7 @@ func (c *BottlerocketConfig) UnmarshalTOML(ctx context.Context, data []byte) err
 
 func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 	if c.SettingsRaw == nil {
-		c.SettingsRaw = map[string]interface{}{}
+		c.SettingsRaw = map[string]any{}
 	}
 	c.SettingsRaw["kubernetes"] = c.Settings.Kubernetes
 	if c.Settings.BootstrapCommands != nil {

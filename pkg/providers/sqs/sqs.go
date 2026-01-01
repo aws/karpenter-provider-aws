@@ -32,7 +32,7 @@ import (
 type Provider interface {
 	Name() string
 	GetSQSMessages(context.Context) ([]*sqstypes.Message, error)
-	SendMessage(context.Context, interface{}) (string, error)
+	SendMessage(context.Context, any) (string, error)
 	DeleteSQSMessage(context.Context, *sqstypes.Message) error
 }
 
@@ -76,7 +76,7 @@ func (p *DefaultProvider) GetSQSMessages(ctx context.Context) ([]*sqstypes.Messa
 	return lo.ToSlicePtr(result.Messages), nil
 }
 
-func (p *DefaultProvider) SendMessage(ctx context.Context, body interface{}) (string, error) {
+func (p *DefaultProvider) SendMessage(ctx context.Context, body any) (string, error) {
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return "", fmt.Errorf("marshaling the passed body as json, %w", err)
