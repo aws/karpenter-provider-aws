@@ -345,7 +345,6 @@ func (env *Environment) ExpectMessagesCreated(msgs ...any) {
 
 	var err error
 	for _, msg := range msgs {
-
 		wg.Go(func() {
 			defer GinkgoRecover()
 			_, e := env.SQSProvider.SendMessage(env.Context, msg)
