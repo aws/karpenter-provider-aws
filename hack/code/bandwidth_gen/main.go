@@ -116,7 +116,7 @@ func main() {
 	// Generate body
 	var body string
 	for _, instanceType := range lo.Without(allInstanceTypes, instanceTypes...) {
-		if lo.Contains(lo.Keys(vagueBandwidth), instanceType) {
+		if _, ok := vagueBandwidth[instanceType]; ok {
 			body += fmt.Sprintf("// %s has vague bandwidth information, bandwidth is %s\n", instanceType, vagueBandwidth[instanceType])
 			continue
 		}
