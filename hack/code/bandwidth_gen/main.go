@@ -114,22 +114,22 @@ func main() {
 	})
 
 	// Generate body
-	var body string
+	var body strings.Builder
 	for _, instanceType := range lo.Without(allInstanceTypes, instanceTypes...) {
 		if lo.Contains(lo.Keys(vagueBandwidth), instanceType) {
-			body += fmt.Sprintf("// %s has vague bandwidth information, bandwidth is %s\n", instanceType, vagueBandwidth[instanceType])
+			fmt.Fprintf(&body, "// %s has vague bandwidth information, bandwidth is %s\n", instanceType, vagueBandwidth[instanceType])
 			continue
 		}
-		body += fmt.Sprintf("// %s is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html\n", instanceType)
+		fmt.Fprintf(&body, "// %s is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html\n", instanceType)
 	}
 	for _, instanceType := range instanceTypes {
-		body += fmt.Sprintf("\t\"%s\": %d,\n", instanceType, bandwidth[instanceType])
+		fmt.Fprintf(&body, "\t\"%s\": %d,\n", instanceType, bandwidth[instanceType])
 	}
 
 	license := lo.Must(os.ReadFile("hack/boilerplate.go.txt"))
 
 	// Format and print to the file
-	formatted := lo.Must(format.Source([]byte(fmt.Sprintf(fileFormat, license, body))))
+	formatted := lo.Must(format.Source(fmt.Appendf([]byte{}, fileFormat, license, body.String())))
 	file := lo.Must(os.Create(flag.Args()[0]))
 	lo.Must(file.Write(formatted))
 	file.Close()
