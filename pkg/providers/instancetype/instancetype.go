@@ -27,6 +27,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/offering"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/reservedinstance"
 
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
@@ -99,6 +100,7 @@ func NewDefaultProvider(
 	pricingProvider pricing.Provider,
 	capacityReservationProvider capacityreservation.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
+	reservedInstanceProvider reservedinstance.Provider,
 	instanceTypesResolver Resolver,
 ) *DefaultProvider {
 	return &DefaultProvider{
@@ -113,6 +115,7 @@ func NewDefaultProvider(
 		offeringProvider: offering.NewDefaultProvider(
 			pricingProvider,
 			capacityReservationProvider,
+			reservedInstanceProvider,
 			unavailableOfferingsCache,
 			offeringCache,
 		),
