@@ -53,7 +53,8 @@ const (
 
 type Environment struct {
 	context.Context
-	cancel context.CancelFunc
+	baseContext context.Context
+	cancel      context.CancelFunc
 
 	Client     client.Client
 	Config     *rest.Config
@@ -76,17 +77,36 @@ func NewEnvironment(t *testing.T) *Environment {
 	gomega.SetDefaultEventuallyTimeout(16 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
 	return &Environment{
-		Context:    ctx,
-		cancel:     cancel,
-		Config:     config,
-		Client:     client,
-		KubeClient: kubernetes.NewForConfigOrDie(config),
-		Monitor:    NewMonitor(ctx, client),
+		Context:     ctx,
+		baseContext: ctx,
+		cancel:      cancel,
+		Config:      config,
+		Client:      client,
+		KubeClient:  kubernetes.NewForConfigOrDie(config),
+		Monitor:     NewMonitor(ctx, client),
 	}
 }
 
 func (env *Environment) Stop() {
 	env.cancel()
+}
+
+func (env *Environment) SetContext(ctx context.Context) {
+	if ctx != nil {
+		env.Context = ctx
+	}
+}
+
+func (env *Environment) ResetContext() {
+	env.Context = env.baseContext
+}
+
+func (env *Environment) Eventually(actual interface{}, intervals ...interface{}) gomega.AsyncAssertion {
+	return gomega.Eventually(env.Context, actual, intervals...)
+}
+
+func (env *Environment) Consistently(actual interface{}, intervals ...interface{}) gomega.ConsistentlyAssertion {
+	return gomega.Consistently(env.Context, actual, intervals...)
 }
 
 func NewConfig() *rest.Config {

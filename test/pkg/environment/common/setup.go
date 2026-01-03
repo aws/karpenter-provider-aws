@@ -124,7 +124,7 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 		go func(obj client.Object) {
 			defer wg.Done()
 			defer GinkgoRecover()
-			Eventually(func(g Gomega) {
+			env.Eventually(func(g Gomega) {
 				// This only gets the metadata for the objects since we don't need all the details of the objects
 				metaList := &metav1.PartialObjectMetadataList{}
 				metaList.SetGroupVersionKind(lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme())))
