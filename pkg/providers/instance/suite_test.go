@@ -324,7 +324,7 @@ var _ = Describe("InstanceProvider", func() {
 	It("should return all NodePool-owned instances from List", func() {
 		ids := sets.New[string]()
 		// Provision instances that have the karpenter.sh/nodepool key
-		for i := 0; i < 20; i++ {
+		for range 20 {
 			instanceID := fake.InstanceID()
 			awsEnv.EC2API.Instances.Store(
 				instanceID,
@@ -386,7 +386,7 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(err).To(BeNil())
 		Expect(instances).To(HaveLen(20))
 
-		retrievedIDs := sets.New[string](lo.Map(instances, func(i *instance.Instance, _ int) string { return i.ID })...)
+		retrievedIDs := sets.New(lo.Map(instances, func(i *instance.Instance, _ int) string { return i.ID })...)
 		Expect(ids.Equal(retrievedIDs)).To(BeTrue())
 	})
 	It("should mark subnets as unavailable when they run out of IPs", func() {
