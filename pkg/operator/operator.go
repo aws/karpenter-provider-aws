@@ -142,7 +142,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cfg.Region,
 	)
 	pricingProvider := pricing.NewDefaultProvider(
-		pricing.NewAPI(cfg),
+		pricing.NewAPI(cfg, options.FromContext(ctx).PricingRegionOverride),
 		ec2api,
 		cfg.Region,
 		options.FromContext(ctx).IsolatedVPC,
