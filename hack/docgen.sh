@@ -16,4 +16,4 @@ compatibilitymatrix
 go run hack/docs/metrics_gen/main.go pkg/ "${KARPENTER_CORE_DIR}/pkg" "${CONTROLLER_RUNTIME_DIR}/pkg" "${AWS_SDK_GO_PROMETHEUS_DIR}" "${OPERATORPKG_DIR}" website/content/en/preview/reference/metrics.md
 go run hack/docs/instancetypes_gen/main.go website/content/en/preview/reference/instance-types.md
 go run hack/docs/configuration_gen/main.go website/content/en/preview/reference/settings.md
-cd charts/karpenter && helm-docs
+cd charts/karpenter && go tool -modfile=../../go.tools.mod helm-docs

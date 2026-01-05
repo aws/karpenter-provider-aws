@@ -279,7 +279,7 @@ func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes
 		instancefilter.CapacityBlockFilter(reqs),
 		instancefilter.ReservedOfferingFilter(reqs),
 		instancefilter.ExoticInstanceTypeFilter(reqs),
-		instancefilter.SpotInstanceFilter(reqs),
+		instancefilter.SpotOfferingFilter(reqs),
 	} {
 		remaining, rejected := filter.FilterReject(instanceTypes)
 		if len(remaining) == 0 {

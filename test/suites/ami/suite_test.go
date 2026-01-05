@@ -388,11 +388,9 @@ var _ = Describe("AMI", func() {
 
 			nodePool = coretest.ReplaceRequirements(nodePool,
 				karpv1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelOSStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{string(corev1.Windows)},
-					},
+					Key:      corev1.LabelOSStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{string(corev1.Windows)},
 				},
 			)
 			pod := coretest.Pod(coretest.PodOptions{

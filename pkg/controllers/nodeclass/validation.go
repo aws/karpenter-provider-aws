@@ -213,7 +213,10 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 		return nil, reconcile.Result{}, fmt.Errorf("generating options, %w", err)
 	}
 	// pass 1 instance type in EnsureAll to only create 1 launch template
-	tenancyType, _ := v.getTenancyType(ctx, nodeClass)
+	tenancyType, err := v.getTenancyType(ctx, nodeClass)
+	if err != nil {
+		return nil, reconcile.Result{}, fmt.Errorf("determining instance tenancy, %w", err)
+	}
 	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes[:1], karpv1.CapacityTypeOnDemand, tags, string(tenancyType))
 	if err != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
@@ -300,7 +303,7 @@ func (*Validation) requiredConditions() []string {
 }
 
 func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) string {
-	hash := lo.Must(hashstructure.Hash([]interface{}{
+	hash := lo.Must(hashstructure.Hash([]any{
 		nodeClass.Status.Subnets,
 		nodeClass.Status.SecurityGroups,
 		nodeClass.Status.AMIs,

@@ -154,7 +154,7 @@ var _ = Describe("InterruptionHandling", func() {
 		})
 		It("should delete the NodeClaim when receiving a state change message", func() {
 			var nodeClaims []*karpv1.NodeClaim
-			var messages []interface{}
+			var messages []any
 			for _, state := range []string{"terminated", "stopped", "stopping", "shutting-down"} {
 				instanceID := fake.InstanceID()
 				nc, n := coretest.NodeClaimAndNode(karpv1.NodeClaim{
@@ -205,7 +205,7 @@ var _ = Describe("InterruptionHandling", func() {
 				nodeClaims = append(nodeClaims, nc)
 			}
 
-			var messages []interface{}
+			var messages []any
 			for _, id := range instanceIDs {
 				messages = append(messages, spotInterruptionMessage(id))
 			}
@@ -273,8 +273,8 @@ var _ = Describe("Error Handling", func() {
 	})
 })
 
-func ExpectMessagesCreated(messages ...interface{}) {
-	raw := lo.Map(messages, func(m interface{}, _ int) *sqstypes.Message {
+func ExpectMessagesCreated(messages ...any) {
+	raw := lo.Map(messages, func(m any, _ int) *sqstypes.Message {
 		return &sqstypes.Message{
 			Body:      aws.String(string(lo.Must(json.Marshal(m)))),
 			MessageId: aws.String(string(uuid.NewUUID())),
