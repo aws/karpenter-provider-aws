@@ -102,11 +102,11 @@ func (env *Environment) ResetContext() {
 }
 
 func (env *Environment) Eventually(actual interface{}, intervals ...interface{}) gomega.AsyncAssertion {
-	return gomega.Eventually(env.Context, actual, intervals...)
+	return gomega.Eventually(actual, intervals...).WithContext(env.Context)
 }
 
-func (env *Environment) Consistently(actual interface{}, intervals ...interface{}) gomega.ConsistentlyAssertion {
-	return gomega.Consistently(env.Context, actual, intervals...)
+func (env *Environment) Consistently(actual interface{}, intervals ...interface{}) gomega.AsyncAssertion {
+	return gomega.Consistently(actual, intervals...).WithContext(env.Context)
 }
 
 func NewConfig() *rest.Config {
