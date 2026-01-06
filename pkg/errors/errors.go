@@ -36,7 +36,7 @@ const (
 
 var (
 	// This is not an exhaustive list, add to it as needed
-	notFoundErrorCodes = sets.New[string](
+	notFoundErrorCodes = sets.New(
 		"InvalidCapacityReservationId.NotFound",
 		"InvalidInstanceID.NotFound",
 		launchTemplateNameNotFoundCode,
@@ -45,14 +45,14 @@ var (
 		"NoSuchEntity",
 		"ParameterNotFound",
 	)
-	alreadyExistsErrorCodes = sets.New[string](
+	alreadyExistsErrorCodes = sets.New(
 		"EntityAlreadyExists",
 	)
 
 	reservationCapacityExceededErrorCode = "ReservationCapacityExceeded"
 
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
-	unfulfillableCapacityErrorCodes = sets.New[string](
+	unfulfillableCapacityErrorCodes = sets.New(
 		"InsufficientInstanceCapacity",
 		"MaxSpotInstanceCountExceeded",
 		"VcpuLimitExceeded",
