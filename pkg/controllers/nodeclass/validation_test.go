@@ -327,13 +327,11 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      corev1.LabelInstanceTypeStable,
-									Operator: corev1.NodeSelectorOpIn,
-									Values: []string{
-										string(ec2types.InstanceTypeC6gLarge),
-										string(ec2types.InstanceTypeG4dn8xlarge),
-									},
+								Key:      corev1.LabelInstanceTypeStable,
+								Operator: corev1.NodeSelectorOpIn,
+								Values: []string{
+									string(ec2types.InstanceTypeC6gLarge),
+									string(ec2types.InstanceTypeG4dn8xlarge),
 								},
 							},
 						},
@@ -356,12 +354,10 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      corev1.LabelInstanceTypeStable,
-									Operator: corev1.NodeSelectorOpIn,
-									Values: []string{
-										string(ec2types.InstanceTypeG4dn8xlarge),
-									},
+								Key:      corev1.LabelInstanceTypeStable,
+								Operator: corev1.NodeSelectorOpIn,
+								Values: []string{
+									string(ec2types.InstanceTypeG4dn8xlarge),
 								},
 							},
 						},
@@ -379,6 +375,69 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				Expect(runInstancesInput.InstanceType).To(Equal(ec2types.InstanceTypeG4dn8xlarge))
 				Expect(launchTemplateInput.LaunchTemplateData.ImageId).To(PointTo(Equal("amd64-nvidia-ami-id")))
 			})
+		})
+		Context("Tenancy LaunchTemplate Authorization", func() {
+			It("should validate using default tenancy if no linked nodepool exists", func() {
+				ExpectApplied(ctx, env.Client, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				launchTemplateInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+				Expect(launchTemplateInput.LaunchTemplateData.Placement.Tenancy).To(Equal(ec2types.TenancyDefault))
+			})
+			It("should validates using default tenancy if unspecified ", func() {
+				nodePool := coretest.NodePool(karpv1.NodePool{Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimTemplateSpec{
+						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{},
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
+						},
+					},
+				}}})
+
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				launchTemplateInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+				Expect(launchTemplateInput.LaunchTemplateData.Placement.Tenancy).To(Equal(ec2types.TenancyDefault))
+			})
+			DescribeTable(
+				"should validate with tenancy specified in nodepool",
+				func(specified []ec2types.Tenancy, expectedTenancy ec2types.Tenancy) {
+					values := []string{}
+					for _, v := range specified {
+						values = append(values, string(v))
+					}
+					nodePool := coretest.NodePool(karpv1.NodePool{Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{
+						Spec: karpv1.NodeClaimTemplateSpec{
+							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+								{
+									Key:      v1.LabelInstanceTenancy,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   values,
+								},
+							},
+							NodeClassRef: &karpv1.NodeClassReference{
+								Group: object.GVK(nodeClass).Group,
+								Kind:  object.GVK(nodeClass).Kind,
+								Name:  nodeClass.Name,
+							},
+						},
+					}}})
+
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+					launchTemplateInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(launchTemplateInput.LaunchTemplateData.Placement.Tenancy).To(Equal(expectedTenancy))
+				},
+				Entry("when default specified",
+					[]ec2types.Tenancy{ec2types.TenancyDefault},
+					ec2types.TenancyDefault),
+				Entry("when default and dedicated specified",
+					[]ec2types.Tenancy{ec2types.TenancyDefault, ec2types.TenancyDedicated},
+					ec2types.TenancyDedicated),
+				Entry("when dedicated specified",
+					[]ec2types.Tenancy{ec2types.TenancyDedicated},
+					ec2types.TenancyDedicated))
 		})
 	})
 	It("should not skip validation when new annotation is added", func() {
@@ -414,11 +473,9 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 	It("should skip validation after successful instance creation", func() {
 		nodeSelectReq := []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceTypeStable,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{string(ec2types.InstanceTypeM5Large)},
-				},
+				Key:      corev1.LabelInstanceTypeStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{string(ec2types.InstanceTypeM5Large)},
 			},
 		}
 		nodeClassRef := &karpv1.NodeClassReference{

@@ -41,7 +41,7 @@ const (
 	// If a user runs a karpenter image on a k8s version outside the min and max,
 	// One error message will be fired to notify
 	MinK8sVersion = "1.26"
-	MaxK8sVersion = "1.33"
+	MaxK8sVersion = "1.34"
 )
 
 type Provider interface {
@@ -144,4 +144,35 @@ func (p *DefaultProvider) getK8sVersion() (string, error) {
 		return "", fmt.Errorf("getting kubernetes version from the kubernetes API")
 	}
 	return fmt.Sprintf("%s.%s", output.Major, strings.TrimSuffix(output.Minor, "+")), err
+}
+
+// SupportsDefaultBind checks if the Bottlerocket AMI version supports default bind (>= 1.46.0)
+// This function is used to determine whether to use the new default bind command or the legacy
+// command with explicit directory paths for ephemeral storage binding.
+func SupportsDefaultBind(amiVersion string) bool {
+	if amiVersion == "" {
+		return false
+	}
+
+	// Handle @latest - assume it's the newest version
+	if amiVersion == "latest" {
+		return true
+	}
+
+	version := strings.TrimLeft(amiVersion, "v")
+	parts := strings.Split(version, ".")
+	if len(parts) < 3 {
+		return false
+	}
+
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return false
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return false
+	}
+
+	return major > 1 || (major == 1 && minor >= 46)
 }

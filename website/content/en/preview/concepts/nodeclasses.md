@@ -113,6 +113,7 @@ spec:
     - tags:
         karpenter.sh/discovery: ${CLUSTER_NAME}
     - id: cr-123
+    - instanceMatchCriteria: open
 
   # Optional, propagates tags to underlying EC2 resources
   tags:
@@ -878,11 +879,12 @@ When using a custom SSM parameter, you'll need to expand the `ssm:GetParameter` 
 
 Capacity Reservation Selector Terms allow you to select [on-demand capacity reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html) (ODCRs), which will be made available to NodePools which select the given EC2NodeClass.
 Karpenter will prioritize utilizing the capacity in these reservations before falling back to on-demand and spot.
-Capacity reservations can be discovered using ids or tags.
+Capacity reservations can be discovered using ids, tags, or instance match criteria.
 
 This selection logic is modeled as terms.
-A term can specify an ID or a set of tags to select against.
+A term can specify an ID, a set of tags, or instance match criteria to select against.
 When specifying tags, it will select all capacity reservations accessible from the account with matching tags.
+When specifying instance match criteria, it selects reservations by their matching behavior: `open` (matches all compatible instances) or `targeted` (matches only explicitly targeted instances).
 This can be further restricted by specifying an owner ID.
 
 For more information on utilizing ODCRs with Karpenter, refer to the [Utilizing ODCRs Task]({{< relref "../tasks/odcrs" >}}).
@@ -926,6 +928,26 @@ spec:
   - tags:
       key: foo
     ownerID: 012345678901
+```
+
+Select by instance match criteria:
+
+```yaml
+spec:
+  capacityReservationSelectorTerms:
+  # Select all open capacity reservations
+  - instanceMatchCriteria: open
+```
+
+Select by instance match criteria and tags:
+
+```yaml
+spec:
+  capacityReservationSelectorTerms:
+  # Select targeted capacity reservations with matching tags
+  - instanceMatchCriteria: targeted
+    tags:
+      key: foo
 ```
 
 ## spec.tags
@@ -1074,6 +1096,14 @@ On AL2, Karpenter automatically configures the disks through an additional boost
 #### AL2023
 
 On AL2023, Karpenter automatically configures the disks via the generated `NodeConfig` object. Like AL2, the device name is `/dev/md/0` and its mount point is `/mnt/k8s-disks/0`. You should ensure any additional disk setup does not interfere with these.
+
+#### Bottlerocket
+
+On Bottlerocket, Karpenter automatically configures the disks by adding the required bootstrap commands to the settings. The ephemeral storage configuration is handled automatically, so you should not manually configure ephemeral storage settings in your userData.
+
+{{% alert title="Note" color="primary" %}}
+This automatic disk configuration is only available on Bottlerocket v1.22.0 and later.
+{{% /alert %}}
 
 #### Others
 
@@ -1527,6 +1557,10 @@ This value is a boolean field that controls whether instances created by Karpent
 If a `NodeClaim` requests `vpc.amazonaws.com/efa` resources, `spec.associatePublicIPAddress` is respected. However, if this `NodeClaim` requests **multiple** EFA resources and the value for `spec.associatePublicIPAddress` is true, the instance will fail to launch. This is due to an EC2 restriction which
 requires that the field is only set to true when configuring an instance with a single ENI at launch. When using this field, it is advised that users segregate their EFA workload to use a separate `NodePool` / `EC2NodeClass` pair.
 {{% /alert %}}
+
+## spec.ipPrefixCount
+
+This value is a integer field that controls how many ip prefixes will be assigned to `NodeClaim`. See the [EC2 Launch Template Network Interface Spec](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ec2-launchtemplate-networkinterface.html) for more information. Sets ipv4PrefixCount if you are using an IPv4 Cluster, or ipv6PrefixCount if you are using IPv6.
 
 ## status.subnets
 [`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.

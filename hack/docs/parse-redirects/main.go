@@ -104,6 +104,11 @@ func main() {
 	if err := scanner.Err(); err != nil {
 		log.Fatalf("Error reading %s: %v\n", redirectsFile, err)
 	}
+	rules = append(rules, RedirectRule{
+		Source: "/",
+		Target: "/index.html",
+		Status: "200",
+	})
 	jsonData, err := json.Marshal(rules)
 	if err != nil {
 		log.Fatalf("Error marshaling JSON: %v\n", err)

@@ -158,6 +158,7 @@ var _ = Describe("CapacityCache", func() {
 			Capacity: corev1.ResourceList{
 				corev1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi", 3840)),
 			},
+			ProviderID: fake.ProviderID(fake.InstanceID()),
 		})
 		ExpectApplied(ctx, env.Client, node)
 
@@ -174,8 +175,9 @@ var _ = Describe("CapacityCache", func() {
 				Requirements: make([]karpv1.NodeSelectorRequirementWithMinValues, 0),
 			},
 			Status: karpv1.NodeClaimStatus{
-				NodeName: node.Name,
-				ImageID:  nodeClass.Status.AMIs[0].ID,
+				NodeName:   node.Name,
+				ImageID:    nodeClass.Status.AMIs[0].ID,
+				ProviderID: node.Spec.ProviderID,
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClaim)

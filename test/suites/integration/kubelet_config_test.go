@@ -118,11 +118,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				// properly scoped
 				test.ReplaceRequirements(nodePool,
 					karpv1.NodeSelectorRequirementWithMinValues{
-						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-							Key:      corev1.LabelOSStable,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{string(corev1.Windows)},
-						},
+						Key:      corev1.LabelOSStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{string(corev1.Windows)},
 					},
 				)
 				pod := test.Pod(test.PodOptions{
@@ -176,11 +174,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// This will have 4 pods available on each node (2 taken by daemonset pods)
 		test.ReplaceRequirements(nodePool,
 			karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceCPU,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"2"},
-				},
+				Key:      v1.LabelInstanceCPU,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"2"},
 			},
 		)
 		numPods := 4
@@ -221,11 +217,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// This would normally schedule to 3 nodes if not using Bottlerocket
 		test.ReplaceRequirements(nodePool,
 			karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceCPU,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"2"},
-				},
+				Key:      v1.LabelInstanceCPU,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"2"},
 			},
 		)
 

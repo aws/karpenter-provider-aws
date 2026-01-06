@@ -40,6 +40,11 @@ serviceMonitor:
   # Not to be used to add additional endpoints.
   # See the Prometheus operator documentation for configurable fields https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#endpoint
   endpointConfig: {}
+  # -- Specifies the sampleLimit for prometheus scrapes.
+  # Per-scrape limit on the number of scraped samples that will be accepted.
+  # If more than this number of samples are present after metric relabeling
+  # the entire scrape will be treated as failed. 0 means no limit.
+  sampleLimit: null
 # -- Number of replicas.
 replicas: 2
 # -- The number of old ReplicaSets to retain to allow rollback.
@@ -121,9 +126,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.6.3
+    tag: 1.8.1
     # -- SHA256 digest of the controller image.
-    digest: sha256:80248a5b6141d31d4a2a435df598120a9f274536807d49aea122f5fc3e164b53
+    digest: sha256:41c28a606cbad86869384ff8ae8345203b63f81612b6fcfd2e136197dccc03ef
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -205,6 +210,10 @@ settings:
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved.
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.
   reservedENIs: "0"
+  # -- Ignore pods' DRA requests during scheduling simulations.
+  ignoreDRARequests: true
+  # -- Disable cluster state metrics and events.
+  disableClusterStateObservability: false
   # -- Disable dry run validation for EC2NodeClasses.
   disableDryRun: false
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
@@ -213,8 +222,8 @@ settings:
     # -- nodeRepair is ALPHA and is disabled by default.
     # Setting this to true will enable node repair.
     nodeRepair: false
-      # -- nodeOverlay is ALPHA and is disabled by default.
-    # Setting this will allow the use of node overlay to impact scheduling decisions 
+    # -- nodeOverlay is ALPHA and is disabled by default.
+    # Setting this will allow the use of node overlay to impact scheduling decisions
     nodeOverlay: false
     # -- reservedCapacity is BETA and is enabled by default.
     # Setting this will enable native on-demand capacity reservation support.
@@ -222,3 +231,6 @@ settings:
     # -- spotToSpotConsolidation is ALPHA and is disabled by default.
     # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
     spotToSpotConsolidation: false
+    # -- staticCapacity is ALPHA and is disabled by default.
+    # Setting this to true will enable static capacity provisioning.
+    staticCapacity: false

@@ -15,9 +15,11 @@ limitations under the License.
 package filter
 
 import (
+	"fmt"
 	"math"
 	"strings"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -145,7 +147,13 @@ func (f capacityReservationTypeFilter) Partition(instanceTypes []*cloudprovider.
 			t := v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any())
 			p, ok := partitions[t]
 			if !ok {
-				panic("invalid capacity type in requirement")
+				// SAFETY: Valid reservation types are enforced during capacity reservation construction in the NodeClass
+				// controller. An invalid value indicates a user manually edited their NodeClass' status, breaking an invariant.
+				lo.Must0(serrors.Wrap(
+					fmt.Errorf("failed to partition capacity reservations, invalid capacity reservation type"),
+					"type", string(t),
+					"valid-types", lo.Map(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) string { return string(crt) }),
+				))
 			}
 			if p.cheapestPrice > o.Price {
 				p.cheapestPrice = o.Price
@@ -170,6 +178,7 @@ type capacityBlockFilter struct {
 	requirements scheduling.Requirements
 }
 
+//nolint:gocyclo
 func (f capacityBlockFilter) FilterReject(instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
 	if !f.shouldFilter(instanceTypes) {
 		return instanceTypes, nil
@@ -179,6 +188,9 @@ func (f capacityBlockFilter) FilterReject(instanceTypes []*cloudprovider.Instanc
 		var selectedOffering *cloudprovider.Offering
 		for _, o := range it.Offerings {
 			if o.CapacityType() != karpv1.CapacityTypeReserved {
+				continue
+			}
+			if !o.Available || !f.requirements.IsCompatible(o.Requirements, scheduling.AllowUndefinedWellKnownLabels) {
 				continue
 			}
 			if o.Requirements.Get(v1.LabelCapacityReservationType).Any() != string(v1.CapacityReservationTypeCapacityBlock) {
@@ -321,22 +333,21 @@ func (exoticInstanceFilter) Name() string {
 	return "exotic-instance-filter"
 }
 
-// SpotInstanceFilter removes all instances with spot offerings which are more expensive than the cheapest compatible
-// and available on-demand offering. This ensures we don't launch with a more expensive spot instance for a mixed-launch
-// NodeClaim. Note that instance types with available, compatible reserved offerings will not be filtered out.
+// SpotOfferingFilter removes spot offerings that are more expensive than the cheapest compatible and available
+// on-demand offering. This ensures we don't launch with a more expensive spot instance for a mixed-launch NodeClaim.
 // NOTE: This filter assumes all provided instance types have compatible and available offerings
-func SpotInstanceFilter(requirements scheduling.Requirements) Filter {
-	return spotInstanceFilter{
+func SpotOfferingFilter(requirements scheduling.Requirements) Filter {
+	return spotOfferingFilter{
 		requirements: requirements,
 	}
 }
 
-type spotInstanceFilter struct {
+type spotOfferingFilter struct {
 	requirements scheduling.Requirements
 }
 
 //nolint:gocyclo
-func (f spotInstanceFilter) FilterReject(instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
+func (f spotOfferingFilter) FilterReject(instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
 	if f.requirements.HasMinValues() {
 		return instanceTypes, nil
 	}
@@ -363,28 +374,27 @@ func (f spotInstanceFilter) FilterReject(instanceTypes []*cloudprovider.Instance
 		return instanceTypes, nil
 	}
 
-	// Filter out any types where the cheapest spot offering is more expensive than the cheapest on-demand instance type
-	// that would have worked. This prevents us from getting a larger, more-expensive spot instance type compared to the
-	// cheapest sufficiently large on-demand instance type.
-	return lo.FilterReject(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
-		var hasSpotOffering bool
-		for _, o := range it.Offerings.Compatible(f.requirements).Available() {
-			// Always include instance types which have compatible, available reserved offerings since they're modeled as free
-			if o.CapacityType() == karpv1.CapacityTypeReserved {
-				return true
+	var remaining []*cloudprovider.InstanceType
+	for _, it := range instanceTypes {
+		filteredOfferings := lo.Filter(it.Offerings, func(o *cloudprovider.Offering, _ int) bool {
+			if o.CapacityType() == karpv1.CapacityTypeSpot && o.Price > cheapestOnDemand {
+				return false
 			}
-			// If the offering is spot and cheaper than the cheapest on-demand instance type, include the instance type
-			if o.CapacityType() == karpv1.CapacityTypeSpot {
-				hasSpotOffering = true
-				if o.Price <= cheapestOnDemand {
-					return true
-				}
-			}
+			return true
+		})
+		if len(filteredOfferings) > 0 {
+			// WARNING: It is only safe to mutate the slice containing the offerings, not the offerings themselves. The individual
+			// offerings are cached, but not the slice storing them. This helps keep the launch path simple, but changes to the
+			// caching strategy employed by the InstanceType provider could result in unexpected behavior.
+			it.Offerings = filteredOfferings
+			remaining = append(remaining, it)
 		}
-		return !hasSpotOffering
+	}
+	return remaining, lo.Reject(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
+		return lo.Contains(remaining, it)
 	})
 }
 
-func (spotInstanceFilter) Name() string {
-	return "spot-instance-filter"
+func (spotOfferingFilter) Name() string {
+	return "spot-offering-filter"
 }

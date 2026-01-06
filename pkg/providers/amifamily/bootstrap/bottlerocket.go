@@ -15,6 +15,7 @@ limitations under the License.
 package bootstrap
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"strconv"
@@ -29,11 +30,12 @@ import (
 
 type Bottlerocket struct {
 	Options
+	EnableDefaultMountPaths bool
 }
 
 // nolint:gocyclo
-func (b Bottlerocket) Script() (string, error) {
-	s, err := NewBottlerocketConfig(b.CustomUserData)
+func (b Bottlerocket) Script(ctx context.Context) (string, error) {
+	s, err := NewBottlerocketConfig(ctx, b.CustomUserData)
 	if err != nil {
 		return "", fmt.Errorf("invalid UserData %w", err)
 	}
@@ -95,8 +97,16 @@ func (b Bottlerocket) Script() (string, error) {
 		if s.Settings.BootstrapCommands == nil {
 			s.Settings.BootstrapCommands = map[string]BootstrapCommand{}
 		}
+		// Use appropriate bind command based on configuration
+		var bindCmd []string
+		if b.EnableDefaultMountPaths {
+			bindCmd = []string{"apiclient", "ephemeral-storage", "bind"}
+		} else {
+			bindCmd = []string{"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}
+		}
+
 		s.Settings.BootstrapCommands["000-mount-instance-storage"] = BootstrapCommand{
-			Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, {"apiclient", "ephemeral-storage", "bind", "--dirs", "/var/lib/containerd", "/var/lib/kubelet", "/var/log/pods"}},
+			Commands:  [][]string{{"apiclient", "ephemeral-storage", "init"}, bindCmd},
 			Essential: true,
 			Mode:      BootstrapCommandModeAlways,
 		}

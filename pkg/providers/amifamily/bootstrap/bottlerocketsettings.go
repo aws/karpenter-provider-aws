@@ -15,15 +15,20 @@ limitations under the License.
 package bootstrap
 
 import (
+	"context"
+	"errors"
+	"strings"
+
 	"github.com/pelletier/go-toml/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func NewBottlerocketConfig(userdata *string) (*BottlerocketConfig, error) {
+func NewBottlerocketConfig(ctx context.Context, userdata *string) (*BottlerocketConfig, error) {
 	c := &BottlerocketConfig{}
 	if userdata == nil {
 		return c, nil
 	}
-	if err := c.UnmarshalTOML([]byte(*userdata)); err != nil {
+	if err := c.UnmarshalTOML(ctx, []byte(*userdata)); err != nil {
 		return c, err
 	}
 	return c, nil
@@ -31,8 +36,8 @@ func NewBottlerocketConfig(userdata *string) (*BottlerocketConfig, error) {
 
 // BottlerocketConfig is the root of the bottlerocket config, see more here https://github.com/bottlerocket-os/bottlerocket#using-user-data
 type BottlerocketConfig struct {
-	SettingsRaw map[string]interface{} `toml:"settings"`
-	Settings    BottlerocketSettings   `toml:"-"`
+	SettingsRaw map[string]any       `toml:"settings"`
+	Settings    BottlerocketSettings `toml:"-"`
 }
 
 // BottlerocketSettings is a subset of all configuration in https://github.com/bottlerocket-os/bottlerocket/blob/d427c40931cba6e6bedc5b75e9c084a6e1818db9/sources/models/src/lib.rs#L260
@@ -86,6 +91,8 @@ type BottlerocketKubernetes struct {
 	SingleProcessOOMKill               *bool                                     `toml:"single-process-oom-kill,omitempty"`
 	ContainerLogMaxWorkers             *int                                      `toml:"container-log-max-workers,omitempty"`
 	ContainerLogMonitorInterval        *string                                   `toml:"container-log-monitor-interval,omitempty"`
+	HostnameOverrideSource             *string                                   `toml:"hostname-override-source,omitempty"`
+	VerbosityLevel                     *uint32                                   `toml:"log-level,omitempty"`
 }
 type BottlerocketStaticPod struct {
 	Enabled  *bool   `toml:"enabled,omitempty"`
@@ -117,11 +124,23 @@ type BootstrapCommand struct {
 	Essential bool                 `toml:"essential"`
 }
 
-func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
+func (c *BottlerocketConfig) UnmarshalTOML(ctx context.Context, data []byte) error {
 	// unmarshal known settings
 	s := struct {
 		Settings BottlerocketSettings `toml:"settings"`
 	}{}
+	// use strict mode first to check if userData contains an unsupported value and log this, but don't return an error
+	r := strings.NewReader(string(data))
+	d := toml.NewDecoder(r)
+	d.DisallowUnknownFields()
+	if err := d.Decode(&s); err != nil {
+		// only log in case we got an error of type toml.StrictMissingError
+		var details *toml.StrictMissingError
+		if errors.As(err, &details) {
+			log.FromContext(ctx).Error(err, "Unknown parameter in userData K8s settings", "reason", details.String())
+		}
+	}
+	// proceed without strict mode
 	if err := toml.Unmarshal(data, &s); err != nil {
 		return err
 	}
@@ -135,7 +154,7 @@ func (c *BottlerocketConfig) UnmarshalTOML(data []byte) error {
 
 func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 	if c.SettingsRaw == nil {
-		c.SettingsRaw = map[string]interface{}{}
+		c.SettingsRaw = map[string]any{}
 	}
 	c.SettingsRaw["kubernetes"] = c.Settings.Kubernetes
 	if c.Settings.BootstrapCommands != nil {

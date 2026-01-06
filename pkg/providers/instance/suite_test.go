@@ -221,6 +221,43 @@ var _ = Describe("InstanceProvider", func() {
 		// Expect that an event is fired for Spot SLR not being created
 		awsEnv.EventRecorder.DetectedEvent(`Attempted to launch a spot instance but failed due to "AuthFailure.ServiceLinkedRoleCreationNotPermitted"`)
 	})
+	It("should return an ICE error when max fleet count is reached", func() {
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			Errors: []ec2types.CreateFleetError{
+				{
+					ErrorCode:    lo.ToPtr("MaxFleetCountExceeded"),
+					ErrorMessage: lo.ToPtr("You've reached your quota for maximum Fleet Requests for this account."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.xlarge",
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+			},
+		})
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		// Filter down to a single instance type
+		instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool {
+			return i.Name == "m5.xlarge"
+		})
+
+		// Since all the capacity pools are ICEd. This should return back an ICE error
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		fmt.Println(instance)
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(instance).To(BeNil())
+
+		// Capacity should get ICEd when this error is received
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeOnDemand)).To(BeFalse())
+	})
 	It("should return an ICE error when all attempted instance types return a ReservedCapacityReservation error", func() {
 		const targetReservationID = "cr-m5.large-1a-1"
 		// Ensure that Karpenter believes a reservation is available, but the API returns no capacity when attempting to launch
@@ -250,11 +287,11 @@ var _ = Describe("InstanceProvider", func() {
 		})
 		nodeClaim.Spec.Requirements = append(
 			nodeClaim.Spec.Requirements,
-			karpv1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+			karpv1.NodeSelectorRequirementWithMinValues{
 				Key:      karpv1.CapacityTypeLabelKey,
 				Operator: corev1.NodeSelectorOpIn,
 				Values:   []string{karpv1.CapacityTypeReserved},
-			}},
+			},
 		)
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
 
@@ -296,7 +333,7 @@ var _ = Describe("InstanceProvider", func() {
 	It("should return all NodePool-owned instances from List", func() {
 		ids := sets.New[string]()
 		// Provision instances that have the karpenter.sh/nodepool key
-		for i := 0; i < 20; i++ {
+		for range 20 {
 			instanceID := fake.InstanceID()
 			awsEnv.EC2API.Instances.Store(
 				instanceID,
@@ -358,7 +395,7 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(err).To(BeNil())
 		Expect(instances).To(HaveLen(20))
 
-		retrievedIDs := sets.New[string](lo.Map(instances, func(i *instance.Instance, _ int) string { return i.ID })...)
+		retrievedIDs := sets.New(lo.Map(instances, func(i *instance.Instance, _ int) string { return i.ID })...)
 		Expect(ids.Equal(retrievedIDs)).To(BeTrue())
 	})
 	It("should mark subnets as unavailable when they run out of IPs", func() {
@@ -436,12 +473,10 @@ var _ = Describe("InstanceProvider", func() {
 		nodeClaim.Annotations = map[string]string{v1alpha1.PriceOverlayAppliedAnnotationKey: "true"}
 		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values: []string{
-						"on-demand",
-					},
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values: []string{
+					"on-demand",
 				},
 			},
 		}
@@ -461,12 +496,10 @@ var _ = Describe("InstanceProvider", func() {
 	It("should use lowest price allocation stragaty by default for on-demand nodeclaims", func() {
 		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values: []string{
-						"on-demand",
-					},
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values: []string{
+					"on-demand",
 				},
 			},
 		}
@@ -487,12 +520,10 @@ var _ = Describe("InstanceProvider", func() {
 		nodeClaim.Annotations = map[string]string{v1alpha1.PriceOverlayAppliedAnnotationKey: "true"}
 		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values: []string{
-						"spot",
-					},
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values: []string{
+					"spot",
 				},
 			},
 		}
@@ -512,12 +543,10 @@ var _ = Describe("InstanceProvider", func() {
 	It("should use price capacity optimized allocation stragaty by default for spot nodeclaims", func() {
 		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values: []string{
-						"spot",
-					},
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values: []string{
+					"spot",
 				},
 			},
 		}

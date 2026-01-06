@@ -85,17 +85,17 @@ var _ = Describe("CEL/Validation", func() {
 	})
 	Context("AMIFamily", func() {
 		amiFamilies := []string{v1.AMIFamilyAL2, v1.AMIFamilyAL2023, v1.AMIFamilyBottlerocket, v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2022, v1.AMIFamilyCustom}
-		DescribeTable("should succeed with valid families", func() []interface{} {
+		DescribeTable("should succeed with valid families", func() []any {
 			f := func(amiFamily string) {
 				// Set a custom AMI family so it's compatible with all ami family types
 				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-0123456789abcdef"}}
 				nc.Spec.AMIFamily = lo.ToPtr(amiFamily)
 				Expect(env.Client.Create(ctx, nc)).To(Succeed())
 			}
-			entries := lo.Map(amiFamilies, func(family string, _ int) interface{} {
+			entries := lo.Map(amiFamilies, func(family string, _ int) any {
 				return Entry(family, family)
 			})
-			return append([]interface{}{f}, entries...)
+			return append([]any{f}, entries...)
 		}()...)
 		It("should fail with the ubuntu family", func() {
 			// Set a custom AMI family so it's compatible with all ami family types
@@ -103,13 +103,13 @@ var _ = Describe("CEL/Validation", func() {
 			nc.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyUbuntu)
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
-		DescribeTable("should succeed when the amiFamily matches amiSelectorTerms[].alias", func() []interface{} {
+		DescribeTable("should succeed when the amiFamily matches amiSelectorTerms[].alias", func() []any {
 			f := func(amiFamily, alias string) {
 				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
 				nc.Spec.AMIFamily = lo.ToPtr(amiFamily)
 				Expect(env.Client.Create(ctx, nc)).To(Succeed())
 			}
-			entries := lo.FilterMap(amiFamilies, func(family string, _ int) (interface{}, bool) {
+			entries := lo.FilterMap(amiFamilies, func(family string, _ int) (any, bool) {
 				if family == v1.AMIFamilyCustom {
 					return nil, false
 				}
@@ -120,15 +120,15 @@ var _ = Describe("CEL/Validation", func() {
 					alias,
 				), true
 			})
-			return append([]interface{}{f}, entries...)
+			return append([]any{f}, entries...)
 		}()...)
-		DescribeTable("should succeed when the amiFamily is custom with amiSelectorTerms[].alias", func() []interface{} {
+		DescribeTable("should succeed when the amiFamily is custom with amiSelectorTerms[].alias", func() []any {
 			f := func(alias string) {
 				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
 				nc.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				Expect(env.Client.Create(ctx, nc)).To(Succeed())
 			}
-			entries := lo.FilterMap(amiFamilies, func(family string, _ int) (interface{}, bool) {
+			entries := lo.FilterMap(amiFamilies, func(family string, _ int) (any, bool) {
 				if family == v1.AMIFamilyCustom {
 					return nil, false
 				}
@@ -138,15 +138,15 @@ var _ = Describe("CEL/Validation", func() {
 					alias,
 				), true
 			})
-			return append([]interface{}{f}, entries...)
+			return append([]any{f}, entries...)
 		}()...)
-		DescribeTable("should fail when then amiFamily does not match amiSelectorTerms[].alias", func() []interface{} {
+		DescribeTable("should fail when then amiFamily does not match amiSelectorTerms[].alias", func() []any {
 			f := func(amiFamily, alias string) {
 				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
 				nc.Spec.AMIFamily = lo.ToPtr(amiFamily)
 				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 			}
-			entries := []interface{}{}
+			entries := []any{}
 			families := lo.Reject(amiFamilies, func(family string, _ int) bool {
 				return family == v1.AMIFamilyCustom
 			})
@@ -164,7 +164,7 @@ var _ = Describe("CEL/Validation", func() {
 				}
 
 			}
-			return append([]interface{}{f}, entries...)
+			return append([]any{f}, entries...)
 		}()...)
 		It("should fail when neither amiFamily nor an alias are specified", func() {
 			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-01234567890abcdef"}}
@@ -545,6 +545,50 @@ var _ = Describe("CEL/Validation", func() {
 		It("should fail when the ownerID is set by itself", func() {
 			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
 				OwnerID: "012345678901",
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should succeed with a valid instanceMatchCriteria 'open'", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				InstanceMatchCriteria: "open",
+			}}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with a valid instanceMatchCriteria 'targeted'", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				InstanceMatchCriteria: "targeted",
+			}}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with instanceMatchCriteria combined with tags", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				InstanceMatchCriteria: "open",
+				Tags: map[string]string{
+					"test": "testvalue",
+				},
+			}}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with instanceMatchCriteria combined with ownerID and tags", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				InstanceMatchCriteria: "targeted",
+				OwnerID:               "012345678901",
+				Tags: map[string]string{
+					"test": "testvalue",
+				},
+			}}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail with invalid instanceMatchCriteria value", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				InstanceMatchCriteria: "invalid",
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when specifying id with instanceMatchCriteria", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
+				ID:                    "cr-12345749",
+				InstanceMatchCriteria: "open",
 			}}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})

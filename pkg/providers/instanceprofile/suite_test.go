@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -28,6 +29,7 @@ import (
 
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
@@ -320,6 +322,22 @@ var _ = Describe("InstanceProfileProvider", func() {
 		// Set back to unprotected
 		awsEnv.InstanceProfileProvider.SetProtectedState(profileName, false)
 		Expect(awsEnv.InstanceProfileProvider.IsProtected(profileName)).To(BeFalse())
+	})
+
+	It("should not update instance profile cache item on multiple create calls", func() {
+		roleName := "test-role"
+		profileName := "test-profile"
+		err := awsEnv.InstanceProfileProvider.Create(ctx, profileName, roleName, nil, "test-uid", true)
+		_, initialExpirationTime, found := awsEnv.InstanceProfileCache.GetWithExpiration(instanceprofile.GetProfileCacheKey(profileName))
+		Expect(found).To(BeTrue())
+		Expect(err).ToNot(HaveOccurred())
+		time.Sleep(time.Second)
+
+		err = awsEnv.InstanceProfileProvider.Create(ctx, profileName, roleName, nil, "test-uid", true)
+		Expect(err).ToNot(HaveOccurred())
+		_, expirationTime, found := awsEnv.InstanceProfileCache.GetWithExpiration(instanceprofile.GetProfileCacheKey(profileName))
+		Expect(found).To(BeTrue())
+		Expect(expirationTime).To(Equal(initialExpirationTime))
 	})
 
 	Context("Role Cache", func() {
