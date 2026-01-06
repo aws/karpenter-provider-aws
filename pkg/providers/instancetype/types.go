@@ -156,23 +156,27 @@ func NewInstanceType(
 		it.Capacity[v1.ResourcePrivateIPv4Address] = *privateIPv4Address(string(info.InstanceType))
 	}
 
-	// Log kubeReserved calculation details for troubleshooting
-	allocatable := it.Allocatable()
-	log.FromContext(ctx).V(1).Info("calculated instance type resources",
-		"instance-type", info.InstanceType,
-		"ami-family", amiFamilyType,
-		"max-pods-configured", maxPods,
-		"effective-pods", effectivePods.Value(),
-		"uses-eni-limited-overhead", amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead,
-		"capacity-memory", it.Capacity.Memory().String(),
-		"capacity-cpu", it.Capacity.Cpu().String(),
-		"kube-reserved-memory", kubeReservedResources.Memory().String(),
-		"kube-reserved-cpu", kubeReservedResources.Cpu().String(),
-		"system-reserved-memory", it.Overhead.SystemReserved.Memory().String(),
-		"system-reserved-cpu", it.Overhead.SystemReserved.Cpu().String(),
-		"allocatable-memory", allocatable.Memory().String(),
-		"allocatable-cpu", allocatable.Cpu().String(),
-	)
+	// Log kubeReserved calculation details for Custom AMI troubleshooting
+	// For EKS-optimized AMIs (AL2, AL2023, Bottlerocket), the calculation is deterministic
+	// and documented. Custom AMIs may have different kubelet configurations, so logging
+	// helps users understand how Karpenter calculates allocatable resources.
+	if amiFamilyType == v1.AMIFamilyCustom {
+		allocatable := it.Allocatable()
+		log.FromContext(ctx).V(1).Info("calculated instance type resources for Custom AMI",
+			"instance-type", info.InstanceType,
+			"max-pods-configured", maxPods,
+			"effective-pods", effectivePods.Value(),
+			"uses-eni-limited-overhead", amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead,
+			"capacity-memory", it.Capacity.Memory().String(),
+			"capacity-cpu", it.Capacity.Cpu().String(),
+			"kube-reserved-memory", kubeReservedResources.Memory().String(),
+			"kube-reserved-cpu", kubeReservedResources.Cpu().String(),
+			"system-reserved-memory", it.Overhead.SystemReserved.Memory().String(),
+			"system-reserved-cpu", it.Overhead.SystemReserved.Cpu().String(),
+			"allocatable-memory", allocatable.Memory().String(),
+			"allocatable-cpu", allocatable.Cpu().String(),
+		)
+	}
 
 	return it
 }

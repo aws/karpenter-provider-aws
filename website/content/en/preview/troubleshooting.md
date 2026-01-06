@@ -362,6 +362,80 @@ This can be spot checked like shown above, or monitored via the following metric
 operator_status_condition_count{type="ConsistentStateFound",kind="NodeClaim",status="False"}
 ```
 
+#### Debugging kubeReserved Calculations
+
+Karpenter automatically calculates `kubeReserved` for each instance type to determine allocatable resources. Understanding this calculation is important for capacity planning and troubleshooting.
+
+##### EKS-Optimized AMI Families (AL2, AL2023, Bottlerocket)
+
+For EKS-optimized AMI families, Karpenter uses the same calculation as the [EKS bootstrap script](https://github.com/awslabs/amazon-eks-ami/blob/main/templates/al2/runtime/bootstrap.sh):
+
+**Memory reservation:**
+```
+kubeReserved.memory = 11 MiB × max_pods + 255 MiB
+```
+
+**CPU reservation (graduated scale):**
+```
+kubeReserved.cpu = 6% of the first core + 1% of the next core (up to 2 cores) + 0.5% of the next 2 cores (up to 4 cores) + 0.25% of any cores above 4 cores
+```
+
+**Example calculations for common instance types:**
+
+| Instance Type | vCPUs | Default Max Pods | Memory Reserved | CPU Reserved | Allocatable Memory | Allocatable CPU |
+|---------------|-------|------------------|-----------------|--------------|--------------------|-----------------| 
+| t3.medium     | 2     | 17               | 442 MiB         | 70m          | ~3.5 GiB           | 1930m           |
+| m5.large      | 2     | 29               | 574 MiB         | 70m          | ~7.4 GiB           | 1930m           |
+| m5.xlarge     | 4     | 58               | 893 MiB         | 80m          | ~15.1 GiB          | 3920m           |
+| m5.2xlarge    | 8     | 58               | 893 MiB         | 90m          | ~31.1 GiB          | 7910m           |
+| m5.4xlarge    | 16    | 234              | 2,829 MiB       | 110m         | ~13.2 GiB          | 15890m          |
+
+> **Note:** The `max_pods` value used in the formula depends on the ENI capacity of the instance type. See [AWS documentation](https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/eni-max-pods.txt) for ENI-based pod limits.
+
+##### Custom AMI Families
+
+For Custom AMI families, Karpenter applies the same calculation **by default**. However, if your Custom AMI uses different kubelet configuration, this may not match your actual node capacity.
+
+**Recommended approach for Custom AMIs:**
+
+Explicitly configure `kubeReserved` in your EC2NodeClass to match your kubelet configuration:
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+spec:
+  amiFamily: Custom
+  kubelet:
+    # Set these to match your kubelet's actual configuration
+    kubeReserved:
+      cpu: "100m"
+      memory: "500Mi"
+    maxPods: 110
+```
+
+**Troubleshooting Custom AMI calculations:**
+
+To see how Karpenter calculates resources for your Custom AMI configuration, enable verbose logging:
+
+```bash
+# Enable verbose logging (requires setting controller log level to 1 or higher)
+kubectl logs -n karpenter deploy/karpenter -f
+```
+
+Look for log entries with the message `"calculated instance type resources for Custom AMI"` which includes:
+- `instance-type`: The EC2 instance type being evaluated
+- `max-pods-configured`: Your configured maxPods value (if set)
+- `effective-pods`: The actual pod count used for kubeReserved calculation
+- `kube-reserved-memory` / `kube-reserved-cpu`: Calculated reserved resources
+- `allocatable-memory` / `allocatable-cpu`: Final allocatable resources
+
+This logging is **only enabled for Custom AMI families** as the calculation for EKS-optimized AMIs is deterministic and documented above.
+
+**Common issues:**
+- If `effective-pods` is much higher than your `max-pods-configured`, check if ENI-limited calculation is being used
+- If allocatable resources are lower than expected, verify your `kubeReserved` settings match your kubelet configuration
+- For capacity planning, use the formulas above to predict resource availability
+
 ### Karpenter Is Unable to Satisfy Topology Spread Constraint
 
 When scheduling pods with TopologySpreadConstraints, Karpenter will attempt to spread the pods across all eligible domains.
