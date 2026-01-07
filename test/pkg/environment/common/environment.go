@@ -92,13 +92,64 @@ func (env *Environment) Stop() {
 }
 
 func (env *Environment) SetContext(ctx context.Context) {
-	if ctx != nil {
-		env.Context = ctx
+	if ctx == nil {
+		return
 	}
+	env.Context = mergeContexts(env.baseContext, ctx)
 }
 
 func (env *Environment) ResetContext() {
 	env.Context = env.baseContext
+}
+
+// mergeContexts keeps cancellation from specCtx while preserving values from baseCtx.
+func mergeContexts(baseCtx, specCtx context.Context) context.Context {
+	if specCtx == nil {
+		return baseCtx
+	}
+	if baseCtx == nil {
+		return specCtx
+	}
+
+	merged, cancel := context.WithCancel(baseCtx)
+	go func() {
+		select {
+		case <-specCtx.Done():
+			cancel()
+		case <-merged.Done():
+		}
+	}()
+
+	return &mergedContext{
+		Context: merged,
+		specCtx: specCtx,
+	}
+}
+
+type mergedContext struct {
+	context.Context
+	specCtx context.Context
+}
+
+func (ctx *mergedContext) Deadline() (time.Time, bool) {
+	baseDeadline, baseOk := ctx.Context.Deadline()
+	specDeadline, specOk := ctx.specCtx.Deadline()
+	if !specOk {
+		return baseDeadline, baseOk
+	}
+	if !baseOk || specDeadline.Before(baseDeadline) {
+		return specDeadline, true
+	}
+	return baseDeadline, baseOk
+}
+
+func (ctx *mergedContext) Value(key any) any {
+	if ctx.specCtx != nil {
+		if value := ctx.specCtx.Value(key); value != nil {
+			return value
+		}
+	}
+	return ctx.Context.Value(key)
 }
 
 func (env *Environment) Eventually(actual interface{}, intervals ...interface{}) gomega.AsyncAssertion {
