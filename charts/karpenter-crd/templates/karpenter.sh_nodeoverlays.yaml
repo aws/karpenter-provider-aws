@@ -88,9 +88,7 @@ spec:
                     - Well-known labels (e.g., node.kubernetes.io/instance-type, karpenter.sh/nodepool)
                     - Custom labels from NodePool's spec.template.labels
                   items:
-                    description: |-
-                      A node selector requirement is a selector that contains values, a key, and an operator
-                      that relates the key and values.
+                    description: NodeSelectorRequirement extends corev1.NodeSelectorRequirement with Gte and Lte operators.
                     properties:
                       key:
                         description: The label key that the selector applies to.
@@ -111,22 +109,23 @@ spec:
                       operator:
                         description: |-
                           Represents a key's relationship to a set of values.
-                          Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
-                        type: string
+                          Valid operators are In, NotIn, Exists, DoesNotExist. Gt, Lt, Gte, and Lte.
                         enum:
+                          - Gte
+                          - Lte
                           - In
                           - NotIn
                           - Exists
                           - DoesNotExist
                           - Gt
                           - Lt
+                        type: string
                       values:
                         description: |-
                           An array of string values. If the operator is In or NotIn,
                           the values array must be non-empty. If the operator is Exists or DoesNotExist,
-                          the values array must be empty. If the operator is Gt or Lt, the values
+                          the values array must be empty. If the operator is Gt, Lt, Gte, or Lte, the values
                           array must have a single element, which will be interpreted as an integer.
-                          This array is replaced during a strategic merge patch.
                         items:
                           type: string
                         type: array
@@ -144,8 +143,8 @@ spec:
                       rule: 'self.all(x, x.operator == ''NotIn'' ? x.values.size() != 0 : true)'
                     - message: requirements with operator 'In' must have a value defined
                       rule: 'self.all(x, x.operator == ''In'' ? x.values.size() != 0 : true)'
-                    - message: requirements operator 'Gt' or 'Lt' must have a single positive integer value
-                      rule: 'self.all(x, (x.operator == ''Gt'' || x.operator == ''Lt'') ? (x.values.size() == 1 && int(x.values[0]) >= 0) : true)'
+                    - message: requirements operator 'Gt', 'Lt', 'Gte' or 'Lte' must have a single positive integer value
+                      rule: 'self.all(x, (x.operator == ''Gt'' || x.operator == ''Lt'' || x.operator == ''Gte'' || x.operator == ''Lte'') ? (x.values.size() == 1 && int(x.values[0]) >= 0) : true)'
                 weight:
                   description: |-
                     Weight defines the priority of this NodeOverlay when overriding node attributes.

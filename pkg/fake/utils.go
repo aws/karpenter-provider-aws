@@ -16,6 +16,7 @@ package fake
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
@@ -101,7 +102,7 @@ func FilterDescribeSubnets(subnets []ec2types.Subnet, filters []ec2types.Filter)
 }
 
 func FilterDescribeCapacityReservations(crs []ec2types.CapacityReservation, ids []string, filters []ec2types.Filter) []ec2types.CapacityReservation {
-	idSet := sets.New[string](ids...)
+	idSet := sets.New(ids...)
 	return lo.Filter(crs, func(cr ec2types.CapacityReservation, _ int) bool {
 		if len(ids) != 0 && !idSet.Has(*cr.CapacityReservationId) {
 			return false
@@ -121,29 +122,13 @@ func Filter(filters []ec2types.Filter, id, name, owner, state string, tags []ec2
 	return lo.EveryBy(filters, func(filter ec2types.Filter) bool {
 		switch filterName := aws.ToString(filter.Name); {
 		case filterName == "state":
-			for _, val := range filter.Values {
-				if state == val {
-					return true
-				}
-			}
+			return slices.Contains(filter.Values, state)
 		case filterName == "subnet-id" || filterName == "group-id" || filterName == "image-id":
-			for _, val := range filter.Values {
-				if id == val {
-					return true
-				}
-			}
+			return slices.Contains(filter.Values, id)
 		case filterName == "group-name" || filterName == "name":
-			for _, val := range filter.Values {
-				if name == val {
-					return true
-				}
-			}
+			return slices.Contains(filter.Values, name)
 		case filterName == "owner-id":
-			for _, val := range filter.Values {
-				if owner == val {
-					return true
-				}
-			}
+			return slices.Contains(filter.Values, owner)
 		case strings.HasPrefix(filterName, "tag"):
 			if matchTags(tags, filter) {
 				return true

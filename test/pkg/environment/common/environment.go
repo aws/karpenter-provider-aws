@@ -139,40 +139,30 @@ func (env *Environment) DefaultNodePool(nodeClass *v1.EC2NodeClass) *karpv1.Node
 	}
 	nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 		{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      corev1.LabelOSStable,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{string(corev1.Linux)},
-			},
+			Key:      corev1.LabelOSStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{string(corev1.Linux)},
 		},
 		{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      karpv1.CapacityTypeLabelKey,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{karpv1.CapacityTypeOnDemand},
-			},
+			Key:      karpv1.CapacityTypeLabelKey,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{karpv1.CapacityTypeOnDemand},
 		},
 		{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceCategory,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"c", "m", "r"},
-			},
+			Key:      v1.LabelInstanceCategory,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"c", "m", "r"},
 		},
 		{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceGeneration,
-				Operator: corev1.NodeSelectorOpGt,
-				Values:   []string{"4"},
-			},
+			Key:      v1.LabelInstanceGeneration,
+			Operator: corev1.NodeSelectorOpGt,
+			Values:   []string{"4"},
 		},
 		// Filter out a1 instance types, which are incompatible with AL2023 AMIs
 		{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceFamily,
-				Operator: corev1.NodeSelectorOpNotIn,
-				Values:   []string{"a1"},
-			},
+			Key:      v1.LabelInstanceFamily,
+			Operator: corev1.NodeSelectorOpNotIn,
+			Values:   []string{"a1"},
 		},
 	}
 	nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized

@@ -426,8 +426,8 @@ func (p *DefaultProvider) hydrateCache(ctx context.Context) {
 	log.FromContext(ctx).WithValues("count", p.cache.ItemCount()).V(1).Info("hydrated launch template cache")
 }
 
-func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, interface{}) {
-	return func(key string, lt interface{}) {
+func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, any) {
+	return func(key string, lt any) {
 		p.Lock()
 		defer p.Unlock()
 		if _, expiration, _ := p.cache.GetWithExpiration(key); expiration.After(time.Now()) {

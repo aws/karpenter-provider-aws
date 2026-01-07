@@ -72,16 +72,12 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		// Make the NodePool requirements fully flexible, so we can match well-known label keys
 		nodePool = test.ReplaceRequirements(nodePool,
 			karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceCategory,
-					Operator: corev1.NodeSelectorOpExists,
-				},
+				Key:      v1.LabelInstanceCategory,
+				Operator: corev1.NodeSelectorOpExists,
 			},
 			karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceGeneration,
-					Operator: corev1.NodeSelectorOpExists,
-				},
+				Key:      v1.LabelInstanceGeneration,
+				Operator: corev1.NodeSelectorOpExists,
 			},
 		)
 		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "MIN_VALUES_POLICY", Value: string(minValuesPolicy)})
@@ -312,11 +308,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
 			test.ReplaceRequirements(nodePool,
 				karpv1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelOSStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{string(corev1.Windows)},
-					},
+					Key:      corev1.LabelOSStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{string(corev1.Windows)},
 				},
 			)
 			env.ExpectCreated(nodeClass, nodePool, deployment)
@@ -326,9 +320,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		DescribeTable("should support restricted label domain exceptions", func(domain string) {
 			// Assign labels to the nodepool so that it has known values
 			test.ReplaceRequirements(nodePool,
-				karpv1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: domain + "/team", Operator: corev1.NodeSelectorOpExists}},
-				karpv1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: domain + "/custom-label", Operator: corev1.NodeSelectorOpExists}},
-				karpv1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: "subdomain." + domain + "/custom-label", Operator: corev1.NodeSelectorOpExists}},
+				karpv1.NodeSelectorRequirementWithMinValues{Key: domain + "/team", Operator: corev1.NodeSelectorOpExists},
+				karpv1.NodeSelectorRequirementWithMinValues{Key: domain + "/custom-label", Operator: corev1.NodeSelectorOpExists},
+				karpv1.NodeSelectorRequirementWithMinValues{Key: "subdomain." + domain + "/custom-label", Operator: corev1.NodeSelectorOpExists},
 			)
 			nodeSelector := map[string]string{
 				domain + "/team":                        "team-1",
@@ -387,11 +381,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			eventClient := debug.NewEventClient(env.Client)
 			pod := test.Pod()
 			nodePoolWithMinValues := test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceTypeStable,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"c5.large", "invalid-instance-type-1", "invalid-instance-type-2"},
-				},
+				Key:       corev1.LabelInstanceTypeStable,
+				Operator:  corev1.NodeSelectorOpIn,
+				Values:    []string{"c5.large", "invalid-instance-type-1", "invalid-instance-type-2"},
 				MinValues: lo.ToPtr(3),
 			})
 			env.ExpectCreated(nodeClass, nodePoolWithMinValues, pod)
@@ -403,11 +395,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				nodeClaim := env.ExpectNodeClaimCount("==", 1)
 				Expect(nodeClaim[0].Annotations).To(HaveKeyWithValue(karpv1.NodeClaimMinValuesRelaxedAnnotationKey, "true"))
 				Expect(nodeClaim[0].Spec.Requirements).To(ContainElement(karpv1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"c5.large"},
-					},
+					Key:       corev1.LabelInstanceTypeStable,
+					Operator:  corev1.NodeSelectorOpIn,
+					Values:    []string{"c5.large"},
 					MinValues: lo.ToPtr(1),
 				}))
 			} else {
@@ -500,18 +490,14 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 							},
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      corev1.LabelOSStable,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{string(corev1.Linux)},
-									},
+									Key:      corev1.LabelOSStable,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{string(corev1.Linux)},
 								},
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      corev1.LabelInstanceTypeStable,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{"t3.nano"},
-									},
+									Key:      corev1.LabelInstanceTypeStable,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"t3.nano"},
 								},
 							},
 						},
@@ -530,18 +516,14 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 							},
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      corev1.LabelOSStable,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{string(corev1.Linux)},
-									},
+									Key:      corev1.LabelOSStable,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{string(corev1.Linux)},
 								},
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      corev1.LabelInstanceTypeStable,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{"c5.large"},
-									},
+									Key:      corev1.LabelInstanceTypeStable,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"c5.large"},
 								},
 							},
 						},
@@ -559,11 +541,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			selectors.Insert(v1.LabelInstanceCapabilityFlex)
 			pod := test.Pod()
 			nodePoolWithMinValues := test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceCapabilityFlex,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"true"},
-				},
+				Key:      v1.LabelInstanceCapabilityFlex,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"true"},
 			})
 			env.ExpectCreated(nodeClass, nodePoolWithMinValues, pod)
 			env.EventuallyExpectHealthy(pod)
@@ -604,17 +584,13 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				})
 
 				test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      v1.LabelInstanceCPU,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"4", "8"},
-					},
+					Key:      v1.LabelInstanceCPU,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"4", "8"},
 				}, karpv1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      v1.LabelInstanceCategory,
-						Operator: corev1.NodeSelectorOpNotIn,
-						Values:   []string{"t"},
-					},
+					Key:      v1.LabelInstanceCategory,
+					Operator: corev1.NodeSelectorOpNotIn,
+					Values:   []string{"t"},
 				})
 				pod := test.Pod(test.PodOptions{
 					ObjectMeta: metav1.ObjectMeta{
@@ -679,11 +655,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				Skip("native sidecar containers are only enabled on EKS 1.29+")
 			}
 			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceCategory,
-					Operator: corev1.NodeSelectorOpNotIn,
-					Values:   []string{"t"},
-				},
+				Key:      v1.LabelInstanceCategory,
+				Operator: corev1.NodeSelectorOpNotIn,
+				Values:   []string{"t"},
 			})
 			pod := test.Pod(test.PodOptions{
 				InitContainers: []corev1.Container{
@@ -743,10 +717,8 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			// above. This is an unlikely scenario, and adding this check is a defense in depth measure.
 			const expectedZoneLabel = "expected-zone-label"
 			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      expectedZoneLabel,
-					Operator: corev1.NodeSelectorOpExists,
-				},
+				Key:      expectedZoneLabel,
+				Operator: corev1.NodeSelectorOpExists,
 			})
 
 			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s environmentaws.SubnetInfo) string {
@@ -823,20 +795,16 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			}
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      karpv1.CapacityTypeLabelKey,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved},
-					},
+					Key:      karpv1.CapacityTypeLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved},
 				},
 				// We need to specify the OS label to prevent a daemonset with a Windows specific resource from scheduling against
 				// the node. Omitting this requirement will result in scheduling failures.
 				{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelOSStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{string(corev1.Linux)},
-					},
+					Key:      corev1.LabelOSStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{string(corev1.Linux)},
 				},
 			}
 		})
@@ -951,7 +919,7 @@ var _ = Describe("Node Overlay", func() {
 		nodeOverlay := test.NodeOverlay(v1alpha1.NodeOverlay{
 			Spec: v1alpha1.NodeOverlaySpec{
 				PriceAdjustment: lo.ToPtr("-99.99999999999%"),
-				Requirements: []corev1.NodeSelectorRequirement{
+				Requirements: []v1alpha1.NodeSelectorRequirement{
 					{
 						Key:      corev1.LabelInstanceTypeStable,
 						Operator: corev1.NodeSelectorOpIn,
@@ -974,7 +942,7 @@ var _ = Describe("Node Overlay", func() {
 		nodeOverlay := test.NodeOverlay(v1alpha1.NodeOverlay{
 			Spec: v1alpha1.NodeOverlaySpec{
 				Price: lo.ToPtr("0.0000000232"),
-				Requirements: []corev1.NodeSelectorRequirement{
+				Requirements: []v1alpha1.NodeSelectorRequirement{
 					{
 						Key:      corev1.LabelInstanceTypeStable,
 						Operator: corev1.NodeSelectorOpIn,
@@ -1007,7 +975,7 @@ var _ = Describe("Node Overlay", func() {
 		})
 		nodeOverlay := test.NodeOverlay(v1alpha1.NodeOverlay{
 			Spec: v1alpha1.NodeOverlaySpec{
-				Requirements: []corev1.NodeSelectorRequirement{
+				Requirements: []v1alpha1.NodeSelectorRequirement{
 					{
 						Key:      corev1.LabelInstanceTypeStable,
 						Operator: corev1.NodeSelectorOpIn,
