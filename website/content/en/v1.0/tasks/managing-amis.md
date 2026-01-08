@@ -127,7 +127,7 @@ disruption:
   - nodes: 15%
   - nodes: "3"
   - nodes: "0"
-    schedule: "0 9 * * sat-sun"
+    schedule: "0 9 * * sat,sun"
     duration: 24h
   - nodes: "0"
     schedule: "0 17 * * mon-fri"
