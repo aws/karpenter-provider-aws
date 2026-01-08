@@ -88,7 +88,9 @@ spec:
                     - Well-known labels (e.g., node.kubernetes.io/instance-type, karpenter.sh/nodepool)
                     - Custom labels from NodePool's spec.template.labels
                   items:
-                    description: NodeSelectorRequirement extends corev1.NodeSelectorRequirement with Gte and Lte operators.
+                    description: |-
+                      A node selector requirement is a selector that contains values, a key, an operator that relates the key and values
+                      to have at least that many values.
                     properties:
                       key:
                         description: The label key that the selector applies to.
