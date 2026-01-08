@@ -15,6 +15,9 @@ limitations under the License.
 package nodeclass_test
 
 import (
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -54,16 +57,19 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
-				ID:   "sg-test1",
-				Name: "securityGroup-test1",
+				ID:    "sg-test1",
+				Name:  "securityGroup-test1",
+				VpcID: "vpc-test1",
 			},
 			{
-				ID:   "sg-test2",
-				Name: "securityGroup-test2",
+				ID:    "sg-test2",
+				Name:  "securityGroup-test2",
+				VpcID: "vpc-test1",
 			},
 			{
-				ID:   "sg-test3",
-				Name: "securityGroup-test3",
+				ID:    "sg-test3",
+				Name:  "securityGroup-test3",
+				VpcID: "vpc-test1",
 			},
 		}))
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
@@ -82,12 +88,14 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
-				ID:   "sg-test1",
-				Name: "securityGroup-test1",
+				ID:    "sg-test1",
+				Name:  "securityGroup-test1",
+				VpcID: "vpc-test1",
 			},
 			{
-				ID:   "sg-test2",
-				Name: "securityGroup-test2",
+				ID:    "sg-test2",
+				Name:  "securityGroup-test2",
+				VpcID: "vpc-test1",
 			},
 		}))
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
@@ -103,8 +111,9 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
-				ID:   "sg-test1",
-				Name: "securityGroup-test1",
+				ID:    "sg-test1",
+				Name:  "securityGroup-test1",
+				VpcID: "vpc-test1",
 			},
 		}))
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
@@ -115,16 +124,19 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
-				ID:   "sg-test1",
-				Name: "securityGroup-test1",
+				ID:    "sg-test1",
+				Name:  "securityGroup-test1",
+				VpcID: "vpc-test1",
 			},
 			{
-				ID:   "sg-test2",
-				Name: "securityGroup-test2",
+				ID:    "sg-test2",
+				Name:  "securityGroup-test2",
+				VpcID: "vpc-test1",
 			},
 			{
-				ID:   "sg-test3",
-				Name: "securityGroup-test3",
+				ID:    "sg-test3",
+				Name:  "securityGroup-test3",
+				VpcID: "vpc-test1",
 			},
 		}))
 
@@ -141,12 +153,14 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
-				ID:   "sg-test1",
-				Name: "securityGroup-test1",
+				ID:    "sg-test1",
+				Name:  "securityGroup-test1",
+				VpcID: "vpc-test1",
 			},
 			{
-				ID:   "sg-test2",
-				Name: "securityGroup-test2",
+				ID:    "sg-test2",
+				Name:  "securityGroup-test2",
+				VpcID: "vpc-test1",
 			},
 		}))
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
@@ -157,16 +171,19 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
-				ID:   "sg-test1",
-				Name: "securityGroup-test1",
+				ID:    "sg-test1",
+				Name:  "securityGroup-test1",
+				VpcID: "vpc-test1",
 			},
 			{
-				ID:   "sg-test2",
-				Name: "securityGroup-test2",
+				ID:    "sg-test2",
+				Name:  "securityGroup-test2",
+				VpcID: "vpc-test1",
 			},
 			{
-				ID:   "sg-test3",
-				Name: "securityGroup-test3",
+				ID:    "sg-test3",
+				Name:  "securityGroup-test3",
+				VpcID: "vpc-test1",
 			},
 		}))
 
@@ -180,8 +197,9 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
-				ID:   "sg-test1",
-				Name: "securityGroup-test1",
+				ID:    "sg-test1",
+				Name:  "securityGroup-test1",
+				VpcID: "vpc-test1",
 			},
 		}))
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
@@ -204,16 +222,19 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
 			{
-				ID:   "sg-test1",
-				Name: "securityGroup-test1",
+				ID:    "sg-test1",
+				Name:  "securityGroup-test1",
+				VpcID: "vpc-test1",
 			},
 			{
-				ID:   "sg-test2",
-				Name: "securityGroup-test2",
+				ID:    "sg-test2",
+				Name:  "securityGroup-test2",
+				VpcID: "vpc-test1",
 			},
 			{
-				ID:   "sg-test3",
-				Name: "securityGroup-test3",
+				ID:    "sg-test3",
+				Name:  "securityGroup-test3",
+				VpcID: "vpc-test1",
 			},
 		}))
 
@@ -227,5 +248,57 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(BeNil())
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsFalse()).To(BeTrue())
+	})
+	It("Should filter security groups to match VPC of subnets", func() {
+		// Add a security group in a different VPC
+		awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Set(&ec2.DescribeSecurityGroupsOutput{
+			SecurityGroups: []ec2types.SecurityGroup{
+				{
+					GroupId:   aws.String("sg-test1"),
+					GroupName: aws.String("securityGroup-test1"),
+					VpcId:     aws.String("vpc-test1"),
+					Tags: []ec2types.Tag{
+						{Key: aws.String("Name"), Value: aws.String("test-security-group-1")},
+						{Key: aws.String("foo"), Value: aws.String("bar")},
+					},
+				},
+				{
+					GroupId:   aws.String("sg-test2"),
+					GroupName: aws.String("securityGroup-test2"),
+					VpcId:     aws.String("vpc-test1"),
+					Tags: []ec2types.Tag{
+						{Key: aws.String("Name"), Value: aws.String("test-security-group-2")},
+						{Key: aws.String("foo"), Value: aws.String("bar")},
+					},
+				},
+				{
+					GroupId:   aws.String("sg-test-other-vpc"),
+					GroupName: aws.String("securityGroup-other-vpc"),
+					VpcId:     aws.String("vpc-test2"),
+					Tags: []ec2types.Tag{
+						{Key: aws.String("foo"), Value: aws.String("bar")},
+					},
+				},
+			},
+		})
+
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		// Should only include security groups from vpc-test1 (matching the subnets)
+		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1.SecurityGroup{
+			{
+				ID:    "sg-test1",
+				Name:  "securityGroup-test1",
+				VpcID: "vpc-test1",
+			},
+			{
+				ID:    "sg-test2",
+				Name:  "securityGroup-test2",
+				VpcID: "vpc-test1",
+			},
+		}))
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
 	})
 })
