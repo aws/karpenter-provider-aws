@@ -257,7 +257,7 @@ func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *ami
 }
 
 func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (ec2types.LaunchTemplate, error) {
-	userData, err := options.UserData.Script()
+	userData, err := options.UserData.Script(ctx)
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
 	}
@@ -385,8 +385,8 @@ func (p *DefaultProvider) hydrateCache(ctx context.Context) {
 	log.FromContext(ctx).WithValues("count", p.cache.ItemCount()).V(1).Info("hydrated launch template cache")
 }
 
-func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, interface{}) {
-	return func(key string, lt interface{}) {
+func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, any) {
+	return func(key string, lt any) {
 		p.Lock()
 		defer p.Unlock()
 		if _, expiration, _ := p.cache.GetWithExpiration(key); expiration.After(time.Now()) {

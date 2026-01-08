@@ -138,6 +138,10 @@ This can include well-known labels or custom labels you create yourself.
 
 You can use `affinity` to define more complicated constraints, see [Node Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity) for the complete specification.
 
+{{% alert title="Note" color="primary" %}}
+Karpenter extends the upstream Kubernetes requirement operators with `Gte` (>=) and `Lte` (<=) for more intuitive numeric comparisons on labels like `karpenter.k8s.aws/instance-cpu` or `karpenter.k8s.aws/instance-memory`.
+{{% /alert %}}
+
 ### Labels
 Well-known labels may be specified as NodePool requirements or pod scheduling constraints. You can also define your own custom labels by specifying `requirements` or `labels` on your NodePool and select them using `nodeAffinity` or `nodeSelectors` on your Pods.
 
@@ -616,8 +620,8 @@ Pod example of requiring at least 100GB of NVME disk:
        nodeSelectorTerms:
          - matchExpressions:
             - key: "karpenter.k8s.aws/instance-local-nvme"
-              operator: Gt
-              values: ["99"]
+              operator: Gte
+              values: ["100"]
 ...
 ```
 
@@ -626,8 +630,8 @@ NodePool Example:
 ...
 requirement:
   - key: "karpenter.k8s.aws/instance-local-nvme"
-    operator: Gt
-    values: ["99"]
+    operator: Gte
+    values: ["100"]
 ...
 ```
 
@@ -647,8 +651,8 @@ Pod example of requiring at least 50 Gbps of network bandwidth:
        nodeSelectorTerms:
          - matchExpressions:
             - key: "karpenter.k8s.aws/instance-network-bandwidth"
-              operator: Gt
-              values: ["49999"]
+              operator: Gte
+              values: ["50000"]
 ...
 ```
 
@@ -657,14 +661,10 @@ NodePool Example:
 ...
 requirement:
   - key: "karpenter.k8s.aws/instance-network-bandwidth"
-    operator: Gt
-    values: ["49999"]
+    operator: Gte
+    values: ["50000"]
 ...
 ```
-
-{{% alert title="Note" color="primary" %}}
-If using Gt/Lt operators, make sure to use values under the actual label values of the desired resource.
-{{% /alert %}}
 
 ### `Exists` Operator
 

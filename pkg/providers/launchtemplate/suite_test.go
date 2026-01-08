@@ -171,11 +171,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      karpv1.CapacityTypeLabelKey,
-									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{karpv1.CapacityTypeOnDemand},
-								},
+								Key:      karpv1.CapacityTypeLabelKey,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{karpv1.CapacityTypeOnDemand},
 							},
 						},
 						NodeClassRef: &karpv1.NodeClassReference{
@@ -237,11 +235,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      karpv1.CapacityTypeLabelKey,
-									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{karpv1.CapacityTypeSpot},
-								},
+								Key:      karpv1.CapacityTypeLabelKey,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{karpv1.CapacityTypeSpot},
 							},
 						},
 						NodeClassRef: &karpv1.NodeClassReference{
@@ -582,11 +578,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      karpv1.CapacityTypeLabelKey,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{karpv1.CapacityTypeSpot},
-					},
+					Key:      karpv1.CapacityTypeLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.CapacityTypeSpot},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1397,11 +1391,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 			nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(nodePool.Spec.Template.Labels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
 				return karpv1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      k,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{v},
-					},
+					Key:      k,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{v},
 				}
 			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1569,7 +1561,7 @@ essential = true
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.SystemReserved)).To(Equal(3))
 					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
 					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
@@ -1593,7 +1585,7 @@ essential = true
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.KubeReserved)).To(Equal(3))
 					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
 					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
@@ -1657,7 +1649,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.EvictionHard)).To(Equal(3))
 					Expect(config.Settings.Kubernetes.EvictionHard["memory.available"]).To(Equal("10%"))
 					Expect(config.Settings.Kubernetes.EvictionHard["nodefs.available"]).To(Equal("15%"))
@@ -1677,7 +1669,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.MaxPods).ToNot(BeNil())
 					Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 10))
 				})
@@ -1695,7 +1687,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.ImageGCHighThresholdPercent).ToNot(BeNil())
 					percent, err := strconv.Atoi(*config.Settings.Kubernetes.ImageGCHighThresholdPercent)
 					Expect(err).ToNot(HaveOccurred())
@@ -1715,7 +1707,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.ImageGCLowThresholdPercent).ToNot(BeNil())
 					percent, err := strconv.Atoi(*config.Settings.Kubernetes.ImageGCLowThresholdPercent)
 					Expect(err).ToNot(HaveOccurred())
@@ -1732,7 +1724,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.ClusterDNSIP).ToNot(BeNil())
 					Expect(*config.Settings.Kubernetes.ClusterDNSIP).To(Equal("10.0.100.10"))
 				})
@@ -1750,7 +1742,7 @@ eviction-max-pod-grace-period = 10
 					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
 					Expect(err).To(BeNil())
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML(userData)).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.CPUCFSQuota).ToNot(BeNil())
 					Expect(*config.Settings.Kubernetes.CPUCFSQuota).To(BeFalse())
 				})
@@ -1768,7 +1760,7 @@ eviction-max-pod-grace-period = 10
 				ExpectScheduled(ctx, env.Client, pod)
 				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, []byte(userData))).To(Succeed())
 					for k, v := range desiredLabels {
 						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
 					}
@@ -1781,11 +1773,9 @@ eviction-max-pod-grace-period = 10
 				}
 				nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(desiredLabels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
 					return karpv1.NodeSelectorRequirementWithMinValues{
-						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-							Key:      k,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{v},
-						},
+						Key:      k,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{v},
 					}
 				})
 
@@ -1795,7 +1785,7 @@ eviction-max-pod-grace-period = 10
 				ExpectScheduled(ctx, env.Client, pod)
 				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 					config := &bootstrap.BottlerocketConfig{}
-					Expect(config.UnmarshalTOML([]byte(userData))).To(Succeed())
+					Expect(config.UnmarshalTOML(ctx, []byte(userData))).To(Succeed())
 					for k, v := range desiredLabels {
 						Expect(config.Settings.Kubernetes.NodeLabels).To(HaveKeyWithValue(k, v))
 					}
@@ -1891,8 +1881,8 @@ eviction-max-pod-grace-period = 10
 						taints := []corev1.Taint{}
 						Expect(yaml.Unmarshal(taintsRaw.Raw, &taints)).To(Succeed())
 						Expect(len(taints)).To(Equal(3))
-						Expect(taints).To(ContainElements(lo.Map(desiredTaints, func(t corev1.Taint, _ int) interface{} {
-							return interface{}(t)
+						Expect(taints).To(ContainElements(lo.Map(desiredTaints, func(t corev1.Taint, _ int) any {
+							return any(t)
 						})))
 					}
 				})
@@ -1926,11 +1916,9 @@ eviction-max-pod-grace-period = 10
 					}
 					nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(desiredLabels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
 						return karpv1.NodeSelectorRequirementWithMinValues{
-							NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-								Key:      k,
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{v},
-							},
+							Key:      k,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{v},
 						}
 					})
 
@@ -1963,9 +1951,9 @@ eviction-max-pod-grace-period = 10
 						inlineConfig := func() map[string]runtime.RawExtension {
 							configYAML, err := yaml.Marshal(kc)
 							Expect(err).To(BeNil())
-							configMap := map[string]interface{}{}
+							configMap := map[string]any{}
 							Expect(yaml.Unmarshal(configYAML, &configMap)).To(Succeed())
-							return lo.MapValues(configMap, func(v interface{}, _ string) runtime.RawExtension {
+							return lo.MapValues(configMap, func(v any, _ string) runtime.RawExtension {
 								val, err := json.Marshal(v)
 								Expect(err).To(BeNil())
 								return runtime.RawExtension{Raw: val}
@@ -2188,7 +2176,7 @@ eviction-max-pod-grace-period = 10
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 2))
-				expectedImageIds := sets.New[string]("ami-123", "ami-456")
+				expectedImageIds := sets.New("ami-123", "ami-456")
 				actualImageIds := sets.New[string]()
 				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 					actualImageIds.Insert(*ltInput.LaunchTemplateData.ImageId)
@@ -2224,11 +2212,9 @@ eviction-max-pod-grace-period = 10
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{
-						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-							Key:      corev1.LabelArchStable,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{karpv1.ArchitectureAmd64},
-						},
+						Key:      corev1.LabelArchStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{karpv1.ArchitectureAmd64},
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
@@ -2359,7 +2345,7 @@ eviction-max-pod-grace-period = 10
 		})
 		Context("Windows Custom UserData", func() {
 			BeforeEach(func() {
-				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Windows)}}}}
+				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Windows)}}}
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			})
@@ -2582,11 +2568,11 @@ eviction-max-pod-grace-period = 10
 			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(*cr.CapacityReservationId, int(*cr.AvailableInstanceCount))
 		}
 
-		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{
 			Key:      karpv1.CapacityTypeLabelKey,
 			Operator: corev1.NodeSelectorOpIn,
 			Values:   []string{karpv1.CapacityTypeReserved},
-		}}}
+		}}
 		pod := coretest.UnschedulablePod()
 		ExpectApplied(ctx, env.Client, pod, nodePool, nodeClass)
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)

@@ -32,8 +32,9 @@ When a Karpenter node is deleted, the Karpenter finalizer will block deletion an
 1. Add the `karpenter.sh/disrupted:NoSchedule` taint to the node to prevent pods from scheduling to it.
 2. Begin evicting the pods on the node with the [Kubernetes Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/) to respect PDBs, while ignoring all [static pods](https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/), pods tolerating the `karpenter.sh/disrupted:NoSchedule` taint, and succeeded/failed pods. Wait for the node to be fully drained before proceeding to Step (3).
    * While waiting, if the underlying NodeClaim for the node no longer exists, remove the finalizer to allow the APIServer to delete the node, completing termination.
-3. Terminate the NodeClaim in the Cloud Provider.
-4. Remove the finalizer from the node to allow the APIServer to delete the node, completing termination.
+3. Verify that all [VolumeAttachment](https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/volume-attachment-v1/) resources for drain-able pods are deleted.
+4. Terminate the NodeClaim in the Cloud Provider.
+5. Remove the finalizer from the node to allow the APIServer to delete the node, completing termination.
 
 ## Manual Methods
 * **Node Deletion**: You can use `kubectl` to manually remove a single Karpenter node or nodeclaim. Since each Karpenter node is owned by a NodeClaim, deleting either the node or the nodeclaim will cause cascade deletion of the other:

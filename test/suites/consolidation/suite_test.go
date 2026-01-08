@@ -254,10 +254,9 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 
 			nodePool = coretest.ReplaceRequirements(nodePool,
 				karpv1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.LabelInstanceSize,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"2xlarge"},
-					},
+					Key:      v1.LabelInstanceSize,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"2xlarge"},
 				},
 			)
 			// We're expecting to create 3 nodes, so we'll expect to see at most 2 nodes deleting at one time.
@@ -315,18 +314,14 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 
 			nodePool = coretest.ReplaceRequirements(nodePool,
 				karpv1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      v1.LabelInstanceSize,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"xlarge", "2xlarge"},
-					},
+					Key:      v1.LabelInstanceSize,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"xlarge", "2xlarge"},
 				},
 				// Add an Exists operator so that we can select on a fake partition later
 				karpv1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      "test-partition",
-						Operator: corev1.NodeSelectorOpExists,
-					},
+					Key:      "test-partition",
+					Operator: corev1.NodeSelectorOpExists,
 				},
 			)
 			nodePool.Labels = appLabels
@@ -503,28 +498,22 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 						Spec: karpv1.NodeClaimTemplateSpec{
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      karpv1.CapacityTypeLabelKey,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   lo.Ternary(spotToSpot, []string{karpv1.CapacityTypeSpot}, []string{karpv1.CapacityTypeOnDemand}),
-									},
+									Key:      karpv1.CapacityTypeLabelKey,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   lo.Ternary(spotToSpot, []string{karpv1.CapacityTypeSpot}, []string{karpv1.CapacityTypeOnDemand}),
 								},
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      v1.LabelInstanceSize,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{"medium", "large", "xlarge"},
-									},
+									Key:      v1.LabelInstanceSize,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"medium", "large", "xlarge"},
 								},
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      v1.LabelInstanceFamily,
-										Operator: corev1.NodeSelectorOpNotIn,
-										// remove some cheap burstable and the odd c1 instance types so we have
-										// more control over what gets provisioned
-										// TODO: jmdeal@ remove a1 from exclusion list once Karpenter implicitly filters a1 instances for AL2023 AMI family (incompatible)
-										Values: []string{"t2", "t3", "c1", "t3a", "t4g", "a1"},
-									},
+									Key:      v1.LabelInstanceFamily,
+									Operator: corev1.NodeSelectorOpNotIn,
+									// remove some cheap burstable and the odd c1 instance types so we have
+									// more control over what gets provisioned
+									// TODO: jmdeal@ remove a1 from exclusion list once Karpenter implicitly filters a1 instances for AL2023 AMI family (incompatible)
+									Values: []string{"t2", "t3", "c1", "t3a", "t4g", "a1"},
 								},
 							},
 							NodeClassRef: &karpv1.NodeClassReference{
@@ -586,35 +575,27 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 						Spec: karpv1.NodeClaimTemplateSpec{
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      karpv1.CapacityTypeLabelKey,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   lo.Ternary(spotToSpot, []string{karpv1.CapacityTypeSpot}, []string{karpv1.CapacityTypeOnDemand}),
-									},
+									Key:      karpv1.CapacityTypeLabelKey,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   lo.Ternary(spotToSpot, []string{karpv1.CapacityTypeSpot}, []string{karpv1.CapacityTypeOnDemand}),
 								},
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      v1.LabelInstanceSize,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{"large", "2xlarge"},
-									},
+									Key:      v1.LabelInstanceSize,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"large", "2xlarge"},
 								},
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      v1.LabelInstanceFamily,
-										Operator: corev1.NodeSelectorOpNotIn,
-										// remove some cheap burstable and the odd c1 / a1 instance types so we have
-										// more control over what gets provisioned
-										Values: []string{"t2", "t3", "c1", "t3a", "t4g", "a1"},
-									},
+									Key:      v1.LabelInstanceFamily,
+									Operator: corev1.NodeSelectorOpNotIn,
+									// remove some cheap burstable and the odd c1 / a1 instance types so we have
+									// more control over what gets provisioned
+									Values: []string{"t2", "t3", "c1", "t3a", "t4g", "a1"},
 								},
 								// Specify Linux in the NodePool to filter out Windows only DS when discovering DS overhead
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      corev1.LabelOSStable,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{string(corev1.Linux)},
-									},
+									Key:      corev1.LabelOSStable,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{string(corev1.Linux)},
 								},
 							},
 							NodeClassRef: &karpv1.NodeClassReference{
@@ -741,27 +722,22 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      karpv1.CapacityTypeLabelKey,
-									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{karpv1.CapacityTypeOnDemand},
-								},
+
+								Key:      karpv1.CapacityTypeLabelKey,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{karpv1.CapacityTypeOnDemand},
 							},
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      v1.LabelInstanceSize,
-									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{"large"},
-								},
+								Key:      v1.LabelInstanceSize,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"large"},
 							},
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      v1.LabelInstanceFamily,
-									Operator: corev1.NodeSelectorOpNotIn,
-									// remove some cheap burstable and the odd c1 / a1 instance types so we have
-									// more control over what gets provisioned
-									Values: []string{"t2", "t3", "c1", "t3a", "t4g", "a1"},
-								},
+								Key:      v1.LabelInstanceFamily,
+								Operator: corev1.NodeSelectorOpNotIn,
+								// remove some cheap burstable and the odd c1 / a1 instance types so we have
+								// more control over what gets provisioned
+								Values: []string{"t2", "t3", "c1", "t3a", "t4g", "a1"},
 							},
 						},
 						NodeClassRef: &karpv1.NodeClassReference{
@@ -818,17 +794,13 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
 		coretest.ReplaceRequirements(nodePool,
 			karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpExists,
-				},
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpExists,
 			},
 			karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceSize,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"large"},
-				},
+				Key:      v1.LabelInstanceSize,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"large"},
 			},
 		)
 		env.ExpectUpdated(nodePool)
@@ -897,11 +869,9 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 						Spec: karpv1.NodeClaimTemplateSpec{
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      karpv1.CapacityTypeLabelKey,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved},
-									},
+									Key:      karpv1.CapacityTypeLabelKey,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved},
 								},
 							},
 							NodeClassRef: &karpv1.NodeClassReference{
@@ -1026,7 +996,7 @@ var _ = Describe("Node Overlay", func() {
 		nodeOverlay := coretest.NodeOverlay(v1alpha1.NodeOverlay{
 			Spec: v1alpha1.NodeOverlaySpec{
 				PriceAdjustment: lo.ToPtr("-99.99999999999%"),
-				Requirements: []corev1.NodeSelectorRequirement{
+				Requirements: []v1alpha1.NodeSelectorRequirement{
 					{
 						Key:      corev1.LabelInstanceTypeStable,
 						Operator: corev1.NodeSelectorOpIn,
@@ -1045,7 +1015,7 @@ var _ = Describe("Node Overlay", func() {
 		Expect(instanceType).To(Equal(overlaiedInstanceType))
 
 		overlaiedInstanceType = "c7a.8xlarge"
-		nodeOverlay = coretest.ReplaceOverlayRequirements(nodeOverlay, corev1.NodeSelectorRequirement{
+		nodeOverlay = coretest.ReplaceOverlayRequirements(nodeOverlay, v1alpha1.NodeSelectorRequirement{
 			Key:      corev1.LabelInstanceTypeStable,
 			Operator: corev1.NodeSelectorOpIn,
 			Values:   []string{overlaiedInstanceType},
@@ -1077,7 +1047,7 @@ var _ = Describe("Node Overlay", func() {
 		nodeOverlay := coretest.NodeOverlay(v1alpha1.NodeOverlay{
 			Spec: v1alpha1.NodeOverlaySpec{
 				Price: lo.ToPtr("0.0000000232"),
-				Requirements: []corev1.NodeSelectorRequirement{
+				Requirements: []v1alpha1.NodeSelectorRequirement{
 					{
 						Key:      corev1.LabelInstanceTypeStable,
 						Operator: corev1.NodeSelectorOpIn,
@@ -1096,7 +1066,7 @@ var _ = Describe("Node Overlay", func() {
 		Expect(instanceType).To(Equal(overlaiedInstanceType))
 
 		overlaiedInstanceType = "c7a.8xlarge"
-		nodeOverlay = coretest.ReplaceOverlayRequirements(nodeOverlay, corev1.NodeSelectorRequirement{
+		nodeOverlay = coretest.ReplaceOverlayRequirements(nodeOverlay, v1alpha1.NodeSelectorRequirement{
 			Key:      corev1.LabelInstanceTypeStable,
 			Operator: corev1.NodeSelectorOpIn,
 			Values:   []string{overlaiedInstanceType},
@@ -1130,7 +1100,7 @@ var _ = Describe("Node Overlay", func() {
 		})
 		nodeOverlay := coretest.NodeOverlay(v1alpha1.NodeOverlay{
 			Spec: v1alpha1.NodeOverlaySpec{
-				Requirements: []corev1.NodeSelectorRequirement{
+				Requirements: []v1alpha1.NodeSelectorRequirement{
 					{
 						Key:      corev1.LabelInstanceTypeStable,
 						Operator: corev1.NodeSelectorOpIn,
@@ -1156,7 +1126,7 @@ var _ = Describe("Node Overlay", func() {
 		Expect(instanceType).To(Equal(overlaiedInstanceType))
 
 		overlaiedInstanceType = "c7a.2xlarge"
-		nodeOverlay = coretest.ReplaceOverlayRequirements(nodeOverlay, corev1.NodeSelectorRequirement{
+		nodeOverlay = coretest.ReplaceOverlayRequirements(nodeOverlay, v1alpha1.NodeSelectorRequirement{
 			Key:      corev1.LabelInstanceTypeStable,
 			Operator: corev1.NodeSelectorOpIn,
 			Values:   []string{overlaiedInstanceType},

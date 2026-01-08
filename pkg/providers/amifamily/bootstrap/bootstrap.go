@@ -15,6 +15,7 @@ limitations under the License.
 package bootstrap
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -115,5 +116,5 @@ func joinParameterArgs[K comparable, V any](name string, m map[K]V, separator st
 // bootstrapping method.
 // Examples are the Bottlerocket config and the eks-bootstrap script
 type Bootstrapper interface {
-	Script() (string, error)
+	Script(context.Context) (string, error)
 }
