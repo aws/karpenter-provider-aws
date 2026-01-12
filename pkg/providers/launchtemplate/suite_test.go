@@ -2175,7 +2175,7 @@ eviction-max-pod-grace-period = 10
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 2))
-				expectedImageIds := sets.New[string]("ami-123", "ami-456")
+				expectedImageIds := sets.New("ami-123", "ami-456")
 				actualImageIds := sets.New[string]()
 				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 					actualImageIds.Insert(*ltInput.LaunchTemplateData.ImageId)

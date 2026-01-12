@@ -124,7 +124,7 @@ func (env *Environment) ExpectStatusUpdated(objects ...client.Object) {
 }
 
 func ReplaceNodeConditions(node *corev1.Node, conds ...corev1.NodeCondition) *corev1.Node {
-	keys := sets.New[string](lo.Map(conds, func(c corev1.NodeCondition, _ int) string { return string(c.Type) })...)
+	keys := sets.New(lo.Map(conds, func(c corev1.NodeCondition, _ int) string { return string(c.Type) })...)
 	node.Status.Conditions = lo.Reject(node.Status.Conditions, func(c corev1.NodeCondition, _ int) bool {
 		return keys.Has(string(c.Type))
 	})

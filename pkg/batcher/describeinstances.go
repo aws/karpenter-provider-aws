@@ -106,9 +106,7 @@ func execDescribeInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.DescribeIns
 		// So we try to describe them individually now. This should be rare and only results in a handfull of extra calls per batch than without batching.
 		var wg sync.WaitGroup
 		for instanceID := range missingInstanceIDs {
-			wg.Add(1)
-			go func(instanceID string) {
-				defer wg.Done()
+			wg.Go(func() {
 				// try to execute separately
 				out, err := ec2api.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 					Filters:     aggregatedInput.Filters,
@@ -121,7 +119,7 @@ func execDescribeInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.DescribeIns
 						results[reqID] = Result[ec2.DescribeInstancesOutput]{Output: out, Err: err}
 					}
 				}
-			}(instanceID)
+			})
 		}
 		wg.Wait()
 		return results
