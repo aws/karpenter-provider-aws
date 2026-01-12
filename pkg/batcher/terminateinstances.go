@@ -106,9 +106,7 @@ func execTerminateInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.TerminateI
 		// So we try to terminate them individually now. This should be rare and only results in 1 extra call per batch than without batching.
 		var wg sync.WaitGroup
 		for instanceID := range stillRunning {
-			wg.Add(1)
-			go func(instanceID string) {
-				defer wg.Done()
+			wg.Go(func() {
 				// try to execute separately
 				out, err := ec2api.TerminateInstances(ctx, &ec2.TerminateInstancesInput{InstanceIds: []string{instanceID}})
 
@@ -118,7 +116,7 @@ func execTerminateInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.TerminateI
 						results[reqID] = Result[ec2.TerminateInstancesOutput]{Output: out, Err: err}
 					}
 				}
-			}(instanceID)
+			})
 		}
 		wg.Wait()
 		return results
