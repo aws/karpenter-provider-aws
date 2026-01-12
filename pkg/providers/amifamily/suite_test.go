@@ -246,10 +246,8 @@ var _ = Describe("AMIProvider", func() {
 			},
 		}
 		wg := sync.WaitGroup{}
-		for i := 0; i < 10000; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+		for range 10000 {
+			wg.Go(func() {
 				defer GinkgoRecover()
 				images, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 				Expect(err).ToNot(HaveOccurred())
@@ -275,7 +273,7 @@ var _ = Describe("AMIProvider", func() {
 						}),
 					},
 				}))
-			}()
+			})
 		}
 		wg.Wait()
 	})
@@ -1230,5 +1228,5 @@ func ExpectConsistsOfAMIQueries(expected, actual []amifamily.DescribeImageQuery)
 			})
 		}
 	}
-	Expect(actual).To(ConsistOf(lo.Map(expected, func(q amifamily.DescribeImageQuery, _ int) interface{} { return q })...))
+	Expect(actual).To(ConsistOf(lo.Map(expected, func(q amifamily.DescribeImageQuery, _ int) any { return q })...))
 }

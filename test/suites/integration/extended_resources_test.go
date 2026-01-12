@@ -67,17 +67,13 @@ var _ = Describe("Extended Resources", func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceCategory,
-				Operator: corev1.NodeSelectorOpExists,
-			},
+			Key:      v1.LabelInstanceCategory,
+			Operator: corev1.NodeSelectorOpExists,
 		})
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceFamily,
-				Operator: corev1.NodeSelectorOpNotIn,
-				Values:   []string{"g6f"},
-			},
+			Key:      v1.LabelInstanceFamily,
+			Operator: corev1.NodeSelectorOpNotIn,
+			Values:   []string{"g6f"},
 		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -106,16 +102,13 @@ var _ = Describe("Extended Resources", func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceCategory,
-				Operator: corev1.NodeSelectorOpExists,
-			}})
+			Key:      v1.LabelInstanceCategory,
+			Operator: corev1.NodeSelectorOpExists,
+		})
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceFamily,
-				Operator: corev1.NodeSelectorOpNotIn,
-				Values:   []string{"g6f"},
-			},
+			Key:      v1.LabelInstanceFamily,
+			Operator: corev1.NodeSelectorOpNotIn,
+			Values:   []string{"g6f"},
 		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -145,17 +138,13 @@ var _ = Describe("Extended Resources", func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceCategory,
-				Operator: corev1.NodeSelectorOpExists,
-			},
+			Key:      v1.LabelInstanceCategory,
+			Operator: corev1.NodeSelectorOpExists,
 		})
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceGeneration,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"1", "2"},
-			},
+			Key:      v1.LabelInstanceGeneration,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"1", "2"},
 		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -185,17 +174,13 @@ var _ = Describe("Extended Resources", func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceCategory,
-				Operator: corev1.NodeSelectorOpExists,
-			},
+			Key:      v1.LabelInstanceCategory,
+			Operator: corev1.NodeSelectorOpExists,
 		})
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceGeneration,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"1", "2"},
-			},
+			Key:      v1.LabelInstanceGeneration,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"1", "2"},
 		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)

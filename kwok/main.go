@@ -51,24 +51,18 @@ func main() {
 	}
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		<-op.Elected()
 		op.EC2API.StartBackupThread(ctx)
-	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	})
+	wg.Go(func() {
 		<-op.Elected()
 		op.EC2API.StartKillNodeThread(ctx)
-	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	})
+	wg.Go(func() {
 		<-op.Elected()
 		op.EC2API.ReadBackup(ctx)
-	}()
+	})
 
 	op.
 		WithControllers(ctx, corecontrollers.NewControllers(

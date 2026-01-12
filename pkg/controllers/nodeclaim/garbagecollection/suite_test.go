@@ -210,15 +210,13 @@ var _ = Describe("GarbageCollection", func() {
 
 		wg := sync.WaitGroup{}
 		for _, id := range ids {
-			wg.Add(1)
-			go func(id string) {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				awsEnv.InstanceCache.Flush()
 				_, err := cloudProvider.Get(ctx, fake.ProviderID(id))
 				Expect(err).To(HaveOccurred())
 				Expect(karpcloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
-			}(id)
+			})
 		}
 		wg.Wait()
 	})
@@ -270,14 +268,11 @@ var _ = Describe("GarbageCollection", func() {
 
 		wg := sync.WaitGroup{}
 		for _, id := range ids {
-			wg.Add(1)
-			go func(id string) {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
-
 				_, err := cloudProvider.Get(ctx, fake.ProviderID(id))
 				Expect(err).ToNot(HaveOccurred())
-			}(id)
+			})
 		}
 		wg.Wait()
 
@@ -394,15 +389,13 @@ var _ = Describe("GarbageCollection", func() {
 
 		wg := sync.WaitGroup{}
 		for i := range ids {
-			wg.Add(1)
-			go func(id string, node *corev1.Node) {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 
-				_, err := cloudProvider.Get(ctx, fake.ProviderID(id))
+				_, err := cloudProvider.Get(ctx, fake.ProviderID(ids[i]))
 				Expect(err).ToNot(HaveOccurred())
-				ExpectExists(ctx, env.Client, node)
-			}(ids[i], nodes[i])
+				ExpectExists(ctx, env.Client, nodes[i])
+			})
 		}
 		wg.Wait()
 	})

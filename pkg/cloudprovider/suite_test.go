@@ -167,7 +167,7 @@ var _ = Describe("CloudProvider", func() {
 							Name:  nodeClass.Name,
 						},
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
-							{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand}}},
+							{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand}},
 						},
 					},
 				},
@@ -185,11 +185,9 @@ var _ = Describe("CloudProvider", func() {
 				},
 				Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 					{
-						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-							Key:      karpv1.CapacityTypeLabelKey,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{karpv1.CapacityTypeOnDemand},
-						},
+						Key:      karpv1.CapacityTypeLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{karpv1.CapacityTypeOnDemand},
 					},
 				},
 			},
@@ -267,11 +265,9 @@ var _ = Describe("CloudProvider", func() {
 		// Specify no instance types and expect to receive a capacity error
 		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceTypeStable,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"test-instance-type"},
-				},
+				Key:      corev1.LabelInstanceTypeStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"test-instance-type"},
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
@@ -408,18 +404,15 @@ var _ = Describe("CloudProvider", func() {
 							},
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      karpv1.CapacityTypeLabelKey,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{karpv1.CapacityTypeSpot},
-									},
+									Key:      karpv1.CapacityTypeLabelKey,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{karpv1.CapacityTypeSpot},
 								},
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      corev1.LabelInstanceTypeStable,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   instanceNames,
-									},
+
+									Key:       corev1.LabelInstanceTypeStable,
+									Operator:  corev1.NodeSelectorOpIn,
+									Values:    instanceNames,
 									MinValues: lo.ToPtr(2),
 								},
 							},
@@ -506,18 +499,14 @@ var _ = Describe("CloudProvider", func() {
 							},
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      corev1.LabelInstanceTypeStable,
-										Operator: corev1.NodeSelectorOpExists,
-									},
+									Key:       corev1.LabelInstanceTypeStable,
+									Operator:  corev1.NodeSelectorOpExists,
 									MinValues: lo.ToPtr(2),
 								},
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      corev1.LabelInstanceTypeStable,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   instanceNames,
-									},
+									Key:       corev1.LabelInstanceTypeStable,
+									Operator:  corev1.NodeSelectorOpIn,
+									Values:    instanceNames,
 									MinValues: lo.ToPtr(1),
 								},
 							},
@@ -611,20 +600,18 @@ var _ = Describe("CloudProvider", func() {
 							},
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      corev1.LabelInstanceTypeStable,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   instanceNames,
-									},
+
+									Key:      corev1.LabelInstanceTypeStable,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   instanceNames,
 									// consider at least 2 unique instance types
 									MinValues: lo.ToPtr(2),
 								},
 								{
-									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-										Key:      v1.LabelInstanceFamily,
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   instanceFamilies.UnsortedList(),
-									},
+
+									Key:      v1.LabelInstanceFamily,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   instanceFamilies.UnsortedList(),
 									// consider at least 3 unique instance families
 									MinValues: lo.ToPtr(3),
 								},
@@ -1409,11 +1396,9 @@ var _ = Describe("CloudProvider", func() {
 		It("should include vpc.amazonaws.com/efa on a nodeclaim if it requests it", func() {
 			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"dl1.24xlarge"},
-					},
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"dl1.24xlarge"},
 				},
 			}
 			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{v1.ResourceEFA: resource.MustParse("1")}
@@ -1425,11 +1410,9 @@ var _ = Describe("CloudProvider", func() {
 		It("shouldn't include vpc.amazonaws.com/efa on a nodeclaim if it doesn't request it", func() {
 			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
-					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"dl1.24xlarge"},
-					},
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"dl1.24xlarge"},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
@@ -1463,11 +1446,11 @@ var _ = Describe("CloudProvider", func() {
 			nodeClass.Status.CapacityReservations = lo.Map(crs, func(cr ec2types.CapacityReservation, _ int) v1.CapacityReservation {
 				return lo.Must(v1.CapacityReservationFromEC2(awsEnv.Clock, &cr))
 			})
-			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{
 				Key:      karpv1.CapacityTypeLabelKey,
 				Operator: corev1.NodeSelectorOpIn,
 				Values:   []string{karpv1.CapacityTypeReserved},
-			}}}
+			}}
 		})
 		It("should mark capacity reservations as launched", func() {
 			pod := coretest.UnschedulablePod()

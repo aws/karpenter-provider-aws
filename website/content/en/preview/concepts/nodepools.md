@@ -85,7 +85,7 @@ spec:
 
       # Requirements that constrain the parameters of provisioned nodes.
       # These requirements are combined with pod.spec.topologySpreadConstraints, pod.spec.affinity.nodeAffinity, pod.spec.affinity.podAffinity, and pod.spec.nodeSelector rules.
-      # Operators { In, NotIn, Exists, DoesNotExist, Gt, and Lt } are supported.
+      # Operators { In, NotIn, Exists, DoesNotExist, Gt, Lt, Gte, and Lte } are supported.
       # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#operators
       requirements:
         - key: "karpenter.k8s.aws/instance-category"
@@ -105,8 +105,8 @@ spec:
           operator: In
           values: ["nitro"]
         - key: "karpenter.k8s.aws/instance-generation"
-          operator: Gt
-          values: ["2"]
+          operator: Gte
+          values: ["3"]
         - key: "topology.kubernetes.io/zone"
           operator: In
           values: ["us-west-2a", "us-west-2b"]
@@ -306,8 +306,8 @@ spec:
           operator: Exists
           minValues: 10
         - key: karpenter.k8s.aws/instance-generation
-          operator: Gt
-          values: ["2"]
+          operator: Gte
+          values: ["3"]
 ```
 
 Note that `minValues` can be used with multiple operators and multiple requirements. And if the `minValues` are defined with multiple operators for the same requirement key, scheduler considers the max of all the `minValues` for that requirement. For example, the below spec requires scheduler to consider at least 5 instance-family to schedule the pods.
@@ -338,8 +338,8 @@ spec:
           operator: Exists
           minValues: 10
         - key: karpenter.k8s.aws/instance-generation
-          operator: Gt
-          values: ["2"]
+          operator: Gte
+          values: ["3"]
 ```
 
 {{% alert title="Recommended" color="primary" %}}
@@ -365,8 +365,8 @@ spec:
           operator: In
           values: ["c", "m", "r"]
         - key: karpenter.k8s.aws/instance-generation
-          operator: Gt
-          values: ["2"]
+          operator: Gte
+          values: ["3"]
 ```
 
 {{% /alert %}}
