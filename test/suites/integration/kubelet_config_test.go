@@ -141,6 +141,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			// See: https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go
 			Entry("when the AMIFamily is Windows2019", v1.AMISelectorTerm{Alias: "windows2019@latest"}),
 			Entry("when the AMIFamily is Windows2022", v1.AMISelectorTerm{Alias: "windows2022@latest"}),
+			Entry("when the AMIFamily is Windows2025", v1.AMISelectorTerm{Alias: "windows2025@latest"}),
 		)
 	})
 	It("should schedule pods onto separate nodes when maxPods is set", func() {

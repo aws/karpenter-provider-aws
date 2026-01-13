@@ -16,6 +16,8 @@ package nodeclass_test
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -484,6 +486,46 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 							Key:      corev1.LabelWindowsBuild,
 							Operator: corev1.NodeSelectorOpIn,
 							Values:   []string{v1.Windows2022Build},
+						},
+					},
+				},
+			}))
+			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
+		})
+		It("Should resolve all AMIs with correct requirements for Windows2025", func() {
+			// Check if EKS version supports Windows 2025 (requires 1.35+)
+			minorVersion, err := strconv.Atoi(strings.Split(k8sVersion, ".")[1])
+			if err != nil || minorVersion < 35 {
+				Skip("Windows 2025 requires EKS 1.35+, current version: " + k8sVersion)
+			}
+
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2025-English-Core-EKS_Optimized-%s/image_id", k8sVersion): "ami-amd64-standard",
+			}
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2025@latest"}}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(len(nodeClass.Status.AMIs)).To(Equal(1))
+			Expect(nodeClass.Status.AMIs).To(ContainElements([]v1.AMI{
+				{
+					Name: "amd64-standard",
+					ID:   "ami-amd64-standard",
+					Requirements: []corev1.NodeSelectorRequirement{
+						{
+							Key:      corev1.LabelOSStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{string(corev1.Windows)},
+						},
+						{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureAmd64},
+						},
+						{
+							Key:      corev1.LabelWindowsBuild,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{v1.Windows2025Build},
 						},
 					},
 				},
