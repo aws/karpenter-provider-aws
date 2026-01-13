@@ -120,9 +120,7 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 	time.Sleep(time.Second) // wait one second to let the caches get up-to-date for deletion
 	wg := sync.WaitGroup{}
 	for _, obj := range cleanableObjects {
-		wg.Add(1)
-		go func(obj client.Object) {
-			defer wg.Done()
+		wg.Go(func() {
 			defer GinkgoRecover()
 			Eventually(func(g Gomega) {
 				// This only gets the metadata for the objects since we don't need all the details of the objects
@@ -142,7 +140,7 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 				g.Expect(env.Client.List(env, metaList, client.HasLabels([]string{test.DiscoveryLabel}), client.Limit(1))).To(Succeed())
 				g.Expect(metaList.Items).To(HaveLen(0))
 			}).Should(Succeed())
-		}(obj)
+		})
 	}
 	wg.Wait()
 }
