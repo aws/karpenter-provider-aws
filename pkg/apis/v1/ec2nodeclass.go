@@ -143,6 +143,11 @@ type EC2NodeClassSpec struct {
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
 	Context *string `json:"context,omitempty"`
+	// CPUOptions contains CPU configuration options for instances that are launched with this node class.
+	// This allows you to optimize CPU allocation for specific workloads, such as disabling hyperthreading
+	// for security or licensing requirements, or limiting core counts.
+	// +optional
+	CPUOptions *CPUOptions `json:"cpuOptions,omitempty"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
@@ -354,6 +359,23 @@ type MetadataOptions struct {
 	// +kubebuilder:validation:Enum:={required,optional}
 	// +optional
 	HTTPTokens *string `json:"httpTokens,omitempty"`
+}
+
+// CPUOptions contains CPU configuration options for EC2 instances.
+// These options allow you to optimize CPU allocation for specific workloads.
+type CPUOptions struct {
+	// CoreCount specifies the number of CPU cores for the instance.
+	// Both CoreCount and ThreadsPerCore must be specified if either is specified.
+	// +kubebuilder:validation:Minimum:=1
+	// +optional
+	CoreCount *int64 `json:"coreCount,omitempty"`
+	// ThreadsPerCore sets the number of threads per core.
+	// To disable Intel Hyper-Threading Technology, specify a value of 1.
+	// Otherwise, specify the default value of 2.
+	// Both CoreCount and ThreadsPerCore must be specified if either is specified.
+	// +kubebuilder:validation:Enum:={1,2}
+	// +optional
+	ThreadsPerCore *int64 `json:"threadsPerCore,omitempty"`
 }
 
 type BlockDeviceMapping struct {
