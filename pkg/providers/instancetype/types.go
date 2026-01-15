@@ -162,7 +162,7 @@ func NewInstanceType(
 	// helps users understand how Karpenter calculates allocatable resources.
 	if amiFamilyType == v1.AMIFamilyCustom {
 		allocatable := it.Allocatable()
-		log.FromContext(ctx).V(1).Info("calculated instance type resources for Custom AMI",
+		log.FromContext(ctx).V(2).Info("calculated instance type resources for Custom AMI",
 			"instance-type", info.InstanceType,
 			"max-pods-configured", maxPods,
 			"effective-pods", effectivePods.Value(),
