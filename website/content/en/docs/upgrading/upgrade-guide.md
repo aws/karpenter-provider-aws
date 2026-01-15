@@ -91,6 +91,8 @@ WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE T
 {{% alert title="Warning" color="warning" %}}
 Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 **Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+
+Karpenter `v1.8.4` release contains a regression which may prevent Karpenter from scheduling pods with specific TopologySpreadConstraint configurations. Please do not upgrade to this version. For more details, see the following issue: https://github.com/kubernetes-sigs/karpenter/issues/2785
 {{% /alert %}}
 
 * This version adds support for [Static Capacity](https://github.com/kubernetes-sigs/karpenter/pull/2521). Make sure to upgrade your karpenter CRDs to use this feature.
