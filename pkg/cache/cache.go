@@ -47,6 +47,10 @@ const (
 	DiscoveredCapacityCacheTTL = 60 * 24 * time.Hour
 	// ValidationTTL is time to check authorization errors with validation controller
 	ValidationTTL = 30 * time.Minute
+	// AuthRetryInitialDelay is the initial retry delay for authorization failures during validation
+	AuthRetryInitialDelay = 30 * time.Second
+	// AuthRetryMaxDelay is the maximum retry delay for authorization failures during validation
+	AuthRetryMaxDelay = 5 * time.Minute
 	// RecreationTTL is the duration to suppress instance profile recreation for the same role to avoid duplicates
 	RecreationTTL = 1 * time.Minute
 	// ProtectedProfilesTTL is the duration to keep profiles as protected before nodeclass garbagecollector considers deletion
