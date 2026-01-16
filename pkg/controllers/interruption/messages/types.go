@@ -40,6 +40,7 @@ const (
 	SpotInterruptionKind        Kind = "spot_interrupted"
 	InstanceStoppedKind         Kind = "instance_stopped"
 	InstanceTerminatedKind      Kind = "instance_terminated"
+	InstanceStatusFailure       Kind = "instance_status_failure"
 	NoOpKind                    Kind = "no_op"
 )
 

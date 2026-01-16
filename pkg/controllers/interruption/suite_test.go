@@ -24,6 +24,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/metrics"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/aws/smithy-go"
@@ -92,7 +94,8 @@ var _ = BeforeSuite(func() {
 	sqsProvider = lo.Must(sqs.NewDefaultProvider(sqsapi, fmt.Sprintf("https://sqs.%s.amazonaws.com/%s/test-cluster", fake.DefaultRegion, fake.DefaultAccount)))
 	cloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.InstanceTypeStore)
-	controller = interruption.NewController(env.Client, cloudProvider, fakeClock, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, servicesqs.NewFromConfig(aws.Config{}), unavailableOfferingsCache)
+	controller = interruption.NewController(env.Client, cloudProvider, fakeClock, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, sqsapi, unavailableOfferingsCache, awsEnv.InstanceStatusProvider)
+	interruption.InstanceStatusInterval = 0
 })
 
 var _ = AfterSuite(func() {
@@ -101,6 +104,7 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
+	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("test-cluster")}))
 	unavailableOfferingsCache.Flush()
 	sqsapi.Reset()
 })
@@ -256,12 +260,79 @@ var _ = Describe("InterruptionHandling", func() {
 			// Expect a t3.large in coretest-zone-1a to be added to the ICE cache
 			Expect(unavailableOfferingsCache.IsUnavailable("t3.large", "coretest-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
 		})
+		It("should delete the NodeClaim when an instance is unhealthy due to EC2 status checks", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+						SystemStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusImpaired,
+							Details: []ec2types.InstanceStatusDetails{
+								{
+									Status:        ec2types.StatusTypeFailed,
+									Name:          ec2types.StatusNameReachability,
+									ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
+								},
+							},
+						},
+						InstanceStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusInitializing,
+							Details: []ec2types.InstanceStatusDetails{
+								{
+									Status: ec2types.StatusTypeInitializing,
+									Name:   ec2types.StatusNameReachability,
+								},
+							},
+						},
+					},
+				},
+			})
+			awsEnv.Clock.Step(time.Hour)
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, controller)
+			ExpectMetricCounterValue(metrics.NodeClaimsDisruptedTotal, 1, map[string]string{
+				metrics.ReasonLabel: "instance_status_failure",
+				"nodepool":          "default",
+			})
+			ExpectNotFound(ctx, env.Client, nodeClaim)
+		})
+		It("should NOT delete the NodeClaim when an instance is unhealthy due to a Scheduled Event Status or EBS Status", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+						AttachedEbsStatus: &ec2types.EbsStatusSummary{
+							Status: ec2types.SummaryStatusImpaired,
+							Details: []ec2types.EbsStatusDetails{
+								{
+									Status:        ec2types.StatusTypeFailed,
+									Name:          ec2types.StatusNameReachability,
+									ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
+								},
+							},
+						},
+						Events: []ec2types.InstanceStatusEvent{
+							{
+								Code: ec2types.EventCodeInstanceRetirement,
+							},
+						},
+					},
+				},
+			})
+			awsEnv.Clock.Step(time.Hour)
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, controller)
+			ExpectExists(ctx, env.Client, nodeClaim)
+		})
 	})
 })
 
 var _ = Describe("Error Handling", func() {
 	It("should send an error on polling when QueueNotExists", func() {
 		sqsapi.ReceiveMessageBehavior.Error.Set(smithyErrWithCode("QueueDoesNotExist"), fake.MaxCalls(0))
+		_ = ExpectSingletonReconcileFailed(ctx, controller)
 	})
 	It("should send an error on polling when AccessDenied", func() {
 		sqsapi.ReceiveMessageBehavior.Error.Set(smithyErrWithCode("AccessDenied"), fake.MaxCalls(0))
