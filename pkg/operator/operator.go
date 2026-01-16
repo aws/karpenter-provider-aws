@@ -57,6 +57,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
@@ -90,6 +91,7 @@ type Operator struct {
 	VersionProvider             *version.DefaultProvider
 	InstanceTypesProvider       *instancetype.DefaultProvider
 	InstanceProvider            instance.Provider
+	InstanceStatusProvider      *instancestatus.DefaultProvider
 	SSMProvider                 ssmp.Provider
 	CapacityReservationProvider capacityreservation.Provider
 	PlacementGroupProvider      placementgroup.Provider
@@ -210,6 +212,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		placementGroupProvider,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 	)
+	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, operator.Clock)
 
 	// Setup field indexers on instanceID -- specifically for the interruption controller
 	if options.FromContext(ctx).InterruptionQueue != "" {
@@ -232,6 +235,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		PricingProvider:             pricingProvider,
 		InstanceTypesProvider:       instanceTypeProvider,
 		InstanceProvider:            instanceProvider,
+		InstanceStatusProvider:      instanceStatusProvider,
 		SSMProvider:                 ssmProvider,
 		CapacityReservationProvider: capacityReservationProvider,
 		PlacementGroupProvider:      placementGroupProvider,
