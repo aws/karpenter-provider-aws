@@ -348,6 +348,14 @@ Resources:
               "Effect": "Allow",
               "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
               "Action": "iam:GetInstanceProfile"
+              "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
+              "Action": "eks:DescribeCluster"
+            },
+            {
+              "Sid": "AllowUnscopedEC2DescribeInstanceStatus",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": "ec2:DescribeInstanceStatus"
             }
           ]
         }

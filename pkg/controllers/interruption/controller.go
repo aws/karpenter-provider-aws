@@ -23,7 +23,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/metrics"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	sqsapi "github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/singleton"
@@ -43,9 +42,15 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/events"
 
+	lop "github.com/samber/lo/parallel"
+
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	interruptionevents "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/instancestatusfailure"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 )
 
@@ -56,19 +61,31 @@ const (
 	NoAction       Action = "NoAction"
 )
 
+var (
+	// InstatusStatusInterval is used to rate limit calls to the EC2 DescribeInstanceStatus API
+	// since the Interruption controller runs in a hot loop with an SQS long poller sub-reconciler.
+	// Without this rate limit, if there are a lot of messages in the SQS queue, DescribeInstanceStatus
+	// could be called continuously since the long polling receives messages in small batches.
+	InstanceStatusInterval = 30 * time.Second
+)
+
 // Controller is an AWS interruption controller.
 // It continually polls an SQS queue for events from aws.ec2 and aws.health that
 // trigger node health events or node spot interruption/rebalance events.
 type Controller struct {
-	kubeClient                client.Client
-	cloudProvider             cloudprovider.CloudProvider
-	clk                       clock.Clock
-	recorder                  events.Recorder
-	sqsProvider               sqs.Provider
-	sqsAPI                    *sqsapi.Client
+	kubeClient    client.Client
+	cloudProvider cloudprovider.CloudProvider
+	clk           clock.Clock
+	recorder      events.Recorder
+	// sqsProvider can be nil when a queue is not configured by the user
+	sqsProvider sqs.Provider
+	// sqsAPI can be nil when a queue is not configured by the user
+	sqsAPI                    sdk.SQSAPI
 	unavailableOfferingsCache *cache.UnavailableOfferings
+	instanceStatusProvider    instancestatus.Provider
 	parser                    *EventParser
 	cm                        *pretty.ChangeMonitor
+	lastInstanceStatusRun     time.Time
 }
 
 func NewController(
@@ -77,8 +94,9 @@ func NewController(
 	clk clock.Clock,
 	recorder events.Recorder,
 	sqsProvider sqs.Provider,
-	sqsAPI *sqsapi.Client,
+	sqsAPI sdk.SQSAPI,
 	unavailableOfferingsCache *cache.UnavailableOfferings,
+	instanceStatusProvider instancestatus.Provider,
 ) *Controller {
 	return &Controller{
 		kubeClient:                kubeClient,
@@ -88,6 +106,7 @@ func NewController(
 		sqsProvider:               sqsProvider,
 		sqsAPI:                    sqsAPI,
 		unavailableOfferingsCache: unavailableOfferingsCache,
+		instanceStatusProvider:    instanceStatusProvider,
 		parser:                    NewEventParser(DefaultParsers...),
 		cm:                        pretty.NewChangeMonitor(),
 	}
@@ -95,24 +114,68 @@ func NewController(
 
 func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	ctx = injection.WithControllerName(ctx, "interruption")
-	if c.sqsProvider == nil {
-		prov, err := sqs.NewSQSProvider(ctx, c.sqsAPI)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "failed to create valid sqs provider")
-			return reconciler.Result{}, fmt.Errorf("creating sqs provider, %w", err)
-		}
-		c.sqsProvider = prov
+
+	reconcilers := []func(context.Context) error{
+		c.reconcileFromSQS,
+		c.reconcileInstanceStatus,
 	}
-	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("queue", c.sqsProvider.Name()))
-	if c.cm.HasChanged(c.sqsProvider.Name(), nil) {
-		log.FromContext(ctx).V(1).Info("watching interruption queue")
+
+	errs := make([]error, len(reconcilers))
+	lop.ForEach(reconcilers, func(r func(context.Context) error, i int) {
+		errs[i] = r(ctx)
+	})
+
+	if err := multierr.Combine(errs...); err != nil {
+		return reconciler.Result{}, fmt.Errorf("reconciling interruptions, %w", err)
 	}
-	sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
-	if err != nil {
-		return reconciler.Result{}, fmt.Errorf("getting messages from queue, %w", err)
-	}
-	if len(sqsMessages) == 0 {
+
+	if options.FromContext(ctx).InterruptionQueue != "" {
 		return reconciler.Result{RequeueAfter: singleton.RequeueImmediately}, nil
+	}
+	return reconciler.Result{RequeueAfter: InstanceStatusInterval}, nil
+}
+
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+	return controllerruntime.NewControllerManagedBy(m).
+		Named("interruption").
+		WatchesRawSource(singleton.Source()).
+		Complete(singleton.AsReconciler(c))
+}
+
+func (c *Controller) reconcileInstanceStatus(ctx context.Context) error {
+	// Pulling instance status more often can result in rate limiting when many SQS messages
+	// are received since the interruption controller runs in a hot loop
+	if c.clk.Since(c.lastInstanceStatusRun) < InstanceStatusInterval {
+		return nil
+	}
+	instanceStatuses, err := c.instanceStatusProvider.List(ctx)
+	if err != nil {
+		return fmt.Errorf("getting instance statuses %w", err)
+	}
+
+	errs := make([]error, len(instanceStatuses))
+	workqueue.ParallelizeUntil(ctx, 10, len(instanceStatuses), func(i int) {
+		if err := c.handleMessage(ctx, instancestatusfailure.Message(instanceStatuses[i])); err != nil {
+			errs[i] = fmt.Errorf("handling instance status check message, %w", err)
+		}
+	})
+	if err = multierr.Combine(errs...); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Controller) reconcileFromSQS(ctx context.Context) error {
+	if options.FromContext(ctx).InterruptionQueue == "" {
+		return nil
+	}
+	sqsMessages, err := c.sqsMessages(ctx)
+	if err != nil {
+		return err
+	}
+
+	if len(sqsMessages) == 0 {
+		return nil
 	}
 
 	errs := make([]error, len(sqsMessages))
@@ -131,16 +194,34 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 		errs[i] = c.deleteMessage(ctx, sqsMessages[i])
 	})
 	if err = multierr.Combine(errs...); err != nil {
-		return reconciler.Result{}, err
+		return err
 	}
-	return reconciler.Result{RequeueAfter: singleton.RequeueImmediately}, nil
+	return nil
 }
 
-func (c *Controller) Register(_ context.Context, m manager.Manager) error {
-	return controllerruntime.NewControllerManagedBy(m).
-		Named("interruption").
-		WatchesRawSource(singleton.Source()).
-		Complete(singleton.AsReconciler(c))
+func (c *Controller) sqsMessages(ctx context.Context) ([]*sqstypes.Message, error) {
+	if c.sqsAPI == nil {
+		return nil, nil
+	}
+	// If the provider was unable to instantiate, keep trying.
+	// This would most likely be due to a permissions issue that can be fixed at runtime.
+	if c.sqsProvider == nil {
+		prov, err := sqs.NewSQSProvider(ctx, c.sqsAPI)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "failed to create valid sqs provider")
+			return nil, fmt.Errorf("creating sqs provider, %w", err)
+		}
+		c.sqsProvider = prov
+	}
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("queue", c.sqsProvider.Name()))
+	if c.cm.HasChanged(c.sqsProvider.Name(), nil) {
+		log.FromContext(ctx).V(1).Info("watching interruption queue")
+	}
+	sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting messages from queue, %w", err)
+	}
+	return sqsMessages, nil
 }
 
 // parseMessage parses the passed SQS message into an internal Message interface
@@ -256,7 +337,7 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 	case messages.RebalanceRecommendationKind:
 		c.recorder.Publish(interruptionevents.RebalanceRecommendation(n, nodeClaim)...)
 
-	case messages.ScheduledChangeKind:
+	case messages.ScheduledChangeKind, messages.InstanceStatusFailure:
 		c.recorder.Publish(interruptionevents.Unhealthy(n, nodeClaim)...)
 
 	case messages.SpotInterruptionKind:
@@ -274,7 +355,7 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 
 func actionForMessage(msg messages.Message) Action {
 	switch msg.Kind() {
-	case messages.ScheduledChangeKind, messages.SpotInterruptionKind, messages.InstanceStoppedKind, messages.InstanceTerminatedKind:
+	case messages.ScheduledChangeKind, messages.SpotInterruptionKind, messages.InstanceStoppedKind, messages.InstanceTerminatedKind, messages.InstanceStatusFailure:
 		return CordonAndDrain
 	default:
 		return NoAction

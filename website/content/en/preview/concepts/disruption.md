@@ -196,10 +196,11 @@ Doing so can result in partially drained nodes stuck in the cluster, driving up 
 
 If interruption-handling is enabled, Karpenter will watch for upcoming involuntary interruption events that would cause disruption to your workloads. These interruption events include:
 
-* Spot Interruption Warnings
-* Scheduled Change Health Events (Maintenance Events)
-* Instance Terminating Events
-* Instance Stopping Events
+* Spot Interruption Warnings 
+* Scheduled Change Health Events (Maintenance Events) 
+* Instance Terminating Events 
+* Instance Stopping Events 
+* Instance Status Check Failures
 
 When Karpenter detects one of these events will occur to your nodes, it automatically taints, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
 
@@ -211,9 +212,16 @@ Karpenter publishes Kubernetes events to the node for all events listed above in
 If you require handling for Spot Rebalance Recommendations, you can use the [AWS Node Termination Handler (NTH)](https://github.com/aws/aws-node-termination-handler) alongside Karpenter; however, note that the AWS Node Termination Handler cordons and drains nodes on rebalance recommendations, potentially causing more node churn in the cluster than with interruptions alone. Further information can be found in the [Troubleshooting Guide]({{< ref "../troubleshooting#aws-node-termination-handler-nth-interactions" >}}).
 {{% /alert %}}
 
-Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. Karpenter requires that an SQS queue be provisioned and EventBridge rules and targets be added that forward interruption events from AWS services to the SQS queue. Karpenter provides details for provisioning this infrastructure in the [CloudFormation template in the Getting Started Guide](../../getting-started/getting-started-with-karpenter/#create-the-karpenter-infrastructure-and-iam-roles).
+Karpenter handles most interruption events by watching an SQS queue which receives critical events from AWS services which may affect your nodes. Karpenter requires that an SQS queue be provisioned and EventBridge rules and targets be added that forward interruption events from AWS services to the SQS queue. Karpenter provides details for provisioning this infrastructure in the [CloudFormation template in the Getting Started Guide](../../getting-started/getting-started-with-karpenter/#create-the-karpenter-infrastructure-and-iam-roles).
 
-To enable interruption handling, configure the `--interruption-queue` CLI argument with the name of the interruption queue provisioned to handle interruption events.
+To enable full interruption handling, configure the `--interruption-queue` CLI argument with the name of the interruption queue provisioned to handle interruption events.
+
+Additionally, Karpenter utilizes the [EC2 DescribeInstanceStatus](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/monitoring-system-instance-status-check.html) API to check for unhealthy EC2 instances managed by Karpenter. The status checks Karpenter responds to are:
+
+* System Status - surfaces failures in the underlying physical host (hardware or software)
+* Instance Status - surfaces failures in the virtual machine 
+
+System and Instance status checks do not require the `--interruption-queue` to be configured, just EC2 DescribeInstanceStatus IAM permissions.
 
 ### Node Auto Repair
 
