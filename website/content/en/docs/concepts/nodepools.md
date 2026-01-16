@@ -528,6 +528,7 @@ spec:
   limits:
     nodes: 15  # Maximum nodes during scaling/drift
   disruption:
+    consolidateAfter: 0s
     budgets:
     - nodes: 20%  # Disruption budget for drift replacement
 ```
