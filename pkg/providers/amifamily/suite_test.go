@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -230,6 +232,21 @@ var _ = Describe("AMIProvider", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-%s/image_id", k8sVersion): amd64AMI,
+		}
+		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(amis).To(HaveLen(1))
+	})
+	It("should succeed to resolve AMIs (Windows2025)", func() {
+		// Check if EKS version supports Windows 2025 (requires 1.35+)
+		minorVersion, err := strconv.Atoi(strings.Split(k8sVersion, ".")[1])
+		if err != nil || minorVersion < 35 {
+			Skip("Windows 2025 requires EKS 1.35+, current version: " + k8sVersion)
+		}
+
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2025@latest"}}
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2025-English-Core-EKS_Optimized-%s/image_id", k8sVersion): amd64AMI,
 		}
 		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
