@@ -362,7 +362,6 @@ type BlockDeviceMapping struct {
 	DeviceName *string `json:"deviceName,omitempty"`
 	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
 	// +kubebuilder:validation:XValidation:message="snapshotID or volumeSize must be defined",rule="has(self.snapshotID) || has(self.volumeSize)"
-	// +kubebuilder:validation:XValidation:message="snapshotID must be set when volumeInitializationRate is set",rule="!has(self.volumeInitializationRate) || (has(self.snapshotID) && self.snapshotID != '')"
 	// +optional
 	EBS *BlockDevice `json:"ebs,omitempty"`
 	// RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
