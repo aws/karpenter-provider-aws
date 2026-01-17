@@ -1324,6 +1324,33 @@ var _ = Describe("InstanceTypeProvider", func() {
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				})
+				It("should use 500Mi default eviction threshold for Windows nodes when evictionHard not specified", func() {
+					windowsNodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+						SystemReserved: map[string]string{
+							string(corev1.ResourceMemory): "20Gi",
+						},
+						KubeReserved: map[string]string{
+							string(corev1.ResourceMemory): "10Gi",
+						},
+					}
+					it := instancetype.NewInstanceType(ctx,
+						info,
+						fake.DefaultRegion,
+						nil,
+						nil,
+						windowsNodeClass.Spec.BlockDeviceMappings,
+						windowsNodeClass.Spec.InstanceStorePolicy,
+						windowsNodeClass.Spec.Kubelet.MaxPods,
+						windowsNodeClass.Spec.Kubelet.PodsPerCore,
+						windowsNodeClass.Spec.Kubelet.KubeReserved,
+						windowsNodeClass.Spec.Kubelet.SystemReserved,
+						windowsNodeClass.Spec.Kubelet.EvictionHard,
+						windowsNodeClass.Spec.Kubelet.EvictionSoft,
+						windowsNodeClass.AMIFamily(),
+						nil,
+					)
+					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
+				})
 			})
 			Context("Eviction Soft", func() {
 				It("should use default threshold when only evictionSoft is specified", func() {

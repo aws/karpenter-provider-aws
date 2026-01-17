@@ -145,7 +145,7 @@ func NewInstanceType(
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved:      kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead, ENILimitedPods(ctx, info, 0), pods(ctx, info, amiFamily, maxPods, podsPerCore)), kubeReserved),
 			SystemReserved:    systemReservedResources(systemReserved),
-			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), evictionHard),
+			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard),
 		},
 	}
 	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)))) == nil {
@@ -529,9 +529,16 @@ func kubeReservedResources(cpus, pods *resource.Quantity, kubeReserved map[strin
 	}))
 }
 
-func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, evictionHard map[string]string) corev1.ResourceList {
+func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, amiFamily amifamily.AMIFamily, evictionHard map[string]string) corev1.ResourceList {
+	// Use 500Mi for Windows nodes, 100Mi for other AMI families
+	// https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#hard-eviction-thresholds
+	defaultMemoryThreshold := "100Mi"
+	if _, isWindows := amiFamily.(*amifamily.Windows); isWindows {
+		defaultMemoryThreshold = "500Mi"
+	}
+
 	overhead := corev1.ResourceList{
-		corev1.ResourceMemory:           resource.MustParse("100Mi"),
+		corev1.ResourceMemory:           resource.MustParse(defaultMemoryThreshold),
 		corev1.ResourceEphemeralStorage: resource.MustParse(fmt.Sprint(math.Ceil(float64(storage.Value()) / 100 * 10))),
 	}
 
