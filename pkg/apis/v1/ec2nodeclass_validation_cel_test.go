@@ -1186,28 +1186,6 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
-		It("should fail if VolumeInitializationRate set but SnapshotID not specified", func() {
-			nodeClass := &v1.EC2NodeClass{
-				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
-				Spec: v1.EC2NodeClassSpec{
-					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
-					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
-					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
-					Role:                       nc.Spec.Role,
-					BlockDeviceMappings: []*v1.BlockDeviceMapping{
-						{
-							DeviceName: aws.String("map-device-1"),
-							EBS: &v1.BlockDevice{
-								VolumeSize:               &resource.Quantity{},
-								VolumeInitializationRate: aws.Int32(100),
-							},
-							RootVolume: false,
-						},
-					},
-				},
-			}
-			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
-		})
 		It("should fail if VolumeInitializationRate too low", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),

@@ -34,11 +34,13 @@ import (
 )
 
 type AMI struct {
-	Name         string
-	AmiID        string
-	CreationDate string
-	Deprecated   bool
-	Requirements scheduling.Requirements
+	Name                 string
+	AmiID                string
+	CreationDate         string
+	RootDeviceName       string
+	RootDeviceSnapshotID string
+	Requirements         scheduling.Requirements
+	Deprecated           bool // bool at end to minimize padding
 }
 
 type AMIs []AMI

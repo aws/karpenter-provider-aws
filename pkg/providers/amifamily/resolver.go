@@ -288,6 +288,16 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		"us-isof-south-1",
 		"us-isof-east-1",
 	)
+	// Find the AMI's root device snapshot ID for injecting into block device mappings
+	var amiRootDeviceName, amiRootDeviceSnapshotID string
+	for _, ami := range nodeClass.Status.AMIs {
+		if ami.ID == amiID {
+			amiRootDeviceName = ami.RootDeviceName
+			amiRootDeviceSnapshotID = ami.RootDeviceSnapshotID
+			break
+		}
+	}
+
 	return lo.Map(capacityReservationIDs, func(id string, _ int) *LaunchTemplate {
 		resolved := &LaunchTemplate{
 			Options: options,
@@ -314,6 +324,10 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
 		}
+		// Inject AMI's root device snapshot ID for block device mappings that have
+		// volumeInitializationRate set but no explicit snapshotID
+		resolved.BlockDeviceMappings = injectSnapshotIDForVolumeInitialization(
+			resolved.BlockDeviceMappings, amiRootDeviceName, amiRootDeviceSnapshotID)
 		if resolved.MetadataOptions == nil {
 			resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
 		}
@@ -322,4 +336,35 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		}
 		return resolved
 	})
+}
+
+// injectSnapshotIDForVolumeInitialization injects the AMI's root device snapshot ID into block device
+// mappings that have volumeInitializationRate set but no explicit snapshotID. 
+func injectSnapshotIDForVolumeInitialization(blockDeviceMappings []*v1.BlockDeviceMapping, amiRootDeviceName, amiRootDeviceSnapshotID string) []*v1.BlockDeviceMapping {
+	// If we don't have the AMI's root device info, return as-is
+	if amiRootDeviceName == "" || amiRootDeviceSnapshotID == "" {
+		return blockDeviceMappings
+	}
+
+	result := make([]*v1.BlockDeviceMapping, 0, len(blockDeviceMappings))
+	for _, bdm := range blockDeviceMappings {
+		// Check if this block device mapping needs snapshot ID injection:
+		// 1. Has volumeInitializationRate set
+		// 2. Does not have an explicit snapshotID
+		// 3. Matches the AMI's root device name (or is marked as rootVolume)
+		if bdm.EBS != nil && bdm.EBS.VolumeInitializationRate != nil &&
+			(bdm.EBS.SnapshotID == nil || *bdm.EBS.SnapshotID == "") {
+			// Check if this is the root volume by device name or rootVolume flag
+			isRootDevice := bdm.RootVolume || (bdm.DeviceName != nil && *bdm.DeviceName == amiRootDeviceName)
+			if isRootDevice {
+				// Deep copy the block device mapping and inject the snapshot ID
+				newBDM := bdm.DeepCopy()
+				newBDM.EBS.SnapshotID = &amiRootDeviceSnapshotID
+				result = append(result, newBDM)
+				continue
+			}
+		}
+		result = append(result, bdm)
+	}
+	return result
 }

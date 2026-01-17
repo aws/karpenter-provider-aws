@@ -82,10 +82,12 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 			return reqs[i].Key < reqs[j].Key
 		})
 		return v1.AMI{
-			Name:         ami.Name,
-			ID:           ami.AmiID,
-			Deprecated:   ami.Deprecated,
-			Requirements: reqs,
+			Name:                 ami.Name,
+			ID:                   ami.AmiID,
+			Deprecated:           ami.Deprecated,
+			Requirements:         reqs,
+			RootDeviceName:       ami.RootDeviceName,
+			RootDeviceSnapshotID: ami.RootDeviceSnapshotID,
 		}
 	})
 
