@@ -195,12 +195,29 @@ func (p *DefaultProvider) amis(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 					// If we already have an image with the same set of requirements which is deprecated, but this image (candidate) is newer or non deprecated, replace the previous (existing) image
 					reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
 					candidateDeprecated := parseTimeWithDefault(lo.FromPtr(image.DeprecationTime), maxTime).Unix() <= p.clk.Now().Unix()
+					// Extract root device snapshot ID from AMI's block device mappings
+					rootDeviceName := lo.FromPtr(image.RootDeviceName)
+					rootDeviceSnapshotID := ""
+					for _, bdm := range image.BlockDeviceMappings {
+						if lo.FromPtr(bdm.DeviceName) == rootDeviceName && bdm.Ebs != nil {
+							rootDeviceSnapshotID = lo.FromPtr(bdm.Ebs.SnapshotId)
+							break
+						}
+					}
+					// Log debug info when root device has no snapshot ID (e.g., instance store AMIs)
+					if rootDeviceName != "" && rootDeviceSnapshotID == "" {
+						log.FromContext(ctx).V(1).Info("AMI root device has no snapshot ID",
+							"ami-id", lo.FromPtr(image.ImageId),
+							"root-device", rootDeviceName)
+					}
 					ami := AMI{
-						Name:         lo.FromPtr(image.Name),
-						AmiID:        lo.FromPtr(image.ImageId),
-						CreationDate: lo.FromPtr(image.CreationDate),
-						Deprecated:   candidateDeprecated,
-						Requirements: reqs,
+						Name:                 lo.FromPtr(image.Name),
+						AmiID:                lo.FromPtr(image.ImageId),
+						CreationDate:         lo.FromPtr(image.CreationDate),
+						Deprecated:           candidateDeprecated,
+						Requirements:         reqs,
+						RootDeviceName:       rootDeviceName,
+						RootDeviceSnapshotID: rootDeviceSnapshotID,
 					}
 					if v, ok := images[reqsHash]; ok {
 						if cmpResult := compareAMI(v, ami); cmpResult <= 0 {
