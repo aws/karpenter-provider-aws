@@ -1,0 +1,8 @@
+[Unit]
+Description=Run the mock kubelet
+
+[Service]
+ExecStart=/usr/bin/kubelet
+
+[Install]
+WantedBy=multi-user.target

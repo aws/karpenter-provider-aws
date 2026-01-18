@@ -1,0 +1,45 @@
+name: Middleware snapshot tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+      - 'feat-**'
+
+
+permissions:
+  contents: read
+
+env:
+  EACHMODULE_CONCURRENCY: 2
+  SMITHY_GO_REPOSITORY: ${{ github.event.pull_request.head.repo.owner.login }}/smithy-go
+  GIT_PAT: ${{ secrets.CI_GIT_PAT}}
+
+jobs:
+  unix-tests:
+    name: Middleware snapshot tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        go-version: ["1.23"]
+    env:
+      EACHMODULE_SKIP: "internal"
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Find smithy-go
+      env:
+        RUNNER_TMPDIR: ${{ runner.temp }}
+      run: ./ci-find-smithy-go.sh
+
+    - name: Test
+      run: make test-ci-check-snapshot-service

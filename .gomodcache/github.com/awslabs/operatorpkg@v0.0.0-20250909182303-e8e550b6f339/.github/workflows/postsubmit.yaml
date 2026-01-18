@@ -1,0 +1,16 @@
+name: postsubmit
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  postsubmit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - name: hydrate-goproxy
+      run: |
+        mkdir -p hydrate-goproxy
+        cd hydrate-goproxy
+        go mod init hydrate-goproxy
+        go get github.com/awslabs/operatorpkg@${GITHUB_SHA}

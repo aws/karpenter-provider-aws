@@ -1,0 +1,41 @@
+name: "Run Bench Test"
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: Path to the performance test
+        required: true
+        type: string
+      runName:
+        description: Name of the run, for the purpose of file naming and github comments
+        required: true
+        type: string
+      githubSha:
+        description: Sha of the github commit to check out
+        required: true
+        type: string
+jobs:
+  run-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ inputs.githubSha }}
+      - name: Run Test
+        id: test-run
+        shell: bash
+        run: |
+          {
+            cd ${{ inputs.path }}
+            mkdir output
+            go test -tags=test_performance -run=1 -bench=. -count=1 -cpuprofile output/cpu.out -memprofile output/mem.out > output/results.txt
+            echo 'OUTPUT<<EOF'
+            cat output/results.txt
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        id: artifact-upload
+        with:
+          name: ${{ inputs.runName }}
+          path: ${{ inputs.path }}/output

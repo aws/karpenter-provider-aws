@@ -1,0 +1,77 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+edition = "2023";
+
+package goproto.proto.testrequired;
+
+option go_package = "google.golang.org/protobuf/internal/testprotos/required";
+
+message Int32 {
+  int32 v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message Int64 {
+  int64 v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message Uint32 {
+  uint32 v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message Uint64 {
+  uint64 v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message Sint32 {
+  sint32 v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message Sint64 {
+  sint64 v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message Fixed32 {
+  fixed32 v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message Fixed64 {
+  fixed64 v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message Float {
+  float v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message Double {
+  double v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message Bool {
+  bool v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message String {
+  string v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message Bytes {
+  bytes v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message Message {
+  message M {}
+  M v = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message Group {
+  message Group {
+    int32 v = 1;
+  }
+
+  Group group = 1 [
+    features.field_presence = LEGACY_REQUIRED,
+    features.message_encoding = DELIMITED
+  ];
+}

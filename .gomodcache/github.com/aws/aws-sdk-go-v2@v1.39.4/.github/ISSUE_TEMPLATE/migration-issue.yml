@@ -1,0 +1,72 @@
+---
+name: "🔀 Migration Issue: AWS SDK Go v1 to v2"
+description: Report an issue or discrepancy encountered during migration from AWS SDK Go v1 to v2
+title: "MIGRATION ISSUE: (short issue description)"
+labels: [needs-triage, v1-v2-inconsistency]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Migration Issue from AWS SDK Go v1 to v2
+        Thank you for taking the time to report your migration issue. To help us address your concerns effectively, please provide as much detail as possible.
+
+  - type: checkboxes
+    attributes:
+      label: Pre-Migration Checklist
+      options:
+        - label: I've read the [Migration Guide](https://aws.github.io/aws-sdk-go-v2/docs/migrating/).
+          required: true
+        - label: I've checked [AWS Forums](https://forums.aws.amazon.com) and [StackOverflow](https://stackoverflow.com/questions/tagged/aws-sdk-go) for similar migration issues.
+          required: true
+
+  - type: input
+    id: go-version
+    attributes:
+      label: Go Version Used
+      description: Please specify the version of Go you are using.
+      placeholder: e.g., Go 1.20, Go 1.21
+    validations:
+      required: true
+
+  - type: textarea
+    id: migration-issue-description
+    attributes:
+      label: Describe the Migration Issue
+      description: What specific problem or discrepancy are you encountering during migration?
+      placeholder: A clear and concise description of the issue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: code-comparison
+    attributes:
+      label: Code Comparison
+      description: |
+        Provide code snippets comparing v1 and v2 implementations.
+        - V1 Code Snippet:
+        - V2 Code Snippet:
+        Please ensure to remove any sensitive information.
+    validations:
+      required: false
+
+  - type: textarea
+    id: observed-differences
+    attributes:
+      label: Observed Differences/Errors
+      description: |
+        Detail any errors, behavioral differences, or unexpected outcomes you are observing.
+        Include error messages, stack traces, and any logs relevant to the issue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: |
+        Provide any additional information that may be relevant to understanding your migration issue.
+        This can include dependencies, environment setup, specific AWS services involved, etc.
+    validations:
+      required: false

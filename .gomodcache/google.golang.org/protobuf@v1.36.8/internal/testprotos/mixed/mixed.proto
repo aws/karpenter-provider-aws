@@ -1,0 +1,81 @@
+// Copyright 2024 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This testproto explicitly configures the API level of each message.
+//
+// This allows creating mixed trees of proto messages on different API levels.
+
+edition = "2023";
+
+package goproto.proto.test;
+
+import "google/protobuf/go_features.proto";
+
+option go_package = "google.golang.org/protobuf/internal/testprotos/mixed";
+
+message Open {
+  option features.(pb.go).api_level = API_OPEN;
+
+  // These fields allow for arbitrary mixing.
+  Open open = 1;
+  Hybrid hybrid = 2;
+  Opaque opaque = 3;
+
+  int32 optional_int32 = 4;
+}
+
+message Hybrid {
+  option features.(pb.go).api_level = API_HYBRID;
+
+  // These fields allow for arbitrary mixing.
+  Open open = 1;
+  Hybrid hybrid = 2;
+  Opaque opaque = 3;
+
+  int32 optional_int32 = 4;
+}
+
+message Opaque {
+  option features.(pb.go).api_level = API_OPAQUE;
+
+  // These fields allow for arbitrary mixing.
+  Open open = 1;
+  Hybrid hybrid = 2;
+  Opaque opaque = 3;
+
+  int32 optional_int32 = 4;
+}
+
+message OpenLazy {
+  option features.(pb.go).api_level = API_OPEN;
+
+  // These fields allow for arbitrary mixing.
+  OpenLazy open = 1 [lazy = true];
+  HybridLazy hybrid = 2 [lazy = true];
+  OpaqueLazy opaque = 3 [lazy = true];
+
+  int32 optional_int32 = 4;
+}
+
+message HybridLazy {
+  option features.(pb.go).api_level = API_HYBRID;
+
+  // These fields allow for arbitrary mixing.
+  OpenLazy open = 1 [lazy = true];
+  HybridLazy hybrid = 2 [lazy = true];
+  OpaqueLazy opaque = 3 [lazy = true];
+
+  int32 optional_int32 = 4;
+}
+
+message OpaqueLazy {
+  option features.(pb.go).api_level = API_OPAQUE;
+
+  // These fields allow for arbitrary mixing.
+  OpenLazy open = 1 [lazy = true];
+  HybridLazy hybrid = 2 [lazy = true];
+  OpaqueLazy opaque = 3 [lazy = true];
+
+  int32 optional_int32 = 4;
+}

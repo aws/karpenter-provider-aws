@@ -1,0 +1,21 @@
+apiVersion: kwok.x-k8s.io/v1alpha1
+kind: Stage
+metadata:
+  name: pod-delete
+spec:
+  delay:
+    durationFrom:
+      expressionFrom: .metadata.annotations["pod-delete.stage.kwok.x-k8s.io/delay"]
+  next:
+    delete: true
+    finalizers:
+      empty: true
+    statusSubresource: status
+  resourceRef:
+    apiGroup: v1
+    kind: Pod
+  selector:
+    matchExpressions:
+    - key: .metadata.deletionTimestamp
+      operator: Exists
+  weight: 100

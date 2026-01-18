@@ -1,0 +1,60 @@
+header:
+  schema-version: 1.0.0
+  expiration-date: '2024-12-16T01:00:00.000Z'
+  project-url: 'https://github.com/kubernetes-sigs/karpenter'
+  license: 'https://github.com/kubernetes-sigs/karpenter/blob/main/LICENSE'
+project-lifecycle:
+  bug-fixes-only: false
+  core-maintainers:
+    - https://github.com/kubernetes-sigs/karpenter/blob/main/OWNERS
+  status: active
+  release-process: 'https://github.com/kubernetes-sigs/karpenter/blob/main/RELEASE.md'
+contribution-policy:
+  accepts-pull-requests: true
+  accepts-automated-pull-requests: true
+  automated-tools-list:
+    - automated-tool: dependabot
+      action: allowed
+      path:
+        - /
+  contributing-policy: 'https://github.com/kubernetes-sigs/karpenter/blob/main/CONTRIBUTING.md'
+  code-of-conduct:
+  - 'https://github.com/kubernetes-sigs/karpenter/blob/main/code-of-conduct.md'
+documentation:
+  - 'https://karpenter.sh/docs'
+distribution-points:
+  - 'https://pkg.go.dev/sigs.k8s.io/karpenter'
+security-artifacts:
+  threat-model:
+    threat-model-created: true
+    evidence-url:
+    - 'https://karpenter.sh/docs/reference/threat-model/'
+  self-assessment:
+    self-assessment-created: false
+security-testing:
+- tool-type: sca
+  tool-name: Dependabot
+  tool-version: "2"
+  tool-url: https://github.com/dependabot
+  integration:
+    ad-hoc: false
+    ci: true
+    before-release: true 
+security-contacts:
+- type: email
+  value: security@kubernetes.io 
+  primary: true
+vulnerability-reporting:
+  accepts-vulnerability-reports: true
+  email-contact: security@kubernetes.io
+  security-policy: 'https://kubernetes.io/security/'
+  bug-bounty-available: true
+  bug-bounty-url: 'https://hackerone.com/kubernetes'
+dependencies:
+  third-party-packages: true
+  dependencies-lists:
+  - 'https://github.com/kubernetes-sigs/karpenter/blob/main/go.mod'
+  dependencies-lifecycle:
+    policy-url: ''
+  env-dependencies-policy:
+    policy-url: ''

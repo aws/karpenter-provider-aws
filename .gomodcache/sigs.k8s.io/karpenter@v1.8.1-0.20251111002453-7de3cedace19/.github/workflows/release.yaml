@@ -1,0 +1,43 @@
+name: Release
+on:
+  push:
+    tags: ['v*.*.*']
+permissions:
+  contents: read
+jobs:
+  release:
+    env:
+      TAG: ${{ github.ref_name }}
+    permissions:
+      contents: write # Needed for creating and editing releases
+      id-token: write # Needed for cosigning build attestation files with tejolote
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Run vexctl
+        uses: openvex/generate-vex@31b415924ea0d72ed5f2640f1dee59dea6c2770b
+        with:
+          product: pkg:generic/karpenter@${{ env.TAG }}
+          file: karpenter.vex.json
+
+      - name: Create Github Release
+        uses: marvinpinto/action-automatic-releases@919008cf3f741b179569b7a6fb4d8860689ab7f0 # v1.2.1
+        with:
+          files: |
+            karpenter.vex.json
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+
+      - name: Install tejolote
+        uses: kubernetes-sigs/release-actions/setup-tejolote@8af7b2a5596dff526de9db59b2c4b8457e9f52a1 # v0.4.0
+      - name: Run tejolote
+        run: |
+          tejolote attest "github://kubernetes-sigs/karpenter/${{ github.run_id }}" --artifacts "github://kubernetes-sigs/karpenter/$TAG" --output karpenter.intoto.json --sign
+      - name: Add the tejolote provenance attestation to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$TAG" karpenter.intoto.json

@@ -1,0 +1,87 @@
+- name: bug
+  color: d73a4a
+  description: "This issue is a bug."
+- name: duplicate
+  color: cfd8d7
+  description: "This issue is a duplicate."
+- name: needs-triage
+  color: c7cafc
+  description: "This issue or PR still needs to be triaged."
+- name: investigating
+  color: 0000ff
+  description: "This issue is being investigated and/or work is in progress to resolve the issue."
+- name: response-requested
+  color: "666666"
+  description: "Waiting on additional info and feedback. Will move to 'closing-soon' in 5 days."
+- name: closing-soon
+  color: "000000"
+  description: "This issue will automatically close in 2 days unless further comments are made."
+- name: feature-request
+  color: 008672
+  description: "A feature should be added or improved."
+- name: guidance
+  color: 8a19e7
+  description: "Question that needs advice or information."
+- name: documentation
+  color: f7bc35
+  description: "This is a problem with documentation."
+- name: third-party
+  color: 40C8B6
+  description: "This issue is related to third-party libraries or applications."
+- name: dependencies
+  color: 40C8B6
+  description: "This issue is a problem in a dependency."
+- name: blocked
+  color: 86499B
+  description: "Work is blocked on this issue for this codebase. Other labels or comments may indicate why."
+- name: pending-release
+  color: 86499B
+  description: "This issue will be fixed by an approved PR that hasn't been released yet."
+- name: service-api
+  color: E06A18
+  description: "This issue is due to a problem in a service API, not the SDK implementation."
+- name: breaking-change
+  color: d85658
+  description: "This issue requires a breaking change to remediate."
+- name: needs-reproduction
+  color: ffe79b
+  description: "This issue needs reproduction."
+- name: needs-discussion
+  color: ffe79b
+  description: "This issue/PR requires more discussion with community."
+- name: SECURITY
+  color: d85658
+  description: ""
+- name: help wanted
+  color: ffe79b
+  description: "We are asking the community to submit a PR to resolve this issue."
+- name: wontfix
+  color: d85658
+  description: "We have determined that we will not resolve the issue"
+- name: pr/do-not-merge
+  color: 358F18
+  description: "This PR should not be merged at this time."
+- name: pr/breaking-change
+  color: 358F18
+  description: "This PR is a breaking change. It needs to be modified to be allowed in the current major version."
+- name: pr/blocked
+  color: 358F18
+  description: "This PR cannot be merged or reviewed, because it is blocked for some reason."
+- name: pr/work-in-progress
+  color: 358F18
+  description: "This PR is a draft and needs further work."
+- name: needs-review
+  color: f996e2
+  description: ""
+- name: pr/ready-to-merge
+  color: 358F18
+  description: "This PR is ready to be merged."
+- name: pr/needs-tests
+  color: 358F18
+  description: "This PR is missing tests."
+- name: contribution/core
+  color: DA5F98
+  description: "This is a PR that came from AWS."
+- name: no-auto-closure
+  color: 009698
+  description: "We want this issue to not be automatically closed."

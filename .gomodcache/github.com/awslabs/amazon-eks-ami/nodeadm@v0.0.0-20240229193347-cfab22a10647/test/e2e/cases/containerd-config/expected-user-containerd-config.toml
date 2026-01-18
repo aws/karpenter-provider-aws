@@ -1,0 +1,4 @@
+version = 2
+
+[grpc]
+address = "/run/containerd/containerd.sock"

@@ -1,0 +1,32 @@
+// Copyright 2024 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+edition = "2023";
+
+package goproto.proto.test;
+
+import "google/protobuf/go_features.proto";
+
+option go_package = "google.golang.org/protobuf/internal/testprotos/examples/ext";
+option features.(pb.go).api_level = API_OPAQUE;
+
+message Concert {
+  string headliner_name = 1;
+
+  extensions 100 to 199 [
+    declaration = {
+      number: 123,
+      full_name: ".goproto.proto.test.promo_id",
+      type: "int32",
+    },
+    // Ensures all field numbers in this extension range are declarations.
+    verification = DECLARATION
+  ];
+}
+
+// Typically, this extension would be declared in a separate file,
+// but for brevity, we declare the entire example in one file.
+extend Concert {
+  int32 promo_id = 123;
+}

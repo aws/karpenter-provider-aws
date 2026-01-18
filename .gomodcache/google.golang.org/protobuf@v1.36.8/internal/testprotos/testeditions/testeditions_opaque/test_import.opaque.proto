@@ -1,0 +1,17 @@
+// Copyright 2024 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+edition = "2023";
+
+package opaque.goproto.proto.testeditions;
+
+option go_package = "google.golang.org/protobuf/internal/testprotos/testeditions/testeditions_opaque";
+import "google/protobuf/go_features.proto";
+option features.(pb.go).api_level = API_OPAQUE;
+
+message ImportMessage {}
+
+enum ImportEnum {
+  IMPORT_ZERO = 0;
+}

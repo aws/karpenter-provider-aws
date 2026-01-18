@@ -1,0 +1,36 @@
+name: "Scheduling Benchmarking"
+
+on:
+  pull_request:
+    paths:
+      - "**.go"
+    branches:
+      - main
+
+jobs:
+  before:
+    name: Before PR
+    strategy:
+      fail-fast: false
+      matrix:
+        path: ["pkg/controllers/provisioning/scheduling"]
+    uses: ./.github/workflows/run-bench-test.yaml
+    secrets: inherit
+    with:
+      path: ${{ matrix.path }}
+      runName: before-${{ strategy.job-index }}
+      githubSha: ${{ github.event.pull_request.base.sha }}
+  after:
+    name: After PR
+    permissions:
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        path: ["pkg/controllers/provisioning/scheduling"]
+    uses: ./.github/workflows/run-bench-test.yaml
+    secrets: inherit
+    with:
+      path: ${{ matrix.path }}
+      runName: after-${{ strategy.job-index }}  
+      githubSha: ${{ github.sha }}

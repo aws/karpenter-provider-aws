@@ -1,0 +1,53 @@
+name: Fuzz Testing
+on:
+  # Perform Fuzz testing on PRs and on a daily basis. Daily will continue to
+  # look for problems. Doing this on PRs will look for issues introduced in
+  # a change.
+  pull_request:
+  schedule:
+    - cron: '33 23 * * *' # Run at 11:33 every day
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      cache-key: fuzzing
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v5
+      with:
+        # There are no dependencies so there is no go.sum file. This is needed
+        # for the cache key generation. So, caching doesn't happen and a
+        # warning is presented on each run. Disabling the Go cache and caching
+        # the go-build cache separately for fuzzing.
+        cache: false
+        go-version: "1.23"
+    # The cache path may be different on different runners. GitHub may change
+    # this in the future. So, we dynamically fetch it.
+    - name: Get Go Cache Paths
+      id: go-cache-paths
+      run: echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Restore Cache
+      id: cache-restore
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ steps.go-cache-paths.outputs.go-build }}
+        key: ${{ env.cache-key }}
+    - name: Fuzz
+      run: make fuzz
+    # Cannot overwrite the existing cache (id's are immutable) so we delete it.
+    - name: Delete Previous Cache
+      if: ${{ steps.cache-restore.outputs.cache-hit }}
+      continue-on-error: true
+      run: |
+        gh extension install actions/gh-actions-cache
+        gh actions-cache delete "${{ env.cache-key }}" --confirm
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # Saving the cache so that Fuzz testing can be additive to previous fuzz testing.
+    - name: Save Cache
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ steps.go-cache-paths.outputs.go-build }}
+        key: ${{ env.cache-key }}

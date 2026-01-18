@@ -57,16 +57,24 @@ func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeCla
 	// 2. Security Group Association: A security group is associated with multiple VPCs
 	//    via https://docs.aws.amazon.com/vpc/latest/userguide/security-group-assoc.html
 	//
-	// Note: DescribeSecurityGroups returns only the primary VPC ID. For complete
-	// Security Group Association support, additional API calls would be needed.
-	// The current implementation covers the majority of use cases where security groups
-	// and subnets are in the same VPC.
+	// We use ValidateSecurityGroupVPCCompatibility which checks both the primary VPC
+	// and any Security Group Associations via DescribeSecurityGroupVpcAssociations API.
 	vpcIDs := lo.Uniq(lo.Map(nodeClass.Status.Subnets, func(subnet v1.Subnet, _ int) string {
 		return subnet.VpcID
 	}))
-	if len(vpcIDs) > 0 {
+	if len(vpcIDs) > 0 && len(securityGroups) > 0 {
+		// Get security group IDs for validation
+		sgIDs := lo.Map(securityGroups, func(sg ec2types.SecurityGroup, _ int) string {
+			return *sg.GroupId
+		})
+		// Validate VPC compatibility (includes Security Group Association check)
+		compatibility, err := sg.securityGroupProvider.ValidateSecurityGroupVPCCompatibility(ctx, sgIDs, vpcIDs)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("validating security group VPC compatibility, %w", err)
+		}
+		// Filter to only compatible security groups
 		securityGroups = lo.Filter(securityGroups, func(sg ec2types.SecurityGroup, _ int) bool {
-			return lo.Contains(vpcIDs, *sg.VpcId)
+			return compatibility[*sg.GroupId]
 		})
 	}
 
@@ -75,9 +83,8 @@ func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeCla
 		// Provide detailed error message to help users diagnose VPC mismatch issues
 		vpcIDList := lo.Map(vpcIDs, func(id string, _ int) string { return id })
 		msg := fmt.Sprintf("SecurityGroupSelector did not match any SecurityGroups in the same VPC as the subnets (VPCs: %v). "+
-			"Ensure your security groups are in the same VPC as your subnets. "+
-			"If using Security Group Association (https://docs.aws.amazon.com/vpc/latest/userguide/security-group-assoc.html), "+
-			"note that only the primary VPC is currently checked.", vpcIDList)
+			"Ensure your security groups are in the same VPC as your subnets or associated via Security Group Association "+
+			"(https://docs.aws.amazon.com/vpc/latest/userguide/security-group-assoc.html).", vpcIDList)
 		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeSecurityGroupsReady, "SecurityGroupsNotFound", msg)
 		return reconcile.Result{RequeueAfter: time.Minute}, nil
 	}

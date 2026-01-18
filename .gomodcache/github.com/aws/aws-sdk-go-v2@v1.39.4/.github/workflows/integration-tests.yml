@@ -1,0 +1,43 @@
+name: Integration Tests
+
+# these are expensive, limit how often they're running
+#
+# functionally, all we need to do is vet the code going into main
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+
+# again, expensive, only one per PR can run and they self-cancel
+concurrency:
+  group: ci-codebuild-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.CI_AWS_ROLE_ARN }}
+          aws-region: us-west-2
+      - name: Run tests
+        id: integration-tests
+        uses: aws-actions/aws-codebuild-run-build@v1
+        with:
+          project-name: aws-sdk-go-v2-integrationtests
+      - name: Cancel tests
+        if: ${{ cancelled() }}
+        env:
+          BUILD_ID: ${{ steps.integration-tests.outputs.aws-build-id }}
+        run: |
+          if [ ! -z "$BUILD_ID" ]; then
+            echo "aws codebuild stop-build --id $BUILD_ID"
+            aws codebuild stop-build --id $BUILD_ID
+          fi
+

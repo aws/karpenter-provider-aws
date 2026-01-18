@@ -329,4 +329,58 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		Expect(condition.Message).To(ContainSubstring("vpc-test1"))
 		Expect(condition.Message).To(ContainSubstring("Security Group Association"))
 	})
+	It("Should include security groups associated with VPC via Security Group Association", func() {
+		// Setup: Security group with primary VPC different from subnet VPC,
+		// but associated with subnet VPC via Security Group Association
+		awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Set(&ec2.DescribeSecurityGroupsOutput{
+			SecurityGroups: []ec2types.SecurityGroup{
+				{
+					GroupId:   aws.String("sg-test1"),
+					GroupName: aws.String("securityGroup-test1"),
+					VpcId:     aws.String("vpc-test1"), // Primary VPC matches
+					Tags: []ec2types.Tag{
+						{Key: aws.String("foo"), Value: aws.String("bar")},
+					},
+				},
+				{
+					GroupId:   aws.String("sg-shared"),
+					GroupName: aws.String("securityGroup-shared"),
+					VpcId:     aws.String("vpc-test2"), // Primary VPC is different
+					Tags: []ec2types.Tag{
+						{Key: aws.String("foo"), Value: aws.String("bar")},
+					},
+				},
+			},
+		})
+
+		// Setup Security Group Association: sg-shared is also associated with vpc-test1
+		awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.Output.Set(&ec2.DescribeSecurityGroupVpcAssociationsOutput{
+			SecurityGroupVpcAssociations: []ec2types.SecurityGroupVpcAssociation{
+				{
+					GroupId: aws.String("sg-shared"),
+					VpcId:   aws.String("vpc-test1"), // Associated with subnet's VPC
+					State:   ec2types.SecurityGroupVpcAssociationStateAssociated,
+				},
+			},
+		})
+
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		// Should include both: sg-test1 (primary VPC) and sg-shared (via association)
+		Expect(nodeClass.Status.SecurityGroups).To(ConsistOf(
+			v1.SecurityGroup{
+				ID:    "sg-shared",
+				Name:  "securityGroup-shared",
+				VpcID: "vpc-test2", // Primary VPC stored
+			},
+			v1.SecurityGroup{
+				ID:    "sg-test1",
+				Name:  "securityGroup-test1",
+				VpcID: "vpc-test1",
+			},
+		))
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
+	})
 })

@@ -1,0 +1,55 @@
+# Copyright 2020-2023 Montgomery Edwards⁴⁴⁸ (github.com/x448).
+# This file is licensed under the MIT License. See LICENSE at https://github.com/x448/workflows for the full text.
+#
+# CI Go Cover 2023.5.14.
+# This GitHub Actions workflow checks if Go (Golang) code coverage satisfies the required minimum.
+# The required minimum is specified in the workflow name to keep badge.svg and verified minimum in sync.
+#
+# To help protect your privacy, this workflow avoids external services.
+# This workflow simply runs `go test -short -cover` --> grep --> python.
+# The python script is embedded and readable in this file.
+# 
+# Steps to install and set minimum required coverage:
+# 0. Copy this file to github.com/OWNER_NAME/REPO_NAME/.github/workflows/ci-go-cover.yml
+# 1. Change workflow name from "cover 100%" to "cover ≥92.5%". Script will automatically use 92.5%.  
+# 2. Update README.md to use the new path to badge.svg because the path includes the workflow name.
+
+name: cover ≥97%
+
+# Remove default permissions.
+permissions: {}
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+
+  # Verify minimum coverage is reached using `go test -short -cover` on latest-ubuntu with default version of Go.
+  # The grep expression can't be too strict, it needed to be relaxed to work with different versions of Go.
+  cover:
+    name: Coverage
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - name: Install Go
+      uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      with:
+        go-version: 1.24
+        check-latest: true
+    - name: Install x448/float16
+      run: go get github.com/x448/float16@v0.8.4
+    - name: Go Coverage
+      run: |
+        go version
+        go test -short -cover | grep "^.*coverage:.*of statements$" | python -c "import os,re,sys; cover_rpt = sys.stdin.read(); print(cover_rpt) if len(cover_rpt) != 0 and len(cover_rpt.splitlines()) == 1 else sys.exit(1); min_cover = float(re.findall(r'\d*\.\d+|\d+', os.environ['GITHUB_WORKFLOW'])[0]); cover = float(re.findall(r'\d*\.\d+|\d+', cover_rpt)[0]); sys.exit(1) if (cover > 100) or (cover < min_cover) else sys.exit(0)"
+      shell: bash

@@ -1,0 +1,17 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: configs.foo.example.com
+spec:
+  group: foo.example.com
+  names:
+    kind: Config
+    plural: configs
+  scope: Namespaced
+  versions:
+    - name: "v1beta1"
+      storage: true
+      served: true
+      schema:
+        openAPIV3Schema:
+          type: object

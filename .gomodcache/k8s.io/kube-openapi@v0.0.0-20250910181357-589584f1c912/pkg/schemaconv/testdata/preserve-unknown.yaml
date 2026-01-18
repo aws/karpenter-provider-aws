@@ -1,0 +1,61 @@
+types:
+- name: io.k8s.testcase.Empty
+  map:
+    elementType:
+      scalar: untyped
+      list:
+        elementType:
+          namedType: __untyped_atomic_
+        elementRelationship: atomic
+      map:
+        elementType:
+          namedType: __untyped_deduced_
+        elementRelationship: separable
+- name: io.k8s.testcase.EmptyPreserveUnknownFieldsObject
+  map:
+    fields:
+    - name: preserveField
+      type:
+        map:
+          elementType:
+            scalar: untyped
+            list:
+              elementType:
+                namedType: __untyped_atomic_
+              elementRelationship: atomic
+            map:
+              elementType:
+                namedType: __untyped_deduced_
+              elementRelationship: separable
+- name: io.k8s.testcase.PopulatedPreserveUnknownFieldsObject
+  map:
+    fields:
+    - name: preserveField
+      type:
+        map:
+          fields:
+          - name: innerField
+            type:
+              scalar: string
+          elementType:
+            namedType: __untyped_deduced_
+- name: __untyped_atomic_
+  scalar: untyped
+  list:
+    elementType:
+      namedType: __untyped_atomic_
+    elementRelationship: atomic
+  map:
+    elementType:
+      namedType: __untyped_atomic_
+    elementRelationship: atomic
+- name: __untyped_deduced_
+  scalar: untyped
+  list:
+    elementType:
+      namedType: __untyped_atomic_
+    elementRelationship: atomic
+  map:
+    elementType:
+      namedType: __untyped_deduced_
+    elementRelationship: separable

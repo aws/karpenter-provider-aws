@@ -1,0 +1,16 @@
+apiVersion: v2
+name: karpenter
+description: A Helm chart for Karpenter's KwoK Provider, integrated with https://github.com/kubernetes-sigs/kwok.
+type: application
+version: 0.35.0
+appVersion: 0.35.0
+keywords:
+  - cluster
+  - node
+  - scheduler
+  - autoscaling
+  - lifecycle
+home: https://karpenter.sh/
+icon: https://repository-images.githubusercontent.com/278480393/dab059c8-caa1-4b55-aaa7-3d30e47a5616
+sources:
+  - https://github.com/kubernetes-sigs/karpenter/
