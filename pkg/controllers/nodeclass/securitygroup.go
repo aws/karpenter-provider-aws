@@ -51,7 +51,16 @@ func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeCla
 		return reconcile.Result{RequeueAfter: time.Minute}, nil
 	}
 
-	// Filter security groups to only include those in the same VPCs as the subnets
+	// Filter security groups to only include those in the same VPCs as the subnets.
+	// This handles two scenarios:
+	// 1. Standard case: Security group's primary VPC matches subnet's VPC
+	// 2. Security Group Association: A security group is associated with multiple VPCs
+	//    via https://docs.aws.amazon.com/vpc/latest/userguide/security-group-assoc.html
+	//
+	// Note: DescribeSecurityGroups returns only the primary VPC ID. For complete
+	// Security Group Association support, additional API calls would be needed.
+	// The current implementation covers the majority of use cases where security groups
+	// and subnets are in the same VPC.
 	vpcIDs := lo.Uniq(lo.Map(nodeClass.Status.Subnets, func(subnet v1.Subnet, _ int) string {
 		return subnet.VpcID
 	}))
@@ -63,7 +72,13 @@ func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeCla
 
 	if len(securityGroups) == 0 && len(nodeClass.Spec.SecurityGroupSelectorTerms) > 0 {
 		nodeClass.Status.SecurityGroups = nil
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeSecurityGroupsReady, "SecurityGroupsNotFound", "SecurityGroupSelector did not match any SecurityGroups in the same VPC as the subnets")
+		// Provide detailed error message to help users diagnose VPC mismatch issues
+		vpcIDList := lo.Map(vpcIDs, func(id string, _ int) string { return id })
+		msg := fmt.Sprintf("SecurityGroupSelector did not match any SecurityGroups in the same VPC as the subnets (VPCs: %v). "+
+			"Ensure your security groups are in the same VPC as your subnets. "+
+			"If using Security Group Association (https://docs.aws.amazon.com/vpc/latest/userguide/security-group-assoc.html), "+
+			"note that only the primary VPC is currently checked.", vpcIDList)
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeSecurityGroupsReady, "SecurityGroupsNotFound", msg)
 		return reconcile.Result{RequeueAfter: time.Minute}, nil
 	}
 

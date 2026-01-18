@@ -301,4 +301,32 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		}))
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
 	})
+	It("Should provide detailed error message when no security groups match VPC", func() {
+		// Setup security groups in different VPC
+		awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Set(&ec2.DescribeSecurityGroupsOutput{
+			SecurityGroups: []ec2types.SecurityGroup{
+				{
+					GroupId:   aws.String("sg-other-vpc"),
+					GroupName: aws.String("securityGroup-other-vpc"),
+					VpcId:     aws.String("vpc-test2"),
+					Tags: []ec2types.Tag{
+						{Key: aws.String("foo"), Value: aws.String("bar")},
+					},
+				},
+			},
+		})
+
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		// Should have no security groups and condition should be false
+		Expect(nodeClass.Status.SecurityGroups).To(BeNil())
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady).IsFalse()).To(BeTrue())
+
+		// Check that error message contains VPC information
+		condition := nodeClass.StatusConditions().Get(v1.ConditionTypeSecurityGroupsReady)
+		Expect(condition.Message).To(ContainSubstring("vpc-test1"))
+		Expect(condition.Message).To(ContainSubstring("Security Group Association"))
+	})
 })

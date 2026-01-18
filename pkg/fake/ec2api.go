@@ -48,25 +48,26 @@ type CapacityPool struct {
 // EC2Behavior must be reset between tests otherwise tests will
 // pollute each other.
 type EC2Behavior struct {
-	DescribeCapacityReservationsOutput  AtomicPtr[ec2.DescribeCapacityReservationsOutput]
-	DescribeImagesOutput                AtomicPtr[ec2.DescribeImagesOutput]
-	DescribeLaunchTemplatesOutput       AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
-	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
-	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
-	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
-	DescribeSubnetsBehavior             MockedFunction[ec2.DescribeSubnetsInput, ec2.DescribeSubnetsOutput]
-	DescribeSecurityGroupsBehavior      MockedFunction[ec2.DescribeSecurityGroupsInput, ec2.DescribeSecurityGroupsOutput]
-	DescribeSpotPriceHistoryBehavior    MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
-	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
-	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
-	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
-	CreateTagsBehavior                  MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
-	RunInstancesBehavior                MockedFunction[ec2.RunInstancesInput, ec2.RunInstancesOutput]
-	CreateLaunchTemplateBehavior        MockedFunction[ec2.CreateLaunchTemplateInput, ec2.CreateLaunchTemplateOutput]
-	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
-	Instances                           sync.Map
-	InsufficientCapacityPools           atomic.Slice[CapacityPool]
-	NextError                           AtomicError
+	DescribeCapacityReservationsOutput           AtomicPtr[ec2.DescribeCapacityReservationsOutput]
+	DescribeImagesOutput                         AtomicPtr[ec2.DescribeImagesOutput]
+	DescribeLaunchTemplatesOutput                AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
+	DescribeInstanceTypesOutput                  AtomicPtr[ec2.DescribeInstanceTypesOutput]
+	DescribeInstanceTypeOfferingsOutput          AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
+	DescribeAvailabilityZonesOutput              AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
+	DescribeSubnetsBehavior                      MockedFunction[ec2.DescribeSubnetsInput, ec2.DescribeSubnetsOutput]
+	DescribeSecurityGroupsBehavior               MockedFunction[ec2.DescribeSecurityGroupsInput, ec2.DescribeSecurityGroupsOutput]
+	DescribeSecurityGroupVpcAssociationsBehavior MockedFunction[ec2.DescribeSecurityGroupVpcAssociationsInput, ec2.DescribeSecurityGroupVpcAssociationsOutput]
+	DescribeSpotPriceHistoryBehavior             MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
+	CreateFleetBehavior                          MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
+	TerminateInstancesBehavior                   MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
+	DescribeInstancesBehavior                    MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
+	CreateTagsBehavior                           MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
+	RunInstancesBehavior                         MockedFunction[ec2.RunInstancesInput, ec2.RunInstancesOutput]
+	CreateLaunchTemplateBehavior                 MockedFunction[ec2.CreateLaunchTemplateInput, ec2.CreateLaunchTemplateOutput]
+	CalledWithDescribeImagesInput                AtomicPtrSlice[ec2.DescribeImagesInput]
+	Instances                                    sync.Map
+	InsufficientCapacityPools                    atomic.Slice[CapacityPool]
+	NextError                                    AtomicError
 
 	Subnets                               sync.Map
 	LaunchTemplates                       sync.Map
@@ -568,6 +569,16 @@ func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSe
 			return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
 		}
 		return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: FilterDescribeSecurtyGroups(defaultSecurityGroups, input.Filters)}, nil
+	})
+}
+
+func (e *EC2API) DescribeSecurityGroupVpcAssociations(_ context.Context, input *ec2.DescribeSecurityGroupVpcAssociationsInput, _ ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupVpcAssociationsOutput, error) {
+	return e.DescribeSecurityGroupVpcAssociationsBehavior.Invoke(input, func(input *ec2.DescribeSecurityGroupVpcAssociationsInput) (*ec2.DescribeSecurityGroupVpcAssociationsOutput, error) {
+		// Default behavior: return empty associations (no Security Group Association)
+		// Tests can override this behavior to simulate Security Group Association scenarios
+		return &ec2.DescribeSecurityGroupVpcAssociationsOutput{
+			SecurityGroupVpcAssociations: []ec2types.SecurityGroupVpcAssociation{},
+		}, nil
 	})
 }
 
