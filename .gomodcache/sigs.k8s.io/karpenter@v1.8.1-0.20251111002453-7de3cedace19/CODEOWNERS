@@ -1,0 +1,4 @@
+# Require approvals from someone in the owner team before merging
+# More information here: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+* @aws/karpenter

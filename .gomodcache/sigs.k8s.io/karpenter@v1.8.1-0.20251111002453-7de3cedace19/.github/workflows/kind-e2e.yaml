@@ -1,0 +1,17 @@
+name: kind-e2e
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  kind-e2e:
+    permissions:
+      issues: write
+    strategy:
+      fail-fast: false
+      matrix:
+        k8sVersion: ["1.28.x", "1.29.x", "1.30.x", "1.31.x", "1.32.x", "1.33.x", "1.34.x"]
+    uses: ./.github/workflows/e2e.yaml
+    with: 
+      k8s_version: ${{ matrix.k8sVersion }}
+      suite: "Regression"

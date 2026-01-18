@@ -1,0 +1,64 @@
+name: Codegen Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+
+permissions:
+  contents: read
+
+env:
+  # get owner of the repository. used by forks.
+  SMITHY_GO_REPOSITORY: ${{ github.event.pull_request.head.repo.owner.login }}/smithy-go
+
+jobs:
+  codegen-test:
+    name: SDK Codegen Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        go-version: ["1.23"]
+    env:
+      JAVA_TOOL_OPTIONS: "-Xmx2g"
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Download Coretto 17 JDK
+      run: |
+        download_url="https://corretto.aws/downloads/latest/amazon-corretto-17-x64-linux-jdk.tar.gz"
+        wget -O $RUNNER_TEMP/java_package.tar.gz $download_url
+
+    - name: Set up Coretto 17 JDK
+      uses: actions/setup-java@v2
+      with:
+        distribution: 'jdkfile'
+        jdkFile: ${{ runner.temp }}/java_package.tar.gz
+        java-version: 17
+        architecture: x64
+
+    - uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Find smithy-go
+      shell: bash
+      env:
+        RUNNER_TMPDIR: ${{ runner.temp }}
+      run: ./ci-find-smithy-go.sh
+
+    - name: Build and publish smithy-go
+      working-directory: ${{ runner.temp }}/smithy-go
+      run: make smithy-publish-local
+
+    - name: Cleanup smithy-go
+      run: rm -rf ${{ runner.temp }}/smithy-go
+
+    - name: SDK Codegen
+      run: make smithy-generate
+

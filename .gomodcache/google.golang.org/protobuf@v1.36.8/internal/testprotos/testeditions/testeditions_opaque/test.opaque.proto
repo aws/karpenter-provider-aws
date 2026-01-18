@@ -1,0 +1,382 @@
+// Copyright 2024 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+edition = "2023";
+
+package opaque.goproto.proto.testeditions;
+
+import "internal/testprotos/enums/enums_opaque/enums.opaque.proto";
+import "internal/testprotos/testeditions/testeditions_opaque/test_import.opaque.proto";
+
+option go_package = "google.golang.org/protobuf/internal/testprotos/testeditions/testeditions_opaque";
+import "google/protobuf/go_features.proto";
+option features.(pb.go).api_level = API_OPAQUE;
+
+message TestAllTypes {
+  message NestedMessage {
+    int32 a = 1;
+    TestAllTypes corecursive = 2;
+  }
+
+  enum NestedEnum {
+    FOO = 0;
+    BAR = 1;
+    BAZ = 2;
+    NEG = -1;  // Intentionally negative.
+  }
+
+  int32 singular_int32 = 124 [features.field_presence = IMPLICIT];
+  int64 singular_int64 = 125 [features.field_presence = IMPLICIT];
+  uint32 singular_uint32 = 126 [features.field_presence = IMPLICIT];
+  uint64 singular_uint64 = 127 [features.field_presence = IMPLICIT];
+  sint32 singular_sint32 = 128 [features.field_presence = IMPLICIT];
+  sint64 singular_sint64 = 129 [features.field_presence = IMPLICIT];
+  fixed32 singular_fixed32 = 130 [features.field_presence = IMPLICIT];
+  fixed64 singular_fixed64 = 131 [features.field_presence = IMPLICIT];
+  sfixed32 singular_sfixed32 = 132 [features.field_presence = IMPLICIT];
+  sfixed64 singular_sfixed64 = 133 [features.field_presence = IMPLICIT];
+  float singular_float = 134 [features.field_presence = IMPLICIT];
+  double singular_double = 135 [features.field_presence = IMPLICIT];
+  bool singular_bool = 136 [features.field_presence = IMPLICIT];
+  string singular_string = 137 [features.field_presence = IMPLICIT];
+  bytes singular_bytes = 138 [features.field_presence = IMPLICIT];
+  // message-typed fields elided, as they cannot specify implicit presence.
+  NestedEnum singular_nested_enum = 142 [features.field_presence = IMPLICIT];
+  ForeignEnum singular_foreign_enum = 143 [features.field_presence = IMPLICIT];
+  ImportEnum singular_import_enum = 144 [features.field_presence = IMPLICIT];
+
+  int32 optional_int32 = 1;
+  int64 optional_int64 = 2;
+  uint32 optional_uint32 = 3;
+  uint64 optional_uint64 = 4;
+  sint32 optional_sint32 = 5;
+  sint64 optional_sint64 = 6;
+  fixed32 optional_fixed32 = 7;
+  fixed64 optional_fixed64 = 8;
+  sfixed32 optional_sfixed32 = 9;
+  sfixed64 optional_sfixed64 = 10;
+  float optional_float = 11;
+  double optional_double = 12;
+  bool optional_bool = 13;
+  string optional_string = 14;
+  bytes optional_bytes = 15;
+  message OptionalGroup {
+    int32 a = 17;
+    NestedMessage optional_nested_message = 1000;
+    int32 same_field_number = 16;
+  }
+  OptionalGroup optionalgroup = 16 [features.message_encoding = DELIMITED];
+  OptionalGroup not_group_like_delimited = 17
+      [features.message_encoding = DELIMITED];
+  NestedMessage optional_nested_message = 18;
+  ForeignMessage optional_foreign_message = 19;
+  ImportMessage optional_import_message = 20;
+  NestedEnum optional_nested_enum = 21;
+  ForeignEnum optional_foreign_enum = 22;
+  ImportEnum optional_import_enum = 23;
+  NestedMessage optional_lazy_nested_message = 24 [lazy = true];
+
+  repeated int32 repeated_int32 = 31;
+  repeated int64 repeated_int64 = 32;
+  repeated uint32 repeated_uint32 = 33;
+  repeated uint64 repeated_uint64 = 34;
+  repeated sint32 repeated_sint32 = 35;
+  repeated sint64 repeated_sint64 = 36;
+  repeated fixed32 repeated_fixed32 = 37;
+  repeated fixed64 repeated_fixed64 = 38;
+  repeated sfixed32 repeated_sfixed32 = 39;
+  repeated sfixed64 repeated_sfixed64 = 40;
+  repeated float repeated_float = 41;
+  repeated double repeated_double = 42;
+  repeated bool repeated_bool = 43;
+  repeated string repeated_string = 44;
+  repeated bytes repeated_bytes = 45;
+
+  message RepeatedGroup {
+    int32 a = 47;
+    NestedMessage optional_nested_message = 1001;
+  }
+  repeated RepeatedGroup repeatedgroup = 46 [
+    features.message_encoding = DELIMITED,
+    features.repeated_field_encoding = EXPANDED
+  ];
+  repeated NestedMessage repeated_nested_message = 48;
+  repeated ForeignMessage repeated_foreign_message = 49;
+  repeated ImportMessage repeated_importmessage = 50;
+  repeated NestedEnum repeated_nested_enum = 51;
+  repeated ForeignEnum repeated_foreign_enum = 52;
+  repeated ImportEnum repeated_importenum = 53;
+
+  map<int32, int32> map_int32_int32 = 56;
+  map<int64, int64> map_int64_int64 = 57;
+  map<uint32, uint32> map_uint32_uint32 = 58;
+  map<uint64, uint64> map_uint64_uint64 = 59;
+  map<sint32, sint32> map_sint32_sint32 = 60;
+  map<sint64, sint64> map_sint64_sint64 = 61;
+  map<fixed32, fixed32> map_fixed32_fixed32 = 62;
+  map<fixed64, fixed64> map_fixed64_fixed64 = 63;
+  map<sfixed32, sfixed32> map_sfixed32_sfixed32 = 64;
+  map<sfixed64, sfixed64> map_sfixed64_sfixed64 = 65;
+  map<int32, float> map_int32_float = 66;
+  map<int32, double> map_int32_double = 67;
+  map<bool, bool> map_bool_bool = 68;
+  map<string, string> map_string_string = 69;
+  map<string, bytes> map_string_bytes = 70;
+  map<string, NestedMessage> map_string_nested_message = 71;
+  map<string, NestedEnum> map_string_nested_enum = 73;
+
+  // Singular with defaults
+  int32 default_int32 = 81 [default = 81];
+  int64 default_int64 = 82 [default = 82];
+  uint32 default_uint32 = 83 [default = 83];
+  uint64 default_uint64 = 84 [default = 84];
+  sint32 default_sint32 = 85 [default = -85];
+  sint64 default_sint64 = 86 [default = 86];
+  fixed32 default_fixed32 = 87 [default = 87];
+  fixed64 default_fixed64 = 88 [default = 88];
+  sfixed32 default_sfixed32 = 89 [default = 89];
+  sfixed64 default_sfixed64 = 80 [default = -90];
+  float default_float = 91 [default = 91.5];
+  double default_double = 92 [default = 92e3];
+  bool default_bool = 93 [default = true];
+  string default_string = 94 [default = "hello"];
+  bytes default_bytes = 95 [default = "world"];
+  NestedEnum default_nested_enum = 96 [default = BAR];
+  ForeignEnum default_foreign_enum = 97 [default = FOREIGN_BAR];
+
+  message OneofGroup {
+    int32 a = 1;
+    int32 b = 2;
+  }
+  oneof oneof_field {
+    uint32 oneof_uint32 = 111;
+    NestedMessage oneof_nested_message = 112;
+    string oneof_string = 113;
+    bytes oneof_bytes = 114;
+    bool oneof_bool = 115;
+    uint64 oneof_uint64 = 116;
+    float oneof_float = 117;
+    double oneof_double = 118;
+    NestedEnum oneof_enum = 119;
+    OneofGroup oneofgroup = 121 [features.message_encoding = DELIMITED];
+  }
+
+  // A oneof with exactly one field.
+  oneof oneof_optional {
+    uint32 oneof_optional_uint32 = 120;
+  }
+}
+
+message TestManyMessageFieldsMessage {
+  TestAllTypes f1 = 1;
+  TestAllTypes f2 = 2;
+  TestAllTypes f3 = 3;
+  TestAllTypes f4 = 4;
+  TestAllTypes f5 = 5;
+  TestAllTypes f6 = 6;
+  TestAllTypes f7 = 7;
+  TestAllTypes f8 = 8;
+  TestAllTypes f9 = 9;
+  TestAllTypes f10 = 10;
+  TestAllTypes f11 = 11;
+  TestAllTypes f12 = 12;
+  TestAllTypes f13 = 13;
+  TestAllTypes f14 = 14;
+  TestAllTypes f15 = 15;
+  TestAllTypes f16 = 16;
+  TestAllTypes f17 = 17;
+  TestAllTypes f18 = 18;
+  TestAllTypes f19 = 19;
+  TestAllTypes f20 = 20;
+  TestAllTypes f21 = 21;
+  TestAllTypes f22 = 22;
+  TestAllTypes f23 = 23;
+  TestAllTypes f24 = 24;
+  TestAllTypes f25 = 25;
+  TestAllTypes f26 = 26;
+  TestAllTypes f27 = 27;
+  TestAllTypes f28 = 28;
+  TestAllTypes f29 = 29;
+  TestAllTypes f30 = 30;
+  TestAllTypes f31 = 31;
+  TestAllTypes f32 = 32;
+  TestAllTypes f33 = 33;
+  TestAllTypes f34 = 34;
+  TestAllTypes f35 = 35;
+  TestAllTypes f36 = 36;
+  TestAllTypes f37 = 37;
+  TestAllTypes f38 = 38;
+  TestAllTypes f39 = 39;
+  TestAllTypes f40 = 40;
+  TestAllTypes f41 = 41;
+  TestAllTypes f42 = 42;
+  TestAllTypes f43 = 43;
+  TestAllTypes f44 = 44;
+  TestAllTypes f45 = 45;
+  TestAllTypes f46 = 46;
+  TestAllTypes f47 = 47;
+  TestAllTypes f48 = 48;
+  TestAllTypes f49 = 49;
+  TestAllTypes f50 = 50;
+  TestAllTypes f51 = 51;
+  TestAllTypes f52 = 52;
+  TestAllTypes f53 = 53;
+  TestAllTypes f54 = 54;
+  TestAllTypes f55 = 55;
+  TestAllTypes f56 = 56;
+  TestAllTypes f57 = 57;
+  TestAllTypes f58 = 58;
+  TestAllTypes f59 = 59;
+  TestAllTypes f60 = 60;
+  TestAllTypes f61 = 61;
+  TestAllTypes f62 = 62;
+  TestAllTypes f63 = 63;
+  TestAllTypes f64 = 64;
+  TestAllTypes f65 = 65;
+  TestAllTypes f66 = 66;
+  TestAllTypes f67 = 67;
+  TestAllTypes f68 = 68;
+  TestAllTypes f69 = 69;
+  TestAllTypes f70 = 70;
+  TestAllTypes f71 = 71;
+  TestAllTypes f72 = 72;
+  TestAllTypes f73 = 73;
+  TestAllTypes f74 = 74;
+  TestAllTypes f75 = 75;
+  TestAllTypes f76 = 76;
+  TestAllTypes f77 = 77;
+  TestAllTypes f78 = 78;
+  TestAllTypes f79 = 79;
+  TestAllTypes f80 = 80;
+  TestAllTypes f81 = 81;
+  TestAllTypes f82 = 82;
+  TestAllTypes f83 = 83;
+  TestAllTypes f84 = 84;
+  TestAllTypes f85 = 85;
+  TestAllTypes f86 = 86;
+  TestAllTypes f87 = 87;
+  TestAllTypes f88 = 88;
+  TestAllTypes f89 = 89;
+  TestAllTypes f90 = 90;
+  TestAllTypes f91 = 91;
+  TestAllTypes f92 = 92;
+  TestAllTypes f93 = 93;
+  TestAllTypes f94 = 94;
+  TestAllTypes f95 = 95;
+  TestAllTypes f96 = 96;
+  TestAllTypes f97 = 97;
+  TestAllTypes f98 = 98;
+  TestAllTypes f99 = 99;
+  TestAllTypes f100 = 100;
+}
+
+message ForeignMessage {
+  int32 c = 1;
+  int32 d = 2;
+}
+
+enum ForeignEnum {
+  FOREIGN_ZERO = 0;
+  FOREIGN_FOO = 4;
+  FOREIGN_BAR = 5;
+  FOREIGN_BAZ = 6;
+}
+
+message TestRequired {
+  int32 required_field = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message TestRequiredForeign {
+  TestRequired optional_message = 1;
+  repeated TestRequired repeated_message = 2;
+  map<int32, TestRequired> map_message = 3;
+  oneof oneof_field {
+    TestRequired oneof_message = 4;
+  }
+}
+
+message TestRequiredGroupFields {
+  message OptionalGroup {
+    int32 a = 2 [features.field_presence = LEGACY_REQUIRED];
+  }
+  OptionalGroup optionalgroup = 1 [features.message_encoding = DELIMITED];
+  message RepeatedGroup {
+    int32 a = 4 [features.field_presence = LEGACY_REQUIRED];
+  }
+  repeated RepeatedGroup repeatedgroup = 3
+      [features.message_encoding = DELIMITED];
+}
+
+message TestRequiredLazy {
+  TestRequired optional_lazy_message = 1 [lazy = true];
+}
+
+message TestPackedTypes {
+  repeated int32 packed_int32 = 90 [features.repeated_field_encoding = PACKED];
+  repeated int64 packed_int64 = 91 [features.repeated_field_encoding = PACKED];
+  repeated uint32 packed_uint32 = 92
+      [features.repeated_field_encoding = PACKED];
+  repeated uint64 packed_uint64 = 93
+      [features.repeated_field_encoding = PACKED];
+  repeated sint32 packed_sint32 = 94
+      [features.repeated_field_encoding = PACKED];
+  repeated sint64 packed_sint64 = 95
+      [features.repeated_field_encoding = PACKED];
+  repeated fixed32 packed_fixed32 = 96
+      [features.repeated_field_encoding = PACKED];
+  repeated fixed64 packed_fixed64 = 97
+      [features.repeated_field_encoding = PACKED];
+  repeated sfixed32 packed_sfixed32 = 98
+      [features.repeated_field_encoding = PACKED];
+  repeated sfixed64 packed_sfixed64 = 99
+      [features.repeated_field_encoding = PACKED];
+  repeated float packed_float = 100 [features.repeated_field_encoding = PACKED];
+  repeated double packed_double = 101
+      [features.repeated_field_encoding = PACKED];
+  repeated bool packed_bool = 102 [features.repeated_field_encoding = PACKED];
+  repeated ForeignEnum packed_enum = 103
+      [features.repeated_field_encoding = PACKED];
+}
+
+message TestPackedExtensions {
+  extensions 1 to max;
+}
+
+extend TestPackedExtensions {
+  repeated int32 packed_int32 = 90 [features.repeated_field_encoding = PACKED];
+  repeated int64 packed_int64 = 91 [features.repeated_field_encoding = PACKED];
+  repeated uint32 packed_uint32 = 92
+      [features.repeated_field_encoding = PACKED];
+  repeated uint64 packed_uint64 = 93
+      [features.repeated_field_encoding = PACKED];
+  repeated sint32 packed_sint32 = 94
+      [features.repeated_field_encoding = PACKED];
+  repeated sint64 packed_sint64 = 95
+      [features.repeated_field_encoding = PACKED];
+  repeated fixed32 packed_fixed32 = 96
+      [features.repeated_field_encoding = PACKED];
+  repeated fixed64 packed_fixed64 = 97
+      [features.repeated_field_encoding = PACKED];
+  repeated sfixed32 packed_sfixed32 = 98
+      [features.repeated_field_encoding = PACKED];
+  repeated sfixed64 packed_sfixed64 = 99
+      [features.repeated_field_encoding = PACKED];
+  repeated float packed_float = 100 [features.repeated_field_encoding = PACKED];
+  repeated double packed_double = 101
+      [features.repeated_field_encoding = PACKED];
+  repeated bool packed_bool = 102 [features.repeated_field_encoding = PACKED];
+  repeated ForeignEnum packed_enum = 103
+      [features.repeated_field_encoding = PACKED];
+}
+
+message RemoteDefault {
+  goproto.proto.enums.Enum default = 1;
+  goproto.proto.enums.Enum zero = 2 [default = ZERO];
+  goproto.proto.enums.Enum one = 3 [default = ONE];
+  goproto.proto.enums.Enum elevent = 4 [default = ELEVENT];
+  goproto.proto.enums.Enum seventeen = 5 [default = SEVENTEEN];
+  goproto.proto.enums.Enum thirtyseven = 6 [default = THIRTYSEVEN];
+  goproto.proto.enums.Enum sixtyseven = 7 [default = SIXTYSEVEN];
+  goproto.proto.enums.Enum negative = 8 [default = NEGATIVE];
+}

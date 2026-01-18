@@ -1,0 +1,8 @@
+[Unit]
+Description=Run the mock containerd
+
+[Service]
+ExecStart=/usr/bin/containerd
+
+[Install]
+WantedBy=multi-user.target

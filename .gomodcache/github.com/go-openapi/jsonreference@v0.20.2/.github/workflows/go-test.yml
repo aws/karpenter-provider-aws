@@ -1,0 +1,39 @@
+name: Go Test
+
+on: [push, pull_request]
+
+jobs:
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "^1"
+          check-latest: true
+          cache: true
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.50
+          only-new-issues: true
+
+  test:
+    needs: [lint]
+    name: Test
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+    steps:
+
+    - uses: actions/setup-go@v2
+      with:
+        go-version: 1.x
+
+    - uses: actions/checkout@v2
+
+    - run: go test

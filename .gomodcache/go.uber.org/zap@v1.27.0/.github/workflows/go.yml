@@ -1,0 +1,69 @@
+name: Go
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: ['*']
+
+permissions:
+  contents: read
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.21.x", "1.22.x"]
+        include:
+        - go: 1.22.x
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ matrix.go }}
+        cache-dependency-path: '**/go.sum'
+
+    - name: Download Dependencies
+      run: |
+        go mod download
+        (cd tools && go mod download)
+        (cd benchmarks && go mod download)
+        (cd zapgrpc/internal/test && go mod download)
+
+    - name: Test
+      run: make cover
+
+    - name: Upload coverage to codecov.io
+      uses: codecov/codecov-action@v3
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      name: Check out repository
+    - uses: actions/setup-go@v4
+      name: Set up Go
+      with:
+        go-version: 1.22.x
+        cache: false  # managed by golangci-lint
+
+    - uses: golangci/golangci-lint-action@v4
+      name: Install golangci-lint
+      with:
+        version: latest
+        args: --version  # make lint will run the linter
+
+    - run: make lint
+      name: Lint
+
+    - name: vulncheck
+      run: make vulncheck

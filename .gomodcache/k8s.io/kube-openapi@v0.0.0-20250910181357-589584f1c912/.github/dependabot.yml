@@ -1,0 +1,16 @@
+version: 2
+updates:
+# Disable gomod update
+# See https://github.com/kubernetes/kube-openapi/pull/474?issuecomment-2305023746#issuecomment-2305023746
+# kube-openapi directly affects the kubernetes/kubernetes API surface and we need to insulate ourselves from 
+# breaking the API as part of dependency bumps.
+#  - package-ecosystem: gomod
+#    directories:
+#      - "**/*"
+#    schedule:
+#      interval: daily
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily

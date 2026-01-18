@@ -35,6 +35,10 @@ import (
 
 type Provider interface {
 	List(context.Context, *v1.EC2NodeClass) ([]ec2types.SecurityGroup, error)
+	// ValidateSecurityGroupVPCCompatibility checks if security groups can be used with the given VPC IDs.
+	// This includes checking for Security Group Association scenarios where a security group
+	// may be associated with multiple VPCs.
+	ValidateSecurityGroupVPCCompatibility(ctx context.Context, securityGroupIDs []string, vpcIDs []string) (map[string]bool, error)
 }
 
 type DefaultProvider struct {
@@ -132,4 +136,64 @@ func getFilterSets(terms []v1.SecurityGroupSelectorTerm) (res [][]ec2types.Filte
 		res = append(res, []ec2types.Filter{nameFilter})
 	}
 	return res
+}
+
+// ValidateSecurityGroupVPCCompatibility checks if security groups are compatible with the given VPC IDs.
+// This method checks both the primary VPC and any additional VPCs the security group may be
+// associated with via Security Group Association.
+//
+// Returns a map of security group ID -> compatible (true/false)
+func (p *DefaultProvider) ValidateSecurityGroupVPCCompatibility(ctx context.Context, securityGroupIDs []string, vpcIDs []string) (map[string]bool, error) {
+	if len(securityGroupIDs) == 0 || len(vpcIDs) == 0 {
+		return map[string]bool{}, nil
+	}
+
+	result := make(map[string]bool, len(securityGroupIDs))
+
+	// First, get the basic security group information (includes primary VPC)
+	describeOutput, err := p.ec2api.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
+		GroupIds: securityGroupIDs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("describing security groups for VPC validation, %w", err)
+	}
+
+	// Check primary VPC compatibility
+	for _, sg := range describeOutput.SecurityGroups {
+		sgID := aws.ToString(sg.GroupId)
+		primaryVPCID := aws.ToString(sg.VpcId)
+		result[sgID] = lo.Contains(vpcIDs, primaryVPCID)
+	}
+
+	// Check for Security Group Association using the dedicated API
+	// This API returns all VPCs that a security group is associated with
+	assocOutput, err := p.ec2api.DescribeSecurityGroupVpcAssociations(ctx, &ec2.DescribeSecurityGroupVpcAssociationsInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   aws.String("group-id"),
+				Values: securityGroupIDs,
+			},
+			{
+				Name:   aws.String("state"),
+				Values: []string{string(ec2types.SecurityGroupVpcAssociationStateAssociated)},
+			},
+		},
+	})
+	if err != nil {
+		// If DescribeSecurityGroupVpcAssociations fails, log but continue with primary VPC check
+		// This ensures backward compatibility if the API is not available
+		log.FromContext(ctx).V(1).Info("unable to check security group VPC associations, using primary VPC only", "error", err)
+		return result, nil
+	}
+
+	// Check associations - if a security group is associated with any of our target VPCs, mark it as compatible
+	for _, assoc := range assocOutput.SecurityGroupVpcAssociations {
+		sgID := aws.ToString(assoc.GroupId)
+		associatedVPCID := aws.ToString(assoc.VpcId)
+		if lo.Contains(vpcIDs, associatedVPCID) {
+			result[sgID] = true
+		}
+	}
+
+	return result, nil
 }

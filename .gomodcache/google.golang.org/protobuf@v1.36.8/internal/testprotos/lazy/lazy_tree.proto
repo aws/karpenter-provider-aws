@@ -1,0 +1,29 @@
+// Copyright 2024 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+edition = "2023";
+
+package lazy_tree;
+
+option go_package = "google.golang.org/protobuf/internal/testprotos/lazy";
+
+message Node {
+  Node nested = 99 [lazy = true];
+
+  int32 int32 = 1;
+  int64 int64 = 2;
+  uint32 uint32 = 3;
+  uint64 uint64 = 4;
+  sint32 sint32 = 5;
+  sint64 sint64 = 6;
+  fixed32 fixed32 = 7;
+  fixed64 fixed64 = 8;
+  sfixed32 sfixed32 = 9;
+  sfixed64 sfixed64 = 10;
+  float float = 11;
+  double double = 12;
+  bool bool = 13;
+  string string = 14;
+  bytes bytes = 15;
+}

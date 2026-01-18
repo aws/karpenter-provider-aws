@@ -1,0 +1,40 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Atomic Types",
+    "version": "v1.0.0"
+  },
+  "paths": {
+  },
+  "definitions": {
+    "io.k8s.testcase.Empty": {
+      "description": "",
+      "type": "object",
+    },
+    "io.k8s.testcase.EmptyPreserveUnknownFieldsObject": {
+      "description": "",
+      "properties": {
+        "preserveField": {
+          "description": "",
+          "type": "object",
+          "x-kubernetes-preserve-unknown-fields": true
+        }
+      }
+    },
+    "io.k8s.testcase.PopulatedPreserveUnknownFieldsObject": {
+      "description": "",
+      "properties": {
+        "preserveField": {
+          "description": "",
+          "type": "object",
+          "x-kubernetes-preserve-unknown-fields": true,
+	  "properties": {
+	    "innerField": {
+	      "type": "string"
+	    }
+	  }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+---
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    id: my-cluster-id
+    name: my-cluster
+    apiServerEndpoint: http://localhost
+    certificateAuthority: Y2VydGlmaWNhdGVBdXRob3JpdHk=
+    cidr: 10.100.0.0/16
+    enableOutpost: true
