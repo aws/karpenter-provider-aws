@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2025-12-29T13:20:43Z for us-east-1
+// generated at 2026-01-19T13:23:24Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -528,6 +528,11 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"x8g.12xlarge": 4.689600, "x8g.16xlarge": 6.252800, "x8g.24xlarge": 9.379200, "x8g.2xlarge": 0.781600,
 		"x8g.48xlarge": 18.758400, "x8g.4xlarge": 1.563200, "x8g.8xlarge": 3.126400, "x8g.large": 0.195400,
 		"x8g.medium": 0.097700, "x8g.metal-24xl": 10.317120, "x8g.metal-48xl": 18.758400, "x8g.xlarge": 0.390800,
+		// x8i family
+		"x8i.12xlarge": 5.251920, "x8i.16xlarge": 7.002560, "x8i.24xlarge": 10.503840, "x8i.2xlarge": 0.875320,
+		"x8i.32xlarge": 14.005120, "x8i.48xlarge": 21.007680, "x8i.4xlarge": 1.750640, "x8i.64xlarge": 28.010240,
+		"x8i.8xlarge": 3.501280, "x8i.96xlarge": 48.744380, "x8i.large": 0.218830, "x8i.metal-48xl": 23.108450,
+		"x8i.metal-96xl": 48.744380, "x8i.xlarge": 0.437660,
 		// z1d family
 		"z1d.12xlarge": 4.464000, "z1d.2xlarge": 0.744000, "z1d.3xlarge": 1.116000, "z1d.6xlarge": 2.232000,
 		"z1d.large": 0.186000, "z1d.metal": 4.464000, "z1d.xlarge": 0.372000,
