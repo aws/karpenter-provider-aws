@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 )
 
-func SpotInterrupted(node *corev1.Node, nodeClaim *karpv1.NodeClaim) (evts []events.Event) {
+func SpotInterrupted(pods []*corev1.Pod, node *corev1.Node, nodeClaim *karpv1.NodeClaim) (evts []events.Event) {
 	evts = append(evts, events.Event{
 		InvolvedObject: nodeClaim,
 		Type:           corev1.EventTypeWarning,
@@ -36,6 +36,15 @@ func SpotInterrupted(node *corev1.Node, nodeClaim *karpv1.NodeClaim) (evts []eve
 			Reason:         "SpotInterrupted",
 			Message:        "Spot interruption warning was triggered",
 			DedupeValues:   []string{string(node.UID)},
+		})
+	}
+	for _, pod := range pods {
+		evts = append(evts, events.Event{
+			InvolvedObject: pod,
+			Type:           corev1.EventTypeWarning,
+			Reason:         "SpotInterrupted",
+			Message:        "Pod will be evicted from the node due to a spot interruption warning",
+			DedupeValues:   []string{string(pod.UID)},
 		})
 	}
 	return evts
