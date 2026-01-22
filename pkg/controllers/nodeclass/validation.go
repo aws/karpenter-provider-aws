@@ -417,6 +417,7 @@ func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass 
 	if len(instanceTypes) == 0 || lo.ContainsBy([]string{
 		v1.AMIFamilyWindows2019,
 		v1.AMIFamilyWindows2022,
+		v1.AMIFamilyWindows2025,
 	}, func(family string) bool {
 		return family == nodeClass.AMIFamily()
 	}) {

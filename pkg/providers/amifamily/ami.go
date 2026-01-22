@@ -93,6 +93,14 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 				}
 			}
 		}
+		if alias.Family == v1.AMIFamilyWindows2025 {
+			minorVersion, err := strconv.Atoi(strings.Split(kubernetesVersion, ".")[1])
+			if err == nil && minorVersion < 35 {
+				return nil, &WS2025UnsupportedVersionError{
+					error: fmt.Errorf("Windows Server 2025 requires EKS version 1.35 or higher, current version: %s", kubernetesVersion),
+				}
+			}
+		}
 		query, err := GetAMIFamily(alias.Family, nil).DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, alias.Version)
 		if err != nil {
 			return []DescribeImageQuery{}, err
