@@ -396,6 +396,72 @@ var _ = Describe("AMIProvider", func() {
 			}))
 		})
 	})
+	Context("Root Device Snapshot ID", func() {
+		It("should extract root device snapshot ID from AMI block device mappings", func() {
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []ec2types.Image{
+					{
+						Name:           aws.String(amd64AMI),
+						ImageId:        aws.String("ami-with-snapshot"),
+						CreationDate:   aws.String(time.Now().Format(time.RFC3339)),
+						Architecture:   "x86_64",
+						RootDeviceName: aws.String("/dev/xvda"),
+						BlockDeviceMappings: []ec2types.BlockDeviceMapping{
+							{
+								DeviceName: aws.String("/dev/xvda"),
+								Ebs: &ec2types.EbsBlockDevice{
+									SnapshotId: aws.String("snap-0123456789"),
+									VolumeSize: aws.Int32(20),
+									VolumeType: ec2types.VolumeTypeGp3,
+								},
+							},
+						},
+						Tags: []ec2types.Tag{
+							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
+						},
+						State: ec2types.ImageStateAvailable,
+					},
+				},
+			})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					Tags: map[string]string{"*": "*"},
+				},
+			}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].RootDeviceName).To(Equal("/dev/xvda"))
+			Expect(amis[0].RootDeviceSnapshotID).To(Equal("snap-0123456789"))
+		})
+		It("should handle AMIs without block device mappings", func() {
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []ec2types.Image{
+					{
+						Name:           aws.String(amd64AMI),
+						ImageId:        aws.String("ami-no-snapshot"),
+						CreationDate:   aws.String(time.Now().Format(time.RFC3339)),
+						Architecture:   "x86_64",
+						RootDeviceName: aws.String("/dev/xvda"),
+						Tags: []ec2types.Tag{
+							{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
+						},
+						State: ec2types.ImageStateAvailable,
+					},
+				},
+			})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					Tags: map[string]string{"*": "*"},
+				},
+			}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].RootDeviceName).To(Equal("/dev/xvda"))
+			Expect(amis[0].RootDeviceSnapshotID).To(Equal(""))
+		})
+	})
 	Context("AMI List requirements", func() {
 		BeforeEach(func() {
 			// Set time using the injectable/fake clock to now
