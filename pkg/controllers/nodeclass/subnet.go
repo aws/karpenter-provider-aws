@@ -61,6 +61,7 @@ func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (rec
 			ID:     *ec2subnet.SubnetId,
 			Zone:   *ec2subnet.AvailabilityZone,
 			ZoneID: *ec2subnet.AvailabilityZoneId,
+			VpcID:  *ec2subnet.VpcId,
 		}
 	})
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeSubnetsReady)
