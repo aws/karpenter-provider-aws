@@ -349,8 +349,12 @@ func memory(ctx context.Context, info ec2types.InstanceTypeInfo) *resource.Quant
 		sizeInMib -= 64
 	}
 	mem := resources.Quantity(fmt.Sprintf("%dMi", sizeInMib))
+	memMi := float64(mem.Value()) / 1024 / 1024
+
 	// Account for VM overhead in calculation
-	mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(mem.Value())*options.FromContext(ctx).VMMemoryOverheadPercent/1024/1024)))))
+	overheadMi := memMi * (options.FromContext(ctx).VMMemoryOverheadPercent / 100)
+	mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(overheadMi)))))
+
 	return mem
 }
 
