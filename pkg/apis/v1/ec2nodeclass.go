@@ -17,6 +17,7 @@ package v1
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -143,6 +144,8 @@ type EC2NodeClassSpec struct {
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
 	Context *string `json:"context,omitempty"`
+	// +optional
+	VolumeSizeFormula *string `json:"volumeSizeFormula,omitempty"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
@@ -610,4 +613,22 @@ type EC2NodeClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []EC2NodeClass `json:"items"`
+}
+
+func (in *EC2NodeClass) CalculateVolumeSize(cpuCount int) *resource.Quantity {
+	if in.Spec.BlockDeviceMappings != nil && len(in.Spec.BlockDeviceMappings) > 0 {
+		volumeSize := in.Spec.BlockDeviceMappings[0].EBS.VolumeSize
+		if volumeSize != nil {
+			volumeSizeStr := volumeSize.String()
+			if strings.Contains(volumeSizeStr, "CPU") {
+				factor, err := strconv.Atoi(strings.TrimSpace(strings.ReplaceAll(volumeSizeStr, "CPU", "")))
+				if err == nil {
+					calculatedSize := factor * cpuCount
+					return resource.NewQuantity(int64(calculatedSize), resource.BinarySI)
+				}
+			}
+			return volumeSize
+		}
+	}
+	return nil
 }

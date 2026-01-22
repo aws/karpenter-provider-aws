@@ -158,3 +158,25 @@ In a scenario where a faulty AMI is rolling out and begins causing downtime to y
 
 The Karpenter project continues to add features to give you greater control over AMI upgrades on your clusters.
 If you have opinions about features you would like to see to manage AMIs with Karpenter, feel free to enter a Karpenter [New Issue](https://github.com/aws/karpenter-provider-aws/issues/new/choose).
+
+### Dynamic Volume Size Calculation
+
+The `volumeSize` field in the `EC2NodeClass` now supports dynamic calculation based on the number of CPUs in the node. This allows you to configure EBS volume sizes that scale with the node's CPU count, reducing disk space waste and simplifying configuration.
+
+#### Example Configurations
+
+- **Static Volume Size:**
+  ```yaml
+  volumeSize: "20Gi"
+  ```
+  This sets a fixed volume size of 20 GiB.
+
+- **Dynamic Volume Size:**
+  ```yaml
+  volumeSize: "10Gi * CPU"
+  ```
+  This calculates the volume size as `10Gi` multiplied by the number of CPUs in the node. For example, if the node has 4 CPUs, the volume size will be `40Gi`.
+
+#### Benefits
+- Reduces disk space waste by scaling volume sizes dynamically.
+- Simplifies configuration by eliminating the need for multiple `EC2NodeClass` definitions for different node sizes.
