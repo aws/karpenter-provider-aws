@@ -1,9 +1,0 @@
-baseurl: "/gomega" # the subpath of your site, e.g. /blog
-
-# Build settings
-name: Gomega
-markdown: GFM
-highlighter: rouge
-lsi: false
-exclude:
-  - "*.go"

@@ -1,6 +1,0 @@
----
-processor:
-  ignoreTypes:
-    - "List$"
-render:
-  kubernetesVersion: 1.29

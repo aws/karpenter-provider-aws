@@ -1,9 +1,0 @@
-# FIFO
-
-require mkfifo
-
-watch  /
-mkfifo /fifo
-
-Output:
-	create  /fifo

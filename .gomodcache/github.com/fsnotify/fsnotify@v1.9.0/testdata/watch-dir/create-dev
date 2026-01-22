@@ -1,7 +1,0 @@
-require mknod
-
-watch /
-mknod 0 /dev
-
-Output:
-	create  /dev
