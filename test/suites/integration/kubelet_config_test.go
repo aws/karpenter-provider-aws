@@ -107,6 +107,10 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		)
 		DescribeTable("Windows AMIFamilies",
 			func(term v1.AMISelectorTerm) {
+				if term.Alias == "windows2025@latest" && env.K8sMinorVersion() < 35 {
+					Skip("Windows 2025 requires EKS 1.35+")
+				}
+
 				env.ExpectWindowsIPAMEnabled()
 				DeferCleanup(func() {
 					env.ExpectWindowsIPAMDisabled()
