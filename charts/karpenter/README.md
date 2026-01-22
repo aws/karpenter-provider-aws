@@ -2,7 +2,7 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 1.8.0](https://img.shields.io/badge/Version-1.8.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.8.0](https://img.shields.io/badge/AppVersion-1.8.0-informational?style=flat-square)
+![Version: 1.8.6](https://img.shields.io/badge/Version-1.8.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.8.6](https://img.shields.io/badge/AppVersion-1.8.6-informational?style=flat-square)
 
 ## Documentation
 
@@ -15,7 +15,7 @@ You can follow the detailed installation instruction in the [documentation](http
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version 1.8.0 \
+  --version 1.8.6 \
   --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}" \
   --set settings.clusterName=${CLUSTER_NAME} \
   --set settings.interruptionQueue=${CLUSTER_NAME} \
@@ -27,13 +27,13 @@ helm upgrade --install --namespace karpenter --create-namespace \
 As the OCI Helm chart is signed by [Cosign](https://github.com/sigstore/cosign) as part of the release process you can verify the chart before installing it by running the following command.
 
 ```shell
-cosign verify public.ecr.aws/karpenter/karpenter:1.8.0 \
+cosign verify public.ecr.aws/karpenter/karpenter:1.8.6 \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v1.8.0 \
-  --annotations version=1.8.0
+  --certificate-github-workflow-ref=refs/tags/v1.8.6 \
+  --annotations version=1.8.6
 ```
 
 ## Values
@@ -49,9 +49,9 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.8.0 \
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller container. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.digest | string | `"sha256:f913075cdd31cfcdfaa9726ca7a0b264832fc42e8a48eb573a2a0f454b38b112"` | SHA256 digest of the controller image. |
+| controller.image.digest | string | `"sha256:dfbaa02d5fad0f7ec89ff2bd94083e244b79c3575da43fd0a377c2547dcf3567"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
-| controller.image.tag | string | `"1.8.0"` | Tag of the controller image. |
+| controller.image.tag | string | `"1.8.6"` | Tag of the controller image. |
 | controller.metrics.port | int | `8080` | The container port to use for metrics. |
 | controller.resources | object | `{}` | Resources for the controller container. |
 | controller.securityContext.appArmorProfile | object | `{}` | AppArmor profile for the controller container. |
@@ -90,7 +90,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.8.0 \
 | serviceMonitor.endpointConfig | object | `{}` | Configuration on `http-metrics` endpoint for the ServiceMonitor. Not to be used to add additional endpoints. See the Prometheus operator documentation for configurable fields https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#endpoint |
 | serviceMonitor.metricRelabelings | list | `[]` | Metric relabelings for the `http-metrics` endpoint on the ServiceMonitor. For more details on metric relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#metric_relabel_configs |
 | serviceMonitor.relabelings | list | `[]` | Relabelings for the `http-metrics` endpoint on the ServiceMonitor. For more details on relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config |
-| settings | object | `{"batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","disableClusterStateObservability":false,"disableDryRun":false,"eksControlPlane":false,"featureGates":{"staticCapacity":false,"nodeOverlay":false,"nodeRepair":false,"reservedCapacity":true,"spotToSpotConsolidation":false},"ignoreDRARequests":true,"interruptionQueue":"","isolatedVPC":false,"minValuesPolicy":"Strict","preferencePolicy":"Respect","reservedENIs":"0","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
+| settings | object | `{"batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","disableClusterStateObservability":false,"disableDryRun":false,"eksControlPlane":false,"featureGates":{"nodeOverlay":false,"nodeRepair":false,"reservedCapacity":true,"spotToSpotConsolidation":false,"staticCapacity":false},"ignoreDRARequests":true,"interruptionQueue":"","isolatedVPC":false,"minValuesPolicy":"Strict","preferencePolicy":"Respect","reservedENIs":"0","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
 | settings.batchIdleDuration | string | `"1s"` | The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. |
 | settings.batchMaxDuration | string | `"10s"` | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. |
 | settings.clusterCABundle | string | `""` | Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server. |
@@ -99,12 +99,12 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.8.0 \
 | settings.disableClusterStateObservability | bool | `false` | Disable cluster state metrics and events. |
 | settings.disableDryRun | bool | `false` | Disable dry run validation for EC2NodeClasses. |
 | settings.eksControlPlane | bool | `false` | Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API. |
-| settings.featureGates | object | `{"staticCapacity":false,"nodeOverlay":false,"nodeRepair":false,"reservedCapacity":true,"spotToSpotConsolidation":false}` | Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features. |
-| settings.featureGates.staticCapacity | bool | `false` | staticCapacity is ALPHA and is disabled by default. Setting this to true will enable static capacity provisioning. |
+| settings.featureGates | object | `{"nodeOverlay":false,"nodeRepair":false,"reservedCapacity":true,"spotToSpotConsolidation":false,"staticCapacity":false}` | Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features. |
 | settings.featureGates.nodeOverlay | bool | `false` | nodeOverlay is ALPHA and is disabled by default. Setting this will allow the use of node overlay to impact scheduling decisions  |
 | settings.featureGates.nodeRepair | bool | `false` | nodeRepair is ALPHA and is disabled by default. Setting this to true will enable node repair. |
 | settings.featureGates.reservedCapacity | bool | `true` | reservedCapacity is BETA and is enabled by default. Setting this will enable native on-demand capacity reservation support. |
 | settings.featureGates.spotToSpotConsolidation | bool | `false` | spotToSpotConsolidation is ALPHA and is disabled by default. Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation. |
+| settings.featureGates.staticCapacity | bool | `false` | staticCapacity is ALPHA and is disabled by default. Setting this to true will enable static capacity provisioning. |
 | settings.ignoreDRARequests | bool | `true` | Ignore pods' DRA requests during scheduling simulations. |
 | settings.interruptionQueue | string | `""` | Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs. |
 | settings.isolatedVPC | bool | `false` | If true then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS pricing endpoint. |
