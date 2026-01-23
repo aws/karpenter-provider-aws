@@ -84,8 +84,8 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("AMIFamily", func() {
-		amiFamilies := []string{v1.AMIFamilyAL2, v1.AMIFamilyAL2023, v1.AMIFamilyBottlerocket, v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2022, v1.AMIFamilyCustom}
-		DescribeTable("should succeed with valid families", func() []any {
+		amiFamilies := []string{v1.AMIFamilyAL2, v1.AMIFamilyAL2023, v1.AMIFamilyBottlerocket, v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2022, v1.AMIFamilyWindows2025, v1.AMIFamilyCustom}
+		DescribeTable("should succeed with valid families", func() []interface{} {
 			f := func(amiFamily string) {
 				// Set a custom AMI family so it's compatible with all ami family types
 				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-0123456789abcdef"}}
@@ -757,6 +757,7 @@ var _ = Describe("CEL/Validation", func() {
 			Entry("bottlerocket (pinned)", "bottlerocket@1.10.0", v1.AMIFamilyBottlerocket),
 			Entry("windows2019 (latest)", "windows2019@latest", v1.AMIFamilyWindows2019),
 			Entry("windows2022 (latest)", "windows2022@latest", v1.AMIFamilyWindows2022),
+			Entry("windows2025 (latest)", "windows2025@latest", v1.AMIFamilyWindows2025),
 		)
 		DescribeTable(
 			"should fail for incorrectly formatted aliases",
@@ -782,6 +783,7 @@ var _ = Describe("CEL/Validation", func() {
 			},
 			Entry("Windows2019", "windows2019@v1.0.0"),
 			Entry("Windows2022", "windows2022@v1.0.0"),
+			Entry("Windows2025", "windows2025@v1.0.0"),
 		)
 	})
 	Context("Kubelet", func() {

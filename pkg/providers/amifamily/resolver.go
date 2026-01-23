@@ -204,6 +204,8 @@ func GetAMIFamily(amiFamily string, options *Options) AMIFamily {
 		return &Windows{Options: options, Version: v1.Windows2019, Build: v1.Windows2019Build}
 	case v1.AMIFamilyWindows2022:
 		return &Windows{Options: options, Version: v1.Windows2022, Build: v1.Windows2022Build}
+	case v1.AMIFamilyWindows2025:
+		return &Windows{Options: options, Version: v1.Windows2025, Build: v1.Windows2025Build}
 	case v1.AMIFamilyCustom:
 		return &Custom{Options: options}
 	case v1.AMIFamilyAL2023:

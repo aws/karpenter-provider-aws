@@ -40,7 +40,7 @@ import (
 type Windows struct {
 	DefaultFamily
 	*Options
-	// Version is the major version of Windows Server (2019 or 2022).
+	// Version is the major version of Windows Server (2019 or 2022 or 2025).
 	// Only the core version of each version is supported by Karpenter, so this field only indicates the year.
 	Version string
 	// Build is a specific build code associated with the Version

@@ -133,6 +133,12 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				if version.MustParseGeneric(awsEnv.VersionProvider.Get(ctx)).Minor() > 32 {
 					Skip("AL2 is not supported on versions > 1.32")
 				}
+
+				// Skip Windows 2025 on versions < 1.35
+				if family == v1.AMIFamilyWindows2025 && version.MustParseGeneric(awsEnv.VersionProvider.Get(ctx)).Minor() < 35 {
+					Skip("Windows 2025 requires EKS version 1.35+, current version: " + awsEnv.VersionProvider.Get(ctx))
+				}
+
 				nodeClass.Spec.AMIFamily = lo.ToPtr(family)
 				nodeClass.Spec.AMISelectorTerms = terms
 				ExpectApplied(ctx, env.Client, nodeClass)
@@ -143,6 +149,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Entry(v1.AMIFamilyBottlerocket, v1.AMIFamilyBottlerocket, []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}),
 			Entry(v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2019, []v1.AMISelectorTerm{{Alias: "windows2019@latest"}}),
 			Entry(v1.AMIFamilyWindows2022, v1.AMIFamilyWindows2022, []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}),
+			Entry(v1.AMIFamilyWindows2025, v1.AMIFamilyWindows2025, []v1.AMISelectorTerm{{Alias: "windows2025@latest"}}),
 			Entry(v1.AMIFamilyCustom, v1.AMIFamilyCustom, []v1.AMISelectorTerm{{ID: "ami-12345"}}),
 		)
 		It("should resolve cluster CIDR for IPv4 clusters", func() {

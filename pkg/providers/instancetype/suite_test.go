@@ -1694,6 +1694,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Entry("bottlerocket (latest)", "bottlerocket@latest", v1.AMIFamilyBottlerocket, 10, "365Mi"), // 11 * 10 + 255
 			Entry("windows2019 (latest)", "windows2019@latest", v1.AMIFamilyWindows2019, 10, "365Mi"),    // 11 * 10 + 255
 			Entry("windows2022 (latest)", "windows2022@latest", v1.AMIFamilyWindows2022, 10, "365Mi"),    // 11 * 10 + 255
+			Entry("windows2025 (latest)", "windows2025@latest", v1.AMIFamilyWindows2025, 10, "365Mi"),    // 11 * 10 + 255
 			Entry("custom", fake.ImageID(), v1.AMIFamilyCustom, 10, "640Mi"),                             // 11 * 35 + 255
 		)
 		It("should override max-pods value", func() {
@@ -1768,6 +1769,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Entry("bottlerocket (latest)", "bottlerocket@latest", v1.AMIFamilyBottlerocket, 24, "519Mi"), // 11 * 24 + 255
 			Entry("windows2019 (latest)", "windows2019@latest", v1.AMIFamilyWindows2019, 110, "1465Mi"),  // 11 * 110 + 255
 			Entry("windows2022 (latest)", "windows2022@latest", v1.AMIFamilyWindows2022, 110, "1465Mi"),  // 11 * 110 + 255
+			Entry("windows2025 (latest)", "windows2025@latest", v1.AMIFamilyWindows2025, 110, "1465Mi"),  // 11 * 110 + 255
 			Entry("custom", fake.ImageID(), v1.AMIFamilyCustom, 24, "640Mi"),                             // 11 * 35 + 255
 		)
 		It("should reserve ENIs when aws.reservedENIs is set and not go below 0 ENIs in max-pods calculation", func() {

@@ -47,7 +47,7 @@ func NewAMIReconciler(provider amifamily.Provider) *AMI {
 func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	amis, err := a.amiProvider.List(ctx, nodeClass)
 	if err != nil {
-		if amifamily.IsAl2DeprecationError(err) {
+		if amifamily.IsAl2DeprecationError(err) || amifamily.IsWS2025UnsupportedVersionError(err) {
 			nodeClass.StatusConditions().SetFalse(v1.ConditionTypeAMIsReady, "UnsupportedAlias", err.Error())
 			return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("getting amis, %w", err))
 		}
