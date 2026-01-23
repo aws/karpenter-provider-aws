@@ -65,7 +65,6 @@ func (e *Engine) RunTimed(ctx context.Context, log *format.ReplayLog, speed floa
 		return events[i].Timestamp.Before(events[j].Timestamp)
 	})
 
-
 	// Calculate time span
 	firstTimestamp := events[0].Timestamp
 	lastTimestamp := events[len(events)-1].Timestamp
@@ -454,23 +453,6 @@ func (e *Engine) getStatus(ctx context.Context) (Status, error) {
 	return status, nil
 }
 
-// formatOffset formats a duration as a human-readable offset string like "+1h2m3s"
 func formatOffset(d time.Duration) string {
-	if d < time.Second {
-		return "+0s"
-	}
-	d = d.Round(time.Second)
-	h := d / time.Hour
-	d -= h * time.Hour
-	m := d / time.Minute
-	d -= m * time.Minute
-	s := d / time.Second
-
-	if h > 0 {
-		return fmt.Sprintf("+%dh%dm%ds", h, m, s)
-	}
-	if m > 0 {
-		return fmt.Sprintf("+%dm%ds", m, s)
-	}
-	return fmt.Sprintf("+%ds", s)
+	return "+" + d.Truncate(time.Second).String()
 }

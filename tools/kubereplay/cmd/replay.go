@@ -92,7 +92,14 @@ func runReplay(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	kubeClient, err := createKubeClient()
+	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(),
+		&clientcmd.ConfigOverrides{},
+	).ClientConfig()
+	if err != nil {
+		return err
+	}
+	kubeClient, err := client.New(cfg, client.Options{})
 	if err != nil {
 		return err
 	}
@@ -215,13 +222,3 @@ func validateReplayLog(log *format.ReplayLog) error {
 	return nil
 }
 
-func createKubeClient() (client.Client, error) {
-	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		clientcmd.NewDefaultClientConfigLoadingRules(),
-		&clientcmd.ConfigOverrides{},
-	).ClientConfig()
-	if err != nil {
-		return nil, err
-	}
-	return client.New(cfg, client.Options{})
-}

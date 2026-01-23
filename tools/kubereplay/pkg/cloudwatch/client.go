@@ -28,7 +28,7 @@ import (
 
 type Client struct {
 	api      cloudwatchlogs.FilterLogEventsAPIClient
-	logGroup string
+	LogGroup string
 }
 
 type FetchOptions struct {
@@ -39,7 +39,7 @@ type FetchOptions struct {
 func NewClient(api cloudwatchlogs.FilterLogEventsAPIClient, clusterName string) *Client {
 	return &Client{
 		api:      api,
-		logGroup: fmt.Sprintf("/aws/eks/%s/cluster", clusterName),
+		LogGroup: fmt.Sprintf("/aws/eks/%s/cluster", clusterName),
 	}
 }
 
@@ -64,7 +64,7 @@ func (c *Client) StreamEvents(ctx context.Context, opts FetchOptions) (<-chan *p
 			// This captures workload intent rather than individual pods
 			filterPattern := `{ ($.objectRef.resource = "deployments" || $.objectRef.resource = "jobs") && ($.verb = "create" || $.verb = "update" || $.verb = "patch") }`
 			output, err := c.api.FilterLogEvents(ctx, &cloudwatchlogs.FilterLogEventsInput{
-				LogGroupName:        aws.String(c.logGroup),
+				LogGroupName:        aws.String(c.LogGroup),
 				StartTime:           aws.Int64(opts.StartTime.UnixMilli()),
 				EndTime:             aws.Int64(opts.EndTime.UnixMilli()),
 				FilterPattern:       aws.String(filterPattern),
@@ -101,8 +101,4 @@ func (c *Client) StreamEvents(ctx context.Context, opts FetchOptions) (<-chan *p
 	}()
 
 	return eventCh, errCh
-}
-
-func (c *Client) GetLogGroup() string {
-	return c.logGroup
 }

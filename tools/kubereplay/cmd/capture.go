@@ -69,7 +69,7 @@ func runCapture(cmd *cobra.Command, args []string) error {
 	san := sanitizer.New()
 	replayLog := format.NewReplayLog(cluster)
 
-	fmt.Printf("Capturing from %s (%s to %s)\n", cwClient.GetLogGroup(), startTime.Format(time.RFC3339), endTime.Format(time.RFC3339))
+	fmt.Printf("Capturing from %s (%s to %s)\n", cwClient.LogGroup, startTime.Format(time.RFC3339), endTime.Format(time.RFC3339))
 
 	eventCh, errCh := cwClient.StreamEvents(ctx, cloudwatch.FetchOptions{
 		StartTime: startTime,
