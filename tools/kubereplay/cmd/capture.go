@@ -82,12 +82,16 @@ func runCapture(cmd *cobra.Command, args []string) error {
 
 	// Store pending events to correlate after all events processed (CloudWatch returns events out of order)
 	type pendingEvent struct {
-		originalKey string
-		timestamp   time.Time
-		replicas    int32 // only for scale events
-		isDelete    bool
+		originalKey    string
+		timestamp      time.Time
+		replicas       int32     // only for scale events
+		isDelete       bool      // deployment delete
+		isJobComplete  bool      // job completion
+		completionTime time.Time // for job completions
 	}
 	var pendingEvents []pendingEvent
+	// Track original job key -> sanitized job key for duration correlation
+	jobKeyMapping := make(map[string]string)
 loop:
 	for {
 		select {
@@ -123,9 +127,21 @@ loop:
 				replayLog.AddDeploymentCreate(sanitized, result.Timestamp)
 				deploymentCount++
 			} else if result.Job != nil {
+				originalKey := result.Job.Namespace + "/" + result.Job.Name
 				sanitized := san.SanitizeJob(result.Job)
+				sanitizedKey := sanitized.Namespace + "/" + sanitized.Name
+				jobKeyMapping[originalKey] = sanitizedKey
 				replayLog.AddJobCreate(sanitized, result.Timestamp)
 				jobCount++
+			} else if result.JobCompleteEvent != nil {
+				// Store completion for later correlation (events may arrive out of order)
+				originalKey := result.JobCompleteEvent.Namespace + "/" + result.JobCompleteEvent.Name
+				pendingEvents = append(pendingEvents, pendingEvent{
+					originalKey:    originalKey,
+					timestamp:      result.Timestamp,
+					isJobComplete:  true,
+					completionTime: result.JobCompleteEvent.CompletionTime,
+				})
 			} else if result.ScaleEvent != nil {
 				// Store scale for later correlation (events may arrive out of order)
 				originalKey := result.ScaleEvent.Namespace + "/" + result.ScaleEvent.Name
@@ -159,22 +175,41 @@ loop:
 		fmt.Println() // Clear progress line
 	}
 
-	// Correlate pending scale/delete events with sanitized deployments
-	// Reset counts since we only want to count events that match known deployments
+	// Correlate pending events with sanitized workloads
+	// Reset counts since we only want to count events that match known workloads
 	scaleCount, deleteCount = 0, 0
+	var jobsWithDuration int
 	for _, ev := range pendingEvents {
-		sanitizedKey, ok := san.GetSanitizedKey(ev.originalKey)
-		if !ok {
-			// Event for deployment we never saw - skip
-			continue
-		}
-		parts := strings.SplitN(sanitizedKey, "/", 2)
-		if ev.isDelete {
-			replayLog.AddDeploymentDelete(parts[0], parts[1], ev.timestamp)
-			deleteCount++
+		if ev.isJobComplete {
+			// Correlate job completion with job create to calculate duration
+			sanitizedKey, ok := jobKeyMapping[ev.originalKey]
+			if !ok {
+				continue
+			}
+			// Get creation time from parser
+			createTime, ok := p.GetJobCreateTime(ev.originalKey)
+			if !ok {
+				continue
+			}
+			duration := ev.completionTime.Sub(createTime)
+			if duration > 0 {
+				replayLog.SetJobDuration(sanitizedKey, duration)
+				jobsWithDuration++
+			}
 		} else {
-			replayLog.AddDeploymentScale(parts[0], parts[1], ev.replicas, ev.timestamp)
-			scaleCount++
+			// Deployment scale/delete events
+			sanitizedKey, ok := san.GetSanitizedKey(ev.originalKey)
+			if !ok {
+				continue
+			}
+			parts := strings.SplitN(sanitizedKey, "/", 2)
+			if ev.isDelete {
+				replayLog.AddDeploymentDelete(parts[0], parts[1], ev.timestamp)
+				deleteCount++
+			} else {
+				replayLog.AddDeploymentScale(parts[0], parts[1], ev.replicas, ev.timestamp)
+				scaleCount++
+			}
 		}
 	}
 
@@ -182,8 +217,8 @@ loop:
 		return err
 	}
 
-	fmt.Printf("Captured %d deployments, %d jobs, %d scale, %d delete to %s\n",
-		deploymentCount, jobCount, scaleCount, deleteCount, captureOutput)
+	fmt.Printf("Captured %d deployments, %d jobs (%d with duration), %d scale, %d delete to %s\n",
+		deploymentCount, jobCount, jobsWithDuration, scaleCount, deleteCount, captureOutput)
 	return nil
 }
 

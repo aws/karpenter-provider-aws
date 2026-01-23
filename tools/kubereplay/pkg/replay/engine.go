@@ -37,6 +37,7 @@ import (
 type Engine struct {
 	kubeClient client.Client
 	namespace  string
+	speed      float64 // replay speed for scaling job durations
 	// deploymentNames maps original key to replayed deployment name
 	deploymentNames map[string]string
 }
@@ -46,6 +47,7 @@ func NewEngine(kubeClient client.Client, namespace string) *Engine {
 	return &Engine{
 		kubeClient:      kubeClient,
 		namespace:       namespace,
+		speed:           1.0,
 		deploymentNames: make(map[string]string),
 	}
 }
@@ -57,6 +59,9 @@ func (e *Engine) RunTimed(ctx context.Context, log *format.ReplayLog, speed floa
 	if len(log.Events) == 0 {
 		return 0, nil
 	}
+
+	// Store speed for job duration scaling
+	e.speed = speed
 
 	// Sort events by timestamp
 	events := make([]format.WorkloadEvent, len(log.Events))
@@ -131,7 +136,7 @@ func (e *Engine) applyEvent(ctx context.Context, event *format.WorkloadEvent) (s
 		case format.KindDeployment:
 			return e.createDeployment(ctx, event.Deployment)
 		case format.KindJob:
-			return e.createJob(ctx, event.Job)
+			return e.createJob(ctx, event)
 		}
 	case format.EventScale:
 		if event.Replicas == nil {
@@ -170,11 +175,30 @@ func (e *Engine) createDeployment(ctx context.Context, deployment *appsv1.Deploy
 	return deployCopy.Name, nil
 }
 
-func (e *Engine) createJob(ctx context.Context, job *batchv1.Job) (string, error) {
-	jobCopy := job.DeepCopy()
+func (e *Engine) createJob(ctx context.Context, event *format.WorkloadEvent) (string, error) {
+	jobCopy := event.Job.DeepCopy()
 	jobCopy.Namespace = e.namespace
 	jobCopy.ResourceVersion = ""
 	jobCopy.UID = ""
+
+	// Scale job duration by replay speed
+	// If duration is known, use it; otherwise use default 10s
+	sleepSeconds := 10
+	if event.Duration != nil && *event.Duration > 0 {
+		scaledDuration := time.Duration(float64(*event.Duration) / e.speed)
+		sleepSeconds = int(scaledDuration.Seconds())
+		if sleepSeconds < 1 {
+			sleepSeconds = 1 // minimum 1 second
+		}
+	}
+
+	// Update container command with scaled sleep duration
+	for i := range jobCopy.Spec.Template.Spec.Containers {
+		c := &jobCopy.Spec.Template.Spec.Containers[i]
+		if c.Image == "busybox:1.36" {
+			c.Command = []string{"sh", "-c", fmt.Sprintf("sleep %d", sleepSeconds)}
+		}
+	}
 
 	err := e.kubeClient.Create(ctx, jobCopy)
 	if err != nil && errors.IsAlreadyExists(err) {

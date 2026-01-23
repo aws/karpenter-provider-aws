@@ -57,6 +57,9 @@ type WorkloadEvent struct {
 	Job *batchv1.Job `json:"job,omitempty"`
 	// Replicas is set for scale events to track the new replica count
 	Replicas *int32 `json:"replicas,omitempty"`
+	// Duration is the original job duration (from create to completion)
+	// Used to scale job runtime with --speed
+	Duration *time.Duration `json:"duration,omitempty"`
 	// Timestamp is when this event occurred
 	Timestamp time.Time `json:"timestamp"`
 }
@@ -118,6 +121,17 @@ func (r *ReplayLog) AddJobCreate(job *batchv1.Job, timestamp time.Time) {
 		Job:       job,
 		Timestamp: timestamp,
 	})
+}
+
+// SetJobDuration sets the duration for a job event identified by its sanitized key.
+// This is called after correlating job completion events with their creates.
+func (r *ReplayLog) SetJobDuration(sanitizedKey string, duration time.Duration) {
+	for i := range r.Events {
+		if r.Events[i].Kind == KindJob && r.Events[i].Type == EventCreate && r.Events[i].Key == sanitizedKey {
+			r.Events[i].Duration = &duration
+			return
+		}
+	}
 }
 
 // WriteToFile writes the replay log to a file

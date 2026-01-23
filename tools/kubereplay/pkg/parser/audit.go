@@ -30,6 +30,8 @@ type Parser struct {
 	deploymentReplicas map[string]int32
 	// deploymentEmitted tracks which deployments we've emitted a create event for
 	deploymentEmitted map[string]bool
+	// jobCreateTimes tracks when jobs were created for duration calculation
+	jobCreateTimes map[string]time.Time
 }
 
 // NewParser creates a new audit log parser
@@ -38,7 +40,14 @@ func NewParser() *Parser {
 		excludeNamespaces:  DefaultExcludedNamespaces,
 		deploymentReplicas: make(map[string]int32),
 		deploymentEmitted:  make(map[string]bool),
+		jobCreateTimes:     make(map[string]time.Time),
 	}
+}
+
+// GetJobCreateTime returns the creation time for a job key (namespace/name)
+func (p *Parser) GetJobCreateTime(key string) (time.Time, bool) {
+	t, ok := p.jobCreateTimes[key]
+	return t, ok
 }
 
 // WorkloadResult represents the result of parsing an audit event
@@ -51,6 +60,8 @@ type WorkloadResult struct {
 	ScaleEvent *ScaleEvent
 	// DeleteEvent is set for deployment delete events
 	DeleteEvent *DeleteEvent
+	// JobCompleteEvent is set when a job completes
+	JobCompleteEvent *JobCompleteEvent
 	// Timestamp is when the event occurred
 	Timestamp time.Time
 }
@@ -66,6 +77,13 @@ type ScaleEvent struct {
 type DeleteEvent struct {
 	Namespace string
 	Name      string
+}
+
+// JobCompleteEvent represents a job completion
+type JobCompleteEvent struct {
+	Namespace      string
+	Name           string
+	CompletionTime time.Time
 }
 
 // ParseEvent extracts workload information from an audit event.
@@ -233,13 +251,8 @@ func (p *Parser) parseScaleSubresource(event AuditEvent) (*WorkloadResult, error
 }
 
 func (p *Parser) parseJobEvent(event AuditEvent) (*WorkloadResult, error) {
-	// Skip subresources
+	// Skip subresources (like /status)
 	if event.ObjectRef.Subresource != "" {
-		return nil, nil
-	}
-
-	// Only handle create for jobs
-	if event.Verb != "create" {
 		return nil, nil
 	}
 
@@ -256,9 +269,31 @@ func (p *Parser) parseJobEvent(event AuditEvent) (*WorkloadResult, error) {
 		return nil, nil
 	}
 
-	return &WorkloadResult{
-		Job:       &job,
-		Timestamp: event.RequestReceivedTimestamp,
-	}, nil
+	key := event.ObjectRef.Namespace + "/" + event.ObjectRef.Name
+
+	switch event.Verb {
+	case "create":
+		// Track creation time for duration calculation
+		p.jobCreateTimes[key] = event.RequestReceivedTimestamp
+		return &WorkloadResult{
+			Job:       &job,
+			Timestamp: event.RequestReceivedTimestamp,
+		}, nil
+
+	case "update", "patch":
+		// Check if job just completed (has completionTime set)
+		if job.Status.CompletionTime != nil {
+			return &WorkloadResult{
+				JobCompleteEvent: &JobCompleteEvent{
+					Namespace:      job.Namespace,
+					Name:           job.Name,
+					CompletionTime: job.Status.CompletionTime.Time,
+				},
+				Timestamp: event.RequestReceivedTimestamp,
+			}, nil
+		}
+	}
+
+	return nil, nil
 }
 

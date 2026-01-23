@@ -85,7 +85,7 @@ func (s *Sanitizer) SanitizeDeployment(deployment *appsv1.Deployment) *appsv1.De
 	}
 
 	// Sanitize pod template
-	newDeploy.Spec.Template = sanitizePodTemplateSpec(newDeploy.Spec.Template, appLabel)
+	newDeploy.Spec.Template = sanitizePodTemplateSpec(newDeploy.Spec.Template, appLabel, false)
 
 	// Clear status
 	newDeploy.Status = appsv1.DeploymentStatus{}
@@ -120,8 +120,8 @@ func (s *Sanitizer) SanitizeJob(job *batchv1.Job) *batchv1.Job {
 	// Jobs auto-generate selectors, so we clear it to let k8s regenerate
 	newJob.Spec.Selector = nil
 
-	// Sanitize pod template
-	newJob.Spec.Template = sanitizePodTemplateSpec(newJob.Spec.Template, appLabel)
+	// Sanitize pod template (forJob=true so containers exit)
+	newJob.Spec.Template = sanitizePodTemplateSpec(newJob.Spec.Template, appLabel, true)
 
 	// Clear TTL (we manage cleanup)
 	newJob.Spec.TTLSecondsAfterFinished = nil
@@ -145,14 +145,14 @@ func clearObjectMeta(meta *metav1.ObjectMeta) {
 	meta.GenerateName = ""
 }
 
-func sanitizePodTemplateSpec(template corev1.PodTemplateSpec, appLabel string) corev1.PodTemplateSpec {
+func sanitizePodTemplateSpec(template corev1.PodTemplateSpec, appLabel string, forJob bool) corev1.PodTemplateSpec {
 	// Clear auto-generated labels (Job controller labels, etc.) and set fresh ones
 	// We keep Karpenter labels if any
 	karpenterLabels := lo.PickBy(template.Labels, func(v string, k string) bool {
 		return strings.HasPrefix(k, "karpenter.sh/")
 	})
 	template.Labels = map[string]string{
-		"app":                           appLabel,
+		"app":                              appLabel,
 		"kubereplay.karpenter.sh/managed": "true",
 	}
 	for k, v := range karpenterLabels {
@@ -162,9 +162,9 @@ func sanitizePodTemplateSpec(template corev1.PodTemplateSpec, appLabel string) c
 	// Preserve Karpenter annotations on pod template
 	template.Annotations = filterKarpenterAnnotations(template.Annotations)
 
-	// Sanitize containers
-	template.Spec.Containers = sanitizeContainers(template.Spec.Containers)
-	template.Spec.InitContainers = sanitizeContainers(template.Spec.InitContainers)
+	// Sanitize containers (jobs need containers that exit, deployments use pause)
+	template.Spec.Containers = sanitizeContainers(template.Spec.Containers, forJob)
+	template.Spec.InitContainers = nil // Jobs don't need init containers for replay
 
 	// Clear non-scheduling fields
 	template.Spec.ServiceAccountName = "default"
@@ -192,13 +192,21 @@ func sanitizePodTemplateSpec(template corev1.PodTemplateSpec, appLabel string) c
 	return template
 }
 
-func sanitizeContainers(containers []corev1.Container) []corev1.Container {
+func sanitizeContainers(containers []corev1.Container, forJob bool) []corev1.Container {
 	return lo.Map(containers, func(c corev1.Container, i int) corev1.Container {
-		return corev1.Container{
+		container := corev1.Container{
 			Name:      fmt.Sprintf("container-%d", i),
-			Image:     "registry.k8s.io/pause:3.9",
 			Resources: c.Resources,
 		}
+		if forJob {
+			// Jobs need containers that exit so they can complete
+			container.Image = "busybox:1.36"
+			container.Command = []string{"sh", "-c", "sleep 10"}
+		} else {
+			// Deployments use pause (runs forever)
+			container.Image = "registry.k8s.io/pause:3.9"
+		}
+		return container
 	})
 }
 
