@@ -16,7 +16,6 @@ package format
 
 import (
 	"encoding/json"
-	"io"
 	"os"
 	"time"
 
@@ -116,12 +115,7 @@ func (r *ReplayLog) WriteToFile(path string) error {
 		return err
 	}
 	defer f.Close()
-	return r.Write(f)
-}
-
-// Write writes the replay log to a writer
-func (r *ReplayLog) Write(w io.Writer) error {
-	encoder := json.NewEncoder(w)
+	encoder := json.NewEncoder(f)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(r)
 }
@@ -133,13 +127,8 @@ func ReadFromFile(path string) (*ReplayLog, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return Read(f)
-}
-
-// Read reads a replay log from a reader
-func Read(r io.Reader) (*ReplayLog, error) {
 	var log ReplayLog
-	if err := json.NewDecoder(r).Decode(&log); err != nil {
+	if err := json.NewDecoder(f).Decode(&log); err != nil {
 		return nil, err
 	}
 	return &log, nil

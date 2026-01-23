@@ -23,8 +23,6 @@ import (
 
 // AuditEvent represents a Kubernetes audit log event
 type AuditEvent struct {
-	Kind                     string          `json:"kind"`
-	APIVersion               string          `json:"apiVersion"`
 	Stage                    string          `json:"stage"`
 	Verb                     string          `json:"verb"`
 	ObjectRef                ObjectReference `json:"objectRef"`

@@ -239,11 +239,3 @@ func (p *Parser) parseJobEvent(event AuditEvent) (*WorkloadResult, error) {
 	}, nil
 }
 
-// ParseJSON parses an audit event from JSON
-func ParseJSON(data []byte) (*AuditEvent, error) {
-	var event AuditEvent
-	if err := json.Unmarshal(data, &event); err != nil {
-		return nil, err
-	}
-	return &event, nil
-}
