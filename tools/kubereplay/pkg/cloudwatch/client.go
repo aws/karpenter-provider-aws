@@ -62,6 +62,7 @@ func (c *Client) StreamEvents(ctx context.Context, opts FetchOptions) (<-chan *p
 
 			// Filter for deployments (create, update, patch, delete) and jobs (create, update, patch)
 			// This captures workload intent rather than individual pods
+			// Note: deletecollection (bulk delete) is not captured - it doesn't include individual resource names
 			filterPattern := `{ ($.objectRef.resource = "deployments" && ($.verb = "create" || $.verb = "update" || $.verb = "patch" || $.verb = "delete")) || ($.objectRef.resource = "jobs" && ($.verb = "create" || $.verb = "update" || $.verb = "patch")) }`
 			output, err := c.api.FilterLogEvents(ctx, &cloudwatchlogs.FilterLogEventsInput{
 				LogGroupName:        aws.String(c.LogGroup),
