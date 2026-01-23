@@ -49,6 +49,8 @@ type WorkloadResult struct {
 	Job *batchv1.Job
 	// ScaleEvent is set for deployment scale changes
 	ScaleEvent *ScaleEvent
+	// DeleteEvent is set for deployment delete events
+	DeleteEvent *DeleteEvent
 	// Timestamp is when the event occurred
 	Timestamp time.Time
 }
@@ -58,6 +60,12 @@ type ScaleEvent struct {
 	Namespace string
 	Name      string
 	Replicas  int32
+}
+
+// DeleteEvent represents a deployment deletion
+type DeleteEvent struct {
+	Namespace string
+	Name      string
 }
 
 // ParseEvent extracts workload information from an audit event.
@@ -90,6 +98,21 @@ func (p *Parser) ParseEvent(event AuditEvent) (*WorkloadResult, error) {
 }
 
 func (p *Parser) parseDeploymentEvent(event AuditEvent) (*WorkloadResult, error) {
+	// Handle delete events - emit all deletes, let caller correlate
+	if event.Verb == "delete" {
+		key := event.ObjectRef.Namespace + "/" + event.ObjectRef.Name
+		// Clean up tracking state if we had it
+		delete(p.deploymentEmitted, key)
+		delete(p.deploymentReplicas, key)
+		return &WorkloadResult{
+			DeleteEvent: &DeleteEvent{
+				Namespace: event.ObjectRef.Namespace,
+				Name:      event.ObjectRef.Name,
+			},
+			Timestamp: event.RequestReceivedTimestamp,
+		}, nil
+	}
+
 	// Handle scale subresource specially
 	if event.ObjectRef.Subresource == "scale" {
 		return p.parseScaleSubresource(event)

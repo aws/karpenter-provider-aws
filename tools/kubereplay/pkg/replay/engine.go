@@ -138,6 +138,8 @@ func (e *Engine) applyEvent(ctx context.Context, event *format.WorkloadEvent) (s
 			return "", fmt.Errorf("scale event missing replicas for %s", event.Key)
 		}
 		return e.scaleDeployment(ctx, event.Key, *event.Replicas)
+	case format.EventDelete:
+		return e.deleteDeployment(ctx, event.Key)
 	}
 	return "", nil
 }
@@ -204,6 +206,44 @@ func (e *Engine) scaleDeployment(ctx context.Context, originalKey string, replic
 	}
 
 	return fmt.Sprintf("%s (replicas=%d)", deployName, replicas), nil
+}
+
+func (e *Engine) deleteDeployment(ctx context.Context, originalKey string) (string, error) {
+	// Look up the replayed deployment name
+	deployName, exists := e.deploymentNames[originalKey]
+	if !exists {
+		return "", fmt.Errorf("unknown deployment: %s (delete event without prior create)", originalKey)
+	}
+
+	// Delete the associated PDB first
+	pdb := &policyv1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("pdb-%s", deployName),
+			Namespace: e.namespace,
+		},
+	}
+	if err := e.kubeClient.Delete(ctx, pdb); err != nil && !errors.IsNotFound(err) {
+		fmt.Printf("  Warning: failed to delete PDB for %s: %v\n", deployName, err)
+	}
+
+	// Delete the deployment
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      deployName,
+			Namespace: e.namespace,
+		},
+	}
+	if err := e.kubeClient.Delete(ctx, deployment); err != nil {
+		if errors.IsNotFound(err) {
+			return deployName + " (already deleted)", nil
+		}
+		return "", fmt.Errorf("failed to delete deployment %s: %w", deployName, err)
+	}
+
+	// Remove from tracking map
+	delete(e.deploymentNames, originalKey)
+
+	return deployName, nil
 }
 
 // EnsureNamespace ensures the target namespace exists and is ready.

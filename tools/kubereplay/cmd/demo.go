@@ -62,6 +62,9 @@ func runDemo(cmd *cobra.Command, args []string) error {
 		deployment := generateDeployment(i)
 		replayLog.AddDeploymentCreate(deployment, deploymentTimestamps[i])
 
+		// Track latest event time for this deployment (for potential delete)
+		latestEventTime := deploymentTimestamps[i]
+
 		// Generate 1-3 scale events per deployment (simulates HPA)
 		scaleCount := rand.Intn(3) + 1
 		for range scaleCount {
@@ -77,6 +80,23 @@ func runDemo(cmd *cobra.Command, args []string) error {
 					fmt.Sprintf("deployment-%d", i),
 					newReplicas,
 					scaleTime,
+				)
+				if scaleTime.After(latestEventTime) {
+					latestEventTime = scaleTime
+				}
+			}
+		}
+
+		// 50% chance of deletion (simulates workload churn for consolidation testing)
+		if rand.Float32() < 0.5 {
+			remainingTime := baseTime.Add(demoDuration).Sub(latestEventTime)
+			if remainingTime > time.Minute {
+				deleteOffset := time.Duration(rand.Int63n(int64(remainingTime)))
+				deleteTime := latestEventTime.Add(deleteOffset)
+				replayLog.AddDeploymentDelete(
+					sanitizer.Namespace,
+					fmt.Sprintf("deployment-%d", i),
+					deleteTime,
 				)
 			}
 		}

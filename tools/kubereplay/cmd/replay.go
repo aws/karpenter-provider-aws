@@ -177,7 +177,7 @@ func runReplay(cmd *cobra.Command, args []string) error {
 
 // eventSummary returns a summary string for a replay log.
 func eventSummary(log *format.ReplayLog) string {
-	var deployments, jobs, scaleEvents int
+	var deployments, jobs, scaleEvents, deleteEvents int
 	for _, event := range log.Events {
 		switch event.Type {
 		case format.EventCreate:
@@ -189,9 +189,11 @@ func eventSummary(log *format.ReplayLog) string {
 			}
 		case format.EventScale:
 			scaleEvents++
+		case format.EventDelete:
+			deleteEvents++
 		}
 	}
-	return fmt.Sprintf("%d deployments, %d jobs, %d scale events", deployments, jobs, scaleEvents)
+	return fmt.Sprintf("%d deployments, %d jobs, %d scale, %d delete", deployments, jobs, scaleEvents, deleteEvents)
 }
 
 func validateReplayLog(log *format.ReplayLog) error {
@@ -214,6 +216,8 @@ func validateReplayLog(log *format.ReplayLog) error {
 			if event.Replicas == nil {
 				return fmt.Errorf("event %d: scale event has nil replicas", i)
 			}
+		case format.EventDelete:
+			// Delete events just need Key which is always set
 		default:
 			return fmt.Errorf("event %d: unknown event type %q", i, event.Type)
 		}

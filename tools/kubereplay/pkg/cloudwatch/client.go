@@ -60,9 +60,9 @@ func (c *Client) StreamEvents(ctx context.Context, opts FetchOptions) (<-chan *p
 			default:
 			}
 
-			// Filter for deployments and jobs (create, update, patch operations)
+			// Filter for deployments (create, update, patch, delete) and jobs (create, update, patch)
 			// This captures workload intent rather than individual pods
-			filterPattern := `{ ($.objectRef.resource = "deployments" || $.objectRef.resource = "jobs") && ($.verb = "create" || $.verb = "update" || $.verb = "patch") }`
+			filterPattern := `{ ($.objectRef.resource = "deployments" && ($.verb = "create" || $.verb = "update" || $.verb = "patch" || $.verb = "delete")) || ($.objectRef.resource = "jobs" && ($.verb = "create" || $.verb = "update" || $.verb = "patch")) }`
 			output, err := c.api.FilterLogEvents(ctx, &cloudwatchlogs.FilterLogEventsInput{
 				LogGroupName:        aws.String(c.LogGroup),
 				StartTime:           aws.Int64(opts.StartTime.UnixMilli()),

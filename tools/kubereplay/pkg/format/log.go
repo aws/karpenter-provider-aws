@@ -31,6 +31,8 @@ const (
 	EventCreate EventType = "create"
 	// EventScale represents a scale change (replicas update)
 	EventScale EventType = "scale"
+	// EventDelete represents deletion of a workload
+	EventDelete EventType = "delete"
 )
 
 // WorkloadKind represents the kind of workload
@@ -93,6 +95,16 @@ func (r *ReplayLog) AddDeploymentScale(namespace, name string, replicas int32, t
 		Kind:      KindDeployment,
 		Key:       namespace + "/" + name,
 		Replicas:  &replicas,
+		Timestamp: timestamp,
+	})
+}
+
+// AddDeploymentDelete adds a deployment deletion event
+func (r *ReplayLog) AddDeploymentDelete(namespace, name string, timestamp time.Time) {
+	r.Events = append(r.Events, WorkloadEvent{
+		Type:      EventDelete,
+		Kind:      KindDeployment,
+		Key:       namespace + "/" + name,
 		Timestamp: timestamp,
 	})
 }
