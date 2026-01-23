@@ -85,6 +85,7 @@ type LaunchTemplate struct {
 	CapacityType            string
 	CapacityReservationID   string
 	CapacityReservationType v1.CapacityReservationType
+	ConnectionTracking      *v1.ConnectionTracking
 	Tenancy                 string
 }
 
@@ -311,6 +312,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			CapacityType:            capacityType,
 			CapacityReservationID:   id,
 			CapacityReservationType: capacityReservationType,
+			ConnectionTracking:      nodeClass.Spec.ConnectionTracking,
 			Tenancy:                 tenancyType,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
