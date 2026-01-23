@@ -473,6 +473,38 @@ spec:
 ```
 In order for a pod to run on a node defined in this NodePool, it must tolerate `nvidia.com/gpu` in its pod spec.
 
+### Static NodePool
+
+A NodePool can be configured for static capacity by setting the `replicas` field. This maintains a fixed number of nodes regardless of pod demand.
+Users who want to spread nodes across zones can do so explicitly by:
+- Creating multiple static NodePools, each pinned to a specific AZ.
+
+The following example creates a static NodePool with 10 replicas:
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: static-capacity
+spec:
+  replicas: 10
+  template:
+    spec:
+      requirements:
+      - key: node.kubernetes.io/instance-type
+        operator: In
+        values: ["m5.large", "m5.xlarge"]
+      - key: topology.kubernetes.io/zone
+        operator: In
+        values: ["us-west-2a"]  # All replicas will come up in specified zone
+  limits:
+    nodes: 15  # Maximum nodes during scaling/drift
+  disruption:
+    consolidateAfter: 0s
+    budgets:
+    - nodes: 20%  # Disruption budget for drift replacement
+```
+
 ### Cilium Startup Taint
 
 Per the Cilium [docs](https://docs.cilium.io/en/stable/installation/taints/#taint-effects), it's recommended to place a taint of `node.cilium.io/agent-not-ready=true:NoExecute` on nodes to allow Cilium to configure networking prior to other pods starting.  This can be accomplished via the use of Karpenter `startupTaints`.  These taints are placed on the node, but pods aren't required to tolerate these taints to be considered for provisioning.
