@@ -1,28 +1,14 @@
 # kubereplay
 
-Capture workload events from EKS audit logs and replay them against Karpenter clusters for A/B testing.
-
-## Usage
+Capture and replay workload events from EKS audit logs for Karpenter A/B testing.
 
 ```bash
-# Build
 go build -o kubereplay ./cmd
 
-# Capture last hour of workload events
-kubereplay capture -o workloads.json
-
-# Replay against test cluster (Ctrl+C to cleanup)
-kubereplay replay -f workloads.json
-
-# Replay 24x faster
-kubereplay replay -f workloads.json --speed 24
-
-# Generate synthetic test data
-kubereplay demo -o demo.json
+kubereplay capture            # capture last hour to replay.json
+kubereplay replay             # replay from replay.json
+kubereplay replay --speed 24  # replay 24x faster
+kubereplay demo               # generate synthetic test data
 ```
 
-## Prerequisites
-
-- EKS cluster with audit logging enabled
-- AWS credentials with CloudWatch Logs read access
-- kubectl access to target cluster
+Requires EKS audit logging, AWS credentials, and kubectl access.

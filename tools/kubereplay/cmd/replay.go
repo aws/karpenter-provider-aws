@@ -46,11 +46,10 @@ var (
 )
 
 func init() {
-	replayCmd.Flags().StringVarP(&replayFile, "file", "f", "", "Replay log file (required)")
+	replayCmd.Flags().StringVarP(&replayFile, "file", "f", "replay.json", "Replay log file")
 	replayCmd.Flags().BoolVar(&replayDryRun, "dry-run", false, "Simulate replay with timing output, no workloads created")
 	replayCmd.Flags().Float64Var(&replaySpeed, "speed", 1.0, "Time dilation factor (e.g., 24 = 24x faster, 24h replays in 1h)")
 	replayCmd.Flags().DurationVar(&replayTimeout, "timeout", 10*time.Minute, "Max time to wait for stabilization (0 to disable)")
-	_ = replayCmd.MarkFlagRequired("file")
 }
 
 func runReplay(cmd *cobra.Command, args []string) error {
