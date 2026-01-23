@@ -46,7 +46,7 @@ var (
 )
 
 func init() {
-	demoCmd.Flags().StringVarP(&demoOutput, "output", "o", "demo.json", "Output file")
+	demoCmd.Flags().StringVarP(&demoOutput, "output", "o", "replay.json", "Output file")
 	demoCmd.Flags().IntVar(&demoDeployments, "deployments", 20, "Number of deployments")
 	demoCmd.Flags().IntVar(&demoJobs, "jobs", 10, "Number of jobs")
 	demoCmd.Flags().DurationVar(&demoDuration, "duration", time.Hour, "Time span to spread events across")
