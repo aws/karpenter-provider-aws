@@ -134,6 +134,7 @@ loop:
 					timestamp:   result.Timestamp,
 					replicas:    result.ScaleEvent.Replicas,
 				})
+				scaleCount++ // Show pending count in progress
 			} else if result.DeleteEvent != nil {
 				// Store delete for later correlation (events may arrive out of order)
 				originalKey := result.DeleteEvent.Namespace + "/" + result.DeleteEvent.Name
@@ -142,6 +143,7 @@ loop:
 					timestamp:   result.Timestamp,
 					isDelete:    true,
 				})
+				deleteCount++ // Show pending count in progress
 			}
 
 		case err := <-errCh:
@@ -158,6 +160,8 @@ loop:
 	}
 
 	// Correlate pending scale/delete events with sanitized deployments
+	// Reset counts since we only want to count events that match known deployments
+	scaleCount, deleteCount = 0, 0
 	for _, ev := range pendingEvents {
 		sanitizedKey, ok := san.GetSanitizedKey(ev.originalKey)
 		if !ok {
