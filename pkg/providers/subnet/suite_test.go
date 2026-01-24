@@ -547,6 +547,184 @@ var _ = Describe("SubnetProvider", func() {
 		}
 		wg.Wait()
 	})
+	Context("ZonalSubnetsForLaunch with IP filtering", func() {
+		It("should filter zones with insufficient IPs", func() {
+			// Setup: Override ctx with MinSubnetAvailableIPs=10
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				MinSubnetAvailableIPs: lo.ToPtr(10),
+			}))
+
+			// Setup subnets: zone-1a has 5 IPs, zone-1b has 100 IPs
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{
+				Subnets: []ec2types.Subnet{
+					{
+						SubnetId:                aws.String("subnet-test1"),
+						AvailabilityZone:        aws.String("test-zone-1a"),
+						AvailabilityZoneId:      aws.String("tstz1-1a"),
+						AvailableIpAddressCount: aws.Int32(5), // Below threshold
+					},
+					{
+						SubnetId:                aws.String("subnet-test2"),
+						AvailabilityZone:        aws.String("test-zone-1b"),
+						AvailabilityZoneId:      aws.String("tstz1-1b"),
+						AvailableIpAddressCount: aws.Int32(100), // Above threshold
+					},
+				},
+			})
+
+			// Trigger subnet list to populate cache
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			// Reconcile to populate status
+			nodeClass.Status.Subnets = []v1.Subnet{
+				{ID: "subnet-test1", Zone: "test-zone-1a", ZoneID: "tstz1-1a"},
+				{ID: "subnet-test2", Zone: "test-zone-1b", ZoneID: "tstz1-1b"},
+			}
+
+			// Call ZonalSubnetsForLaunch with empty instance types (minPods returns 0)
+			zonalSubnets, err := awsEnv.SubnetProvider.ZonalSubnetsForLaunch(ctx, nodeClass, nil, "on-demand")
+			Expect(err).To(BeNil())
+
+			// Expect zone-1a filtered out
+			Expect(zonalSubnets).To(HaveLen(1))
+			Expect(zonalSubnets).To(HaveKey("test-zone-1b"))
+			Expect(zonalSubnets).NotTo(HaveKey("test-zone-1a"))
+		})
+		It("should proceed with all zones when all are below threshold", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				MinSubnetAvailableIPs: lo.ToPtr(1000), // Very high threshold
+			}))
+
+			// Setup subnets: all below threshold
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{
+				Subnets: []ec2types.Subnet{
+					{
+						SubnetId:                aws.String("subnet-test1"),
+						AvailabilityZone:        aws.String("test-zone-1a"),
+						AvailabilityZoneId:      aws.String("tstz1-1a"),
+						AvailableIpAddressCount: aws.Int32(5),
+					},
+					{
+						SubnetId:                aws.String("subnet-test2"),
+						AvailabilityZone:        aws.String("test-zone-1b"),
+						AvailabilityZoneId:      aws.String("tstz1-1b"),
+						AvailableIpAddressCount: aws.Int32(10),
+					},
+				},
+			})
+
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			nodeClass.Status.Subnets = []v1.Subnet{
+				{ID: "subnet-test1", Zone: "test-zone-1a", ZoneID: "tstz1-1a"},
+				{ID: "subnet-test2", Zone: "test-zone-1b", ZoneID: "tstz1-1b"},
+			}
+
+			zonalSubnets, err := awsEnv.SubnetProvider.ZonalSubnetsForLaunch(ctx, nodeClass, nil, "on-demand")
+			Expect(err).To(BeNil())
+
+			// Should return ALL zones (graceful degradation)
+			Expect(zonalSubnets).To(HaveLen(2))
+			Expect(zonalSubnets).To(HaveKey("test-zone-1a"))
+			Expect(zonalSubnets).To(HaveKey("test-zone-1b"))
+		})
+		It("should not filter when threshold is 0 (disabled)", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				MinSubnetAvailableIPs: lo.ToPtr(0),
+			}))
+
+			// Setup subnets with very low IPs
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{
+				Subnets: []ec2types.Subnet{
+					{
+						SubnetId:                aws.String("subnet-test1"),
+						AvailabilityZone:        aws.String("test-zone-1a"),
+						AvailabilityZoneId:      aws.String("tstz1-1a"),
+						AvailableIpAddressCount: aws.Int32(1), // Very low
+					},
+					{
+						SubnetId:                aws.String("subnet-test2"),
+						AvailabilityZone:        aws.String("test-zone-1b"),
+						AvailabilityZoneId:      aws.String("tstz1-1b"),
+						AvailableIpAddressCount: aws.Int32(2), // Very low
+					},
+				},
+			})
+
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			nodeClass.Status.Subnets = []v1.Subnet{
+				{ID: "subnet-test1", Zone: "test-zone-1a", ZoneID: "tstz1-1a"},
+				{ID: "subnet-test2", Zone: "test-zone-1b", ZoneID: "tstz1-1b"},
+			}
+
+			zonalSubnets, err := awsEnv.SubnetProvider.ZonalSubnetsForLaunch(ctx, nodeClass, nil, "on-demand")
+			Expect(err).To(BeNil())
+
+			// Should return all zones when threshold is 0
+			Expect(zonalSubnets).To(HaveLen(2))
+			Expect(zonalSubnets).To(HaveKey("test-zone-1a"))
+			Expect(zonalSubnets).To(HaveKey("test-zone-1b"))
+		})
+		It("should filter multiple zones and keep only those above threshold", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				MinSubnetAvailableIPs: lo.ToPtr(50),
+			}))
+
+			// Setup subnets: zone-1a has 10 IPs, zone-1b has 30 IPs, zone-1c has 100 IPs
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{
+				Subnets: []ec2types.Subnet{
+					{
+						SubnetId:                aws.String("subnet-test1"),
+						AvailabilityZone:        aws.String("test-zone-1a"),
+						AvailabilityZoneId:      aws.String("tstz1-1a"),
+						AvailableIpAddressCount: aws.Int32(10), // Below threshold
+					},
+					{
+						SubnetId:                aws.String("subnet-test2"),
+						AvailabilityZone:        aws.String("test-zone-1b"),
+						AvailabilityZoneId:      aws.String("tstz1-1b"),
+						AvailableIpAddressCount: aws.Int32(30), // Below threshold
+					},
+					{
+						SubnetId:                aws.String("subnet-test3"),
+						AvailabilityZone:        aws.String("test-zone-1c"),
+						AvailabilityZoneId:      aws.String("tstz1-1c"),
+						AvailableIpAddressCount: aws.Int32(100), // Above threshold
+					},
+				},
+			})
+
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			nodeClass.Status.Subnets = []v1.Subnet{
+				{ID: "subnet-test1", Zone: "test-zone-1a", ZoneID: "tstz1-1a"},
+				{ID: "subnet-test2", Zone: "test-zone-1b", ZoneID: "tstz1-1b"},
+				{ID: "subnet-test3", Zone: "test-zone-1c", ZoneID: "tstz1-1c"},
+			}
+
+			zonalSubnets, err := awsEnv.SubnetProvider.ZonalSubnetsForLaunch(ctx, nodeClass, nil, "on-demand")
+			Expect(err).To(BeNil())
+
+			// Only zone-1c should remain
+			Expect(zonalSubnets).To(HaveLen(1))
+			Expect(zonalSubnets).To(HaveKey("test-zone-1c"))
+			Expect(zonalSubnets).NotTo(HaveKey("test-zone-1a"))
+			Expect(zonalSubnets).NotTo(HaveKey("test-zone-1b"))
+		})
+	})
 })
 
 func ExpectConsistsOfSubnets(expected, actual []ec2types.Subnet) {
