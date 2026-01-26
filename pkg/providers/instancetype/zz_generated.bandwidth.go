@@ -51,6 +51,7 @@ var (
 		// m4.4xlarge has vague bandwidth information, bandwidth is High
 		// m4.large has vague bandwidth information, bandwidth is Moderate
 		// m4.xlarge has vague bandwidth information, bandwidth is High
+		// mac-m4max.metal is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// r3.2xlarge has vague bandwidth information, bandwidth is High
 		// r3.4xlarge has vague bandwidth information, bandwidth is High
 		// r3.large has vague bandwidth information, bandwidth is Moderate
@@ -1142,11 +1143,16 @@ var (
 		"m8gn.24xlarge":        300000,
 		"r8gn.24xlarge":        300000,
 		"r8gn.metal-24xl":      300000,
+		"c8gb.48xlarge":        400000,
+		"c8gb.metal-48xl":      400000,
 		"dl1.24xlarge":         400000,
 		"g6e.48xlarge":         400000,
 		"g7e.12xlarge":         400000,
+		"m8gb.48xlarge":        400000,
 		"p4d.24xlarge":         400000,
 		"p4de.24xlarge":        400000,
+		"r8gb.48xlarge":        400000,
+		"r8gb.metal-48xl":      400000,
 		"c8gn.48xlarge":        600000,
 		"c8gn.metal-48xl":      600000,
 		"m8gn.48xlarge":        600000,
