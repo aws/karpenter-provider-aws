@@ -51,6 +51,7 @@ func main() {
 	}
 
 	wg := &sync.WaitGroup{}
+	wg.Add(3)
 	wg.Go(func() {
 		<-op.Elected()
 		op.EC2API.StartBackupThread(ctx)
