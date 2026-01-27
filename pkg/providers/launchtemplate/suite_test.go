@@ -1382,25 +1382,32 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Expect(cpuCFSQuota).To(BeFalse())
 			}
 		})
-		It("should not pass any labels prefixed with the node-restriction.kubernetes.io domain", func() {
-			nodePool.Spec.Template.Labels = lo.Assign(nodePool.Spec.Template.Labels, map[string]string{
-				corev1.LabelNamespaceNodeRestriction + "/team":                        "team-1",
-				corev1.LabelNamespaceNodeRestriction + "/custom-label":                "custom-value",
-				"subdomain." + corev1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
-			})
-			nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(nodePool.Spec.Template.Labels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
-				return karpv1.NodeSelectorRequirementWithMinValues{
-					Key:      k,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{v},
-				}
-			})
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataNotContaining(corev1.LabelNamespaceNodeRestriction)
-		})
+		DescribeTable(
+			"should not pass any labels in restricted domains",
+			func(label string) {
+				nodePool.Spec.Template.Labels = lo.Assign(nodePool.Spec.Template.Labels, map[string]string{
+					label: "foobar",
+				})
+				nodePool.Spec.Template.Spec.Requirements = lo.MapToSlice(nodePool.Spec.Template.Labels, func(k, v string) karpv1.NodeSelectorRequirementWithMinValues {
+					return karpv1.NodeSelectorRequirementWithMinValues{
+						Key:      k,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{v},
+					}
+				})
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				ExpectLaunchTemplatesCreatedWithUserDataNotContaining(label)
+			},
+			Entry(corev1.LabelNamespaceNodeRestriction, corev1.LabelNamespaceNodeRestriction+"/bar"),
+			Entry("kubernetes.io", "kubernetes.io/bar"),
+			Entry("k8s.io", "k8s.io/bar"),
+			Entry("*."+corev1.LabelNamespaceNodeRestriction, "foo."+corev1.LabelNamespaceNodeRestriction+"/bar"),
+			Entry("kubernetes.io suffix", "foo.kubernetes.io/bar"),
+			Entry("*.k8s.io", "foo.k8s.io/bar"),
+		)
 		It("should specify --local-disks raid0 when instance-store policy is set on AL2", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
