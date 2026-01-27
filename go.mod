@@ -50,7 +50,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20251222233032-718f0e51e6d2
 	sigs.k8s.io/controller-runtime v0.22.4
-	sigs.k8s.io/karpenter v1.8.1-0.20260106031637-6b1da144076b
+	sigs.k8s.io/karpenter v1.8.1-0.20260127184550-37f5de7ac39f
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -123,7 +123,7 @@ require (
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/term v0.38.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.40.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
