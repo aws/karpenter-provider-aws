@@ -53,7 +53,8 @@ ci-test: test coverage ## Runs tests and submits coverage
 
 ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 
-run: ## Run Karpenter controller binary against your local cluster
+run: ## Run Karpenter controller binary against your local cluster with latest CRD's
+	kubectl apply -f ./pkg/apis/crds/
 	SYSTEM_NAMESPACE=${KARPENTER_NAMESPACE} \
 		KUBERNETES_MIN_VERSION="1.19.0-0" \
 		DISABLE_LEADER_ELECTION=true \
