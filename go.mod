@@ -50,7 +50,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20251222233032-718f0e51e6d2
 	sigs.k8s.io/controller-runtime v0.22.4
-	sigs.k8s.io/karpenter v1.8.1-0.20260106031637-6b1da144076b
+	sigs.k8s.io/karpenter v1.8.1-0.20260127184550-37f5de7ac39f
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -140,5 +140,3 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.1 // indirect
 )
-
-replace sigs.k8s.io/karpenter => github.com/maxcao13/karpenter v0.0.0-20260123022133-4a4a807b6bbf
