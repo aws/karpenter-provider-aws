@@ -120,6 +120,43 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 	)
 }
 
+// effectiveKubeReservedPods picks the pod count to use when deriving kubeReserved.
+// If the AMI family uses ENI-limited memory overhead, we floor by min(pods(), ENILimitedPods()).
+// Otherwise we use pods().
+func effectiveKubeReservedPods(
+	ctx context.Context,
+	info ec2types.InstanceTypeInfo,
+	amiFamily amifamily.AMIFamily, // added prefix amifamily
+	maxPods *int32,
+	podsPerCore *int32,
+) *resource.Quantity {
+	eni := ENILimitedPods(ctx, info, 0)                   // *resource.Quantity
+	p := pods(ctx, info, amiFamily, maxPods, podsPerCore) // *resource.Quantity
+
+	if amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead {
+		switch {
+		case p != nil && eni != nil && p.Value() > 0 && eni.Value() > 0:
+			if p.Cmp(*eni) < 0 {
+				return p
+			}
+			return eni
+		case p != nil && p.Value() > 0:
+			return p
+		default:
+			return eni
+		}
+	}
+	return p
+}
+
+// Conservative bypass: for Custom AMI, if user supplied explicit kubeReserved values,
+// honor those values only (don’t add the 11*pods + 255Mi memory formula).
+func bypassAutoKubeReserved(af amifamily.AMIFamily, kubeReserved map[string]string) bool {
+	// true only if the AMI family is Custom AND user supplied explicit kubeReserved values
+	_, isCustom := af.(*amifamily.Custom)
+	return isCustom && len(kubeReserved) > 0
+}
+
 func NewInstanceType(
 	ctx context.Context,
 	info ec2types.InstanceTypeInfo,
@@ -143,7 +180,18 @@ func NewInstanceType(
 		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, capacityReservations),
 		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead, ENILimitedPods(ctx, info, 0), pods(ctx, info, amiFamily, maxPods, podsPerCore)), kubeReserved),
+			KubeReserved: func() corev1.ResourceList {
+				if bypassAutoKubeReserved(amiFamily, kubeReserved) {
+					// honor only user-provided kubeReserved values (no 11*pods+255 added)
+					out := corev1.ResourceList{}
+					for k, v := range kubeReserved {
+						out[corev1.ResourceName(k)] = resource.MustParse(v)
+					}
+					return out
+				}
+				effPods := effectiveKubeReservedPods(ctx, info, amiFamily, maxPods, podsPerCore)
+				return kubeReservedResources(cpu(info), effPods, kubeReserved)
+			}(),
 			SystemReserved:    systemReservedResources(systemReserved),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), evictionHard),
 		},
