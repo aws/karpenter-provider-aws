@@ -359,7 +359,47 @@ $ kg nodeclaim $NODECLAIM_NAME -o jsonpath='{.status.conditions[?(@.type=="Consi
 This can be spot checked like shown above, or monitored via the following metric:
 
 ```
-operator_status_condition_count{type="ConsistentStateFound",kind="NodeClaim",status="False"}
+operator_nodeclaim_status_condition_count{type="ConsistentStateFound",kind="NodeClaim",status="False"}
+```
+
+#### Debugging kubeReserved Calculations
+
+To understand how Karpenter calculates `kubeReserved` for your instance types, you can enable verbose logging by setting the log level to 1 or higher. Karpenter will log detailed information about resource calculations:
+
+```bash
+# View Karpenter logs with verbose output
+kubectl logs -n karpenter deploy/karpenter -f
+```
+
+Look for log entries with the message `"calculated instance type resources"` which includes:
+- `instance-type`: The EC2 instance type being evaluated
+- `ami-family`: The AMI family being used (e.g., AL2, AL2023, Bottlerocket, Custom)
+- `max-pods-configured`: User-configured maxPods value (if set)
+- `effective-pods`: The actual pod count used for kubeReserved calculation
+- `uses-eni-limited-overhead`: Whether ENI-limited calculation is used
+- `kube-reserved-memory`: Memory reserved for Kubernetes components
+- `kube-reserved-cpu`: CPU reserved for Kubernetes components
+- `allocatable-memory`: Final allocatable memory after all reservations
+- `allocatable-cpu`: Final allocatable CPU after all reservations
+
+**Understanding kubeReserved defaults:**
+
+For EKS-optimized AMI families (AL2, AL2023, Bottlerocket), Karpenter automatically calculates `kubeReserved` based on:
+- **Memory**: `11 MiB * pods + 255 MiB` (where pods is either ENI-limited or maxPods)
+- **CPU**: Based on instance CPU count using a graduated percentage scale
+
+For Custom AMI families, the same calculation is applied by default. If you're using a Custom AMI with different kubelet configuration, you should explicitly set `kubeReserved` in your EC2NodeClass:
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+spec:
+  amiFamily: Custom
+  kubelet:
+    kubeReserved:
+      cpu: "100m"
+      memory: "500Mi"
+    maxPods: 110
 ```
 
 ### Karpenter Is Unable to Satisfy Topology Spread Constraint
