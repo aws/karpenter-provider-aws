@@ -76,11 +76,13 @@ type BottlerocketKubernetes struct {
 	ContainerLogMaxSize                *string                                   `toml:"container-log-max-size,omitempty"`
 	ContainerLogMaxFiles               *int                                      `toml:"container-log-max-files,omitempty"`
 	CPUManagerPolicy                   *string                                   `toml:"cpu-manager-policy,omitempty"`
+	CPUManagerPolicyOptions            []string                                  `toml:"cpu-manager-policy-options,omitempty"`
 	CPUManagerReconcilePeriod          *string                                   `toml:"cpu-manager-reconcile-period,omitempty"`
 	TopologyManagerScope               *string                                   `toml:"topology-manager-scope,omitempty"`
 	TopologyManagerPolicy              *string                                   `toml:"topology-manager-policy,omitempty"`
 	ImageGCHighThresholdPercent        *string                                   `toml:"image-gc-high-threshold-percent,omitempty"`
 	ImageGCLowThresholdPercent         *string                                   `toml:"image-gc-low-threshold-percent,omitempty"`
+	IdsPerPod                          *int                                      `toml:"ids-per-pod,omitempty"`
 	CPUCFSQuota                        *bool                                     `toml:"cpu-cfs-quota-enforced,omitempty"`
 	ShutdownGracePeriod                *string                                   `toml:"shutdown-grace-period,omitempty"`
 	ShutdownGracePeriodForCriticalPods *string                                   `toml:"shutdown-grace-period-for-critical-pods,omitempty"`
