@@ -135,7 +135,7 @@ func (c *BottlerocketConfig) UnmarshalTOML(ctx context.Context, data []byte) err
 		return err
 	}
 
-	// To log misconfigured / unsuported k8s userData, we re-marshal the k8s settings
+	// To log misconfigured / unsupported k8s userData, we re-marshal the k8s settings
 	// and re-unmarshal with TOML strict mode to log any errors
 	if k8sRaw, ok := c.SettingsRaw["kubernetes"]; ok {
 		k8sData, err := toml.Marshal(k8sRaw)
