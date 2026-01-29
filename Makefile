@@ -1,7 +1,12 @@
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
+# TODO(maxcao13): We don't maintain tags like upstream does, so we need to manually update a canonical version here.
+# Every time we do a rebase, we should update this variable to match upstream. If you have upstream as a remote repo, you can find the latest tag by:
+# git describe --tags --abbrev=0 --match "v*" --candidates=1
+OPENSHIFT_AWS_KARPENTER_VERSION = 1.4.2
+
 ## Inject the app version into operator.Version
-LDFLAGS ?= -ldflags=-X=sigs.k8s.io/karpenter/pkg/operator.Version=$(shell git describe --tags --always | cut -d"v" -f2)
+LDFLAGS ?= -ldflags=-X=sigs.k8s.io/karpenter/pkg/operator.Version=${OPENSHIFT_AWS_KARPENTER_VERSION}
 
 GOFLAGS += $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
