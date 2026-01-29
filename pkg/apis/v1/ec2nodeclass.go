@@ -74,7 +74,7 @@ type EC2NodeClassSpec struct {
 	// alias is specified, this field is required.
 	// NOTE: We ignore the AMIFamily for hashing here because we hash the AMIFamily dynamically by using the alias using
 	// the AMIFamily() helper function
-	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Custom,Windows2019,Windows2022}
+	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Custom,Windows2019,Windows2022,Windows2025}
 	// +optional
 	AMIFamily *string `json:"amiFamily,omitempty" hash:"ignore"`
 	// UserData to be applied to the provisioned nodes.
@@ -204,13 +204,13 @@ type CapacityReservationSelectorTerm struct {
 type AMISelectorTerm struct {
 	// Alias specifies which EKS optimized AMI to select.
 	// Each alias consists of a family and an AMI version, specified as "family@version".
-	// Valid families include: al2, al2023, bottlerocket, windows2019, and windows2022.
+	// Valid families include: al2, al2023, bottlerocket, windows2019, windows2022, windows2025.
 	// The version can either be pinned to a specific AMI release, with that AMIs version format (ex: "al2023@v20240625" or "bottlerocket@v1.10.0").
 	// The version can also be set to "latest" for any family. Setting the version to latest will result in drift when a new AMI is released. This is **not** recommended for production environments.
 	// Note: The Windows families do **not** support version pinning, and only latest may be used.
 	// +kubebuilder:validation:XValidation:message="'alias' is improperly formatted, must match the format 'family@version'",rule="self.matches('^[a-zA-Z0-9]+@.+$')"
-	// +kubebuilder:validation:XValidation:message="family is not supported, must be one of the following: 'al2', 'al2023', 'bottlerocket', 'windows2019', 'windows2022'",rule="self.split('@')[0] in ['al2','al2023','bottlerocket','windows2019','windows2022']"
-	// +kubebuilder:validation:XValidation:message="windows families may only specify version 'latest'",rule="self.split('@')[0] in ['windows2019','windows2022'] ? self.split('@')[1] == 'latest' : true"
+	// +kubebuilder:validation:XValidation:message="family is not supported, must be one of the following: 'al2', 'al2023', 'bottlerocket', 'windows2019', 'windows2022', 'windows2025'",rule="self.split('@')[0] in ['al2','al2023','bottlerocket','windows2019','windows2022','windows2025']"
+	// +kubebuilder:validation:XValidation:message="windows families may only specify version 'latest'",rule="self.split('@')[0] in ['windows2019','windows2022','windows2025'] ? self.split('@')[1] == 'latest' : true"
 	// +kubebuilder:validation:MaxLength=30
 	// +optional
 	Alias string `json:"alias,omitempty"`
@@ -476,6 +476,7 @@ type EC2NodeClass struct {
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Bottlerocket' or 'Custom' when using a Bottlerocket alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'bottlerocket') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Bottlerocket') : true)"
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Windows2019' or 'Custom' when using a Windows2019 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'windows2019') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Windows2019') : true)"
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Windows2022' or 'Custom' when using a Windows2022 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'windows2022') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Windows2022') : true)"
+	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Windows2025' or 'Custom' when using a Windows2025 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'windows2025') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Windows2025') : true)"
 	// +kubebuilder:validation:XValidation:message="must specify amiFamily if amiSelectorTerms does not contain an alias",rule="self.amiSelectorTerms.exists(x, has(x.alias)) ? true : has(self.amiFamily)"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
 	Status EC2NodeClassStatus `json:"status,omitempty"`
@@ -587,6 +588,7 @@ func amiFamilyFromAlias(alias string) string {
 		AMIFamilyBottlerocket,
 		AMIFamilyWindows2019,
 		AMIFamilyWindows2022,
+		AMIFamilyWindows2025,
 	}, func(family string) bool {
 		return strings.ToLower(family) == components[0]
 	})

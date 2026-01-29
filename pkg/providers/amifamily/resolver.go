@@ -204,6 +204,8 @@ func GetAMIFamily(amiFamily string, options *Options) AMIFamily {
 		return &Windows{Options: options, Version: v1.Windows2019, Build: v1.Windows2019Build}
 	case v1.AMIFamilyWindows2022:
 		return &Windows{Options: options, Version: v1.Windows2022, Build: v1.Windows2022Build}
+	case v1.AMIFamilyWindows2025:
+		return &Windows{Options: options, Version: v1.Windows2025, Build: v1.Windows2025Build}
 	case v1.AMIFamilyCustom:
 		return &Custom{Options: options}
 	case v1.AMIFamilyAL2023:
@@ -294,7 +296,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			UserData: amiFamily.UserData(
 				r.defaultClusterDNS(options, kubeletConfig),
 				taints,
-				options.Labels,
+				RejectForbiddenLabels(options.Labels),
 				options.CABundle,
 				instanceTypes,
 				nodeClass.Spec.UserData,
@@ -322,4 +324,31 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		}
 		return resolved
 	})
+}
+
+// RejectForbiddenLabels rejects any label from the provided set that would be blocked during node admission.
+// Ref: https://github.com/kubernetes/kubernetes/blob/8d450ef773127374148abad4daaf28dac6cb2625/plugin/pkg/admission/noderestriction/admission.go#L520-L525
+func RejectForbiddenLabels(labels map[string]string) map[string]string {
+	filteredLabels := make(map[string]string, len(labels))
+	for label, value := range labels {
+		if isRestrictedLabel(label) {
+			continue
+		}
+		filteredLabels[label] = value
+	}
+	return filteredLabels
+}
+
+func isRestrictedLabel(label string) bool {
+	domain := karpv1.GetLabelDomain(label)
+	for _, restrictedDomain := range []string{
+		corev1.LabelNamespaceNodeRestriction,
+		"kubernetes.io",
+		"k8s.io",
+	} {
+		if domain == restrictedDomain || strings.HasSuffix(domain, "."+restrictedDomain) {
+			return true
+		}
+	}
+	return false
 }

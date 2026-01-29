@@ -527,6 +527,15 @@ max-pods = 110
 </powershell>
 ```
 
+### Windows2025
+
+```powershell
+<powershell>
+[string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
+& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test" --max-pods=110' -DNSClusterIP '10.100.0.10'
+</powershell>
+```
+
 ### Custom
 
 The `Custom` AMIFamily ships without any default userData to allow you to configure custom bootstrapping for control planes or images that don't support the default methods from the other families. For this AMIFamily, kubelet must add the taint `karpenter.sh/unregistered:NoExecute` via the `--register-with-taints` flag ([flags](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/#options)) or the KubeletConfiguration spec ([options](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/#kubelet-config-k8s-io-v1-CredentialProviderConfig) and [docs](https://kubernetes.io/docs/tasks/administer-cluster/kubelet-config-file/)). Karpenter will fail to register nodes that do not have this taint.
@@ -744,6 +753,7 @@ An `alias` term can be used to select EKS-optimized AMIs. An `alias` is formatte
 * `bottlerocket`
 * `windows2019`
 * `windows2022`
+* `windows2025`
 
 The version string can be set to `latest`, or pinned to a specific AMI using the format of that AMI's GitHub release tags.
 For example, AL2 and AL2023 use dates for their release, so they can be pinned as follows:
@@ -1055,7 +1065,7 @@ spec:
         encrypted: true
 ```
 
-### Windows2019/Windows2022
+### Windows2019/Windows2022/Windows2025
 ```yaml
 spec:
   blockDeviceMappings:
@@ -1492,7 +1502,7 @@ This allows the container to take ownership of devices allocated to the pod via 
 
 This setting helps you enable Neuron workloads on Bottlerocket instances. See [Accelerators/GPU Resources]({{< ref "./scheduling#acceleratorsgpu-resources" >}}) for more details.
 
-### Windows2019/Windows2022
+### Windows2019/Windows2022/Windows2025
 
 * Your UserData must be specified as PowerShell commands.
 * The UserData specified will be prepended to a Karpenter managed section that will bootstrap the kubelet.
