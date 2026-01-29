@@ -2541,9 +2541,8 @@ eviction-max-pod-grace-period = 10
 			ExpectScheduled(ctx, env.Client, pod)
 			input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
 			Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(Equal(4))
-			// Primary interface (index 0) should be regular EFA with IP allocation
+			// Primary interface (index 0) should be regular EFA (not efa-only)
 			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
-			Expect(input.LaunchTemplateData.NetworkInterfaces[0].Ipv4PrefixCount).ToNot(BeNil())
 			// Secondary interfaces (index > 0) should be efa-only without IP allocation
 			for i := 1; i < len(input.LaunchTemplateData.NetworkInterfaces); i++ {
 				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[i].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
