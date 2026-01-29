@@ -104,7 +104,7 @@ func (p *DefaultProvider) DeleteSQSMessage(ctx context.Context, msg *sqstypes.Me
 	return nil
 }
 
-func NewSQSProvider(ctx context.Context, sqsapi *sqs.Client) (Provider, error) {
+func NewSQSProvider(ctx context.Context, sqsapi sdk.SQSAPI) (Provider, error) {
 	out, err := sqsapi.GetQueueUrl(ctx, &sqs.GetQueueUrlInput{QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)})
 	if err != nil {
 		return nil, err
