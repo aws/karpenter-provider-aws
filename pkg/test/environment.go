@@ -85,7 +85,7 @@ type Environment struct {
 	DiscoveredCapacityCache              *cache.Cache
 	CapacityReservationCache             *cache.Cache
 	CapacityReservationAvailabilityCache *cache.Cache
-	ValidationCache                      *cache.Cache
+	ValidationCache                      *awscache.Validation
 	RecreationCache                      *cache.Cache
 	ProtectedProfilesCache               *cache.Cache
 
@@ -135,7 +135,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationAvailabilityCache := cache.New(24*time.Hour, awscache.DefaultCleanupInterval)
-	validationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	validationCache := awscache.NewValidation()
 	recreationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
 	eventRecorder := coretest.NewEventRecorder()
@@ -187,6 +187,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		launchTemplateProvider,
 		capacityReservationProvider,
 		instanceCache,
+		validationCache,
 	)
 
 	return &Environment{

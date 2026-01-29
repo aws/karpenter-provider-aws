@@ -41,6 +41,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -475,6 +476,51 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		ExpectNotFound(ctx, env.Client, nodeClass)
 		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
+	})
+	It("should skip validation after successful instance creation", func() {
+		nodeSelectReq := []karpv1.NodeSelectorRequirementWithMinValues{
+			{
+				Key:      corev1.LabelInstanceTypeStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{string(ec2types.InstanceTypeM5Large)},
+			},
+		}
+		nodeClassRef := &karpv1.NodeClassReference{
+			Group: object.GVK(nodeClass).Group,
+			Kind:  object.GVK(nodeClass).Kind,
+			Name:  nodeClass.Name,
+		}
+		nodePool := coretest.NodePool(karpv1.NodePool{Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{
+			Spec: karpv1.NodeClaimTemplateSpec{Requirements: nodeSelectReq, NodeClassRef: nodeClassRef}}}})
+		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{Spec: karpv1.NodeClaimSpec{Requirements: nodeSelectReq, NodeClassRef: nodeClassRef}})
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+
+		// Run all controllers to resolve the NodeClass
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		// Remove any validation results from the first reconcile
+		awsEnv.ValidationCache.Flush()
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		// Create instance with the resolved NodeClass
+		tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
+		Expect(err).ToNot(HaveOccurred())
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, tags, instanceTypes)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(instance).ToNot(BeNil())
+		// Verify validation cache was populated by the successful CreateFleet
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(1))
+		// Reset API call counters to correctly count in validation controller reconcile
+		awsEnv.EC2API.Reset()
+		// Re-run controllers
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		// Validation should succeed without making any calls
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
+		Expect(awsEnv.EC2API.CreateFleetBehavior.Calls()).To(Equal(0))
+		Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.Calls()).To(Equal(0))
+		Expect(awsEnv.EC2API.RunInstancesBehavior.Calls()).To(Equal(0))
 	})
 	It("should pass validation when the validation controller is disabled", func() {
 		controller = nodeclass.NewController(
