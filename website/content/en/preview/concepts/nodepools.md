@@ -295,6 +295,9 @@ spec:
         - key: kubernetes.io/os
           operator: In
           values: ["linux"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]
         - key: karpenter.k8s.aws/instance-category
           operator: In
           values: ["c", "m", "r"]
