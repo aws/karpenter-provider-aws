@@ -2500,6 +2500,94 @@ eviction-max-pod-grace-period = 10
 			)
 		})
 	})
+	Context("EFA Configuration via EC2NodeClass", func() {
+		It("should enable EFA interfaces when EC2NodeClass.spec.efa.enabled is true", func() {
+			nodeClass.Spec.EFA = &v1.EFAConfiguration{
+				Enabled: lo.ToPtr(true),
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			// Create a pod without EFA resource requests - EFA should still be enabled via EC2NodeClass
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(BeNumerically(">=", 1))
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
+		})
+		It("should use specified EFA count from EC2NodeClass.spec.efa.count", func() {
+			nodeClass.Spec.EFA = &v1.EFAConfiguration{
+				Enabled: lo.ToPtr(true),
+				Count:   lo.ToPtr(int32(4)),
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(Equal(4))
+			for i, nic := range input.LaunchTemplateData.NetworkInterfaces {
+				Expect(lo.FromPtr(nic.NetworkCardIndex)).To(Equal(int32(i)))
+			}
+		})
+		It("should configure secondary EFA interfaces as efa-only when efaOnlySecondaryInterfaces is true", func() {
+			nodeClass.Spec.EFA = &v1.EFAConfiguration{
+				Enabled:                    lo.ToPtr(true),
+				Count:                      lo.ToPtr(int32(4)),
+				EFAOnlySecondaryInterfaces: lo.ToPtr(true),
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(Equal(4))
+			// Primary interface (index 0) should be regular EFA with IP allocation
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
+			Expect(input.LaunchTemplateData.NetworkInterfaces[0].Ipv4PrefixCount).ToNot(BeNil())
+			// Secondary interfaces (index > 0) should be efa-only without IP allocation
+			for i := 1; i < len(input.LaunchTemplateData.NetworkInterfaces); i++ {
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[i].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
+				Expect(input.LaunchTemplateData.NetworkInterfaces[i].Ipv4PrefixCount).To(BeNil())
+				Expect(input.LaunchTemplateData.NetworkInterfaces[i].Ipv6PrefixCount).To(BeNil())
+			}
+		})
+		It("should configure all EFA interfaces with IP addresses when efaOnlySecondaryInterfaces is false", func() {
+			nodeClass.Spec.EFA = &v1.EFAConfiguration{
+				Enabled:                    lo.ToPtr(true),
+				Count:                      lo.ToPtr(int32(4)),
+				EFAOnlySecondaryInterfaces: lo.ToPtr(false),
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(Equal(4))
+			// All interfaces should be regular EFA with IP allocation
+			for _, nic := range input.LaunchTemplateData.NetworkInterfaces {
+				Expect(lo.FromPtr(nic.InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
+			}
+		})
+		It("should prefer pod-driven EFA requests over EC2NodeClass configuration", func() {
+			nodeClass.Spec.EFA = &v1.EFAConfiguration{
+				Enabled: lo.ToPtr(true),
+				Count:   lo.ToPtr(int32(2)), // EC2NodeClass requests 2 EFA interfaces
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			// Pod requests more EFA interfaces than EC2NodeClass specifies
+			pod := coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{v1.ResourceEFA: resource.MustParse("4")},
+					Limits:   corev1.ResourceList{v1.ResourceEFA: resource.MustParse("4")},
+				},
+			})
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			// Pod's request should take precedence
+			Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(BeNumerically(">=", 4))
+		})
+	})
 	Context("Tenancy", func() {
 		DescribeTable("should set tenancy on launch template",
 			func(specTenancy *string, tenancy ec2types.Tenancy) {

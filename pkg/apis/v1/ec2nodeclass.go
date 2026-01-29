@@ -143,6 +143,36 @@ type EC2NodeClassSpec struct {
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
 	Context *string `json:"context,omitempty"`
+	// EFA configures Elastic Fabric Adapter (EFA) settings for high-performance networking.
+	// When enabled, nodes are provisioned with EFA interfaces regardless of pod requests,
+	// which is useful for static NodePools (spec.replicas) where no pods drive provisioning.
+	// +optional
+	EFA *EFAConfiguration `json:"efa,omitempty"`
+}
+
+// EFAConfiguration defines EFA settings for the EC2NodeClass
+type EFAConfiguration struct {
+	// Enabled forces EFA interfaces to be attached to all nodes provisioned by this EC2NodeClass.
+	// When true, nodes will have EFA interfaces even without pods explicitly requesting
+	// vpc.amazonaws.com/efa resources. This is particularly useful for static NodePools
+	// where nodes are provisioned based on replica count rather than pod scheduling.
+	// +kubebuilder:default=false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// Count specifies the number of EFA interfaces to attach to each node.
+	// If not specified and Enabled is true, uses the maximum number of EFA interfaces
+	// supported by the instance type.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	Count *int32 `json:"count,omitempty"`
+	// EFAOnlySecondaryInterfaces when true, configures secondary EFA interfaces (index > 0)
+	// as "efa-only" type without IP addresses. This saves CIDR IP space for RDMA-only
+	// workloads where secondary interfaces are used exclusively for EFA traffic (e.g., NCCL).
+	// The primary interface (index 0) always gets an IP address for node communication.
+	// When false, all EFA interfaces receive IP addresses.
+	// +kubebuilder:default=true
+	// +optional
+	EFAOnlySecondaryInterfaces *bool `json:"efaOnlySecondaryInterfaces,omitempty"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
