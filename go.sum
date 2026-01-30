@@ -1,3 +1,5 @@
+github.com/AndrewMitchell25/karpenter v0.0.0-20260130220111-b41012b05284 h1:MKqxY516QDrPXuwpt6VtwPeEAOGMQlV7r91phAsIsHw=
+github.com/AndrewMitchell25/karpenter v0.0.0-20260130220111-b41012b05284/go.mod h1:qQOhEoIl4nqo6vkGhEw95tzcXou5Osjn/mvLzIVFw5A=
 github.com/Masterminds/semver/v3 v3.4.0 h1:Zog+i5UMtVoCU8oKka5P7i9q9HgrJeGzI9SA1Xbatp0=
 github.com/Masterminds/semver/v3 v3.4.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/Pallinder/go-randomdata v1.2.0 h1:DZ41wBchNRb/0GfsePLiSwb0PHZmT67XY00lCDlaYPg=
@@ -375,8 +377,6 @@ sigs.k8s.io/controller-runtime v0.22.4 h1:GEjV7KV3TY8e+tJ2LCTxUTanW4z/FmNB7l327U
 sigs.k8s.io/controller-runtime v0.22.4/go.mod h1:+QX1XUpTXN4mLoblf4tqr5CQcyHPAki2HLXqQMY6vh8=
 sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 h1:IpInykpT6ceI+QxKBbEflcR5EXP7sU1kvOlxwZh5txg=
 sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730/go.mod h1:mdzfpAEoE6DHQEN0uh9ZbOCuHbLK5wOm7dK4ctXE9Tg=
-sigs.k8s.io/karpenter v1.8.1-0.20260127184550-37f5de7ac39f h1:fJkitPD8X6KLHabTVUPEBdyvUAU2dJFe4mF7ELyWzTw=
-sigs.k8s.io/karpenter v1.8.1-0.20260127184550-37f5de7ac39f/go.mod h1:Nh+C9T8A7VHKy5OUQeZ8O1AsYguXyxLUIpRftcU/i5E=
 sigs.k8s.io/randfill v1.0.0 h1:JfjMILfT8A6RbawdsK2JXGBR5AQVfd+9TbzrlneTyrU=
 sigs.k8s.io/randfill v1.0.0/go.mod h1:XeLlZ/jmk4i1HRopwe7/aU3H5n1zNUcX6TM94b3QxOY=
 sigs.k8s.io/structured-merge-diff/v6 v6.3.1 h1:JrhdFMqOd/+3ByqlP2I45kTOZmTRLBUm5pvRjeheg7E=
