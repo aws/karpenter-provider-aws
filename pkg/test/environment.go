@@ -36,6 +36,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/reservedinstance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
@@ -155,7 +156,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
 	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion)
 	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
-	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, unavailableOfferingsCache, instanceTypesResolver)
+	reservedInstanceProvider := reservedinstance.NewDefaultProvider(ec2api, cache.New(awscache.ReservedInstancePriceTTL, awscache.DefaultCleanupInterval))
+	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, unavailableOfferingsCache, reservedInstanceProvider, instanceTypesResolver)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
 	lo.Must0(instanceTypesProvider.UpdateInstanceTypes(ctx))
@@ -186,6 +188,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		subnetProvider,
 		launchTemplateProvider,
 		capacityReservationProvider,
+		reservedInstanceProvider,
 		instanceCache,
 	)
 
