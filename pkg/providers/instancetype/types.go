@@ -407,7 +407,11 @@ func nvidiaGPUs(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	if info.GpuInfo != nil {
 		for _, gpu := range info.GpuInfo.Gpus {
 			if *gpu.Manufacturer == "NVIDIA" {
-				count += *gpu.Count
+				if *gpu.Count > 0 {
+					count += *gpu.Count
+				} else if gpu.LogicalGpuCount != nil && *gpu.LogicalGpuCount > 0 {
+					count += *gpu.LogicalGpuCount
+				}
 			}
 		}
 	}
