@@ -120,7 +120,7 @@ const (
 
 // hugepages-2Mi and hugepages-1Gi are not supported by kubelet memory manager and will make kubelet fail to start, so skip those
 type BottlerocketReservedMemory struct {
-	Enabled *bool   `toml:"enabled"`
+	Enabled *bool   `toml:"enabled,omitempty"`
 	Memory  *string `toml:"memory,omitempty"`
 }
 
