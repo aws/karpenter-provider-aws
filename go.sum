@@ -1,5 +1,5 @@
-github.com/AndrewMitchell25/karpenter v0.0.0-20260130220111-b41012b05284 h1:MKqxY516QDrPXuwpt6VtwPeEAOGMQlV7r91phAsIsHw=
-github.com/AndrewMitchell25/karpenter v0.0.0-20260130220111-b41012b05284/go.mod h1:qQOhEoIl4nqo6vkGhEw95tzcXou5Osjn/mvLzIVFw5A=
+github.com/AndrewMitchell25/karpenter v0.0.0-20260202181058-817b2c2649bc h1:4dZo+yQMA0yFvzdIXpp6/BsER5yPNmCkTwX94+kyHCM=
+github.com/AndrewMitchell25/karpenter v0.0.0-20260202181058-817b2c2649bc/go.mod h1:qQOhEoIl4nqo6vkGhEw95tzcXou5Osjn/mvLzIVFw5A=
 github.com/Masterminds/semver/v3 v3.4.0 h1:Zog+i5UMtVoCU8oKka5P7i9q9HgrJeGzI9SA1Xbatp0=
 github.com/Masterminds/semver/v3 v3.4.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/Pallinder/go-randomdata v1.2.0 h1:DZ41wBchNRb/0GfsePLiSwb0PHZmT67XY00lCDlaYPg=
