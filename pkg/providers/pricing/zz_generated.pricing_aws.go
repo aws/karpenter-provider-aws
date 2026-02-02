@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2026-01-21T19:34:29Z for us-east-1
+// generated at 2026-02-02T13:32:47Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -112,8 +112,9 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"c8g.medium": 0.039880, "c8g.metal-24xl": 4.211330, "c8g.metal-48xl": 7.656960, "c8g.xlarge": 0.159520,
 		// c8gb family
 		"c8gb.12xlarge": 2.844000, "c8gb.16xlarge": 3.792000, "c8gb.24xlarge": 5.688000, "c8gb.2xlarge": 0.474000,
-		"c8gb.4xlarge": 0.948000, "c8gb.8xlarge": 1.896000, "c8gb.large": 0.118500, "c8gb.medium": 0.059250,
-		"c8gb.metal-24xl": 6.029280, "c8gb.xlarge": 0.237000,
+		"c8gb.48xlarge": 11.376000, "c8gb.4xlarge": 0.948000, "c8gb.8xlarge": 1.896000, "c8gb.large": 0.118500,
+		"c8gb.medium": 0.059250, "c8gb.metal-24xl": 6.029280, "c8gb.metal-48xl": 11.376000,
+		"c8gb.xlarge": 0.237000,
 		// c8gd family
 		"c8gd.12xlarge": 2.351520, "c8gd.16xlarge": 3.135360, "c8gd.24xlarge": 4.703040, "c8gd.2xlarge": 0.391920,
 		"c8gd.48xlarge": 9.406080, "c8gd.4xlarge": 0.783840, "c8gd.8xlarge": 1.567680, "c8gd.large": 0.097980,
@@ -317,8 +318,8 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"m8g.medium": 0.044880, "m8g.metal-24xl": 4.739330, "m8g.metal-48xl": 8.616960, "m8g.xlarge": 0.179520,
 		// m8gb family
 		"m8gb.12xlarge": 3.492000, "m8gb.16xlarge": 4.656000, "m8gb.24xlarge": 6.984000, "m8gb.2xlarge": 0.582000,
-		"m8gb.4xlarge": 1.164000, "m8gb.8xlarge": 2.328000, "m8gb.large": 0.145500, "m8gb.medium": 0.072750,
-		"m8gb.xlarge": 0.291000,
+		"m8gb.48xlarge": 13.968000, "m8gb.4xlarge": 1.164000, "m8gb.8xlarge": 2.328000, "m8gb.large": 0.145500,
+		"m8gb.medium": 0.072750, "m8gb.xlarge": 0.291000,
 		// m8gd family
 		"m8gd.12xlarge": 2.767680, "m8gd.16xlarge": 3.690240, "m8gd.24xlarge": 5.535360, "m8gd.2xlarge": 0.461280,
 		"m8gd.48xlarge": 11.070720, "m8gd.4xlarge": 0.922560, "m8gd.8xlarge": 1.845120, "m8gd.large": 0.115320,
@@ -443,8 +444,9 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"r8g.medium": 0.058910, "r8g.metal-24xl": 6.220900, "r8g.metal-48xl": 11.310720, "r8g.xlarge": 0.235640,
 		// r8gb family
 		"r8gb.12xlarge": 4.372320, "r8gb.16xlarge": 5.829760, "r8gb.24xlarge": 8.744640, "r8gb.2xlarge": 0.728720,
-		"r8gb.4xlarge": 1.457440, "r8gb.8xlarge": 2.914880, "r8gb.large": 0.182180, "r8gb.medium": 0.091090,
-		"r8gb.metal-24xl": 18.538640, "r8gb.xlarge": 0.364360,
+		"r8gb.48xlarge": 17.489280, "r8gb.4xlarge": 1.457440, "r8gb.8xlarge": 2.914880, "r8gb.large": 0.182180,
+		"r8gb.medium": 0.091090, "r8gb.metal-24xl": 18.538640, "r8gb.metal-48xl": 17.489280,
+		"r8gb.xlarge": 0.364360,
 		// r8gd family
 		"r8gd.12xlarge": 3.527040, "r8gd.16xlarge": 4.702720, "r8gd.24xlarge": 7.054080, "r8gd.2xlarge": 0.587840,
 		"r8gd.48xlarge": 14.108160, "r8gd.4xlarge": 1.175680, "r8gd.8xlarge": 2.351360, "r8gd.large": 0.146960,
