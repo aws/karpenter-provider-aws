@@ -78,7 +78,6 @@ type BottlerocketKubernetes struct {
 	CPUManagerPolicy                   *string                                   `toml:"cpu-manager-policy,omitempty"`
 	CPUManagerReconcilePeriod          *string                                   `toml:"cpu-manager-reconcile-period,omitempty"`
 	MemoryManagerPolicy                *string                                   `toml:"memory-manager-policy,omitempty"`
-	MemoryManagerReservedMemory        map[string]BottlerocketReservedMemory     `toml:"memory-manager-reserved-memory,omitempty"`
 	TopologyManagerScope               *string                                   `toml:"topology-manager-scope,omitempty"`
 	TopologyManagerPolicy              *string                                   `toml:"topology-manager-policy,omitempty"`
 	ImageGCHighThresholdPercent        *string                                   `toml:"image-gc-high-threshold-percent,omitempty"`
@@ -117,12 +116,6 @@ const (
 	BootstrapCommandModeOnce   BootstrapCommandMode = "once"
 	BootstrapCommandModeOff    BootstrapCommandMode = "off"
 )
-
-// hugepages-2Mi and hugepages-1Gi are not supported by kubelet memory manager and will make kubelet fail to start, so skip those
-type BottlerocketReservedMemory struct {
-	Enabled *bool   `toml:"enabled"`
-	Memory  *string `toml:"memory,omitempty"`
-}
 
 // BootstrapCommand model defined in the Bottlerocket Core Kit in
 // https://github.com/bottlerocket-os/bottlerocket-core-kit/blob/fdf32c291ad18370de3a5fdc4c20a9588bc14177/sources/bootstrap-commands/src/main.rs#L57
