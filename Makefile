@@ -101,7 +101,7 @@ upstream-e2etests: tidy download
 		-count 1 \
 		-timeout 3.25h \
 		-v \
-		./test/suites/... \
+		./test/suites/regression/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.timeout=3h \
 		--ginkgo.grace-period=5m \
