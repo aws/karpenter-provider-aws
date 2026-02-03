@@ -27,7 +27,7 @@ while IFS= read -r tag; do
     printf "failed to pull controller image from ECR (tag: %s)\n" "${tag}"
     exit 1
   fi
-done < <(gh release list --repo "${GH_REPO}" --json tagName -L "${RELEASE_COUNT}" | go tool -modfile=go.tools.mod yq '.[].tagName')
+done < <(gh release list --repo "${GH_REPO}" --json tagName -L "${RELEASE_COUNT}" | go tool yq '.[].tagName')
 
 # Check that the charts.karpenter.sh repo is still working until removed
 helm repo add karpenter https://charts.karpenter.sh/
