@@ -8,7 +8,7 @@ Before using the aws kwok provider, make sure that you don't have an installed v
 - Have a cluster that you can install Karpenter on to.
     - For an example on how to make a cluster in AWS, refer to [karpenter.sh](https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/)
 
-If you use a kind cluster, please set the the following environment variables:
+If you use a kind cluster, please set the following environment variables:
 ```bash
 export KO_DOCKER_REPO=kind.local
 export KIND_CLUSTER_NAME=<kind cluster name, for example, chart-testing>

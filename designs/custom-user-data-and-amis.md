@@ -170,7 +170,7 @@ systemctl restart kubelet
 * Making modifications via bash in the UserData is *not easy*. Using jq _*is painful*_ because it doesn’t support in-place updates / json merges etc.
     * Updating the `.conf` files that has the kubelet args is difficult since you'd need to sed / awk your way through.
 * Your options are now limitless - you have full control over the worker node's contents and can potentially make any changes you'd like. You can also see what Karpenter was planning to start the kubelet as.
-* We’re establishing a runtime-contract that the the kubelet configurations will always be in-place at specific file locations. We can’t change this runtime contract over time for backwards compatibility.
+* We're establishing a runtime-contract that the kubelet configurations will always be in-place at specific file locations. We can’t change this runtime contract over time for backwards compatibility.
 * We can create variations of this approach. For example, we can establish a runtime contract where we tell users that they can give us a kubelet-config-custom.json in a specific directory, and do the merging for them as part of the final MIME part.
 * With this option, we give users the ability to do CASE1 and CASE2 bringing parity to the AL2 and BR experience.
 * There’s shared responsibility in the success of the kubelet. If users completely remove the labels Karpenter applies, or modify nodeAllocatable etc, then they're on the hook to debug failures. This is difficult to define outside of documentation.
