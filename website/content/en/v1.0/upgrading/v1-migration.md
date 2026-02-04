@@ -43,7 +43,7 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
 
 #### Zap Logging Config Removed
 
-Support for setting the Zap logging config was [deprecated in `v0.32.0`]({{<ref "../../v1.0/upgrading/v1beta1-migration#logging-configuration-is-no-longer-dynamic" >}}) and has been been removed in `v1.0.0`.
+Support for setting the Zap logging config was [deprecated in `v0.32.0`]({{<ref "../../v1.0/upgrading/v1beta1-migration#logging-configuration-is-no-longer-dynamic" >}}) and has been removed in `v1.0.0`.
 The following environment variables are now available to configure logging:
 
 * `LOG_LEVEL`
