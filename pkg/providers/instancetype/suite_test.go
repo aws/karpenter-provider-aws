@@ -2523,6 +2523,73 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeInitializationRate).To(Equal(int32(100)))
 			})
 		})
+		// Issue #8535: Bottlerocket with rootVolume flag on /dev/xvda should use /dev/xvdb for ephemeral storage
+		It("should use ephemeral block device size for Bottlerocket when rootVolume is set on OS volume", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(4, resource.Giga),
+					},
+					RootVolume: true, // User mistakenly sets rootVolume on OS volume
+				},
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(100, resource.Giga),
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			// Should use /dev/xvdb (100G) as ephemeral storage, not /dev/xvda (4G)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("100G")))
+		})
+		It("should use ephemeral block device size for AL2 when rootVolume flag is set", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+					},
+					RootVolume: true,
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			// For AL2, /dev/xvda is both root and ephemeral, so either approach works
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("50G")))
+		})
+		It("should use ephemeral block device size for Bottlerocket when rootVolume flag is correctly set on data volume", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(4, resource.Giga),
+					},
+				},
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(100, resource.Giga),
+					},
+					RootVolume: true, // Correctly set on data volume
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			// Should use /dev/xvdb (100G) as ephemeral storage
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("100G")))
+		})
 	})
 	Context("Metadata Options", func() {
 		It("should default metadata options on generated launch template", func() {
@@ -2662,12 +2729,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						BlockDeviceMappings: []*v1.BlockDeviceMapping{
 							{
 								DeviceName: lo.ToPtr("/dev/xvda"),
-								EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(20, resource.Giga)},
-								RootVolume: false,
-							},
-							{
-								DeviceName: lo.ToPtr("/dev/sda1"),
-								EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(10, resource.Giga)},
+								EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(30, resource.Giga)},
 								RootVolume: true,
 							},
 						},

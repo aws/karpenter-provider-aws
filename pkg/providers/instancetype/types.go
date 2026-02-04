@@ -363,21 +363,32 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 		}
 	}
 	if len(blockDeviceMappings) != 0 {
-		// First check if there's a root volume configured in blockDeviceMappings.
-		if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping) bool {
-			return bdm.RootVolume
-		}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
-			return blockDeviceMapping.EBS.VolumeSize
-		}
 		switch amiFamily.(type) {
 		case *amifamily.Custom:
+			// For custom AMIs, first check if there's a root volume configured in blockDeviceMappings.
+			// Users know their AMI layout best, so we trust the rootVolume flag.
+			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping) bool {
+				return bdm.RootVolume
+			}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
+				return blockDeviceMapping.EBS.VolumeSize
+			}
 			// We can't know if a custom AMI is going to have a volume size.
 			volumeSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
 			return lo.Ternary(volumeSize != nil, volumeSize, amifamily.DefaultEBS.VolumeSize)
 		default:
-			// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
+			// For known AMI families, prefer EphemeralBlockDevice() which correctly identifies
+			// the ephemeral storage device for each AMI family (e.g., /dev/xvdb for Bottlerocket,
+			// /dev/xvda for AL2). This fixes issue #8535 where setting rootVolume on Bottlerocket's
+			// OS volume (/dev/xvda) incorrectly used the small OS volume size instead of the
+			// data volume (/dev/xvdb) size.
 			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping) bool {
 				return *bdm.DeviceName == *amiFamily.EphemeralBlockDevice()
+			}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
+				return blockDeviceMapping.EBS.VolumeSize
+			}
+			// Fallback to rootVolume flag if EphemeralBlockDevice not found in user's mappings
+			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping) bool {
+				return bdm.RootVolume
 			}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
 				return blockDeviceMapping.EBS.VolumeSize
 			}
