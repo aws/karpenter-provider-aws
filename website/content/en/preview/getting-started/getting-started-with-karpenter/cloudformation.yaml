@@ -27,11 +27,8 @@ Resources:
   NodeLifecyclePolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: !Sub "KarpenterControllerNodeLifecyclePolicy-${AWS::StackId}"
+      ManagedPolicyName: !Sub "KarpenterControllerNodeLifecyclePolicy-${ClusterName}"
       Path: /
-      Tags:
-        - key: "eks:eks-cluster-name"
-          value: !Sub "${ClusterName}"
       # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses an interpolated
       # value in one of its key parameters which isn't natively supported by CloudFormation
       PolicyDocument: !Sub |
@@ -172,11 +169,8 @@ Resources:
   IAMIntegrationPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: !Sub "KarpenterControllerIAMIntegrationPolicy-${AWS::StackId}"
+      ManagedPolicyName: !Sub "KarpenterControllerIAMIntegrationPolicy-${ClusterName}"
       Path: /
-      Tags:
-        - key: "eks:eks-cluster-name"
-          value: !Sub "${ClusterName}"
       # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses an interpolated
       # value in one of its key parameters which isn't natively supported by CloudFormation
       PolicyDocument: !Sub |
@@ -260,11 +254,8 @@ Resources:
   EKSIntegrationPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: !Sub "KarpenterControllerEKSIntegrationPolicy-${AWS::StackId}"
+      ManagedPolicyName: !Sub "KarpenterControllerEKSIntegrationPolicy-${ClusterName}"
       Path: /
-      Tags:
-        - key: "eks:eks-cluster-name"
-          value: !Sub "${ClusterName}"
       # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses an interpolated
       # value in one of its key parameters which isn't natively supported by CloudFormation
       PolicyDocument: !Sub |
@@ -282,11 +273,8 @@ Resources:
   InterruptionPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: !Sub "KarpenterControllerInterruptionPolicy-${AWS::StackId}"
+      ManagedPolicyName: !Sub "KarpenterControllerInterruptionPolicy-${ClusterName}"
       Path: /
-      Tags:
-        - key: "eks:eks-cluster-name"
-          value: !Sub "${ClusterName}"
       # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses an interpolated
       # value in one of its key parameters which isn't natively supported by CloudFormation
       PolicyDocument: !Sub |
@@ -308,11 +296,8 @@ Resources:
   ResourceDiscoveryPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: !Sub "KarpenterControllerResourceDiscoveryPolicy-${AWS::StackId}"
+      ManagedPolicyName: !Sub "KarpenterControllerResourceDiscoveryPolicy-${ClusterName}"
       Path: /
-      Tags:
-        - key: "eks:eks-cluster-name"
-          value: !Sub "${ClusterName}"
       # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses an interpolated
       # value in one of its key parameters which isn't natively supported by CloudFormation
       PolicyDocument: !Sub |
