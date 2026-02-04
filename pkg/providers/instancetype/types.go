@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -45,9 +46,7 @@ const (
 	NodeFSAvailable = "nodefs.available"
 )
 
-var (
-	instanceTypeScheme = regexp.MustCompile(`(^[a-z]+)(\-[0-9]+tb)?([0-9]+).*\.`)
-)
+var instanceTypeScheme = regexp.MustCompile(`(^[a-z]+)(\-[0-9]+tb)?([0-9]+).*\.`)
 
 type ZoneData struct {
 	Name      string
@@ -138,12 +137,17 @@ func NewInstanceType(
 	capacityReservations []v1.CapacityReservation,
 ) *cloudprovider.InstanceType {
 	amiFamily := amifamily.GetAMIFamily(amiFamilyType, &amifamily.Options{})
+
+	// Calculate effective pods for kubeReserved calculation
+	effectivePods := lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead, ENILimitedPods(ctx, info, 0), pods(ctx, info, amiFamily, maxPods, podsPerCore))
+	kubeReservedResources := kubeReservedResources(cpu(info), effectivePods, kubeReserved)
+
 	it := &cloudprovider.InstanceType{
 		Name:         string(info.InstanceType),
 		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, capacityReservations),
 		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead, ENILimitedPods(ctx, info, 0), pods(ctx, info, amiFamily, maxPods, podsPerCore)), kubeReserved),
+			KubeReserved:      kubeReservedResources,
 			SystemReserved:    systemReservedResources(systemReserved),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), evictionHard),
 		},
@@ -151,6 +155,29 @@ func NewInstanceType(
 	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)))) == nil {
 		it.Capacity[v1.ResourcePrivateIPv4Address] = *privateIPv4Address(string(info.InstanceType))
 	}
+
+	// Log kubeReserved calculation details for Custom AMI troubleshooting
+	// For EKS-optimized AMIs (AL2, AL2023, Bottlerocket), the calculation is deterministic
+	// and documented. Custom AMIs may have different kubelet configurations, so logging
+	// helps users understand how Karpenter calculates allocatable resources.
+	if amiFamilyType == v1.AMIFamilyCustom {
+		allocatable := it.Allocatable()
+		log.FromContext(ctx).V(2).Info("calculated instance type resources for Custom AMI",
+			"instance-type", info.InstanceType,
+			"max-pods-configured", maxPods,
+			"effective-pods", effectivePods.Value(),
+			"uses-eni-limited-overhead", amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead,
+			"capacity-memory", it.Capacity.Memory().String(),
+			"capacity-cpu", it.Capacity.Cpu().String(),
+			"kube-reserved-memory", kubeReservedResources.Memory().String(),
+			"kube-reserved-cpu", kubeReservedResources.Cpu().String(),
+			"system-reserved-memory", it.Overhead.SystemReserved.Memory().String(),
+			"system-reserved-cpu", it.Overhead.SystemReserved.Cpu().String(),
+			"allocatable-memory", allocatable.Memory().String(),
+			"allocatable-cpu", allocatable.Cpu().String(),
+		)
+	}
+
 	return it
 }
 
@@ -320,8 +347,8 @@ func getArchitecture(info ec2types.InstanceTypeInfo) string {
 
 func computeCapacity(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 	blockDeviceMapping []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy,
-	maxPods *int32, podsPerCore *int32) corev1.ResourceList {
-
+	maxPods *int32, podsPerCore *int32,
+) corev1.ResourceList {
 	resourceList := corev1.ResourceList{
 		corev1.ResourceCPU:              *cpu(info),
 		corev1.ResourceMemory:           *memory(ctx, info),
@@ -383,7 +410,7 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 			}
 		}
 	}
-	//Return the ephemeralBlockDevice size if defined in ami
+	// Return the ephemeralBlockDevice size if defined in ami
 	if ephemeralBlockDevice, ok := lo.Find(amiFamily.DefaultBlockDeviceMappings(), func(item *v1.BlockDeviceMapping) bool {
 		return *amiFamily.EphemeralBlockDevice() == *item.DeviceName
 	}); ok {
@@ -483,7 +510,7 @@ func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo, reserve
 }
 
 func privateIPv4Address(instanceTypeName string) *resource.Quantity {
-	//https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/ecbd6965a0100d9a070110233762593b16023287/pkg/provider/ip/provider.go#L297
+	// https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/ecbd6965a0100d9a070110233762593b16023287/pkg/provider/ip/provider.go#L297
 	limits, ok := Limits[instanceTypeName]
 	if !ok {
 		return resources.Quantity("0")
