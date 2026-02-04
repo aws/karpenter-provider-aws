@@ -70,16 +70,16 @@ build() {
   date_epoch="$(dateEpoch)"
   build_date="$(buildDate "${date_epoch}")"
 
-  img="$(GOFLAGS=${GOFLAGS:-} SOURCE_DATE_EPOCH="${date_epoch}" KO_DATA_DATE_EPOCH="${date_epoch}" KO_DOCKER_REPO="${oci_repo}" go tool ko publish -B -t "${version}" ./cmd/controller)"
+  img="$(GOFLAGS=${GOFLAGS:-} SOURCE_DATE_EPOCH="${date_epoch}" KO_DATA_DATE_EPOCH="${date_epoch}" KO_DOCKER_REPO="${oci_repo}" ko publish -B -t "${version}" ./cmd/controller)"
   img_repo="$(echo "${img}" | cut -d "@" -f 1 | cut -d ":" -f 1)"
   img_tag="$(echo "${img}" | cut -d "@" -f 1 | cut -d ":" -f 2 -s)"
   img_digest="$(echo "${img}" | cut -d "@" -f 2)"
 
   cosignOciArtifact "${version}" "${commit_sha}" "${build_date}" "${img}"
 
-  go tool yq e -i ".controller.image.repository = \"${img_repo}\"" charts/karpenter/values.yaml
-  go tool yq e -i ".controller.image.tag = \"${img_tag}\"" charts/karpenter/values.yaml
-  go tool yq e -i ".controller.image.digest = \"${img_digest}\"" charts/karpenter/values.yaml
+  yq e -i ".controller.image.repository = \"${img_repo}\"" charts/karpenter/values.yaml
+  yq e -i ".controller.image.tag = \"${img_tag}\"" charts/karpenter/values.yaml
+  yq e -i ".controller.image.digest = \"${img_digest}\"" charts/karpenter/values.yaml
 
   publishHelmChart "${oci_repo}" "karpenter" "${helm_chart_version}" "${commit_sha}" "${build_date}"
   publishHelmChart "${oci_repo}" "karpenter-crd" "${helm_chart_version}" "${commit_sha}" "${build_date}"
@@ -97,8 +97,8 @@ publishHelmChart() {
   ah_config_file_name="${helm_chart}/artifacthub-repo.yaml"
   helm_chart_artifact="${helm_chart}-${version}.tgz"
 
-  go tool yq e -i ".appVersion = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
-  go tool yq e -i ".version = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
+  yq e -i ".appVersion = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
+  yq e -i ".version = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
 
   cd charts
   if [[ -s "${ah_config_file_name}" ]] && [[ "$oci_repo" == "${RELEASE_REPO_ECR}" ]]; then
@@ -107,7 +107,7 @@ publishHelmChart() {
     # https://github.com/aws/containers-roadmap/issues/1074
     temp=$(mktemp)
     echo {} > "${temp}"
-    go tool oras push "${oci_repo}${helm_chart}:artifacthub.io" --config "${temp}:application/vnd.cncf.artifacthub.config.v1+yaml" "${ah_config_file_name}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
+    oras push "${oci_repo}${helm_chart}:artifacthub.io" --config "${temp}:application/vnd.cncf.artifacthub.config.v1+yaml" "${ah_config_file_name}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
   fi
   helm dependency update "${helm_chart}"
   helm lint "${helm_chart}"
@@ -116,7 +116,7 @@ publishHelmChart() {
   rm "${helm_chart_artifact}"
   cd ..
 
-  helm_chart_digest="$(go tool crane digest "${oci_repo}/${helm_chart}:${version}")"
+  helm_chart_digest="$(crane digest "${oci_repo}/${helm_chart}:${version}")"
   cosignOciArtifact "${version}" "${commit_sha}" "${build_date}" "${oci_repo}${helm_chart}:${version}@${helm_chart_digest}"
 }
 
@@ -128,7 +128,7 @@ cosignOciArtifact() {
   build_date="${3}"
   artifact="${4}"
 
-  go tool cosign sign --yes -a version="${version}" -a commitSha="${commit_sha}" -a buildDate="${build_date}" "${artifact}"
+  cosign sign --yes -a version="${version}" -a commitSha="${commit_sha}" -a buildDate="${build_date}" "${artifact}"
 }
 
 dateEpoch() {
@@ -176,7 +176,7 @@ createNewWebsiteDirectory() {
   # shellcheck disable=SC2038
   find "website/content/en/v${short_version}/" -type f -print | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${version}/g;"
   # shellcheck disable=SC2038
-  find "website/content/en/v${short_version}/" -type f | xargs perl -i -p -e "s/{{< param \"latest_k8s_version\" >}}/$(go tool yq .params.latest_k8s_version website/hugo.yaml)/g;"
+  find "website/content/en/v${short_version}/" -type f | xargs perl -i -p -e "s/{{< param \"latest_k8s_version\" >}}/$(yq .params.latest_k8s_version website/hugo.yaml)/g;"
   # shellcheck disable=SC2038
   find "website/content/en/v${short_version}/"*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/v${short_version}/g;"
   # shellcheck disable=SC2038
@@ -208,7 +208,7 @@ removeOldWebsiteDirectories() {
 editWebsiteConfig() {
   local version="${1}"
 
-  go tool yq -i ".params.latest_release_version = \"${version}\"" website/hugo.yaml
+  yq -i ".params.latest_release_version = \"${version}\"" website/hugo.yaml
 }
 
 # editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
@@ -221,9 +221,9 @@ editWebsiteVersionsMenu() {
   versions=($(find website/content/en/* -maxdepth 0 -type d -name "*" -print0 | xargs -0 -r -n 1 basename | grep -v "docs\|preview" | sort -r))
   versions+=('preview')
 
-  go tool yq -i '.params.versions = []' website/hugo.yaml
+  yq -i '.params.versions = []' website/hugo.yaml
 
   for version in "${versions[@]}"; do
-    go tool yq -i ".params.versions += \"${version}\"" website/hugo.yaml
+    yq -i ".params.versions += \"${version}\"" website/hugo.yaml
   done
 }
