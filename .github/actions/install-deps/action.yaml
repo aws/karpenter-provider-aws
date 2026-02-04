@@ -3,7 +3,7 @@ description: 'Installs Go Downloads and installs Karpenter Dependencies'
 inputs:
   k8sVersion:
     description: Kubernetes version to use when installing the toolchain
-    default: "1.34.x"
+    default: "1.35.x"
   use-cache:
     description: 'Whether to cache dependencies'
     default: true

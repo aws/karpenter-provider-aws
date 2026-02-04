@@ -27,7 +27,7 @@ inputs:
     required: true
   k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
-    default: "1.34"
+    default: "1.35"
   eksctl_version:
     description: "Version of eksctl to install"
     default: v0.202.0
@@ -104,7 +104,11 @@ runs:
               name: karpenter
               namespace: kube-system
             attachPolicyARNs:
-              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-${{ inputs.cluster_name }}"
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerNodeLifecyclePolicy-${{ inputs.cluster_name }}"
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerIAMIntegrationPolicy-${{ inputs.cluster_name }}"
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerEKSIntegrationPolicy-${{ inputs.cluster_name }}"
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerInterruptionPolicy-${{ inputs.cluster_name }}"
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerResourceDiscoveryPolicy-${{ inputs.cluster_name }}"
             permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
             roleName: karpenter-irsa-${{ inputs.cluster_name }}
             roleOnly: true"""
