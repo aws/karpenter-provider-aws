@@ -76,11 +76,13 @@ type BottlerocketKubernetes struct {
 	ContainerLogMaxSize                *string                                   `toml:"container-log-max-size,omitempty"`
 	ContainerLogMaxFiles               *int                                      `toml:"container-log-max-files,omitempty"`
 	CPUManagerPolicy                   *string                                   `toml:"cpu-manager-policy,omitempty"`
+	CPUManagerPolicyOptions            []string                                  `toml:"cpu-manager-policy-options,omitempty"`
 	CPUManagerReconcilePeriod          *string                                   `toml:"cpu-manager-reconcile-period,omitempty"`
 	TopologyManagerScope               *string                                   `toml:"topology-manager-scope,omitempty"`
 	TopologyManagerPolicy              *string                                   `toml:"topology-manager-policy,omitempty"`
 	ImageGCHighThresholdPercent        *string                                   `toml:"image-gc-high-threshold-percent,omitempty"`
 	ImageGCLowThresholdPercent         *string                                   `toml:"image-gc-low-threshold-percent,omitempty"`
+	IdsPerPod                          *int                                      `toml:"ids-per-pod,omitempty"`
 	CPUCFSQuota                        *bool                                     `toml:"cpu-cfs-quota-enforced,omitempty"`
 	ShutdownGracePeriod                *string                                   `toml:"shutdown-grace-period,omitempty"`
 	ShutdownGracePeriodForCriticalPods *string                                   `toml:"shutdown-grace-period-for-critical-pods,omitempty"`
@@ -129,23 +131,34 @@ func (c *BottlerocketConfig) UnmarshalTOML(ctx context.Context, data []byte) err
 	s := struct {
 		Settings BottlerocketSettings `toml:"settings"`
 	}{}
-	// use strict mode first to check if userData contains an unsupported value and log this, but don't return an error
-	r := strings.NewReader(string(data))
-	d := toml.NewDecoder(r)
-	d.DisallowUnknownFields()
-	if err := d.Decode(&s); err != nil {
-		// only log in case we got an error of type toml.StrictMissingError
-		var details *toml.StrictMissingError
-		if errors.As(err, &details) {
-			log.FromContext(ctx).Error(err, "Unknown parameter in userData K8s settings", "reason", details.String())
-		}
-	}
-	// proceed without strict mode
-	if err := toml.Unmarshal(data, &s); err != nil {
-		return err
-	}
+
 	// unmarshal untyped settings
 	if err := toml.Unmarshal(data, c); err != nil {
+		return err
+	}
+
+	// To log misconfigured / unsupported k8s userData, we re-marshal the k8s settings
+	// and re-unmarshal with TOML strict mode to log any errors
+	if k8sRaw, ok := c.SettingsRaw["kubernetes"]; ok {
+		k8sData, err := toml.Marshal(k8sRaw)
+		if err != nil {
+			return err
+		}
+
+		k8sSettings := BottlerocketKubernetes{}
+		r := strings.NewReader(string(k8sData))
+		d := toml.NewDecoder(r)
+		d.DisallowUnknownFields()
+		if err := d.Decode(&k8sSettings); err != nil {
+			var details *toml.StrictMissingError
+			if errors.As(err, &details) {
+				log.FromContext(ctx).Error(err, "Unknown parameter in userData K8s settings", "reason", details.String())
+			}
+		}
+	}
+
+	// proceed without strict mode
+	if err := toml.Unmarshal(data, &s); err != nil {
 		return err
 	}
 	c.Settings = s.Settings

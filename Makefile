@@ -3,7 +3,7 @@ CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].n
 ## Inject the app version into operator.Version
 LDFLAGS ?= -ldflags=-X=sigs.k8s.io/karpenter/pkg/operator.Version=$(shell git describe --tags --always | cut -d"v" -f2)
 
-GOFLAGS ?= $(LDFLAGS)
+GOFLAGS += $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
 
 ## Extra helm options
@@ -53,7 +53,8 @@ ci-test: test coverage ## Runs tests and submits coverage
 
 ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 
-run: ## Run Karpenter controller binary against your local cluster
+run: ## Run Karpenter controller binary against your local cluster with latest CRD's
+	kubectl apply -f ./pkg/apis/crds/
 	SYSTEM_NAMESPACE=${KARPENTER_NAMESPACE} \
 		KUBERNETES_MIN_VERSION="1.19.0-0" \
 		DISABLE_LEADER_ELECTION=true \
@@ -100,7 +101,7 @@ upstream-e2etests: tidy download
 		-count 1 \
 		-timeout 3.25h \
 		-v \
-		./test/suites/... \
+		./test/suites/regression/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.timeout=3h \
 		--ginkgo.grace-period=5m \
