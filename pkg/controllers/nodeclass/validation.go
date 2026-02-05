@@ -23,6 +23,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -233,11 +234,14 @@ func (v *Validation) validateRunInstancesAuthorization(
 	tags map[string]string,
 	launchTemplate *launchtemplate.LaunchTemplate,
 ) (result reconcile.Result, err error) {
+	log.FromContext(ctx).Info("validateRunInstancesAuthorization starting")
 	runInstancesInput := getRunInstancesInput(nodeClass, tags, launchTemplate)
+	log.FromContext(ctx).Info("runInstancesInput debug", "runInstancesInput", runInstancesInput)
 	// Adding NopRetryer to avoid aggressive retry when rate limited
 	if _, err = v.ec2api.RunInstances(ctx, runInstancesInput, func(o *ec2.Options) {
 		o.Retryer = aws.NopRetryer{}
 	}); awserrors.IgnoreDryRunError(err) != nil {
+		log.FromContext(ctx).Info("logging error", "err", err)
 		// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
 		// this means there is most likely an eventual consistency issue and we just need to requeue
 		if awserrors.IsInstanceProfileNotFound(err) || awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
@@ -248,6 +252,7 @@ func (v *Validation) validateRunInstancesAuthorization(
 			// it would be an unexpected state
 			return reconcile.Result{}, fmt.Errorf("validating ec2:RunInstances authorization, %w", err)
 		}
+		log.FromContext(ctx).Info("Returning ConditionReasonRunInstancesAuthFailed")
 		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesAuthFailed)
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
