@@ -64,6 +64,9 @@ type WorkloadResult struct {
 	JobCompleteEvent *JobCompleteEvent
 	// Timestamp is when the event occurred
 	Timestamp time.Time
+	// PreExisting indicates this workload existed before the audit window started.
+	// These should be created at the beginning of replay rather than at Timestamp.
+	PreExisting bool
 }
 
 // ScaleEvent represents a deployment scale change
@@ -175,12 +178,13 @@ func (p *Parser) parseDeploymentEvent(event AuditEvent) (*WorkloadResult, error)
 		// Check if we've emitted a create for this deployment
 		if !p.deploymentEmitted[key] {
 			// First time seeing full spec for this deployment
-			// It existed before our audit window - emit as create
+			// It existed before our audit window - emit as create at beginning of replay
 			p.deploymentReplicas[key] = replicas
 			p.deploymentEmitted[key] = true
 			return &WorkloadResult{
-				Deployment: &deployment,
-				Timestamp:  event.RequestReceivedTimestamp,
+				Deployment:  &deployment,
+				Timestamp:   event.RequestReceivedTimestamp,
+				PreExisting: true,
 			}, nil
 		}
 		// Check if replicas changed

@@ -40,13 +40,15 @@ var captureCmd = &cobra.Command{
 }
 
 var (
-	captureOutput   string
-	captureDuration time.Duration
+	captureOutput      string
+	captureDuration    time.Duration
+	captureClusterName string
 )
 
 func init() {
 	captureCmd.Flags().StringVarP(&captureOutput, "output", "o", "replay.json", "Output file")
 	captureCmd.Flags().DurationVarP(&captureDuration, "duration", "d", time.Hour, "Duration to capture")
+	captureCmd.Flags().StringVar(&captureClusterName, "cluster-name", "", "EKS cluster name (overrides kubeconfig detection)")
 }
 
 func runCapture(cmd *cobra.Command, args []string) error {
@@ -54,9 +56,13 @@ func runCapture(cmd *cobra.Command, args []string) error {
 	endTime := time.Now()
 	startTime := endTime.Add(-captureDuration)
 
-	cluster, err := clusterFromKubeconfig()
-	if err != nil {
-		return fmt.Errorf("failed to detect cluster from kubeconfig: %w", err)
+	cluster := captureClusterName
+	if cluster == "" {
+		var err error
+		cluster, err = clusterFromKubeconfig()
+		if err != nil {
+			return fmt.Errorf("failed to detect cluster from kubeconfig (use --cluster-name to override): %w", err)
+		}
 	}
 
 	cfg, err := config.LoadDefaultConfig(ctx)
@@ -124,7 +130,12 @@ loop:
 			// Sanitize and add to log
 			if result.Deployment != nil {
 				sanitized := san.SanitizeDeployment(result.Deployment)
-				replayLog.AddDeploymentCreate(sanitized, result.Timestamp)
+				// Pre-existing workloads should appear at the beginning of replay
+				timestamp := result.Timestamp
+				if result.PreExisting {
+					timestamp = startTime
+				}
+				replayLog.AddDeploymentCreate(sanitized, timestamp)
 				deploymentCount++
 			} else if result.Job != nil {
 				originalKey := result.Job.Namespace + "/" + result.Job.Name
