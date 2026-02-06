@@ -55,7 +55,8 @@ var _ = Describe("Options", func() {
 
 	It("should correctly override default vars when CLI flags are set", func() {
 		opts.AddFlags(fs)
-		err := opts.Parse(fs,
+		err := opts.Parse(
+			fs,
 			"--cluster-ca-bundle", "env-bundle",
 			"--cluster-name", "env-cluster",
 			"--cluster-endpoint", "https://env-cluster",
@@ -63,7 +64,9 @@ var _ = Describe("Options", func() {
 			"--vm-memory-overhead-percent", "0.1",
 			"--interruption-queue", "env-cluster",
 			"--reserved-enis", "10",
-			"--disable-dry-run")
+			"--disable-dry-run",
+			"--pricing-region-override", "us-east-1",
+		)
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
 			ClusterCABundle:         lo.ToPtr("env-bundle"),
@@ -74,6 +77,7 @@ var _ = Describe("Options", func() {
 			InterruptionQueue:       lo.ToPtr("env-cluster"),
 			ReservedENIs:            lo.ToPtr(10),
 			DisableDryRun:           lo.ToPtr(true),
+			PricingRegionOverride:   lo.ToPtr("us-east-1"),
 		}))
 	})
 	It("should correctly fallback to env vars when CLI flags aren't set", func() {
@@ -85,6 +89,7 @@ var _ = Describe("Options", func() {
 		os.Setenv("INTERRUPTION_QUEUE", "env-cluster")
 		os.Setenv("RESERVED_ENIS", "10")
 		os.Setenv("DISABLE_DRY_RUN", "false")
+		os.Setenv("PRICING_REGION_OVERRIDE", "us-east-1")
 
 		// Add flags after we set the environment variables so that the parsing logic correctly refers
 		// to the new environment variable values
@@ -100,6 +105,7 @@ var _ = Describe("Options", func() {
 			InterruptionQueue:       lo.ToPtr("env-cluster"),
 			ReservedENIs:            lo.ToPtr(10),
 			DisableDryRun:           lo.ToPtr(false),
+			PricingRegionOverride:   lo.ToPtr("us-east-1"),
 		}))
 	})
 
@@ -136,4 +142,5 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.InterruptionQueue).To(Equal(optsB.InterruptionQueue))
 	Expect(optsA.ReservedENIs).To(Equal(optsB.ReservedENIs))
 	Expect(optsA.DisableDryRun).To(Equal(optsB.DisableDryRun))
+	Expect(optsA.PricingRegionOverride).To(Equal(optsB.PricingRegionOverride))
 }
