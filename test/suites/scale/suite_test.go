@@ -15,6 +15,7 @@ limitations under the License.
 package scale_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -40,10 +41,12 @@ func TestScale(t *testing.T) {
 	RunSpecs(t, "Scale")
 }
 
-var _ = BeforeEach(func() {
+var _ = BeforeEach(func(ctx context.Context) {
+	env.SetContext(ctx)
 	env.BeforeEach()
 })
-var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() {
+	env.ResetContext()
+	env.Cleanup()
 	env.AfterEach()
 })

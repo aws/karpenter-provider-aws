@@ -129,7 +129,7 @@ func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string
 	GinkgoHelper()
 	By(fmt.Sprintf("eventually expecting instance profile %s to exist", profileName))
 	var instanceProfile iamtypes.InstanceProfile
-	Eventually(func(g Gomega) {
+	env.Eventually(func(g Gomega) {
 		out, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
 			InstanceProfileName: aws.String(profileName),
 		})
@@ -144,7 +144,7 @@ func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string
 func (env *Environment) EventuallyExpectInstanceProfilesNotFound(profileNames ...string) {
 	GinkgoHelper()
 	By(fmt.Sprintf("expecting instance profiles %v to not exist", profileNames))
-	Eventually(func(g Gomega) {
+	env.Eventually(func(g Gomega) {
 		for _, profileName := range profileNames {
 			_, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
 				InstanceProfileName: aws.String(profileName),
@@ -460,7 +460,7 @@ func (env *Environment) EventuallyExpectRunInstances(instanceInput *ec2.RunInsta
 		HttpTokens:   "required",
 	}
 	var reservation ec2types.Reservation
-	Eventually(func(g Gomega) {
+	env.Eventually(func(g Gomega) {
 		out, err := env.EC2API.RunInstances(env.Context, instanceInput)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(out.Instances).ToNot(BeEmpty())
@@ -625,7 +625,7 @@ func (env *Environment) EventuallyExpectNodeRoleCreated(roleName string) {
 	}
 
 	// Verify role exists and has access entry
-	Eventually(func(g Gomega) {
+	env.Eventually(func(g Gomega) {
 		// Verify role exists
 		verifyRole, err := env.IAMAPI.GetRole(env.Context, &iam.GetRoleInput{
 			RoleName: aws.String(roleName),
@@ -634,7 +634,7 @@ func (env *Environment) EventuallyExpectNodeRoleCreated(roleName string) {
 		g.Expect(verifyRole.Role).ToNot(BeNil())
 	}).Should(Succeed())
 
-	Eventually(func(g Gomega) {
+	env.Eventually(func(g Gomega) {
 		_, err = env.EKSAPI.CreateAccessEntry(env.Context, &eks.CreateAccessEntryInput{
 			ClusterName:  aws.String(env.ClusterName),
 			PrincipalArn: aws.String(fmt.Sprintf("arn:aws:iam::%s:role/%s", env.ExpectAccountID(), roleName)),
