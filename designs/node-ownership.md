@@ -113,7 +113,7 @@ Karpenter grabs all Provisioners on the cluster at the beginning of its provisio
 
 Nodes that are launched by Karpenter report no capacity on their image filesystems. This is observed for nodes starting in Kubernetes 1.23. Because Karpenter creates the node without reporting any details on the node capacity, control-planes staring in 1.23 are reporting NotReady and unhealthy events for the node around the image filesystem not having any capacity.
 
-This error lasts until the kubelet begins reporting its ephemeral-stoarge, at which point this event is never re-fired and the node eventually goes into a Ready state. If Karpenter does not create these nodes and, instead, allows the kubelet to create them, the image filesystem capacity will be reported as soon as the node starts and no false error events will be reported on user’s clusters.
+This error lasts until the kubelet begins reporting its ephemeral-storage, at which point this event is never re-fired and the node eventually goes into a Ready state. If Karpenter does not create these nodes and, instead, allows the kubelet to create them, the image filesystem capacity will be reported as soon as the node starts and no false error events will be reported on user’s clusters.
 
 ***Relevant GH Issues***
 
