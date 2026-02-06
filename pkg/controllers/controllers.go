@@ -39,6 +39,7 @@ import (
 	ssminvalidation "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/ssm/invalidation"
 	controllersversion "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/version"
 	capacityreservationprovider "github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
@@ -87,6 +88,7 @@ func NewControllers(
 	instanceTypeProvider *instancetype.DefaultProvider,
 	capacityReservationProvider capacityreservationprovider.Provider,
 	amiResolver amifamily.Resolver,
+	instanceStatusProvider instancestatus.Provider,
 ) []controller.Controller {
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient),
@@ -111,7 +113,10 @@ func NewControllers(
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsAPI := servicesqs.NewFromConfig(cfg)
 		prov, _ := sqs.NewSQSProvider(ctx, sqsAPI)
-		controllers = append(controllers, interruption.NewController(kubeClient, cloudProvider, clk, recorder, prov, sqsAPI, unavailableOfferings))
+		controllers = append(controllers, interruption.NewController(kubeClient, cloudProvider, clk, recorder, prov, sqsAPI, unavailableOfferings, instanceStatusProvider))
+	} else {
+		// if no queue is configured, start the interruption controller with only instance status monitoring
+		controllers = append(controllers, interruption.NewController(kubeClient, cloudProvider, clk, recorder, nil, nil, unavailableOfferings, instanceStatusProvider))
 	}
 	return controllers
 }
