@@ -206,6 +206,42 @@ var _ = Describe("Interruption", func() {
 		env.EventuallyExpectNotFound(node)
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
+	FIt("should terminate the node when receiving an instance status failure", func() {
+		numPods := 1
+		dep := coretest.Deployment(coretest.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: coretest.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "my-app"},
+				},
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(0)),
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+
+		// schedule the interface to go down after 70 seconds.
+		// this has to be above a minute so that the instance status check initializes to healthy.
+		nodeClass.Spec.UserData = lo.ToPtr(`#!/usr/bin/env bash
+(
+  sleep 30
+  IFACE=$(ip route show default | awk '{print $5}' | head -n1)
+  ip link set dev "$IFACE" down
+) >>/var/log/disable-net.log 2>&1 &`)
+
+		env.ExpectCreated(nodeClass, nodePool, dep)
+
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		node := env.Monitor.CreatedNodes()[0]
+
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+			g.Expect(!node.DeletionTimestamp.IsZero()).To(BeTrue())
+		}).WithTimeout(15 * time.Minute).Should(Succeed())
+		env.EventuallyExpectNotFound(node)
+		env.EventuallyExpectHealthyPodCount(selector, 1)
+	})
 })
 
 func scheduledChangeMessage(region, accountID, involvedInstanceID string) scheduledchange.Message {
