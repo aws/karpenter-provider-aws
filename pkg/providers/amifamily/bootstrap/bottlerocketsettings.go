@@ -119,15 +119,6 @@ const (
 	BootstrapCommandModeOff    BootstrapCommandMode = "off"
 )
 
-<<<<<<< HEAD
-=======
-// hugepages-2Mi and hugepages-1Gi are not supported by kubelet memory manager and will make kubelet fail to start, so skip those
-type BottlerocketReservedMemory struct {
-	Enabled *bool   `toml:"enabled,omitempty"`
-	Memory  *string `toml:"memory,omitempty"`
-}
-
->>>>>>> d5a873a969762b132881ae0611d401f12d7a413e
 // BootstrapCommand model defined in the Bottlerocket Core Kit in
 // https://github.com/bottlerocket-os/bottlerocket-core-kit/blob/fdf32c291ad18370de3a5fdc4c20a9588bc14177/sources/bootstrap-commands/src/main.rs#L57
 type BootstrapCommand struct {
