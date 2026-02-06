@@ -131,6 +131,12 @@ cat << EOF > controller-policy.json
             "Effect": "Allow",
             "Resource": "*",
             "Action": "iam:GetInstanceProfile"
+        },
+        {
+            "Sid": "AllowUnscopedInstanceProfileListAction",
+            "Effect": "Allow",
+            "Resource": "*",
+            "Action": "iam:ListInstanceProfiles"
         }
     ],
     "Version": "2012-10-17"
