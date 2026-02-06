@@ -68,7 +68,7 @@ All configuration is currently hidden.  I’ve picked some values to test, but t
 
 ### Emptiness TTL
 
-The existing ttlSecondsAfterEmpty settings is duplicative with consolidation. To avoid racing between consolidation and the existing empty node removal, we need one single mechanism that is responsible for for both general consolidation and eliminating empty nodes
+The existing ttlSecondsAfterEmpty settings is duplicative with consolidation. To avoid racing between consolidation and the existing empty node removal, we need one single mechanism that is responsible for both general consolidation and eliminating empty nodes
 
 To do this, we will treat ttlSecondsAfterEmpty  and consolidation as mutually exclusive and check this via our validation webhook.  If ttlSecondsAfterEmpty is set and consolidation is turned off, it continues to work as it does now.  If consolidation is turned on, then ttlSecondsAfterEmpty must not be set and consolidation is responsible for empty nodes.
 

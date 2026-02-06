@@ -380,7 +380,7 @@ In this case, since the NodePool is selecting on a label that does not exist on 
 
 ### The `capacityReservationSelectorTerms` no longer selects an instance's capacity reservation
 
-In this case, there is no existing mechanism in Karpenter that would catch this. Karpenter will need to implement an additional mechanism that validates that an instance's capacity reservation falls within the valid set of reservations selected-on from the `capacityReservationSelectorTerms`. Specifically, it needs to validate that that id exists with the `capacityReservation` section of the EC2NodeClass status.
+In this case, there is no existing mechanism in Karpenter that would catch this. Karpenter will need to implement an additional mechanism that validates that an instance's capacity reservation falls within the valid set of reservations selected-on from the `capacityReservationSelectorTerms`. Specifically, it needs to validate that the id exists within the `capacityReservation` section of the EC2NodeClass status.
 
 ## Appendix
 

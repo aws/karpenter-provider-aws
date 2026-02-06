@@ -487,7 +487,7 @@ aws ec2 delete-launch-template --launch-template-id <LAUNCH_TEMPLATE_ID>
 ```
 
 * `0.14.0` introduces support for custom AMIs without the need for an entire launch template. You must add the `ec2:DescribeImages` permission to the Karpenter Controller Role for this feature to work. This permission is needed for Karpenter to discover custom images specified. Read the [Custom AMI documentation here]({{<ref "../concepts/nodepools#spec-amiselector" >}}) to get started
-* `0.14.0` adds an an additional default toleration (CriticalAddonOnly=Exists) to the Karpenter Helm chart. This may cause Karpenter to run on nodes with that use this Taint which previously would not have been schedulable. This can be overridden by using `--set tolerations[0]=null`.
+* `0.14.0` adds an additional default toleration (CriticalAddonOnly=Exists) to the Karpenter Helm chart. This may cause Karpenter to run on nodes with that use this Taint which previously would not have been schedulable. This can be overridden by using `--set tolerations[0]=null`.
 
 * `0.14.0` deprecates the `AWS_ENI_LIMITED_POD_DENSITY` environment variable in-favor of specifying `spec.kubeletConfiguration.maxPods` on the Provisioner. `AWS_ENI_LIMITED_POD_DENSITY` will continue to work when `maxPods` is not set on the Provisioner. If `maxPods` is set, it will override `AWS_ENI_LIMITED_POD_DENSITY` on that specific Provisioner.
 

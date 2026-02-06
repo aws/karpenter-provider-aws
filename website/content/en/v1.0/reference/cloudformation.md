@@ -364,7 +364,7 @@ For the interruption queue you created (`${KarpenterInterruptionQueue.Arn}`), th
 #### AllowPassingInstanceRole
 
 The AllowPassingInstanceRole Sid gives the Karpenter controller permission to pass (`iam:PassRole`) the node role (`KarpenterNodeRole-${ClusterName}`) to generated instance profiles.
-This gives EC2 permission explicit permission to use the `KarpenterNodeRole-${ClusterName}` when assigning permissions to generated instance profiles while launching nodes.
+This gives EC2 explicit permission to use the `KarpenterNodeRole-${ClusterName}` when assigning permissions to generated instance profiles while launching nodes.
 
 ```json
 {
