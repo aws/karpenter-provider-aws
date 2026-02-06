@@ -237,10 +237,15 @@ func (c *Controller) deleteNodeClaim(ctx context.Context, msg messages.Message, 
 	if !nodeClaim.DeletionTimestamp.IsZero() {
 		return nil
 	}
+	stored := nodeClaim.DeepCopy()
+	nodeClaim.StatusConditions().SetTrueWithReason(karpv1.ConditionTypeDisruptionReason, string(msg.Kind()), string(msg.Kind()))
+	if err := c.kubeClient.Status().Patch(ctx, nodeClaim, client.MergeFrom(stored)); err != nil {
+		return client.IgnoreNotFound(fmt.Errorf("setting disruption status condition, %w", err))
+	}
 	if err := c.kubeClient.Delete(ctx, nodeClaim); err != nil {
 		return client.IgnoreNotFound(fmt.Errorf("deleting the node on interruption message, %w", err))
 	}
-	log.FromContext(ctx).Info("initiating delete from interruption message")
+	log.FromContext(ctx).Info("initiating disruption from interruption message")
 	c.recorder.Publish(interruptionevents.TerminatingOnInterruption(node, nodeClaim)...)
 	metrics.NodeClaimsDisruptedTotal.Inc(map[string]string{
 		metrics.ReasonLabel:       string(msg.Kind()),
