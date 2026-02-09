@@ -374,6 +374,25 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 			volumeSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
 			return lo.Ternary(volumeSize != nil, volumeSize, amifamily.DefaultEBS.VolumeSize)
 		default:
+			// Sum all non-root EBS volumes for ephemeral storage
+            // Root device is /dev/xvda
+            rootDevice := "/dev/xvda"
+            totalSizeGi := int64(0)
+            
+            for _, bdm := range blockDeviceMappings {
+                if bdm.DeviceName != nil && *bdm.DeviceName != rootDevice && bdm.EBS != nil && bdm.EBS.VolumeSize != nil {
+                    size, ok := bdm.EBS.VolumeSize.AsInt64()
+                    if ok {
+                        sizeGi := size / (1024 * 1024 * 1024)
+                        totalSizeGi += sizeGi
+                    }
+                }
+            }
+            
+            // If we found additional volumes, return the total
+            if totalSizeGi > 0 {
+                return resources.Quantity(fmt.Sprintf("%dGi", totalSizeGi))
+            }
 			// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
 			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping) bool {
 				return *bdm.DeviceName == *amiFamily.EphemeralBlockDevice()
