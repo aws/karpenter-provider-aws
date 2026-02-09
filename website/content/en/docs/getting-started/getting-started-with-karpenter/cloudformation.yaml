@@ -24,10 +24,11 @@ Resources:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKSWorkerNodePolicy"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
-  KarpenterControllerPolicy:
+  NodeLifecyclePolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: !Sub "KarpenterControllerPolicy-${ClusterName}"
+      ManagedPolicyName: !Sub "KarpenterControllerNodeLifecyclePolicy-${ClusterName}"
+      Path: /
       # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses an interpolated
       # value in one of its key parameters which isn't natively supported by CloudFormation
       PolicyDocument: !Sub |
@@ -75,8 +76,7 @@ Resources:
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:volume/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:network-interface/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*",
-                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:spot-instances-request/*",
-                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*"
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:spot-instances-request/*"
               ],
               "Action": [
                 "ec2:RunInstances",
@@ -163,50 +163,20 @@ Resources:
                   "aws:ResourceTag/karpenter.sh/nodepool": "*"
                 }
               }
-            },
-            {
-              "Sid": "AllowRegionalReadActions",
-              "Effect": "Allow",
-              "Resource": "*",
-              "Action": [
-                "ec2:DescribeCapacityReservations",
-                "ec2:DescribeImages",
-                "ec2:DescribeInstances",
-                "ec2:DescribeInstanceTypeOfferings",
-                "ec2:DescribeInstanceTypes",
-                "ec2:DescribeLaunchTemplates",
-                "ec2:DescribeSecurityGroups",
-                "ec2:DescribeSpotPriceHistory",
-                "ec2:DescribeSubnets"
-              ],
-              "Condition": {
-                "StringEquals": {
-                  "aws:RequestedRegion": "${AWS::Region}"
-                }
-              }
-            },
-            {
-              "Sid": "AllowSSMReadActions",
-              "Effect": "Allow",
-              "Resource": "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*",
-              "Action": "ssm:GetParameter"
-            },
-            {
-              "Sid": "AllowPricingReadActions",
-              "Effect": "Allow",
-              "Resource": "*",
-              "Action": "pricing:GetProducts"
-            },
-            {
-              "Sid": "AllowInterruptionQueueActions",
-              "Effect": "Allow",
-              "Resource": "${KarpenterInterruptionQueue.Arn}",
-              "Action": [
-                "sqs:DeleteMessage",
-                "sqs:GetQueueUrl",
-                "sqs:ReceiveMessage"
-              ]
-            },
+            }
+          ]
+        }
+  IAMIntegrationPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "KarpenterControllerIAMIntegrationPolicy-${ClusterName}"
+      Path: /
+      # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses an interpolated
+      # value in one of its key parameters which isn't natively supported by CloudFormation
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
             {
               "Sid": "AllowPassingInstanceRole",
               "Effect": "Allow",
@@ -278,12 +248,94 @@ Resources:
                   "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*"
                 }
               }
+            }
+          ]
+        }
+  EKSIntegrationPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "KarpenterControllerEKSIntegrationPolicy-${ClusterName}"
+      Path: /
+      # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses an interpolated
+      # value in one of its key parameters which isn't natively supported by CloudFormation
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AllowAPIServerEndpointDiscovery",
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
+              "Action": "eks:DescribeCluster"
+            }
+          ]
+        }
+  InterruptionPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "KarpenterControllerInterruptionPolicy-${ClusterName}"
+      Path: /
+      # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses an interpolated
+      # value in one of its key parameters which isn't natively supported by CloudFormation
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AllowInterruptionQueueActions",
+              "Effect": "Allow",
+              "Resource": "${KarpenterInterruptionQueue.Arn}",
+              "Action": [
+                "sqs:DeleteMessage",
+                "sqs:GetQueueUrl",
+                "sqs:ReceiveMessage"
+              ]
+            }
+          ]
+        }
+  ResourceDiscoveryPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "KarpenterControllerResourceDiscoveryPolicy-${ClusterName}"
+      Path: /
+      # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses an interpolated
+      # value in one of its key parameters which isn't natively supported by CloudFormation
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AllowRegionalReadActions",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "ec2:DescribeCapacityReservations",
+                "ec2:DescribeImages",
+                "ec2:DescribeInstances",
+                "ec2:DescribeInstanceTypeOfferings",
+                "ec2:DescribeInstanceTypes",
+                "ec2:DescribeLaunchTemplates",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSpotPriceHistory",
+                "ec2:DescribeSubnets"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": "${AWS::Region}"
+                }
+              }
             },
             {
-              "Sid": "AllowInstanceProfileReadActions",
+              "Sid": "AllowSSMReadActions",
               "Effect": "Allow",
-              "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
-              "Action": "iam:GetInstanceProfile"
+              "Resource": "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*",
+              "Action": "ssm:GetParameter"
+            },
+            {
+              "Sid": "AllowPricingReadActions",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": "pricing:GetProducts"
             },
             {
               "Sid": "AllowUnscopedInstanceProfileListAction",
@@ -292,10 +344,10 @@ Resources:
               "Action": "iam:ListInstanceProfiles"
             },
             {
-              "Sid": "AllowAPIServerEndpointDiscovery",
+              "Sid": "AllowInstanceProfileReadActions",
               "Effect": "Allow",
-              "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
-              "Action": "eks:DescribeCluster"
+              "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
+              "Action": "iam:GetInstanceProfile"
             }
           ]
         }

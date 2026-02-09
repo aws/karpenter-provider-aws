@@ -22,6 +22,6 @@ dashboardProviders:
 dashboards:
   default:
     capacity-dashboard:
-      url: https://karpenter.sh/v1.8/getting-started/getting-started-with-karpenter/karpenter-capacity-dashboard.json
+      url: https://karpenter.sh/v1.9/getting-started/getting-started-with-karpenter/karpenter-capacity-dashboard.json
     performance-dashboard:
-      url: https://karpenter.sh/v1.8/getting-started/getting-started-with-karpenter/karpenter-performance-dashboard.json
+      url: https://karpenter.sh/v1.9/getting-started/getting-started-with-karpenter/karpenter-performance-dashboard.json
