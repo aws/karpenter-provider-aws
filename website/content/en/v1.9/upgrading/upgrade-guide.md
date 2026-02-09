@@ -86,6 +86,60 @@ If you get the error `invalid ownership metadata; label validation error:` while
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+### Upgrading to `1.9.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* The IAM policy in the getting started guide's cloudformation template has been split into 5 policies (addresses
+  [aws/karpenter-provider-aws#7874](https://github.com/aws/karpenter-provider-aws/issues/7874)). If you've taken a
+  dependency on the policy created by this cloudformation template, you will need to update your IAM role to attach all
+  5 policies. There has not been any change to the permissions granted by the policies since 1.8.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.9.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.9.0
+
+
+### Upgrading to `1.8.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+
+Karpenter `v1.8.4` release contains a regression which may prevent Karpenter from scheduling pods with specific TopologySpreadConstraint configurations. Please do not upgrade to this version. For more details, see the following issue: https://github.com/kubernetes-sigs/karpenter/issues/2785
+{{% /alert %}}
+
+* This version adds support for [Static Capacity](https://github.com/kubernetes-sigs/karpenter/pull/2521). Make sure to upgrade your karpenter CRDs to use this feature.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.8.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.8.0
+
+### Upgrading to `1.7.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* Instance profile path changes:
+  - Karpenter now creates instance profiles with a specific path structure `/karpenter/{region}/{cluster-name}/{nodeclass-uid}/` instead of the generic root path `/`
+  - This change helps with better organization and management of instance profiles
+  - No action is required for existing instance profiles, but new ones will use this path structure
+  - Additional IAM permissions required:
+    - The following new IAM permissions are required for the Karpenter controller role:
+      - `iam:ListInstanceProfiles`: Required for managing instance profiles
+* The `karpenter_pods_pods_drained_total` metric has been renamed to `karpenter_pods_drained_total`
+* The `karpenter_nodeclaims_disrupted_total` metric reason `liveness` has been renamed to `registration_timeout`
+* Pods with `ResourceClaim` requests are explicitly ignored. Older revisions of Karpenter are not aware of the field and would ignore those requests. DRA is not currently supported by Karpenter.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.7.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.7.0
+
 ### Upgrading to `1.6.0`+
 
 {{% alert title="Warning" color="warning" %}}
@@ -96,8 +150,7 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 * Native ODCR support has graduated to beta and is enabled by default.
   If you were previously using open ODCRs with Karpenter and have not already migrated to native ODCR support, review the [native ODCR support guide]({{< relref "../tasks/odcrs" >}}) before upgrading.
 * Support a new configuration option `MinValuesPolicy` which controls how the Karpenter scheduler treats min values. Options include 'Strict' (fails scheduling when min values can't be met) and 'BestEffort' (relaxes min values when they can't be met). Default is 'Strict' to preserve existing behavior.
-* Support a new configuration option `DisableDryRun` which disables the dry run calls made during EC2NodeClass validation.
-
+* Support a new configuration option `DisableDryRun` which disables the dry run calls made during EC2NodeClass validation (1.6.2+).
 
 Full Changelog:
 * https://github.com/aws/karpenter-provider-aws/releases/tag/v1.6.0
