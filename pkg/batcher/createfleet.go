@@ -59,12 +59,25 @@ func execCreateFleetBatch(ec2api sdk.EC2API) BatchExecutor[ec2.CreateFleetInput,
 		//nolint:gosec
 		firstInput.TargetCapacitySpecification.TotalTargetCapacity = aws.Int32(int32(len(inputs)))
 		output, err := ec2api.CreateFleet(ctx, firstInput)
+
 		if err != nil {
+			logValues := []any{
+				"fleet-id", output.FleetId,
+				"response", err.Error(),
+			}
+			log.FromContext(ctx).WithValues(logValues...).V(1).Info("called EC2 CreateFleet")
 			for range inputs {
 				results = append(results, Result[ec2.CreateFleetOutput]{Err: err})
 			}
 			return results
+		} else {
+			logValues := []any{
+				"fleet-id", output.FleetId,
+				"response", "success",
+			}
+			log.FromContext(ctx).WithValues(logValues...).V(1).Info("called EC2 CreateFleet")
 		}
+
 		// we can get partial fulfillment of a CreateFleet request, so we:
 		// 1) split out the single instance IDs and deliver to each requestor
 		// 2) deliver errors to any remaining requestors for which we don't have an instance
