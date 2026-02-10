@@ -53,7 +53,7 @@ runs:
   using: "composite"
   steps:
   - name: login to ecr via docker
-    uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+    uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
     with:
       registry: ${{ inputs.account_id }}.dkr.ecr.${{ inputs.region }}.amazonaws.com
       logout: true
