@@ -6,7 +6,7 @@ weight: 7
 description: >
   Inspect Karpenter Metrics
 ---
-<!-- this document is generated from hack/docs/metrics_gen_docs.go -->
+<!-- this document is generated from hack/docs/metrics_gen/main.go -->
 Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.kube-system.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)
 
 ### `karpenter_ignored_pod_count`
@@ -454,3 +454,4 @@ Total number of slow path exercised in renewing leader leases. 'name' is the str
 ### `leader_election_master_status`
 Gauge of if the reporting system is master of the relevant lease, 0 indicates backup, 1 indicates master. 'name' is the string used to identify the lease. Please make sure to group by name.
 - Stability Level: STABLE
+
