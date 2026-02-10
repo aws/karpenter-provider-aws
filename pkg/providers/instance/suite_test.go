@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/smithy-go"
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -139,6 +140,8 @@ var _ = Describe("InstanceProvider", func() {
 		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
+		// Validation cache should not be updated on failure
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
 
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeTrue())
@@ -155,6 +158,8 @@ var _ = Describe("InstanceProvider", func() {
 		instance, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
+		// Validation cache should not be updated on failure
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
 
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeTrue())
@@ -200,6 +205,8 @@ var _ = Describe("InstanceProvider", func() {
 		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
+		// Validation cache should not be updated on failure
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
 
 		// Capacity should get ICEd when this error is received
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
@@ -293,6 +300,8 @@ var _ = Describe("InstanceProvider", func() {
 		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
+		// Validation cache should not be updated on failure
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
 
 		// Ensure we marked the reservation as unavailable after encountering the error
 		Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(targetReservationID)).To(Equal(0))
@@ -413,6 +422,8 @@ var _ = Describe("InstanceProvider", func() {
 		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
+		// Validation cache should not be updated on failure
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
 
 		// We should have set the zone used in the request as unavailable for all instance types
 		for _, instance := range instanceTypes {
@@ -425,6 +436,38 @@ var _ = Describe("InstanceProvider", func() {
 				Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable(ec2types.InstanceType(instance.Name), zone, "on-demand")).To(BeFalse())
 			}
 		}
+	})
+	It("should update validation cache when CreateFleet succeeds and launches instances", func() {
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
+
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(instance).ToNot(BeNil())
+		// Validation cache should be updated on success
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(1))
+	})
+	It("should not update validation cache when CreateFleet fails", func() {
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
+
+		awsEnv.EC2API.CreateFleetBehavior.Error.Set(&smithy.GenericAPIError{
+			Code: "UnauthorizedOperation",
+		})
+
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(HaveOccurred())
+		Expect(instance).To(BeNil())
+		// Validation cache should not be updated on failure
+		Expect(awsEnv.ValidationCache.Items()).To(HaveLen(0))
 	})
 	It("should use priotiztied allocation stragaty for an on-demand nodeclaim using nodeoverlay pricing", func() {
 		nodeClaim.Annotations = map[string]string{v1alpha1.PriceOverlayAppliedAnnotationKey: "true"}

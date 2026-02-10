@@ -17,11 +17,8 @@ package nodeclass
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
-	"github.com/mitchellh/hashstructure/v2"
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -39,6 +36,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
@@ -71,7 +69,7 @@ type Validation struct {
 	amiResolver            amifamily.Resolver
 	instanceTypeProvider   instancetype.Provider
 	launchTemplateProvider launchtemplate.Provider
-	cache                  *cache.Cache
+	cache                  *awscache.Validation
 	dryRunDisabled         bool
 }
 
@@ -82,7 +80,7 @@ func NewValidationReconciler(
 	amiResolver amifamily.Resolver,
 	instanceTypeProvider instancetype.Provider,
 	launchTemplateProvider launchtemplate.Provider,
-	cache *cache.Cache,
+	cache *awscache.Validation,
 	dryRunDisabled bool,
 ) *Validation {
 	return &Validation{
@@ -153,7 +151,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating tags, %w", err))
 	}
 
-	if val, ok := v.cache.Get(v.cacheKey(nodeClass, tags)); ok {
+	if val, ok := v.cache.Get(nodeClass, tags); ok {
 		// We still update the status condition even if it's cached since we may have had a conflict error previously
 		if val == "" {
 			nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
@@ -169,7 +167,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 
 	if v.dryRunDisabled {
 		nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
-		v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
+		v.cache.SetSuccess(nodeClass, tags)
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 
@@ -188,13 +186,13 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return result, err
 	}
 
-	v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
+	v.cache.SetSuccess(nodeClass, tags)
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 	return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 }
 
 func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[string]string, failureReason string) {
-	v.cache.SetDefault(v.cacheKey(nodeClass, tags), failureReason)
+	v.cache.SetFailure(nodeClass, tags, failureReason)
 	nodeClass.StatusConditions().SetFalse(
 		v1.ConditionTypeValidationSucceeded,
 		failureReason,
@@ -299,37 +297,6 @@ func (*Validation) requiredConditions() []string {
 		v1.ConditionTypeInstanceProfileReady,
 		v1.ConditionTypeSecurityGroupsReady,
 		v1.ConditionTypeSubnetsReady,
-	}
-}
-
-func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) string {
-	hash := lo.Must(hashstructure.Hash([]any{
-		nodeClass.Status.Subnets,
-		nodeClass.Status.SecurityGroups,
-		nodeClass.Status.AMIs,
-		nodeClass.Status.InstanceProfile,
-		nodeClass.Spec,
-		nodeClass.Annotations,
-		tags,
-	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-	return fmt.Sprintf("%s:%016x", nodeClass.Name, hash)
-}
-
-// clearCacheEntries removes all cache entries associated with the given nodeclass from the validation cache
-func (v *Validation) clearCacheEntries(nodeClass *v1.EC2NodeClass) {
-	var toDelete []string
-	for key := range v.cache.Items() {
-		parts := strings.Split(key, ":")
-		// NOTE: should never occur, indicates malformed cache key
-		if len(parts) != 2 {
-			continue
-		}
-		if parts[0] == nodeClass.Name {
-			toDelete = append(toDelete, key)
-		}
-	}
-	for _, key := range toDelete {
-		v.cache.Delete(key)
 	}
 }
 

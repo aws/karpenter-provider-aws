@@ -79,7 +79,7 @@ type Operator struct {
 	Config                      aws.Config
 	UnavailableOfferingsCache   *awscache.UnavailableOfferings
 	SSMCache                    *cache.Cache
-	ValidationCache             *cache.Cache
+	ValidationCache             *awscache.Validation
 	RecreationCache             *cache.Cache
 	SubnetProvider              subnet.Provider
 	SecurityGroupProvider       securitygroup.Provider
@@ -120,7 +120,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	}
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
-	validationCache := cache.New(awscache.ValidationTTL, awscache.DefaultCleanupInterval)
+	validationCache := awscache.NewValidation()
 	recreationCache := cache.New(awscache.RecreationTTL, awscache.DefaultCleanupInterval)
 
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
@@ -190,6 +190,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		launchTemplateProvider,
 		capacityReservationProvider,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		validationCache,
 	)
 
 	// Setup field indexers on instanceID -- specifically for the interruption controller
