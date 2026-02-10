@@ -137,6 +137,12 @@ func (p *DefaultProvider) createOfferings(
 				default:
 					panic(fmt.Sprintf("invalid capacity type %q in requirements for instance type %q", capacityType, it.Name))
 				}
+				// For preview instances without pricing, assign high price to ensure they're only selected when explicitly requested
+				// Only apply this for on-demand - spot instances without zonal pricing should remain unavailable
+				if !hasPrice && capacityType == karpv1.CapacityTypeOnDemand {
+					price = 1e9
+					hasPrice = true
+				}
 				offering := &cloudprovider.Offering{
 					Requirements: scheduling.NewRequirements(
 						scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType),

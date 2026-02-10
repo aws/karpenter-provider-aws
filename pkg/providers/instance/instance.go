@@ -329,6 +329,9 @@ func (p *DefaultProvider) launchInstance(
 	if _, ok := nodeClaim.Annotations[v1alpha1.PriceOverlayAppliedAnnotationKey]; ok {
 		cfiBuilder.WithOverlay()
 	}
+	if hasPrioritizedOverrides(launchTemplateConfigs) {
+		cfiBuilder.WithOverlay()
+	}
 	if nodeClass.Spec.Context != nil && nodeClaim.Annotations[karpv1.NodeClaimMinValuesRelaxedAnnotationKey] != "true" {
 		cfiBuilder.WithContextID(*nodeClass.Spec.Context)
 	}
@@ -633,4 +636,18 @@ func combineFleetErrors(fleetErrs []ec2types.CreateFleetError) (errs error) {
 	}
 	reason, message := awserrors.ToReasonMessage(errs)
 	return cloudprovider.NewCreateError(errs, reason, message)
+}
+
+// hasInstancesWithoutPricing checks if any override has high priority indicating missing pricing data
+// we can rename it to priority stuff
+func hasPrioritizedOverrides(configs []ec2types.FleetLaunchTemplateConfigRequest) bool {
+	for _, config := range configs {
+		for _, override := range config.Overrides {
+			// Preview instances without pricing are marked with high priority (1e9)
+			if override.Priority != nil && *override.Priority >= 1e9 {
+				return true
+			}
+		}
+	}
+	return false
 }
