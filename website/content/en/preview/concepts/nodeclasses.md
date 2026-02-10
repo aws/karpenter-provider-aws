@@ -88,7 +88,7 @@ spec:
   # Must specify one of "role" or "instanceProfile" for Karpenter to launch nodes
   role: "KarpenterNodeRole-${CLUSTER_NAME}"
 
-  # Optional, IAM instance profile to use for the node identity.
+  # Optional, IAM instance profile name or ARN to use for the node identity.
   # Must specify one of "role" or "instanceProfile" for Karpenter to launch nodes
   instanceProfile: "KarpenterNodeInstanceProfile-${CLUSTER_NAME}"
 
@@ -707,6 +707,8 @@ spec:
 ## spec.instanceProfile
 
 `InstanceProfile` is an optional field and tells Karpenter which IAM identity nodes should assume. You must specify one of `role` or `instanceProfile` when creating a Karpenter `EC2NodeClass`. If you use the `instanceProfile` field instead of `role`, Karpenter will not manage the InstanceProfile on your behalf; instead, it expects that you have pre-provisioned an IAM instance profile and assigned it a role.
+
+This parameter accepts both name and ARN formats.
 
 You can provision and assign a role to an IAM instance profile using [CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-instanceprofile.html) or by using the [`aws iam create-instance-profile`](https://docs.aws.amazon.com/cli/latest/reference/iam/create-instance-profile.html) and [`aws iam add-role-to-instance-profile`](https://docs.aws.amazon.com/cli/latest/reference/iam/add-role-to-instance-profile.html) commands in the CLI.
 
