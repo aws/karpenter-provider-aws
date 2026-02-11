@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "devDependencies": {
     "ansi-regex": ">=6.2.2",
-    "autoprefixer": "^10.4.23",
+    "autoprefixer": "^10.4.24",
     "postcss": "^8.5.6",
     "postcss-cli": "^11.0.1",
-    "hugo-extended": "0.154.5"
+    "hugo-extended": "0.155.2"
   },
 
   "scripts": {
