@@ -75,17 +75,18 @@ type Options struct {
 // LaunchTemplate holds the dynamically generated launch template parameters
 type LaunchTemplate struct {
 	*Options
-	UserData                bootstrap.Bootstrapper
-	BlockDeviceMappings     []*v1.BlockDeviceMapping
-	MetadataOptions         *v1.MetadataOptions
-	AMIID                   string
-	InstanceTypes           []*cloudprovider.InstanceType `hash:"ignore"`
-	DetailedMonitoring      bool
-	EFACount                int
-	CapacityType            string
-	CapacityReservationID   string
-	CapacityReservationType v1.CapacityReservationType
-	Tenancy                 string
+	UserData                    bootstrap.Bootstrapper
+	BlockDeviceMappings         []*v1.BlockDeviceMapping
+	MetadataOptions             *v1.MetadataOptions
+	AMIID                       string
+	InstanceTypes               []*cloudprovider.InstanceType `hash:"ignore"`
+	DetailedMonitoring          bool
+	EFACount                    int
+	EFAOnlySecondaryInterfaces  bool // When true, secondary EFA interfaces use efa-only type (no IP allocation)
+	CapacityType                string
+	CapacityReservationID       string
+	CapacityReservationType     v1.CapacityReservationType
+	Tenancy                     string
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -173,13 +174,23 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 					}
 				}
 			}
+			// Determine EFA count from either pod requests or EC2NodeClass configuration
+			efaCount := 0
+			if lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) {
+				// Pod-driven EFA requests take precedence
+				efaCount = int(lo.ToPtr(it.Capacity[v1.ResourceEFA]).Value())
+			} else if nodeClass.Spec.EFA != nil && lo.FromPtr(nodeClass.Spec.EFA.Enabled) {
+				// EC2NodeClass EFA configuration for static allocation
+				if nodeClass.Spec.EFA.Count != nil {
+					efaCount = int(*nodeClass.Spec.EFA.Count)
+				} else {
+					// Use max EFA supported by instance type
+					efaCount = int(lo.ToPtr(it.Capacity[v1.ResourceEFA]).Value())
+				}
+			}
 			return launchTemplateParams{
-				efaCount: lo.Ternary(
-					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA),
-					int(lo.ToPtr(it.Capacity[v1.ResourceEFA]).Value()),
-					0,
-				),
-				maxPods: int(it.Capacity.Pods().Value()),
+				efaCount: efaCount,
+				maxPods:  int(it.Capacity.Pods().Value()),
 				// If we're dealing with reserved instances, there's only going to be a single instance per group. This invariant
 				// is due to reservation IDs not being shared across instance types. Because of this, we don't need to worry about
 				// ordering in this string.
@@ -290,6 +301,12 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		"us-isof-south-1",
 		"us-isof-east-1",
 	)
+	// Determine if secondary EFA interfaces should be efa-only (no IP allocation)
+	efaOnlySecondaryInterfaces := false
+	if nodeClass.Spec.EFA != nil {
+		// Default to true if EFA is configured via EC2NodeClass
+		efaOnlySecondaryInterfaces = lo.FromPtr(nodeClass.Spec.EFA.EFAOnlySecondaryInterfaces)
+	}
 	return lo.Map(capacityReservationIDs, func(id string, _ int) *LaunchTemplate {
 		resolved := &LaunchTemplate{
 			Options: options,
@@ -302,16 +319,17 @@ func (r DefaultResolver) resolveLaunchTemplates(
 				nodeClass.Spec.UserData,
 				options.InstanceStorePolicy,
 			),
-			BlockDeviceMappings:     nodeClass.Spec.BlockDeviceMappings,
-			MetadataOptions:         nodeClass.Spec.MetadataOptions,
-			DetailedMonitoring:      aws.ToBool(nodeClass.Spec.DetailedMonitoring),
-			AMIID:                   amiID,
-			InstanceTypes:           instanceTypes,
-			EFACount:                efaCount,
-			CapacityType:            capacityType,
-			CapacityReservationID:   id,
-			CapacityReservationType: capacityReservationType,
-			Tenancy:                 tenancyType,
+			BlockDeviceMappings:        nodeClass.Spec.BlockDeviceMappings,
+			MetadataOptions:            nodeClass.Spec.MetadataOptions,
+			DetailedMonitoring:         aws.ToBool(nodeClass.Spec.DetailedMonitoring),
+			AMIID:                      amiID,
+			InstanceTypes:              instanceTypes,
+			EFACount:                   efaCount,
+			EFAOnlySecondaryInterfaces: efaOnlySecondaryInterfaces,
+			CapacityType:               capacityType,
+			CapacityReservationID:      id,
+			CapacityReservationType:    capacityReservationType,
+			Tenancy:                    tenancyType,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
