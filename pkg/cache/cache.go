@@ -51,6 +51,8 @@ const (
 	RecreationTTL = 1 * time.Minute
 	// ProtectedProfilesTTL is the duration to keep profiles as protected before nodeclass garbagecollector considers deletion
 	ProtectedProfilesTTL = 1 * time.Hour
+	// ReservedInstancePriceTTL is the time before we refresh reserved instance price data
+	ReservedInstancePriceTTL = 60 * time.Minute
 )
 
 const (
