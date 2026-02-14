@@ -521,3 +521,5 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(priotiztied.SpotOptions.AllocationStrategy).To(Equal(ec2types.SpotAllocationStrategyPriceCapacityOptimized))
 	})
 })
+
+// try to add a test case here where an instance is lauched without a price and make sure we use the priority strat
