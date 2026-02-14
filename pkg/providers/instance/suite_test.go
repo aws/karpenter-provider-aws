@@ -297,6 +297,82 @@ var _ = Describe("InstanceProvider", func() {
 		// Ensure we marked the reservation as unavailable after encountering the error
 		Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(targetReservationID)).To(Equal(0))
 	})
+	It("should not mark capacity reservations unavailable for RequestLimitExceeded CreateFleet errors", func() {
+		const targetReservationID = "cr-m5.large-1a-1"
+
+		// Ensure Karpenter believes a reservation is available
+		awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(targetReservationID, 1)
+
+		// Make DescribeCapacityReservations show it as available too
+		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
+			CapacityReservations: []ec2types.CapacityReservation{
+				{
+					AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+					InstanceType:           lo.ToPtr("m5.large"),
+					OwnerId:                lo.ToPtr("012345678901"),
+					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+					CapacityReservationId:  lo.ToPtr(targetReservationID),
+					AvailableInstanceCount: lo.ToPtr[int32](1),
+					State:                  ec2types.CapacityReservationStateActive,
+					ReservationType:        ec2types.CapacityReservationTypeDefault,
+				},
+			},
+		})
+
+		// Make the NodeClass believe it has a matching reservation
+		nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, v1.CapacityReservation{
+			ID:                    targetReservationID,
+			AvailabilityZone:      "test-zone-1a",
+			InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
+			InstanceType:          "m5.large",
+			OwnerID:               "012345678901",
+			State:                 v1.CapacityReservationStateActive,
+			ReservationType:       v1.CapacityReservationTypeDefault,
+		})
+
+		// Force reserved capacity launch
+		nodeClaim.Spec.Requirements = append(
+			nodeClaim.Spec.Requirements,
+			karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.CapacityTypeReserved},
+			},
+		)
+
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		// CreateFleet returns throttling errors and launches nothing
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			Instances: []ec2types.CreateFleetInstance{},
+			Errors: []ec2types.CreateFleetError{
+				{
+					ErrorCode:    lo.ToPtr("RequestLimitExceeded"),
+					ErrorMessage: lo.ToPtr("Request limit exceeded."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.large",
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+			},
+		})
+
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		// Keep it deterministic
+		instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool { return i.Name == "m5.large" })
+
+		created, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(HaveOccurred())
+		Expect(created).To(BeNil())
+
+		// Throttling should not mark the reservation unavailable
+		Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(targetReservationID)).To(Equal(1))
+	})
 	It("should treat instances which launched into open ODCRs as on-demand when the ReservedCapacity gate is disabled", func() {
 		id := fake.InstanceID()
 		awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
