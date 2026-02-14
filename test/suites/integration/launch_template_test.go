@@ -46,3 +46,20 @@ var _ = Describe("Launch Template Deletion", func() {
 		}).WithPolling(5.0).Should(Succeed())
 	})
 })
+
+var _ = Describe("Nitro Enclaves", func() {
+	It("should launch instances with Nitro Enclaves enabled", func() {
+		nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{
+			Enabled: aws.Bool(true),
+		}
+		pod := coretest.Pod()
+
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		instance := env.GetInstance(pod.Spec.NodeName)
+		Expect(instance.EnclaveOptions).ToNot(BeNil())
+		Expect(instance.EnclaveOptions.Enabled).To(HaveValue(BeTrue()))
+	})
+})

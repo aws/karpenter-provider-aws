@@ -139,6 +139,10 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":1,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
+	// EnclaveOptions specifies whether the instance is enabled for Amazon Web Services Nitro Enclaves.
+	// If omitted, defaults to false.
+	// +optional
+	EnclaveOptions *EnclaveOptions `json:"enclaveOptions,omitempty"`
 	// Context is a Reserved field in EC2 APIs
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
@@ -444,6 +448,11 @@ type BlockDevice struct {
 	// +kubebuilder:validation:Enum:={standard,io1,io2,gp2,sc1,st1,gp3}
 	// +optional
 	VolumeType *string `json:"volumeType,omitempty"`
+}
+
+type EnclaveOptions struct {
+	// Enabled indicates whether the instance is enabled for Amazon Web Services Nitro Enclaves.
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // InstanceStorePolicy enumerates options for configuring instance store disks.
