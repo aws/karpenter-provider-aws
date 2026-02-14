@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -163,6 +164,11 @@ func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *
 		zonalSubnets[subnet.Zone] = &Subnet{ID: subnet.ID, Zone: subnet.Zone, ZoneID: subnet.ZoneID, AvailableIPAddressCount: availableIPAddressCount[subnet.ID]}
 	}
 
+	// Filter zones with insufficient available IPs
+	if opts := options.FromContext(ctx); opts != nil && opts.MinSubnetAvailableIPs > 0 {
+		zonalSubnets = p.filterZonesByAvailableIPs(ctx, zonalSubnets, instanceTypes, capacityType, int32(opts.MinSubnetAvailableIPs))
+	}
+
 	for _, subnet := range zonalSubnets {
 		predictedIPsUsed := p.minPods(instanceTypes, scheduling.NewRequirements(
 			scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType),
@@ -257,6 +263,69 @@ func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, r
 	}).Capacity.Pods().AsInt64()
 	//nolint:gosec
 	return int32(pods)
+}
+
+// filterZonesByAvailableIPs removes zones where the best subnet doesn't have enough IPs.
+// It uses a hybrid threshold: max(staticThreshold, dynamicRequirement).
+// If all zones are filtered, it logs a warning and returns the original map to avoid
+// making the situation worse.
+func (p *DefaultProvider) filterZonesByAvailableIPs(
+	ctx context.Context,
+	zonalSubnets map[string]*Subnet,
+	instanceTypes []*cloudprovider.InstanceType,
+	capacityType string,
+	minThreshold int32,
+) map[string]*Subnet {
+	if minThreshold <= 0 {
+		return zonalSubnets
+	}
+
+	filtered := make(map[string]*Subnet, len(zonalSubnets))
+	skippedZones := []string{}
+
+	for zone, subnet := range zonalSubnets {
+		// Get effective available IPs (cached or tracked inflight)
+		effectiveIPs := subnet.AvailableIPAddressCount
+		if trackedIPs, ok := p.inflightIPs[subnet.ID]; ok {
+			effectiveIPs = trackedIPs
+		}
+
+		// Calculate required IPs for this launch (dynamic threshold)
+		requiredIPs := p.minPods(instanceTypes, scheduling.NewRequirements(
+			scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType),
+			scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, zone),
+		))
+
+		// Use the higher of static threshold or dynamic requirement
+		threshold := minThreshold
+		if requiredIPs > threshold {
+			threshold = requiredIPs
+		}
+
+		if effectiveIPs >= threshold {
+			filtered[zone] = subnet
+		} else {
+			skippedZones = append(skippedZones, zone)
+			log.FromContext(ctx).Info("skipping zone due to insufficient subnet IPs",
+				"zone", zone,
+				"subnet", subnet.ID,
+				"availableIPs", effectiveIPs,
+				"requiredIPs", requiredIPs,
+				"threshold", threshold,
+			)
+		}
+	}
+
+	// Edge case: all zones filtered - proceed with original to avoid making it worse
+	if len(filtered) == 0 && len(zonalSubnets) > 0 {
+		log.FromContext(ctx).Info("all zones below IP threshold, proceeding with original selection to avoid blocking entirely",
+			"skippedZones", skippedZones,
+			"threshold", minThreshold,
+		)
+		return zonalSubnets
+	}
+
+	return filtered
 }
 
 func getFilterSets(terms []v1.SubnetSelectorTerm) (res [][]ec2types.Filter) {
