@@ -136,6 +136,7 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			Placement: &ec2types.LaunchTemplatePlacementRequest{
 				Tenancy: ec2types.Tenancy(b.options.Tenancy),
 			},
+			CpuOptions: cpuOptions(b.options.CPUOptions),
 		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{
@@ -168,4 +169,23 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 		}
 	}
 	return lt
+}
+
+// cpuOptions converts v1.CPUOptions to EC2 LaunchTemplateCpuOptionsRequest
+func cpuOptions(opts *v1.CPUOptions) *ec2types.LaunchTemplateCpuOptionsRequest {
+	if opts == nil {
+		return nil
+	}
+	
+	cpuOpts := &ec2types.LaunchTemplateCpuOptionsRequest{}
+	
+	if opts.CoreCount != nil {
+		cpuOpts.CoreCount = lo.ToPtr(int32(*opts.CoreCount))
+	}
+	
+	if opts.ThreadsPerCore != nil {
+		cpuOpts.ThreadsPerCore = lo.ToPtr(int32(*opts.ThreadsPerCore))
+	}
+	
+	return cpuOpts
 }
