@@ -493,7 +493,7 @@ const EC2NodeClassHashVersion = "v4"
 
 func (in *EC2NodeClass) Hash() string {
 	spec := in.Spec
-	spec.UserData = lo.ToPtr(in.UserDataHash())
+	spec.UserData = in.UserDataHash()
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]interface{}{
 		spec,
 		// AMIFamily should be hashed using the dynamically resolved value rather than the literal value of the field.
@@ -622,7 +622,10 @@ const TargetConfigVersionHashHeader = "TargetConfigVersionHash"
 
 // Returns the TargetConfigVersionHash value from the userData's ignition payload, assuming it's a valid config.
 // If not valid, returns the raw userData, effectively bypassing this handling.
-func (in *EC2NodeClass) UserDataHash() string {
+func (in *EC2NodeClass) UserDataHash() *string {
+	if in.Spec.UserData == nil {
+		return nil
+	}
 	var ignitionConfig struct {
 		Ignition struct {
 			Config struct {
@@ -637,19 +640,19 @@ func (in *EC2NodeClass) UserDataHash() string {
 	}
 
 	if err := json.Unmarshal([]byte(*in.Spec.UserData), &ignitionConfig); err != nil {
-		return *in.Spec.UserData
+		return in.Spec.UserData
 	}
 
 	if len(ignitionConfig.Ignition.Config.Merge) == 0 {
-		return *in.Spec.UserData
+		return in.Spec.UserData
 	}
 
 	for _, header := range ignitionConfig.Ignition.Config.Merge[0].HTTPHeaders {
 		if header.Name == TargetConfigVersionHashHeader && header.Value != nil {
-			return *header.Value
+			return header.Value
 		}
 	}
-	return *in.Spec.UserData
+	return in.Spec.UserData
 }
 
 // EC2NodeClassList contains a list of EC2NodeClass
