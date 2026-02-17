@@ -22,7 +22,9 @@ import (
 	"time"
 
 	opmetrics "github.com/awslabs/operatorpkg/metrics"
+	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/singleton"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
@@ -41,12 +42,24 @@ import (
 )
 
 const (
-	resourceType = "resource_type"
-	nodeName     = "node_name"
-	nodePhase    = "phase"
+	nodeName  = "node_name"
+	nodePhase = "phase"
 )
 
 var (
+	Allocatable         opmetrics.GaugeMetric
+	TotalPodRequests    opmetrics.GaugeMetric
+	TotalPodLimits      opmetrics.GaugeMetric
+	TotalDaemonRequests opmetrics.GaugeMetric
+	TotalDaemonLimits   opmetrics.GaugeMetric
+	SystemOverhead      opmetrics.GaugeMetric
+	Lifetime            opmetrics.GaugeMetric
+	ClusterUtilization  opmetrics.GaugeMetric
+)
+
+// Initialize metrics at runtime to ensure cloud provider's well-known labels are properly
+// injected, preventing race conditions in dependency ordering during label injection for global variable. .
+func initializeMetrics() {
 	Allocatable = opmetrics.NewPrometheusGauge(
 		crmetrics.Registry,
 		prometheus.GaugeOpts{
@@ -125,15 +138,14 @@ var (
 			Name:      "utilization_percent",
 			Help:      "Utilization of allocatable resources by pod requests",
 		},
-		[]string{resourceType},
+		[]string{metrics.ResourceTypeLabel},
 	)
-	wellKnownLabels = getWellKnownLabels()
-)
+}
 
 func nodeLabelNamesWithResourceType() []string {
 	return append(
 		nodeLabelNames(),
-		resourceType,
+		metrics.ResourceTypeLabel,
 	)
 }
 
@@ -141,7 +153,7 @@ func nodeLabelNames() []string {
 	return append(
 		// WellKnownLabels includes the nodepool label, so we don't need to add it as its own item here.
 		// If we do, prometheus will panic since there would be duplicate labels.
-		sets.New(lo.Values(wellKnownLabels)...).UnsortedList(),
+		sets.New(lo.Values(getWellKnownLabels())...).UnsortedList(),
 		nodeName,
 		nodePhase,
 	)
@@ -153,16 +165,17 @@ type Controller struct {
 }
 
 func NewController(cluster *state.Cluster) *Controller {
+	initializeMetrics()
 	return &Controller{
 		cluster:     cluster,
 		metricStore: metrics.NewStore(),
 	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "metrics.node") //nolint:ineffassign,staticcheck
+func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
+	ctx = injection.WithControllerName(ctx, c.Name()) //nolint:ineffassign,staticcheck
 
-	nodes := lo.Reject(c.cluster.Nodes(), func(n *state.StateNode, _ int) bool {
+	nodes := lo.Reject(c.cluster.DeepCopyNodes(), func(n *state.StateNode, _ int) bool {
 		return n.Node == nil
 	})
 
@@ -176,12 +189,16 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 
 	c.metricStore.ReplaceAll(metricsMap)
 
-	return reconcile.Result{RequeueAfter: time.Second * 5}, nil
+	return reconciler.Result{RequeueAfter: time.Second * 5}, nil
+}
+
+func (c *Controller) Name() string {
+	return "metrics.node"
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("metrics.node").
+		Named(c.Name()).
 		WatchesRawSource(singleton.Source()).
 		Complete(singleton.AsReconciler(c))
 }
@@ -216,7 +233,7 @@ func buildClusterUtilizationMetric(nodes state.StateNodes) []*metrics.StoreMetri
 		res = append(res, &metrics.StoreMetric{
 			GaugeMetric: ClusterUtilization,
 			Value:       utilizationPercentage,
-			Labels:      map[string]string{resourceType: resourceNameToString(resourceName)},
+			Labels:      map[string]string{metrics.ResourceTypeLabel: resourceNameToString(resourceName)},
 		})
 	}
 
@@ -250,7 +267,7 @@ func buildMetrics(n *state.StateNode) (res []*metrics.StoreMetric) {
 
 func getNodeLabelsWithResourceType(node *corev1.Node, resourceTypeName string) prometheus.Labels {
 	metricLabels := getNodeLabels(node)
-	metricLabels[resourceType] = resourceTypeName
+	metricLabels[metrics.ResourceTypeLabel] = resourceTypeName
 	return metricLabels
 }
 
@@ -260,7 +277,7 @@ func getNodeLabels(node *corev1.Node) prometheus.Labels {
 	metricLabels[nodePhase] = string(node.Status.Phase)
 
 	// Populate well known labels
-	for wellKnownLabel, label := range wellKnownLabels {
+	for wellKnownLabel, label := range getWellKnownLabels() {
 		metricLabels[label] = node.Labels[wellKnownLabel]
 	}
 	return metricLabels

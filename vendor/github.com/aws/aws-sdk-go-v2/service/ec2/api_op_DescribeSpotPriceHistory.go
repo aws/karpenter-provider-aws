@@ -39,7 +39,14 @@ func (c *Client) DescribeSpotPriceHistory(ctx context.Context, params *DescribeS
 type DescribeSpotPriceHistoryInput struct {
 
 	// Filters the results by the specified Availability Zone.
+	//
+	// Either AvailabilityZone or AvailabilityZoneId can be specified, but not both
 	AvailabilityZone *string
+
+	// Filters the results by the specified ID of the Availability Zone.
+	//
+	// Either AvailabilityZone or AvailabilityZoneId can be specified, but not both
+	AvailabilityZoneId *string
 
 	// Checks whether you have the required permissions for the action, without
 	// actually making the request, and provides an error response. If you have the
@@ -55,6 +62,9 @@ type DescribeSpotPriceHistoryInput struct {
 	//
 	//   - availability-zone - The Availability Zone for which prices should be
 	//   returned.
+	//
+	//   - availability-zone-id - The ID of the Availability Zone for which prices
+	//   should be returned.
 	//
 	//   - instance-type - The type of instance (for example, m3.medium ).
 	//
@@ -175,6 +185,9 @@ func (c *Client) addOperationDescribeSpotPriceHistoryMiddlewares(stack *middlewa
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeSpotPriceHistory(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -193,16 +206,13 @@ func (c *Client) addOperationDescribeSpotPriceHistoryMiddlewares(stack *middlewa
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

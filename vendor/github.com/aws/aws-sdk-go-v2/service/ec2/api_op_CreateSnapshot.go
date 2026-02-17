@@ -23,7 +23,7 @@ import (
 //     same Region as the volume.
 //
 //   - If the source volume is in a Local Zone, you can create the snapshot in the
-//     same Local Zone or in parent Amazon Web Services Region.
+//     same Local Zone or in its parent Amazon Web Services Region.
 //
 //   - If the source volume is on an Outpost, you can create the snapshot on the
 //     same Outpost or in its parent Amazon Web Services Region.
@@ -47,7 +47,7 @@ import (
 // Snapshots that are taken from encrypted volumes are automatically encrypted.
 // Volumes that are created from encrypted snapshots are also automatically
 // encrypted. Your encrypted volumes and any associated snapshots always remain
-// protected. For more information, [Amazon EBS encryption]in the Amazon EBS User Guide.
+// protected. For more information, see [Amazon EBS encryption]in the Amazon EBS User Guide.
 //
 // [Amazon EBS encryption]: https://docs.aws.amazon.com/ebs/latest/userguide/ebs-encryption.html
 func (c *Client) CreateSnapshot(ctx context.Context, params *CreateSnapshotInput, optFns ...func(*Options)) (*CreateSnapshotOutput, error) {
@@ -143,6 +143,13 @@ type CreateSnapshotOutput struct {
 	// Indicates whether the snapshot is encrypted.
 	Encrypted *bool
 
+	// The full size of the snapshot, in bytes.
+	//
+	// This is not the incremental size of the snapshot. This is the full snapshot
+	// size and represents the size of all the blocks that were written to the source
+	// volume at the time the snapshot was created.
+	FullSnapshotSizeInBytes *int64
+
 	// The Amazon Resource Name (ARN) of the KMS key that was used to protect the
 	// volume encryption key for the parent volume.
 	KmsKeyId *string
@@ -211,7 +218,8 @@ type CreateSnapshotOutput struct {
 	TransferType types.TransferType
 
 	// The ID of the volume that was used to create the snapshot. Snapshots created by
-	// the CopySnapshotaction have an arbitrary volume ID that should not be used for any purpose.
+	// a copy snapshot operation have an arbitrary volume ID that you should not use
+	// for any purpose.
 	VolumeId *string
 
 	// The size of the volume, in GiB.
@@ -287,6 +295,9 @@ func (c *Client) addOperationCreateSnapshotMiddlewares(stack *middleware.Stack, 
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpCreateSnapshotValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -308,16 +319,13 @@ func (c *Client) addOperationCreateSnapshotMiddlewares(stack *middleware.Stack, 
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

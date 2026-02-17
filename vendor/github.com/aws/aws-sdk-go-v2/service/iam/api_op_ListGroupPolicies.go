@@ -14,13 +14,14 @@ import (
 // group.
 //
 // An IAM group can also have managed policies attached to it. To list the managed
-// policies that are attached to a group, use ListAttachedGroupPolicies. For more information about
+// policies that are attached to a group, use [ListAttachedGroupPolicies]. For more information about
 // policies, see [Managed policies and inline policies]in the IAM User Guide.
 //
 // You can paginate the results using the MaxItems and Marker parameters. If there
 // are no inline policies embedded with the specified group, the operation returns
 // an empty list.
 //
+// [ListAttachedGroupPolicies]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListAttachedGroupPolicies.html
 // [Managed policies and inline policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/policies-managed-vs-inline.html
 func (c *Client) ListGroupPolicies(ctx context.Context, params *ListGroupPoliciesInput, optFns ...func(*Options)) (*ListGroupPoliciesOutput, error) {
 	if params == nil {
@@ -70,7 +71,9 @@ type ListGroupPoliciesInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful ListGroupPolicies request.
+// Contains the response to a successful [ListGroupPolicies] request.
+//
+// [ListGroupPolicies]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListGroupPolicies.html
 type ListGroupPoliciesOutput struct {
 
 	// A list of policy names.
@@ -166,6 +169,9 @@ func (c *Client) addOperationListGroupPoliciesMiddlewares(stack *middleware.Stac
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpListGroupPoliciesValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -187,16 +193,13 @@ func (c *Client) addOperationListGroupPoliciesMiddlewares(stack *middleware.Stac
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

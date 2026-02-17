@@ -3,11 +3,14 @@ package status
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
+	opunstructured "github.com/awslabs/operatorpkg/unstructured"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -28,12 +31,17 @@ import (
 type Controller[T Object] struct {
 	gvk                           schema.GroupVersionKind
 	additionalMetricLabels        []string
+	additionalGaugeMetricLabels   []string
+	additionalMetricFields        map[string]string
+	additionalGaugeMetricFields   map[string]string
 	kubeClient                    client.Client
 	eventRecorder                 record.EventRecorder
 	observedConditions            sync.Map // map[reconcile.Request]ConditionSet
+	observedGaugeLabels           sync.Map // map[reconcile.Request]map[string]string
 	observedFinalizers            sync.Map // map[reconcile.Request]Finalizer
 	terminatingObjects            sync.Map // map[reconcile.Request]Object
 	emitDeprecatedMetrics         bool
+	maxConcurrentReconciles       int
 	ConditionDuration             pmetrics.ObservationMetric
 	ConditionCount                pmetrics.GaugeMetric
 	ConditionCurrentStatusSeconds pmetrics.GaugeMetric
@@ -50,8 +58,13 @@ type Option struct {
 	// - operator_status_condition_count
 	// - operator_termination_current_time_seconds
 	// - operator_termination_duration_seconds
-	EmitDeprecatedMetrics bool
-	MetricLabels          []string
+	EmitDeprecatedMetrics   bool
+	MetricLabels            []string
+	GaugeMetricLabels       []string
+	MetricFields            map[string]string
+	GaugeMetricFields       map[string]string
+	HistogramBuckets        []float64
+	MaxConcurrentReconciles int
 }
 
 func EmitDeprecatedMetrics(o *Option) {
@@ -64,6 +77,36 @@ func WithLabels(labels ...string) func(*Option) {
 	}
 }
 
+func WithGaugeLabels(labels ...string) func(*Option) {
+	return func(o *Option) {
+		o.GaugeMetricLabels = append(o.GaugeMetricLabels, labels...)
+	}
+}
+
+func WithFields(fields map[string]string) func(*Option) {
+	return func(o *Option) {
+		o.MetricFields = lo.Assign(o.MetricFields, fields)
+	}
+}
+
+func WithGaugeFields(fields map[string]string) func(*Option) {
+	return func(o *Option) {
+		o.GaugeMetricFields = lo.Assign(o.GaugeMetricFields, fields)
+	}
+}
+
+func WithHistogramBuckets(buckets []float64) func(*Option) {
+	return func(o *Option) {
+		o.HistogramBuckets = buckets
+	}
+}
+
+func WitMaxConcurrentReconciles(m int) func(*Option) {
+	return func(o *Option) {
+		o.MaxConcurrentReconciles = m
+	}
+}
+
 func NewController[T Object](client client.Client, eventRecorder record.EventRecorder, opts ...option.Function[Option]) *Controller[T] {
 	options := option.Resolve(opts...)
 	obj := reflect.New(reflect.TypeOf(*new(T)).Elem()).Interface().(runtime.Object)
@@ -71,24 +114,46 @@ func NewController[T Object](client client.Client, eventRecorder record.EventRec
 	gvk := object.GVK(obj)
 
 	return &Controller[T]{
-		gvk:                           gvk,
-		additionalMetricLabels:        options.MetricLabels,
-		kubeClient:                    client,
-		eventRecorder:                 eventRecorder,
-		emitDeprecatedMetrics:         options.EmitDeprecatedMetrics,
-		ConditionDuration:             conditionDurationMetric(strings.ToLower(gvk.Kind), lo.Map(options.MetricLabels, func(k string, _ int) string { return toPrometheusLabel(k) })...),
-		ConditionCount:                conditionCountMetric(strings.ToLower(gvk.Kind), lo.Map(options.MetricLabels, func(k string, _ int) string { return toPrometheusLabel(k) })...),
-		ConditionCurrentStatusSeconds: conditionCurrentStatusSecondsMetric(strings.ToLower(gvk.Kind), lo.Map(options.MetricLabels, func(k string, _ int) string { return toPrometheusLabel(k) })...),
-		ConditionTransitionsTotal:     conditionTransitionsTotalMetric(strings.ToLower(gvk.Kind), lo.Map(options.MetricLabels, func(k string, _ int) string { return toPrometheusLabel(k) })...),
-		TerminationCurrentTimeSeconds: terminationCurrentTimeSecondsMetric(strings.ToLower(gvk.Kind), lo.Map(options.MetricLabels, func(k string, _ int) string { return toPrometheusLabel(k) })...),
-		TerminationDuration:           terminationDurationMetric(strings.ToLower(gvk.Kind), lo.Map(options.MetricLabels, func(k string, _ int) string { return toPrometheusLabel(k) })...),
+		gvk:                         gvk,
+		additionalMetricLabels:      options.MetricLabels,
+		additionalGaugeMetricLabels: options.GaugeMetricLabels,
+		additionalMetricFields:      options.MetricFields,
+		additionalGaugeMetricFields: options.GaugeMetricFields,
+		kubeClient:                  client,
+		eventRecorder:               eventRecorder,
+		emitDeprecatedMetrics:       options.EmitDeprecatedMetrics,
+		maxConcurrentReconciles:     lo.Ternary(options.MaxConcurrentReconciles <= 0, 10, options.MaxConcurrentReconciles),
+		ConditionDuration: conditionDurationMetric(strings.ToLower(gvk.Kind), options.HistogramBuckets, lo.Map(
+			append(options.MetricLabels, lo.Keys(options.MetricFields)...),
+			func(k string, _ int) string { return toPrometheusLabel(k) })...),
+		ConditionCount: conditionCountMetric(strings.ToLower(gvk.Kind), lo.Map(
+			append(
+				append(lo.Keys(options.MetricFields), lo.Keys(options.GaugeMetricFields)...),
+				append(options.MetricLabels, options.GaugeMetricLabels...)...,
+			), func(k string, _ int) string { return toPrometheusLabel(k) })...),
+		ConditionCurrentStatusSeconds: conditionCurrentStatusSecondsMetric(strings.ToLower(gvk.Kind), lo.Map(
+			append(
+				append(lo.Keys(options.MetricFields), lo.Keys(options.GaugeMetricFields)...),
+				append(options.MetricLabels, options.GaugeMetricLabels...)...,
+			), func(k string, _ int) string { return toPrometheusLabel(k) })...),
+		ConditionTransitionsTotal: conditionTransitionsTotalMetric(strings.ToLower(gvk.Kind), lo.Map(
+			append(options.MetricLabels, lo.Keys(options.MetricFields)...),
+			func(k string, _ int) string { return toPrometheusLabel(k) })...),
+		TerminationCurrentTimeSeconds: terminationCurrentTimeSecondsMetric(strings.ToLower(gvk.Kind), lo.Map(
+			append(
+				append(lo.Keys(options.MetricFields), lo.Keys(options.GaugeMetricFields)...),
+				append(options.MetricLabels, options.GaugeMetricLabels...)...,
+			), func(k string, _ int) string { return toPrometheusLabel(k) })...),
+		TerminationDuration: terminationDurationMetric(strings.ToLower(gvk.Kind), options.HistogramBuckets, lo.Map(
+			append(options.MetricLabels, lo.Keys(options.MetricFields)...),
+			func(k string, _ int) string { return toPrometheusLabel(k) })...),
 	}
 }
 
 func (c *Controller[T]) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		For(object.New[T]()).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: c.maxConcurrentReconciles}).
 		Named(fmt.Sprintf("operatorpkg.%s.status", strings.ToLower(c.gvk.Kind))).
 		Complete(c)
 }
@@ -98,19 +163,19 @@ func (c *Controller[T]) Reconcile(ctx context.Context, req reconcile.Request) (r
 }
 
 type GenericObjectController[T client.Object] struct {
-	*Controller[*unstructuredAdapter[T]]
+	*Controller[*UnstructuredAdapter[T]]
 }
 
 func NewGenericObjectController[T client.Object](client client.Client, eventRecorder record.EventRecorder, opts ...option.Function[Option]) *GenericObjectController[T] {
 	return &GenericObjectController[T]{
-		Controller: NewController[*unstructuredAdapter[T]](client, eventRecorder, opts...),
+		Controller: NewController[*UnstructuredAdapter[T]](client, eventRecorder, opts...),
 	}
 }
 
 func (c *GenericObjectController[T]) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		For(object.New[T]()).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: c.maxConcurrentReconciles}).
 		Named(fmt.Sprintf("operatorpkg.%s.status", strings.ToLower(reflect.TypeOf(object.New[T]()).Elem().Name()))).
 		Complete(c)
 }
@@ -120,11 +185,29 @@ func (c *GenericObjectController[T]) Reconcile(ctx context.Context, req reconcil
 }
 
 func (c *Controller[T]) toAdditionalMetricLabels(obj Object) map[string]string {
-	return lo.SliceToMap(c.additionalMetricLabels, func(label string) (string, string) { return toPrometheusLabel(label), obj.GetLabels()[label] })
+	u := opunstructured.ToPartialUnstructured(obj, lo.Values(c.additionalMetricFields)...)
+	return lo.Assign(
+		lo.MapEntries(c.additionalMetricFields, func(k string, v string) (string, string) {
+			elem, _, _ := unstructured.NestedString(u, lo.Filter(strings.Split(v, "."), func(s string, _ int) bool { return s != "" })...)
+			return toPrometheusLabel(k), elem
+		}),
+		lo.SliceToMap(c.additionalMetricLabels, func(label string) (string, string) { return toPrometheusLabel(label), obj.GetLabels()[label] }),
+	)
+}
+
+func (c *Controller[T]) toAdditionalGaugeMetricLabels(obj Object) map[string]string {
+	u := opunstructured.ToPartialUnstructured(obj, lo.Values(c.additionalGaugeMetricFields)...)
+	return lo.Assign(
+		lo.MapEntries(c.additionalGaugeMetricFields, func(k string, v string) (string, string) {
+			elem, _, _ := unstructured.NestedString(u, lo.Filter(strings.Split(v, "."), func(s string, _ int) bool { return s != "" })...)
+			return toPrometheusLabel(k), elem
+		}),
+		c.toAdditionalMetricLabels(obj), lo.SliceToMap(c.additionalGaugeMetricLabels, func(label string) (string, string) { return toPrometheusLabel(label), obj.GetLabels()[label] }),
+	)
 }
 
 func toPrometheusLabel(k string) string {
-	unsupportedChars := []string{"/", "."}
+	unsupportedChars := []string{"/", ".", "-"}
 	for _, char := range unsupportedChars {
 		k = strings.ReplaceAll(k, char, "_")
 	}
@@ -134,6 +217,8 @@ func toPrometheusLabel(k string) string {
 func (c *Controller[T]) reconcile(ctx context.Context, req reconcile.Request, o Object) (reconcile.Result, error) {
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, o); err != nil {
 		if errors.IsNotFound(err) {
+			c.observedConditions.Delete(req)
+			c.observedGaugeLabels.Delete(req)
 			c.deletePartialMatchGaugeMetric(c.ConditionCount, ConditionCount, map[string]string{
 				MetricLabelNamespace: req.Namespace,
 				MetricLabelName:      req.Name,
@@ -171,7 +256,7 @@ func (c *Controller[T]) reconcile(ctx context.Context, req reconcile.Request, o 
 		c.setGaugeMetric(c.TerminationCurrentTimeSeconds, TerminationCurrentTimeSeconds, time.Since(o.GetDeletionTimestamp().Time).Seconds(), map[string]string{
 			MetricLabelNamespace: req.Namespace,
 			MetricLabelName:      req.Name,
-		}, c.toAdditionalMetricLabels(o))
+		}, c.toAdditionalGaugeMetricLabels(o))
 		c.terminatingObjects.Store(req, o)
 	}
 
@@ -181,7 +266,12 @@ func (c *Controller[T]) reconcile(ctx context.Context, req reconcile.Request, o 
 	if v, ok := c.observedConditions.Load(req); ok {
 		observedConditions = v.(ConditionSet)
 	}
+	observedGaugeLabels := map[string]string{}
+	if v, ok := c.observedGaugeLabels.Load(req); ok {
+		observedGaugeLabels = v.(map[string]string)
+	}
 	c.observedConditions.Store(req, currentConditions)
+	c.observedGaugeLabels.Store(req, c.toAdditionalGaugeMetricLabels(o))
 
 	for _, condition := range o.GetConditions() {
 		c.setGaugeMetric(c.ConditionCount, ConditionCount, 1, map[string]string{
@@ -190,32 +280,36 @@ func (c *Controller[T]) reconcile(ctx context.Context, req reconcile.Request, o 
 			pmetrics.LabelType:         condition.Type,
 			MetricLabelConditionStatus: string(condition.Status),
 			pmetrics.LabelReason:       condition.Reason,
-		}, c.toAdditionalMetricLabels(o))
+		}, c.toAdditionalGaugeMetricLabels(o))
 		c.setGaugeMetric(c.ConditionCurrentStatusSeconds, ConditionCurrentStatusSeconds, time.Since(condition.LastTransitionTime.Time).Seconds(), map[string]string{
 			MetricLabelNamespace:       req.Namespace,
 			MetricLabelName:            req.Name,
 			pmetrics.LabelType:         condition.Type,
 			MetricLabelConditionStatus: string(condition.Status),
 			pmetrics.LabelReason:       condition.Reason,
-		}, c.toAdditionalMetricLabels(o))
+		}, c.toAdditionalGaugeMetricLabels(o))
 	}
 
 	for _, observedCondition := range observedConditions.List() {
-		if currentCondition := currentConditions.Get(observedCondition.Type); currentCondition == nil || currentCondition.Status != observedCondition.Status || currentCondition.Reason != observedCondition.Reason {
-			c.deletePartialMatchGaugeMetric(c.ConditionCount, ConditionCount, map[string]string{
+		if currentCondition := currentConditions.Get(observedCondition.Type); currentCondition == nil || currentCondition.Status != observedCondition.Status || currentCondition.Reason != observedCondition.Reason || !maps.Equal(c.toAdditionalGaugeMetricLabels(o), observedGaugeLabels) {
+			// We want to check if the additional labels on the object has changed, and if so, delete the metrics with the old labels.
+			// Because we add the additional labels to the deletePartialMatchGaugeMetric() call based on if they have changed, it will not delete
+			// the deprecated metrics when the additional labels change but only when there is a change in the condition status because
+			// deprecated metrics to do not have the additional labels.
+			c.deletePartialMatchGaugeMetric(c.ConditionCount, ConditionCount, lo.Assign(map[string]string{
 				MetricLabelNamespace:       req.Namespace,
 				MetricLabelName:            req.Name,
 				pmetrics.LabelType:         observedCondition.Type,
 				MetricLabelConditionStatus: string(observedCondition.Status),
 				pmetrics.LabelReason:       observedCondition.Reason,
-			})
-			c.deletePartialMatchGaugeMetric(c.ConditionCurrentStatusSeconds, ConditionCurrentStatusSeconds, map[string]string{
+			}, lo.Ternary(!maps.Equal(c.toAdditionalGaugeMetricLabels(o), observedGaugeLabels), observedGaugeLabels, nil)))
+			c.deletePartialMatchGaugeMetric(c.ConditionCurrentStatusSeconds, ConditionCurrentStatusSeconds, lo.Assign(map[string]string{
 				MetricLabelNamespace:       req.Namespace,
 				MetricLabelName:            req.Name,
 				pmetrics.LabelType:         observedCondition.Type,
 				MetricLabelConditionStatus: string(observedCondition.Status),
 				pmetrics.LabelReason:       observedCondition.Reason,
-			})
+			}, lo.Ternary(!maps.Equal(c.toAdditionalGaugeMetricLabels(o), observedGaugeLabels), observedGaugeLabels, nil)))
 		}
 	}
 

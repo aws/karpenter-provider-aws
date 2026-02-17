@@ -108,6 +108,9 @@ type DescribeSpotInstanceRequestsInput struct {
 	//   - launched-availability-zone - The Availability Zone in which the request is
 	//   launched.
 	//
+	//   - launched-availability-zone-id - The ID of the Availability Zone in which the
+	//   request is launched.
+	//
 	//   - network-interface.addresses.primary - Indicates whether the IP address is
 	//   the primary private IP address.
 	//
@@ -262,6 +265,9 @@ func (c *Client) addOperationDescribeSpotInstanceRequestsMiddlewares(stack *midd
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeSpotInstanceRequests(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -280,16 +286,13 @@ func (c *Client) addOperationDescribeSpotInstanceRequestsMiddlewares(stack *midd
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

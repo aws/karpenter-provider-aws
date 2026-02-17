@@ -11,8 +11,7 @@ import (
 )
 
 // Describes the default KMS key for EBS encryption by default for your account in
-// this Region. You can change the default KMS key for encryption by default using ModifyEbsDefaultKmsKeyId
-// or ResetEbsDefaultKmsKeyId.
+// this Region.
 //
 // For more information, see [Amazon EBS encryption] in the Amazon EBS User Guide.
 //
@@ -118,6 +117,9 @@ func (c *Client) addOperationGetEbsDefaultKmsKeyIdMiddlewares(stack *middleware.
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetEbsDefaultKmsKeyId(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -136,16 +138,13 @@ func (c *Client) addOperationGetEbsDefaultKmsKeyIdMiddlewares(stack *middleware.
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

@@ -19,8 +19,10 @@ package disruption
 import (
 	"context"
 	"errors"
+	"slices"
 	"sort"
 
+	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
@@ -28,7 +30,6 @@ import (
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	disruptionevents "sigs.k8s.io/karpenter/pkg/controllers/disruption/events"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
-	"sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
 )
@@ -52,43 +53,28 @@ func NewDrift(kubeClient client.Client, cluster *state.Cluster, provisioner *pro
 
 // ShouldDisrupt is a predicate used to filter candidates
 func (d *Drift) ShouldDisrupt(ctx context.Context, c *Candidate) bool {
-	return c.NodeClaim.StatusConditions().Get(string(d.Reason())).IsTrue()
+	return !c.OwnedByStaticNodePool() && c.NodeClaim.StatusConditions().Get(string(d.Reason())).IsTrue()
 }
 
 // ComputeCommand generates a disruption command given candidates
-func (d *Drift) ComputeCommand(ctx context.Context, disruptionBudgetMapping map[string]int, candidates ...*Candidate) (Command, scheduling.Results, error) {
+func (d *Drift) ComputeCommands(ctx context.Context, disruptionBudgetMapping map[string]int, candidates ...*Candidate) ([]Command, error) {
 	sort.Slice(candidates, func(i int, j int) bool {
 		return candidates[i].NodeClaim.StatusConditions().Get(string(d.Reason())).LastTransitionTime.Time.Before(
 			candidates[j].NodeClaim.StatusConditions().Get(string(d.Reason())).LastTransitionTime.Time)
 	})
 
-	// Do a quick check through the candidates to see if they're empty.
-	// For each candidate that is empty with a nodePool allowing its disruption
-	// add it to the existing command.
-	empty := make([]*Candidate, 0, len(candidates))
-	for _, candidate := range candidates {
-		if len(candidate.reschedulablePods) > 0 {
-			continue
-		}
-		// If there's disruptions allowed for the candidate's nodepool,
-		// add it to the list of candidates, and decrement the budget.
-		if disruptionBudgetMapping[candidate.nodePool.Name] > 0 {
-			empty = append(empty, candidate)
-			disruptionBudgetMapping[candidate.nodePool.Name]--
-		}
-	}
-	// Disrupt all empty drifted candidates, as they require no scheduling simulations.
-	if len(empty) > 0 {
-		return Command{
-			candidates: empty,
-		}, scheduling.Results{}, nil
-	}
+	emptyCandidates, nonEmptyCandidates := lo.FilterReject(candidates, func(c *Candidate, _ int) bool {
+		return len(c.reschedulablePods) == 0
+	})
 
-	for _, candidate := range candidates {
+	// Prioritize empty candidates since we want them to get priority over non-empty candidates if the budget is constrained.
+	// Disrupting empty candidates first also helps reduce the overall churn because if a non-empty candidate is disrupted first,
+	// the pods from that node can reschedule on the empty nodes and will need to move again when those nodes get disrupted.
+	for _, candidate := range slices.Concat(emptyCandidates, nonEmptyCandidates) {
 		// If the disruption budget doesn't allow this candidate to be disrupted,
 		// continue to the next candidate. We don't need to decrement any budget
 		// counter since drift commands can only have one candidate.
-		if disruptionBudgetMapping[candidate.nodePool.Name] == 0 {
+		if disruptionBudgetMapping[candidate.NodePool.Name] == 0 {
 			continue
 		}
 		// Check if we need to create any NodeClaims.
@@ -98,7 +84,7 @@ func (d *Drift) ComputeCommand(ctx context.Context, disruptionBudgetMapping map[
 			if errors.Is(err, errCandidateDeleting) {
 				continue
 			}
-			return Command{}, scheduling.Results{}, err
+			return []Command{}, err
 		}
 		// Emit an event that we couldn't reschedule the pods on the node.
 		if !results.AllNonPendingPodsScheduled() {
@@ -106,12 +92,15 @@ func (d *Drift) ComputeCommand(ctx context.Context, disruptionBudgetMapping map[
 			continue
 		}
 
-		return Command{
-			candidates:   []*Candidate{candidate},
-			replacements: results.NewNodeClaims,
-		}, results, nil
+		cmd := Command{
+			Candidates:   []*Candidate{candidate},
+			Replacements: replacementsFromNodeClaims(results.NewNodeClaims...),
+			Results:      results,
+		}
+		return []Command{cmd}, nil
+
 	}
-	return Command{}, scheduling.Results{}, nil
+	return []Command{}, nil
 }
 
 func (d *Drift) Reason() v1.DisruptionReason {

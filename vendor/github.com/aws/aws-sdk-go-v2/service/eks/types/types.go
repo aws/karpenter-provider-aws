@@ -138,15 +138,19 @@ type Addon struct {
 	// The Unix epoch timestamp for the last modification to the object.
 	ModifiedAt *time.Time
 
+	// The namespace configuration for the addon. This specifies the Kubernetes
+	// namespace where the addon is installed.
+	NamespaceConfig *AddonNamespaceConfigResponse
+
 	// The owner of the add-on.
 	Owner *string
 
-	// An array of Pod Identity Assocations owned by the Addon. Each EKS Pod Identity
-	// association maps a role to a service account in a namespace in the cluster.
+	// An array of EKS Pod Identity associations owned by the add-on. Each association
+	// maps a role to a service account in a namespace in the cluster.
 	//
-	// For more information, see [Attach an IAM Role to an Amazon EKS add-on using Pod Identity] in the Amazon EKS User Guide.
+	// For more information, see [Attach an IAM Role to an Amazon EKS add-on using EKS Pod Identity] in the Amazon EKS User Guide.
 	//
-	// [Attach an IAM Role to an Amazon EKS add-on using Pod Identity]: https://docs.aws.amazon.com/eks/latest/userguide/add-ons-iam.html
+	// [Attach an IAM Role to an Amazon EKS add-on using EKS Pod Identity]: https://docs.aws.amazon.com/eks/latest/userguide/add-ons-iam.html
 	PodIdentityAssociations []string
 
 	// The publisher of the add-on.
@@ -200,6 +204,10 @@ type AddonInfo struct {
 	// compatible Kubernetes versions.
 	AddonVersions []AddonVersionInfo
 
+	// The default Kubernetes namespace where this addon is typically installed if no
+	// custom namespace is specified.
+	DefaultNamespace *string
+
 	// Information about the add-on from the Amazon Web Services Marketplace.
 	MarketplaceInformation *MarketplaceInformation
 
@@ -230,14 +238,34 @@ type AddonIssue struct {
 	noSmithyDocumentSerde
 }
 
-// A type of Pod Identity Association owned by an Amazon EKS Add-on.
+// The namespace configuration request object for specifying a custom namespace
+// when creating an addon.
+type AddonNamespaceConfigRequest struct {
+
+	// The name of the Kubernetes namespace to install the addon in. Must be a valid
+	// RFC 1123 DNS label.
+	Namespace *string
+
+	noSmithyDocumentSerde
+}
+
+// The namespace configuration response object containing information about the
+// namespace where an addon is installed.
+type AddonNamespaceConfigResponse struct {
+
+	// The name of the Kubernetes namespace where the addon is installed.
+	Namespace *string
+
+	noSmithyDocumentSerde
+}
+
+// A type of EKS Pod Identity association owned by an Amazon EKS add-on.
 //
-// Each EKS Pod Identity Association maps a role to a service account in a
-// namespace in the cluster.
+// Each association maps a role to a service account in a namespace in the cluster.
 //
-// For more information, see [Attach an IAM Role to an Amazon EKS add-on using Pod Identity] in the Amazon EKS User Guide.
+// For more information, see [Attach an IAM Role to an Amazon EKS add-on using EKS Pod Identity] in the Amazon EKS User Guide.
 //
-// [Attach an IAM Role to an Amazon EKS add-on using Pod Identity]: https://docs.aws.amazon.com/eks/latest/userguide/add-ons-iam.html
+// [Attach an IAM Role to an Amazon EKS add-on using EKS Pod Identity]: https://docs.aws.amazon.com/eks/latest/userguide/add-ons-iam.html
 type AddonPodIdentityAssociations struct {
 
 	// The ARN of an IAM Role.
@@ -253,13 +281,13 @@ type AddonPodIdentityAssociations struct {
 	noSmithyDocumentSerde
 }
 
-// Information about how to configure IAM for an Addon.
+// Information about how to configure IAM for an add-on.
 type AddonPodIdentityConfiguration struct {
 
-	// A suggested IAM Policy for the addon.
+	// A suggested IAM Policy for the add-on.
 	RecommendedManagedPolicies []string
 
-	// The Kubernetes Service Account name used by the addon.
+	// The Kubernetes Service Account name used by the add-on.
 	ServiceAccount *string
 
 	noSmithyDocumentSerde
@@ -277,15 +305,166 @@ type AddonVersionInfo struct {
 	// An object representing the compatibilities of a version.
 	Compatibilities []Compatibility
 
-	// Indicates the compute type of the addon version.
+	// Indicates the compute type of the add-on version.
 	ComputeTypes []string
 
 	// Whether the add-on requires configuration.
 	RequiresConfiguration bool
 
-	// Indicates if the Addon requires IAM Permissions to operate, such as networking
+	// Indicates if the add-on requires IAM Permissions to operate, such as networking
 	// permissions.
 	RequiresIamPermissions bool
+
+	noSmithyDocumentSerde
+}
+
+// Configuration for integrating Argo CD with IAM Identity CenterIAM; Identity
+// Center. This allows you to use your organization's identity provider for
+// authentication to Argo CD.
+type ArgoCdAwsIdcConfigRequest struct {
+
+	// The Amazon Resource Name (ARN) of the IAM Identity CenterIAM; Identity Center
+	// instance to use for authentication.
+	//
+	// This member is required.
+	IdcInstanceArn *string
+
+	// The Region where your IAM Identity CenterIAM; Identity Center instance is
+	// located.
+	IdcRegion *string
+
+	noSmithyDocumentSerde
+}
+
+// The response object containing IAM Identity CenterIAM; Identity Center
+// configuration details for an Argo CD capability.
+type ArgoCdAwsIdcConfigResponse struct {
+
+	// The Amazon Resource Name (ARN) of the IAM Identity CenterIAM; Identity Center
+	// instance used for authentication.
+	IdcInstanceArn *string
+
+	// The Amazon Resource Name (ARN) of the managed application created in IAM
+	// Identity CenterIAM; Identity Center for this Argo CD capability. This
+	// application is automatically created and managed by Amazon EKS.
+	IdcManagedApplicationArn *string
+
+	// The Region where the IAM Identity CenterIAM; Identity Center instance is
+	// located.
+	IdcRegion *string
+
+	noSmithyDocumentSerde
+}
+
+// Configuration settings for an Argo CD capability. This includes the Kubernetes
+// namespace, IAM Identity CenterIAM; Identity Center integration, RBAC role
+// mappings, and network access configuration.
+type ArgoCdConfigRequest struct {
+
+	// Configuration for IAM Identity CenterIAM; Identity Center integration. When
+	// configured, users can authenticate to Argo CD using their IAM Identity
+	// CenterIAM; Identity Center credentials.
+	//
+	// This member is required.
+	AwsIdc *ArgoCdAwsIdcConfigRequest
+
+	// The Kubernetes namespace where Argo CD resources will be created. If not
+	// specified, the default namespace is used.
+	Namespace *string
+
+	// Configuration for network access to the Argo CD capability's managed API server
+	// endpoint. By default, the Argo CD server is accessible via a public endpoint.
+	// You can optionally specify one or more VPC endpoint IDs to enable private
+	// connectivity from your VPCs. When VPC endpoints are configured, public access is
+	// blocked and the Argo CD server is only accessible through the specified VPC
+	// endpoints.
+	NetworkAccess *ArgoCdNetworkAccessConfigRequest
+
+	// A list of role mappings that define which IAM Identity CenterIAM; Identity
+	// Center users or groups have which Argo CD roles. Each mapping associates an Argo
+	// CD role ( ADMIN , EDITOR , or VIEWER ) with one or more IAM Identity CenterIAM;
+	// Identity Center identities.
+	RbacRoleMappings []ArgoCdRoleMapping
+
+	noSmithyDocumentSerde
+}
+
+// The response object containing Argo CD configuration details, including the
+// server URL that you use to access the Argo CD web interface and API.
+type ArgoCdConfigResponse struct {
+
+	// The IAM Identity CenterIAM; Identity Center integration configuration.
+	AwsIdc *ArgoCdAwsIdcConfigResponse
+
+	// The Kubernetes namespace where Argo CD resources are monitored by your Argo CD
+	// Capability.
+	Namespace *string
+
+	// The network access configuration for the Argo CD capability's managed API
+	// server endpoint. If VPC endpoint IDs are specified, public access is blocked and
+	// the Argo CD server is only accessible through the specified VPC endpoints.
+	NetworkAccess *ArgoCdNetworkAccessConfigResponse
+
+	// The list of role mappings that define which IAM Identity CenterIAM; Identity
+	// Center users or groups have which Argo CD roles.
+	RbacRoleMappings []ArgoCdRoleMapping
+
+	// The URL of the Argo CD server. Use this URL to access the Argo CD web interface
+	// and API.
+	ServerUrl *string
+
+	noSmithyDocumentSerde
+}
+
+// Configuration for network access to the Argo CD capability's managed API server
+// endpoint. When VPC endpoint IDs are specified, public access is blocked and the
+// Argo CD server is only accessible through the specified VPC endpoints.
+type ArgoCdNetworkAccessConfigRequest struct {
+
+	// A list of VPC endpoint IDs to associate with the managed Argo CD API server
+	// endpoint. Each VPC endpoint provides private connectivity from a specific VPC to
+	// the Argo CD server. You can specify multiple VPC endpoint IDs to enable access
+	// from multiple VPCs.
+	VpceIds []string
+
+	noSmithyDocumentSerde
+}
+
+// The response object containing network access configuration for the Argo CD
+// capability's managed API server endpoint. If VPC endpoint IDs are present,
+// public access is blocked and the Argo CD server is only accessible through the
+// specified VPC endpoints.
+type ArgoCdNetworkAccessConfigResponse struct {
+
+	// The list of VPC endpoint IDs associated with the managed Argo CD API server
+	// endpoint. Each VPC endpoint provides private connectivity from a specific VPC to
+	// the Argo CD server.
+	VpceIds []string
+
+	noSmithyDocumentSerde
+}
+
+// A mapping between an Argo CD role and IAM Identity CenterIAM; Identity Center
+// identities. This defines which users or groups have specific permissions in Argo
+// CD.
+type ArgoCdRoleMapping struct {
+
+	// A list of IAM Identity CenterIAM; Identity Center identities (users or groups)
+	// that should be assigned this Argo CD role.
+	//
+	// This member is required.
+	Identities []SsoIdentity
+
+	// The Argo CD role to assign. Valid values are:
+	//
+	//   - ADMIN – Full administrative access to Argo CD.
+	//
+	//   - EDITOR – Edit access to Argo CD resources.
+	//
+	//   - VIEWER – Read-only access to Argo CD resources.
+	//
+	// This member is required.
+	Role ArgoCdRole
 
 	noSmithyDocumentSerde
 }
@@ -329,6 +508,168 @@ type BlockStorage struct {
 	// cluster. If the block storage capability is enabled, EKS Auto Mode will create
 	// and delete EBS volumes in your Amazon Web Services account.
 	Enabled *bool
+
+	noSmithyDocumentSerde
+}
+
+// An object representing a managed capability in an Amazon EKS cluster. This
+// includes all configuration, status, and health information for the capability.
+type Capability struct {
+
+	// The Amazon Resource Name (ARN) of the capability.
+	Arn *string
+
+	// The unique name of the capability within the cluster.
+	CapabilityName *string
+
+	// The name of the Amazon EKS cluster that contains this capability.
+	ClusterName *string
+
+	// The configuration settings for the capability. The structure varies depending
+	// on the capability type.
+	Configuration *CapabilityConfigurationResponse
+
+	// The Unix epoch timestamp in seconds for when the capability was created.
+	CreatedAt *time.Time
+
+	// The delete propagation policy for the capability. Currently, the only supported
+	// value is RETAIN , which keeps all resources managed by the capability when the
+	// capability is deleted.
+	DeletePropagationPolicy CapabilityDeletePropagationPolicy
+
+	// Health information for the capability, including any issues that may be
+	// affecting its operation.
+	Health *CapabilityHealth
+
+	// The Unix epoch timestamp in seconds for when the capability was last modified.
+	ModifiedAt *time.Time
+
+	// The Amazon Resource Name (ARN) of the IAM role that the capability uses to
+	// interact with Amazon Web Services services.
+	RoleArn *string
+
+	// The current status of the capability. Valid values include:
+	//
+	//   - CREATING – The capability is being created.
+	//
+	//   - ACTIVE – The capability is running and available.
+	//
+	//   - UPDATING – The capability is being updated.
+	//
+	//   - DELETING – The capability is being deleted.
+	//
+	//   - CREATE_FAILED – The capability creation failed.
+	//
+	//   - UPDATE_FAILED – The capability update failed.
+	//
+	//   - DELETE_FAILED – The capability deletion failed.
+	Status CapabilityStatus
+
+	// The metadata that you apply to a resource to help you categorize and organize
+	// them. Each tag consists of a key and an optional value. You define them.
+	//
+	// The following basic restrictions apply to tags:
+	//
+	//   - Maximum number of tags per resource – 50
+	//
+	//   - For each resource, each tag key must be unique, and each tag key can have
+	//   only one value.
+	//
+	//   - Maximum key length – 128 Unicode characters in UTF-8
+	//
+	//   - Maximum value length – 256 Unicode characters in UTF-8
+	//
+	//   - If your tagging schema is used across multiple services and resources,
+	//   remember that other services may have restrictions on allowed characters.
+	//   Generally allowed characters are: letters, numbers, and spaces representable in
+	//   UTF-8, and the following characters: + - = . _ : / @.
+	//
+	//   - Tag keys and values are case-sensitive.
+	//
+	//   - Do not use aws: , AWS: , or any upper or lowercase combination of such as a
+	//   prefix for either keys or values as it is reserved for Amazon Web Services use.
+	//   You cannot edit or delete tag keys or values with this prefix. Tags with this
+	//   prefix do not count against your tags per resource limit.
+	Tags map[string]string
+
+	// The type of capability. Valid values are ACK , ARGOCD , or KRO .
+	Type CapabilityType
+
+	// The version of the capability software that is currently running.
+	Version *string
+
+	noSmithyDocumentSerde
+}
+
+// Configuration settings for a capability. The structure of this object varies
+// depending on the capability type.
+type CapabilityConfigurationRequest struct {
+
+	// Configuration settings specific to Argo CD capabilities. This field is only
+	// used when creating or updating an Argo CD capability.
+	ArgoCd *ArgoCdConfigRequest
+
+	noSmithyDocumentSerde
+}
+
+// The response object containing capability configuration details.
+type CapabilityConfigurationResponse struct {
+
+	// Configuration settings for an Argo CD capability, including the server URL and
+	// other Argo CD-specific settings.
+	ArgoCd *ArgoCdConfigResponse
+
+	noSmithyDocumentSerde
+}
+
+// Health information for a capability, including any issues that may be affecting
+// its operation.
+type CapabilityHealth struct {
+
+	// A list of issues affecting the capability. If this list is empty, the
+	// capability is healthy.
+	Issues []CapabilityIssue
+
+	noSmithyDocumentSerde
+}
+
+// An issue affecting a capability's health or operation.
+type CapabilityIssue struct {
+
+	// A code identifying the type of issue. This can be used to programmatically
+	// handle specific issue types.
+	Code CapabilityIssueCode
+
+	// A human-readable message describing the issue and potential remediation steps.
+	Message *string
+
+	noSmithyDocumentSerde
+}
+
+// A summary of a capability, containing basic information without the full
+// configuration details. This is returned by the ListCapabilities operation.
+type CapabilitySummary struct {
+
+	// The Amazon Resource Name (ARN) of the capability.
+	Arn *string
+
+	// The unique name of the capability within the cluster.
+	CapabilityName *string
+
+	// The Unix epoch timestamp in seconds for when the capability was created.
+	CreatedAt *time.Time
+
+	// The Unix epoch timestamp in seconds for when the capability was last modified.
+	ModifiedAt *time.Time
+
+	// The current status of the capability.
+	Status CapabilityStatus
+
+	// The type of capability. Valid values are ACK , ARGOCD , or KRO .
+	Type CapabilityType
+
+	// The version of the capability software that is currently running.
+	Version *string
 
 	noSmithyDocumentSerde
 }
@@ -385,8 +726,18 @@ type Cluster struct {
 	// The configuration used to connect to a cluster for registration.
 	ConnectorConfig *ConnectorConfigResponse
 
+	// The control plane scaling tier configuration. For more information, see EKS
+	// Provisioned Control Plane in the Amazon EKS User Guide.
+	ControlPlaneScalingConfig *ControlPlaneScalingConfig
+
 	// The Unix epoch timestamp at object creation.
 	CreatedAt *time.Time
+
+	// The current deletion protection setting for the cluster. When true , deletion
+	// protection is enabled and the cluster cannot be deleted until protection is
+	// disabled. When false , the cluster can be deleted normally. This setting only
+	// applies to clusters in an active state.
+	DeletionProtection *bool
 
 	// The encryption configuration for the cluster.
 	EncryptionConfig []EncryptionConfig
@@ -428,8 +779,8 @@ type Cluster struct {
 	// [Amazon EKS local cluster platform versions]: https://docs.aws.amazon.com/eks/latest/userguide/eks-outposts-platform-versions.html
 	PlatformVersion *string
 
-	// The configuration in the cluster for EKS Hybrid Nodes. You can't change or
-	// update this configuration after the cluster is created.
+	// The configuration in the cluster for EKS Hybrid Nodes. You can add, change, or
+	// remove this configuration after the cluster is created.
 	RemoteNetworkConfig *RemoteNetworkConfigResponse
 
 	// The VPC configuration used by the cluster control plane. Amazon EKS VPC
@@ -666,6 +1017,18 @@ type ControlPlanePlacementResponse struct {
 	noSmithyDocumentSerde
 }
 
+// The control plane scaling tier configuration. For more information, see EKS
+// Provisioned Control Plane in the Amazon EKS User Guide.
+type ControlPlaneScalingConfig struct {
+
+	// The control plane scaling tier configuration. Available options are standard ,
+	// tier-xl , tier-2xl , or tier-4xl . For more information, see EKS Provisioned
+	// Control Plane in the Amazon EKS User Guide.
+	Tier ProvisionedControlPlaneTier
+
+	noSmithyDocumentSerde
+}
+
 // The access configuration information for the cluster.
 type CreateAccessConfigRequest struct {
 
@@ -741,6 +1104,10 @@ type EksAnywhereSubscription struct {
 	// the CLUSTER license type, each license covers support for a single EKS Anywhere
 	// cluster.
 	LicenseType EksAnywhereSubscriptionLicenseType
+
+	// Includes all of the claims in the license token necessary to validate the
+	// license for extended support.
+	Licenses []License
 
 	// The status of a subscription.
 	Status *string
@@ -1028,7 +1395,16 @@ type InsightResourceDetail struct {
 // The criteria to use for the insights.
 type InsightsFilter struct {
 
-	// The categories to use to filter insights.
+	// The categories to use to filter insights. The following lists the available
+	// categories:
+	//
+	//   - UPGRADE_READINESS : Amazon EKS identifies issues that could impact your
+	//   ability to upgrade to new versions of Kubernetes. These are called upgrade
+	//   insights.
+	//
+	//   - MISCONFIGURATION : Amazon EKS identifies misconfiguration in your EKS Hybrid
+	//   Nodes setup that could impair functionality of your cluster or workloads. These
+	//   are called configuration insights.
 	Categories []Category
 
 	// The Kubernetes versions to use to filter the insights.
@@ -1266,18 +1642,33 @@ type LaunchTemplateSpecification struct {
 	// The ID of the launch template.
 	//
 	// You must specify either the launch template ID or the launch template name in
-	// the request, but not both.
+	// the request, but not both. After node group creation, you cannot use a different
+	// ID.
 	Id *string
 
 	// The name of the launch template.
 	//
 	// You must specify either the launch template name or the launch template ID in
-	// the request, but not both.
+	// the request, but not both. After node group creation, you cannot use a different
+	// name.
 	Name *string
 
 	// The version number of the launch template to use. If no version is specified,
-	// then the template's default version is used.
+	// then the template's default version is used. You can use a different version for
+	// node group updates.
 	Version *string
+
+	noSmithyDocumentSerde
+}
+
+// An EKS Anywhere license associated with a subscription.
+type License struct {
+
+	// An id associated with an EKS Anywhere subscription license.
+	Id *string
+
+	// An optional license token that can be used for extended support verification.
+	Token *string
 
 	noSmithyDocumentSerde
 }
@@ -1535,6 +1926,57 @@ type NodeRepairConfig struct {
 	// repair is disabled by default.
 	Enabled *bool
 
+	// Specify the maximum number of nodes that can be repaired concurrently or in
+	// parallel, expressed as a count of unhealthy nodes. This gives you finer-grained
+	// control over the pace of node replacements. When using this, you cannot also set
+	// maxParallelNodesRepairedPercentage at the same time.
+	MaxParallelNodesRepairedCount *int32
+
+	// Specify the maximum number of nodes that can be repaired concurrently or in
+	// parallel, expressed as a percentage of unhealthy nodes. This gives you
+	// finer-grained control over the pace of node replacements. When using this, you
+	// cannot also set maxParallelNodesRepairedCount at the same time.
+	MaxParallelNodesRepairedPercentage *int32
+
+	// Specify a count threshold of unhealthy nodes, above which node auto repair
+	// actions will stop. When using this, you cannot also set
+	// maxUnhealthyNodeThresholdPercentage at the same time.
+	MaxUnhealthyNodeThresholdCount *int32
+
+	// Specify a percentage threshold of unhealthy nodes, above which node auto repair
+	// actions will stop. When using this, you cannot also set
+	// maxUnhealthyNodeThresholdCount at the same time.
+	MaxUnhealthyNodeThresholdPercentage *int32
+
+	// Specify granular overrides for specific repair actions. These overrides control
+	// the repair action and the repair delay time before a node is considered eligible
+	// for repair. If you use this, you must specify all the values.
+	NodeRepairConfigOverrides []NodeRepairConfigOverrides
+
+	noSmithyDocumentSerde
+}
+
+// Specify granular overrides for specific repair actions. These overrides control
+// the repair action and the repair delay time before a node is considered eligible
+// for repair. If you use this, you must specify all the values.
+type NodeRepairConfigOverrides struct {
+
+	// Specify the minimum time in minutes to wait before attempting to repair a node
+	// with this specific nodeMonitoringCondition and nodeUnhealthyReason .
+	MinRepairWaitTimeMins *int32
+
+	// Specify an unhealthy condition reported by the node monitoring agent that this
+	// override would apply to.
+	NodeMonitoringCondition *string
+
+	// Specify a reason reported by the node monitoring agent that this override would
+	// apply to.
+	NodeUnhealthyReason *string
+
+	// Specify the repair action to take for nodes when all of the specified
+	// conditions are met.
+	RepairAction RepairAction
+
 	noSmithyDocumentSerde
 }
 
@@ -1744,20 +2186,45 @@ type PodIdentityAssociation struct {
 	// The timestamp that the association was created at.
 	CreatedAt *time.Time
 
-	// The most recent timestamp that the association was modified at
+	// The state of the automatic sessions tags. The value of true disables these tags.
+	//
+	// EKS Pod Identity adds a pre-defined set of session tags when it assumes the
+	// role. You can use these tags to author a single role that can work across
+	// resources by allowing access to Amazon Web Services resources based on matching
+	// tags. By default, EKS Pod Identity attaches six tags, including tags for cluster
+	// name, namespace, and service account name. For the list of tags added by EKS Pod
+	// Identity, see [List of session tags added by EKS Pod Identity]in the Amazon EKS User Guide.
+	//
+	// [List of session tags added by EKS Pod Identity]: https://docs.aws.amazon.com/eks/latest/userguide/pod-id-abac.html#pod-id-abac-tags
+	DisableSessionTags *bool
+
+	// The unique identifier for this EKS Pod Identity association for a target IAM
+	// role. You put this value in the trust policy of the target role, in a Condition
+	// to match the sts.ExternalId . This ensures that the target role can only be
+	// assumed by this association. This prevents the confused deputy problem. For more
+	// information about the confused deputy problem, see [The confused deputy problem]in the IAM User Guide.
+	//
+	// If you want to use the same target role with multiple associations or other
+	// roles, use independent statements in the trust policy to allow sts:AssumeRole
+	// access from each role.
+	//
+	// [The confused deputy problem]: https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html
+	ExternalId *string
+
+	// The most recent timestamp that the association was modified at.
 	ModifiedAt *time.Time
 
 	// The name of the Kubernetes namespace inside the cluster to create the
-	// association in. The service account and the pods that use the service account
+	// association in. The service account and the Pods that use the service account
 	// must be in this namespace.
 	Namespace *string
 
-	// If defined, the Pod Identity Association is owned by an Amazon EKS Addon.
+	// If defined, the EKS Pod Identity association is owned by an Amazon EKS add-on.
 	OwnerArn *string
 
 	// The Amazon Resource Name (ARN) of the IAM role to associate with the service
 	// account. The EKS Pod Identity agent manages credentials to assume this role for
-	// applications in the containers in the pods that use this service account.
+	// applications in the containers in the Pods that use this service account.
 	RoleArn *string
 
 	// The name of the Kubernetes service account inside the cluster to associate the
@@ -1792,6 +2259,11 @@ type PodIdentityAssociation struct {
 	//   prefix do not count against your tags per resource limit.
 	Tags map[string]string
 
+	// The Amazon Resource Name (ARN) of the target IAM role to associate with the
+	// service account. This role is assumed by using the EKS Pod Identity association
+	// role, then the credentials for this role are injected into the Pod.
+	TargetRoleArn *string
+
 	noSmithyDocumentSerde
 }
 
@@ -1821,11 +2293,11 @@ type PodIdentityAssociationSummary struct {
 	ClusterName *string
 
 	// The name of the Kubernetes namespace inside the cluster to create the
-	// association in. The service account and the pods that use the service account
+	// association in. The service account and the Pods that use the service account
 	// must be in this namespace.
 	Namespace *string
 
-	// If defined, the Pod Identity Association is owned by an Amazon EKS Addon.
+	// If defined, the association is owned by an Amazon EKS add-on.
 	OwnerArn *string
 
 	// The name of the Kubernetes service account inside the cluster to associate the
@@ -1876,8 +2348,8 @@ type RemoteAccessConfig struct {
 	noSmithyDocumentSerde
 }
 
-// The configuration in the cluster for EKS Hybrid Nodes. You can't change or
-// update this configuration after the cluster is created.
+// The configuration in the cluster for EKS Hybrid Nodes. You can add, change, or
+// remove this configuration after the cluster is created.
 type RemoteNetworkConfigRequest struct {
 
 	// The list of network CIDRs that can contain hybrid nodes.
@@ -1892,7 +2364,7 @@ type RemoteNetworkConfigRequest struct {
 	// It must satisfy the following requirements:
 	//
 	//   - Each block must be within an IPv4 RFC-1918 network range. Minimum allowed
-	//   size is /24, maximum allowed size is /8. Publicly-routable addresses aren't
+	//   size is /32, maximum allowed size is /8. Publicly-routable addresses aren't
 	//   supported.
 	//
 	//   - Each block cannot overlap with the range of the VPC CIDR blocks for your
@@ -1926,7 +2398,7 @@ type RemoteNetworkConfigRequest struct {
 	// It must satisfy the following requirements:
 	//
 	//   - Each block must be within an IPv4 RFC-1918 network range. Minimum allowed
-	//   size is /24, maximum allowed size is /8. Publicly-routable addresses aren't
+	//   size is /32, maximum allowed size is /8. Publicly-routable addresses aren't
 	//   supported.
 	//
 	//   - Each block cannot overlap with the range of the VPC CIDR blocks for your
@@ -1936,8 +2408,8 @@ type RemoteNetworkConfigRequest struct {
 	noSmithyDocumentSerde
 }
 
-// The configuration in the cluster for EKS Hybrid Nodes. You can't change or
-// update this configuration after the cluster is created.
+// The configuration in the cluster for EKS Hybrid Nodes. You can add, change, or
+// remove this configuration after the cluster is created.
 type RemoteNetworkConfigResponse struct {
 
 	// The list of network CIDRs that can contain hybrid nodes.
@@ -1962,7 +2434,7 @@ type RemoteNetworkConfigResponse struct {
 // It must satisfy the following requirements:
 //
 //   - Each block must be within an IPv4 RFC-1918 network range. Minimum allowed
-//     size is /24, maximum allowed size is /8. Publicly-routable addresses aren't
+//     size is /32, maximum allowed size is /8. Publicly-routable addresses aren't
 //     supported.
 //
 //   - Each block cannot overlap with the range of the VPC CIDR blocks for your
@@ -1994,7 +2466,7 @@ type RemoteNodeNetwork struct {
 	// It must satisfy the following requirements:
 	//
 	//   - Each block must be within an IPv4 RFC-1918 network range. Minimum allowed
-	//   size is /24, maximum allowed size is /8. Publicly-routable addresses aren't
+	//   size is /32, maximum allowed size is /8. Publicly-routable addresses aren't
 	//   supported.
 	//
 	//   - Each block cannot overlap with the range of the VPC CIDR blocks for your
@@ -2031,7 +2503,7 @@ type RemoteNodeNetwork struct {
 // It must satisfy the following requirements:
 //
 //   - Each block must be within an IPv4 RFC-1918 network range. Minimum allowed
-//     size is /24, maximum allowed size is /8. Publicly-routable addresses aren't
+//     size is /32, maximum allowed size is /8. Publicly-routable addresses aren't
 //     supported.
 //
 //   - Each block cannot overlap with the range of the VPC CIDR blocks for your
@@ -2052,12 +2524,30 @@ type RemotePodNetwork struct {
 	// It must satisfy the following requirements:
 	//
 	//   - Each block must be within an IPv4 RFC-1918 network range. Minimum allowed
-	//   size is /24, maximum allowed size is /8. Publicly-routable addresses aren't
+	//   size is /32, maximum allowed size is /8. Publicly-routable addresses aren't
 	//   supported.
 	//
 	//   - Each block cannot overlap with the range of the VPC CIDR blocks for your
 	//   EKS resources, or the block of the Kubernetes service IP range.
 	Cidrs []string
+
+	noSmithyDocumentSerde
+}
+
+// An IAM Identity CenterIAM; Identity Center identity (user or group) that can be
+// assigned permissions in a capability.
+type SsoIdentity struct {
+
+	// The unique identifier of the IAM Identity CenterIAM; Identity Center user or
+	// group.
+	//
+	// This member is required.
+	Id *string
+
+	// The type of identity. Valid values are SSO_USER or SSO_GROUP .
+	//
+	// This member is required.
+	Type SsoIdentityType
 
 	noSmithyDocumentSerde
 }
@@ -2135,6 +2625,32 @@ type UpdateAccessConfigRequest struct {
 	noSmithyDocumentSerde
 }
 
+// Configuration updates for an Argo CD capability. You only need to specify the
+// fields you want to update.
+type UpdateArgoCdConfig struct {
+
+	// Updated network access configuration for the Argo CD capability's managed API
+	// server endpoint. You can add or remove VPC endpoint associations to control
+	// which VPCs have private access to the Argo CD server.
+	NetworkAccess *ArgoCdNetworkAccessConfigRequest
+
+	// Updated RBAC role mappings for the Argo CD capability. You can add, update, or
+	// remove role mappings.
+	RbacRoleMappings *UpdateRoleMappings
+
+	noSmithyDocumentSerde
+}
+
+// Configuration updates for a capability. The structure varies depending on the
+// capability type.
+type UpdateCapabilityConfiguration struct {
+
+	// Configuration updates specific to Argo CD capabilities.
+	ArgoCd *UpdateArgoCdConfig
+
+	noSmithyDocumentSerde
+}
+
 // An object representing a Kubernetes label change for a managed node group.
 type UpdateLabelsPayload struct {
 
@@ -2155,6 +2671,23 @@ type UpdateParam struct {
 
 	// The value of the keys submitted as part of an update request.
 	Value *string
+
+	noSmithyDocumentSerde
+}
+
+// Updates to RBAC role mappings for an Argo CD capability. You can add, update,
+// or remove role mappings in a single operation.
+type UpdateRoleMappings struct {
+
+	// A list of role mappings to add or update. If a mapping for the specified role
+	// already exists, it will be updated with the new identities. If it doesn't exist,
+	// a new mapping will be created.
+	AddOrUpdateRoleMappings []ArgoCdRoleMapping
+
+	// A list of role mappings to remove from the RBAC configuration. Each mapping
+	// specifies an Argo CD role ( ADMIN , EDITOR , or VIEWER ) and the identities to
+	// remove from that role.
+	RemoveRoleMappings []ArgoCdRoleMapping
 
 	noSmithyDocumentSerde
 }
@@ -2224,29 +2757,36 @@ type VpcConfigRequest struct {
 	// this parameter is false , which disables private access for your Kubernetes API
 	// server. If you disable private access and you have nodes or Fargate pods in the
 	// cluster, then ensure that publicAccessCidrs includes the necessary CIDR blocks
-	// for communication with the nodes or Fargate pods. For more information, see [Amazon EKS cluster endpoint access control]in
+	// for communication with the nodes or Fargate pods. For more information, see [Cluster API server endpoint]in
 	// the Amazon EKS User Guide .
 	//
-	// [Amazon EKS cluster endpoint access control]: https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html
+	// [Cluster API server endpoint]: https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html
 	EndpointPrivateAccess *bool
 
 	// Set this value to false to disable public access to your cluster's Kubernetes
 	// API server endpoint. If you disable public access, your cluster's Kubernetes API
 	// server can only receive requests from within the cluster VPC. The default value
 	// for this parameter is true , which enables public access for your Kubernetes API
-	// server. For more information, see [Amazon EKS cluster endpoint access control]in the Amazon EKS User Guide .
+	// server. The endpoint domain name and IP address family depends on the value of
+	// the ipFamily for the cluster. For more information, see [Cluster API server endpoint] in the Amazon EKS User
+	// Guide .
 	//
-	// [Amazon EKS cluster endpoint access control]: https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html
+	// [Cluster API server endpoint]: https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html
 	EndpointPublicAccess *bool
 
 	// The CIDR blocks that are allowed access to your cluster's public Kubernetes API
 	// server endpoint. Communication to the endpoint from addresses outside of the
-	// CIDR blocks that you specify is denied. The default value is 0.0.0.0/0 . If
-	// you've disabled private endpoint access, make sure that you specify the
-	// necessary CIDR blocks for every node and Fargate Pod in the cluster. For more
-	// information, see [Amazon EKS cluster endpoint access control]in the Amazon EKS User Guide .
+	// CIDR blocks that you specify is denied. The default value is 0.0.0.0/0 and
+	// additionally ::/0 for dual-stack `IPv6` clusters. If you've disabled private
+	// endpoint access, make sure that you specify the necessary CIDR blocks for every
+	// node and Fargate Pod in the cluster. For more information, see [Cluster API server endpoint] in the Amazon
+	// EKS User Guide .
 	//
-	// [Amazon EKS cluster endpoint access control]: https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html
+	// Note that the public endpoints are dual-stack for only IPv6 clusters that are
+	// made after October 2024. You can't add IPv6 CIDR blocks to IPv4 clusters or IPv6
+	// clusters that were made before October 2024.
+	//
+	// [Cluster API server endpoint]: https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html
 	PublicAccessCidrs []string
 
 	// Specify one or more security groups for the cross-account elastic network
@@ -2281,16 +2821,27 @@ type VpcConfigResponse struct {
 	// endpoint instead of traversing the internet. If this value is disabled and you
 	// have nodes or Fargate pods in the cluster, then ensure that publicAccessCidrs
 	// includes the necessary CIDR blocks for communication with the nodes or Fargate
-	// pods. For more information, see [Amazon EKS cluster endpoint access control]in the Amazon EKS User Guide .
+	// pods. For more information, see [Cluster API server endpoint]in the Amazon EKS User Guide .
 	//
-	// [Amazon EKS cluster endpoint access control]: https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html
+	// [Cluster API server endpoint]: https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html
 	EndpointPrivateAccess bool
 
 	// Whether the public API server endpoint is enabled.
 	EndpointPublicAccess bool
 
 	// The CIDR blocks that are allowed access to your cluster's public Kubernetes API
-	// server endpoint.
+	// server endpoint. Communication to the endpoint from addresses outside of the
+	// CIDR blocks that you specify is denied. The default value is 0.0.0.0/0 and
+	// additionally ::/0 for dual-stack `IPv6` clusters. If you've disabled private
+	// endpoint access, make sure that you specify the necessary CIDR blocks for every
+	// node and Fargate Pod in the cluster. For more information, see [Cluster API server endpoint] in the Amazon
+	// EKS User Guide .
+	//
+	// Note that the public endpoints are dual-stack for only IPv6 clusters that are
+	// made after October 2024. You can't add IPv6 CIDR blocks to IPv4 clusters or IPv6
+	// clusters that were made before October 2024.
+	//
+	// [Cluster API server endpoint]: https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html
 	PublicAccessCidrs []string
 
 	// The security groups associated with the cross-account elastic network

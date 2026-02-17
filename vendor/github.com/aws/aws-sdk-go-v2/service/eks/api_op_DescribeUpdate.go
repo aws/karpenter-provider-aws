@@ -50,6 +50,9 @@ type DescribeUpdateInput struct {
 	// [ListAddons]: https://docs.aws.amazon.com/eks/latest/APIReference/API_ListAddons.html
 	AddonName *string
 
+	// The name of the capability for which you want to describe updates.
+	CapabilityName *string
+
 	// The name of the Amazon EKS node group associated with the update. This
 	// parameter is required if the update is a node group update.
 	NodegroupName *string
@@ -132,6 +135,9 @@ func (c *Client) addOperationDescribeUpdateMiddlewares(stack *middleware.Stack, 
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDescribeUpdateValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -153,16 +159,13 @@ func (c *Client) addOperationDescribeUpdateMiddlewares(stack *middleware.Stack, 
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

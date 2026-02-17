@@ -95,10 +95,11 @@ func (e *ConcurrentModificationException) ErrorCode() string {
 func (e *ConcurrentModificationException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
 // The request was rejected because the most recent credential report has expired.
-// To generate a new credential report, use GenerateCredentialReport. For more information about
+// To generate a new credential report, use [GenerateCredentialReport]. For more information about
 // credential report expiration, see [Getting credential reports]in the IAM User Guide.
 //
 // [Getting credential reports]: https://docs.aws.amazon.com/IAM/latest/UserGuide/credential-reports.html
+// [GenerateCredentialReport]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GenerateCredentialReport.html
 type CredentialReportExpiredException struct {
 	Message *string
 
@@ -125,7 +126,9 @@ func (e *CredentialReportExpiredException) ErrorCode() string {
 func (e *CredentialReportExpiredException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
 // The request was rejected because the credential report does not exist. To
-// generate a credential report, use GenerateCredentialReport.
+// generate a credential report, use [GenerateCredentialReport].
+//
+// [GenerateCredentialReport]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GenerateCredentialReport.html
 type CredentialReportNotPresentException struct {
 	Message *string
 
@@ -317,6 +320,62 @@ func (e *EntityTemporarilyUnmodifiableException) ErrorCode() string {
 func (e *EntityTemporarilyUnmodifiableException) ErrorFault() smithy.ErrorFault {
 	return smithy.FaultClient
 }
+
+// The request failed because outbound identity federation is already disabled for
+// your Amazon Web Services account. You cannot disable the feature multiple times
+type FeatureDisabledException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *FeatureDisabledException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *FeatureDisabledException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *FeatureDisabledException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "FeatureDisabled"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *FeatureDisabledException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+
+// The request failed because outbound identity federation is already enabled for
+// your Amazon Web Services account. You cannot enable the feature multiple times.
+// To fetch the current configuration (including the unique issuer URL), use the
+// GetOutboundWebIdentityFederationInfo operation.
+type FeatureEnabledException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *FeatureEnabledException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *FeatureEnabledException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *FeatureEnabledException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "FeatureEnabled"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *FeatureEnabledException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
 // The request was rejected because the authentication code was not recognized.
 // The error message describes the specific error.

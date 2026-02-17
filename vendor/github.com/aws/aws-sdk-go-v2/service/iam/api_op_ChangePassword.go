@@ -16,10 +16,11 @@ import (
 // Amazon Web Services account root user password is not affected by this
 // operation.
 //
-// Use UpdateLoginProfile to use the CLI, the Amazon Web Services API, or the Users page in the IAM
+// Use [UpdateLoginProfile] to use the CLI, the Amazon Web Services API, or the Users page in the IAM
 // console to change the password for any IAM user. For more information about
 // modifying passwords, see [Managing passwords]in the IAM User Guide.
 //
+// [UpdateLoginProfile]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_UpdateLoginProfile.html
 // [Managing passwords]: https://docs.aws.amazon.com/IAM/latest/UserGuide/Using_ManagingLogins.html
 func (c *Client) ChangePassword(ctx context.Context, params *ChangePasswordInput, optFns ...func(*Options)) (*ChangePasswordOutput, error) {
 	if params == nil {
@@ -134,6 +135,9 @@ func (c *Client) addOperationChangePasswordMiddlewares(stack *middleware.Stack, 
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpChangePasswordValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -155,16 +159,13 @@ func (c *Client) addOperationChangePasswordMiddlewares(stack *middleware.Stack, 
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

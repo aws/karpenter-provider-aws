@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	utilscontroller "sigs.k8s.io/karpenter/pkg/utils/controller"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 )
 
@@ -50,8 +51,12 @@ func NewNodeClaimController(kubeClient client.Client, cloudProvider cloudprovide
 	}
 }
 
+func (c *NodeClaimController) Name() string {
+	return "state.nodeclaim"
+}
+
 func (c *NodeClaimController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "state.nodeclaim")
+	ctx = injection.WithControllerName(ctx, c.Name())
 
 	nodeClaim := &v1.NodeClaim{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, nodeClaim); err != nil {
@@ -69,10 +74,10 @@ func (c *NodeClaimController) Reconcile(ctx context.Context, req reconcile.Reque
 	return reconcile.Result{RequeueAfter: stateRetryPeriod}, nil
 }
 
-func (c *NodeClaimController) Register(_ context.Context, m manager.Manager) error {
+func (c *NodeClaimController) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("state.nodeclaim").
+		Named(c.Name()).
 		For(&v1.NodeClaim{}, builder.WithPredicates(nodeclaimutils.IsManagedPredicateFuncs(c.cloudProvider))).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: utilscontroller.LinearScaleReconciles(utilscontroller.CPUCount(ctx), minReconciles, maxReconciles)}).
 		Complete(c)
 }

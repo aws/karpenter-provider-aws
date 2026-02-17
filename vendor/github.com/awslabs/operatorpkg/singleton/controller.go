@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/awslabs/operatorpkg/reconciler"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -17,16 +18,29 @@ const (
 	RequeueImmediately = 1 * time.Nanosecond
 )
 
+// Reconciler defines the interface for singleton reconcilers
 type Reconciler interface {
-	Reconcile(ctx context.Context) (reconcile.Result, error)
+	Reconcile(ctx context.Context) (reconciler.Result, error)
+}
+type reconcilerAdapter struct {
+	Reconciler
 }
 
-func AsReconciler(reconciler Reconciler) reconcile.Reconciler {
-	return reconcile.Func(func(ctx context.Context, r reconcile.Request) (reconcile.Result, error) {
-		return reconciler.Reconcile(ctx)
-	})
+func (r *reconcilerAdapter) Reconcile(ctx context.Context, _ reconcile.Request) (reconciler.Result, error) {
+	return r.Reconciler.Reconcile(ctx)
 }
 
+// In response to Requeue: True being deprecated via: https://github.com/kubernetes-sigs/controller-runtime/pull/3107/files
+// This uses a bucket and per item delay but the item will be the same because the key is the controller name.
+// This implements the same behavior as Requeue: True.
+
+// AsReconciler creates a controller-runtime reconciler from a singleton reconciler
+func AsReconciler(rec Reconciler) reconcile.Reconciler {
+	adapter := &reconcilerAdapter{Reconciler: rec}
+	return reconciler.AsReconciler(adapter)
+}
+
+// Source creates a source for singleton controllers
 func Source() source.Source {
 	eventSource := make(chan event.GenericEvent, 1)
 	eventSource <- event.GenericEvent{}

@@ -13,7 +13,9 @@ import (
 // Deletes a virtual MFA device.
 //
 // You must deactivate a user's virtual MFA device before you can delete it. For
-// information about deactivating MFA devices, see DeactivateMFADevice.
+// information about deactivating MFA devices, see [DeactivateMFADevice].
+//
+// [DeactivateMFADevice]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_DeactivateMFADevice.html
 func (c *Client) DeleteVirtualMFADevice(ctx context.Context, params *DeleteVirtualMFADeviceInput, optFns ...func(*Options)) (*DeleteVirtualMFADeviceOutput, error) {
 	if params == nil {
 		params = &DeleteVirtualMFADeviceInput{}
@@ -117,6 +119,9 @@ func (c *Client) addOperationDeleteVirtualMFADeviceMiddlewares(stack *middleware
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDeleteVirtualMFADeviceValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -138,16 +143,13 @@ func (c *Client) addOperationDeleteVirtualMFADeviceMiddlewares(stack *middleware
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

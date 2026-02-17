@@ -56,6 +56,9 @@ type DescribeReservedInstancesModificationsInput struct {
 	//   - modification-result.target-configuration.availability-zone - The
 	//   Availability Zone for the new Reserved Instances.
 	//
+	//   - modification-result.target-configuration.availability-zone-id - The ID of
+	//   the Availability Zone for the new Reserved Instances.
+	//
 	//   - modification-result.target-configuration.instance-count - The number of new
 	//   Reserved Instances.
 	//
@@ -163,6 +166,9 @@ func (c *Client) addOperationDescribeReservedInstancesModificationsMiddlewares(s
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeReservedInstancesModifications(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -181,16 +187,13 @@ func (c *Client) addOperationDescribeReservedInstancesModificationsMiddlewares(s
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

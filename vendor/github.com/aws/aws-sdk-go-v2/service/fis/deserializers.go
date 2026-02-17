@@ -18,16 +18,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"io"
 	"strings"
-	"time"
 )
-
-func deserializeS3Expires(v string) (*time.Time, error) {
-	t, err := smithytime.ParseHTTPDate(v)
-	if err != nil {
-		return nil, nil
-	}
-	return &t, nil
-}
 
 type awsRestjson1_deserializeOpCreateExperimentTemplate struct {
 }
@@ -5460,7 +5451,7 @@ func awsRestjson1_deserializeDocumentExperimentReportConfigurationOutputsS3Confi
 			if value != nil {
 				jtv, ok := value.(string)
 				if !ok {
-					return fmt.Errorf("expected S3ObjectKey to be of type string, got %T instead", value)
+					return fmt.Errorf("expected ReportConfigurationS3OutputPrefix to be of type string, got %T instead", value)
 				}
 				sv.Prefix = ptr.String(jtv)
 			}
@@ -7618,7 +7609,7 @@ func awsRestjson1_deserializeDocumentReportConfigurationS3Output(v **types.Repor
 			if value != nil {
 				jtv, ok := value.(string)
 				if !ok {
-					return fmt.Errorf("expected S3ObjectKey to be of type string, got %T instead", value)
+					return fmt.Errorf("expected ReportConfigurationS3OutputPrefix to be of type string, got %T instead", value)
 				}
 				sv.Prefix = ptr.String(jtv)
 			}

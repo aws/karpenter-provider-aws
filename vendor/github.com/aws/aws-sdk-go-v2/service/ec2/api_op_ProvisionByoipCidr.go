@@ -14,7 +14,7 @@ import (
 // Provisions an IPv4 or IPv6 address range for use with your Amazon Web Services
 // resources through bring your own IP addresses (BYOIP) and creates a
 // corresponding address pool. After the address range is provisioned, it is ready
-// to be advertised using AdvertiseByoipCidr.
+// to be advertised.
 //
 // Amazon Web Services verifies that you own the address range and are authorized
 // to advertise it. You must ensure that the address range is registered to you and
@@ -24,12 +24,10 @@ import (
 //
 // Provisioning an address range is an asynchronous operation, so the call returns
 // immediately, but the address range is not ready to use until its status changes
-// from pending-provision to provisioned . To monitor the status of an address
-// range, use DescribeByoipCidrs. To allocate an Elastic IP address from your IPv4 address pool, use AllocateAddress
-// with either the specific address from the address pool or the ID of the address
-// pool.
+// from pending-provision to provisioned . For more information, see [Onboard your address range].
 //
 // [Bring your own IP addresses (BYOIP)]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-byoip.html
+// [Onboard your address range]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/byoip-onboard.html
 func (c *Client) ProvisionByoipCidr(ctx context.Context, params *ProvisionByoipCidrInput, optFns ...func(*Options)) (*ProvisionByoipCidrOutput, error) {
 	if params == nil {
 		params = &ProvisionByoipCidrInput{}
@@ -179,6 +177,9 @@ func (c *Client) addOperationProvisionByoipCidrMiddlewares(stack *middleware.Sta
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpProvisionByoipCidrValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -200,16 +201,13 @@ func (c *Client) addOperationProvisionByoipCidrMiddlewares(stack *middleware.Sta
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

@@ -20,7 +20,7 @@ import (
 // needed to restore the volume.
 //
 // You cannot delete a snapshot of the root device of an EBS volume used by a
-// registered AMI. You must first de-register the AMI before you can delete the
+// registered AMI. You must first deregister the AMI before you can delete the
 // snapshot.
 //
 // For more information, see [Delete an Amazon EBS snapshot] in the Amazon EBS User Guide.
@@ -128,6 +128,9 @@ func (c *Client) addOperationDeleteSnapshotMiddlewares(stack *middleware.Stack, 
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDeleteSnapshotValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -149,16 +152,13 @@ func (c *Client) addOperationDeleteSnapshotMiddlewares(stack *middleware.Stack, 
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

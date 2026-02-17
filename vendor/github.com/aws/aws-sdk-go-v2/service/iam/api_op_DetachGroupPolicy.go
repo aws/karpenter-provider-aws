@@ -13,8 +13,9 @@ import (
 // Removes the specified managed policy from the specified IAM group.
 //
 // A group can also have inline policies embedded with it. To delete an inline
-// policy, use DeleteGroupPolicy. For information about policies, see [Managed policies and inline policies] in the IAM User Guide.
+// policy, use [DeleteGroupPolicy]. For information about policies, see [Managed policies and inline policies] in the IAM User Guide.
 //
+// [DeleteGroupPolicy]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_DeleteGroupPolicy.html
 // [Managed policies and inline policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/policies-managed-vs-inline.html
 func (c *Client) DetachGroupPolicy(ctx context.Context, params *DetachGroupPolicyInput, optFns ...func(*Options)) (*DetachGroupPolicyOutput, error) {
 	if params == nil {
@@ -128,6 +129,9 @@ func (c *Client) addOperationDetachGroupPolicyMiddlewares(stack *middleware.Stac
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDetachGroupPolicyValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -149,16 +153,13 @@ func (c *Client) addOperationDetachGroupPolicyMiddlewares(stack *middleware.Stac
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

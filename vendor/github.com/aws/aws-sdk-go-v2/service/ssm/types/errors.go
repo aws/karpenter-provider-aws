@@ -7,6 +7,32 @@ import (
 	smithy "github.com/aws/smithy-go"
 )
 
+// The requester doesn't have permissions to perform the requested operation.
+type AccessDeniedException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *AccessDeniedException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *AccessDeniedException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *AccessDeniedException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "AccessDeniedException"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *AccessDeniedException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+
 // Error returned if an attempt is made to register a patch group with a patch
 // baseline that is already registered with a different patch baseline.
 type AlreadyExistsException struct {
@@ -2303,6 +2329,32 @@ func (e *MaxDocumentSizeExceeded) ErrorCode() string {
 }
 func (e *MaxDocumentSizeExceeded) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
+// The requested operation is no longer supported by Systems Manager.
+type NoLongerSupportedException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *NoLongerSupportedException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *NoLongerSupportedException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *NoLongerSupportedException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "NoLongerSupportedException"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *NoLongerSupportedException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+
 // You don't have permission to view OpsItems in the specified account. Verify
 // that your account is configured either as a Systems Manager delegated
 // administrator or that you are logged into the Organizations management account.
@@ -2795,6 +2847,10 @@ func (e *ParameterMaxVersionLimitExceeded) ErrorCode() string {
 func (e *ParameterMaxVersionLimitExceeded) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
 // The parameter couldn't be found. Verify the name and try again.
+//
+// For the DeleteParameter and GetParameter actions, if the specified parameter
+// doesn't exist, the ParameterNotFound exception is not recorded in CloudTrail
+// event logs.
 type ParameterNotFound struct {
 	Message *string
 
@@ -3273,6 +3329,39 @@ func (e *ResourcePolicyNotFoundException) ErrorCode() string {
 }
 func (e *ResourcePolicyNotFoundException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
+// The request exceeds the service quota. Service quotas, also referred to as
+// limits, are the maximum number of service resources or operations for your
+// Amazon Web Services account.
+type ServiceQuotaExceededException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	ResourceId   *string
+	ResourceType *string
+	QuotaCode    *string
+	ServiceCode  *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *ServiceQuotaExceededException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *ServiceQuotaExceededException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *ServiceQuotaExceededException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "ServiceQuotaExceededException"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *ServiceQuotaExceededException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+
 // The specified service setting wasn't found. Either the service name or the
 // setting hasn't been provisioned by the Amazon Web Services service team.
 type ServiceSettingNotFound struct {
@@ -3411,6 +3500,36 @@ func (e *TargetNotConnected) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *TargetNotConnected) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+
+// The request or operation couldn't be performed because the service is
+// throttling requests.
+type ThrottlingException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	QuotaCode   *string
+	ServiceCode *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *ThrottlingException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *ThrottlingException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *ThrottlingException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "ThrottlingException"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *ThrottlingException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
 // The Targets parameter includes too many tags. Remove one or more tags and try
 // the command again.

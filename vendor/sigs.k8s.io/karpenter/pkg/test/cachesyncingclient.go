@@ -49,7 +49,7 @@ func (c *CacheSyncingClient) Create(ctx context.Context, obj client.Object, opts
 		return err
 	}
 	_ = retry.Do(func() error {
-		if err := c.Client.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
+		if err := c.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
 			return fmt.Errorf("getting object, %w", err)
 		}
 		return nil
@@ -62,7 +62,7 @@ func (c *CacheSyncingClient) Delete(ctx context.Context, obj client.Object, opts
 		return err
 	}
 	_ = retry.Do(func() error {
-		if err := c.Client.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
+		if err := c.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
 			if errors.IsNotFound(err) {
 				return nil
 			}
@@ -106,10 +106,10 @@ func (c *CacheSyncingClient) DeleteAllOf(ctx context.Context, obj client.Object,
 
 	_ = retry.Do(func() error {
 		listOptions := []client.ListOption{client.Limit(1)}
-		if options.ListOptions.Namespace != "" {
-			listOptions = append(listOptions, client.InNamespace(options.ListOptions.Namespace))
+		if options.Namespace != "" {
+			listOptions = append(listOptions, client.InNamespace(options.Namespace))
 		}
-		if err := c.Client.List(ctx, metaList, listOptions...); err != nil {
+		if err := c.List(ctx, metaList, listOptions...); err != nil {
 			return fmt.Errorf("listing objects, %w", err)
 		}
 		if len(metaList.Items) != 0 {

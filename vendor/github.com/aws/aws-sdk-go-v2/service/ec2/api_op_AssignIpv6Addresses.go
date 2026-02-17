@@ -10,11 +10,11 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Assigns one or more IPv6 addresses to the specified network interface. You can
-// specify one or more specific IPv6 addresses, or you can specify the number of
-// IPv6 addresses to be automatically assigned from within the subnet's IPv6 CIDR
-// block range. You can assign as many IPv6 addresses to a network interface as you
-// can assign private IPv4 addresses, and the limit varies per instance type.
+// Assigns the specified IPv6 addresses to the specified network interface. You
+// can specify specific IPv6 addresses, or you can specify the number of IPv6
+// addresses to be automatically assigned from the subnet's IPv6 CIDR block range.
+// You can assign as many IPv6 addresses to a network interface as you can assign
+// private IPv4 addresses, and the limit varies by instance type.
 //
 // You must specify either the IPv6 addresses or the IPv6 address count in the
 // request.
@@ -62,8 +62,8 @@ type AssignIpv6AddressesInput struct {
 	// option.
 	Ipv6PrefixCount *int32
 
-	// One or more IPv6 prefixes assigned to the network interface. You cannot use
-	// this option if you use the Ipv6PrefixCount option.
+	// One or more IPv6 prefixes assigned to the network interface. You can't use this
+	// option if you use the Ipv6PrefixCount option.
 	Ipv6Prefixes []string
 
 	noSmithyDocumentSerde
@@ -152,6 +152,9 @@ func (c *Client) addOperationAssignIpv6AddressesMiddlewares(stack *middleware.St
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpAssignIpv6AddressesValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -173,16 +176,13 @@ func (c *Client) addOperationAssignIpv6AddressesMiddlewares(stack *middleware.St
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

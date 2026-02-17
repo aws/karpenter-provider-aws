@@ -11,11 +11,12 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Create a verification token. A verification token is an Amazon Web
-// Services-generated random value that you can use to prove ownership of an
-// external resource. For example, you can use a verification token to validate
-// that you control a public IP address range when you bring an IP address range to
-// Amazon Web Services (BYOIP).
+// Create a verification token.
+//
+// A verification token is an Amazon Web Services-generated random value that you
+// can use to prove ownership of an external resource. For example, you can use a
+// verification token to validate that you control a public IP address range when
+// you bring an IP address range to Amazon Web Services (BYOIP).
 func (c *Client) CreateIpamExternalResourceVerificationToken(ctx context.Context, params *CreateIpamExternalResourceVerificationTokenInput, optFns ...func(*Options)) (*CreateIpamExternalResourceVerificationTokenOutput, error) {
 	if params == nil {
 		params = &CreateIpamExternalResourceVerificationTokenInput{}
@@ -131,6 +132,9 @@ func (c *Client) addOperationCreateIpamExternalResourceVerificationTokenMiddlewa
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addIdempotencyToken_opCreateIpamExternalResourceVerificationTokenMiddleware(stack, options); err != nil {
 		return err
 	}
@@ -155,16 +159,13 @@ func (c *Client) addOperationCreateIpamExternalResourceVerificationTokenMiddlewa
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

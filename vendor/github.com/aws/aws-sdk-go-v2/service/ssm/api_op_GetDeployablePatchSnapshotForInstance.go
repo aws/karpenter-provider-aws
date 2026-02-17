@@ -53,6 +53,12 @@ type GetDeployablePatchSnapshotForInstanceInput struct {
 	// Defines the basic information about a patch baseline override.
 	BaselineOverride *types.BaselineOverride
 
+	// Specifies whether to use S3 dualstack endpoints for the patch snapshot download
+	// URL. Set to true to receive a presigned URL that supports both IPv4 and IPv6
+	// connectivity. Set to false to use standard IPv4-only endpoints. Default is false
+	// . This parameter is required for managed nodes in IPv6-only environments.
+	UseS3DualStackEndpoint bool
+
 	noSmithyDocumentSerde
 }
 
@@ -142,6 +148,9 @@ func (c *Client) addOperationGetDeployablePatchSnapshotForInstanceMiddlewares(st
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetDeployablePatchSnapshotForInstanceValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -163,16 +172,13 @@ func (c *Client) addOperationGetDeployablePatchSnapshotForInstanceMiddlewares(st
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

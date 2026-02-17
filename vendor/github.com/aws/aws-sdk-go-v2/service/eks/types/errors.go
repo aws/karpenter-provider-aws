@@ -165,6 +165,39 @@ func (e *InvalidRequestException) ErrorCode() string {
 }
 func (e *InvalidRequestException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
+// Amazon EKS detected upgrade readiness issues. Call the [ListInsights]ListInsights API to view
+// detected upgrade blocking issues. Pass the [force]force flag when updating to override
+// upgrade readiness errors.
+//
+// [ListInsights]: https://docs.aws.amazon.com/eks/latest/APIReference/API_ListInsights.html
+// [force]: https://docs.aws.amazon.com/eks/latest/APIReference/API_UpdateClusterVersion.html#API_UpdateClusterVersion_RequestBody
+type InvalidStateException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	ClusterName *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *InvalidStateException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *InvalidStateException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *InvalidStateException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "InvalidStateException"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *InvalidStateException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+
 // A service resource associated with the request could not be found. Clients
 // should not retry such requests.
 type NotFoundException struct {
@@ -370,6 +403,35 @@ func (e *ServiceUnavailableException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *ServiceUnavailableException) ErrorFault() smithy.ErrorFault { return smithy.FaultServer }
+
+// The request or operation couldn't be performed because a service is throttling
+// requests.
+type ThrottlingException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	ClusterName *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *ThrottlingException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *ThrottlingException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *ThrottlingException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "ThrottlingException"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *ThrottlingException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
 // At least one of your specified cluster subnets is in an Availability Zone that
 // does not support Amazon EKS. The exception output specifies the supported

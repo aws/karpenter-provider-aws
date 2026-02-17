@@ -29,6 +29,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	utilscontroller "sigs.k8s.io/karpenter/pkg/utils/controller"
 )
 
 // NodeController reconciles nodes for the purpose of maintaining state regarding nodes that is expensive to compute.
@@ -45,8 +46,12 @@ func NewNodeController(kubeClient client.Client, cluster *state.Cluster) *NodeCo
 	}
 }
 
+func (c *NodeController) Name() string {
+	return "state.node"
+}
+
 func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "state.node")
+	ctx = injection.WithControllerName(ctx, c.Name())
 
 	node := &v1.Node{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, node); err != nil {
@@ -63,10 +68,10 @@ func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (
 	return reconcile.Result{RequeueAfter: stateRetryPeriod}, nil
 }
 
-func (c *NodeController) Register(_ context.Context, m manager.Manager) error {
+func (c *NodeController) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("state.node").
+		Named(c.Name()).
 		For(&v1.Node{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: utilscontroller.LinearScaleReconciles(utilscontroller.CPUCount(ctx), minReconciles, maxReconciles)}).
 		Complete(c)
 }

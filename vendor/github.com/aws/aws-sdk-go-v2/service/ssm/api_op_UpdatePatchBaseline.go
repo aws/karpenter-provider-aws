@@ -58,6 +58,20 @@ type UpdatePatchBaselineInput struct {
 	// Applies to Linux managed nodes only.
 	ApprovedPatchesEnableNonSecurity *bool
 
+	// Indicates the status to be assigned to security patches that are available but
+	// not approved because they don't meet the installation criteria specified in the
+	// patch baseline.
+	//
+	// Example scenario: Security patches that you might want installed can be skipped
+	// if you have specified a long period to wait after a patch is released before
+	// installation. If an update to the patch is released during your specified
+	// waiting period, the waiting period for installing the patch starts over. If the
+	// waiting period is too long, multiple versions of the patch could be released but
+	// never installed.
+	//
+	// Supported for Windows Server managed nodes only.
+	AvailableSecurityUpdatesComplianceStatus types.PatchComplianceStatus
+
 	// A description of the patch baseline.
 	Description *string
 
@@ -95,10 +109,19 @@ type UpdatePatchBaselineInput struct {
 	//
 	// BLOCK  All OSs: Packages in the rejected patches list, and packages that
 	// include them as dependencies, aren't installed by Patch Manager under any
-	// circumstances. If a package was installed before it was added to the rejected
-	// patches list, or is installed outside of Patch Manager afterward, it's
-	// considered noncompliant with the patch baseline and its status is reported as
-	// INSTALLED_REJECTED .
+	// circumstances.
+	//
+	// State value assignment for patch compliance:
+	//
+	//   - If a package was installed before it was added to the rejected patches
+	//   list, or is installed outside of Patch Manager afterward, it's considered
+	//   noncompliant with the patch baseline and its status is reported as
+	//   INSTALLED_REJECTED .
+	//
+	//   - If an update attempts to install a dependency package that is now rejected
+	//   by the baseline, when previous versions of the package were not rejected, the
+	//   package being updated is reported as MISSING for SCAN operations and as FAILED
+	//   for INSTALL operations.
 	RejectedPatchesAction types.PatchAction
 
 	// If True, then all fields that are required by the CreatePatchBaseline operation are also required
@@ -129,6 +152,13 @@ type UpdatePatchBaselineOutput struct {
 	// that should be applied to the managed nodes. The default value is false .
 	// Applies to Linux managed nodes only.
 	ApprovedPatchesEnableNonSecurity *bool
+
+	// Indicates the compliance status of managed nodes for which security-related
+	// patches are available but were not approved. This preference is specified when
+	// the CreatePatchBaseline or UpdatePatchBaseline commands are run.
+	//
+	// Applies to Windows Server managed nodes only.
+	AvailableSecurityUpdatesComplianceStatus types.PatchComplianceStatus
 
 	// The ID of the deleted patch baseline.
 	BaselineId *string
@@ -234,6 +264,9 @@ func (c *Client) addOperationUpdatePatchBaselineMiddlewares(stack *middleware.St
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpUpdatePatchBaselineValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -255,16 +288,13 @@ func (c *Client) addOperationUpdatePatchBaselineMiddlewares(stack *middleware.St
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

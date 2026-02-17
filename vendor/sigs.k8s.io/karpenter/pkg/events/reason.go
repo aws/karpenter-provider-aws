@@ -24,6 +24,8 @@ const (
 	DisruptionTerminating      = "DisruptionTerminating"
 	DisruptionWaitingReadiness = "DisruptionWaitingReadiness"
 	Unconsolidatable           = "Unconsolidatable"
+	ConsolidationCandidate     = "ConsolidationCandidate"
+	ConsolidationRejected      = "ConsolidationRejected"
 
 	// provisioning/scheduling
 	FailedScheduling          = "FailedScheduling"
@@ -38,11 +40,13 @@ const (
 	Evicted                        = "Evicted"
 	FailedDraining                 = "FailedDraining"
 	TerminationGracePeriodExpiring = "TerminationGracePeriodExpiring"
+	TerminationFailed              = "FailedTermination"
 
 	// nodeclaim/consistency
 	FailedConsistencyCheck = "FailedConsistencyCheck"
 
 	// nodeclaim/lifecycle
 	InsufficientCapacityError = "InsufficientCapacityError"
+	UnregisteredTaintMissing  = "UnregisteredTaintMissing"
 	NodeClassNotReady         = "NodeClassNotReady"
 )

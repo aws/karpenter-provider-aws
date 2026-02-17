@@ -12,8 +12,7 @@ import (
 )
 
 // Describes the Availability Zones, Local Zones, and Wavelength Zones that are
-// available to you. If there is an event impacting a zone, you can use this
-// request to view the state and any provided messages for that zone.
+// available to you.
 //
 // For more information about Availability Zones, Local Zones, and Wavelength
 // Zones, see [Regions and zones]in the Amazon EC2 User Guide.
@@ -55,10 +54,14 @@ type DescribeAvailabilityZonesInput struct {
 
 	// The filters.
 	//
-	//   - group-name - For Availability Zones, use the Region name. For Local Zones,
-	//   use the name of the group associated with the Local Zone (for example,
-	//   us-west-2-lax-1 ) For Wavelength Zones, use the name of the group associated
-	//   with the Wavelength Zone (for example, us-east-1-wl1 ).
+	//   - group-long-name - The long name of the zone group for the Availability Zone
+	//   (for example, US West (Oregon) 1 ), the Local Zone (for example, for Zone
+	//   group us-west-2-lax-1 , it is US West (Los Angeles) , or the Wavelength Zone
+	//   (for example, for Zone group us-east-1-wl1 , it is US East (Verizon) .
+	//
+	//   - group-name - The name of the zone group for the Availability Zone (for
+	//   example, us-east-1-zg-1 ), the Local Zone (for example, us-west-2-lax-1 ), or
+	//   the Wavelength Zone (for example, us-east-1-wl1 ).
 	//
 	//   - message - The Zone message.
 	//
@@ -74,7 +77,7 @@ type DescribeAvailabilityZonesInput struct {
 	//   - region-name - The name of the Region for the Zone (for example, us-east-1 ).
 	//
 	//   - state - The state of the Availability Zone, the Local Zone, or the
-	//   Wavelength Zone ( available ).
+	//   Wavelength Zone ( available | unavailable | constrained ).
 	//
 	//   - zone-id - The ID of the Availability Zone (for example, use1-az1 ), the
 	//   Local Zone (for example, usw2-lax1-az1 ), or the Wavelength Zone (for example,
@@ -172,6 +175,9 @@ func (c *Client) addOperationDescribeAvailabilityZonesMiddlewares(stack *middlew
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeAvailabilityZones(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -190,16 +196,13 @@ func (c *Client) addOperationDescribeAvailabilityZonesMiddlewares(stack *middlew
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

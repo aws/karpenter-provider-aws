@@ -12,9 +12,9 @@ import (
 
 // Cancels the deprecation of the specified AMI.
 //
-// For more information, see [Deprecate an AMI] in the Amazon EC2 User Guide.
+// For more information, see [Deprecate an Amazon EC2 AMI] in the Amazon EC2 User Guide.
 //
-// [Deprecate an AMI]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ami-deprecate.html
+// [Deprecate an Amazon EC2 AMI]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ami-deprecate.html
 func (c *Client) DisableImageDeprecation(ctx context.Context, params *DisableImageDeprecationInput, optFns ...func(*Options)) (*DisableImageDeprecationOutput, error) {
 	if params == nil {
 		params = &DisableImageDeprecationInput{}
@@ -121,6 +121,9 @@ func (c *Client) addOperationDisableImageDeprecationMiddlewares(stack *middlewar
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDisableImageDeprecationValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -142,16 +145,13 @@ func (c *Client) addOperationDisableImageDeprecationMiddlewares(stack *middlewar
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

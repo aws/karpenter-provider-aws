@@ -25,8 +25,6 @@ import (
 //
 // It can take a few minutes before traffic to the specified addresses starts
 // routing to Amazon Web Services because of BGP propagation delays.
-//
-// To stop advertising the BYOIP CIDR, use WithdrawByoipCidr.
 func (c *Client) AdvertiseByoipCidr(ctx context.Context, params *AdvertiseByoipCidrInput, optFns ...func(*Options)) (*AdvertiseByoipCidrOutput, error) {
 	if params == nil {
 		params = &AdvertiseByoipCidrInput{}
@@ -157,6 +155,9 @@ func (c *Client) addOperationAdvertiseByoipCidrMiddlewares(stack *middleware.Sta
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpAdvertiseByoipCidrValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -178,16 +179,13 @@ func (c *Client) addOperationAdvertiseByoipCidrMiddlewares(stack *middleware.Sta
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

@@ -57,7 +57,7 @@ type DisassociateTrunkInterfaceOutput struct {
 	// [Ensuring idempotency]: https://docs.aws.amazon.com/ec2/latest/devguide/ec2-api-idempotency.html
 	ClientToken *string
 
-	// Returns true if the request succeeds; otherwise, it returns an error.
+	// Is true if the request succeeds and an error otherwise.
 	Return *bool
 
 	// Metadata pertaining to the operation's result.
@@ -130,6 +130,9 @@ func (c *Client) addOperationDisassociateTrunkInterfaceMiddlewares(stack *middle
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addIdempotencyToken_opDisassociateTrunkInterfaceMiddleware(stack, options); err != nil {
 		return err
 	}
@@ -154,16 +157,13 @@ func (c *Client) addOperationDisassociateTrunkInterfaceMiddlewares(stack *middle
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

@@ -199,7 +199,8 @@ type AssociationDescription struct {
 
 	// The names or Amazon Resource Names (ARNs) of the Change Calendar type documents
 	// your associations are gated under. The associations only run when that change
-	// calendar is open. For more information, see [Amazon Web Services Systems Manager Change Calendar].
+	// calendar is open. For more information, see [Amazon Web Services Systems Manager Change Calendar]in the Amazon Web Services Systems
+	// Manager User Guide.
 	//
 	// [Amazon Web Services Systems Manager Change Calendar]: https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-change-calendar
 	CalendarNames []string
@@ -477,7 +478,7 @@ type AssociationStatus struct {
 // Information about the association version.
 type AssociationVersionInfo struct {
 
-	// By default, when you create a new associations, the system runs it immediately
+	// By default, when you create new associations, the system runs it immediately
 	// after it is created and then according to the schedule you specified. Specify
 	// this option if you don't want an association to run immediately after you create
 	// it. This parameter isn't supported for rate expressions.
@@ -495,7 +496,8 @@ type AssociationVersionInfo struct {
 
 	// The names or Amazon Resource Names (ARNs) of the Change Calendar type documents
 	// your associations are gated under. The associations for this version only run
-	// when that Change Calendar is open. For more information, see [Amazon Web Services Systems Manager Change Calendar].
+	// when that Change Calendar is open. For more information, see [Amazon Web Services Systems Manager Change Calendar]in the Amazon Web
+	// Services Systems Manager User Guide.
 	//
 	// [Amazon Web Services Systems Manager Change Calendar]: https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-change-calendar
 	CalendarNames []string
@@ -1004,6 +1006,14 @@ type BaselineOverride struct {
 	// that should be applied to the managed nodes. The default value is false .
 	// Applies to Linux managed nodes only.
 	ApprovedPatchesEnableNonSecurity bool
+
+	// Indicates whether managed nodes for which there are available security-related
+	// patches that have not been approved by the baseline are being defined as
+	// COMPLIANT or NON_COMPLIANT . This option is specified when the
+	// CreatePatchBaseline or UpdatePatchBaseline commands are run.
+	//
+	// Applies to Windows Server managed nodes only.
+	AvailableSecurityUpdatesComplianceStatus PatchComplianceStatus
 
 	// A set of patch filters, typically used for approval rules.
 	GlobalFilters *PatchFilterGroup
@@ -1540,6 +1550,12 @@ type ComplianceExecutionSummary struct {
 	// The time the execution ran as a datetime object that is saved in the following
 	// format: yyyy-MM-dd'T'HH:mm:ss'Z'
 	//
+	// For State Manager associations, this timestamp represents when the compliance
+	// status was captured and reported by the Systems Manager service, not when the
+	// underlying association was actually executed on the managed node. To track
+	// actual association execution times, use the DescribeAssociationExecutionTargetscommand or check the association
+	// execution history in the Systems Manager console.
+	//
 	// This member is required.
 	ExecutionTime *time.Time
 
@@ -1567,6 +1583,13 @@ type ComplianceItem struct {
 
 	// A summary for the compliance item. The summary includes an execution ID, the
 	// execution type (for example, command), and the execution time.
+	//
+	// For State Manager associations, the ExecutionTime value represents when the
+	// compliance status was captured and aggregated by the Systems Manager service,
+	// not necessarily when the underlying association was executed on the managed
+	// node. State Manager updates compliance status for all associations on an
+	// instance whenever any association executes, which means multiple associations
+	// may show the same execution time even if they were executed at different times.
 	ExecutionSummary *ComplianceExecutionSummary
 
 	// An ID for the compliance item. For example, if the compliance item is a Windows
@@ -1701,10 +1724,18 @@ type CreateAssociationBatchRequestEntry struct {
 	// command.
 	AlarmConfiguration *AlarmConfiguration
 
-	// By default, when you create a new associations, the system runs it immediately
-	// after it is created and then according to the schedule you specified. Specify
-	// this option if you don't want an association to run immediately after you create
-	// it. This parameter isn't supported for rate expressions.
+	// By default, when you create a new association, the system runs it immediately
+	// after it is created and then according to the schedule you specified and when
+	// target changes are detected. Specify true for ApplyOnlyAtCronInterval if you
+	// want the association to run only according to the schedule you specified.
+	//
+	// For more information, see [Understanding when associations are applied to resources] and [>About target updates with Automation runbooks] in the Amazon Web Services Systems Manager User
+	// Guide.
+	//
+	// This parameter isn't supported for rate expressions.
+	//
+	// [Understanding when associations are applied to resources]: https://docs.aws.amazon.com/systems-manager/latest/userguide/state-manager-about.html#state-manager-about-scheduling
+	// [>About target updates with Automation runbooks]: https://docs.aws.amazon.com/systems-manager/latest/userguide/state-manager-about.html#runbook-target-updates
 	ApplyOnlyAtCronInterval bool
 
 	// Specify a descriptive name for the association.
@@ -1717,7 +1748,8 @@ type CreateAssociationBatchRequestEntry struct {
 
 	// The names or Amazon Resource Names (ARNs) of the Change Calendar type documents
 	// your associations are gated under. The associations only run when that Change
-	// Calendar is open. For more information, see [Amazon Web Services Systems Manager Change Calendar].
+	// Calendar is open. For more information, see [Amazon Web Services Systems Manager Change Calendar]in the Amazon Web Services Systems
+	// Manager User Guide.
 	//
 	// [Amazon Web Services Systems Manager Change Calendar]: https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-change-calendar
 	CalendarNames []string
@@ -1819,6 +1851,34 @@ type CreateAssociationBatchRequestEntry struct {
 
 	// The managed nodes targeted by the request.
 	Targets []Target
+
+	noSmithyDocumentSerde
+}
+
+// The temporary security credentials, which include an access key ID, a secret
+// access key, and a security (or session) token.
+type Credentials struct {
+
+	// The access key ID that identifies the temporary security credentials.
+	//
+	// This member is required.
+	AccessKeyId *string
+
+	// The datetime on which the current credentials expire.
+	//
+	// This member is required.
+	ExpirationTime *time.Time
+
+	// The secret access key that can be used to sign requests.
+	//
+	// This member is required.
+	SecretAccessKey *string
+
+	// The token that users must pass to the service API to use the temporary
+	// credentials.
+	//
+	// This member is required.
+	SessionToken *string
 
 	noSmithyDocumentSerde
 }
@@ -2650,7 +2710,7 @@ type InstanceInformationStringFilter struct {
 	// The filter key name to describe your managed nodes.
 	//
 	// Valid filter key values: ActivationIds | AgentVersion | AssociationStatus |
-	// IamRole | InstanceIds | PingStatus | PlatformTypes | ResourceType | SourceIds |
+	// IamRole | InstanceIds | PingStatus | PlatformType | ResourceType | SourceIds |
 	// SourceTypes | "tag-key" | "tag: {keyname}
 	//
 	//   - Valid values for the AssociationStatus filter key: Success | Pending | Failed
@@ -2719,6 +2779,14 @@ type InstancePatchState struct {
 	//
 	// This member is required.
 	PatchGroup *string
+
+	// The number of security-related patches that are available but not approved
+	// because they didn't meet the patch baseline requirements. For example, an
+	// updated version of a patch might have been released before the specified
+	// auto-approval period was over.
+	//
+	// Applies to Windows Server managed nodes only.
+	AvailableSecurityUpdateCount *int32
 
 	// The number of patches per node that are specified as Critical for compliance
 	// reporting in the patch baseline aren't installed. These patches might be
@@ -3072,6 +3140,32 @@ type InventoryDeletionSummaryItem struct {
 }
 
 // One or more filters. Use a filter to return a more specific list of results.
+//
+// Example formats for the aws ssm get-inventory command:
+//
+//	--filters
+//	Key=AWS:InstanceInformation.AgentType,Values=amazon-ssm-agent,Type=Equal
+//
+//	--filters Key=AWS:InstanceInformation.AgentVersion,Values=3.3.2299.0,Type=Equal
+//
+//	--filters
+//	Key=AWS:InstanceInformation.ComputerName,Values=ip-192.0.2.0.us-east-2.compute.internal,Type=Equal
+//
+//	--filters
+//	Key=AWS:InstanceInformation.InstanceId,Values=i-0a4cd6ceffEXAMPLE,i-1a2b3c4d5e6EXAMPLE,Type=Equal
+//
+//	--filters Key=AWS:InstanceInformation.InstanceStatus,Values=Active,Type=Equal
+//
+//	--filters Key=AWS:InstanceInformation.IpAddress,Values=198.51.100.0,Type=Equal
+//
+//	--filters Key=AWS:InstanceInformation.PlatformName,Values="Amazon
+//	Linux",Type=Equal
+//
+//	--filters Key=AWS:InstanceInformation.PlatformType,Values=Linux,Type=Equal
+//
+//	--filters Key=AWS:InstanceInformation.PlatformVersion,Values=2023,Type=BeginWith
+//
+//	--filters Key=AWS:InstanceInformation.ResourceType,Values=EC2Instance,Type=Equal
 type InventoryFilter struct {
 
 	// The name of the filter key.
@@ -3079,9 +3173,7 @@ type InventoryFilter struct {
 	// This member is required.
 	Key *string
 
-	// Inventory filter values. Example: inventory filter where managed node IDs are
-	// specified as values Key=AWS:InstanceInformation.InstanceId,Values=
-	// i-a12b3c4d5e6g, i-1a2b3c4d5e6,Type=Equal .
+	// Inventory filter values.
 	//
 	// This member is required.
 	Values []string
@@ -4972,6 +5064,10 @@ type PatchRule struct {
 	// that the patch is marked as approved in the patch baseline. For example, a value
 	// of 7 means that patches are approved seven days after they are released.
 	//
+	// Patch Manager evaluates patch release dates using Coordinated Universal Time
+	// (UTC). If the day represented by 7 is 2025-11-16 , patches released between
+	// 2025-11-16T00:00:00Z and 2025-11-16T23:59:59Z will be included in the approval.
+	//
 	// This parameter is marked as Required: No , but your request must include a value
 	// for either ApproveAfterDays or ApproveUntilDate .
 	//
@@ -4989,7 +5085,11 @@ type PatchRule struct {
 	// The cutoff date for auto approval of released patches. Any patches released on
 	// or before this date are installed automatically.
 	//
-	// Enter dates in the format YYYY-MM-DD . For example, 2024-12-31 .
+	// Enter dates in the format YYYY-MM-DD . For example, 2025-11-16 .
+	//
+	// Patch Manager evaluates patch release dates using Coordinated Universal Time
+	// (UTC). If you enter the date 2025-11-16 , patches released between
+	// 2025-11-16T00:00:00Z and 2025-11-16T23:59:59Z will be included in the approval.
 	//
 	// This parameter is marked as Required: No , but your request must include a value
 	// for either ApproveUntilDate or ApproveAfterDays .
@@ -5032,7 +5132,9 @@ type PatchRuleGroup struct {
 // only.
 type PatchSource struct {
 
-	// The value of the yum repo configuration. For example:
+	// The value of the repo configuration.
+	//
+	// Example for yum repositories
 	//
 	//     [main]
 	//
@@ -5043,9 +5145,22 @@ type PatchSource struct {
 	//     enabled=1
 	//
 	// For information about other options available for your yum repository
-	// configuration, see [dnf.conf(5)].
+	// configuration, see [dnf.conf(5)]on the man7.org website.
+	//
+	// Examples for Ubuntu Server and Debian Server
+	//
+	//     deb http://security.ubuntu.com/ubuntu jammy main
+	//
+	//     deb https://site.example.com/debian distribution component1 component2
+	//     component3
+	//
+	// Repo information for Ubuntu Server repositories must be specifed in a single
+	// line. For more examples and information, see [jammy (5) sources.list.5.gz]on the Ubuntu Server Manuals
+	// website and [sources.list format]on the Debian Wiki.
 	//
 	// [dnf.conf(5)]: https://man7.org/linux/man-pages/man5/dnf.conf.5.html
+	// [jammy (5) sources.list.5.gz]: https://manpages.ubuntu.com/manpages/jammy/man5/sources.list.5.html
+	// [sources.list format]: https://wiki.debian.org/SourcesList#sources.list_format
 	//
 	// This member is required.
 	Configuration *string
@@ -5560,6 +5675,12 @@ type ServiceSetting struct {
 // Information about a Session Manager connection to a managed node.
 type Session struct {
 
+	// Standard access type is the default for Session Manager sessions. JustInTime is
+	// the access type for [Just-in-time node access].
+	//
+	// [Just-in-time node access]: https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-just-in-time-node-access.html
+	AccessType AccessType
+
 	// Reserved for future use.
 	Details *string
 
@@ -5907,6 +6028,8 @@ type TargetLocation struct {
 
 	// Indicates whether to include child organizational units (OUs) that are children
 	// of the targeted OUs. The default is false .
+	//
+	// This parameter is not supported by State Manager.
 	IncludeChildOrganizationUnits bool
 
 	// The Amazon Web Services Regions targeted by the current Automation execution.
@@ -5918,10 +6041,12 @@ type TargetLocation struct {
 
 	// The maximum number of Amazon Web Services Regions and Amazon Web Services
 	// accounts allowed to run the Automation concurrently.
+	// TargetLocationMaxConcurrency has a default value of 1.
 	TargetLocationMaxConcurrency *string
 
 	// The maximum number of errors allowed before the system stops queueing
 	// additional Automation executions for the currently running Automation.
+	// TargetLocationMaxErrors has a default value of 0.
 	TargetLocationMaxErrors *string
 
 	// A list of key-value mappings to target resources. If you specify values for

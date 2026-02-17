@@ -50,6 +50,11 @@ type GetVpnConnectionDeviceSampleConfigurationInput struct {
 	// gateway device. You can specify one of the following versions: ikev1 or ikev2 .
 	InternetKeyExchangeVersion *string
 
+	// The type of sample configuration to generate. Valid values are "compatibility"
+	// (includes IKEv1) or "recommended" (throws UnsupportedOperationException for
+	// IKEv1).
+	SampleType *string
+
 	noSmithyDocumentSerde
 }
 
@@ -128,6 +133,9 @@ func (c *Client) addOperationGetVpnConnectionDeviceSampleConfigurationMiddleware
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetVpnConnectionDeviceSampleConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -149,16 +157,13 @@ func (c *Client) addOperationGetVpnConnectionDeviceSampleConfigurationMiddleware
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	utilscontroller "sigs.k8s.io/karpenter/pkg/utils/controller"
 	nodepoolutils "sigs.k8s.io/karpenter/pkg/utils/nodepool"
 )
 
@@ -50,8 +51,12 @@ func NewNodePoolController(kubeClient client.Client, cloudProvider cloudprovider
 	}
 }
 
+func (c *NodePoolController) Name() string {
+	return "state.nodepool"
+}
+
 func (c *NodePoolController) Reconcile(ctx context.Context, np *v1.NodePool) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "state.nodepool") //nolint:ineffassign,staticcheck
+	ctx = injection.WithControllerName(ctx, c.Name()) //nolint:ineffassign,staticcheck
 	if !nodepoolutils.IsManaged(np, c.cloudProvider) {
 		return reconcile.Result{}, nil
 	}
@@ -61,11 +66,11 @@ func (c *NodePoolController) Reconcile(ctx context.Context, np *v1.NodePool) (re
 	return reconcile.Result{}, nil
 }
 
-func (c *NodePoolController) Register(_ context.Context, m manager.Manager) error {
+func (c *NodePoolController) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("state.nodepool").
+		Named(c.Name()).
 		For(&v1.NodePool{}, builder.WithPredicates(nodepoolutils.IsManagedPredicateFuncs(c.cloudProvider))).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: utilscontroller.LinearScaleReconciles(utilscontroller.CPUCount(ctx), minReconciles, maxReconciles)}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithEventFilter(predicate.Funcs{DeleteFunc: func(event event.DeleteEvent) bool { return false }}).
 		Complete(reconcile.AsReconciler(m.GetClient(), c))

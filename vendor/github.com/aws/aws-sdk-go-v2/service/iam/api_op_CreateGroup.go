@@ -61,7 +61,9 @@ type CreateGroupInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful CreateGroup request.
+// Contains the response to a successful [CreateGroup] request.
+//
+// [CreateGroup]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateGroup.html
 type CreateGroupOutput struct {
 
 	// A structure containing details about the new group.
@@ -139,6 +141,9 @@ func (c *Client) addOperationCreateGroupMiddlewares(stack *middleware.Stack, opt
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpCreateGroupValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -160,16 +165,13 @@ func (c *Client) addOperationCreateGroupMiddlewares(stack *middleware.Stack, opt
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

@@ -11,14 +11,14 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Assigns one or more secondary private IP addresses to the specified network
+// Assigns the specified secondary private IP addresses to the specified network
 // interface.
 //
-// You can specify one or more specific secondary IP addresses, or you can specify
-// the number of secondary IP addresses to be automatically assigned within the
-// subnet's CIDR block range. The number of secondary IP addresses that you can
-// assign to an instance varies by instance type. For more information about
-// Elastic IP addresses, see [Elastic IP Addresses]in the Amazon EC2 User Guide.
+// You can specify specific secondary IP addresses, or you can specify the number
+// of secondary IP addresses to be automatically assigned from the subnet's CIDR
+// block range. The number of secondary IP addresses that you can assign to an
+// instance varies by instance type. For more information about Elastic IP
+// addresses, see [Elastic IP Addresses]in the Amazon EC2 User Guide.
 //
 // When you move a secondary private IP address to another network interface, any
 // Elastic IP address that is associated with the IP address is also moved.
@@ -65,12 +65,12 @@ type AssignPrivateIpAddressesInput struct {
 	AllowReassignment *bool
 
 	// The number of IPv4 prefixes that Amazon Web Services automatically assigns to
-	// the network interface. You cannot use this option if you use the Ipv4 Prefixes
+	// the network interface. You can't use this option if you use the Ipv4 Prefixes
 	// option.
 	Ipv4PrefixCount *int32
 
-	// One or more IPv4 prefixes assigned to the network interface. You cannot use
-	// this option if you use the Ipv4PrefixCount option.
+	// One or more IPv4 prefixes assigned to the network interface. You can't use this
+	// option if you use the Ipv4PrefixCount option.
 	Ipv4Prefixes []string
 
 	// The IP addresses to be assigned as a secondary private IP address to the
@@ -169,6 +169,9 @@ func (c *Client) addOperationAssignPrivateIpAddressesMiddlewares(stack *middlewa
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpAssignPrivateIpAddressesValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -190,16 +193,13 @@ func (c *Client) addOperationAssignPrivateIpAddressesMiddlewares(stack *middlewa
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

@@ -82,14 +82,14 @@ func (t TopologyNodeFilter) Matches(taints []corev1.Taint, requirements scheduli
 // MatchesRequirements returns true if the TopologyNodeFilter doesn't prohibit a node with the requirements from
 // participating in the topology. This method allows checking the requirements from a scheduling.NodeClaim to see if the
 // node we will soon create participates in this topology.
-func (t TopologyNodeFilter) matchesRequirements(requirements scheduling.Requirements, compatabilityOptions ...option.Function[scheduling.CompatibilityOptions]) bool {
+func (t TopologyNodeFilter) matchesRequirements(requirements scheduling.Requirements, compatibilityOptions ...option.Function[scheduling.CompatibilityOptions]) bool {
 	// no requirements, so it always matches
 	if len(t.Requirements) == 0 || t.AffinityPolicy == corev1.NodeInclusionPolicyIgnore {
 		return true
 	}
 	// these are an OR, so if any passes the filter passes
 	for _, req := range t.Requirements {
-		if err := requirements.Compatible(req, compatabilityOptions...); err == nil {
+		if err := requirements.Compatible(req, compatibilityOptions...); err == nil {
 			return true
 		}
 	}

@@ -60,13 +60,9 @@ func (q *Queue) Pop() (*v1.Pod, bool) {
 }
 
 // Push a pod onto the queue, counting each time a pod is immediately requeued. This is used to detect staleness.
-func (q *Queue) Push(pod *v1.Pod, relaxed bool) {
+func (q *Queue) Push(pod *v1.Pod) {
 	q.pods = append(q.pods, pod)
-	if relaxed {
-		q.lastLen = map[types.UID]int{}
-	} else {
-		q.lastLen[pod.UID] = len(q.pods)
-	}
+	q.lastLen[pod.UID] = len(q.pods)
 }
 
 func (q *Queue) List() []*v1.Pod {

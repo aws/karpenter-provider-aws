@@ -15,8 +15,8 @@ import (
 // Amazon Web Services resources through bring your own IP addresses (BYOIP) and
 // deletes the corresponding address pool.
 //
-// Before you can release an address range, you must stop advertising it using WithdrawByoipCidr
-// and you must not have any IP addresses allocated from its address range.
+// Before you can release an address range, you must stop advertising it and you
+// must not have any IP addresses allocated from its address range.
 func (c *Client) DeprovisionByoipCidr(ctx context.Context, params *DeprovisionByoipCidrInput, optFns ...func(*Options)) (*DeprovisionByoipCidrOutput, error) {
 	if params == nil {
 		params = &DeprovisionByoipCidrInput{}
@@ -124,6 +124,9 @@ func (c *Client) addOperationDeprovisionByoipCidrMiddlewares(stack *middleware.S
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDeprovisionByoipCidrValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -145,16 +148,13 @@ func (c *Client) addOperationDeprovisionByoipCidrMiddlewares(stack *middleware.S
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

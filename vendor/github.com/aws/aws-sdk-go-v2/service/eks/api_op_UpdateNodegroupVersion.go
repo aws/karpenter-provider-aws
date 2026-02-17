@@ -15,10 +15,14 @@ import (
 // group.
 //
 // You can update a node group using a launch template only if the node group was
-// originally deployed with a launch template. If you need to update a custom AMI
-// in a node group that was deployed with a launch template, then update your
-// custom AMI, specify the new ID in a new version of the launch template, and then
-// update the node group to the new version of the launch template.
+// originally deployed with a launch template. Additionally, the launch template ID
+// or name must match what was used when the node group was created. You can update
+// the launch template version with necessary changes.
+//
+// If you need to update a custom AMI in a node group that was deployed with a
+// launch template, then update your custom AMI, specify the new ID in a new
+// version of the launch template, and then update the node group to the new
+// version of the launch template.
 //
 // If you update without a launch template, then you can update to the latest
 // available AMI version of a node group's current Kubernetes version by not
@@ -78,7 +82,8 @@ type UpdateNodegroupVersionInput struct {
 
 	// An object representing a node group's launch template specification. You can
 	// only update a node group using a launch template if the node group was
-	// originally deployed with a launch template.
+	// originally deployed with a launch template. When updating, you must specify the
+	// same launch template ID or name that was used to create the node group.
 	LaunchTemplate *types.LaunchTemplateSpecification
 
 	// The AMI version of the Amazon EKS optimized AMI to use for the update. By
@@ -98,8 +103,9 @@ type UpdateNodegroupVersionInput struct {
 	// [Amazon EKS optimized Windows AMI versions]: https://docs.aws.amazon.com/eks/latest/userguide/eks-ami-versions-windows.html
 	ReleaseVersion *string
 
-	// The Kubernetes version to update to. If no version is specified, then the
-	// Kubernetes version of the node group does not change. You can specify the
+	// The Kubernetes version to update to. If no version is specified, then the node
+	// group will be updated to match the cluster's current Kubernetes version, and the
+	// latest available AMI for that version will be used. You can also specify the
 	// Kubernetes version of the cluster to update the node group to the latest AMI
 	// version of the cluster's Kubernetes version. If you specify launchTemplate , and
 	// your launch template uses a custom AMI, then don't specify version , or the node
@@ -187,6 +193,9 @@ func (c *Client) addOperationUpdateNodegroupVersionMiddlewares(stack *middleware
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addIdempotencyToken_opUpdateNodegroupVersionMiddleware(stack, options); err != nil {
 		return err
 	}
@@ -211,16 +220,13 @@ func (c *Client) addOperationUpdateNodegroupVersionMiddlewares(stack *middleware
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

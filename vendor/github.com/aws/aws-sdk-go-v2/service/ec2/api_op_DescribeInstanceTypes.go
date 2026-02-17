@@ -50,6 +50,15 @@ type DescribeInstanceTypesInput struct {
 	//   - current-generation - Indicates whether this instance type is the latest
 	//   generation instance type of an instance family ( true | false ).
 	//
+	//   - dedicated-hosts-supported - Indicates whether the instance type supports
+	//   Dedicated Hosts. ( true | false )
+	//
+	//   - ebs-info.attachment-limit-type - The type of Amazon EBS volume attachment
+	//   limit ( shared | dedicated ).
+	//
+	//   - ebs-info.maximum-ebs-attachments - The maximum number of Amazon EBS volumes
+	//   that can be attached to the instance type.
+	//
 	//   - ebs-info.ebs-optimized-info.baseline-bandwidth-in-mbps - The baseline
 	//   bandwidth performance for an EBS-optimized instance type, in Mbps.
 	//
@@ -77,8 +86,8 @@ type DescribeInstanceTypesInput struct {
 	//   - ebs-info.nvme-support - Indicates whether non-volatile memory express (NVMe)
 	//   is supported for EBS volumes ( required | supported | unsupported ).
 	//
-	//   - free-tier-eligible - Indicates whether the instance type is eligible to use
-	//   in the free tier ( true | false ).
+	//   - free-tier-eligible - A Boolean that indicates whether this instance type can
+	//   be used under the Amazon Web Services Free Tier ( true | false ).
 	//
 	//   - hibernation-supported - Indicates whether On-Demand hibernation is supported
 	//   ( true | false ).
@@ -122,6 +131,9 @@ type DescribeInstanceTypesInput struct {
 	//   - network-info.ena-support - Indicates whether Elastic Network Adapter (ENA)
 	//   is supported or required ( required | supported | unsupported ).
 	//
+	//   - network-info.flexible-ena-queues-support - Indicates whether an instance
+	//   supports flexible ENA queues ( supported | unsupported ).
+	//
 	//   - network-info.encryption-in-transit-supported - Indicates whether the
 	//   instance type automatically encrypts in-transit traffic between instances (
 	//   true | false ).
@@ -159,6 +171,9 @@ type DescribeInstanceTypesInput struct {
 	//
 	//   - processor-info.supported-features - The supported CPU features ( amd-sev-snp
 	//   ).
+	//
+	//   - reboot-migration-support - Indicates whether enabling reboot migration is
+	//   supported ( supported | unsupported ).
 	//
 	//   - supported-boot-mode - The boot mode ( legacy-bios | uefi ).
 	//
@@ -280,6 +295,9 @@ func (c *Client) addOperationDescribeInstanceTypesMiddlewares(stack *middleware.
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeInstanceTypes(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -298,16 +316,13 @@ func (c *Client) addOperationDescribeInstanceTypesMiddlewares(stack *middleware.
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

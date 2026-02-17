@@ -37,6 +37,9 @@ type ListUpdatesInput struct {
 	// The names of the installed add-ons that have available updates.
 	AddonName *string
 
+	// The name of the capability for which you want to list updates.
+	CapabilityName *string
+
 	// The maximum number of results, returned in paginated output. You receive
 	// maxResults in a single page, along with a nextToken response element. You can
 	// see the remaining results of the initial request by sending another request with
@@ -144,6 +147,9 @@ func (c *Client) addOperationListUpdatesMiddlewares(stack *middleware.Stack, opt
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpListUpdatesValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -165,16 +171,13 @@ func (c *Client) addOperationListUpdatesMiddlewares(stack *middleware.Stack, opt
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

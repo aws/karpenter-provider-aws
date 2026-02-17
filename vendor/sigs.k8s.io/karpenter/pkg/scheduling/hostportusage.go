@@ -20,12 +20,13 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-//go:generate controller-gen object:headerFile="../../hack/boilerplate.go.txt" paths="."
+//go:generate go tool -modfile=../../go.tools.mod controller-gen object:headerFile="../../hack/boilerplate.go.txt" paths="."
 
 // HostPortUsage tracks HostPort usage within a node. On a node, each <hostIP, hostPort, protocol> used by pods bound
 // to the node must be unique. We need to track this to keep an accurate concept of what pods can potentially schedule
@@ -76,7 +77,7 @@ func (u *HostPortUsage) Conflicts(usedBy *v1.Pod, ports []HostPort) error {
 		for podKey, entries := range u.reserved {
 			for _, existing := range entries {
 				if newEntry.Matches(existing) && podKey != client.ObjectKeyFromObject(usedBy) {
-					return fmt.Errorf("%s conflicts with existing HostPort configuration %s", newEntry, existing)
+					return serrors.Wrap(fmt.Errorf("pod hostport conflicts with existing hostport configuration"), "pod-hostport-ip", newEntry.IP, "pod-hostport-port", newEntry.Port, "pod-hostport-protocol", newEntry.Protocol, "existing-hostport-ip", existing.IP, "existing-hostport-port", existing.Port, "existing-hostport-protocol", existing.Protocol)
 				}
 			}
 		}

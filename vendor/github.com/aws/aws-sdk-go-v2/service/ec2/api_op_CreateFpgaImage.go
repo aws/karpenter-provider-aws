@@ -13,8 +13,8 @@ import (
 
 // Creates an Amazon FPGA Image (AFI) from the specified design checkpoint (DCP).
 //
-// The create operation is asynchronous. To verify that the AFI is ready for use,
-// check the output logs.
+// The create operation is asynchronous. To verify that the AFI was successfully
+// created and is ready for use, check the output logs.
 //
 // An AFI contains the FPGA bitstream that is ready to download to an FPGA. You
 // can securely deploy an AFI on multiple FPGA-accelerated instances. For more
@@ -149,6 +149,9 @@ func (c *Client) addOperationCreateFpgaImageMiddlewares(stack *middleware.Stack,
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpCreateFpgaImageValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -170,16 +173,13 @@ func (c *Client) addOperationCreateFpgaImageMiddlewares(stack *middleware.Stack,
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

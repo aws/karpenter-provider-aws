@@ -40,11 +40,6 @@ import (
 	nodepoolutils "sigs.k8s.io/karpenter/pkg/utils/nodepool"
 )
 
-const (
-	resourceTypeLabel = "resource_type"
-	nodePoolNameLabel = "nodepool"
-)
-
 var (
 	Limit = opmetrics.NewPrometheusGauge(
 		crmetrics.Registry,
@@ -55,8 +50,8 @@ var (
 			Help:      "Limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.",
 		},
 		[]string{
-			resourceTypeLabel,
-			nodePoolNameLabel,
+			metrics.ResourceTypeLabel,
+			metrics.NodePoolLabel,
 		},
 	)
 	Usage = opmetrics.NewPrometheusGauge(
@@ -68,8 +63,8 @@ var (
 			Help:      "The amount of resources that have been provisioned for a nodepool. Labeled by nodepool name and resource type.",
 		},
 		[]string{
-			resourceTypeLabel,
-			nodePoolNameLabel,
+			metrics.ResourceTypeLabel,
+			metrics.NodePoolLabel,
 		},
 	)
 )
@@ -91,19 +86,19 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudPr
 
 // Reconcile executes a termination control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "metrics.nodepool")
+	ctx = injection.WithControllerName(ctx, c.Name())
 
 	nodePool := &v1.NodePool{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, nodePool); err != nil {
 		if errors.IsNotFound(err) {
-			c.metricStore.Delete(req.NamespacedName.String())
+			c.metricStore.Delete(req.String())
 		}
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 	if !nodepoolutils.IsManaged(nodePool, c.cloudProvider) {
 		return reconcile.Result{}, nil
 	}
-	c.metricStore.Update(req.NamespacedName.String(), buildMetrics(nodePool))
+	c.metricStore.Update(req.String(), buildMetrics(nodePool))
 	// periodically update our metrics per nodepool even if nothing has changed
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
@@ -133,14 +128,18 @@ func getLimits(nodePool *v1.NodePool) corev1.ResourceList {
 
 func makeLabels(nodePool *v1.NodePool, resourceTypeName string) prometheus.Labels {
 	return map[string]string{
-		resourceTypeLabel: resourceTypeName,
-		nodePoolNameLabel: nodePool.Name,
+		metrics.ResourceTypeLabel: resourceTypeName,
+		metrics.NodePoolLabel:     nodePool.Name,
 	}
+}
+
+func (c *Controller) Name() string {
+	return "metrics.nodepool"
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("metrics.nodepool").
+		Named(c.Name()).
 		For(&v1.NodePool{}, builder.WithPredicates(nodepoolutils.IsManagedPredicateFuncs(c.cloudProvider))).
 		Complete(c)
 }

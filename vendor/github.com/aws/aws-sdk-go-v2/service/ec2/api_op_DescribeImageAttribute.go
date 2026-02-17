@@ -39,7 +39,7 @@ type DescribeImageAttributeInput struct {
 	//
 	// Note: The blockDeviceMapping attribute is deprecated. Using this attribute
 	// returns the Client.AuthFailure error. To get information about the block device
-	// mappings for an AMI, use the DescribeImagesaction.
+	// mappings for an AMI, describe the image instead.
 	//
 	// This member is required.
 	Attribute types.ImageAttributeName
@@ -115,9 +115,9 @@ type DescribeImageAttributeOutput struct {
 
 	// Base64 representation of the non-volatile UEFI variable store. To retrieve the
 	// UEFI data, use the [GetInstanceUefiData]command. You can inspect and modify the UEFI data by using
-	// the [python-uefivars tool]on GitHub. For more information, see [UEFI Secure Boot] in the Amazon EC2 User Guide.
+	// the [python-uefivars tool]on GitHub. For more information, see [UEFI Secure Boot for Amazon EC2 instances] in the Amazon EC2 User Guide.
 	//
-	// [UEFI Secure Boot]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/uefi-secure-boot.html
+	// [UEFI Secure Boot for Amazon EC2 instances]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/uefi-secure-boot.html
 	// [GetInstanceUefiData]: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_GetInstanceUefiData
 	// [python-uefivars tool]: https://github.com/awslabs/python-uefivars
 	UefiData *types.AttributeValue
@@ -192,6 +192,9 @@ func (c *Client) addOperationDescribeImageAttributeMiddlewares(stack *middleware
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDescribeImageAttributeValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -213,16 +216,13 @@ func (c *Client) addOperationDescribeImageAttributeMiddlewares(stack *middleware
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

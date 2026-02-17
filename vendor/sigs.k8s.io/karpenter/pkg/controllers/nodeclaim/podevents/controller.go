@@ -81,12 +81,13 @@ func (c *Controller) Reconcile(ctx context.Context, pod *corev1.Pod) (reconcile.
 		return reconcile.Result{}, nil
 	}
 
-	stored := nc.DeepCopy()
 	// If we've set the lastPodEvent before and it hasn't been before the timeout, don't do anything
 	if !nc.Status.LastPodEventTime.Time.IsZero() && c.clock.Since(nc.Status.LastPodEventTime.Time) < dedupeTimeout {
 		return reconcile.Result{}, nil
 	}
+
 	// otherwise, set the pod event time to now
+	stored := nc.DeepCopy()
 	nc.Status.LastPodEventTime.Time = c.clock.Now()
 	if !equality.Semantic.DeepEqual(stored, nc) {
 		if err = c.kubeClient.Status().Patch(ctx, nc, client.MergeFrom(stored)); err != nil {
@@ -96,9 +97,13 @@ func (c *Controller) Reconcile(ctx context.Context, pod *corev1.Pod) (reconcile.
 	return reconcile.Result{}, nil
 }
 
+func (c *Controller) Name() string {
+	return "nodeclaim.podevents"
+}
+
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("nodeclaim.podevents").
+		Named(c.Name()).
 		For(&corev1.Pod{}).
 		WithEventFilter(predicate.TypedFuncs[client.Object]{
 			// If a pod is bound to a node or goes terminal

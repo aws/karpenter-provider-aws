@@ -38,7 +38,7 @@ func LifetimeRemaining(clock clock.Clock, nodePool *v1.NodePool, nodeClaim *v1.N
 	remaining := 1.0
 	if nodeClaim.Spec.ExpireAfter.Duration != nil {
 		ageInSeconds := clock.Since(nodeClaim.CreationTimestamp.Time).Seconds()
-		totalLifetimeSeconds := nodeClaim.Spec.ExpireAfter.Duration.Seconds()
+		totalLifetimeSeconds := nodeClaim.Spec.ExpireAfter.Seconds()
 		lifetimeRemainingSeconds := totalLifetimeSeconds - ageInSeconds
 		remaining = lo.Clamp(lifetimeRemainingSeconds/totalLifetimeSeconds, 0.0, 1.0)
 	}

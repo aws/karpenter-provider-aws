@@ -11,10 +11,8 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Describes the IP address ranges that were specified in calls to ProvisionByoipCidr.
-//
-// To describe the address pools that were created when you provisioned the
-// address ranges, use DescribePublicIpv4Poolsor DescribeIpv6Pools.
+// Describes the IP address ranges that were provisioned for use with Amazon Web
+// Services resources through through bring your own IP addresses (BYOIP).
 func (c *Client) DescribeByoipCidrs(ctx context.Context, params *DescribeByoipCidrsInput, optFns ...func(*Options)) (*DescribeByoipCidrsOutput, error) {
 	if params == nil {
 		params = &DescribeByoipCidrsInput{}
@@ -129,6 +127,9 @@ func (c *Client) addOperationDescribeByoipCidrsMiddlewares(stack *middleware.Sta
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDescribeByoipCidrsValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -150,16 +151,13 @@ func (c *Client) addOperationDescribeByoipCidrsMiddlewares(stack *middleware.Sta
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

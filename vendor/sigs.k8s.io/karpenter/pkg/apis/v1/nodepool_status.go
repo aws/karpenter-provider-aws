@@ -27,13 +27,27 @@ const (
 	ConditionTypeValidationSucceeded = "ValidationSucceeded"
 	// ConditionTypeNodeClassReady = "NodeClassReady" condition indicates that underlying nodeClass was resolved and is reporting as Ready
 	ConditionTypeNodeClassReady = "NodeClassReady"
+	// ConditionTypeNodeRegistrationHealthy = "NodeRegistrationHealthy" condition indicates if a misconfiguration exists that is preventing successful node launch/registrations that requires manual investigation
+	ConditionTypeNodeRegistrationHealthy = "NodeRegistrationHealthy"
 )
 
 // NodePoolStatus defines the observed state of NodePool
 type NodePoolStatus struct {
+	//nolint:kubeapilinter
 	// Resources is the list of resources that have been provisioned.
 	// +optional
 	Resources v1.ResourceList `json:"resources,omitempty"`
+	//nolint:kubeapilinter
+	// Nodes is the count of nodes associated with this NodePool
+	// +kubebuilder:default:=0
+	// +optional
+	Nodes *int64 `json:"nodes"`
+	//nolint:kubeapilinter
+	// NodeClassObservedGeneration represents the observed nodeClass generation for referenced nodeClass. If this does not match
+	// the actual NodeClass Generation, NodeRegistrationHealthy status condition on the NodePool will be reset
+	// +optional
+	NodeClassObservedGeneration int64 `json:"nodeClassObservedGeneration,omitempty"`
+	//nolint:kubeapilinter
 	// Conditions contains signals for health and readiness
 	// +optional
 	Conditions []status.Condition `json:"conditions,omitempty"`

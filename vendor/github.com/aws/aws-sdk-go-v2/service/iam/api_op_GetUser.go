@@ -52,7 +52,9 @@ type GetUserInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful GetUser request.
+// Contains the response to a successful [GetUser] request.
+//
+// [GetUser]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetUser.html
 type GetUserOutput struct {
 
 	// A structure containing details about the IAM user.
@@ -149,6 +151,9 @@ func (c *Client) addOperationGetUserMiddlewares(stack *middleware.Stack, options
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetUser(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -167,16 +172,13 @@ func (c *Client) addOperationGetUserMiddlewares(stack *middleware.Stack, options
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

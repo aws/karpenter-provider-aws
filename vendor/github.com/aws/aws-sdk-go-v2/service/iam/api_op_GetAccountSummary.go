@@ -35,7 +35,9 @@ type GetAccountSummaryInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful GetAccountSummary request.
+// Contains the response to a successful [GetAccountSummary] request.
+//
+// [GetAccountSummary]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetAccountSummary.html
 type GetAccountSummaryOutput struct {
 
 	// A set of key–value pairs containing information about IAM entity usage and IAM
@@ -112,6 +114,9 @@ func (c *Client) addOperationGetAccountSummaryMiddlewares(stack *middleware.Stac
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetAccountSummary(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -130,16 +135,13 @@ func (c *Client) addOperationGetAccountSummaryMiddlewares(stack *middleware.Stac
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

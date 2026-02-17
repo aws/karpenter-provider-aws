@@ -57,14 +57,14 @@ type UpdateAddonInput struct {
 	// DescribeAddonConfiguration .
 	ConfigurationValues *string
 
-	// An array of Pod Identity Assocations to be updated. Each EKS Pod Identity
-	// association maps a Kubernetes service account to an IAM Role. If this value is
-	// left blank, no change. If an empty array is provided, existing Pod Identity
-	// Assocations owned by the Addon are deleted.
+	// An array of EKS Pod Identity associations to be updated. Each association maps
+	// a Kubernetes service account to an IAM role. If this value is left blank, no
+	// change. If an empty array is provided, existing associations owned by the add-on
+	// are deleted.
 	//
-	// For more information, see [Attach an IAM Role to an Amazon EKS add-on using Pod Identity] in the Amazon EKS User Guide.
+	// For more information, see [Attach an IAM Role to an Amazon EKS add-on using EKS Pod Identity] in the Amazon EKS User Guide.
 	//
-	// [Attach an IAM Role to an Amazon EKS add-on using Pod Identity]: https://docs.aws.amazon.com/eks/latest/userguide/add-ons-iam.html
+	// [Attach an IAM Role to an Amazon EKS add-on using EKS Pod Identity]: https://docs.aws.amazon.com/eks/latest/userguide/add-ons-iam.html
 	PodIdentityAssociations []types.AddonPodIdentityAssociations
 
 	// How to resolve field value conflicts for an Amazon EKS add-on if you've changed
@@ -173,6 +173,9 @@ func (c *Client) addOperationUpdateAddonMiddlewares(stack *middleware.Stack, opt
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addIdempotencyToken_opUpdateAddonMiddleware(stack, options); err != nil {
 		return err
 	}
@@ -197,16 +200,13 @@ func (c *Client) addOperationUpdateAddonMiddlewares(stack *middleware.Stack, opt
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

@@ -53,7 +53,7 @@ func DaemonSet(overrides ...DaemonSetOptions) *appsv1.DaemonSet {
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{MatchLabels: options.PodOptions.Labels},
 			Template: v1.PodTemplateSpec{
-				ObjectMeta: ObjectMeta(options.PodOptions.ObjectMeta),
+				ObjectMeta: pod.ObjectMeta,
 				Spec:       pod.Spec,
 			},
 		},

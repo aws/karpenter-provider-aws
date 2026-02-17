@@ -28,6 +28,8 @@ const (
 	ConditionTypeInitialized          = "Initialized"
 	ConditionTypeConsolidatable       = "Consolidatable"
 	ConditionTypeDrifted              = "Drifted"
+	ConditionTypeDrained              = "Drained"
+	ConditionTypeVolumesDetached      = "VolumesDetached"
 	ConditionTypeInstanceTerminating  = "InstanceTerminating"
 	ConditionTypeConsistentStateFound = "ConsistentStateFound"
 	ConditionTypeDisruptionReason     = "DisruptionReason"
@@ -35,24 +37,31 @@ const (
 
 // NodeClaimStatus defines the observed state of NodeClaim
 type NodeClaimStatus struct {
+	//nolint:kubeapilinter
 	// NodeName is the name of the corresponding node object
 	// +optional
 	NodeName string `json:"nodeName,omitempty"`
+	//nolint:kubeapilinter
 	// ProviderID of the corresponding node object
 	// +optional
 	ProviderID string `json:"providerID,omitempty"`
+	//nolint:kubeapilinter
 	// ImageID is an identifier for the image that runs on the node
 	// +optional
 	ImageID string `json:"imageID,omitempty"`
+	//nolint:kubeapilinter
 	// Capacity is the estimated full capacity of the node
 	// +optional
 	Capacity v1.ResourceList `json:"capacity,omitempty"`
+	//nolint:kubeapilinter
 	// Allocatable is the estimated allocatable capacity of the node
 	// +optional
 	Allocatable v1.ResourceList `json:"allocatable,omitempty"`
+	//nolint:kubeapilinter
 	// Conditions contains signals for health and readiness
 	// +optional
 	Conditions []status.Condition `json:"conditions,omitempty"`
+	//nolint:kubeapilinter
 	// LastPodEventTime is updated with the last time a pod was scheduled
 	// or removed from the node. A pod going terminal or terminating
 	// is also considered as removed.

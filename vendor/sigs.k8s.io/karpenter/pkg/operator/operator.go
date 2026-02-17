@@ -28,6 +28,8 @@ import (
 
 	"github.com/awslabs/operatorpkg/controller"
 	opmetrics "github.com/awslabs/operatorpkg/metrics"
+	"github.com/awslabs/operatorpkg/option"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/go-logr/zapr"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
@@ -38,14 +40,15 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
-	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -53,6 +56,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay"
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/metrics"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
@@ -61,10 +65,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/env"
 )
 
-const (
-	appName   = "karpenter"
-	component = "controller"
-)
+var AppName = "karpenter"
 
 var (
 	BuildInfo = opmetrics.NewPrometheusGauge(
@@ -99,10 +100,24 @@ type Operator struct {
 	KubernetesInterface kubernetes.Interface
 	EventRecorder       events.Recorder
 	Clock               clock.Clock
+	InstanceTypeStore   *nodeoverlay.InstanceTypeStore
+}
+
+type Options struct {
+	LeaderElectionLabels map[string]string
+}
+
+// Adds LeaderElectionLabels to the underlying manager's LeaderElectionOptions
+func WithLeaderElectionLabels(labels map[string]string) option.Function[Options] {
+	return func(opts *Options) {
+		opts.LeaderElectionLabels = labels
+	}
 }
 
 // NewOperator instantiates a controller manager or panics
-func NewOperator() (context.Context, *Operator) {
+func NewOperator(o ...option.Function[Options]) (context.Context, *Operator) {
+	opts := option.Resolve(o...)
+
 	// Root Context
 	ctx := context.Background()
 
@@ -117,14 +132,22 @@ func NewOperator() (context.Context, *Operator) {
 	}
 
 	// Logging
-	logger := zapr.NewLogger(logging.NewLogger(ctx, component))
+	logger := serrors.NewLogger(zapr.NewLogger(logging.NewLogger(ctx, "controller")))
 	log.SetLogger(logger)
 	klog.SetLogger(logger)
 
 	// Client Config
 	config := ctrl.GetConfigOrDie()
-	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(options.FromContext(ctx).KubeClientQPS), options.FromContext(ctx).KubeClientBurst)
-	config.UserAgent = fmt.Sprintf("%s/%s", appName, Version)
+	// Copy the leader config for lower QPS/Burst
+	// We changed this from explicitly setting the RateLimiter on the config and not creating
+	// a separate leaderConfig ourselves because this caused a subtle bug when copying the leaderConfig
+	// for the leader election client. The leaderConfig would use the same RateLimiter, so client-side rate
+	// limiting on the regular config would also cause client-side rate limiting on the leader election client,
+	// often leading to leader loss during large scale-ups or periods of high churn
+	leaderConfig := rest.CopyConfig(config)
+	config.QPS = float32(options.FromContext(ctx).KubeClientQPS)
+	config.Burst = options.FromContext(ctx).KubeClientBurst
+	config.UserAgent = fmt.Sprintf("%s/%s", AppName, Version)
 
 	// Client
 	kubernetesInterface := kubernetes.NewForConfigOrDie(config)
@@ -139,6 +162,8 @@ func NewOperator() (context.Context, *Operator) {
 		LeaderElectionNamespace:       options.FromContext(ctx).LeaderElectionNamespace,
 		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
 		LeaderElectionReleaseOnCancel: true,
+		LeaderElectionConfig:          leaderConfig,
+		LeaderElectionLabels:          opts.LeaderElectionLabels,
 		Metrics: server.Options{
 			BindAddress: fmt.Sprintf(":%d", options.FromContext(ctx).MetricsPort),
 		},
@@ -154,6 +179,12 @@ func NewOperator() (context.Context, *Operator) {
 					Field: fields.SelectorFromSet(fields.Set{"metadata.namespace": "kube-node-lease"}),
 				},
 			},
+		},
+		Controller: ctrlconfig.Controller{
+			// EnableWarmup allows controllers to start their sources (watches/informers) before leader election
+			// is won. This pre-populates caches and improves leader failover time. Only effective when leader
+			// election is enabled, so we only set it when both conditions are true.
+			EnableWarmup: lo.ToPtr(!options.FromContext(ctx).DisableLeaderElection && !options.FromContext(ctx).DisableControllerWarmup),
 		},
 	}
 	if options.FromContext(ctx).EnableProfiling {
@@ -196,12 +227,14 @@ func NewOperator() (context.Context, *Operator) {
 	}))
 	lo.Must0(mgr.AddHealthzCheck("healthz", healthz.Ping))
 	lo.Must0(mgr.AddReadyzCheck("readyz", healthz.Ping))
+	instanceTypeStore := nodeoverlay.NewInstanceTypeStore()
 
 	return ctx, &Operator{
 		Manager:             mgr,
 		KubernetesInterface: kubernetesInterface,
-		EventRecorder:       events.NewRecorder(mgr.GetEventRecorderFor(appName)),
+		EventRecorder:       events.NewRecorder(mgr.GetEventRecorderFor(AppName)),
 		Clock:               clock.RealClock{},
+		InstanceTypeStore:   instanceTypeStore,
 	}
 }
 

@@ -78,7 +78,9 @@ type CreateInstanceProfileInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful CreateInstanceProfile request.
+// Contains the response to a successful [CreateInstanceProfile] request.
+//
+// [CreateInstanceProfile]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateInstanceProfile.html
 type CreateInstanceProfileOutput struct {
 
 	// A structure containing details about the new instance profile.
@@ -156,6 +158,9 @@ func (c *Client) addOperationCreateInstanceProfileMiddlewares(stack *middleware.
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpCreateInstanceProfileValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -177,16 +182,13 @@ func (c *Client) addOperationCreateInstanceProfileMiddlewares(stack *middleware.
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

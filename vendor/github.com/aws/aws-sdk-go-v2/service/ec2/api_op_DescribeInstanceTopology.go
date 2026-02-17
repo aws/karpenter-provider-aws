@@ -16,29 +16,21 @@ import (
 // information to determine the relative proximity of your EC2 instances within the
 // Amazon Web Services network to support your tightly coupled workloads.
 //
-// Limitations
+// Instance topology is supported for specific instance types only. For more
+// information, see [Prerequisites for Amazon EC2 instance topology]in the Amazon EC2 User Guide.
 //
-//   - Supported zones
+// The Amazon EC2 API follows an eventual consistency model due to the distributed
+// nature of the system supporting it. As a result, when you call the
+// DescribeInstanceTopology API command immediately after launching instances, the
+// response might return a null value for capacityBlockId because the data might
+// not have fully propagated across all subsystems. For more information, see [Eventual consistency in the Amazon EC2 API]in
+// the Amazon EC2 Developer Guide.
 //
-//   - Availability Zone
+// For more information, see [Amazon EC2 topology] in the Amazon EC2 User Guide.
 //
-//   - Local Zone
-//
-//   - Supported instance types
-//
-//   - hpc6a.48xlarge | hpc6id.32xlarge | hpc7a.12xlarge | hpc7a.24xlarge |
-//     hpc7a.48xlarge | hpc7a.96xlarge | hpc7g.4xlarge | hpc7g.8xlarge |
-//     hpc7g.16xlarge
-//
-//   - p3dn.24xlarge | p4d.24xlarge | p4de.24xlarge | p5.48xlarge | p5e.48xlarge |
-//     p5en.48xlarge
-//
-//   - trn1.2xlarge | trn1.32xlarge | trn1n.32xlarge | trn2.48xlarge |
-//     trn2u.48xlarge
-//
-// For more information, see [Amazon EC2 instance topology] in the Amazon EC2 User Guide.
-//
-// [Amazon EC2 instance topology]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-topology.html
+// [Prerequisites for Amazon EC2 instance topology]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-topology-prerequisites.html
+// [Amazon EC2 topology]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-topology.html
+// [Eventual consistency in the Amazon EC2 API]: https://docs.aws.amazon.com/ec2/latest/devguide/eventual-consistency.html
 func (c *Client) DescribeInstanceTopology(ctx context.Context, params *DescribeInstanceTopologyInput, optFns ...func(*Options)) (*DescribeInstanceTopologyOutput, error) {
 	if params == nil {
 		params = &DescribeInstanceTopologyInput{}
@@ -186,6 +178,9 @@ func (c *Client) addOperationDescribeInstanceTopologyMiddlewares(stack *middlewa
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeInstanceTopology(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -204,16 +199,13 @@ func (c *Client) addOperationDescribeInstanceTopologyMiddlewares(stack *middlewa
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

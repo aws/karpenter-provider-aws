@@ -21,7 +21,7 @@ import (
 //   - You can associate the security group with another VPC if your account owns
 //     the VPC or if the VPC was shared with you.
 //
-//   - You must own the security group and the VPC that it was created in.
+//   - You must own the security group.
 //
 //   - You cannot use this feature with default security groups.
 //
@@ -137,6 +137,9 @@ func (c *Client) addOperationAssociateSecurityGroupVpcMiddlewares(stack *middlew
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpAssociateSecurityGroupVpcValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -158,16 +161,13 @@ func (c *Client) addOperationAssociateSecurityGroupVpcMiddlewares(stack *middlew
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

@@ -136,3 +136,47 @@ func NodePoolBlocked(nodePool *v1.NodePool) events.Event {
 		DedupeTimeout: 1 * time.Minute,
 	}
 }
+
+// ConsolidationCandidate is an event that informs the user that a consolidation candidate has been generated
+func ConsolidationCandidate(node *corev1.Node, nodeClaim *v1.NodeClaim, command string, savings float64) []events.Event {
+	message := fmt.Sprintf("Consolidation candidate: %s (savings: $%.2f)", command, savings)
+
+	return []events.Event{
+		{
+			InvolvedObject: node,
+			Type:           corev1.EventTypeNormal,
+			Reason:         events.ConsolidationCandidate,
+			Message:        message,
+			DedupeValues:   []string{string(node.UID), command},
+		},
+		{
+			InvolvedObject: nodeClaim,
+			Type:           corev1.EventTypeNormal,
+			Reason:         events.ConsolidationCandidate,
+			Message:        message,
+			DedupeValues:   []string{string(nodeClaim.UID), command},
+		},
+	}
+}
+
+// ConsolidationRejected is an event that informs the user that a consolidation candidate was rejected during validation
+func ConsolidationRejected(node *corev1.Node, nodeClaim *v1.NodeClaim, command string, reason string, savings float64) []events.Event {
+	message := fmt.Sprintf("Consolidation rejected: %s, reason: %s (savings: $%.2f)", command, reason, savings)
+
+	return []events.Event{
+		{
+			InvolvedObject: node,
+			Type:           corev1.EventTypeNormal,
+			Reason:         events.ConsolidationRejected,
+			Message:        message,
+			DedupeValues:   []string{string(node.UID), command, reason},
+		},
+		{
+			InvolvedObject: nodeClaim,
+			Type:           corev1.EventTypeNormal,
+			Reason:         events.ConsolidationRejected,
+			Message:        message,
+			DedupeValues:   []string{string(nodeClaim.UID), command, reason},
+		},
+	}
+}

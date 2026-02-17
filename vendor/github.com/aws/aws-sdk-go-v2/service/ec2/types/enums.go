@@ -43,6 +43,13 @@ const (
 	AcceleratorNameA10g          AcceleratorName = "a10g"
 	AcceleratorNameH100          AcceleratorName = "h100"
 	AcceleratorNameT4g           AcceleratorName = "t4g"
+	AcceleratorNameL40s          AcceleratorName = "l40s"
+	AcceleratorNameL4            AcceleratorName = "l4"
+	AcceleratorNameGaudiHl205    AcceleratorName = "gaudi-hl-205"
+	AcceleratorNameInferentia2   AcceleratorName = "inferentia2"
+	AcceleratorNameTrainium      AcceleratorName = "trainium"
+	AcceleratorNameTrainium2     AcceleratorName = "trainium2"
+	AcceleratorNameU30           AcceleratorName = "u30"
 )
 
 // Values returns all known values for AcceleratorName. Note that this can be
@@ -63,6 +70,13 @@ func (AcceleratorName) Values() []AcceleratorName {
 		"a10g",
 		"h100",
 		"t4g",
+		"l40s",
+		"l4",
+		"gaudi-hl-205",
+		"inferentia2",
+		"trainium",
+		"trainium2",
+		"u30",
 	}
 }
 
@@ -73,6 +87,7 @@ const (
 	AcceleratorTypeGpu       AcceleratorType = "gpu"
 	AcceleratorTypeFpga      AcceleratorType = "fpga"
 	AcceleratorTypeInference AcceleratorType = "inference"
+	AcceleratorTypeMedia     AcceleratorType = "media"
 )
 
 // Values returns all known values for AcceleratorType. Note that this can be
@@ -84,6 +99,7 @@ func (AcceleratorType) Values() []AcceleratorType {
 		"gpu",
 		"fpga",
 		"inference",
+		"media",
 	}
 }
 
@@ -538,6 +554,25 @@ func (AssociationStatusCode) Values() []AssociationStatusCode {
 	}
 }
 
+type AttachmentLimitType string
+
+// Enum values for AttachmentLimitType
+const (
+	AttachmentLimitTypeShared    AttachmentLimitType = "shared"
+	AttachmentLimitTypeDedicated AttachmentLimitType = "dedicated"
+)
+
+// Values returns all known values for AttachmentLimitType. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (AttachmentLimitType) Values() []AttachmentLimitType {
+	return []AttachmentLimitType{
+		"shared",
+		"dedicated",
+	}
+}
+
 type AttachmentStatus string
 
 // Enum values for AttachmentStatus
@@ -617,6 +652,63 @@ func (AutoPlacement) Values() []AutoPlacement {
 	return []AutoPlacement{
 		"on",
 		"off",
+	}
+}
+
+type AutoProvisionZonesState string
+
+// Enum values for AutoProvisionZonesState
+const (
+	AutoProvisionZonesStateEnabled  AutoProvisionZonesState = "enabled"
+	AutoProvisionZonesStateDisabled AutoProvisionZonesState = "disabled"
+)
+
+// Values returns all known values for AutoProvisionZonesState. Note that this can
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (AutoProvisionZonesState) Values() []AutoProvisionZonesState {
+	return []AutoProvisionZonesState{
+		"enabled",
+		"disabled",
+	}
+}
+
+type AutoScalingIpsState string
+
+// Enum values for AutoScalingIpsState
+const (
+	AutoScalingIpsStateEnabled  AutoScalingIpsState = "enabled"
+	AutoScalingIpsStateDisabled AutoScalingIpsState = "disabled"
+)
+
+// Values returns all known values for AutoScalingIpsState. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (AutoScalingIpsState) Values() []AutoScalingIpsState {
+	return []AutoScalingIpsState{
+		"enabled",
+		"disabled",
+	}
+}
+
+type AvailabilityMode string
+
+// Enum values for AvailabilityMode
+const (
+	AvailabilityModeZonal    AvailabilityMode = "zonal"
+	AvailabilityModeRegional AvailabilityMode = "regional"
+)
+
+// Values returns all known values for AvailabilityMode. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (AvailabilityMode) Values() []AvailabilityMode {
+	return []AvailabilityMode{
+		"zonal",
+		"regional",
 	}
 }
 
@@ -875,8 +967,10 @@ const (
 	ByoipCidrStateDeprovisioned                      ByoipCidrState = "deprovisioned"
 	ByoipCidrStateFailedDeprovision                  ByoipCidrState = "failed-deprovision"
 	ByoipCidrStateFailedProvision                    ByoipCidrState = "failed-provision"
+	ByoipCidrStatePendingAdvertising                 ByoipCidrState = "pending-advertising"
 	ByoipCidrStatePendingDeprovision                 ByoipCidrState = "pending-deprovision"
 	ByoipCidrStatePendingProvision                   ByoipCidrState = "pending-provision"
+	ByoipCidrStatePendingWithdrawal                  ByoipCidrState = "pending-withdrawal"
 	ByoipCidrStateProvisioned                        ByoipCidrState = "provisioned"
 	ByoipCidrStateProvisionedNotPubliclyAdvertisable ByoipCidrState = "provisioned-not-publicly-advertisable"
 )
@@ -891,8 +985,10 @@ func (ByoipCidrState) Values() []ByoipCidrState {
 		"deprovisioned",
 		"failed-deprovision",
 		"failed-provision",
+		"pending-advertising",
 		"pending-deprovision",
 		"pending-provision",
+		"pending-withdrawal",
 		"provisioned",
 		"provisioned-not-publicly-advertisable",
 	}
@@ -985,6 +1081,102 @@ func (CapacityBlockExtensionStatus) Values() []CapacityBlockExtensionStatus {
 		"payment-pending",
 		"payment-failed",
 		"payment-succeeded",
+	}
+}
+
+type CapacityBlockInterconnectStatus string
+
+// Enum values for CapacityBlockInterconnectStatus
+const (
+	CapacityBlockInterconnectStatusOk               CapacityBlockInterconnectStatus = "ok"
+	CapacityBlockInterconnectStatusImpaired         CapacityBlockInterconnectStatus = "impaired"
+	CapacityBlockInterconnectStatusInsufficientData CapacityBlockInterconnectStatus = "insufficient-data"
+)
+
+// Values returns all known values for CapacityBlockInterconnectStatus. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (CapacityBlockInterconnectStatus) Values() []CapacityBlockInterconnectStatus {
+	return []CapacityBlockInterconnectStatus{
+		"ok",
+		"impaired",
+		"insufficient-data",
+	}
+}
+
+type CapacityBlockResourceState string
+
+// Enum values for CapacityBlockResourceState
+const (
+	CapacityBlockResourceStateActive         CapacityBlockResourceState = "active"
+	CapacityBlockResourceStateExpired        CapacityBlockResourceState = "expired"
+	CapacityBlockResourceStateUnavailable    CapacityBlockResourceState = "unavailable"
+	CapacityBlockResourceStateCancelled      CapacityBlockResourceState = "cancelled"
+	CapacityBlockResourceStateFailed         CapacityBlockResourceState = "failed"
+	CapacityBlockResourceStateScheduled      CapacityBlockResourceState = "scheduled"
+	CapacityBlockResourceStatePaymentPending CapacityBlockResourceState = "payment-pending"
+	CapacityBlockResourceStatePaymentFailed  CapacityBlockResourceState = "payment-failed"
+)
+
+// Values returns all known values for CapacityBlockResourceState. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (CapacityBlockResourceState) Values() []CapacityBlockResourceState {
+	return []CapacityBlockResourceState{
+		"active",
+		"expired",
+		"unavailable",
+		"cancelled",
+		"failed",
+		"scheduled",
+		"payment-pending",
+		"payment-failed",
+	}
+}
+
+type CapacityManagerDataExportStatus string
+
+// Enum values for CapacityManagerDataExportStatus
+const (
+	CapacityManagerDataExportStatusPending    CapacityManagerDataExportStatus = "pending"
+	CapacityManagerDataExportStatusInProgress CapacityManagerDataExportStatus = "in-progress"
+	CapacityManagerDataExportStatusDelivered  CapacityManagerDataExportStatus = "delivered"
+	CapacityManagerDataExportStatusFailed     CapacityManagerDataExportStatus = "failed"
+)
+
+// Values returns all known values for CapacityManagerDataExportStatus. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (CapacityManagerDataExportStatus) Values() []CapacityManagerDataExportStatus {
+	return []CapacityManagerDataExportStatus{
+		"pending",
+		"in-progress",
+		"delivered",
+		"failed",
+	}
+}
+
+type CapacityManagerStatus string
+
+// Enum values for CapacityManagerStatus
+const (
+	CapacityManagerStatusEnabled  CapacityManagerStatus = "enabled"
+	CapacityManagerStatusDisabled CapacityManagerStatus = "disabled"
+)
+
+// Values returns all known values for CapacityManagerStatus. Note that this can
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (CapacityManagerStatus) Values() []CapacityManagerStatus {
+	return []CapacityManagerStatus{
+		"enabled",
+		"disabled",
 	}
 }
 
@@ -1159,6 +1351,7 @@ const (
 	CapacityReservationStateAssessing      CapacityReservationState = "assessing"
 	CapacityReservationStateDelayed        CapacityReservationState = "delayed"
 	CapacityReservationStateUnsupported    CapacityReservationState = "unsupported"
+	CapacityReservationStateUnavailable    CapacityReservationState = "unavailable"
 )
 
 // Values returns all known values for CapacityReservationState. Note that this
@@ -1178,6 +1371,7 @@ func (CapacityReservationState) Values() []CapacityReservationState {
 		"assessing",
 		"delayed",
 		"unsupported",
+		"unavailable",
 	}
 }
 
@@ -1216,6 +1410,25 @@ func (CapacityReservationType) Values() []CapacityReservationType {
 	return []CapacityReservationType{
 		"default",
 		"capacity-block",
+	}
+}
+
+type CapacityTenancy string
+
+// Enum values for CapacityTenancy
+const (
+	CapacityTenancyDefault   CapacityTenancy = "default"
+	CapacityTenancyDedicated CapacityTenancy = "dedicated"
+)
+
+// Values returns all known values for CapacityTenancy. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (CapacityTenancy) Values() []CapacityTenancy {
+	return []CapacityTenancy{
+		"default",
+		"dedicated",
 	}
 }
 
@@ -1394,6 +1607,25 @@ func (ClientVpnRouteStatusCode) Values() []ClientVpnRouteStatusCode {
 		"active",
 		"failed",
 		"deleting",
+	}
+}
+
+type Comparison string
+
+// Enum values for Comparison
+const (
+	ComparisonEquals Comparison = "equals"
+	ComparisonIn     Comparison = "in"
+)
+
+// Values returns all known values for Comparison. Note that this can be expanded
+// in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (Comparison) Values() []Comparison {
+	return []Comparison{
+		"equals",
+		"in",
 	}
 }
 
@@ -1989,6 +2221,9 @@ const (
 	Ec2InstanceConnectEndpointStateDeleteInProgress Ec2InstanceConnectEndpointState = "delete-in-progress"
 	Ec2InstanceConnectEndpointStateDeleteComplete   Ec2InstanceConnectEndpointState = "delete-complete"
 	Ec2InstanceConnectEndpointStateDeleteFailed     Ec2InstanceConnectEndpointState = "delete-failed"
+	Ec2InstanceConnectEndpointStateUpdateInProgress Ec2InstanceConnectEndpointState = "update-in-progress"
+	Ec2InstanceConnectEndpointStateUpdateComplete   Ec2InstanceConnectEndpointState = "update-complete"
+	Ec2InstanceConnectEndpointStateUpdateFailed     Ec2InstanceConnectEndpointState = "update-failed"
 )
 
 // Values returns all known values for Ec2InstanceConnectEndpointState. Note that
@@ -2004,6 +2239,9 @@ func (Ec2InstanceConnectEndpointState) Values() []Ec2InstanceConnectEndpointStat
 		"delete-in-progress",
 		"delete-complete",
 		"delete-failed",
+		"update-in-progress",
+		"update-complete",
+		"update-failed",
 	}
 }
 
@@ -2102,6 +2340,49 @@ func (EnaSupport) Values() []EnaSupport {
 	}
 }
 
+type EncryptionStateValue string
+
+// Enum values for EncryptionStateValue
+const (
+	EncryptionStateValueEnabling  EncryptionStateValue = "enabling"
+	EncryptionStateValueEnabled   EncryptionStateValue = "enabled"
+	EncryptionStateValueDisabling EncryptionStateValue = "disabling"
+	EncryptionStateValueDisabled  EncryptionStateValue = "disabled"
+)
+
+// Values returns all known values for EncryptionStateValue. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (EncryptionStateValue) Values() []EncryptionStateValue {
+	return []EncryptionStateValue{
+		"enabling",
+		"enabled",
+		"disabling",
+		"disabled",
+	}
+}
+
+type EncryptionSupportOptionValue string
+
+// Enum values for EncryptionSupportOptionValue
+const (
+	EncryptionSupportOptionValueEnable  EncryptionSupportOptionValue = "enable"
+	EncryptionSupportOptionValueDisable EncryptionSupportOptionValue = "disable"
+)
+
+// Values returns all known values for EncryptionSupportOptionValue. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (EncryptionSupportOptionValue) Values() []EncryptionSupportOptionValue {
+	return []EncryptionSupportOptionValue{
+		"enable",
+		"disable",
+	}
+}
+
 type EndDateType string
 
 // Enum values for EndDateType
@@ -2118,6 +2399,27 @@ func (EndDateType) Values() []EndDateType {
 	return []EndDateType{
 		"unlimited",
 		"limited",
+	}
+}
+
+type EndpointIpAddressType string
+
+// Enum values for EndpointIpAddressType
+const (
+	EndpointIpAddressTypeIpv4      EndpointIpAddressType = "ipv4"
+	EndpointIpAddressTypeIpv6      EndpointIpAddressType = "ipv6"
+	EndpointIpAddressTypeDualStack EndpointIpAddressType = "dual-stack"
+)
+
+// Values returns all known values for EndpointIpAddressType. Note that this can
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (EndpointIpAddressType) Values() []EndpointIpAddressType {
+	return []EndpointIpAddressType{
+		"ipv4",
+		"ipv6",
+		"dual-stack",
 	}
 }
 
@@ -2321,6 +2623,55 @@ func (FastSnapshotRestoreStateCode) Values() []FastSnapshotRestoreStateCode {
 		"enabled",
 		"disabling",
 		"disabled",
+	}
+}
+
+type FilterByDimension string
+
+// Enum values for FilterByDimension
+const (
+	FilterByDimensionResourceRegion                   FilterByDimension = "resource-region"
+	FilterByDimensionAvailabilityZoneId               FilterByDimension = "availability-zone-id"
+	FilterByDimensionAccountId                        FilterByDimension = "account-id"
+	FilterByDimensionInstanceFamily                   FilterByDimension = "instance-family"
+	FilterByDimensionInstanceType                     FilterByDimension = "instance-type"
+	FilterByDimensionInstancePlatform                 FilterByDimension = "instance-platform"
+	FilterByDimensionReservationArn                   FilterByDimension = "reservation-arn"
+	FilterByDimensionReservationId                    FilterByDimension = "reservation-id"
+	FilterByDimensionReservationType                  FilterByDimension = "reservation-type"
+	FilterByDimensionReservationCreateTimestamp       FilterByDimension = "reservation-create-timestamp"
+	FilterByDimensionReservationStartTimestamp        FilterByDimension = "reservation-start-timestamp"
+	FilterByDimensionReservationEndTimestamp          FilterByDimension = "reservation-end-timestamp"
+	FilterByDimensionReservationEndDateType           FilterByDimension = "reservation-end-date-type"
+	FilterByDimensionTenancy                          FilterByDimension = "tenancy"
+	FilterByDimensionReservationState                 FilterByDimension = "reservation-state"
+	FilterByDimensionReservationInstanceMatchCriteria FilterByDimension = "reservation-instance-match-criteria"
+	FilterByDimensionReservationUnusedFinancialOwner  FilterByDimension = "reservation-unused-financial-owner"
+)
+
+// Values returns all known values for FilterByDimension. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (FilterByDimension) Values() []FilterByDimension {
+	return []FilterByDimension{
+		"resource-region",
+		"availability-zone-id",
+		"account-id",
+		"instance-family",
+		"instance-type",
+		"instance-platform",
+		"reservation-arn",
+		"reservation-id",
+		"reservation-type",
+		"reservation-create-timestamp",
+		"reservation-start-timestamp",
+		"reservation-end-timestamp",
+		"reservation-end-date-type",
+		"tenancy",
+		"reservation-state",
+		"reservation-instance-match-criteria",
+		"reservation-unused-financial-owner",
 	}
 }
 
@@ -2551,6 +2902,25 @@ func (FleetType) Values() []FleetType {
 	}
 }
 
+type FlexibleEnaQueuesSupport string
+
+// Enum values for FlexibleEnaQueuesSupport
+const (
+	FlexibleEnaQueuesSupportUnsupported FlexibleEnaQueuesSupport = "unsupported"
+	FlexibleEnaQueuesSupportSupported   FlexibleEnaQueuesSupport = "supported"
+)
+
+// Values returns all known values for FlexibleEnaQueuesSupport. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (FlexibleEnaQueuesSupport) Values() []FlexibleEnaQueuesSupport {
+	return []FlexibleEnaQueuesSupport{
+		"unsupported",
+		"supported",
+	}
+}
+
 type FlowLogsResourceType string
 
 // Enum values for FlowLogsResourceType
@@ -2560,6 +2930,7 @@ const (
 	FlowLogsResourceTypeNetworkInterface         FlowLogsResourceType = "NetworkInterface"
 	FlowLogsResourceTypeTransitGateway           FlowLogsResourceType = "TransitGateway"
 	FlowLogsResourceTypeTransitGatewayAttachment FlowLogsResourceType = "TransitGatewayAttachment"
+	FlowLogsResourceTypeRegionalNatGateway       FlowLogsResourceType = "RegionalNatGateway"
 )
 
 // Values returns all known values for FlowLogsResourceType. Note that this can be
@@ -2573,6 +2944,7 @@ func (FlowLogsResourceType) Values() []FlowLogsResourceType {
 		"NetworkInterface",
 		"TransitGateway",
 		"TransitGatewayAttachment",
+		"RegionalNatGateway",
 	}
 }
 
@@ -2659,6 +3031,78 @@ const (
 func (GatewayType) Values() []GatewayType {
 	return []GatewayType{
 		"ipsec.1",
+	}
+}
+
+type GroupBy string
+
+// Enum values for GroupBy
+const (
+	GroupByResourceRegion                   GroupBy = "resource-region"
+	GroupByAvailabilityZoneId               GroupBy = "availability-zone-id"
+	GroupByAccountId                        GroupBy = "account-id"
+	GroupByInstanceFamily                   GroupBy = "instance-family"
+	GroupByInstanceType                     GroupBy = "instance-type"
+	GroupByInstancePlatform                 GroupBy = "instance-platform"
+	GroupByReservationArn                   GroupBy = "reservation-arn"
+	GroupByReservationId                    GroupBy = "reservation-id"
+	GroupByReservationType                  GroupBy = "reservation-type"
+	GroupByReservationCreateTimestamp       GroupBy = "reservation-create-timestamp"
+	GroupByReservationStartTimestamp        GroupBy = "reservation-start-timestamp"
+	GroupByReservationEndTimestamp          GroupBy = "reservation-end-timestamp"
+	GroupByReservationEndDateType           GroupBy = "reservation-end-date-type"
+	GroupByTenancy                          GroupBy = "tenancy"
+	GroupByReservationState                 GroupBy = "reservation-state"
+	GroupByReservationInstanceMatchCriteria GroupBy = "reservation-instance-match-criteria"
+	GroupByReservationUnusedFinancialOwner  GroupBy = "reservation-unused-financial-owner"
+)
+
+// Values returns all known values for GroupBy. Note that this can be expanded in
+// the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (GroupBy) Values() []GroupBy {
+	return []GroupBy{
+		"resource-region",
+		"availability-zone-id",
+		"account-id",
+		"instance-family",
+		"instance-type",
+		"instance-platform",
+		"reservation-arn",
+		"reservation-id",
+		"reservation-type",
+		"reservation-create-timestamp",
+		"reservation-start-timestamp",
+		"reservation-end-timestamp",
+		"reservation-end-date-type",
+		"tenancy",
+		"reservation-state",
+		"reservation-instance-match-criteria",
+		"reservation-unused-financial-owner",
+	}
+}
+
+type HaStatus string
+
+// Enum values for HaStatus
+const (
+	HaStatusProcessing HaStatus = "processing"
+	HaStatusActive     HaStatus = "active"
+	HaStatusStandby    HaStatus = "standby"
+	HaStatusInvalid    HaStatus = "invalid"
+)
+
+// Values returns all known values for HaStatus. Note that this can be expanded in
+// the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (HaStatus) Values() []HaStatus {
+	return []HaStatus{
+		"processing",
+		"active",
+		"standby",
+		"invalid",
 	}
 }
 
@@ -2898,6 +3342,50 @@ func (ImageBlockPublicAccessEnabledState) Values() []ImageBlockPublicAccessEnabl
 	}
 }
 
+type ImageReferenceOptionName string
+
+// Enum values for ImageReferenceOptionName
+const (
+	ImageReferenceOptionNameStateName    ImageReferenceOptionName = "state-name"
+	ImageReferenceOptionNameVersionDepth ImageReferenceOptionName = "version-depth"
+)
+
+// Values returns all known values for ImageReferenceOptionName. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ImageReferenceOptionName) Values() []ImageReferenceOptionName {
+	return []ImageReferenceOptionName{
+		"state-name",
+		"version-depth",
+	}
+}
+
+type ImageReferenceResourceType string
+
+// Enum values for ImageReferenceResourceType
+const (
+	ImageReferenceResourceTypeEc2Instance                 ImageReferenceResourceType = "ec2:Instance"
+	ImageReferenceResourceTypeEc2LaunchTemplate           ImageReferenceResourceType = "ec2:LaunchTemplate"
+	ImageReferenceResourceTypeSsmParameter                ImageReferenceResourceType = "ssm:Parameter"
+	ImageReferenceResourceTypeImageBuilderImageRecipe     ImageReferenceResourceType = "imagebuilder:ImageRecipe"
+	ImageReferenceResourceTypeImageBuilderContainerRecipe ImageReferenceResourceType = "imagebuilder:ContainerRecipe"
+)
+
+// Values returns all known values for ImageReferenceResourceType. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ImageReferenceResourceType) Values() []ImageReferenceResourceType {
+	return []ImageReferenceResourceType{
+		"ec2:Instance",
+		"ec2:LaunchTemplate",
+		"ssm:Parameter",
+		"imagebuilder:ImageRecipe",
+		"imagebuilder:ContainerRecipe",
+	}
+}
+
 type ImageState string
 
 // Enum values for ImageState
@@ -2964,6 +3452,48 @@ const (
 func (ImdsSupportValues) Values() []ImdsSupportValues {
 	return []ImdsSupportValues{
 		"v2.0",
+	}
+}
+
+type IngestionStatus string
+
+// Enum values for IngestionStatus
+const (
+	IngestionStatusInitialIngestionInProgress IngestionStatus = "initial-ingestion-in-progress"
+	IngestionStatusIngestionComplete          IngestionStatus = "ingestion-complete"
+	IngestionStatusIngestionFailed            IngestionStatus = "ingestion-failed"
+)
+
+// Values returns all known values for IngestionStatus. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (IngestionStatus) Values() []IngestionStatus {
+	return []IngestionStatus{
+		"initial-ingestion-in-progress",
+		"ingestion-complete",
+		"ingestion-failed",
+	}
+}
+
+type InitializationType string
+
+// Enum values for InitializationType
+const (
+	InitializationTypeDefault         InitializationType = "default"
+	InitializationTypeProvisionedRate InitializationType = "provisioned-rate"
+	InitializationTypeVolumeCopy      InitializationType = "volume-copy"
+)
+
+// Values returns all known values for InitializationType. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (InitializationType) Values() []InitializationType {
+	return []InitializationType{
+		"default",
+		"provisioned-rate",
+		"volume-copy",
 	}
 }
 
@@ -3179,9 +3709,10 @@ type InstanceLifecycleType string
 
 // Enum values for InstanceLifecycleType
 const (
-	InstanceLifecycleTypeSpot          InstanceLifecycleType = "spot"
-	InstanceLifecycleTypeScheduled     InstanceLifecycleType = "scheduled"
-	InstanceLifecycleTypeCapacityBlock InstanceLifecycleType = "capacity-block"
+	InstanceLifecycleTypeSpot                             InstanceLifecycleType = "spot"
+	InstanceLifecycleTypeScheduled                        InstanceLifecycleType = "scheduled"
+	InstanceLifecycleTypeCapacityBlock                    InstanceLifecycleType = "capacity-block"
+	InstanceLifecycleTypeInterruptibleCapacityReservation InstanceLifecycleType = "interruptible-capacity-reservation"
 )
 
 // Values returns all known values for InstanceLifecycleType. Note that this can
@@ -3193,6 +3724,7 @@ func (InstanceLifecycleType) Values() []InstanceLifecycleType {
 		"spot",
 		"scheduled",
 		"capacity-block",
+		"interruptible-capacity-reservation",
 	}
 }
 
@@ -3291,6 +3823,26 @@ func (InstanceMetadataTagsState) Values() []InstanceMetadataTagsState {
 	return []InstanceMetadataTagsState{
 		"disabled",
 		"enabled",
+	}
+}
+
+type InstanceRebootMigrationState string
+
+// Enum values for InstanceRebootMigrationState
+const (
+	InstanceRebootMigrationStateDisabled InstanceRebootMigrationState = "disabled"
+	InstanceRebootMigrationStateDefault  InstanceRebootMigrationState = "default"
+)
+
+// Values returns all known values for InstanceRebootMigrationState. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (InstanceRebootMigrationState) Values() []InstanceRebootMigrationState {
+	return []InstanceRebootMigrationState{
+		"disabled",
+		"default",
 	}
 }
 
@@ -4235,6 +4787,214 @@ const (
 	InstanceTypeF212xlarge         InstanceType = "f2.12xlarge"
 	InstanceTypeF248xlarge         InstanceType = "f2.48xlarge"
 	InstanceTypeTrn248xlarge       InstanceType = "trn2.48xlarge"
+	InstanceTypeC7iFlex12xlarge    InstanceType = "c7i-flex.12xlarge"
+	InstanceTypeC7iFlex16xlarge    InstanceType = "c7i-flex.16xlarge"
+	InstanceTypeM7iFlex12xlarge    InstanceType = "m7i-flex.12xlarge"
+	InstanceTypeM7iFlex16xlarge    InstanceType = "m7i-flex.16xlarge"
+	InstanceTypeI7ieMetal24xl      InstanceType = "i7ie.metal-24xl"
+	InstanceTypeI7ieMetal48xl      InstanceType = "i7ie.metal-48xl"
+	InstanceTypeI8g48xlarge        InstanceType = "i8g.48xlarge"
+	InstanceTypeC8gdMedium         InstanceType = "c8gd.medium"
+	InstanceTypeC8gdLarge          InstanceType = "c8gd.large"
+	InstanceTypeC8gdXlarge         InstanceType = "c8gd.xlarge"
+	InstanceTypeC8gd2xlarge        InstanceType = "c8gd.2xlarge"
+	InstanceTypeC8gd4xlarge        InstanceType = "c8gd.4xlarge"
+	InstanceTypeC8gd8xlarge        InstanceType = "c8gd.8xlarge"
+	InstanceTypeC8gd12xlarge       InstanceType = "c8gd.12xlarge"
+	InstanceTypeC8gd16xlarge       InstanceType = "c8gd.16xlarge"
+	InstanceTypeC8gd24xlarge       InstanceType = "c8gd.24xlarge"
+	InstanceTypeC8gd48xlarge       InstanceType = "c8gd.48xlarge"
+	InstanceTypeC8gdMetal24xl      InstanceType = "c8gd.metal-24xl"
+	InstanceTypeC8gdMetal48xl      InstanceType = "c8gd.metal-48xl"
+	InstanceTypeI7iLarge           InstanceType = "i7i.large"
+	InstanceTypeI7iXlarge          InstanceType = "i7i.xlarge"
+	InstanceTypeI7i2xlarge         InstanceType = "i7i.2xlarge"
+	InstanceTypeI7i4xlarge         InstanceType = "i7i.4xlarge"
+	InstanceTypeI7i8xlarge         InstanceType = "i7i.8xlarge"
+	InstanceTypeI7i12xlarge        InstanceType = "i7i.12xlarge"
+	InstanceTypeI7i16xlarge        InstanceType = "i7i.16xlarge"
+	InstanceTypeI7i24xlarge        InstanceType = "i7i.24xlarge"
+	InstanceTypeI7i48xlarge        InstanceType = "i7i.48xlarge"
+	InstanceTypeI7iMetal24xl       InstanceType = "i7i.metal-24xl"
+	InstanceTypeI7iMetal48xl       InstanceType = "i7i.metal-48xl"
+	InstanceTypeP6B20048xlarge     InstanceType = "p6-b200.48xlarge"
+	InstanceTypeM8gdMedium         InstanceType = "m8gd.medium"
+	InstanceTypeM8gdLarge          InstanceType = "m8gd.large"
+	InstanceTypeM8gdXlarge         InstanceType = "m8gd.xlarge"
+	InstanceTypeM8gd2xlarge        InstanceType = "m8gd.2xlarge"
+	InstanceTypeM8gd4xlarge        InstanceType = "m8gd.4xlarge"
+	InstanceTypeM8gd8xlarge        InstanceType = "m8gd.8xlarge"
+	InstanceTypeM8gd12xlarge       InstanceType = "m8gd.12xlarge"
+	InstanceTypeM8gd16xlarge       InstanceType = "m8gd.16xlarge"
+	InstanceTypeM8gd24xlarge       InstanceType = "m8gd.24xlarge"
+	InstanceTypeM8gd48xlarge       InstanceType = "m8gd.48xlarge"
+	InstanceTypeM8gdMetal24xl      InstanceType = "m8gd.metal-24xl"
+	InstanceTypeM8gdMetal48xl      InstanceType = "m8gd.metal-48xl"
+	InstanceTypeR8gdMedium         InstanceType = "r8gd.medium"
+	InstanceTypeR8gdLarge          InstanceType = "r8gd.large"
+	InstanceTypeR8gdXlarge         InstanceType = "r8gd.xlarge"
+	InstanceTypeR8gd2xlarge        InstanceType = "r8gd.2xlarge"
+	InstanceTypeR8gd4xlarge        InstanceType = "r8gd.4xlarge"
+	InstanceTypeR8gd8xlarge        InstanceType = "r8gd.8xlarge"
+	InstanceTypeR8gd12xlarge       InstanceType = "r8gd.12xlarge"
+	InstanceTypeR8gd16xlarge       InstanceType = "r8gd.16xlarge"
+	InstanceTypeR8gd24xlarge       InstanceType = "r8gd.24xlarge"
+	InstanceTypeR8gd48xlarge       InstanceType = "r8gd.48xlarge"
+	InstanceTypeR8gdMetal24xl      InstanceType = "r8gd.metal-24xl"
+	InstanceTypeR8gdMetal48xl      InstanceType = "r8gd.metal-48xl"
+	InstanceTypeC8gnMedium         InstanceType = "c8gn.medium"
+	InstanceTypeC8gnLarge          InstanceType = "c8gn.large"
+	InstanceTypeC8gnXlarge         InstanceType = "c8gn.xlarge"
+	InstanceTypeC8gn2xlarge        InstanceType = "c8gn.2xlarge"
+	InstanceTypeC8gn4xlarge        InstanceType = "c8gn.4xlarge"
+	InstanceTypeC8gn8xlarge        InstanceType = "c8gn.8xlarge"
+	InstanceTypeC8gn12xlarge       InstanceType = "c8gn.12xlarge"
+	InstanceTypeC8gn16xlarge       InstanceType = "c8gn.16xlarge"
+	InstanceTypeC8gn24xlarge       InstanceType = "c8gn.24xlarge"
+	InstanceTypeC8gn48xlarge       InstanceType = "c8gn.48xlarge"
+	InstanceTypeC8gnMetal24xl      InstanceType = "c8gn.metal-24xl"
+	InstanceTypeC8gnMetal48xl      InstanceType = "c8gn.metal-48xl"
+	InstanceTypeF26xlarge          InstanceType = "f2.6xlarge"
+	InstanceTypeP6eGb20036xlarge   InstanceType = "p6e-gb200.36xlarge"
+	InstanceTypeG6fLarge           InstanceType = "g6f.large"
+	InstanceTypeG6fXlarge          InstanceType = "g6f.xlarge"
+	InstanceTypeG6f2xlarge         InstanceType = "g6f.2xlarge"
+	InstanceTypeG6f4xlarge         InstanceType = "g6f.4xlarge"
+	InstanceTypeGr6f4xlarge        InstanceType = "gr6f.4xlarge"
+	InstanceTypeP54xlarge          InstanceType = "p5.4xlarge"
+	InstanceTypeR8iLarge           InstanceType = "r8i.large"
+	InstanceTypeR8iXlarge          InstanceType = "r8i.xlarge"
+	InstanceTypeR8i2xlarge         InstanceType = "r8i.2xlarge"
+	InstanceTypeR8i4xlarge         InstanceType = "r8i.4xlarge"
+	InstanceTypeR8i8xlarge         InstanceType = "r8i.8xlarge"
+	InstanceTypeR8i12xlarge        InstanceType = "r8i.12xlarge"
+	InstanceTypeR8i16xlarge        InstanceType = "r8i.16xlarge"
+	InstanceTypeR8i24xlarge        InstanceType = "r8i.24xlarge"
+	InstanceTypeR8i32xlarge        InstanceType = "r8i.32xlarge"
+	InstanceTypeR8i48xlarge        InstanceType = "r8i.48xlarge"
+	InstanceTypeR8i96xlarge        InstanceType = "r8i.96xlarge"
+	InstanceTypeR8iMetal48xl       InstanceType = "r8i.metal-48xl"
+	InstanceTypeR8iMetal96xl       InstanceType = "r8i.metal-96xl"
+	InstanceTypeR8iFlexLarge       InstanceType = "r8i-flex.large"
+	InstanceTypeR8iFlexXlarge      InstanceType = "r8i-flex.xlarge"
+	InstanceTypeR8iFlex2xlarge     InstanceType = "r8i-flex.2xlarge"
+	InstanceTypeR8iFlex4xlarge     InstanceType = "r8i-flex.4xlarge"
+	InstanceTypeR8iFlex8xlarge     InstanceType = "r8i-flex.8xlarge"
+	InstanceTypeR8iFlex12xlarge    InstanceType = "r8i-flex.12xlarge"
+	InstanceTypeR8iFlex16xlarge    InstanceType = "r8i-flex.16xlarge"
+	InstanceTypeM8iLarge           InstanceType = "m8i.large"
+	InstanceTypeM8iXlarge          InstanceType = "m8i.xlarge"
+	InstanceTypeM8i2xlarge         InstanceType = "m8i.2xlarge"
+	InstanceTypeM8i4xlarge         InstanceType = "m8i.4xlarge"
+	InstanceTypeM8i8xlarge         InstanceType = "m8i.8xlarge"
+	InstanceTypeM8i12xlarge        InstanceType = "m8i.12xlarge"
+	InstanceTypeM8i16xlarge        InstanceType = "m8i.16xlarge"
+	InstanceTypeM8i24xlarge        InstanceType = "m8i.24xlarge"
+	InstanceTypeM8i32xlarge        InstanceType = "m8i.32xlarge"
+	InstanceTypeM8i48xlarge        InstanceType = "m8i.48xlarge"
+	InstanceTypeM8i96xlarge        InstanceType = "m8i.96xlarge"
+	InstanceTypeM8iMetal48xl       InstanceType = "m8i.metal-48xl"
+	InstanceTypeM8iMetal96xl       InstanceType = "m8i.metal-96xl"
+	InstanceTypeM8iFlexLarge       InstanceType = "m8i-flex.large"
+	InstanceTypeM8iFlexXlarge      InstanceType = "m8i-flex.xlarge"
+	InstanceTypeM8iFlex2xlarge     InstanceType = "m8i-flex.2xlarge"
+	InstanceTypeM8iFlex4xlarge     InstanceType = "m8i-flex.4xlarge"
+	InstanceTypeM8iFlex8xlarge     InstanceType = "m8i-flex.8xlarge"
+	InstanceTypeM8iFlex12xlarge    InstanceType = "m8i-flex.12xlarge"
+	InstanceTypeM8iFlex16xlarge    InstanceType = "m8i-flex.16xlarge"
+	InstanceTypeI8geLarge          InstanceType = "i8ge.large"
+	InstanceTypeI8geXlarge         InstanceType = "i8ge.xlarge"
+	InstanceTypeI8ge2xlarge        InstanceType = "i8ge.2xlarge"
+	InstanceTypeI8ge3xlarge        InstanceType = "i8ge.3xlarge"
+	InstanceTypeI8ge6xlarge        InstanceType = "i8ge.6xlarge"
+	InstanceTypeI8ge12xlarge       InstanceType = "i8ge.12xlarge"
+	InstanceTypeI8ge18xlarge       InstanceType = "i8ge.18xlarge"
+	InstanceTypeI8ge24xlarge       InstanceType = "i8ge.24xlarge"
+	InstanceTypeI8ge48xlarge       InstanceType = "i8ge.48xlarge"
+	InstanceTypeI8geMetal24xl      InstanceType = "i8ge.metal-24xl"
+	InstanceTypeI8geMetal48xl      InstanceType = "i8ge.metal-48xl"
+	InstanceTypeMacM4Metal         InstanceType = "mac-m4.metal"
+	InstanceTypeMacM4proMetal      InstanceType = "mac-m4pro.metal"
+	InstanceTypeR8gnMedium         InstanceType = "r8gn.medium"
+	InstanceTypeR8gnLarge          InstanceType = "r8gn.large"
+	InstanceTypeR8gnXlarge         InstanceType = "r8gn.xlarge"
+	InstanceTypeR8gn2xlarge        InstanceType = "r8gn.2xlarge"
+	InstanceTypeR8gn4xlarge        InstanceType = "r8gn.4xlarge"
+	InstanceTypeR8gn8xlarge        InstanceType = "r8gn.8xlarge"
+	InstanceTypeR8gn12xlarge       InstanceType = "r8gn.12xlarge"
+	InstanceTypeR8gn16xlarge       InstanceType = "r8gn.16xlarge"
+	InstanceTypeR8gn24xlarge       InstanceType = "r8gn.24xlarge"
+	InstanceTypeR8gn48xlarge       InstanceType = "r8gn.48xlarge"
+	InstanceTypeR8gnMetal24xl      InstanceType = "r8gn.metal-24xl"
+	InstanceTypeR8gnMetal48xl      InstanceType = "r8gn.metal-48xl"
+	InstanceTypeC8iLarge           InstanceType = "c8i.large"
+	InstanceTypeC8iXlarge          InstanceType = "c8i.xlarge"
+	InstanceTypeC8i2xlarge         InstanceType = "c8i.2xlarge"
+	InstanceTypeC8i4xlarge         InstanceType = "c8i.4xlarge"
+	InstanceTypeC8i8xlarge         InstanceType = "c8i.8xlarge"
+	InstanceTypeC8i12xlarge        InstanceType = "c8i.12xlarge"
+	InstanceTypeC8i16xlarge        InstanceType = "c8i.16xlarge"
+	InstanceTypeC8i24xlarge        InstanceType = "c8i.24xlarge"
+	InstanceTypeC8i32xlarge        InstanceType = "c8i.32xlarge"
+	InstanceTypeC8i48xlarge        InstanceType = "c8i.48xlarge"
+	InstanceTypeC8i96xlarge        InstanceType = "c8i.96xlarge"
+	InstanceTypeC8iMetal48xl       InstanceType = "c8i.metal-48xl"
+	InstanceTypeC8iMetal96xl       InstanceType = "c8i.metal-96xl"
+	InstanceTypeC8iFlexLarge       InstanceType = "c8i-flex.large"
+	InstanceTypeC8iFlexXlarge      InstanceType = "c8i-flex.xlarge"
+	InstanceTypeC8iFlex2xlarge     InstanceType = "c8i-flex.2xlarge"
+	InstanceTypeC8iFlex4xlarge     InstanceType = "c8i-flex.4xlarge"
+	InstanceTypeC8iFlex8xlarge     InstanceType = "c8i-flex.8xlarge"
+	InstanceTypeC8iFlex12xlarge    InstanceType = "c8i-flex.12xlarge"
+	InstanceTypeC8iFlex16xlarge    InstanceType = "c8i-flex.16xlarge"
+	InstanceTypeR8gbMedium         InstanceType = "r8gb.medium"
+	InstanceTypeR8gbLarge          InstanceType = "r8gb.large"
+	InstanceTypeR8gbXlarge         InstanceType = "r8gb.xlarge"
+	InstanceTypeR8gb2xlarge        InstanceType = "r8gb.2xlarge"
+	InstanceTypeR8gb4xlarge        InstanceType = "r8gb.4xlarge"
+	InstanceTypeR8gb8xlarge        InstanceType = "r8gb.8xlarge"
+	InstanceTypeR8gb12xlarge       InstanceType = "r8gb.12xlarge"
+	InstanceTypeR8gb16xlarge       InstanceType = "r8gb.16xlarge"
+	InstanceTypeR8gb24xlarge       InstanceType = "r8gb.24xlarge"
+	InstanceTypeR8gbMetal24xl      InstanceType = "r8gb.metal-24xl"
+	InstanceTypeM8aMedium          InstanceType = "m8a.medium"
+	InstanceTypeM8aLarge           InstanceType = "m8a.large"
+	InstanceTypeM8aXlarge          InstanceType = "m8a.xlarge"
+	InstanceTypeM8a2xlarge         InstanceType = "m8a.2xlarge"
+	InstanceTypeM8a4xlarge         InstanceType = "m8a.4xlarge"
+	InstanceTypeM8a8xlarge         InstanceType = "m8a.8xlarge"
+	InstanceTypeM8a12xlarge        InstanceType = "m8a.12xlarge"
+	InstanceTypeM8a16xlarge        InstanceType = "m8a.16xlarge"
+	InstanceTypeM8a24xlarge        InstanceType = "m8a.24xlarge"
+	InstanceTypeM8a48xlarge        InstanceType = "m8a.48xlarge"
+	InstanceTypeM8aMetal24xl       InstanceType = "m8a.metal-24xl"
+	InstanceTypeM8aMetal48xl       InstanceType = "m8a.metal-48xl"
+	InstanceTypeTrn23xlarge        InstanceType = "trn2.3xlarge"
+	InstanceTypeR8aMedium          InstanceType = "r8a.medium"
+	InstanceTypeR8aLarge           InstanceType = "r8a.large"
+	InstanceTypeR8aXlarge          InstanceType = "r8a.xlarge"
+	InstanceTypeR8a2xlarge         InstanceType = "r8a.2xlarge"
+	InstanceTypeR8a4xlarge         InstanceType = "r8a.4xlarge"
+	InstanceTypeR8a8xlarge         InstanceType = "r8a.8xlarge"
+	InstanceTypeR8a12xlarge        InstanceType = "r8a.12xlarge"
+	InstanceTypeR8a16xlarge        InstanceType = "r8a.16xlarge"
+	InstanceTypeR8a24xlarge        InstanceType = "r8a.24xlarge"
+	InstanceTypeR8a48xlarge        InstanceType = "r8a.48xlarge"
+	InstanceTypeR8aMetal24xl       InstanceType = "r8a.metal-24xl"
+	InstanceTypeR8aMetal48xl       InstanceType = "r8a.metal-48xl"
+	InstanceTypeP6B30048xlarge     InstanceType = "p6-b300.48xlarge"
+	InstanceTypeC8aMedium          InstanceType = "c8a.medium"
+	InstanceTypeC8aLarge           InstanceType = "c8a.large"
+	InstanceTypeC8aXlarge          InstanceType = "c8a.xlarge"
+	InstanceTypeC8a2xlarge         InstanceType = "c8a.2xlarge"
+	InstanceTypeC8a4xlarge         InstanceType = "c8a.4xlarge"
+	InstanceTypeC8a8xlarge         InstanceType = "c8a.8xlarge"
+	InstanceTypeC8a12xlarge        InstanceType = "c8a.12xlarge"
+	InstanceTypeC8a16xlarge        InstanceType = "c8a.16xlarge"
+	InstanceTypeC8a24xlarge        InstanceType = "c8a.24xlarge"
+	InstanceTypeC8a48xlarge        InstanceType = "c8a.48xlarge"
+	InstanceTypeC8aMetal24xl       InstanceType = "c8a.metal-24xl"
+	InstanceTypeC8aMetal48xl       InstanceType = "c8a.metal-48xl"
 )
 
 // Values returns all known values for InstanceType. Note that this can be
@@ -5133,6 +5893,214 @@ func (InstanceType) Values() []InstanceType {
 		"f2.12xlarge",
 		"f2.48xlarge",
 		"trn2.48xlarge",
+		"c7i-flex.12xlarge",
+		"c7i-flex.16xlarge",
+		"m7i-flex.12xlarge",
+		"m7i-flex.16xlarge",
+		"i7ie.metal-24xl",
+		"i7ie.metal-48xl",
+		"i8g.48xlarge",
+		"c8gd.medium",
+		"c8gd.large",
+		"c8gd.xlarge",
+		"c8gd.2xlarge",
+		"c8gd.4xlarge",
+		"c8gd.8xlarge",
+		"c8gd.12xlarge",
+		"c8gd.16xlarge",
+		"c8gd.24xlarge",
+		"c8gd.48xlarge",
+		"c8gd.metal-24xl",
+		"c8gd.metal-48xl",
+		"i7i.large",
+		"i7i.xlarge",
+		"i7i.2xlarge",
+		"i7i.4xlarge",
+		"i7i.8xlarge",
+		"i7i.12xlarge",
+		"i7i.16xlarge",
+		"i7i.24xlarge",
+		"i7i.48xlarge",
+		"i7i.metal-24xl",
+		"i7i.metal-48xl",
+		"p6-b200.48xlarge",
+		"m8gd.medium",
+		"m8gd.large",
+		"m8gd.xlarge",
+		"m8gd.2xlarge",
+		"m8gd.4xlarge",
+		"m8gd.8xlarge",
+		"m8gd.12xlarge",
+		"m8gd.16xlarge",
+		"m8gd.24xlarge",
+		"m8gd.48xlarge",
+		"m8gd.metal-24xl",
+		"m8gd.metal-48xl",
+		"r8gd.medium",
+		"r8gd.large",
+		"r8gd.xlarge",
+		"r8gd.2xlarge",
+		"r8gd.4xlarge",
+		"r8gd.8xlarge",
+		"r8gd.12xlarge",
+		"r8gd.16xlarge",
+		"r8gd.24xlarge",
+		"r8gd.48xlarge",
+		"r8gd.metal-24xl",
+		"r8gd.metal-48xl",
+		"c8gn.medium",
+		"c8gn.large",
+		"c8gn.xlarge",
+		"c8gn.2xlarge",
+		"c8gn.4xlarge",
+		"c8gn.8xlarge",
+		"c8gn.12xlarge",
+		"c8gn.16xlarge",
+		"c8gn.24xlarge",
+		"c8gn.48xlarge",
+		"c8gn.metal-24xl",
+		"c8gn.metal-48xl",
+		"f2.6xlarge",
+		"p6e-gb200.36xlarge",
+		"g6f.large",
+		"g6f.xlarge",
+		"g6f.2xlarge",
+		"g6f.4xlarge",
+		"gr6f.4xlarge",
+		"p5.4xlarge",
+		"r8i.large",
+		"r8i.xlarge",
+		"r8i.2xlarge",
+		"r8i.4xlarge",
+		"r8i.8xlarge",
+		"r8i.12xlarge",
+		"r8i.16xlarge",
+		"r8i.24xlarge",
+		"r8i.32xlarge",
+		"r8i.48xlarge",
+		"r8i.96xlarge",
+		"r8i.metal-48xl",
+		"r8i.metal-96xl",
+		"r8i-flex.large",
+		"r8i-flex.xlarge",
+		"r8i-flex.2xlarge",
+		"r8i-flex.4xlarge",
+		"r8i-flex.8xlarge",
+		"r8i-flex.12xlarge",
+		"r8i-flex.16xlarge",
+		"m8i.large",
+		"m8i.xlarge",
+		"m8i.2xlarge",
+		"m8i.4xlarge",
+		"m8i.8xlarge",
+		"m8i.12xlarge",
+		"m8i.16xlarge",
+		"m8i.24xlarge",
+		"m8i.32xlarge",
+		"m8i.48xlarge",
+		"m8i.96xlarge",
+		"m8i.metal-48xl",
+		"m8i.metal-96xl",
+		"m8i-flex.large",
+		"m8i-flex.xlarge",
+		"m8i-flex.2xlarge",
+		"m8i-flex.4xlarge",
+		"m8i-flex.8xlarge",
+		"m8i-flex.12xlarge",
+		"m8i-flex.16xlarge",
+		"i8ge.large",
+		"i8ge.xlarge",
+		"i8ge.2xlarge",
+		"i8ge.3xlarge",
+		"i8ge.6xlarge",
+		"i8ge.12xlarge",
+		"i8ge.18xlarge",
+		"i8ge.24xlarge",
+		"i8ge.48xlarge",
+		"i8ge.metal-24xl",
+		"i8ge.metal-48xl",
+		"mac-m4.metal",
+		"mac-m4pro.metal",
+		"r8gn.medium",
+		"r8gn.large",
+		"r8gn.xlarge",
+		"r8gn.2xlarge",
+		"r8gn.4xlarge",
+		"r8gn.8xlarge",
+		"r8gn.12xlarge",
+		"r8gn.16xlarge",
+		"r8gn.24xlarge",
+		"r8gn.48xlarge",
+		"r8gn.metal-24xl",
+		"r8gn.metal-48xl",
+		"c8i.large",
+		"c8i.xlarge",
+		"c8i.2xlarge",
+		"c8i.4xlarge",
+		"c8i.8xlarge",
+		"c8i.12xlarge",
+		"c8i.16xlarge",
+		"c8i.24xlarge",
+		"c8i.32xlarge",
+		"c8i.48xlarge",
+		"c8i.96xlarge",
+		"c8i.metal-48xl",
+		"c8i.metal-96xl",
+		"c8i-flex.large",
+		"c8i-flex.xlarge",
+		"c8i-flex.2xlarge",
+		"c8i-flex.4xlarge",
+		"c8i-flex.8xlarge",
+		"c8i-flex.12xlarge",
+		"c8i-flex.16xlarge",
+		"r8gb.medium",
+		"r8gb.large",
+		"r8gb.xlarge",
+		"r8gb.2xlarge",
+		"r8gb.4xlarge",
+		"r8gb.8xlarge",
+		"r8gb.12xlarge",
+		"r8gb.16xlarge",
+		"r8gb.24xlarge",
+		"r8gb.metal-24xl",
+		"m8a.medium",
+		"m8a.large",
+		"m8a.xlarge",
+		"m8a.2xlarge",
+		"m8a.4xlarge",
+		"m8a.8xlarge",
+		"m8a.12xlarge",
+		"m8a.16xlarge",
+		"m8a.24xlarge",
+		"m8a.48xlarge",
+		"m8a.metal-24xl",
+		"m8a.metal-48xl",
+		"trn2.3xlarge",
+		"r8a.medium",
+		"r8a.large",
+		"r8a.xlarge",
+		"r8a.2xlarge",
+		"r8a.4xlarge",
+		"r8a.8xlarge",
+		"r8a.12xlarge",
+		"r8a.16xlarge",
+		"r8a.24xlarge",
+		"r8a.48xlarge",
+		"r8a.metal-24xl",
+		"r8a.metal-48xl",
+		"p6-b300.48xlarge",
+		"c8a.medium",
+		"c8a.large",
+		"c8a.xlarge",
+		"c8a.2xlarge",
+		"c8a.4xlarge",
+		"c8a.8xlarge",
+		"c8a.12xlarge",
+		"c8a.16xlarge",
+		"c8a.24xlarge",
+		"c8a.48xlarge",
+		"c8a.metal-24xl",
+		"c8a.metal-48xl",
 	}
 }
 
@@ -5231,6 +6199,51 @@ func (InternetGatewayExclusionMode) Values() []InternetGatewayExclusionMode {
 	return []InternetGatewayExclusionMode{
 		"allow-bidirectional",
 		"allow-egress",
+	}
+}
+
+type InterruptibleCapacityReservationAllocationStatus string
+
+// Enum values for InterruptibleCapacityReservationAllocationStatus
+const (
+	InterruptibleCapacityReservationAllocationStatusPending   InterruptibleCapacityReservationAllocationStatus = "pending"
+	InterruptibleCapacityReservationAllocationStatusActive    InterruptibleCapacityReservationAllocationStatus = "active"
+	InterruptibleCapacityReservationAllocationStatusUpdating  InterruptibleCapacityReservationAllocationStatus = "updating"
+	InterruptibleCapacityReservationAllocationStatusCanceling InterruptibleCapacityReservationAllocationStatus = "canceling"
+	InterruptibleCapacityReservationAllocationStatusCanceled  InterruptibleCapacityReservationAllocationStatus = "canceled"
+	InterruptibleCapacityReservationAllocationStatusFailed    InterruptibleCapacityReservationAllocationStatus = "failed"
+)
+
+// Values returns all known values for
+// InterruptibleCapacityReservationAllocationStatus. Note that this can be expanded
+// in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (InterruptibleCapacityReservationAllocationStatus) Values() []InterruptibleCapacityReservationAllocationStatus {
+	return []InterruptibleCapacityReservationAllocationStatus{
+		"pending",
+		"active",
+		"updating",
+		"canceling",
+		"canceled",
+		"failed",
+	}
+}
+
+type InterruptionType string
+
+// Enum values for InterruptionType
+const (
+	InterruptionTypeAdhoc InterruptionType = "adhoc"
+)
+
+// Values returns all known values for InterruptionType. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (InterruptionType) Values() []InterruptionType {
+	return []InterruptionType{
+		"adhoc",
 	}
 }
 
@@ -5394,6 +6407,25 @@ func (IpamManagementState) Values() []IpamManagementState {
 	}
 }
 
+type IpamMeteredAccount string
+
+// Enum values for IpamMeteredAccount
+const (
+	IpamMeteredAccountIpamOwner     IpamMeteredAccount = "ipam-owner"
+	IpamMeteredAccountResourceOwner IpamMeteredAccount = "resource-owner"
+)
+
+// Values returns all known values for IpamMeteredAccount. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (IpamMeteredAccount) Values() []IpamMeteredAccount {
+	return []IpamMeteredAccount{
+		"ipam-owner",
+		"resource-owner",
+	}
+}
+
 type IpamNetworkInterfaceAttachmentStatus string
 
 // Enum values for IpamNetworkInterfaceAttachmentStatus
@@ -5435,6 +6467,87 @@ func (IpamOverlapStatus) Values() []IpamOverlapStatus {
 	}
 }
 
+type IpamPolicyManagedBy string
+
+// Enum values for IpamPolicyManagedBy
+const (
+	IpamPolicyManagedByAccount                       IpamPolicyManagedBy = "account"
+	IpamPolicyManagedByDelegatedAdministratorForIpam IpamPolicyManagedBy = "delegated-administrator-for-ipam"
+)
+
+// Values returns all known values for IpamPolicyManagedBy. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (IpamPolicyManagedBy) Values() []IpamPolicyManagedBy {
+	return []IpamPolicyManagedBy{
+		"account",
+		"delegated-administrator-for-ipam",
+	}
+}
+
+type IpamPolicyResourceType string
+
+// Enum values for IpamPolicyResourceType
+const (
+	IpamPolicyResourceTypeAlb  IpamPolicyResourceType = "alb"
+	IpamPolicyResourceTypeEip  IpamPolicyResourceType = "eip"
+	IpamPolicyResourceTypeRds  IpamPolicyResourceType = "rds"
+	IpamPolicyResourceTypeRnat IpamPolicyResourceType = "rnat"
+)
+
+// Values returns all known values for IpamPolicyResourceType. Note that this can
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (IpamPolicyResourceType) Values() []IpamPolicyResourceType {
+	return []IpamPolicyResourceType{
+		"alb",
+		"eip",
+		"rds",
+		"rnat",
+	}
+}
+
+type IpamPolicyState string
+
+// Enum values for IpamPolicyState
+const (
+	IpamPolicyStateCreateInProgress  IpamPolicyState = "create-in-progress"
+	IpamPolicyStateCreateComplete    IpamPolicyState = "create-complete"
+	IpamPolicyStateCreateFailed      IpamPolicyState = "create-failed"
+	IpamPolicyStateModifyInProgress  IpamPolicyState = "modify-in-progress"
+	IpamPolicyStateModifyComplete    IpamPolicyState = "modify-complete"
+	IpamPolicyStateModifyFailed      IpamPolicyState = "modify-failed"
+	IpamPolicyStateDeleteInProgress  IpamPolicyState = "delete-in-progress"
+	IpamPolicyStateDeleteComplete    IpamPolicyState = "delete-complete"
+	IpamPolicyStateDeleteFailed      IpamPolicyState = "delete-failed"
+	IpamPolicyStateIsolateInProgress IpamPolicyState = "isolate-in-progress"
+	IpamPolicyStateIsolateComplete   IpamPolicyState = "isolate-complete"
+	IpamPolicyStateRestoreInProgress IpamPolicyState = "restore-in-progress"
+)
+
+// Values returns all known values for IpamPolicyState. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (IpamPolicyState) Values() []IpamPolicyState {
+	return []IpamPolicyState{
+		"create-in-progress",
+		"create-complete",
+		"create-failed",
+		"modify-in-progress",
+		"modify-complete",
+		"modify-failed",
+		"delete-in-progress",
+		"delete-complete",
+		"delete-failed",
+		"isolate-in-progress",
+		"isolate-complete",
+		"restore-in-progress",
+	}
+}
+
 type IpamPoolAllocationResourceType string
 
 // Enum values for IpamPoolAllocationResourceType
@@ -5445,6 +6558,7 @@ const (
 	IpamPoolAllocationResourceTypeCustom            IpamPoolAllocationResourceType = "custom"
 	IpamPoolAllocationResourceTypeSubnet            IpamPoolAllocationResourceType = "subnet"
 	IpamPoolAllocationResourceTypeEip               IpamPoolAllocationResourceType = "eip"
+	IpamPoolAllocationResourceTypeAnycastIpList     IpamPoolAllocationResourceType = "anycast-ip-list"
 )
 
 // Values returns all known values for IpamPoolAllocationResourceType. Note that
@@ -5460,6 +6574,7 @@ func (IpamPoolAllocationResourceType) Values() []IpamPoolAllocationResourceType 
 		"custom",
 		"subnet",
 		"eip",
+		"anycast-ip-list",
 	}
 }
 
@@ -5467,7 +6582,8 @@ type IpamPoolAwsService string
 
 // Enum values for IpamPoolAwsService
 const (
-	IpamPoolAwsServiceEc2 IpamPoolAwsService = "ec2"
+	IpamPoolAwsServiceEc2            IpamPoolAwsService = "ec2"
+	IpamPoolAwsServiceGlobalServices IpamPoolAwsService = "global-services"
 )
 
 // Values returns all known values for IpamPoolAwsService. Note that this can be
@@ -5477,6 +6593,7 @@ const (
 func (IpamPoolAwsService) Values() []IpamPoolAwsService {
 	return []IpamPoolAwsService{
 		"ec2",
+		"global-services",
 	}
 }
 
@@ -5605,6 +6722,157 @@ func (IpamPoolState) Values() []IpamPoolState {
 	}
 }
 
+type IpamPrefixListResolverRuleConditionOperation string
+
+// Enum values for IpamPrefixListResolverRuleConditionOperation
+const (
+	IpamPrefixListResolverRuleConditionOperationEquals    IpamPrefixListResolverRuleConditionOperation = "equals"
+	IpamPrefixListResolverRuleConditionOperationNotEquals IpamPrefixListResolverRuleConditionOperation = "not-equals"
+	IpamPrefixListResolverRuleConditionOperationSubnetOf  IpamPrefixListResolverRuleConditionOperation = "subnet-of"
+)
+
+// Values returns all known values for
+// IpamPrefixListResolverRuleConditionOperation. Note that this can be expanded in
+// the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (IpamPrefixListResolverRuleConditionOperation) Values() []IpamPrefixListResolverRuleConditionOperation {
+	return []IpamPrefixListResolverRuleConditionOperation{
+		"equals",
+		"not-equals",
+		"subnet-of",
+	}
+}
+
+type IpamPrefixListResolverRuleType string
+
+// Enum values for IpamPrefixListResolverRuleType
+const (
+	IpamPrefixListResolverRuleTypeStaticCidr       IpamPrefixListResolverRuleType = "static-cidr"
+	IpamPrefixListResolverRuleTypeIpamResourceCidr IpamPrefixListResolverRuleType = "ipam-resource-cidr"
+	IpamPrefixListResolverRuleTypeIpamPoolCidr     IpamPrefixListResolverRuleType = "ipam-pool-cidr"
+)
+
+// Values returns all known values for IpamPrefixListResolverRuleType. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (IpamPrefixListResolverRuleType) Values() []IpamPrefixListResolverRuleType {
+	return []IpamPrefixListResolverRuleType{
+		"static-cidr",
+		"ipam-resource-cidr",
+		"ipam-pool-cidr",
+	}
+}
+
+type IpamPrefixListResolverState string
+
+// Enum values for IpamPrefixListResolverState
+const (
+	IpamPrefixListResolverStateCreateInProgress  IpamPrefixListResolverState = "create-in-progress"
+	IpamPrefixListResolverStateCreateComplete    IpamPrefixListResolverState = "create-complete"
+	IpamPrefixListResolverStateCreateFailed      IpamPrefixListResolverState = "create-failed"
+	IpamPrefixListResolverStateModifyInProgress  IpamPrefixListResolverState = "modify-in-progress"
+	IpamPrefixListResolverStateModifyComplete    IpamPrefixListResolverState = "modify-complete"
+	IpamPrefixListResolverStateModifyFailed      IpamPrefixListResolverState = "modify-failed"
+	IpamPrefixListResolverStateDeleteInProgress  IpamPrefixListResolverState = "delete-in-progress"
+	IpamPrefixListResolverStateDeleteComplete    IpamPrefixListResolverState = "delete-complete"
+	IpamPrefixListResolverStateDeleteFailed      IpamPrefixListResolverState = "delete-failed"
+	IpamPrefixListResolverStateIsolateInProgress IpamPrefixListResolverState = "isolate-in-progress"
+	IpamPrefixListResolverStateIsolateComplete   IpamPrefixListResolverState = "isolate-complete"
+	IpamPrefixListResolverStateRestoreInProgress IpamPrefixListResolverState = "restore-in-progress"
+)
+
+// Values returns all known values for IpamPrefixListResolverState. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (IpamPrefixListResolverState) Values() []IpamPrefixListResolverState {
+	return []IpamPrefixListResolverState{
+		"create-in-progress",
+		"create-complete",
+		"create-failed",
+		"modify-in-progress",
+		"modify-complete",
+		"modify-failed",
+		"delete-in-progress",
+		"delete-complete",
+		"delete-failed",
+		"isolate-in-progress",
+		"isolate-complete",
+		"restore-in-progress",
+	}
+}
+
+type IpamPrefixListResolverTargetState string
+
+// Enum values for IpamPrefixListResolverTargetState
+const (
+	IpamPrefixListResolverTargetStateCreateInProgress  IpamPrefixListResolverTargetState = "create-in-progress"
+	IpamPrefixListResolverTargetStateCreateComplete    IpamPrefixListResolverTargetState = "create-complete"
+	IpamPrefixListResolverTargetStateCreateFailed      IpamPrefixListResolverTargetState = "create-failed"
+	IpamPrefixListResolverTargetStateModifyInProgress  IpamPrefixListResolverTargetState = "modify-in-progress"
+	IpamPrefixListResolverTargetStateModifyComplete    IpamPrefixListResolverTargetState = "modify-complete"
+	IpamPrefixListResolverTargetStateModifyFailed      IpamPrefixListResolverTargetState = "modify-failed"
+	IpamPrefixListResolverTargetStateSyncInProgress    IpamPrefixListResolverTargetState = "sync-in-progress"
+	IpamPrefixListResolverTargetStateSyncComplete      IpamPrefixListResolverTargetState = "sync-complete"
+	IpamPrefixListResolverTargetStateSyncFailed        IpamPrefixListResolverTargetState = "sync-failed"
+	IpamPrefixListResolverTargetStateDeleteInProgress  IpamPrefixListResolverTargetState = "delete-in-progress"
+	IpamPrefixListResolverTargetStateDeleteComplete    IpamPrefixListResolverTargetState = "delete-complete"
+	IpamPrefixListResolverTargetStateDeleteFailed      IpamPrefixListResolverTargetState = "delete-failed"
+	IpamPrefixListResolverTargetStateIsolateInProgress IpamPrefixListResolverTargetState = "isolate-in-progress"
+	IpamPrefixListResolverTargetStateIsolateComplete   IpamPrefixListResolverTargetState = "isolate-complete"
+	IpamPrefixListResolverTargetStateRestoreInProgress IpamPrefixListResolverTargetState = "restore-in-progress"
+)
+
+// Values returns all known values for IpamPrefixListResolverTargetState. Note
+// that this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (IpamPrefixListResolverTargetState) Values() []IpamPrefixListResolverTargetState {
+	return []IpamPrefixListResolverTargetState{
+		"create-in-progress",
+		"create-complete",
+		"create-failed",
+		"modify-in-progress",
+		"modify-complete",
+		"modify-failed",
+		"sync-in-progress",
+		"sync-complete",
+		"sync-failed",
+		"delete-in-progress",
+		"delete-complete",
+		"delete-failed",
+		"isolate-in-progress",
+		"isolate-complete",
+		"restore-in-progress",
+	}
+}
+
+type IpamPrefixListResolverVersionCreationStatus string
+
+// Enum values for IpamPrefixListResolverVersionCreationStatus
+const (
+	IpamPrefixListResolverVersionCreationStatusPending IpamPrefixListResolverVersionCreationStatus = "pending"
+	IpamPrefixListResolverVersionCreationStatusSuccess IpamPrefixListResolverVersionCreationStatus = "success"
+	IpamPrefixListResolverVersionCreationStatusFailure IpamPrefixListResolverVersionCreationStatus = "failure"
+)
+
+// Values returns all known values for
+// IpamPrefixListResolverVersionCreationStatus. Note that this can be expanded in
+// the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (IpamPrefixListResolverVersionCreationStatus) Values() []IpamPrefixListResolverVersionCreationStatus {
+	return []IpamPrefixListResolverVersionCreationStatus{
+		"pending",
+		"success",
+		"failure",
+	}
+}
+
 type IpamPublicAddressAssociationStatus string
 
 // Enum values for IpamPublicAddressAssociationStatus
@@ -5637,6 +6905,7 @@ const (
 	IpamPublicAddressAwsServiceS2sVpn     IpamPublicAddressAwsService = "site-to-site-vpn"
 	IpamPublicAddressAwsServiceEc2Lb      IpamPublicAddressAwsService = "load-balancer"
 	IpamPublicAddressAwsServiceAga        IpamPublicAddressAwsService = "global-accelerator"
+	IpamPublicAddressAwsServiceCloudfront IpamPublicAddressAwsService = "cloudfront"
 	IpamPublicAddressAwsServiceOther      IpamPublicAddressAwsService = "other"
 )
 
@@ -5654,6 +6923,7 @@ func (IpamPublicAddressAwsService) Values() []IpamPublicAddressAwsService {
 		"site-to-site-vpn",
 		"load-balancer",
 		"global-accelerator",
+		"cloudfront",
 		"other",
 	}
 }
@@ -5668,6 +6938,7 @@ const (
 	IpamPublicAddressTypeAmazonOwnedContig   IpamPublicAddressType = "amazon-owned-contig"
 	IpamPublicAddressTypeByoip               IpamPublicAddressType = "byoip"
 	IpamPublicAddressTypeEc2PublicIp         IpamPublicAddressType = "ec2-public-ip"
+	IpamPublicAddressTypeAnycastIpListIp     IpamPublicAddressType = "anycast-ip-list-ip"
 )
 
 // Values returns all known values for IpamPublicAddressType. Note that this can
@@ -5682,6 +6953,7 @@ func (IpamPublicAddressType) Values() []IpamPublicAddressType {
 		"amazon-owned-contig",
 		"byoip",
 		"ec2-public-ip",
+		"anycast-ip-list-ip",
 	}
 }
 
@@ -5789,6 +7061,7 @@ const (
 	IpamResourceTypePublicIpv4Pool IpamResourceType = "public-ipv4-pool"
 	IpamResourceTypeIpv6Pool       IpamResourceType = "ipv6-pool"
 	IpamResourceTypeEni            IpamResourceType = "eni"
+	IpamResourceTypeAnycastIpList  IpamResourceType = "anycast-ip-list"
 )
 
 // Values returns all known values for IpamResourceType. Note that this can be
@@ -5803,6 +7076,25 @@ func (IpamResourceType) Values() []IpamResourceType {
 		"public-ipv4-pool",
 		"ipv6-pool",
 		"eni",
+		"anycast-ip-list",
+	}
+}
+
+type IpamScopeExternalAuthorityType string
+
+// Enum values for IpamScopeExternalAuthorityType
+const (
+	IpamScopeExternalAuthorityTypeInfoblox IpamScopeExternalAuthorityType = "infoblox"
+)
+
+// Values returns all known values for IpamScopeExternalAuthorityType. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (IpamScopeExternalAuthorityType) Values() []IpamScopeExternalAuthorityType {
+	return []IpamScopeExternalAuthorityType{
+		"infoblox",
 	}
 }
 
@@ -6275,6 +7567,56 @@ func (LocalGatewayRouteType) Values() []LocalGatewayRouteType {
 	}
 }
 
+type LocalGatewayVirtualInterfaceConfigurationState string
+
+// Enum values for LocalGatewayVirtualInterfaceConfigurationState
+const (
+	LocalGatewayVirtualInterfaceConfigurationStatePending   LocalGatewayVirtualInterfaceConfigurationState = "pending"
+	LocalGatewayVirtualInterfaceConfigurationStateAvailable LocalGatewayVirtualInterfaceConfigurationState = "available"
+	LocalGatewayVirtualInterfaceConfigurationStateDeleting  LocalGatewayVirtualInterfaceConfigurationState = "deleting"
+	LocalGatewayVirtualInterfaceConfigurationStateDeleted   LocalGatewayVirtualInterfaceConfigurationState = "deleted"
+)
+
+// Values returns all known values for
+// LocalGatewayVirtualInterfaceConfigurationState. Note that this can be expanded
+// in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (LocalGatewayVirtualInterfaceConfigurationState) Values() []LocalGatewayVirtualInterfaceConfigurationState {
+	return []LocalGatewayVirtualInterfaceConfigurationState{
+		"pending",
+		"available",
+		"deleting",
+		"deleted",
+	}
+}
+
+type LocalGatewayVirtualInterfaceGroupConfigurationState string
+
+// Enum values for LocalGatewayVirtualInterfaceGroupConfigurationState
+const (
+	LocalGatewayVirtualInterfaceGroupConfigurationStatePending    LocalGatewayVirtualInterfaceGroupConfigurationState = "pending"
+	LocalGatewayVirtualInterfaceGroupConfigurationStateIncomplete LocalGatewayVirtualInterfaceGroupConfigurationState = "incomplete"
+	LocalGatewayVirtualInterfaceGroupConfigurationStateAvailable  LocalGatewayVirtualInterfaceGroupConfigurationState = "available"
+	LocalGatewayVirtualInterfaceGroupConfigurationStateDeleting   LocalGatewayVirtualInterfaceGroupConfigurationState = "deleting"
+	LocalGatewayVirtualInterfaceGroupConfigurationStateDeleted    LocalGatewayVirtualInterfaceGroupConfigurationState = "deleted"
+)
+
+// Values returns all known values for
+// LocalGatewayVirtualInterfaceGroupConfigurationState. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (LocalGatewayVirtualInterfaceGroupConfigurationState) Values() []LocalGatewayVirtualInterfaceGroupConfigurationState {
+	return []LocalGatewayVirtualInterfaceGroupConfigurationState{
+		"pending",
+		"incomplete",
+		"available",
+		"deleting",
+		"deleted",
+	}
+}
+
 type LocalStorage string
 
 // Enum values for LocalStorage
@@ -6401,6 +7743,68 @@ func (LogDestinationType) Values() []LogDestinationType {
 	}
 }
 
+type MacModificationTaskState string
+
+// Enum values for MacModificationTaskState
+const (
+	MacModificationTaskStateSuccessful MacModificationTaskState = "successful"
+	MacModificationTaskStateFailed     MacModificationTaskState = "failed"
+	MacModificationTaskStateInprogress MacModificationTaskState = "in-progress"
+	MacModificationTaskStatePending    MacModificationTaskState = "pending"
+)
+
+// Values returns all known values for MacModificationTaskState. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (MacModificationTaskState) Values() []MacModificationTaskState {
+	return []MacModificationTaskState{
+		"successful",
+		"failed",
+		"in-progress",
+		"pending",
+	}
+}
+
+type MacModificationTaskType string
+
+// Enum values for MacModificationTaskType
+const (
+	MacModificationTaskTypeSIPModification           MacModificationTaskType = "sip-modification"
+	MacModificationTaskTypeVolumeOwnershipDelegation MacModificationTaskType = "volume-ownership-delegation"
+)
+
+// Values returns all known values for MacModificationTaskType. Note that this can
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (MacModificationTaskType) Values() []MacModificationTaskType {
+	return []MacModificationTaskType{
+		"sip-modification",
+		"volume-ownership-delegation",
+	}
+}
+
+type MacSystemIntegrityProtectionSettingStatus string
+
+// Enum values for MacSystemIntegrityProtectionSettingStatus
+const (
+	MacSystemIntegrityProtectionSettingStatusEnabled  MacSystemIntegrityProtectionSettingStatus = "enabled"
+	MacSystemIntegrityProtectionSettingStatusDisabled MacSystemIntegrityProtectionSettingStatus = "disabled"
+)
+
+// Values returns all known values for MacSystemIntegrityProtectionSettingStatus.
+// Note that this can be expanded in the future, and so it is only as up to date as
+// the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (MacSystemIntegrityProtectionSettingStatus) Values() []MacSystemIntegrityProtectionSettingStatus {
+	return []MacSystemIntegrityProtectionSettingStatus{
+		"enabled",
+		"disabled",
+	}
+}
+
 type ManagedBy string
 
 // Enum values for ManagedBy
@@ -6424,8 +7828,9 @@ type MarketType string
 
 // Enum values for MarketType
 const (
-	MarketTypeSpot          MarketType = "spot"
-	MarketTypeCapacityBlock MarketType = "capacity-block"
+	MarketTypeSpot                             MarketType = "spot"
+	MarketTypeCapacityBlock                    MarketType = "capacity-block"
+	MarketTypeInterruptibleCapacityReservation MarketType = "interruptible-capacity-reservation"
 )
 
 // Values returns all known values for MarketType. Note that this can be expanded
@@ -6436,6 +7841,7 @@ func (MarketType) Values() []MarketType {
 	return []MarketType{
 		"spot",
 		"capacity-block",
+		"interruptible-capacity-reservation",
 	}
 }
 
@@ -6477,6 +7883,119 @@ func (MetadataDefaultHttpTokensState) Values() []MetadataDefaultHttpTokensState 
 		"optional",
 		"required",
 		"no-preference",
+	}
+}
+
+type Metric string
+
+// Enum values for Metric
+const (
+	MetricReservationTotalCapacityHrsVcpu       Metric = "reservation-total-capacity-hrs-vcpu"
+	MetricReservationTotalCapacityHrsInst       Metric = "reservation-total-capacity-hrs-inst"
+	MetricReservationMaxSizeVcpu                Metric = "reservation-max-size-vcpu"
+	MetricReservationMaxSizeInst                Metric = "reservation-max-size-inst"
+	MetricReservationMinSizeVcpu                Metric = "reservation-min-size-vcpu"
+	MetricReservationMinSizeInst                Metric = "reservation-min-size-inst"
+	MetricReservationUnusedTotalCapacityHrsVcpu Metric = "reservation-unused-total-capacity-hrs-vcpu"
+	MetricReservationUnusedTotalCapacityHrsInst Metric = "reservation-unused-total-capacity-hrs-inst"
+	MetricReservationUnusedTotalEstimatedCost   Metric = "reservation-unused-total-estimated-cost"
+	MetricReservationMaxUnusedSizeVcpu          Metric = "reservation-max-unused-size-vcpu"
+	MetricReservationMaxUnusedSizeInst          Metric = "reservation-max-unused-size-inst"
+	MetricReservationMinUnusedSizeVcpu          Metric = "reservation-min-unused-size-vcpu"
+	MetricReservationMinUnusedSizeInst          Metric = "reservation-min-unused-size-inst"
+	MetricReservationMaxUtilization             Metric = "reservation-max-utilization"
+	MetricReservationMinUtilization             Metric = "reservation-min-utilization"
+	MetricReservationAvgUtilizationVcpu         Metric = "reservation-avg-utilization-vcpu"
+	MetricReservationAvgUtilizationInst         Metric = "reservation-avg-utilization-inst"
+	MetricReservationTotalCount                 Metric = "reservation-total-count"
+	MetricReservationTotalEstimatedCost         Metric = "reservation-total-estimated-cost"
+	MetricReservationAvgFutureSizeVcpu          Metric = "reservation-avg-future-size-vcpu"
+	MetricReservationAvgFutureSizeInst          Metric = "reservation-avg-future-size-inst"
+	MetricReservationMinFutureSizeVcpu          Metric = "reservation-min-future-size-vcpu"
+	MetricReservationMinFutureSizeInst          Metric = "reservation-min-future-size-inst"
+	MetricReservationMaxFutureSizeVcpu          Metric = "reservation-max-future-size-vcpu"
+	MetricReservationMaxFutureSizeInst          Metric = "reservation-max-future-size-inst"
+	MetricReservationAvgCommittedSizeVcpu       Metric = "reservation-avg-committed-size-vcpu"
+	MetricReservationAvgCommittedSizeInst       Metric = "reservation-avg-committed-size-inst"
+	MetricReservationMaxCommittedSizeVcpu       Metric = "reservation-max-committed-size-vcpu"
+	MetricReservationMaxCommittedSizeInst       Metric = "reservation-max-committed-size-inst"
+	MetricReservationMinCommittedSizeVcpu       Metric = "reservation-min-committed-size-vcpu"
+	MetricReservationMinCommittedSizeInst       Metric = "reservation-min-committed-size-inst"
+	MetricReservedTotalUsageHrsVcpu             Metric = "reserved-total-usage-hrs-vcpu"
+	MetricReservedTotalUsageHrsInst             Metric = "reserved-total-usage-hrs-inst"
+	MetricReservedTotalEstimatedCost            Metric = "reserved-total-estimated-cost"
+	MetricUnreservedTotalUsageHrsVcpu           Metric = "unreserved-total-usage-hrs-vcpu"
+	MetricUnreservedTotalUsageHrsInst           Metric = "unreserved-total-usage-hrs-inst"
+	MetricUnreservedTotalEstimatedCost          Metric = "unreserved-total-estimated-cost"
+	MetricSpotTotalUsageHrsVcpu                 Metric = "spot-total-usage-hrs-vcpu"
+	MetricSpotTotalUsageHrsInst                 Metric = "spot-total-usage-hrs-inst"
+	MetricSpotTotalEstimatedCost                Metric = "spot-total-estimated-cost"
+	MetricSpotAvgRunTimeBeforeInterruptionInst  Metric = "spot-avg-run-time-before-interruption-inst"
+	MetricSpotMaxRunTimeBeforeInterruptionInst  Metric = "spot-max-run-time-before-interruption-inst"
+	MetricSpotMinRunTimeBeforeInterruptionInst  Metric = "spot-min-run-time-before-interruption-inst"
+	MetricSpotTotalInterruptionsInst            Metric = "spot-total-interruptions-inst"
+	MetricSpotTotalInterruptionsVcpu            Metric = "spot-total-interruptions-vcpu"
+	MetricSpotTotalCountInst                    Metric = "spot-total-count-inst"
+	MetricSpotTotalCountVcpu                    Metric = "spot-total-count-vcpu"
+	MetricSpotInterruptionRateInst              Metric = "spot-interruption-rate-inst"
+	MetricSpotInterruptionRateVcpu              Metric = "spot-interruption-rate-vcpu"
+)
+
+// Values returns all known values for Metric. Note that this can be expanded in
+// the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (Metric) Values() []Metric {
+	return []Metric{
+		"reservation-total-capacity-hrs-vcpu",
+		"reservation-total-capacity-hrs-inst",
+		"reservation-max-size-vcpu",
+		"reservation-max-size-inst",
+		"reservation-min-size-vcpu",
+		"reservation-min-size-inst",
+		"reservation-unused-total-capacity-hrs-vcpu",
+		"reservation-unused-total-capacity-hrs-inst",
+		"reservation-unused-total-estimated-cost",
+		"reservation-max-unused-size-vcpu",
+		"reservation-max-unused-size-inst",
+		"reservation-min-unused-size-vcpu",
+		"reservation-min-unused-size-inst",
+		"reservation-max-utilization",
+		"reservation-min-utilization",
+		"reservation-avg-utilization-vcpu",
+		"reservation-avg-utilization-inst",
+		"reservation-total-count",
+		"reservation-total-estimated-cost",
+		"reservation-avg-future-size-vcpu",
+		"reservation-avg-future-size-inst",
+		"reservation-min-future-size-vcpu",
+		"reservation-min-future-size-inst",
+		"reservation-max-future-size-vcpu",
+		"reservation-max-future-size-inst",
+		"reservation-avg-committed-size-vcpu",
+		"reservation-avg-committed-size-inst",
+		"reservation-max-committed-size-vcpu",
+		"reservation-max-committed-size-inst",
+		"reservation-min-committed-size-vcpu",
+		"reservation-min-committed-size-inst",
+		"reserved-total-usage-hrs-vcpu",
+		"reserved-total-usage-hrs-inst",
+		"reserved-total-estimated-cost",
+		"unreserved-total-usage-hrs-vcpu",
+		"unreserved-total-usage-hrs-inst",
+		"unreserved-total-estimated-cost",
+		"spot-total-usage-hrs-vcpu",
+		"spot-total-usage-hrs-inst",
+		"spot-total-estimated-cost",
+		"spot-avg-run-time-before-interruption-inst",
+		"spot-max-run-time-before-interruption-inst",
+		"spot-min-run-time-before-interruption-inst",
+		"spot-total-interruptions-inst",
+		"spot-total-interruptions-vcpu",
+		"spot-total-count-inst",
+		"spot-total-count-vcpu",
+		"spot-interruption-rate-inst",
+		"spot-interruption-rate-vcpu",
 	}
 }
 
@@ -6602,6 +8121,72 @@ func (NatGatewayAddressStatus) Values() []NatGatewayAddressStatus {
 		"disassociating",
 		"succeeded",
 		"failed",
+	}
+}
+
+type NatGatewayApplianceModifyState string
+
+// Enum values for NatGatewayApplianceModifyState
+const (
+	NatGatewayApplianceModifyStateModifying NatGatewayApplianceModifyState = "modifying"
+	NatGatewayApplianceModifyStateCompleted NatGatewayApplianceModifyState = "completed"
+	NatGatewayApplianceModifyStateFailed    NatGatewayApplianceModifyState = "failed"
+)
+
+// Values returns all known values for NatGatewayApplianceModifyState. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (NatGatewayApplianceModifyState) Values() []NatGatewayApplianceModifyState {
+	return []NatGatewayApplianceModifyState{
+		"modifying",
+		"completed",
+		"failed",
+	}
+}
+
+type NatGatewayApplianceState string
+
+// Enum values for NatGatewayApplianceState
+const (
+	NatGatewayApplianceStateAttaching    NatGatewayApplianceState = "attaching"
+	NatGatewayApplianceStateAttached     NatGatewayApplianceState = "attached"
+	NatGatewayApplianceStateDetaching    NatGatewayApplianceState = "detaching"
+	NatGatewayApplianceStateDetached     NatGatewayApplianceState = "detached"
+	NatGatewayApplianceStateAttachFailed NatGatewayApplianceState = "attach-failed"
+	NatGatewayApplianceStateDetachFailed NatGatewayApplianceState = "detach-failed"
+)
+
+// Values returns all known values for NatGatewayApplianceState. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (NatGatewayApplianceState) Values() []NatGatewayApplianceState {
+	return []NatGatewayApplianceState{
+		"attaching",
+		"attached",
+		"detaching",
+		"detached",
+		"attach-failed",
+		"detach-failed",
+	}
+}
+
+type NatGatewayApplianceType string
+
+// Enum values for NatGatewayApplianceType
+const (
+	NatGatewayApplianceTypeNetworkFirewallProxy NatGatewayApplianceType = "network-firewall-proxy"
+)
+
+// Values returns all known values for NatGatewayApplianceType. Note that this can
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (NatGatewayApplianceType) Values() []NatGatewayApplianceType {
+	return []NatGatewayApplianceType{
+		"network-firewall-proxy",
 	}
 }
 
@@ -6898,6 +8483,25 @@ func (OperationType) Values() []OperationType {
 	return []OperationType{
 		"add",
 		"remove",
+	}
+}
+
+type OutputFormat string
+
+// Enum values for OutputFormat
+const (
+	OutputFormatCsv     OutputFormat = "csv"
+	OutputFormatParquet OutputFormat = "parquet"
+)
+
+// Values returns all known values for OutputFormat. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (OutputFormat) Values() []OutputFormat {
+	return []OutputFormat{
+		"csv",
+		"parquet",
 	}
 }
 
@@ -7228,6 +8832,46 @@ func (ProtocolValue) Values() []ProtocolValue {
 	}
 }
 
+type PublicIpDnsOption string
+
+// Enum values for PublicIpDnsOption
+const (
+	PublicIpDnsOptionPublicDualStackDnsName PublicIpDnsOption = "public-dual-stack-dns-name"
+	PublicIpDnsOptionPublicIpv4DnsName      PublicIpDnsOption = "public-ipv4-dns-name"
+	PublicIpDnsOptionPublicIpv6DnsName      PublicIpDnsOption = "public-ipv6-dns-name"
+)
+
+// Values returns all known values for PublicIpDnsOption. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (PublicIpDnsOption) Values() []PublicIpDnsOption {
+	return []PublicIpDnsOption{
+		"public-dual-stack-dns-name",
+		"public-ipv4-dns-name",
+		"public-ipv6-dns-name",
+	}
+}
+
+type RebootMigrationSupport string
+
+// Enum values for RebootMigrationSupport
+const (
+	RebootMigrationSupportUnsupported RebootMigrationSupport = "unsupported"
+	RebootMigrationSupportSupported   RebootMigrationSupport = "supported"
+)
+
+// Values returns all known values for RebootMigrationSupport. Note that this can
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (RebootMigrationSupport) Values() []RebootMigrationSupport {
+	return []RebootMigrationSupport{
+		"unsupported",
+		"supported",
+	}
+}
+
 type RecurringChargeFrequency string
 
 // Enum values for RecurringChargeFrequency
@@ -7366,13 +9010,39 @@ func (ReportStatusType) Values() []ReportStatusType {
 	}
 }
 
+type ReservationEndDateType string
+
+// Enum values for ReservationEndDateType
+const (
+	ReservationEndDateTypeLimited   ReservationEndDateType = "limited"
+	ReservationEndDateTypeUnlimited ReservationEndDateType = "unlimited"
+)
+
+// Values returns all known values for ReservationEndDateType. Note that this can
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ReservationEndDateType) Values() []ReservationEndDateType {
+	return []ReservationEndDateType{
+		"limited",
+		"unlimited",
+	}
+}
+
 type ReservationState string
 
 // Enum values for ReservationState
 const (
+	ReservationStateActive         ReservationState = "active"
+	ReservationStateExpired        ReservationState = "expired"
+	ReservationStateCancelled      ReservationState = "cancelled"
+	ReservationStateScheduled      ReservationState = "scheduled"
+	ReservationStatePending        ReservationState = "pending"
+	ReservationStateFailed         ReservationState = "failed"
+	ReservationStateDelayed        ReservationState = "delayed"
+	ReservationStateUnsupported    ReservationState = "unsupported"
 	ReservationStatePaymentPending ReservationState = "payment-pending"
 	ReservationStatePaymentFailed  ReservationState = "payment-failed"
-	ReservationStateActive         ReservationState = "active"
 	ReservationStateRetired        ReservationState = "retired"
 )
 
@@ -7382,10 +9052,36 @@ const (
 // The ordering of this slice is not guaranteed to be stable across updates.
 func (ReservationState) Values() []ReservationState {
 	return []ReservationState{
+		"active",
+		"expired",
+		"cancelled",
+		"scheduled",
+		"pending",
+		"failed",
+		"delayed",
+		"unsupported",
 		"payment-pending",
 		"payment-failed",
-		"active",
 		"retired",
+	}
+}
+
+type ReservationType string
+
+// Enum values for ReservationType
+const (
+	ReservationTypeCapacityBlock ReservationType = "capacity-block"
+	ReservationTypeOdcr          ReservationType = "odcr"
+)
+
+// Values returns all known values for ReservationType. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ReservationType) Values() []ReservationType {
+	return []ReservationType{
+		"capacity-block",
+		"odcr",
 	}
 }
 
@@ -7471,6 +9167,7 @@ const (
 	ResourceTypeFpgaImage                                              ResourceType = "fpga-image"
 	ResourceTypeHostReservation                                        ResourceType = "host-reservation"
 	ResourceTypeImage                                                  ResourceType = "image"
+	ResourceTypeImageUsageReport                                       ResourceType = "image-usage-report"
 	ResourceTypeImportImageTask                                        ResourceType = "import-image-task"
 	ResourceTypeImportSnapshotTask                                     ResourceType = "import-snapshot-task"
 	ResourceTypeInstance                                               ResourceType = "instance"
@@ -7496,6 +9193,7 @@ const (
 	ResourceTypeNetworkInsightsPath                                    ResourceType = "network-insights-path"
 	ResourceTypeNetworkInsightsAccessScope                             ResourceType = "network-insights-access-scope"
 	ResourceTypeNetworkInsightsAccessScopeAnalysis                     ResourceType = "network-insights-access-scope-analysis"
+	ResourceTypeOutpostLag                                             ResourceType = "outpost-lag"
 	ResourceTypePlacementGroup                                         ResourceType = "placement-group"
 	ResourceTypePrefixList                                             ResourceType = "prefix-list"
 	ResourceTypeReplaceRootVolumeTask                                  ResourceType = "replace-root-volume-task"
@@ -7503,6 +9201,7 @@ const (
 	ResourceTypeRouteTable                                             ResourceType = "route-table"
 	ResourceTypeSecurityGroup                                          ResourceType = "security-group"
 	ResourceTypeSecurityGroupRule                                      ResourceType = "security-group-rule"
+	ResourceTypeServiceLinkVirtualInterface                            ResourceType = "service-link-virtual-interface"
 	ResourceTypeSnapshot                                               ResourceType = "snapshot"
 	ResourceTypeSpotFleetRequest                                       ResourceType = "spot-fleet-request"
 	ResourceTypeSpotInstancesRequest                                   ResourceType = "spot-instances-request"
@@ -7516,6 +9215,7 @@ const (
 	ResourceTypeTransitGatewayConnectPeer                              ResourceType = "transit-gateway-connect-peer"
 	ResourceTypeTransitGatewayMulticastDomain                          ResourceType = "transit-gateway-multicast-domain"
 	ResourceTypeTransitGatewayPolicyTable                              ResourceType = "transit-gateway-policy-table"
+	ResourceTypeTransitGatewayMeteringPolicy                           ResourceType = "transit-gateway-metering-policy"
 	ResourceTypeTransitGatewayRouteTable                               ResourceType = "transit-gateway-route-table"
 	ResourceTypeTransitGatewayRouteTableAnnouncement                   ResourceType = "transit-gateway-route-table-announcement"
 	ResourceTypeVolume                                                 ResourceType = "volume"
@@ -7538,11 +9238,22 @@ const (
 	ResourceTypeVerifiedAccessTrustProvider                            ResourceType = "verified-access-trust-provider"
 	ResourceTypeVpnConnectionDeviceType                                ResourceType = "vpn-connection-device-type"
 	ResourceTypeVpcBlockPublicAccessExclusion                          ResourceType = "vpc-block-public-access-exclusion"
+	ResourceTypeVpcEncryptionControl                                   ResourceType = "vpc-encryption-control"
+	ResourceTypeRouteServer                                            ResourceType = "route-server"
+	ResourceTypeRouteServerEndpoint                                    ResourceType = "route-server-endpoint"
+	ResourceTypeRouteServerPeer                                        ResourceType = "route-server-peer"
 	ResourceTypeIpamResourceDiscovery                                  ResourceType = "ipam-resource-discovery"
 	ResourceTypeIpamResourceDiscoveryAssociation                       ResourceType = "ipam-resource-discovery-association"
 	ResourceTypeInstanceConnectEndpoint                                ResourceType = "instance-connect-endpoint"
 	ResourceTypeVerifiedAccessEndpointTarget                           ResourceType = "verified-access-endpoint-target"
 	ResourceTypeIpamExternalResourceVerificationToken                  ResourceType = "ipam-external-resource-verification-token"
+	ResourceTypeCapacityBlock                                          ResourceType = "capacity-block"
+	ResourceTypeMacModificationTask                                    ResourceType = "mac-modification-task"
+	ResourceTypeIpamPrefixListResolver                                 ResourceType = "ipam-prefix-list-resolver"
+	ResourceTypeIpamPolicy                                             ResourceType = "ipam-policy"
+	ResourceTypeIpamPrefixListResolverTarget                           ResourceType = "ipam-prefix-list-resolver-target"
+	ResourceTypeCapacityManagerDataExport                              ResourceType = "capacity-manager-data-export"
+	ResourceTypeVpnConcentrator                                        ResourceType = "vpn-concentrator"
 )
 
 // Values returns all known values for ResourceType. Note that this can be
@@ -7568,6 +9279,7 @@ func (ResourceType) Values() []ResourceType {
 		"fpga-image",
 		"host-reservation",
 		"image",
+		"image-usage-report",
 		"import-image-task",
 		"import-snapshot-task",
 		"instance",
@@ -7593,6 +9305,7 @@ func (ResourceType) Values() []ResourceType {
 		"network-insights-path",
 		"network-insights-access-scope",
 		"network-insights-access-scope-analysis",
+		"outpost-lag",
 		"placement-group",
 		"prefix-list",
 		"replace-root-volume-task",
@@ -7600,6 +9313,7 @@ func (ResourceType) Values() []ResourceType {
 		"route-table",
 		"security-group",
 		"security-group-rule",
+		"service-link-virtual-interface",
 		"snapshot",
 		"spot-fleet-request",
 		"spot-instances-request",
@@ -7613,6 +9327,7 @@ func (ResourceType) Values() []ResourceType {
 		"transit-gateway-connect-peer",
 		"transit-gateway-multicast-domain",
 		"transit-gateway-policy-table",
+		"transit-gateway-metering-policy",
 		"transit-gateway-route-table",
 		"transit-gateway-route-table-announcement",
 		"volume",
@@ -7635,11 +9350,22 @@ func (ResourceType) Values() []ResourceType {
 		"verified-access-trust-provider",
 		"vpn-connection-device-type",
 		"vpc-block-public-access-exclusion",
+		"vpc-encryption-control",
+		"route-server",
+		"route-server-endpoint",
+		"route-server-peer",
 		"ipam-resource-discovery",
 		"ipam-resource-discovery-association",
 		"instance-connect-endpoint",
 		"verified-access-endpoint-target",
 		"ipam-external-resource-verification-token",
+		"capacity-block",
+		"mac-modification-task",
+		"ipam-prefix-list-resolver",
+		"ipam-policy",
+		"ipam-prefix-list-resolver-target",
+		"capacity-manager-data-export",
+		"vpn-concentrator",
 	}
 }
 
@@ -7692,6 +9418,7 @@ const (
 	RouteOriginCreateRouteTable          RouteOrigin = "CreateRouteTable"
 	RouteOriginCreateRoute               RouteOrigin = "CreateRoute"
 	RouteOriginEnableVgwRoutePropagation RouteOrigin = "EnableVgwRoutePropagation"
+	RouteOriginAdvertisement             RouteOrigin = "Advertisement"
 )
 
 // Values returns all known values for RouteOrigin. Note that this can be expanded
@@ -7703,6 +9430,276 @@ func (RouteOrigin) Values() []RouteOrigin {
 		"CreateRouteTable",
 		"CreateRoute",
 		"EnableVgwRoutePropagation",
+		"Advertisement",
+	}
+}
+
+type RouteServerAssociationState string
+
+// Enum values for RouteServerAssociationState
+const (
+	RouteServerAssociationStateAssociating    RouteServerAssociationState = "associating"
+	RouteServerAssociationStateAssociated     RouteServerAssociationState = "associated"
+	RouteServerAssociationStateDisassociating RouteServerAssociationState = "disassociating"
+)
+
+// Values returns all known values for RouteServerAssociationState. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (RouteServerAssociationState) Values() []RouteServerAssociationState {
+	return []RouteServerAssociationState{
+		"associating",
+		"associated",
+		"disassociating",
+	}
+}
+
+type RouteServerBfdState string
+
+// Enum values for RouteServerBfdState
+const (
+	RouteServerBfdStateUp   RouteServerBfdState = "up"
+	RouteServerBfdStateDown RouteServerBfdState = "down"
+)
+
+// Values returns all known values for RouteServerBfdState. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (RouteServerBfdState) Values() []RouteServerBfdState {
+	return []RouteServerBfdState{
+		"up",
+		"down",
+	}
+}
+
+type RouteServerBgpState string
+
+// Enum values for RouteServerBgpState
+const (
+	RouteServerBgpStateUp   RouteServerBgpState = "up"
+	RouteServerBgpStateDown RouteServerBgpState = "down"
+)
+
+// Values returns all known values for RouteServerBgpState. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (RouteServerBgpState) Values() []RouteServerBgpState {
+	return []RouteServerBgpState{
+		"up",
+		"down",
+	}
+}
+
+type RouteServerEndpointState string
+
+// Enum values for RouteServerEndpointState
+const (
+	RouteServerEndpointStatePending      RouteServerEndpointState = "pending"
+	RouteServerEndpointStateAvailable    RouteServerEndpointState = "available"
+	RouteServerEndpointStateDeleting     RouteServerEndpointState = "deleting"
+	RouteServerEndpointStateDeleted      RouteServerEndpointState = "deleted"
+	RouteServerEndpointStateFailing      RouteServerEndpointState = "failing"
+	RouteServerEndpointStateFailed       RouteServerEndpointState = "failed"
+	RouteServerEndpointStateDeleteFailed RouteServerEndpointState = "delete-failed"
+)
+
+// Values returns all known values for RouteServerEndpointState. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (RouteServerEndpointState) Values() []RouteServerEndpointState {
+	return []RouteServerEndpointState{
+		"pending",
+		"available",
+		"deleting",
+		"deleted",
+		"failing",
+		"failed",
+		"delete-failed",
+	}
+}
+
+type RouteServerPeerLivenessMode string
+
+// Enum values for RouteServerPeerLivenessMode
+const (
+	RouteServerPeerLivenessModeBfd          RouteServerPeerLivenessMode = "bfd"
+	RouteServerPeerLivenessModeBgpKeepalive RouteServerPeerLivenessMode = "bgp-keepalive"
+)
+
+// Values returns all known values for RouteServerPeerLivenessMode. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (RouteServerPeerLivenessMode) Values() []RouteServerPeerLivenessMode {
+	return []RouteServerPeerLivenessMode{
+		"bfd",
+		"bgp-keepalive",
+	}
+}
+
+type RouteServerPeerState string
+
+// Enum values for RouteServerPeerState
+const (
+	RouteServerPeerStatePending   RouteServerPeerState = "pending"
+	RouteServerPeerStateAvailable RouteServerPeerState = "available"
+	RouteServerPeerStateDeleting  RouteServerPeerState = "deleting"
+	RouteServerPeerStateDeleted   RouteServerPeerState = "deleted"
+	RouteServerPeerStateFailing   RouteServerPeerState = "failing"
+	RouteServerPeerStateFailed    RouteServerPeerState = "failed"
+)
+
+// Values returns all known values for RouteServerPeerState. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (RouteServerPeerState) Values() []RouteServerPeerState {
+	return []RouteServerPeerState{
+		"pending",
+		"available",
+		"deleting",
+		"deleted",
+		"failing",
+		"failed",
+	}
+}
+
+type RouteServerPersistRoutesAction string
+
+// Enum values for RouteServerPersistRoutesAction
+const (
+	RouteServerPersistRoutesActionEnable  RouteServerPersistRoutesAction = "enable"
+	RouteServerPersistRoutesActionDisable RouteServerPersistRoutesAction = "disable"
+	RouteServerPersistRoutesActionReset   RouteServerPersistRoutesAction = "reset"
+)
+
+// Values returns all known values for RouteServerPersistRoutesAction. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (RouteServerPersistRoutesAction) Values() []RouteServerPersistRoutesAction {
+	return []RouteServerPersistRoutesAction{
+		"enable",
+		"disable",
+		"reset",
+	}
+}
+
+type RouteServerPersistRoutesState string
+
+// Enum values for RouteServerPersistRoutesState
+const (
+	RouteServerPersistRoutesStateEnabling  RouteServerPersistRoutesState = "enabling"
+	RouteServerPersistRoutesStateEnabled   RouteServerPersistRoutesState = "enabled"
+	RouteServerPersistRoutesStateResetting RouteServerPersistRoutesState = "resetting"
+	RouteServerPersistRoutesStateDisabling RouteServerPersistRoutesState = "disabling"
+	RouteServerPersistRoutesStateDisabled  RouteServerPersistRoutesState = "disabled"
+	RouteServerPersistRoutesStateModifying RouteServerPersistRoutesState = "modifying"
+)
+
+// Values returns all known values for RouteServerPersistRoutesState. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (RouteServerPersistRoutesState) Values() []RouteServerPersistRoutesState {
+	return []RouteServerPersistRoutesState{
+		"enabling",
+		"enabled",
+		"resetting",
+		"disabling",
+		"disabled",
+		"modifying",
+	}
+}
+
+type RouteServerPropagationState string
+
+// Enum values for RouteServerPropagationState
+const (
+	RouteServerPropagationStatePending   RouteServerPropagationState = "pending"
+	RouteServerPropagationStateAvailable RouteServerPropagationState = "available"
+	RouteServerPropagationStateDeleting  RouteServerPropagationState = "deleting"
+)
+
+// Values returns all known values for RouteServerPropagationState. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (RouteServerPropagationState) Values() []RouteServerPropagationState {
+	return []RouteServerPropagationState{
+		"pending",
+		"available",
+		"deleting",
+	}
+}
+
+type RouteServerRouteInstallationStatus string
+
+// Enum values for RouteServerRouteInstallationStatus
+const (
+	RouteServerRouteInstallationStatusInstalled RouteServerRouteInstallationStatus = "installed"
+	RouteServerRouteInstallationStatusRejected  RouteServerRouteInstallationStatus = "rejected"
+)
+
+// Values returns all known values for RouteServerRouteInstallationStatus. Note
+// that this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (RouteServerRouteInstallationStatus) Values() []RouteServerRouteInstallationStatus {
+	return []RouteServerRouteInstallationStatus{
+		"installed",
+		"rejected",
+	}
+}
+
+type RouteServerRouteStatus string
+
+// Enum values for RouteServerRouteStatus
+const (
+	RouteServerRouteStatusInRib RouteServerRouteStatus = "in-rib"
+	RouteServerRouteStatusInFib RouteServerRouteStatus = "in-fib"
+)
+
+// Values returns all known values for RouteServerRouteStatus. Note that this can
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (RouteServerRouteStatus) Values() []RouteServerRouteStatus {
+	return []RouteServerRouteStatus{
+		"in-rib",
+		"in-fib",
+	}
+}
+
+type RouteServerState string
+
+// Enum values for RouteServerState
+const (
+	RouteServerStatePending   RouteServerState = "pending"
+	RouteServerStateAvailable RouteServerState = "available"
+	RouteServerStateModifying RouteServerState = "modifying"
+	RouteServerStateDeleting  RouteServerState = "deleting"
+	RouteServerStateDeleted   RouteServerState = "deleted"
+)
+
+// Values returns all known values for RouteServerState. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (RouteServerState) Values() []RouteServerState {
+	return []RouteServerState{
+		"pending",
+		"available",
+		"modifying",
+		"deleting",
+		"deleted",
 	}
 }
 
@@ -7712,6 +9709,7 @@ type RouteState string
 const (
 	RouteStateActive    RouteState = "active"
 	RouteStateBlackhole RouteState = "blackhole"
+	RouteStateFiltered  RouteState = "filtered"
 )
 
 // Values returns all known values for RouteState. Note that this can be expanded
@@ -7722,6 +9720,7 @@ func (RouteState) Values() []RouteState {
 	return []RouteState{
 		"active",
 		"blackhole",
+		"filtered",
 	}
 }
 
@@ -7767,6 +9766,23 @@ func (RuleAction) Values() []RuleAction {
 	return []RuleAction{
 		"allow",
 		"deny",
+	}
+}
+
+type Schedule string
+
+// Enum values for Schedule
+const (
+	ScheduleHourly Schedule = "hourly"
+)
+
+// Values returns all known values for Schedule. Note that this can be expanded in
+// the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (Schedule) Values() []Schedule {
+	return []Schedule{
+		"hourly",
 	}
 }
 
@@ -7872,6 +9888,53 @@ func (ServiceConnectivityType) Values() []ServiceConnectivityType {
 	return []ServiceConnectivityType{
 		"ipv4",
 		"ipv6",
+	}
+}
+
+type ServiceLinkVirtualInterfaceConfigurationState string
+
+// Enum values for ServiceLinkVirtualInterfaceConfigurationState
+const (
+	ServiceLinkVirtualInterfaceConfigurationStatePending   ServiceLinkVirtualInterfaceConfigurationState = "pending"
+	ServiceLinkVirtualInterfaceConfigurationStateAvailable ServiceLinkVirtualInterfaceConfigurationState = "available"
+	ServiceLinkVirtualInterfaceConfigurationStateDeleting  ServiceLinkVirtualInterfaceConfigurationState = "deleting"
+	ServiceLinkVirtualInterfaceConfigurationStateDeleted   ServiceLinkVirtualInterfaceConfigurationState = "deleted"
+)
+
+// Values returns all known values for
+// ServiceLinkVirtualInterfaceConfigurationState. Note that this can be expanded in
+// the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ServiceLinkVirtualInterfaceConfigurationState) Values() []ServiceLinkVirtualInterfaceConfigurationState {
+	return []ServiceLinkVirtualInterfaceConfigurationState{
+		"pending",
+		"available",
+		"deleting",
+		"deleted",
+	}
+}
+
+type ServiceManaged string
+
+// Enum values for ServiceManaged
+const (
+	ServiceManagedAlb  ServiceManaged = "alb"
+	ServiceManagedNlb  ServiceManaged = "nlb"
+	ServiceManagedRnat ServiceManaged = "rnat"
+	ServiceManagedRds  ServiceManaged = "rds"
+)
+
+// Values returns all known values for ServiceManaged. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ServiceManaged) Values() []ServiceManaged {
+	return []ServiceManaged{
+		"alb",
+		"nlb",
+		"rnat",
+		"rds",
 	}
 }
 
@@ -7997,6 +10060,31 @@ func (SnapshotLocationEnum) Values() []SnapshotLocationEnum {
 	return []SnapshotLocationEnum{
 		"regional",
 		"local",
+	}
+}
+
+type SnapshotReturnCodes string
+
+// Enum values for SnapshotReturnCodes
+const (
+	SnapshotReturnCodesSuccess                 SnapshotReturnCodes = "success"
+	SnapshotReturnCodesWarnSkipped             SnapshotReturnCodes = "skipped"
+	SnapshotReturnCodesErrorMissingPermissions SnapshotReturnCodes = "missing-permissions"
+	SnapshotReturnCodesErrorCodeInternalError  SnapshotReturnCodes = "internal-error"
+	SnapshotReturnCodesErrorCodeClientError    SnapshotReturnCodes = "client-error"
+)
+
+// Values returns all known values for SnapshotReturnCodes. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (SnapshotReturnCodes) Values() []SnapshotReturnCodes {
+	return []SnapshotReturnCodes{
+		"success",
+		"skipped",
+		"missing-permissions",
+		"internal-error",
+		"client-error",
 	}
 }
 
@@ -8134,6 +10222,25 @@ func (SpreadLevel) Values() []SpreadLevel {
 	return []SpreadLevel{
 		"host",
 		"rack",
+	}
+}
+
+type SqlServerLicenseUsage string
+
+// Enum values for SqlServerLicenseUsage
+const (
+	SqlServerLicenseUsageFull   SqlServerLicenseUsage = "full"
+	SqlServerLicenseUsageWaived SqlServerLicenseUsage = "waived"
+)
+
+// Values returns all known values for SqlServerLicenseUsage. Note that this can
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (SqlServerLicenseUsage) Values() []SqlServerLicenseUsage {
+	return []SqlServerLicenseUsage{
+		"full",
+		"waived",
 	}
 }
 
@@ -8357,9 +10464,11 @@ type SubnetState string
 
 // Enum values for SubnetState
 const (
-	SubnetStatePending     SubnetState = "pending"
-	SubnetStateAvailable   SubnetState = "available"
-	SubnetStateUnavailable SubnetState = "unavailable"
+	SubnetStatePending                    SubnetState = "pending"
+	SubnetStateAvailable                  SubnetState = "available"
+	SubnetStateUnavailable                SubnetState = "unavailable"
+	SubnetStateFailed                     SubnetState = "failed"
+	SubnetStateFailedInsufficientCapacity SubnetState = "failed-insufficient-capacity"
 )
 
 // Values returns all known values for SubnetState. Note that this can be expanded
@@ -8371,6 +10480,8 @@ func (SubnetState) Values() []SubnetState {
 		"pending",
 		"available",
 		"unavailable",
+		"failed",
+		"failed-insufficient-capacity",
 	}
 }
 
@@ -8583,6 +10694,27 @@ func (TrafficDirection) Values() []TrafficDirection {
 	}
 }
 
+type TrafficIpAddressType string
+
+// Enum values for TrafficIpAddressType
+const (
+	TrafficIpAddressTypeIpv4      TrafficIpAddressType = "ipv4"
+	TrafficIpAddressTypeIpv6      TrafficIpAddressType = "ipv6"
+	TrafficIpAddressTypeDualStack TrafficIpAddressType = "dual-stack"
+)
+
+// Values returns all known values for TrafficIpAddressType. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (TrafficIpAddressType) Values() []TrafficIpAddressType {
+	return []TrafficIpAddressType{
+		"ipv4",
+		"ipv6",
+		"dual-stack",
+	}
+}
+
 type TrafficMirrorFilterRuleField string
 
 // Enum values for TrafficMirrorFilterRuleField
@@ -8755,10 +10887,12 @@ type TransitGatewayAttachmentResourceType string
 const (
 	TransitGatewayAttachmentResourceTypeVpc                  TransitGatewayAttachmentResourceType = "vpc"
 	TransitGatewayAttachmentResourceTypeVpn                  TransitGatewayAttachmentResourceType = "vpn"
+	TransitGatewayAttachmentResourceTypeVpnConcentrator      TransitGatewayAttachmentResourceType = "vpn-concentrator"
 	TransitGatewayAttachmentResourceTypeDirectConnectGateway TransitGatewayAttachmentResourceType = "direct-connect-gateway"
 	TransitGatewayAttachmentResourceTypeConnect              TransitGatewayAttachmentResourceType = "connect"
 	TransitGatewayAttachmentResourceTypePeering              TransitGatewayAttachmentResourceType = "peering"
 	TransitGatewayAttachmentResourceTypeTgwPeering           TransitGatewayAttachmentResourceType = "tgw-peering"
+	TransitGatewayAttachmentResourceTypeNetworkFunction      TransitGatewayAttachmentResourceType = "network-function"
 )
 
 // Values returns all known values for TransitGatewayAttachmentResourceType. Note
@@ -8770,10 +10904,12 @@ func (TransitGatewayAttachmentResourceType) Values() []TransitGatewayAttachmentR
 	return []TransitGatewayAttachmentResourceType{
 		"vpc",
 		"vpn",
+		"vpn-concentrator",
 		"direct-connect-gateway",
 		"connect",
 		"peering",
 		"tgw-peering",
+		"network-function",
 	}
 }
 
@@ -8840,6 +10976,74 @@ func (TransitGatewayConnectPeerState) Values() []TransitGatewayConnectPeerState 
 		"available",
 		"deleting",
 		"deleted",
+	}
+}
+
+type TransitGatewayMeteringPayerType string
+
+// Enum values for TransitGatewayMeteringPayerType
+const (
+	TransitGatewayMeteringPayerTypeSourceAttachmentOwner      TransitGatewayMeteringPayerType = "source-attachment-owner"
+	TransitGatewayMeteringPayerTypeDestinationAttachmentOwner TransitGatewayMeteringPayerType = "destination-attachment-owner"
+	TransitGatewayMeteringPayerTypeTransitGatewayOwner        TransitGatewayMeteringPayerType = "transit-gateway-owner"
+)
+
+// Values returns all known values for TransitGatewayMeteringPayerType. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (TransitGatewayMeteringPayerType) Values() []TransitGatewayMeteringPayerType {
+	return []TransitGatewayMeteringPayerType{
+		"source-attachment-owner",
+		"destination-attachment-owner",
+		"transit-gateway-owner",
+	}
+}
+
+type TransitGatewayMeteringPolicyEntryState string
+
+// Enum values for TransitGatewayMeteringPolicyEntryState
+const (
+	TransitGatewayMeteringPolicyEntryStateAvailable TransitGatewayMeteringPolicyEntryState = "available"
+	TransitGatewayMeteringPolicyEntryStateDeleted   TransitGatewayMeteringPolicyEntryState = "deleted"
+)
+
+// Values returns all known values for TransitGatewayMeteringPolicyEntryState.
+// Note that this can be expanded in the future, and so it is only as up to date as
+// the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (TransitGatewayMeteringPolicyEntryState) Values() []TransitGatewayMeteringPolicyEntryState {
+	return []TransitGatewayMeteringPolicyEntryState{
+		"available",
+		"deleted",
+	}
+}
+
+type TransitGatewayMeteringPolicyState string
+
+// Enum values for TransitGatewayMeteringPolicyState
+const (
+	TransitGatewayMeteringPolicyStateAvailable TransitGatewayMeteringPolicyState = "available"
+	TransitGatewayMeteringPolicyStateDeleted   TransitGatewayMeteringPolicyState = "deleted"
+	TransitGatewayMeteringPolicyStatePending   TransitGatewayMeteringPolicyState = "pending"
+	TransitGatewayMeteringPolicyStateModifying TransitGatewayMeteringPolicyState = "modifying"
+	TransitGatewayMeteringPolicyStateDeleting  TransitGatewayMeteringPolicyState = "deleting"
+)
+
+// Values returns all known values for TransitGatewayMeteringPolicyState. Note
+// that this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (TransitGatewayMeteringPolicyState) Values() []TransitGatewayMeteringPolicyState {
+	return []TransitGatewayMeteringPolicyState{
+		"available",
+		"deleted",
+		"pending",
+		"modifying",
+		"deleting",
 	}
 }
 
@@ -9503,6 +11707,7 @@ const (
 	VolumeStatusInfoStatusOk               VolumeStatusInfoStatus = "ok"
 	VolumeStatusInfoStatusImpaired         VolumeStatusInfoStatus = "impaired"
 	VolumeStatusInfoStatusInsufficientData VolumeStatusInfoStatus = "insufficient-data"
+	VolumeStatusInfoStatusWarning          VolumeStatusInfoStatus = "warning"
 )
 
 // Values returns all known values for VolumeStatusInfoStatus. Note that this can
@@ -9514,6 +11719,7 @@ func (VolumeStatusInfoStatus) Values() []VolumeStatusInfoStatus {
 		"ok",
 		"impaired",
 		"insufficient-data",
+		"warning",
 	}
 }
 
@@ -9521,8 +11727,9 @@ type VolumeStatusName string
 
 // Enum values for VolumeStatusName
 const (
-	VolumeStatusNameIoEnabled     VolumeStatusName = "io-enabled"
-	VolumeStatusNameIoPerformance VolumeStatusName = "io-performance"
+	VolumeStatusNameIoEnabled           VolumeStatusName = "io-enabled"
+	VolumeStatusNameIoPerformance       VolumeStatusName = "io-performance"
+	VolumeStatusNameInitializationState VolumeStatusName = "initialization-state"
 )
 
 // Values returns all known values for VolumeStatusName. Note that this can be
@@ -9533,6 +11740,7 @@ func (VolumeStatusName) Values() []VolumeStatusName {
 	return []VolumeStatusName{
 		"io-enabled",
 		"io-performance",
+		"initialization-state",
 	}
 }
 
@@ -9690,6 +11898,102 @@ func (VpcCidrBlockStateCode) Values() []VpcCidrBlockStateCode {
 	}
 }
 
+type VpcEncryptionControlExclusionState string
+
+// Enum values for VpcEncryptionControlExclusionState
+const (
+	VpcEncryptionControlExclusionStateEnabling  VpcEncryptionControlExclusionState = "enabling"
+	VpcEncryptionControlExclusionStateEnabled   VpcEncryptionControlExclusionState = "enabled"
+	VpcEncryptionControlExclusionStateDisabling VpcEncryptionControlExclusionState = "disabling"
+	VpcEncryptionControlExclusionStateDisabled  VpcEncryptionControlExclusionState = "disabled"
+)
+
+// Values returns all known values for VpcEncryptionControlExclusionState. Note
+// that this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (VpcEncryptionControlExclusionState) Values() []VpcEncryptionControlExclusionState {
+	return []VpcEncryptionControlExclusionState{
+		"enabling",
+		"enabled",
+		"disabling",
+		"disabled",
+	}
+}
+
+type VpcEncryptionControlExclusionStateInput string
+
+// Enum values for VpcEncryptionControlExclusionStateInput
+const (
+	VpcEncryptionControlExclusionStateInputEnable  VpcEncryptionControlExclusionStateInput = "enable"
+	VpcEncryptionControlExclusionStateInputDisable VpcEncryptionControlExclusionStateInput = "disable"
+)
+
+// Values returns all known values for VpcEncryptionControlExclusionStateInput.
+// Note that this can be expanded in the future, and so it is only as up to date as
+// the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (VpcEncryptionControlExclusionStateInput) Values() []VpcEncryptionControlExclusionStateInput {
+	return []VpcEncryptionControlExclusionStateInput{
+		"enable",
+		"disable",
+	}
+}
+
+type VpcEncryptionControlMode string
+
+// Enum values for VpcEncryptionControlMode
+const (
+	VpcEncryptionControlModeMonitor VpcEncryptionControlMode = "monitor"
+	VpcEncryptionControlModeEnforce VpcEncryptionControlMode = "enforce"
+)
+
+// Values returns all known values for VpcEncryptionControlMode. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (VpcEncryptionControlMode) Values() []VpcEncryptionControlMode {
+	return []VpcEncryptionControlMode{
+		"monitor",
+		"enforce",
+	}
+}
+
+type VpcEncryptionControlState string
+
+// Enum values for VpcEncryptionControlState
+const (
+	VpcEncryptionControlStateEnforceInProgress VpcEncryptionControlState = "enforce-in-progress"
+	VpcEncryptionControlStateMonitorInProgress VpcEncryptionControlState = "monitor-in-progress"
+	VpcEncryptionControlStateEnforceFailed     VpcEncryptionControlState = "enforce-failed"
+	VpcEncryptionControlStateMonitorFailed     VpcEncryptionControlState = "monitor-failed"
+	VpcEncryptionControlStateDeleting          VpcEncryptionControlState = "deleting"
+	VpcEncryptionControlStateDeleted           VpcEncryptionControlState = "deleted"
+	VpcEncryptionControlStateAvailable         VpcEncryptionControlState = "available"
+	VpcEncryptionControlStateCreating          VpcEncryptionControlState = "creating"
+	VpcEncryptionControlStateDeleteFailed      VpcEncryptionControlState = "delete-failed"
+)
+
+// Values returns all known values for VpcEncryptionControlState. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (VpcEncryptionControlState) Values() []VpcEncryptionControlState {
+	return []VpcEncryptionControlState{
+		"enforce-in-progress",
+		"monitor-in-progress",
+		"enforce-failed",
+		"monitor-failed",
+		"deleting",
+		"deleted",
+		"available",
+		"creating",
+		"delete-failed",
+	}
+}
+
 type VpcEndpointType string
 
 // Enum values for VpcEndpointType
@@ -9785,6 +12089,23 @@ func (VpcTenancy) Values() []VpcTenancy {
 	}
 }
 
+type VpnConcentratorType string
+
+// Enum values for VpnConcentratorType
+const (
+	VpnConcentratorTypeIpsec1 VpnConcentratorType = "ipsec.1"
+)
+
+// Values returns all known values for VpnConcentratorType. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (VpnConcentratorType) Values() []VpnConcentratorType {
+	return []VpnConcentratorType{
+		"ipsec.1",
+	}
+}
+
 type VpnEcmpSupportValue string
 
 // Enum values for VpnEcmpSupportValue
@@ -9858,6 +12179,46 @@ const (
 func (VpnStaticRouteSource) Values() []VpnStaticRouteSource {
 	return []VpnStaticRouteSource{
 		"Static",
+	}
+}
+
+type VpnTunnelBandwidth string
+
+// Enum values for VpnTunnelBandwidth
+const (
+	VpnTunnelBandwidthStandard VpnTunnelBandwidth = "standard"
+	VpnTunnelBandwidthLarge    VpnTunnelBandwidth = "large"
+)
+
+// Values returns all known values for VpnTunnelBandwidth. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (VpnTunnelBandwidth) Values() []VpnTunnelBandwidth {
+	return []VpnTunnelBandwidth{
+		"standard",
+		"large",
+	}
+}
+
+type VpnTunnelProvisioningStatus string
+
+// Enum values for VpnTunnelProvisioningStatus
+const (
+	VpnTunnelProvisioningStatusAvailable VpnTunnelProvisioningStatus = "available"
+	VpnTunnelProvisioningStatusPending   VpnTunnelProvisioningStatus = "pending"
+	VpnTunnelProvisioningStatusFailed    VpnTunnelProvisioningStatus = "failed"
+)
+
+// Values returns all known values for VpnTunnelProvisioningStatus. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (VpnTunnelProvisioningStatus) Values() []VpnTunnelProvisioningStatus {
+	return []VpnTunnelProvisioningStatus{
+		"available",
+		"pending",
+		"failed",
 	}
 }
 

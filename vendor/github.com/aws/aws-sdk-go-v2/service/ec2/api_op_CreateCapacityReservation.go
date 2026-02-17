@@ -55,9 +55,9 @@ type CreateCapacityReservationInput struct {
 	// The number of instances for which to reserve capacity.
 	//
 	// You can request future-dated Capacity Reservations for an instance count with a
-	// minimum of 100 VPUs. For example, if you request a future-dated Capacity
-	// Reservation for m5.xlarge instances, you must request at least 25 instances (25
-	// * m5.xlarge = 100 vCPUs).
+	// minimum of 32 vCPUs. For example, if you request a future-dated Capacity
+	// Reservation for m5.xlarge instances, you must request at least 8 instances (8 *
+	// m5.xlarge = 32 vCPUs).
 	//
 	// Valid range: 1 - 1000
 	//
@@ -72,7 +72,7 @@ type CreateCapacityReservationInput struct {
 	// The instance type for which to reserve capacity.
 	//
 	// You can request future-dated Capacity Reservations for instance types in the C,
-	// M, R, I, and T instance families only.
+	// M, R, I, T, and G instance families only.
 	//
 	// For more information, see [Instance types] in the Amazon EC2 User Guide.
 	//
@@ -298,6 +298,9 @@ func (c *Client) addOperationCreateCapacityReservationMiddlewares(stack *middlew
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpCreateCapacityReservationValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -319,16 +322,13 @@ func (c *Client) addOperationCreateCapacityReservationMiddlewares(stack *middlew
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

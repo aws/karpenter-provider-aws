@@ -61,8 +61,8 @@ type DescribeAddonConfigurationOutput struct {
 	// an add-on is created or updated.
 	ConfigurationSchema *string
 
-	// The Kubernetes service account name used by the addon, and any suggested IAM
-	// policies. Use this information to create an IAM Role for the Addon.
+	// The Kubernetes service account name used by the add-on, and any suggested IAM
+	// policies. Use this information to create an IAM Role for the add-on.
 	PodIdentityConfiguration []types.AddonPodIdentityConfiguration
 
 	// Metadata pertaining to the operation's result.
@@ -135,6 +135,9 @@ func (c *Client) addOperationDescribeAddonConfigurationMiddlewares(stack *middle
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDescribeAddonConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -156,16 +159,13 @@ func (c *Client) addOperationDescribeAddonConfigurationMiddlewares(stack *middle
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

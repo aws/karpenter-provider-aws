@@ -50,9 +50,13 @@ type ListNodesSummaryInput struct {
 	// subsequent call to get the next set of results.
 	NextToken *string
 
-	// The name of the resource data sync to retrieve information about. Required for
-	// cross-account/cross-Region configuration. Optional for single
-	// account/single-Region configurations.
+	// The name of the Amazon Web Services managed resource data sync to retrieve
+	// information about.
+	//
+	// For cross-account/cross-Region configurations, this parameter is required, and
+	// the name of the supported resource data sync is AWS-QuickSetup-ManagedNode .
+	//
+	// For single account/single-Region configurations, the parameter is not required.
 	SyncName *string
 
 	noSmithyDocumentSerde
@@ -138,6 +142,9 @@ func (c *Client) addOperationListNodesSummaryMiddlewares(stack *middleware.Stack
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpListNodesSummaryValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -159,16 +166,13 @@ func (c *Client) addOperationListNodesSummaryMiddlewares(stack *middleware.Stack
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

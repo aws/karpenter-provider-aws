@@ -87,7 +87,9 @@ func PodEventHandler(c client.Client, cloudProvider cloudprovider.CloudProvider)
 		if err := c.Get(ctx, types.NamespacedName{Name: nodeName}, node); err != nil {
 			return nil
 		}
-		ncs, err := ListManaged(ctx, c, cloudProvider, ForProviderID(node.Spec.ProviderID))
+		// Because we get so many NodeClaims from this response, we are not DeepCopying the cached data here
+		// DO NOT MUTATE NodeClaims in this function as this will affect the underlying cached NodeClaim
+		ncs, err := ListManaged(ctx, c, cloudProvider, ForProviderID(node.Spec.ProviderID), client.UnsafeDisableDeepCopy)
 		if err != nil {
 			return nil
 		}
@@ -101,7 +103,9 @@ func PodEventHandler(c client.Client, cloudProvider cloudprovider.CloudProvider)
 // and enqueues reconcile.Requests for the NodeClaims
 func NodeEventHandler(c client.Client, cloudProvider cloudprovider.CloudProvider) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
-		ncs, err := ListManaged(ctx, c, cloudProvider, ForProviderID(o.(*corev1.Node).Spec.ProviderID))
+		// Because we get so many NodeClaims from this response, we are not DeepCopying the cached data here
+		// DO NOT MUTATE NodeClaims in this function as this will affect the underlying cached NodeClaim
+		ncs, err := ListManaged(ctx, c, cloudProvider, ForProviderID(o.(*corev1.Node).Spec.ProviderID), client.UnsafeDisableDeepCopy)
 		if err != nil {
 			return nil
 		}
@@ -115,7 +119,9 @@ func NodeEventHandler(c client.Client, cloudProvider cloudprovider.CloudProvider
 // on the v1.NodePoolLabelKey and enqueues reconcile.Requests for the NodeClaim
 func NodePoolEventHandler(c client.Client, cloudProvider cloudprovider.CloudProvider) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) (requests []reconcile.Request) {
-		ncs, err := ListManaged(ctx, c, cloudProvider, ForNodePool(o.GetName()))
+		// Because we get so many NodeClaims from this response, we are not DeepCopying the cached data here
+		// DO NOT MUTATE NodeClaims in this function as this will affect the underlying cached NodeClaim
+		ncs, err := ListManaged(ctx, c, cloudProvider, ForNodePool(o.GetName()), client.UnsafeDisableDeepCopy)
 		if err != nil {
 			return nil
 		}
@@ -134,7 +140,9 @@ func NodeClassEventHandler(c client.Client) handler.EventHandler {
 			"spec.nodeClassRef.group": object.GVK(o).Group,
 			"spec.nodeClassRef.kind":  object.GVK(o).Kind,
 			"spec.nodeClassRef.name":  o.GetName(),
-		}); err != nil {
+			// Because we get so many NodeClaims from this response, we are not DeepCopying the cached data here
+			// DO NOT MUTATE NodeClaims in this function as this will affect the underlying cached NodeClaim
+		}, client.UnsafeDisableDeepCopy); err != nil {
 			return requests
 		}
 		return lo.Map(nodeClaimList.Items, func(n v1.NodeClaim, _ int) reconcile.Request {
@@ -227,6 +235,11 @@ func AllNodesForNodeClaim(ctx context.Context, c client.Client, nodeClaim *v1.No
 
 func UpdateNodeOwnerReferences(nodeClaim *v1.NodeClaim, node *corev1.Node) *corev1.Node {
 	gvk := object.GVK(nodeClaim)
+	if lo.ContainsBy(node.OwnerReferences, func(o metav1.OwnerReference) bool {
+		return o.APIVersion == gvk.GroupVersion().String() && o.Kind == gvk.Kind && o.UID == nodeClaim.UID
+	}) {
+		return node
+	}
 	node.OwnerReferences = append(node.OwnerReferences, metav1.OwnerReference{
 		APIVersion:         gvk.GroupVersion().String(),
 		Kind:               gvk.Kind,

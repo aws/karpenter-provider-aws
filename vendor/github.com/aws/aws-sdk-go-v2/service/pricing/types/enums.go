@@ -7,6 +7,10 @@ type FilterType string
 // Enum values for FilterType
 const (
 	FilterTypeTermMatch FilterType = "TERM_MATCH"
+	FilterTypeEquals    FilterType = "EQUALS"
+	FilterTypeContains  FilterType = "CONTAINS"
+	FilterTypeAnyOf     FilterType = "ANY_OF"
+	FilterTypeNoneOf    FilterType = "NONE_OF"
 )
 
 // Values returns all known values for FilterType. Note that this can be expanded
@@ -16,5 +20,9 @@ const (
 func (FilterType) Values() []FilterType {
 	return []FilterType{
 		"TERM_MATCH",
+		"EQUALS",
+		"CONTAINS",
+		"ANY_OF",
+		"NONE_OF",
 	}
 }

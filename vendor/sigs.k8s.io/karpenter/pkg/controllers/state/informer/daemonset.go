@@ -25,11 +25,14 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	utilscontroller "sigs.k8s.io/karpenter/pkg/utils/controller"
 )
 
 type DaemonSetController struct {
@@ -44,8 +47,12 @@ func NewDaemonSetController(kubeClient client.Client, cluster *state.Cluster) *D
 	}
 }
 
+func (c *DaemonSetController) Name() string {
+	return "state.daemonset"
+}
+
 func (c *DaemonSetController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = injection.WithControllerName(ctx, "state.daemonset")
+	ctx = injection.WithControllerName(ctx, c.Name())
 
 	daemonSet := appsv1.DaemonSet{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, &daemonSet); err != nil {
@@ -61,10 +68,25 @@ func (c *DaemonSetController) Reconcile(ctx context.Context, req reconcile.Reque
 	return reconcile.Result{RequeueAfter: time.Minute}, nil
 }
 
-func (c *DaemonSetController) Register(_ context.Context, m manager.Manager) error {
+func (c *DaemonSetController) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
-		Named("state.daemonset").
+		Named(c.Name()).
 		For(&appsv1.DaemonSet{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
+		// We only want to watch the DaemonSet on Create and then re-poll every 1m
+		WithEventFilter(predicate.Funcs{
+			CreateFunc: func(e event.CreateEvent) bool {
+				return true
+			},
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				return false
+			},
+			DeleteFunc: func(e event.DeleteEvent) bool {
+				return false
+			},
+			GenericFunc: func(e event.GenericEvent) bool {
+				return false
+			},
+		}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: utilscontroller.LinearScaleReconciles(utilscontroller.CPUCount(ctx), minReconciles, maxReconciles)}).
 		Complete(c)
 }

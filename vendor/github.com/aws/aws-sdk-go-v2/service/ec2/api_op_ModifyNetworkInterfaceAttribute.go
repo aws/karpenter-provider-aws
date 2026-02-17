@@ -42,6 +42,9 @@ type ModifyNetworkInterfaceAttributeInput struct {
 	// primary network interface (eth0).
 	AssociatePublicIpAddress *bool
 
+	// A list of subnet IDs to associate with the network interface.
+	AssociatedSubnetIds []string
+
 	// Information about the interface attachment. If modifying the delete on
 	// termination attribute, you must specify the ID of the interface attachment.
 	Attachment *types.NetworkInterfaceAttachmentChanges
@@ -165,6 +168,9 @@ func (c *Client) addOperationModifyNetworkInterfaceAttributeMiddlewares(stack *m
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpModifyNetworkInterfaceAttributeValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -186,16 +192,13 @@ func (c *Client) addOperationModifyNetworkInterfaceAttributeMiddlewares(stack *m
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

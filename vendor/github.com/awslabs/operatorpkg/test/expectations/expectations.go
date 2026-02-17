@@ -3,9 +3,12 @@ package test
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -20,6 +23,7 @@ import (
 	prometheus "github.com/prometheus/client_model/go"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apitypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -67,6 +71,16 @@ func ExpectReconciled(ctx context.Context, reconciler reconcile.Reconciler, obje
 	return result
 }
 
+func ExpectRequeued(result reconcile.Result) {
+	GinkgoHelper()
+	Expect(result.Requeue || result.RequeueAfter != lo.Empty[time.Duration]())
+}
+
+func ExpectNotRequeued(result reconcile.Result) {
+	GinkgoHelper()
+	Expect(!result.Requeue && result.RequeueAfter == lo.Empty[time.Duration]())
+}
+
 func ExpectObject[T client.Object](ctx context.Context, c client.Client, obj T) types.Assertion {
 	GinkgoHelper()
 	Expect(c.Get(ctx, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
@@ -87,38 +101,93 @@ func ExpectNotFound(ctx context.Context, c client.Client, objects ...client.Obje
 
 func ExpectApplied(ctx context.Context, c client.Client, objects ...client.Object) {
 	GinkgoHelper()
-	for _, o := range objects {
-		current := o.DeepCopyObject().(client.Object)
-		// Create or Update
-		if err := c.Get(ctx, client.ObjectKeyFromObject(current), current); err != nil {
-			if errors.IsNotFound(err) {
-				Expect(c.Create(ctx, o)).To(Succeed())
-			} else {
-				Expect(err).ToNot(HaveOccurred())
+	for _, object := range objects {
+		deletionTimestampSet := !object.GetDeletionTimestamp().IsZero()
+		current := object.DeepCopyObject().(client.Object)
+		statusCopy := object.DeepCopyObject().(client.Object) // Snapshot the status, since create/update may override
+
+		// Make these Eventually statements so ExpectApplied can be used with caches
+		Eventually(func(g Gomega) {
+			if err := c.Get(ctx, client.ObjectKeyFromObject(current), current); err != nil {
+				if errors.IsNotFound(err) {
+					g.Expect(c.Create(ctx, object)).To(Succeed())
+					return
+				}
+				g.Expect(err).NotTo(HaveOccurred())
+				return
 			}
-		} else {
-			o.SetResourceVersion(current.GetResourceVersion())
-			Expect(c.Update(ctx, o)).To(Succeed())
+			object.SetResourceVersion(current.GetResourceVersion())
+			g.Expect(c.Update(ctx, object)).To(Succeed())
+		}, "2s", "400ms").Should(Succeed())
+		Eventually(func(g Gomega) {
+			g.Expect(c.Get(ctx, client.ObjectKeyFromObject(current), current)).To(Succeed())
+			if isStatusSet(statusCopy) && !isStatusEqual(current, statusCopy) {
+				statusCopy.SetResourceVersion(current.GetResourceVersion())
+				g.Expect(c.Status().Update(ctx, statusCopy)).To(Or(Succeed(), MatchError(Or(ContainSubstring("not found"), ContainSubstring("the server could not find the requested resource")))))
+			}
+		}, "2s", "400ms").Should(Succeed())
+
+		// If the object is a namespace, ensure the default service account exists to avoid flaky tests
+		// https://github.com/kubernetes/kubernetes/issues/66689
+		if namespace, ok := object.(*v1.Namespace); ok {
+			Eventually(func(g Gomega) {
+				g.Expect(c.Get(ctx, apitypes.NamespacedName{Namespace: namespace.Name, Name: "default"}, &v1.ServiceAccount{})).Error().NotTo(HaveOccurred())
+			}).WithTimeout(1 * time.Minute).WithPolling(1 * time.Second).Should(Succeed())
 		}
 
 		// Re-get the object to grab the updated spec and status
-		ExpectObject(ctx, c, o)
+		Expect(c.Get(ctx, client.ObjectKeyFromObject(object), object)).To(Succeed())
+
+		// Set the deletion timestamp by adding a finalizer and deleting
+		if deletionTimestampSet {
+			ExpectDeletionTimestampSet(ctx, c, object)
+		}
 	}
+}
+
+func getStatus(obj client.Object) interface{} {
+	// Get the underlying value
+	v := reflect.ValueOf(obj)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	statusField := v.FieldByName("Status")
+	if !statusField.IsValid() {
+		return nil
+	}
+	return statusField.Interface()
+}
+
+func isStatusSet(obj client.Object) bool {
+	s := getStatus(obj)
+	return s != nil && !reflect.ValueOf(s).IsZero()
+}
+
+func isStatusEqual(objA, objB client.Object) bool {
+	return equality.Semantic.DeepEqual(getStatus(objA), getStatus(objB))
 }
 
 // ExpectDeletionTimestampSet ensures that the deletion timestamp is set on the objects by adding a finalizer
 // and then deleting the object immediately after. This will hold the object until the finalizer is patched out
 func ExpectDeletionTimestampSet(ctx context.Context, c client.Client, objects ...client.Object) {
 	GinkgoHelper()
-	for _, o := range objects {
-		Expect(c.Get(ctx, client.ObjectKeyFromObject(o), o)).To(Succeed())
-		controllerutil.AddFinalizer(o, "testing/finalizer")
-		Expect(c.Update(ctx, o)).To(Succeed())
-		Expect(c.Delete(ctx, o)).To(Succeed())
+	for _, object := range objects {
+		Expect(c.Get(ctx, client.ObjectKeyFromObject(object), object)).To(Succeed())
+		if object.GetDeletionTimestamp().IsZero() { // finalizers cannot be added to already deleting objects, so this will fail
+			controllerutil.AddFinalizer(object, "testing/finalizer")
+			Expect(c.Update(ctx, object)).To(Succeed())
+			Expect(c.Delete(ctx, object)).To(Succeed())
+			DeferCleanup(func(obj client.Object) {
+				mergeFrom := client.MergeFrom(obj.DeepCopyObject().(client.Object))
+				obj.SetFinalizers([]string{})
+				Expect(client.IgnoreNotFound(c.Patch(ctx, obj, mergeFrom))).To(Succeed())
+			}, object)
+		}
 	}
 }
 
 func ExpectStatusConditions(ctx context.Context, c client.Client, timeout time.Duration, obj status.Object, conditions ...status.Condition) {
+	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		g.Expect(c.Get(ctx, client.ObjectKeyFromObject(obj), obj)).To(BeNil())
 		objStatus := obj.StatusConditions()
@@ -162,8 +231,8 @@ func ExpectStatusUpdated(ctx context.Context, c client.Client, objects ...client
 func ExpectDeleted(ctx context.Context, c client.Client, objects ...client.Object) {
 	GinkgoHelper()
 	for _, o := range objects {
-		Expect(c.Delete(ctx, o)).To(Succeed())
-		Expect(c.Get(ctx, client.ObjectKeyFromObject(o), o)).To(Or(Succeed(), MatchError(ContainSubstring("not found"))))
+		Expect(client.IgnoreNotFound(c.Delete(ctx, o, &client.DeleteOptions{GracePeriodSeconds: lo.ToPtr(int64(0))}))).To(Succeed())
+		Expect(client.IgnoreNotFound(c.Get(ctx, client.ObjectKeyFromObject(o), o))).To(Succeed())
 	}
 }
 
@@ -179,6 +248,7 @@ func ExpectForceCleanedUp(ctx context.Context, c client.Client, objectLists ...c
 }
 
 func expectCleanedUp(ctx context.Context, c client.Client, force bool, objectLists ...client.ObjectList) {
+	GinkgoHelper()
 	wg := sync.WaitGroup{}
 	for _, objectList := range objectLists {
 		wg.Add(1)
@@ -196,8 +266,8 @@ func expectCleanedUp(ctx context.Context, c client.Client, force bool, objectLis
 						stored := item.DeepCopy()
 						item.SetFinalizers([]string{})
 						g.Expect(c.Patch(ctx, &item, client.MergeFrom(stored))).To(Succeed())
-					}
-					if item.GetDeletionTimestamp().IsZero() {
+						g.Expect(client.IgnoreNotFound(c.Delete(ctx, &item, &client.DeleteOptions{GracePeriodSeconds: lo.ToPtr(int64(0))}))).To(Succeed())
+					} else if item.GetDeletionTimestamp().IsZero() {
 						g.Expect(client.IgnoreNotFound(c.Delete(ctx, &item, client.PropagationPolicy(metav1.DeletePropagationForeground), &client.DeleteOptions{GracePeriodSeconds: lo.ToPtr(int64(0))}))).To(Succeed())
 					}
 				}

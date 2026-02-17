@@ -35,8 +35,22 @@ type Filter struct {
 
 	// The type of filter that you want to use.
 	//
-	// Valid values are: TERM_MATCH . TERM_MATCH returns only products that match both
-	// the given filter field and the given value.
+	// Valid values are:
+	//
+	//   - TERM_MATCH : Returns only products that match both the given filter field
+	//   and the given value.
+	//
+	//   - EQUALS : Returns products that have a field value exactly matching the
+	//   provided value.
+	//
+	//   - CONTAINS : Returns products where the field value contains the provided
+	//   value as a substring.
+	//
+	//   - ANY_OF : Returns products where the field value is any of the provided
+	//   values.
+	//
+	//   - NONE_OF : Returns products where the field value is not any of the provided
+	//   values.
 	//
 	// This member is required.
 	Type FilterType
@@ -45,6 +59,10 @@ type Filter struct {
 	// filtering by service code this is the actual service code, such as AmazonEC2 .
 	// If you're filtering by attribute name, this is the attribute value that you want
 	// the returned products to match, such as a Provisioned IOPS volume.
+	//
+	// For ANY_OF and NONE_OF filter types, you can provide multiple values as a
+	// comma-separated string. For example, t2.micro,t2.small,t2.medium or Compute
+	// optimized, GPU instance, Micro instances .
 	//
 	// This member is required.
 	Value *string

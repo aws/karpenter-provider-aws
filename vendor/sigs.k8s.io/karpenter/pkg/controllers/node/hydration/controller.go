@@ -36,6 +36,7 @@ import (
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	utilscontroller "sigs.k8s.io/karpenter/pkg/utils/controller"
 	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 )
@@ -56,7 +57,6 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudPr
 
 func (c *Controller) Reconcile(ctx context.Context, n *corev1.Node) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
-	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("Node", klog.KRef(n.Namespace, n.Name)))
 
 	nc, err := nodeutils.NodeClaimForNode(ctx, c.kubeClient, n)
 	if err != nil {
@@ -68,6 +68,7 @@ func (c *Controller) Reconcile(ctx context.Context, n *corev1.Node) (reconcile.R
 	if !nodeclaimutils.IsManaged(nc, c.cloudProvider) {
 		return reconcile.Result{}, nil
 	}
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("NodeClaim", klog.KObj(nc)))
 
 	stored := n.DeepCopy()
 	n.Labels = lo.Assign(n.Labels, map[string]string{
@@ -85,14 +86,14 @@ func (c *Controller) Name() string {
 	return "node.hydration"
 }
 
-func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		Named(c.Name()).
 		For(&corev1.Node{}).
 		Watches(&v1.NodeClaim{}, nodeutils.NodeClaimEventHandler(c.kubeClient)).
 		WithOptions(controller.Options{
 			RateLimiter:             reasonable.RateLimiter(),
-			MaxConcurrentReconciles: 1000,
+			MaxConcurrentReconciles: utilscontroller.LinearScaleReconciles(utilscontroller.CPUCount(ctx), 1000, 5000),
 		}).
 		Complete(reconcile.AsReconciler(m.GetClient(), c))
 }

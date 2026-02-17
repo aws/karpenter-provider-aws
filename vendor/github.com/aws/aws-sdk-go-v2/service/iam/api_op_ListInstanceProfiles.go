@@ -18,11 +18,12 @@ import (
 // IAM resource-listing operations return a subset of the available attributes for
 // the resource. For example, this operation does not return tags, even though they
 // are an attribute of the returned object. To view all of the information for an
-// instance profile, see GetInstanceProfile.
+// instance profile, see [GetInstanceProfile].
 //
 // You can paginate the results using the MaxItems and Marker parameters.
 //
 // [Using instance profiles]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html
+// [GetInstanceProfile]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetInstanceProfile.html
 func (c *Client) ListInstanceProfiles(ctx context.Context, params *ListInstanceProfilesInput, optFns ...func(*Options)) (*ListInstanceProfilesOutput, error) {
 	if params == nil {
 		params = &ListInstanceProfilesInput{}
@@ -74,7 +75,9 @@ type ListInstanceProfilesInput struct {
 	noSmithyDocumentSerde
 }
 
-// Contains the response to a successful ListInstanceProfiles request.
+// Contains the response to a successful [ListInstanceProfiles] request.
+//
+// [ListInstanceProfiles]: https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListInstanceProfiles.html
 type ListInstanceProfilesOutput struct {
 
 	// A list of instance profiles.
@@ -164,6 +167,9 @@ func (c *Client) addOperationListInstanceProfilesMiddlewares(stack *middleware.S
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListInstanceProfiles(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -182,16 +188,13 @@ func (c *Client) addOperationListInstanceProfilesMiddlewares(stack *middleware.S
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

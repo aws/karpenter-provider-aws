@@ -26,13 +26,19 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
 
+// DefaultTerminationGracePeriod is used as runtime defaulting for TerminationGracePeriod on the NodeClaim
+// This would be a mechanism to allow cloud providers to enforce a TerminationGracePeriod on all node
+// provisioned by Karpenter
+var DefaultTerminationGracePeriod *metav1.Duration = nil
+
 // MaxInstanceTypes is a constant that restricts the number of instance types to be sent for launch. Note that this
 // is intentionally changed to var just to help in testing the code.
-var MaxInstanceTypes = 60
+var MaxInstanceTypes = 600
 
 // NodeClaimTemplate encapsulates the fields required to create a node and mirrors
 // the fields in NodePool. These structs are maintained separately in order
@@ -42,16 +48,20 @@ type NodeClaimTemplate struct {
 
 	NodePoolName        string
 	NodePoolUUID        types.UID
+	NodePoolWeight      int32
 	InstanceTypeOptions cloudprovider.InstanceTypes
 	Requirements        scheduling.Requirements
+	IsStaticNodeClaim   bool
 }
 
 func NewNodeClaimTemplate(nodePool *v1.NodePool) *NodeClaimTemplate {
 	nct := &NodeClaimTemplate{
-		NodeClaim:    *nodePool.Spec.Template.ToNodeClaim(),
-		NodePoolName: nodePool.Name,
-		NodePoolUUID: nodePool.UID,
-		Requirements: scheduling.NewRequirements(),
+		NodeClaim:         *nodePool.Spec.Template.ToNodeClaim(),
+		NodePoolName:      nodePool.Name,
+		NodePoolUUID:      nodePool.UID,
+		NodePoolWeight:    lo.FromPtr(nodePool.Spec.Weight),
+		Requirements:      scheduling.NewRequirements(),
+		IsStaticNodeClaim: nodePool.Spec.Replicas != nil,
 	}
 	nct.Annotations = lo.Assign(nct.Annotations, map[string]string{
 		v1.NodePoolHashAnnotationKey:        nodePool.Hash(),
@@ -66,12 +76,58 @@ func NewNodeClaimTemplate(nodePool *v1.NodePool) *NodeClaimTemplate {
 	return nct
 }
 
+// resolveCustomLabelsFromRequirements resolves the concrete values for user-defined labels from a NodeClaimTemplate's
+// requirements.
+func (i *NodeClaimTemplate) resolveCustomLabelsFromRequirements() map[string]string {
+	labels := map[string]string{}
+	for key, requirement := range i.Requirements {
+		if v1.WellKnownLabels.Has(key) || v1.RestrictedLabels.Has(key) {
+			continue
+		}
+		if value := requirement.Any(); value != "" {
+			labels[key] = value
+		}
+	}
+	return labels
+}
+
 func (i *NodeClaimTemplate) ToNodeClaim() *v1.NodeClaim {
-	// Order the instance types by price and only take the first 100 of them to decrease the instance type size in the requirements
-	instanceTypes := lo.Slice(i.InstanceTypeOptions.OrderByPrice(i.Requirements), 0, MaxInstanceTypes)
-	i.Requirements.Add(scheduling.NewRequirementWithFlexibility(corev1.LabelInstanceTypeStable, corev1.NodeSelectorOpIn, i.Requirements.Get(corev1.LabelInstanceTypeStable).MinValues, lo.Map(instanceTypes, func(i *cloudprovider.InstanceType, _ int) string {
-		return i.Name
-	})...))
+	// Inject instanceType requirements for NodeClaims belonging to dynamic NodePool
+	// For static we let cloudprovider.Create()
+	if !i.IsStaticNodeClaim {
+		// Order the instance types by price and only take up to MaxInstanceTypes of them to decrease the instance type size in the requirements
+		instanceTypes := lo.Slice(i.InstanceTypeOptions.OrderByPrice(i.Requirements), 0, MaxInstanceTypes)
+		i.Requirements.Add(scheduling.NewRequirementWithFlexibility(corev1.LabelInstanceTypeStable, corev1.NodeSelectorOpIn, i.Requirements.Get(corev1.LabelInstanceTypeStable).MinValues, lo.Map(instanceTypes, func(i *cloudprovider.InstanceType, _ int) string {
+			return i.Name
+		})...))
+
+		// Collect available capacity types from the selected instance types
+		capacityTypes := lo.Uniq(lo.FlatMap(instanceTypes, func(it *cloudprovider.InstanceType, _ int) []string {
+			return lo.Map(it.Offerings.Available().Compatible(i.Requirements), func(o *cloudprovider.Offering, _ int) string {
+				return o.CapacityType()
+			})
+		}))
+		if len(capacityTypes) > 0 {
+			i.Requirements.Add(scheduling.NewRequirement(v1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityTypes...))
+		}
+
+		if foundPriceOverlay := lo.ContainsBy(instanceTypes, func(it *cloudprovider.InstanceType) bool { return it.IsPricingOverlayApplied() }); foundPriceOverlay {
+			i.Annotations = lo.Assign(i.Annotations, map[string]string{
+				v1alpha1.PriceOverlayAppliedAnnotationKey: "true",
+			})
+		}
+		if foundCapacityOverlay := lo.ContainsBy(instanceTypes, func(it *cloudprovider.InstanceType) bool { return it.IsCapacityOverlayApplied() }); foundCapacityOverlay {
+			i.Annotations = lo.Assign(i.Annotations, map[string]string{
+				v1alpha1.CapacityOverlayAppliedAnnotationKey: "true",
+			})
+		}
+	}
+
+	// We'll assign any labels with known, concrete values at NodeClaim creation time. This includes any labels from the
+	// NodeClaimTemplate (since there's a single possible value), and any resolved values for custom labels in the
+	// NodeClaimTemplate's requirements. The latter **cannot** be instance type dependent (like well-known labels) since
+	// Karpenter can't reason about which label domains would belong to each instance type.
+	i.Labels = lo.Assign(i.Labels, i.resolveCustomLabelsFromRequirements())
 
 	nc := &v1.NodeClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -91,5 +147,9 @@ func (i *NodeClaimTemplate) ToNodeClaim() *v1.NodeClaim {
 		Spec: i.Spec,
 	}
 	nc.Spec.Requirements = i.Requirements.NodeSelectorRequirements()
+	if nc.Spec.TerminationGracePeriod == nil {
+		nc.Spec.TerminationGracePeriod = DefaultTerminationGracePeriod
+	}
+
 	return nc
 }

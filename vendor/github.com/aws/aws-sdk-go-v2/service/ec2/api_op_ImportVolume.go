@@ -38,11 +38,6 @@ func (c *Client) ImportVolume(ctx context.Context, params *ImportVolumeInput, op
 
 type ImportVolumeInput struct {
 
-	// The Availability Zone for the resulting EBS volume.
-	//
-	// This member is required.
-	AvailabilityZone *string
-
 	// The disk image.
 	//
 	// This member is required.
@@ -52,6 +47,16 @@ type ImportVolumeInput struct {
 	//
 	// This member is required.
 	Volume *types.VolumeDetail
+
+	// The Availability Zone for the resulting EBS volume.
+	//
+	// Either AvailabilityZone or AvailabilityZoneId must be specified, but not both.
+	AvailabilityZone *string
+
+	// The ID of the Availability Zone for the resulting EBS volume.
+	//
+	// Either AvailabilityZone or AvailabilityZoneId must be specified, but not both.
+	AvailabilityZoneId *string
 
 	// A description of the volume.
 	Description *string
@@ -140,6 +145,9 @@ func (c *Client) addOperationImportVolumeMiddlewares(stack *middleware.Stack, op
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpImportVolumeValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -161,16 +169,13 @@ func (c *Client) addOperationImportVolumeMiddlewares(stack *middleware.Stack, op
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

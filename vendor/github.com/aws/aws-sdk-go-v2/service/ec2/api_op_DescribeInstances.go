@@ -26,6 +26,10 @@ import (
 // which can affect performance. We recommend that you use pagination to ensure
 // that the operation returns quickly and successfully.
 //
+// The response includes SQL license exemption status information for instances
+// registered with the SQL LE service, providing visibility into license exemption
+// configuration and status.
+//
 // If you specify an instance ID that is not valid, an error is returned. If you
 // specify an instance that you do not own, it is not included in the output.
 //
@@ -38,12 +42,19 @@ import (
 // describe instances and specify only instance IDs that are in an unaffected zone,
 // the call works normally.
 //
+// The Amazon EC2 API follows an eventual consistency model. This means that the
+// result of an API command you run that creates or modifies resources might not be
+// immediately available to all subsequent commands you run. For guidance on how to
+// manage eventual consistency, see [Eventual consistency in the Amazon EC2 API]in the Amazon EC2 Developer Guide.
+//
 // We strongly recommend using only paginated requests. Unpaginated requests are
 // susceptible to throttling and timeouts.
 //
 // The order of the elements in the response, including those within nested
 // structures, might vary. Applications should not assume the elements appear in a
 // particular order.
+//
+// [Eventual consistency in the Amazon EC2 API]: https://docs.aws.amazon.com/ec2/latest/devguide/eventual-consistency.html
 func (c *Client) DescribeInstances(ctx context.Context, params *DescribeInstancesInput, optFns ...func(*Options)) (*DescribeInstancesOutput, error) {
 	if params == nil {
 		params = &DescribeInstancesInput{}
@@ -75,6 +86,8 @@ type DescribeInstancesInput struct {
 	//   - architecture - The instance architecture ( i386 | x86_64 | arm64 ).
 	//
 	//   - availability-zone - The Availability Zone of the instance.
+	//
+	//   - availability-zone-id - The ID of the Availability Zone of the instance.
 	//
 	//   - block-device-mapping.attach-time - The attach time for an EBS volume mapped
 	//   to the instance, for example, 2022-09-15T17:15:20.000Z .
@@ -372,13 +385,13 @@ type DescribeInstancesInput struct {
 	//
 	//   - platform-details - The platform ( Linux/UNIX | Red Hat BYOL Linux | Red Hat
 	//   Enterprise Linux | Red Hat Enterprise Linux with HA | Red Hat Enterprise
-	//   Linux with SQL Server Standard and HA | Red Hat Enterprise Linux with SQL
-	//   Server Enterprise and HA | Red Hat Enterprise Linux with SQL Server Standard |
-	//   Red Hat Enterprise Linux with SQL Server Web | Red Hat Enterprise Linux with
-	//   SQL Server Enterprise | SQL Server Enterprise | SQL Server Standard | SQL
-	//   Server Web | SUSE Linux | Ubuntu Pro | Windows | Windows BYOL | Windows with
-	//   SQL Server Enterprise | Windows with SQL Server Standard | Windows with SQL
-	//   Server Web ).
+	//   Linux with High Availability | Red Hat Enterprise Linux with SQL Server
+	//   Standard and HA | Red Hat Enterprise Linux with SQL Server Enterprise and HA |
+	//   Red Hat Enterprise Linux with SQL Server Standard | Red Hat Enterprise Linux
+	//   with SQL Server Web | Red Hat Enterprise Linux with SQL Server Enterprise |
+	//   SQL Server Enterprise | SQL Server Standard | SQL Server Web | SUSE Linux |
+	//   Ubuntu Pro | Windows | Windows BYOL | Windows with SQL Server Enterprise |
+	//   Windows with SQL Server Standard | Windows with SQL Server Web ).
 	//
 	//   - private-dns-name - The private IPv4 DNS name of the instance.
 	//
@@ -571,6 +584,9 @@ func (c *Client) addOperationDescribeInstancesMiddlewares(stack *middleware.Stac
 	if err = addUserAgentRetryMode(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeInstances(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -589,16 +605,13 @@ func (c *Client) addOperationDescribeInstancesMiddlewares(stack *middleware.Stac
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeStart(stack); err != nil {
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanInitializeEnd(stack); err != nil {
+	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

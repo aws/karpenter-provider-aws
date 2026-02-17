@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -35,7 +36,7 @@ import (
 	volumeutil "sigs.k8s.io/karpenter/pkg/utils/volume"
 )
 
-//go:generate controller-gen object:headerFile="../../hack/boilerplate.go.txt" paths="."
+//go:generate go tool -modfile=../../go.tools.mod controller-gen object:headerFile="../../hack/boilerplate.go.txt" paths="."
 
 // translator is a CSI Translator that translates in-tree plugin names to their out-of-tree CSI driver names
 var translator = csitranslation.New()
@@ -88,7 +89,7 @@ func GetVolumes(ctx context.Context, kubeClient client.Client, pod *v1.Pod) (Vol
 		// computing limits, otherwise Karpenter may never be able to update its cluster state.
 		if err != nil {
 			if errors.IsNotFound(err) {
-				log.FromContext(ctx).WithValues("Pod", klog.KRef(pod.Namespace, pod.Name), "volume", volume.Name).Error(err, "failed tracking CSI volume limits for volume")
+				log.FromContext(ctx).WithValues("Pod", klog.KObj(pod), "volume", volume.Name).Error(err, "failed tracking CSI volume limits for volume")
 				continue
 			}
 			return nil, fmt.Errorf("failed updating volume limits, %w", err)
@@ -97,8 +98,7 @@ func GetVolumes(ctx context.Context, kubeClient client.Client, pod *v1.Pod) (Vol
 		if pvc == nil {
 			continue
 		}
-		storageClassName := lo.FromPtr(pvc.Spec.StorageClassName)
-		driverName, err := resolveDriver(ctx, kubeClient, pod, volume.Name, pvc, storageClassName)
+		driverName, err := ResolveDriver(ctx, kubeClient, pod, volume.Name, pvc, lo.FromPtr(pvc.Spec.StorageClassName))
 		if err != nil {
 			return nil, err
 		}
@@ -110,10 +110,10 @@ func GetVolumes(ctx context.Context, kubeClient client.Client, pod *v1.Pod) (Vol
 	return podPVCs, nil
 }
 
-// resolveDriver resolves the storage driver name in the following order:
+// ResolveDriver resolves the storage driver name in the following order:
 //  1. If the PV associated with the pod volume is using CSI.driver in its spec, then use that name
 //  2. If the StorageClass associated with the PV has a Provisioner
-func resolveDriver(ctx context.Context, kubeClient client.Client, pod *v1.Pod, volumeName string, pvc *v1.PersistentVolumeClaim, storageClassName string) (string, error) {
+func ResolveDriver(ctx context.Context, kubeClient client.Client, pod *v1.Pod, volumeName string, pvc *v1.PersistentVolumeClaim, storageClassName string) (string, error) {
 	// We can track the volume usage by the CSI Driver name which is pulled from the storage class for dynamic
 	// volumes, or if it's bound/static we can pull the volume name
 	if pvc.Spec.VolumeName != "" {
@@ -134,7 +134,7 @@ func resolveDriver(ctx context.Context, kubeClient client.Client, pod *v1.Pod, v
 	// In either of these cases, a PV must have been previously bound to the PVC and has since been removed. We can
 	// ignore this PVC while computing limits and continue.
 	if storageClassName == "" {
-		log.FromContext(ctx).WithValues("volume", volumeName, "Pod", klog.KRef(pod.Namespace, pod.Name), "PersistentVolumeClaim", klog.KRef(pvc.Namespace, pvc.Name)).V(1).Info("failed tracking CSI volume limits for volume with unbound PVC, no storage class specified")
+		log.FromContext(ctx).WithValues("volume", volumeName, "Pod", klog.KObj(pod), "PersistentVolumeClaim", klog.KObj(pvc)).V(1).Info("failed tracking CSI volume limits for volume with unbound PVC, no storage class specified")
 		return "", nil
 	}
 
@@ -145,7 +145,7 @@ func resolveDriver(ctx context.Context, kubeClient client.Client, pod *v1.Pod, v
 		//  2. The StorageClass never existed and was used to bind the PVC to an existing PV, but that PV was removed
 		// In either of these cases, we should ignore the PVC while computing limits and continue.
 		if errors.IsNotFound(err) {
-			log.FromContext(ctx).WithValues("volume", volumeName, "Pod", klog.KRef(pod.Namespace, pod.Name), "PersistentVolumeClaim", klog.KRef(pvc.Namespace, pvc.Name), "StorageClass", klog.KRef("", storageClassName)).V(1).Info(fmt.Sprintf("failed tracking CSI volume limits for volume with unbound PVC, %s", err))
+			log.FromContext(ctx).WithValues("volume", volumeName, "Pod", klog.KObj(pod), "PersistentVolumeClaim", klog.KObj(pvc), "StorageClass", klog.KRef("", storageClassName)).V(1).Info(fmt.Sprintf("failed tracking CSI volume limits for volume with unbound PVC, %s", err))
 			return "", nil
 		}
 		return "", err
@@ -201,7 +201,7 @@ func NewVolumeUsage() *VolumeUsage {
 func (v *VolumeUsage) ExceedsLimits(vols Volumes) error {
 	for k, volumes := range v.volumes.Union(vols) {
 		if limit, hasLimit := v.limits[k]; hasLimit && len(volumes) > limit {
-			return fmt.Errorf("would exceed volume limit for %s, %d > %d", k, len(volumes), limit)
+			return serrors.Wrap(fmt.Errorf("would exceed volume limit"), "provisioner", k, "volume-count", len(volumes), "volume-limit", limit)
 		}
 	}
 	return nil

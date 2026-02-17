@@ -21,6 +21,7 @@ import (
 	"sort"
 
 	"github.com/awslabs/operatorpkg/object"
+	"github.com/awslabs/operatorpkg/option"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/types"
@@ -39,10 +40,33 @@ func IsManaged(nodePool *v1.NodePool, cp cloudprovider.CloudProvider) bool {
 	})
 }
 
+func IsStatic(np *v1.NodePool) bool {
+	return np.Spec.Replicas != nil
+}
+
+func GetNodeClass(ctx context.Context, c client.Client, nodePool *v1.NodePool, cp cloudprovider.CloudProvider) (status.Object, error) {
+	if nodeClass, ok := lo.Find(cp.GetSupportedNodeClasses(), func(nodeClass status.Object) bool {
+		return object.GVK(nodeClass).GroupKind() == nodePool.Spec.Template.Spec.NodeClassRef.GroupKind()
+	}); ok {
+		if err := c.Get(ctx, client.ObjectKey{Name: nodePool.Spec.Template.Spec.NodeClassRef.Name}, nodeClass); err != nil {
+			return nodeClass, err
+		}
+		return nodeClass, nil
+	}
+	return nil, nil
+}
+
 // IsManagedPredicateFuncs is used to filter controller-runtime NodeClaim watches to NodeClaims managed by the given cloudprovider.
 func IsManagedPredicateFuncs(cp cloudprovider.CloudProvider) predicate.Funcs {
 	return predicate.NewPredicateFuncs(func(o client.Object) bool {
 		return IsManaged(o.(*v1.NodePool), cp)
+	})
+}
+
+// IsStaticPredicateFunc is used to filter controller-runtime NodePool watches to Static NodePools
+func IsStaticPredicateFuncs() predicate.Funcs {
+	return predicate.NewPredicateFuncs(func(o client.Object) bool {
+		return IsStatic(o.(*v1.NodePool))
 	})
 }
 
@@ -64,15 +88,43 @@ func ListManaged(ctx context.Context, c client.Client, cloudProvider cloudprovid
 	}), nil
 }
 
-func NodeClaimEventHandler() handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []reconcile.Request {
-		name, ok := o.GetLabels()[v1.NodePoolLabelKey]
+type NodeClaimHandlerOption struct {
+	staticOnly bool
+	client     client.Client // used only if staticOnly && nameFilter == nil
+}
+
+func WithStaticOnly(o *NodeClaimHandlerOption) {
+	o.staticOnly = true
+}
+
+func WithClient(c client.Client) func(*NodeClaimHandlerOption) {
+	return func(o *NodeClaimHandlerOption) { o.client = c }
+}
+
+func NodeClaimEventHandler(opts ...option.Function[NodeClaimHandlerOption]) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+		o := option.Resolve(opts...)
+
+		name, ok := obj.GetLabels()[v1.NodePoolLabelKey]
 		if !ok {
 			return nil
 		}
+
+		if !o.staticOnly {
+			return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: name}}}
+		}
+
+		var np v1.NodePool
+		if err := o.client.Get(ctx, types.NamespacedName{Name: name}, &np); err != nil {
+			return nil
+		}
+
+		if !IsStatic(&np) {
+			return nil
+		}
+
 		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: name}}}
 	})
-
 }
 
 func NodeEventHandler() handler.EventHandler {
