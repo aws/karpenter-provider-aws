@@ -54,17 +54,13 @@ var _ = BeforeEach(func() {
 	nodePool = env.DefaultNodePool(nodeClass)
 	nodePool = coretest.ReplaceRequirements(nodePool,
 		karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceCategory,
-				Operator: corev1.NodeSelectorOpExists,
-			},
+			Key:      v1.LabelInstanceCategory,
+			Operator: corev1.NodeSelectorOpExists,
 		},
 		karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      corev1.LabelInstanceTypeStable,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"c5.large"},
-			},
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"c5.large"},
 		},
 	)
 })

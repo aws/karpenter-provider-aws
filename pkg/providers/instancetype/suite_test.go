@@ -150,11 +150,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      karpv1.CapacityTypeLabelKey,
-									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{karpv1.CapacityTypeOnDemand},
-								},
+								Key:      karpv1.CapacityTypeLabelKey,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{karpv1.CapacityTypeOnDemand},
 							},
 						},
 						NodeClassRef: &karpv1.NodeClassReference{
@@ -195,11 +193,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      karpv1.CapacityTypeLabelKey,
-									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{karpv1.CapacityTypeOnDemand},
-								},
+								Key:      karpv1.CapacityTypeLabelKey,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{karpv1.CapacityTypeOnDemand},
 							},
 						},
 						NodeClassRef: &karpv1.NodeClassReference{
@@ -230,6 +226,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			corev1.LabelArchStable:         "amd64",
 			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
+			v1.LabelInstanceTenancy:                      "default",
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "g",
@@ -292,6 +289,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			corev1.LabelArchStable:         "amd64",
 			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
+			v1.LabelInstanceTenancy:                      "default",
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "g",
@@ -349,6 +347,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			corev1.LabelArchStable:         "amd64",
 			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
+			v1.LabelInstanceTenancy:                      "default",
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "inf",
@@ -464,13 +463,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values: []string{
-						karpv1.CapacityTypeSpot,
-						karpv1.CapacityTypeOnDemand,
-					},
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values: []string{
+					karpv1.CapacityTypeSpot,
+					karpv1.CapacityTypeOnDemand,
 				},
 			},
 		}
@@ -527,11 +524,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 		// Construct requirements with minValues for capacityType requirement.
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{karpv1.CapacityTypeSpot},
-				},
+				Key:       karpv1.CapacityTypeLabelKey,
+				Operator:  corev1.NodeSelectorOpIn,
+				Values:    []string{karpv1.CapacityTypeSpot},
 				MinValues: lo.ToPtr(1),
 			},
 		}
@@ -601,10 +596,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 	It("should launch on metal", func() {
 		// add a nodePool requirement for instance type exists to remove our default filter for metal sizes
 		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      corev1.LabelInstanceTypeStable,
-				Operator: corev1.NodeSelectorOpExists,
-			},
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpExists,
 		})
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
@@ -650,11 +643,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 	})
 	It("should not launch pod when flex instances are disallowed", func() {
 		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceCapabilityFlex,
-				Operator: corev1.NodeSelectorOpNotIn,
-				Values:   []string{"true"},
-			},
+			Key:      v1.LabelInstanceCapabilityFlex,
+			Operator: corev1.NodeSelectorOpNotIn,
+			Values:   []string{"true"},
 		})
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
@@ -733,11 +724,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
 		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      corev1.LabelInstanceTypeStable,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"test"},
-			},
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"test"},
 		})
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -851,11 +840,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 		nodeNames := sets.NewString()
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceTypeStable,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"trn1.2xlarge"},
-				},
+				Key:      corev1.LabelInstanceTypeStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"trn1.2xlarge"},
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -879,11 +866,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 		nodeNames := sets.NewString()
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceTypeStable,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"inf2.xlarge"},
-				},
+
+				Key:      corev1.LabelInstanceTypeStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"inf2.xlarge"},
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -906,11 +892,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 	It("should launch instances for vpc.amazonaws.com/efa resource requests", func() {
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceTypeStable,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"dl1.24xlarge"},
-				},
+				Key:      corev1.LabelInstanceTypeStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"dl1.24xlarge"},
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1338,11 +1322,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.AMIFamily(),
 						nil,
 					)
-					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("50Mi"))
+					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				})
 			})
 			Context("Eviction Soft", func() {
-				It("should override eviction threshold when specified as a quantity", func() {
+				It("should use default threshold when only evictionSoft is specified", func() {
 					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
@@ -1370,9 +1354,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.AMIFamily(),
 						nil,
 					)
-					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
+					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				})
-				It("should override eviction threshold when specified as a percentage value", func() {
+				It("should use evictionHard percentage and ignore evictionSoft percentage", func() {
 					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
@@ -1403,9 +1387,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.AMIFamily(),
 						nil,
 					)
-					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
+					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.05, 10))
 				})
-				It("should consider the eviction threshold disabled when specified as 100%", func() {
+				It("should use default threshold when evictionSoft is 100% (ignored)", func() {
 					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
@@ -1433,7 +1417,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.AMIFamily(),
 						nil,
 					)
-					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
+					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				})
 				It("should ignore eviction threshold when using Bottlerocket AMI", func() {
 					nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
@@ -1492,7 +1476,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				Expect(it.Overhead.EvictionThreshold.StorageEphemeral().AsApproximateFloat64()).To(BeNumerically("~", resources.Quantity("2Gi").AsApproximateFloat64()))
 			})
-			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
+			It("should use only evictionHard for overhead, ignoring evictionSoft", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceMemory): "20Gi",
@@ -1523,9 +1507,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
-				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("3Gi"))
+				// Should use evictionHard (1Gi), not evictionSoft (3Gi)
+				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
 			})
-			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
+			It("should use only evictionHard percentage for overhead, ignoring evictionSoft", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceMemory): "20Gi",
@@ -1556,9 +1541,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
+				// Should use evictionHard (5%), not evictionSoft (2%)
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.05, 10))
 			})
-			It("should take the greater of evictionHard and evictionSoft for overhead with mixed percentage/value", func() {
+			It("should use only evictionHard value with mixed percentage/value types", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceMemory): "20Gi",
@@ -1589,7 +1575,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
-				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
+				// Should use evictionHard (1Gi), not evictionSoft (10%)
+				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
 			})
 		})
 		It("should default max pods based off of network interfaces", func() {
@@ -1707,6 +1694,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Entry("bottlerocket (latest)", "bottlerocket@latest", v1.AMIFamilyBottlerocket, 10, "365Mi"), // 11 * 10 + 255
 			Entry("windows2019 (latest)", "windows2019@latest", v1.AMIFamilyWindows2019, 10, "365Mi"),    // 11 * 10 + 255
 			Entry("windows2022 (latest)", "windows2022@latest", v1.AMIFamilyWindows2022, 10, "365Mi"),    // 11 * 10 + 255
+			Entry("windows2025 (latest)", "windows2025@latest", v1.AMIFamilyWindows2025, 10, "365Mi"),    // 11 * 10 + 255
 			Entry("custom", fake.ImageID(), v1.AMIFamilyCustom, 10, "640Mi"),                             // 11 * 35 + 255
 		)
 		It("should override max-pods value", func() {
@@ -1781,6 +1769,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Entry("bottlerocket (latest)", "bottlerocket@latest", v1.AMIFamilyBottlerocket, 24, "519Mi"), // 11 * 24 + 255
 			Entry("windows2019 (latest)", "windows2019@latest", v1.AMIFamilyWindows2019, 110, "1465Mi"),  // 11 * 110 + 255
 			Entry("windows2022 (latest)", "windows2022@latest", v1.AMIFamilyWindows2022, 110, "1465Mi"),  // 11 * 110 + 255
+			Entry("windows2025 (latest)", "windows2025@latest", v1.AMIFamilyWindows2025, 110, "1465Mi"),  // 11 * 110 + 255
 			Entry("custom", fake.ImageID(), v1.AMIFamilyCustom, 24, "640Mi"),                             // 11 * 35 + 255
 		)
 		It("should reserve ENIs when aws.reservedENIs is set and not go below 0 ENIs in max-pods calculation", func() {
@@ -2102,11 +2091,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 				{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
 			})
 			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceType,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"m5.large", "m5.xlarge"},
-				},
+				Key:      corev1.LabelInstanceType,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"m5.large", "m5.xlarge"},
 			})
 			pods := []*corev1.Pod{}
 			for i := 0; i < 2; i++ {
@@ -2199,8 +2186,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 				return nil
 			}()).To(Succeed())
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand}}},
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}}},
+				{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand}},
+				{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
 			}
 			// Spot Unavailable
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2222,19 +2209,15 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 			nodePool.Spec.Template.Spec.Requirements = nil
 			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      corev1.LabelInstanceType,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"m5.xlarge"},
-				},
+				Key:      corev1.LabelInstanceType,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"m5.xlarge"},
 			},
 			)
 			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"spot", "on-demand"},
-				},
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"spot", "on-demand"},
 			})
 
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2279,8 +2262,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(m5InstanceType.Offerings.Available()).To(HaveLen(6))
 
 			// Mark spot m5.xlarge instance as unavailable in a few zones, nothing should change
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Xlarge, "test-zone-1a", karpv1.CapacityTypeSpot)
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot)
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Xlarge, "test-zone-1a", karpv1.CapacityTypeSpot, map[string]string{"reason": "test"})
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Xlarge, "test-zone-1b", karpv1.CapacityTypeSpot, map[string]string{"reason": "test"})
 			Expect(err).ToNot(HaveOccurred())
 			m5InstanceType, ok = lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
 				return it.Name == string(ec2types.InstanceTypeM5Large)
@@ -2289,7 +2272,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(m5InstanceType.Offerings.Available()).To(HaveLen(6))
 
 			// Mark spot m5.large instance in test-zone-1a as unavailable
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeSpot)
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeSpot, map[string]string{"reason": "test"})
 			instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
 			m5InstanceType, ok = lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
@@ -2303,8 +2286,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}))[0].Available).To(BeFalse())
 
 			// Mark on-demand m5.large instance in test-zone-1b and test-zone-1c as unavailable
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Large, "test-zone-1b", karpv1.CapacityTypeOnDemand)
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "test", ec2types.InstanceTypeM5Large, "test-zone-1c", karpv1.CapacityTypeOnDemand)
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1b", karpv1.CapacityTypeOnDemand, map[string]string{"reason": "test"})
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1c", karpv1.CapacityTypeOnDemand, map[string]string{"reason": "test"})
 
 			instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
@@ -2399,7 +2382,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		It("should launch spot capacity if flexible to both spot and on demand", func() {
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand}}}}
+				{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2421,9 +2404,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot}}},
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelInstanceTypeStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"m5.large"}}},
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1b"}}},
+				{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot}},
+				{Key: corev1.LabelInstanceTypeStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"m5.large"}},
+				{Key: corev1.LabelTopologyZone, Operator: corev1.NodeSelectorOpIn, Values: []string{"test-zone-1b"}},
 			}
 
 			// Instance type with no zonal availability for spot shouldn't be scheduled
@@ -2448,8 +2431,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 			// not restricting to the zone so we can get any zone
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot}}},
-				{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelInstanceTypeStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"m5.large"}}},
+				{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot}},
+				{Key: corev1.LabelInstanceTypeStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"m5.large"}},
 			}
 
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2618,7 +2601,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// kubelet.kubeReserved
 			// kubelet.systemReserved
 			// kubelet.evictionHard
-			// kubelet.evictionSoft
 			// kubelet.maxPods
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				KubeReserved:   map[string]string{string(corev1.ResourceCPU): "1"},
@@ -2634,7 +2616,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				{KubeReserved: map[string]string{string(corev1.ResourceCPU): "20"}},
 				{SystemReserved: map[string]string{string(corev1.ResourceMemory): "10Gi"}},
 				{EvictionHard: map[string]string{"memory.available": "52%"}},
-				{EvictionSoft: map[string]string{"nodefs.available": "132%"}},
 				{MaxPods: aws.Int32(20)},
 			}
 			ExpectApplied(ctx, env.Client, nodeClass)
@@ -2656,7 +2637,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				instanceTypeResults = append(instanceTypeResults, instancetypes)
 			}
 
-			// Based on the nodeclass configuration, we expect to have 5 unique set of instance types
+			// Based on the nodeclass configuration, we expect to have 4 unique set of instance types
 			ExpectUniqueInstanceTypeLists(instanceTypeResults...)
 		})
 		It("changes to nodeclass fields should result in a different set of instances types", func() {
@@ -2795,7 +2776,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			list1, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
 
-			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "test", "m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot)
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, "m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot, map[string]string{"reason": "test"})
 			list2, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -2854,14 +2835,82 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 	})
+	Context("Tenancy", func() {
+		It("Should use default tenancy when no requirement is given for tenancy", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTenancy, string(ec2types.TenancyDefault)))
+		})
+		It("Should use default tenancy if tenancy requirement specifies both default and dedicated tenancies", func() {
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					Key:      v1.LabelInstanceTenancy,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						string(ec2types.TenancyDefault),
+						string(ec2types.TenancyDedicated),
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTenancy, string(ec2types.TenancyDefault)))
+		})
+		It("Should launch with default tenancy when required", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			pod := coretest.UnschedulablePod(coretest.PodOptions{
+				NodeSelector: map[string]string{v1.LabelInstanceTenancy: string(ec2types.TenancyDefault)},
+			})
+
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTenancy, string(ec2types.TenancyDefault)))
+		})
+		It("Should launch with dedicated tenancy when required", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			pod := coretest.UnschedulablePod(coretest.PodOptions{
+				NodeSelector: map[string]string{v1.LabelInstanceTenancy: string(ec2types.TenancyDedicated)},
+			})
+
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTenancy, string(ec2types.TenancyDedicated)))
+		})
+		DescribeTable(
+			"does not allow tenancy violations",
+			func(npTenancy string, podTenancy string) {
+				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+					{
+						Key:      v1.LabelInstanceTenancy,
+						Operator: corev1.NodeSelectorOpIn,
+						Values: []string{
+							npTenancy,
+						},
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					NodeSelector: map[string]string{v1.LabelInstanceTenancy: podTenancy},
+				})
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectNotScheduled(ctx, env.Client, pod)
+			},
+			Entry("dedicated np", string(ec2types.TenancyDedicated), string(ec2types.TenancyDefault)),
+			Entry("default np", string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)),
+		)
+	})
 	It("should not cause data races when calling List() simultaneously", func() {
 		mu := sync.RWMutex{}
 		var instanceTypeOrder []string
 		wg := sync.WaitGroup{}
-		for i := 0; i < 10000; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+		for range 10000 {
+			wg.Go(func() {
 				defer GinkgoRecover()
 				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).ToNot(HaveOccurred())
@@ -2885,7 +2934,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					Expect(tempInstanceTypeOrder).To(BeEquivalentTo(instanceTypeOrder))
 				}
 				mu.Unlock()
-			}()
+			})
 		}
 		wg.Wait()
 	})

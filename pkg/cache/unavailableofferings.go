@@ -21,12 +21,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/samber/lo"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/patrickmn/go-cache"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // UnavailableOfferings stores any offerings that return ICE (insufficient capacity errors) when
@@ -54,7 +52,7 @@ func NewUnavailableOfferings() *UnavailableOfferings {
 		capacityTypeCache: cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
 		azCache:           cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
 	}
-	uo.offeringCache.OnEvicted(func(k string, _ interface{}) {
+	uo.offeringCache.OnEvicted(func(k string, _ any) {
 		elems := strings.Split(k, ":")
 		if len(elems) != 3 {
 			panic("unavailable offerings cache key is not of expected format <capacity-type>:<instance-type>:<zone>")
@@ -63,10 +61,10 @@ func NewUnavailableOfferings() *UnavailableOfferings {
 		uo.offeringCacheSeqNum[ec2types.InstanceType(elems[1])]++
 		uo.offeringCacheSeqNumMu.Unlock()
 	})
-	uo.capacityTypeCache.OnEvicted(func(k string, _ interface{}) {
+	uo.capacityTypeCache.OnEvicted(func(k string, _ any) {
 		uo.capacityTypeCacheSeqNum.Add(1)
 	})
-	uo.azCache.OnEvicted(func(k string, _ interface{}) {
+	uo.azCache.OnEvicted(func(k string, _ any) {
 		uo.azCacheSeqNum.Add(1)
 	})
 	return uo
@@ -90,24 +88,26 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType,
 }
 
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
-func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason string, instanceType ec2types.InstanceType, zone, capacityType string) {
+func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType ec2types.InstanceType, zone, capacityType string, unavailableReason map[string]string) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
-	log.FromContext(ctx).WithValues(
-		"reason", unavailableReason,
+	logValues := []any{
+		"reason", unavailableReason["reason"],
 		"instance-type", instanceType,
 		"zone", zone,
 		"capacity-type", capacityType,
-		"ttl", UnavailableOfferingsTTL).V(1).Info("removing offering from offerings")
+		"ttl", UnavailableOfferingsTTL,
+	}
+	// Add fleetID if provided
+	key := "fleet-id"
+	_, ok := unavailableReason[key]
+	if ok {
+		logValues = append(logValues, key, unavailableReason[key])
+	}
+	log.FromContext(ctx).WithValues(logValues...).V(1).Info("removing offering from offerings")
 	u.offeringCache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
 	u.offeringCacheSeqNumMu.Lock()
 	u.offeringCacheSeqNum[instanceType]++
 	u.offeringCacheSeqNumMu.Unlock()
-}
-
-func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr ec2types.CreateFleetError, capacityType string) {
-	instanceType := fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType
-	zone := aws.ToString(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
-	u.MarkUnavailable(ctx, lo.FromPtr(fleetErr.ErrorCode), instanceType, zone, capacityType)
 }
 
 func (u *UnavailableOfferings) MarkCapacityTypeUnavailable(capacityType string) {

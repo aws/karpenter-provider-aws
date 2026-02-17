@@ -47,7 +47,7 @@ func NewAMIReconciler(provider amifamily.Provider) *AMI {
 func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	amis, err := a.amiProvider.List(ctx, nodeClass)
 	if err != nil {
-		if amifamily.IsAl2DeprecationError(err) {
+		if amifamily.IsAl2DeprecationError(err) || amifamily.IsWS2025UnsupportedVersionError(err) {
 			nodeClass.StatusConditions().SetFalse(v1.ConditionTypeAMIsReady, "UnsupportedAlias", err.Error())
 			return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("getting amis, %w", err))
 		}
@@ -68,7 +68,11 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 
 	nodeClass.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1.AMI {
 		reqs := lo.Map(ami.Requirements.NodeSelectorRequirements(), func(item karpv1.NodeSelectorRequirementWithMinValues, _ int) corev1.NodeSelectorRequirement {
-			return item.NodeSelectorRequirement
+			return corev1.NodeSelectorRequirement{
+				Key:      item.Key,
+				Values:   item.Values,
+				Operator: item.Operator,
+			}
 		})
 
 		sort.Slice(reqs, func(i, j int) bool {

@@ -47,10 +47,8 @@ var _ = Describe("DescribeInstances Batcher", func() {
 		var wg sync.WaitGroup
 		var receivedInstance int64
 		for _, instanceID := range instanceIDs {
-			wg.Add(1)
-			go func(instanceID string) {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				rsp, err := cfb.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 					InstanceIds: []string{instanceID},
 				})
@@ -58,7 +56,7 @@ var _ = Describe("DescribeInstances Batcher", func() {
 				atomic.AddInt64(&receivedInstance, 1)
 				Expect(rsp.Reservations).To(HaveLen(1))
 				Expect(rsp.Reservations[0].Instances).To(HaveLen(1))
-			}(instanceID)
+			})
 		}
 		wg.Wait()
 		Expect(receivedInstance).To(BeNumerically("==", len(instanceIDs)))
@@ -75,10 +73,8 @@ var _ = Describe("DescribeInstances Batcher", func() {
 		var wg sync.WaitGroup
 		var receivedInstance int32
 		for _, instanceID := range instanceIDs {
-			wg.Add(1)
-			go func(instanceID string) {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				rsp, err := cfb.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 					InstanceIds: []string{instanceID},
 				})
@@ -86,7 +82,8 @@ var _ = Describe("DescribeInstances Batcher", func() {
 				atomic.AddInt32(&receivedInstance, 1)
 				Expect(rsp.Reservations).To(HaveLen(1))
 				Expect(rsp.Reservations[0].Instances).To(HaveLen(1))
-			}(instanceID)
+			})
+
 		}
 		wg.Wait()
 
@@ -117,10 +114,8 @@ var _ = Describe("DescribeInstances Batcher", func() {
 		var receivedInstance int32
 		var numUnfulfilled int32
 		for _, instanceID := range instanceIDs {
-			wg.Add(1)
-			go func(instanceID string) {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				rsp, err := cfb.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 					InstanceIds: []string{instanceID},
 					Filters:     []ec2types.Filter{runningFilter},
@@ -134,7 +129,7 @@ var _ = Describe("DescribeInstances Batcher", func() {
 						atomic.AddInt32(&numUnfulfilled, 1)
 					}
 				}
-			}(instanceID)
+			})
 		}
 		wg.Wait()
 		// should execute the batched call and then one for each that failed in the batched request
@@ -153,21 +148,20 @@ var _ = Describe("DescribeInstances Batcher", func() {
 		Expect(*lastCall.Filters[0].Name).To(Equal("instance-state-name"))
 		Expect(receivedInstance).To(BeNumerically("==", 3))
 		Expect(numUnfulfilled).To(BeNumerically("==", 0))
+		Expect(firstCall.MaxResults).To(BeNil())
 	})
 	It("should return errors to all callers when erroring on the batched call", func() {
 		instanceIDs := []string{"i-1", "i-2", "i-3", "i-4", "i-5"}
 		fakeEC2API.DescribeInstancesBehavior.Error.Set(fmt.Errorf("error"), fake.MaxCalls(6))
 		var wg sync.WaitGroup
 		for _, instanceID := range instanceIDs {
-			wg.Add(1)
-			go func(instanceID string) {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				_, err := cfb.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 					InstanceIds: []string{instanceID},
 				})
 				Expect(err).ToNot(BeNil())
-			}(instanceID)
+			})
 		}
 		wg.Wait()
 		// We expect 6 calls since we do one full batched call and 5 individual since the batched call returns an error

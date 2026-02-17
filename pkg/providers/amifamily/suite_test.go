@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -235,6 +237,31 @@ var _ = Describe("AMIProvider", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(1))
 	})
+	It("should succeed to resolve AMIs (Windows2025)", func() {
+		// Check if EKS version supports Windows 2025 (requires 1.35+)
+		minorVersion, err := strconv.Atoi(strings.Split(k8sVersion, ".")[1])
+		if err != nil || minorVersion < 35 {
+			Skip("Windows 2025 requires EKS 1.35+, current version: " + k8sVersion)
+		}
+
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2025@latest"}}
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2025-English-Core-EKS_Optimized-%s/image_id", k8sVersion): amd64AMI,
+		}
+		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(amis).To(HaveLen(1))
+	})
+	It("should fail to resolve AMIs for Windows2025 when EKS version is below 1.35", func() {
+		amiProvider := amiProviderWithEKSVersionOverride("1.34.0")
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2025@latest"}}
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2025-English-Core-EKS_Optimized-%s/image_id", "1.34.0"): amd64AMI,
+		}
+		_, err := amiProvider.DescribeImageQueries(ctx, nodeClass)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("Windows Server 2025 requires EKS version 1.35 or higher"))
+	})
 
 	It("should not cause data races when calling Get() simultaneously", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
@@ -246,10 +273,8 @@ var _ = Describe("AMIProvider", func() {
 			},
 		}
 		wg := sync.WaitGroup{}
-		for i := 0; i < 10000; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+		for range 10000 {
+			wg.Go(func() {
 				defer GinkgoRecover()
 				images, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 				Expect(err).ToNot(HaveOccurred())
@@ -275,7 +300,7 @@ var _ = Describe("AMIProvider", func() {
 						}),
 					},
 				}))
-			}()
+			})
 		}
 		wg.Wait()
 	})
@@ -1199,7 +1224,7 @@ var _ = Describe("AMIResolver", func() {
 		"should set launch template metadata options correctly per region",
 		func(region string, expect *string) {
 			amiResolver := amifamily.NewDefaultResolver(region)
-			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, &amifamily.Options{ClusterName: "test"})
+			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(launchTemplates).To(HaveLen(1))
 			lo.ForEach(launchTemplates, func(launchTemplate *amifamily.LaunchTemplate, _ int) {
@@ -1207,7 +1232,6 @@ var _ = Describe("AMIResolver", func() {
 			})
 		},
 		Entry("should be disabled for supported regions", fake.DefaultRegion, lo.ToPtr("disabled")),
-		Entry("should be nil for isoe", "eu-isoe-west-1", nil),
 		Entry("should be nil for iso", "us-iso-east-1", nil),
 		Entry("should be nil for isob", "us-isob-east-1", nil),
 		Entry("should be nil for isof", "us-isof-south-1", nil),
@@ -1231,5 +1255,5 @@ func ExpectConsistsOfAMIQueries(expected, actual []amifamily.DescribeImageQuery)
 			})
 		}
 	}
-	Expect(actual).To(ConsistOf(lo.Map(expected, func(q amifamily.DescribeImageQuery, _ int) interface{} { return q })...))
+	Expect(actual).To(ConsistOf(lo.Map(expected, func(q amifamily.DescribeImageQuery, _ int) any { return q })...))
 }

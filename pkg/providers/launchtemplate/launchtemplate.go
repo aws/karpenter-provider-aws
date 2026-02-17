@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -28,7 +27,6 @@ import (
 	"github.com/awslabs/operatorpkg/serrors"
 	"go.uber.org/multierr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -128,6 +126,7 @@ func NewDefaultProvider(
 	}()
 	return l
 }
+
 func (p *DefaultProvider) EnsureAll(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
@@ -135,19 +134,19 @@ func (p *DefaultProvider) EnsureAll(
 	instanceTypes []*cloudprovider.InstanceType,
 	capacityType string,
 	tags map[string]string,
+	tenancyType string,
 ) ([]*LaunchTemplate, error) {
 	p.Lock()
 	defer p.Unlock()
 
 	opts, err := p.CreateAMIOptions(ctx, nodeClass, lo.Assign(
 		nodeClaim.Labels,
-		scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Labels(), // Inject single-value requirements into userData
 		map[string]string{karpv1.CapacityTypeLabelKey: capacityType},
 	), tags)
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, opts)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, tenancyType, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -184,14 +183,6 @@ func LaunchTemplateName(options *amifamily.LaunchTemplate) string {
 }
 
 func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
-	// Remove any labels passed into userData that are prefixed with "node-restriction.kubernetes.io" or "kops.k8s.io" since the kubelet can't
-	// register the node with any labels from this domain: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#noderestriction
-	for k := range labels {
-		labelDomain := karpv1.GetLabelDomain(k)
-		if strings.HasSuffix(labelDomain, corev1.LabelNamespaceNodeRestriction) || strings.HasSuffix(labelDomain, "kops.k8s.io") {
-			delete(labels, k)
-		}
-	}
 	labels = InjectDoNotSyncTaintsLabel(nodeClass.AMIFamily(), labels)
 	// Relying on the status rather than an API call means that Karpenter is subject to a race
 	// condition where EC2NodeClass spec changes haven't propagated to the status once a node
@@ -256,7 +247,7 @@ func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *ami
 }
 
 func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (ec2types.LaunchTemplate, error) {
-	userData, err := options.UserData.Script()
+	userData, err := options.UserData.Script(ctx)
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
 	}
@@ -375,8 +366,8 @@ func (p *DefaultProvider) hydrateCache(ctx context.Context) {
 	log.FromContext(ctx).WithValues("count", p.cache.ItemCount()).V(1).Info("hydrated launch template cache")
 }
 
-func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, interface{}) {
-	return func(key string, lt interface{}) {
+func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, any) {
+	return func(key string, lt any) {
 		p.Lock()
 		defer p.Unlock()
 		if _, expiration, _ := p.cache.GetWithExpiration(key); expiration.After(time.Now()) {

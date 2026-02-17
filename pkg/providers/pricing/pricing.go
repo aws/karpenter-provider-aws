@@ -194,9 +194,7 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 	p.muOnDemand.Lock()
 	defer p.muOnDemand.Unlock()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		onDemandPrices, onDemandErr = p.fetchOnDemandPricing(ctx,
 			pricingtypes.Filter{
 				Field: aws.String("tenancy"),
@@ -208,12 +206,10 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 				Type:  "TERM_MATCH",
 				Value: aws.String("Compute Instance"),
 			})
-	}()
+	})
 
 	// bare metal on-demand prices
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		onDemandMetalPrices, onDemandMetalErr = p.fetchOnDemandPricing(ctx,
 			pricingtypes.Filter{
 				Field: aws.String("tenancy"),
@@ -225,7 +221,7 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 				Type:  "TERM_MATCH",
 				Value: aws.String("Compute Instance (bare metal)"),
 			})
-	}()
+	})
 
 	wg.Wait()
 
@@ -329,7 +325,7 @@ func (p *DefaultProvider) spotPage(ctx context.Context, output *ec2.DescribeSpot
 }
 
 // turning off cyclo here, it measures as a 12 due to all of the type checks of the pricing data which returns a deeply
-// nested map[string]interface{}
+// nested map[string]any
 // nolint: gocyclo
 func (p *DefaultProvider) onDemandPage(ctx context.Context, output *pricing.GetProductsOutput) map[ec2types.InstanceType]float64 {
 	// this isn't the full pricing struct, just the portions we care about

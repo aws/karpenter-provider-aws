@@ -67,13 +67,11 @@ var _ = BeforeEach(func() {
 	})
 	nodePool = env.DefaultNodePool(nodeClass)
 	nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
-		NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-			Key:      corev1.LabelTopologyZone,
-			Operator: corev1.NodeSelectorOpIn,
-			Values: lo.FilterMap(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(info aws.SubnetInfo, _ int) (string, bool) {
-				return info.Zone, info.ZoneType == "local-zone"
-			}),
-		},
+		Key:      corev1.LabelTopologyZone,
+		Operator: corev1.NodeSelectorOpIn,
+		Values: lo.FilterMap(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(info aws.SubnetInfo, _ int) (string, bool) {
+			return info.Zone, info.ZoneType == "local-zone"
+		}),
 	})
 })
 var _ = AfterEach(func() { env.Cleanup() })

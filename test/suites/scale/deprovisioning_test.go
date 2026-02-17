@@ -87,18 +87,15 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 		nodePool.Spec.Limits = nil
 		test.ReplaceRequirements(nodePool, []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.LabelInstanceHypervisor,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"nitro"},
-				},
+				Key:      v1.LabelInstanceHypervisor,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"nitro"},
 			},
 			// Ensure that all pods can fit on to the provisioned nodes including all daemonsets
 			{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceSize,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"large"},
-				},
+				Key:      v1.LabelInstanceSize,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"large"},
 			},
 		}...)
 		nodePool.Spec.Disruption.Budgets = []karpv1.Budget{{
@@ -181,15 +178,13 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			By("waiting for the deployment to deploy all of its pods")
 			var wg sync.WaitGroup
-			for _, d := range deploymentMap {
-				wg.Add(1)
-				go func(dep *appsv1.Deployment) {
+			for _, dep := range deploymentMap {
+				wg.Go(func() {
 					defer GinkgoRecover()
-					defer wg.Done()
 
 					env.ExpectCreated(dep)
 					env.EventuallyExpectPendingPodCount(labels.SelectorFromSet(dep.Spec.Selector.MatchLabels), int(lo.FromPtr(dep.Spec.Replicas)))
-				}(d)
+				})
 			}
 			wg.Wait()
 
@@ -218,14 +213,12 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 				// Wait for all pods across all deployments we have created to be in a healthy state
 				wg = sync.WaitGroup{}
-				for _, d := range deploymentMap {
-					wg.Add(1)
-					go func(dep *appsv1.Deployment) {
+				for _, dep := range deploymentMap {
+					wg.Go(func() {
 						defer GinkgoRecover()
-						defer wg.Done()
 
 						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(dep.Spec.Selector.MatchLabels), int(lo.FromPtr(dep.Spec.Replicas)))
-					}(d)
+					})
 				}
 				wg.Wait()
 			}, map[string]string{
@@ -309,11 +302,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 				By("waiting for the nodes across all deprovisioners to get deleted")
 				wg = sync.WaitGroup{}
-				for k, v := range assertionMap {
-					wg.Add(1)
-					go func(d string, assertions testAssertions) {
+				for d, assertions := range assertionMap {
+					wg.Go(func() {
 						defer GinkgoRecover()
-						defer wg.Done()
 
 						// Provide a default selector based on the original nodePool name if one isn't specified
 						selector = assertions.deletedNodeCountSelector
@@ -330,7 +321,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 						env.EventuallyExpectNodeCountWithSelector("==", assertions.nodeCount, selector)
 						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[d].Spec.Selector.MatchLabels), int(lo.FromPtr(deploymentMap[d].Spec.Replicas)))
 
-					}(k, v)
+					})
 				}
 				wg.Wait()
 			}, map[string]string{
@@ -458,11 +449,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			// Add in a instance type size requirement that's larger than the smallest that fits the pods.
 			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceSize,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"2xlarge"},
-				}})
+				Key:      v1.LabelInstanceSize,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"2xlarge"},
+			})
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 			// Hostname anti-affinity to require one pod on each node
@@ -727,7 +717,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
 
-			var msgs []interface{}
+			var msgs []any
 			for _, node := range nodes {
 				instanceID, err := utils.ParseInstanceID(node.Spec.ProviderID)
 				Expect(err).ToNot(HaveOccurred())

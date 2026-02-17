@@ -110,11 +110,11 @@ var _ = Describe("Subnets", func() {
 		mutable.Shuffle(shuffledAZs)
 
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      corev1.LabelZoneFailureDomainStable,
-				Operator: "In",
-				Values:   []string{shuffledAZs[0]},
-			}})
+
+			Key:      corev1.LabelZoneFailureDomainStable,
+			Operator: "In",
+			Values:   []string{shuffledAZs[0]},
+		})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, nodeClass, nodePool)

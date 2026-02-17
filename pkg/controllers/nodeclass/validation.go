@@ -213,7 +213,11 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 		return nil, reconcile.Result{}, fmt.Errorf("generating options, %w", err)
 	}
 	// pass 1 instance type in EnsureAll to only create 1 launch template
-	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes[:1], karpv1.CapacityTypeOnDemand, tags)
+	tenancyType, err := v.getTenancyType(ctx, nodeClass)
+	if err != nil {
+		return nil, reconcile.Result{}, fmt.Errorf("determining instance tenancy, %w", err)
+	}
+	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes[:1], karpv1.CapacityTypeOnDemand, tags, string(tenancyType))
 	if err != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
 			return nil, reconcile.Result{Requeue: true}, nil
@@ -299,7 +303,7 @@ func (*Validation) requiredConditions() []string {
 }
 
 func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) string {
-	hash := lo.Must(hashstructure.Hash([]interface{}{
+	hash := lo.Must(hashstructure.Hash([]any{
 		nodeClass.Status.Subnets,
 		nodeClass.Status.SecurityGroups,
 		nodeClass.Status.AMIs,
@@ -413,6 +417,7 @@ func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass 
 	if len(instanceTypes) == 0 || lo.ContainsBy([]string{
 		v1.AMIFamilyWindows2019,
 		v1.AMIFamilyWindows2022,
+		v1.AMIFamilyWindows2025,
 	}, func(family string) bool {
 		return family == nodeClass.AMIFamily()
 	}) {
@@ -473,6 +478,21 @@ func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass
 		}
 	}
 	return getAMICompatibleInstanceTypes(compatibleInstanceTypes, nodeClass), nil
+}
+
+func (v *Validation) getTenancyType(ctx context.Context, nodeClass *v1.EC2NodeClass) (ec2types.Tenancy, error) {
+	nodePools, err := nodepoolutils.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepoolutils.ForNodeClass(nodeClass))
+	if err != nil {
+		return "", fmt.Errorf("listing nodepools for nodeclass, %w", err)
+	}
+
+	for _, np := range nodePools {
+		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
+		if reqs.Has(v1.LabelInstanceTenancy) && reqs.Get(v1.LabelInstanceTenancy).Has(string(ec2types.TenancyDedicated)) {
+			return ec2types.TenancyDedicated, nil
+		}
+	}
+	return ec2types.TenancyDefault, nil
 }
 
 func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass) []*cloudprovider.InstanceType {

@@ -58,11 +58,9 @@ var _ = Describe("CreateFleet Batching", func() {
 		}
 		var wg sync.WaitGroup
 		var receivedInstance int64
-		for i := 0; i < 5; i++ {
-			wg.Add(1)
-			go func() {
+		for range 5 {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				rsp, err := cfb.CreateFleet(ctx, input)
 				Expect(err).To(BeNil())
 				instanceIds := lo.Flatten(lo.Map(rsp.Instances, func(rsv ec2types.CreateFleetInstance, _ int) []string {
@@ -70,7 +68,7 @@ var _ = Describe("CreateFleet Batching", func() {
 				}))
 				atomic.AddInt64(&receivedInstance, 1)
 				Expect(instanceIds).To(HaveLen(1))
-			}()
+			})
 		}
 		wg.Wait()
 
@@ -116,11 +114,9 @@ var _ = Describe("CreateFleet Batching", func() {
 		}
 		var wg sync.WaitGroup
 		var receivedInstance int64
-		for i := 0; i < 5; i++ {
-			wg.Add(1)
-			go func(i int) {
+		for i := range 5 {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				input := east1input
 				// 4 instances for us-east-1 and 1 instance in us-east-2
 				if i == 3 {
@@ -135,7 +131,7 @@ var _ = Describe("CreateFleet Batching", func() {
 				atomic.AddInt64(&receivedInstance, 1)
 				Expect(instanceIds).To(HaveLen(1))
 				time.Sleep(100 * time.Millisecond)
-			}(i)
+			})
 		}
 		wg.Wait()
 
@@ -211,11 +207,9 @@ var _ = Describe("CreateFleet Batching", func() {
 		var wg sync.WaitGroup
 		var receivedInstance int64
 		var numErrors int64
-		for i := 0; i < 5; i++ {
-			wg.Add(1)
-			go func() {
+		for range 5 {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				rsp, err := cfb.CreateFleet(ctx, input)
 				Expect(err).To(BeNil())
 
@@ -229,7 +223,7 @@ var _ = Describe("CreateFleet Batching", func() {
 				}))
 				atomic.AddInt64(&receivedInstance, 1)
 				Expect(instanceIds).To(HaveLen(1))
-			}()
+			})
 		}
 		wg.Wait()
 
@@ -301,11 +295,9 @@ var _ = Describe("CreateFleet Batching", func() {
 		var wg sync.WaitGroup
 		var receivedInstance int64
 		var numErrors int64
-		for i := 0; i < 5; i++ {
-			wg.Add(1)
-			go func() {
+		for range 5 {
+			wg.Go(func() {
 				defer GinkgoRecover()
-				defer wg.Done()
 				rsp, err := cfb.CreateFleet(ctx, input)
 				// partial fulfillment shouldn't cause an error at the CreateFleet call
 				Expect(err).To(BeNil())
@@ -321,7 +313,7 @@ var _ = Describe("CreateFleet Batching", func() {
 				if len(instanceIds) == 1 {
 					atomic.AddInt64(&receivedInstance, 1)
 				}
-			}()
+			})
 		}
 		wg.Wait()
 

@@ -145,7 +145,7 @@ func NewInstanceType(
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved:      kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead, ENILimitedPods(ctx, info, 0), pods(ctx, info, amiFamily, maxPods, podsPerCore)), kubeReserved),
 			SystemReserved:    systemReservedResources(systemReserved),
-			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
+			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), evictionHard),
 		},
 	}
 	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)))) == nil {
@@ -210,6 +210,7 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceHypervisor, corev1.NodeSelectorOpIn, string(info.Hypervisor)),
 		scheduling.NewRequirement(v1.LabelInstanceEncryptionInTransitSupported, corev1.NodeSelectorOpIn, fmt.Sprint(aws.ToBool(info.NetworkInfo.EncryptionInTransitSupported))),
+		scheduling.NewRequirement(v1.LabelInstanceTenancy, corev1.NodeSelectorOpIn, string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)),
 	)
 	// Only add zone-id label when available in offerings. It may not be available if a user has upgraded from a
 	// previous version of Karpenter w/o zone-id support and the nodeclass subnet status has not yet updated.
@@ -528,30 +529,23 @@ func kubeReservedResources(cpus, pods *resource.Quantity, kubeReserved map[strin
 	}))
 }
 
-func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, amiFamily amifamily.AMIFamily, evictionHard map[string]string, evictionSoft map[string]string) corev1.ResourceList {
+func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, evictionHard map[string]string) corev1.ResourceList {
 	overhead := corev1.ResourceList{
 		corev1.ResourceMemory:           resource.MustParse("100Mi"),
 		corev1.ResourceEphemeralStorage: resource.MustParse(fmt.Sprint(math.Ceil(float64(storage.Value()) / 100 * 10))),
 	}
 
 	override := corev1.ResourceList{}
-	var evictionSignals []map[string]string
+	// Only use evictionHard for allocatable memory calculation
+	// evictionSoft should not impact allocatable capacity as it's only a warning threshold
+	// See: https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#eviction-thresholds
 	if evictionHard != nil {
-		evictionSignals = append(evictionSignals, evictionHard)
-	}
-	if evictionSoft != nil && amiFamily.FeatureFlags().EvictionSoftEnabled {
-		evictionSignals = append(evictionSignals, evictionSoft)
-	}
-
-	for _, m := range evictionSignals {
-		temp := corev1.ResourceList{}
-		if v, ok := m[MemoryAvailable]; ok {
-			temp[corev1.ResourceMemory] = computeEvictionSignal(*memory, v)
+		if v, ok := evictionHard[MemoryAvailable]; ok {
+			override[corev1.ResourceMemory] = computeEvictionSignal(*memory, v)
 		}
-		if v, ok := m[NodeFSAvailable]; ok {
-			temp[corev1.ResourceEphemeralStorage] = computeEvictionSignal(*storage, v)
+		if v, ok := evictionHard[NodeFSAvailable]; ok {
+			override[corev1.ResourceEphemeralStorage] = computeEvictionSignal(*storage, v)
 		}
-		override = resources.MaxResources(override, temp)
 	}
 	// Assign merges maps from left to right so overrides will always be taken last
 	return lo.Assign(overhead, override)
