@@ -1288,4 +1288,71 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Update(ctx, nc)).To(Succeed())
 		})
 	})
+
+	Context("CPUOptions", func() {
+		When("valid CPU options are provided", func() {
+			It("should succeed", func() {
+				nc.Spec.CPUOptions = &v1.CPUOptions{
+					CoreCount:          aws.Int32(4),
+					ThreadsPerCore:    aws.Int32(1),
+					NestedVirtualization: aws.String("enabled"),
+				}
+				Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			})
+		})
+		When("invalid CoreCount is provided", func() {
+			It("should fail when CoreCount is 0", func() {
+				nc.Spec.CPUOptions = &v1.CPUOptions{
+					CoreCount: aws.Int32(0),
+				}
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			})
+			It("should fail when CoreCount is negative", func() {
+				nc.Spec.CPUOptions = &v1.CPUOptions{
+					CoreCount: aws.Int32(-1),
+				}
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			})
+			It("should fail when CoreCount exceeds maximum", func() {
+				nc.Spec.CPUOptions = &v1.CPUOptions{
+					CoreCount: aws.Int32(129),
+				}
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			})
+		})
+		When("invalid ThreadsPerCore is provided", func() {
+			It("should fail when ThreadsPerCore is 0", func() {
+				nc.Spec.CPUOptions = &v1.CPUOptions{
+					ThreadsPerCore: aws.Int32(0),
+				}
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			})
+			It("should fail when ThreadsPerCore is negative", func() {
+				nc.Spec.CPUOptions = &v1.CPUOptions{
+					ThreadsPerCore: aws.Int32(-1),
+				}
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			})
+			It("should fail when ThreadsPerCore exceeds maximum", func() {
+				nc.Spec.CPUOptions = &v1.CPUOptions{
+					ThreadsPerCore: aws.Int32(3),
+				}
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			})
+		})
+		When("invalid NestedVirtualization is provided", func() {
+			It("should fail when NestedVirtualization has invalid value", func() {
+				nc.Spec.CPUOptions = &v1.CPUOptions{
+					NestedVirtualization: aws.String("invalid"),
+				}
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			})
+		})
+		When("empty CPU options are provided", func() {
+			It("should succeed with nil CPU options", func() {
+				nc.Spec.CPUOptions = &v1.CPUOptions{}
+				Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			})
+		})
+	})
 })

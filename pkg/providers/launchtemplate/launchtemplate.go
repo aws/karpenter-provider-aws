@@ -334,6 +334,19 @@ func volumeSize(quantity *resource.Quantity) *int32 {
 	return lo.ToPtr(int32(math.Ceil(quantity.AsApproximateFloat64() / math.Pow(2, 30))))
 }
 
+func cpuOptions(cpuOptions *v1.CPUOptions) *ec2types.LaunchTemplateCpuOptionsRequest {
+	if cpuOptions == nil {
+		return nil
+	}
+	return &ec2types.LaunchTemplateCpuOptionsRequest{
+		CoreCount:          cpuOptions.CoreCount,
+		ThreadsPerCore:    cpuOptions.ThreadsPerCore,
+		// Note: NestedVirtualization is not yet supported in the AWS SDK v2 for CPU options
+		// This field is added for future compatibility when AWS adds support
+		// NestedVirtualization: cpuOptions.NestedVirtualization,
+	}
+}
+
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
 // Any error during hydration will result in a panic
 func (p *DefaultProvider) hydrateCache(ctx context.Context) {
