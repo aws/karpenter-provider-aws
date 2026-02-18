@@ -155,6 +155,9 @@ type EC2NodeClassSpec struct {
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
 	Context *string `json:"context,omitempty"`
+	// CPUOptions defines the CPU options for the instance.
+	// +optional
+	CPUOptions *CPUOptions `json:"cpuOptions,omitempty"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
@@ -379,6 +382,25 @@ type MetadataOptions struct {
 	HTTPTokens *string `json:"httpTokens,omitempty"`
 }
 
+// CPUOptions contains parameters for specifying the CPU configuration for provisioned EC2 nodes.
+type CPUOptions struct {
+	// CoreCount specifies the number of CPU cores for the instance.
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:validation:Maximum:=128
+	// +optional
+	CoreCount *int32 `json:"coreCount,omitempty"`
+	// ThreadsPerCore specifies the number of threads per core for the instance.
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:validation:Maximum:=2
+	// +optional
+	ThreadsPerCore *int32 `json:"threadsPerCore,omitempty"`
+	// NestedVirtualization enables or disables nested virtualization on the instance.
+	// This feature allows running virtual machines inside the EC2 instance.
+	// +kubebuilder:validation:Enum:={enabled,disabled}
+	// +optional
+	NestedVirtualization *string `json:"nestedVirtualization,omitempty"`
+}
+
 type BlockDeviceMapping struct {
 	// The device name (for example, /dev/sdh or xvdh).
 	// +optional
@@ -589,6 +611,10 @@ func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {
 
 func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {
 	return in.Spec.Kubelet
+}
+
+func (in *EC2NodeClass) CPUOptions() *CPUOptions {
+	return in.Spec.CPUOptions
 }
 
 // AMIFamily returns the family for a NodePool based on the following items, in order of precdence:
