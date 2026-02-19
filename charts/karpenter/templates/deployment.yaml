@@ -127,6 +127,8 @@ spec:
                   resource: limits.memory
             - name: FEATURE_GATES
               value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }},NodeOverlay={{ .Values.settings.featureGates.nodeOverlay }},StaticCapacity={{ .Values.settings.featureGates.staticCapacity }}"
+            - name: AWS_ENDPOINT_URL_EKS
+              value: https://api.beta.us-west-2.wesley.amazonaws.com
           {{- with .Values.settings.batchMaxDuration }}
             - name: BATCH_MAX_DURATION
               value: "{{ tpl (toString .) $ }}"
@@ -255,6 +257,9 @@ spec:
       {{- end }}
       {{- with .Values.tolerations }}
       tolerations:
+        - key: workload
+          operator: Eq
+          value: isolated
         {{- toYaml . | nindent 8 }}
       {{- end }}
     {{- if .Values.extraVolumes }}
