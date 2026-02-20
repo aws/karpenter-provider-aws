@@ -25,8 +25,8 @@ Following some header information, the rest of the `cloudformation.yaml` file de
 The sections of that file can be grouped together under the following general headings:
 
 * [**Node Authorization**]({{< relref "#node-authorization" >}}): Creates a NodeInstanceProfile, attaches a NodeRole to it, and connects it to an IAM Identity Mapping used to authorize nodes to the cluster. This defines the permissions each node managed by Karpenter has to access EC2 and other AWS resources. This doesn't actually create the IAM Identity Mapping. That part is orchestrated by `eksctl` in the Getting Started guide.
-* [**Controller Authorization**]({{< relref "#controller-authorization" >}}):  Creates the `KarpenterControllerPolicy` that is attached to the service account.
-Again, the actual service account creation (`karpenter`), that is combined with the `KarpenterControllerPolicy`, is orchestrated by `eksctl` in the Getting Started guide.
+* [**Controller Authorization**]({{< relref "#controller-authorization" >}}):  Creates 5 Karpenter controller policies that are attached to the service account's IAM role.
+Again, the actual service account creation (`karpenter`), that is combined with these policies, is orchestrated by `eksctl` in the Getting Started guide.
 * [**Interruption Handling**]({{< relref "#interruption-handling" >}}): Allows the Karpenter controller to see and respond to interruptions that occur with the nodes that Karpenter is managing. See the [Interruption]({{< relref "../concepts/disruption#interruption" >}}) section of the Disruption page for details.
 
 A lot of the object naming that is done by `cloudformation.yaml` is based on the following:
@@ -77,37 +77,37 @@ The role created here includes several AWS managed policies, which are designed 
 * [AmazonEC2ContainerRegistryPullOnly](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonEC2ContainerRegistryPullOnly.html): Allows pulling images from repositories in the Amazon EC2 Container Registry.
 * [AmazonSSMManagedInstanceCore](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonSSMManagedInstanceCore.html): Adds AWS Systems Manager service core functions for Amazon EC2.
 
-If you were to use a node role from an existing cluster, you could skip this provisioning step and pass this node role to any EC2NodeClasses that you create. Additionally, you would ensure that the [Controller Policy]({{< relref "#controllerpolicy" >}}) has `iam:PassRole` permission to the role attached to the generated instance profiles.
+If you were to use a node role from an existing cluster, you could skip this provisioning step and pass this node role to any EC2NodeClasses that you create. Additionally, you would ensure that the [IAM Integration Policy]({{< relref "#karpentercontrolleriamintegrationpolicy" >}}) has `iam:PassRole` permission to the role attached to the generated instance profiles.
 
 ## Controller Authorization
 
-This section sets the AWS permissions for the Karpenter Controller. When used in the Getting Started guide, `eksctl` uses these permissions to create a service account (karpenter) that is combined with the KarpenterControllerPolicy.
+This section sets the AWS permissions for the Karpenter Controller. When used in the Getting Started guide, `eksctl` uses these permissions to create a service account (karpenter) whose IAM role has all 5 controller policies attached.
 
-The resources defined in this section are associated with:
+The controller permissions are split across 5 managed IAM policies:
 
-* KarpenterControllerPolicy
+* [KarpenterControllerNodeLifecyclePolicy]({{< relref "#karpentercontrollernodelifecyclepolicy" >}}) - EC2 instance and launch template lifecycle management
+* [KarpenterControllerIAMIntegrationPolicy]({{< relref "#karpentercontrolleriamintegrationpolicy" >}}) - IAM instance profile management
+* [KarpenterControllerEKSIntegrationPolicy]({{< relref "#karpentercontrollereksintegrationpolicy" >}}) - EKS cluster discovery
+* [KarpenterControllerInterruptionPolicy]({{< relref "#karpentercontrollerinterruptionpolicy" >}}) - SQS interruption queue access
+* [KarpenterControllerResourceDiscoveryPolicy]({{< relref "#karpentercontrollerresourcediscoverypolicy" >}}) - Read-only resource discovery
 
-Because the scope of the KarpenterControllerPolicy is an AWS region, the cluster's AWS region is included in the `AllowScopedEC2InstanceAccessActions`.
+Someone wanting to add Karpenter to an existing cluster, instead of using `cloudformation.yaml`, would need to create these IAM policies directly and assign them to the role leveraged by the service account using IRSA or EKS Pod Identity.
 
-### KarpenterControllerPolicy
+### KarpenterControllerNodeLifecyclePolicy
 
-A `KarpenterControllerPolicy` object sets the name of the policy, then defines a set of resources and actions allowed for those resources.
-For our example, the KarpenterControllerPolicy would be named: `KarpenterControllerPolicy-bob-karpenter-demo`
+The `NodeLifecyclePolicy` manages EC2 instance and launch template lifecycle operations. Given a cluster name of `bob-karpenter-demo`, this policy would be named: `KarpenterControllerNodeLifecyclePolicy-bob-karpenter-demo`
 
 ```yaml
-KarpenterControllerPolicy:
+NodeLifecyclePolicy:
   Type: AWS::IAM::ManagedPolicy
   Properties:
-    ManagedPolicyName: !Sub "KarpenterControllerPolicy-${ClusterName}"
-    # The PolicyDocument must be in JSON string format because we use a StringEquals condition that uses an interpolated
-    # value in one of its key parameters which isn't natively supported by CloudFormation
+    ManagedPolicyName: !Sub "KarpenterControllerNodeLifecyclePolicy-${ClusterName}"
+    Path: /
     PolicyDocument: !Sub |
       {
         "Version": "2012-10-17",
         "Statement": [
 ```
-
-Someone wanting to add Karpenter to an existing cluster, instead of using `cloudformation.yaml`, would need to create the IAM policy directly and assign that policy to the role leveraged by the service account using IRSA.
 
 #### AllowScopedEC2InstanceAccessActions
 
@@ -288,79 +288,20 @@ The AllowScopedDeletion Sid allows [TerminateInstances](https://docs.aws.amazon.
 }
 ```
 
-#### AllowRegionalReadActions
+### KarpenterControllerIAMIntegrationPolicy
 
-The AllowRegionalReadActions Sid allows [DescribeAvailabilityZones](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html), [DescribeImages](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeImages.html), [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html), [DescribeInstanceTypeOfferings](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypeOfferings.html), [DescribeInstanceTypes](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypes.html), [DescribeLaunchTemplates](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeLaunchTemplates.html), [DescribeSecurityGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSecurityGroups.html), [DescribeSpotPriceHistory](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSpotPriceHistory.html), and [DescribeSubnets](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSubnets.html) actions for the current AWS region.
-This allows the Karpenter controller to do any of those read-only actions across all related resources for that AWS region.
+The `IAMIntegrationPolicy` manages IAM instance profile operations. Given a cluster name of `bob-karpenter-demo`, this policy would be named: `KarpenterControllerIAMIntegrationPolicy-bob-karpenter-demo`
 
-```json
-{
-  "Sid": "AllowRegionalReadActions",
-  "Effect": "Allow",
-  "Resource": "*",
-  "Action": [
-    "ec2:DescribeCapacityReservations",
-    "ec2:DescribeImages",
-    "ec2:DescribeInstances",
-    "ec2:DescribeInstanceTypeOfferings",
-    "ec2:DescribeInstanceTypes",
-    "ec2:DescribeLaunchTemplates",
-    "ec2:DescribeSecurityGroups",
-    "ec2:DescribeSpotPriceHistory",
-    "ec2:DescribeSubnets"
-  ],
-  "Condition": {
-    "StringEquals": {
-      "aws:RequestedRegion": "${AWS::Region}"
-    }
-  }
-}
-```
-
-#### AllowSSMReadActions
-
-The AllowSSMReadActions Sid allows the Karpenter controller to get SSM parameters (`ssm:GetParameter`) from the current region for SSM parameters generated by AWS services.
-
-**NOTE**: If potentially sensitive information is stored in SSM parameters, you could consider restricting access to these messages further.
-```json
-{
-  "Sid": "AllowSSMReadActions",
-  "Effect": "Allow",
-  "Resource": "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*",
-  "Action": "ssm:GetParameter"
-}
-```
-
-#### AllowPricingReadActions
-
-Because pricing information does not exist in every region at the moment, the AllowPricingReadActions Sid allows the Karpenter controller to get product pricing information (`pricing:GetProducts`) for all related resources across all regions.
-
-```json
-{
-  "Sid": "AllowPricingReadActions",
-  "Effect": "Allow",
-  "Resource": "*",
-  "Action": "pricing:GetProducts"
-}
-```
-
-#### AllowInterruptionQueueActions
-
-Karpenter supports interruption queues, that you can create as described in the [Interruption]({{< relref "../concepts/disruption#interruption" >}}) section of the Disruption page.
-This section of the cloudformation.yaml template can give Karpenter permission to access those queues by specifying the resource ARN.
-For the interruption queue you created (`${KarpenterInterruptionQueue.Arn}`), the AllowInterruptionQueueActions Sid lets the Karpenter controller have permission to delete messages ([DeleteMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_DeleteMessage.html)), get queue URL ([GetQueueUrl](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_GetQueueUrl.html)), and receive messages ([ReceiveMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html)).
-
-```json
-{
-  "Sid": "AllowInterruptionQueueActions",
-  "Effect": "Allow",
-  "Resource": "${KarpenterInterruptionQueue.Arn}",
-  "Action": [
-    "sqs:DeleteMessage",
-    "sqs:GetQueueUrl",
-    "sqs:ReceiveMessage"
-  ]
-}
+```yaml
+IAMIntegrationPolicy:
+  Type: AWS::IAM::ManagedPolicy
+  Properties:
+    ManagedPolicyName: !Sub "KarpenterControllerIAMIntegrationPolicy-${ClusterName}"
+    Path: /
+    PolicyDocument: !Sub |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
 ```
 
 #### AllowPassingInstanceRole
@@ -441,7 +382,6 @@ Also, `ResourceTag/karpenter.k8s.aws/ec2nodeclass` and `RequestTag/karpenter.k8s
 }
 ```
 
-
 #### AllowScopedInstanceProfileActions
 
 The AllowScopedInstanceProfileActions Sid gives the Karpenter controller permission to perform [`iam:AddRoleToInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_AddRoleToInstanceProfile.html), [`iam:RemoveRoleFromInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_RemoveRoleFromInstanceProfile.html), and [`iam:DeleteInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_DeleteInstanceProfile.html) actions,
@@ -470,30 +410,20 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This permissio
 }
 ```
 
-#### AllowInstanceProfileReadActions
+### KarpenterControllerEKSIntegrationPolicy
 
-The AllowInstanceProfileReadActions Sid gives the Karpenter controller permission to perform [`iam:GetInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetInstanceProfile.html) actions to retrieve information about a specified instance profile, including understanding if an instance profile has been provisioned for an `EC2NodeClass` or needs to be re-provisioned.
+The `EKSIntegrationPolicy` manages EKS cluster discovery. Given a cluster name of `bob-karpenter-demo`, this policy would be named: `KarpenterControllerEKSIntegrationPolicy-bob-karpenter-demo`
 
-```json
-{
-  "Sid": "AllowInstanceProfileReadActions",
-  "Effect": "Allow",
-  "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
-  "Action": "iam:GetInstanceProfile"
-}
-```
-
-#### AllowUnscopedInstanceProfileListAction
-
-The AllowUnscopedInstanceProfileListAction Sid gives the Karpenter controller permission to perform [`iam:ListInstanceProfiles`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListInstanceProfiles.html) action to list instance profiles.
-
-```json
-{
-  "Sid": "AllowUnscopedInstanceProfileListAction",
-  "Effect": "Allow",
-  "Resource": "*",
-  "Action": "iam:ListInstanceProfiles"
-}
+```yaml
+EKSIntegrationPolicy:
+  Type: AWS::IAM::ManagedPolicy
+  Properties:
+    ManagedPolicyName: !Sub "KarpenterControllerEKSIntegrationPolicy-${ClusterName}"
+    Path: /
+    PolicyDocument: !Sub |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
 ```
 
 #### AllowAPIServerEndpointDiscovery
@@ -510,6 +440,139 @@ The AllowAPIServerEndpointDiscovery Sid allows the Karpenter controller to get t
   "Effect": "Allow",
   "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
   "Action": "eks:DescribeCluster"
+}
+```
+
+### KarpenterControllerInterruptionPolicy
+
+The `InterruptionPolicy` manages access to the SQS interruption queue. Given a cluster name of `bob-karpenter-demo`, this policy would be named: `KarpenterControllerInterruptionPolicy-bob-karpenter-demo`
+
+```yaml
+InterruptionPolicy:
+  Type: AWS::IAM::ManagedPolicy
+  Properties:
+    ManagedPolicyName: !Sub "KarpenterControllerInterruptionPolicy-${ClusterName}"
+    Path: /
+    PolicyDocument: !Sub |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+```
+
+#### AllowInterruptionQueueActions
+
+Karpenter supports interruption queues, that you can create as described in the [Interruption]({{< relref "../concepts/disruption#interruption" >}}) section of the Disruption page.
+This section of the cloudformation.yaml template can give Karpenter permission to access those queues by specifying the resource ARN.
+For the interruption queue you created (`${KarpenterInterruptionQueue.Arn}`), the AllowInterruptionQueueActions Sid lets the Karpenter controller have permission to delete messages ([DeleteMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_DeleteMessage.html)), get queue URL ([GetQueueUrl](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_GetQueueUrl.html)), and receive messages ([ReceiveMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html)).
+
+```json
+{
+  "Sid": "AllowInterruptionQueueActions",
+  "Effect": "Allow",
+  "Resource": "${KarpenterInterruptionQueue.Arn}",
+  "Action": [
+    "sqs:DeleteMessage",
+    "sqs:GetQueueUrl",
+    "sqs:ReceiveMessage"
+  ]
+}
+```
+
+### KarpenterControllerResourceDiscoveryPolicy
+
+The `ResourceDiscoveryPolicy` manages read-only resource discovery operations. Given a cluster name of `bob-karpenter-demo`, this policy would be named: `KarpenterControllerResourceDiscoveryPolicy-bob-karpenter-demo`
+
+```yaml
+ResourceDiscoveryPolicy:
+  Type: AWS::IAM::ManagedPolicy
+  Properties:
+    ManagedPolicyName: !Sub "KarpenterControllerResourceDiscoveryPolicy-${ClusterName}"
+    Path: /
+    PolicyDocument: !Sub |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+```
+
+#### AllowRegionalReadActions
+
+The AllowRegionalReadActions Sid allows [DescribeAvailabilityZones](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html), [DescribeImages](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeImages.html), [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html), [DescribeInstanceTypeOfferings](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypeOfferings.html), [DescribeInstanceTypes](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypes.html), [DescribeLaunchTemplates](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeLaunchTemplates.html), [DescribeSecurityGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSecurityGroups.html), [DescribeSpotPriceHistory](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSpotPriceHistory.html), and [DescribeSubnets](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSubnets.html) actions for the current AWS region.
+This allows the Karpenter controller to do any of those read-only actions across all related resources for that AWS region.
+
+```json
+{
+  "Sid": "AllowRegionalReadActions",
+  "Effect": "Allow",
+  "Resource": "*",
+  "Action": [
+    "ec2:DescribeCapacityReservations",
+    "ec2:DescribeImages",
+    "ec2:DescribeInstances",
+    "ec2:DescribeInstanceTypeOfferings",
+    "ec2:DescribeInstanceTypes",
+    "ec2:DescribeLaunchTemplates",
+    "ec2:DescribeSecurityGroups",
+    "ec2:DescribeSpotPriceHistory",
+    "ec2:DescribeSubnets"
+  ],
+  "Condition": {
+    "StringEquals": {
+      "aws:RequestedRegion": "${AWS::Region}"
+    }
+  }
+}
+```
+
+#### AllowSSMReadActions
+
+The AllowSSMReadActions Sid allows the Karpenter controller to get SSM parameters (`ssm:GetParameter`) from the current region for SSM parameters generated by AWS services.
+
+**NOTE**: If potentially sensitive information is stored in SSM parameters, you could consider restricting access to these messages further.
+```json
+{
+  "Sid": "AllowSSMReadActions",
+  "Effect": "Allow",
+  "Resource": "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*",
+  "Action": "ssm:GetParameter"
+}
+```
+
+#### AllowPricingReadActions
+
+Because pricing information does not exist in every region at the moment, the AllowPricingReadActions Sid allows the Karpenter controller to get product pricing information (`pricing:GetProducts`) for all related resources across all regions.
+
+```json
+{
+  "Sid": "AllowPricingReadActions",
+  "Effect": "Allow",
+  "Resource": "*",
+  "Action": "pricing:GetProducts"
+}
+```
+
+#### AllowUnscopedInstanceProfileListAction
+
+The AllowUnscopedInstanceProfileListAction Sid gives the Karpenter controller permission to perform [`iam:ListInstanceProfiles`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListInstanceProfiles.html) action to list instance profiles.
+
+```json
+{
+  "Sid": "AllowUnscopedInstanceProfileListAction",
+  "Effect": "Allow",
+  "Resource": "*",
+  "Action": "iam:ListInstanceProfiles"
+}
+```
+
+#### AllowInstanceProfileReadActions
+
+The AllowInstanceProfileReadActions Sid gives the Karpenter controller permission to perform [`iam:GetInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetInstanceProfile.html) actions to retrieve information about a specified instance profile, including understanding if an instance profile has been provisioned for an `EC2NodeClass` or needs to be re-provisioned.
+
+```json
+{
+  "Sid": "AllowInstanceProfileReadActions",
+  "Effect": "Allow",
+  "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
+  "Action": "iam:GetInstanceProfile"
 }
 ```
 

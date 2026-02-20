@@ -140,15 +140,23 @@ spec:
       duration: 8h
       nodes: "0"
 
+  # Optional: Number of nodes to maintain for static capacity
+  # When set, NodePool operates in static mode maintaining fixed node count
+  replicas: 5
+
   # Resource limits constrain the total size of the pool.
   # Limits prevent Karpenter from creating new instances once the limit is exceeded.
   limits:
     cpu: "1000"
     memory: 1000Gi
+    # For static NodePools, limits.nodes constrains maximum node count during scaling/drift
+    # Note : Supported only for static NodePools
+    nodes: 10
 
   # Priority given to the NodePool when the scheduler considers which NodePool
   # to select. Higher weights indicate higher priority when comparing NodePools.
   # Specifying no weight is equivalent to specifying a weight of 0.
+  # Note: weight cannot be set when replicas is specified
   weight: 10
 status:
   conditions:
@@ -158,11 +166,14 @@ status:
       lastTransitionTime: "2024-02-02T19:54:34Z"
       reason: NodeClaimNotLaunched
       message: "NodeClaim hasn't succeeded launch"
+  # Current node count for the NodePool
+  nodes: 5
   resources:
     cpu: "20"
     memory: "8192Mi"
     ephemeral-storage: "100Gi"
 ```
+
 ## metadata.name
 The name of the NodePool.
 
@@ -203,6 +214,13 @@ In addition to the well-known labels from Kubernetes, Karpenter supports AWS-spe
 These well-known labels may be specified at the NodePool level, or in a workload definition (e.g., nodeSelector on a pod.spec). Nodes are chosen using both the NodePool's and pod's requirements. If there is no overlap, nodes will not be launched. In other words, a pod's requirements must be within the NodePool's requirements. If a requirement is not defined for a well known label, any value available to the cloud provider may be chosen.
 
 For example, an instance type may be specified using a nodeSelector in a pod spec. If the instance type requested is not included in the NodePool list and the NodePool has instance type requirements, Karpenter will not create a node or schedule the pod.
+
+**Static NodePool**
+
+The requirements for static NodePool behaves identically to dynamic pools — it defines the constraints for all NodeClaims launched under that NodePool.
+
+The NodeClaim requirements are directly derived from the NodeClaimTemplate on the NodePool. These are evaluated once per NodeClaim at creation, meaning the selection is based solely on what the template allows.
+As a result, NodeClaims created for the same static NodePool could result in different instance types being launched depending on instance availability so long as those instance types are compatible with the NodePool's requirements.
 
 ### Well-Known Labels
 
@@ -381,11 +399,26 @@ You can configure Karpenter to disrupt Nodes through your NodePool in multiple w
 You can also rate limit Karpenter's disruption through the NodePool's `spec.disruption.budgets`.
 Read [Disruption]({{<ref "disruption" >}}) for more.
 
+## spec.replicas
+
+Optional field that enables static capacity mode. When specified, the NodePool maintains a fixed number of nodes regardless of pod demand.
+
+**Static NodePool Constraints:**
+- Cannot be removed once set (NodePool cannot switch between static and dynamic modes)
+- Only `limits.nodes` is allowed in limits section
+- `weight` field cannot be set
+- Nodes are not considered for consolidation
+- Scale operations bypass node disruption budgets but respect PodDisruptionBudgets
+
+**Scaling:** Use `kubectl scale nodepool <name> --replicas=<count>` to change replica count.
+
 ## spec.limits
 
 The NodePool spec includes a limits section (`spec.limits`), which constrains the maximum amount of resources that the NodePool can consume.
 
 If the `NodePool.spec.limits` section is unspecified, it means that there is no default limitation on resource allocation. In this case, the maximum resource consumption is governed by the quotas set by your cloud provider. If a limit has been exceeded, nodes provisioning is prevented until some nodes have been terminated.
+
+**For Static NodePools:** Only `limits.nodes` is supported. This field constrains the maximum number of nodes during scaling operations or drift replacement. Note that `limits.nodes` is support only on static NodePools.
 
 ```yaml
 apiVersion: karpenter.sh/v1
@@ -393,6 +426,7 @@ kind: NodePool
 metadata:
   name: default
 spec:
+  replicas: 10
   template:
     spec:
       requirements:
@@ -403,6 +437,8 @@ spec:
     cpu: 1000
     memory: 1000Gi
     nvidia.com/gpu: 2
+    # For static NodePools, only nodes limit is allowed
+    nodes: 20
 ```
 
 {{% alert title="Note" color="primary" %}}
@@ -445,6 +481,9 @@ NodePools have the following status conditions:
 
 If a NodePool is not ready, it will not be considered for scheduling.
 
+## status.nodes
+This field shows the current number of nodes managed by the NodePool.
+
 ## status.resources
 Objects under `status.resources` provide information about the status of resources such as `cpu`, `memory`, and `ephemeral-storage`.
 
@@ -475,6 +514,37 @@ spec:
         effect: NoSchedule
 ```
 In order for a pod to run on a node defined in this NodePool, it must tolerate `nvidia.com/gpu` in its pod spec.
+
+### Static NodePool
+
+A NodePool can be configured for static capacity by setting the `replicas` field. This maintains a fixed number of nodes regardless of pod demand.
+Users who want to spread nodes across zones can do so explicitly by:
+- Creating multiple static NodePools, each pinned to a specific AZ.
+
+The following example creates a static NodePool with 10 replicas:
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: static-capacity
+spec:
+  replicas: 10
+  template:
+    spec:
+      requirements:
+      - key: node.kubernetes.io/instance-type
+        operator: In
+        values: ["m5.large", "m5.xlarge"]
+      - key: topology.kubernetes.io/zone
+        operator: In
+        values: ["us-west-2a"]  # All replicas will come up in specified zone
+  limits:
+    nodes: 15  # Maximum nodes during scaling/drift
+  disruption:
+    budgets:
+    - nodes: 20%  # Disruption budget for drift replacement
+```
 
 ### Cilium Startup Taint
 
