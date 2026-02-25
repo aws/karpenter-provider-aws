@@ -51,8 +51,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 
-	"encoding/json"
-
 	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -433,6 +431,19 @@ func (p *DefaultProvider) getOverrides(
 	reqs scheduling.Requirements,
 	image, capacityReservationID string,
 ) []ec2types.FleetLaunchTemplateOverridesRequest {
+	type offeringInfo struct {
+		Zone         string
+		CapacityType string
+		Price        float64
+		Available    bool
+	}
+	type zoneInfo struct {
+		Key                     string
+		ID                      string
+		Zone                    string
+		ZoneID                  string
+		AvailableIPAddressCount int32
+	}
 	log.FromContext(ctx).V(1).Info("[DEBUG] getting overrides")
 
 	// Unwrap all the offerings to a flat slice that includes a pointer
@@ -443,15 +454,38 @@ func (p *DefaultProvider) getOverrides(
 	}
 	var filteredOfferings []offeringWithParentName
 	for _, it := range instanceTypes {
-		availOfferingsJSON, _ := json.MarshalIndent(it.Offerings.Available(), "", "  ")
-		log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] %s : offerings len is %d, available offerings len %d and list is %s", it.Name, len(it.Offerings), len(it.Offerings.Available()), availOfferingsJSON))
+		logOfferings := lo.Map(it.Offerings, func(o *cloudprovider.Offering, _ int) offeringInfo {
+			return offeringInfo{
+				Zone:         o.Zone(),
+				CapacityType: o.CapacityType(),
+				Price:        o.Price,
+				Available:    o.Available,
+			}
+		})
+		logAvailOfferings := lo.Map(it.Offerings.Available(), func(o *cloudprovider.Offering, _ int) offeringInfo {
+			return offeringInfo{
+				Zone:         o.Zone(),
+				CapacityType: o.CapacityType(),
+				Price:        o.Price,
+				Available:    o.Available,
+			}
+		})
+		log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] %s : offerings len is %d and list is %+v", it.Name, len(it.Offerings), logOfferings))
+		log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] %s : available offerings len is %d and list is %+v", it.Name, len(it.Offerings.Available()), logAvailOfferings))
 
 		ofs := it.Offerings.Available().Compatible(reqs)
 
 		log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] the requirements are %+v", reqs))
 
-		compatibleOfsJSON, _ := json.MarshalIndent(ofs, "", "  ")
-		log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] the %d compatible offerings and are %s", len(ofs), compatibleOfsJSON))
+		logCompatOfferings := lo.Map(ofs, func(o *cloudprovider.Offering, _ int) offeringInfo {
+			return offeringInfo{
+				Zone:         o.Zone(),
+				CapacityType: o.CapacityType(),
+				Price:        o.Price,
+				Available:    o.Available,
+			}
+		})
+		log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] the %d compatible offerings and are %+v", len(ofs), logCompatOfferings))
 
 		// If we are generating a launch template for a specific capacity reservation, we only want to include the offering
 		// for that capacity reservation when generating overrides.
@@ -472,14 +506,22 @@ func (p *DefaultProvider) getOverrides(
 
 	log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] length of filtered offerings is %d", len(filteredOfferings)))
 
-	zonalSubnetJSON, _ := json.MarshalIndent(zonalSubnets, "", "  ")
-	log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] zonal subnets are %s", zonalSubnetJSON))
+	logZonalSubnets := lo.MapToSlice(zonalSubnets, func(key string, subnet *subnet.Subnet) zoneInfo {
+		return zoneInfo{
+			Key:                     key,
+			ID:                      subnet.ID,
+			Zone:                    subnet.Zone,
+			ZoneID:                  subnet.ZoneID,
+			AvailableIPAddressCount: subnet.AvailableIPAddressCount,
+		}
+	})
+	log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] zonal subnets are %+v", logZonalSubnets))
 
 	var overrides []ec2types.FleetLaunchTemplateOverridesRequest
 	for _, offering := range filteredOfferings {
 		subnet, ok := zonalSubnets[offering.Zone()]
 		if !ok {
-			log.FromContext(ctx).V(1).Info("[DEBUG] %s not in zonal subnets", offering.Zone())
+			log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] %s not in zonal subnets", offering.Zone()))
 			continue
 		}
 		log.FromContext(ctx).V(1).Info("[DEBUG] adding override")
