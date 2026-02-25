@@ -399,11 +399,14 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
+
+	log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] number of LTs is %d", len(launchTemplates)))
+
 	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	requirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType)
 	for _, launchTemplate := range launchTemplates {
 		launchTemplateConfig := ec2types.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID),
+			Overrides: p.getOverrides(ctx, launchTemplate.InstanceTypes, zonalSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID),
 			LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplate.Name),
 				Version:            aws.String("$Latest"),
@@ -422,11 +425,27 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(
 // getOverrides creates and returns launch template overrides for the cross product of InstanceTypes and subnets (with subnets being constrained by
 // zones and the offerings in InstanceTypes)
 func (p *DefaultProvider) getOverrides(
+	ctx context.Context,
 	instanceTypes []*cloudprovider.InstanceType,
 	zonalSubnets map[string]*subnet.Subnet,
 	reqs scheduling.Requirements,
 	image, capacityReservationID string,
 ) []ec2types.FleetLaunchTemplateOverridesRequest {
+	type offeringInfo struct {
+		Zone         string
+		CapacityType string
+		Price        float64
+		Available    bool
+	}
+	type zoneInfo struct {
+		Key                     string
+		ID                      string
+		Zone                    string
+		ZoneID                  string
+		AvailableIPAddressCount int32
+	}
+	log.FromContext(ctx).V(1).Info("[DEBUG] getting overrides")
+
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
 	type offeringWithParentName struct {
@@ -435,7 +454,39 @@ func (p *DefaultProvider) getOverrides(
 	}
 	var filteredOfferings []offeringWithParentName
 	for _, it := range instanceTypes {
+		logOfferings := lo.Map(it.Offerings, func(o *cloudprovider.Offering, _ int) offeringInfo {
+			return offeringInfo{
+				Zone:         o.Zone(),
+				CapacityType: o.CapacityType(),
+				Price:        o.Price,
+				Available:    o.Available,
+			}
+		})
+		logAvailOfferings := lo.Map(it.Offerings.Available(), func(o *cloudprovider.Offering, _ int) offeringInfo {
+			return offeringInfo{
+				Zone:         o.Zone(),
+				CapacityType: o.CapacityType(),
+				Price:        o.Price,
+				Available:    o.Available,
+			}
+		})
+		log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] %s : offerings len is %d and list is %+v", it.Name, len(it.Offerings), logOfferings))
+		log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] %s : available offerings len is %d and list is %+v", it.Name, len(it.Offerings.Available()), logAvailOfferings))
+
 		ofs := it.Offerings.Available().Compatible(reqs)
+
+		log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] the requirements are %+v", reqs))
+
+		logCompatOfferings := lo.Map(ofs, func(o *cloudprovider.Offering, _ int) offeringInfo {
+			return offeringInfo{
+				Zone:         o.Zone(),
+				CapacityType: o.CapacityType(),
+				Price:        o.Price,
+				Available:    o.Available,
+			}
+		})
+		log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] the %d compatible offerings and are %+v", len(ofs), logCompatOfferings))
+
 		// If we are generating a launch template for a specific capacity reservation, we only want to include the offering
 		// for that capacity reservation when generating overrides.
 		if capacityReservationID != "" {
@@ -452,12 +503,28 @@ func (p *DefaultProvider) getOverrides(
 			})
 		}
 	}
+
+	log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] length of filtered offerings is %d", len(filteredOfferings)))
+
+	logZonalSubnets := lo.MapToSlice(zonalSubnets, func(key string, subnet *subnet.Subnet) zoneInfo {
+		return zoneInfo{
+			Key:                     key,
+			ID:                      subnet.ID,
+			Zone:                    subnet.Zone,
+			ZoneID:                  subnet.ZoneID,
+			AvailableIPAddressCount: subnet.AvailableIPAddressCount,
+		}
+	})
+	log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] zonal subnets are %+v", logZonalSubnets))
+
 	var overrides []ec2types.FleetLaunchTemplateOverridesRequest
 	for _, offering := range filteredOfferings {
 		subnet, ok := zonalSubnets[offering.Zone()]
 		if !ok {
+			log.FromContext(ctx).V(1).Info(fmt.Sprintf("[DEBUG] %s not in zonal subnets", offering.Zone()))
 			continue
 		}
+		log.FromContext(ctx).V(1).Info("[DEBUG] adding override")
 		overrides = append(overrides, ec2types.FleetLaunchTemplateOverridesRequest{
 			InstanceType: offering.parentInstanceTypeName,
 			SubnetId:     lo.ToPtr(subnet.ID),
