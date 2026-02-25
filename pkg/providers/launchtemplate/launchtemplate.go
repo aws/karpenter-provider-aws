@@ -339,11 +339,9 @@ func cpuOptions(cpuOptions *v1.CPUOptions) *ec2types.LaunchTemplateCpuOptionsReq
 		return nil
 	}
 	return &ec2types.LaunchTemplateCpuOptionsRequest{
-		CoreCount:          cpuOptions.CoreCount,
-		ThreadsPerCore:    cpuOptions.ThreadsPerCore,
-		// Note: NestedVirtualization is not yet supported in the AWS SDK v2 for CPU options
-		// This field is added for future compatibility when AWS adds support
-		// NestedVirtualization: cpuOptions.NestedVirtualization,
+		CoreCount:            cpuOptions.CoreCount,
+		ThreadsPerCore:       cpuOptions.ThreadsPerCore,
+		NestedVirtualization: cpuOptions.NestedVirtualization,
 	}
 }
 
