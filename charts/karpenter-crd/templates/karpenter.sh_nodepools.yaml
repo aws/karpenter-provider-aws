@@ -23,7 +23,7 @@ spec:
         - jsonPath: .spec.template.spec.nodeClassRef.name
           name: NodeClass
           type: string
-        - jsonPath: .status.nodes
+        - jsonPath: .status.resources.nodes
           name: Nodes
           type: string
         - jsonPath: .status.conditions[?(@.type=="Ready")].status
@@ -549,5 +549,5 @@ spec:
       subresources:
         scale:
           specReplicasPath: .spec.replicas
-          statusReplicasPath: .status.nodes
+          statusReplicasPath: .status.resources.nodes
         status: {}
