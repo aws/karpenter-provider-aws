@@ -26,8 +26,8 @@ github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.18 h1:xCeWVjj0ki0l3nruoy
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.18/go.mod h1:r/eLGuGCBw6l36ZRWiw6PaZwPXb6YOj+i/7MizNl5/k=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.8.4 h1:WKuaxf++XKWlHWu9ECbMlha8WOEGm0OUEZqm4K/Gcfk=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.8.4/go.mod h1:ZWy7j6v1vWGmPReu0iSGvRiise4YI5SkR3OHKTZ6Wuc=
-github.com/aws/aws-sdk-go-v2/service/ec2 v1.290.1 h1:iNxv8JSlaMFSo/DDDGsAPgvPuONsfNp6kyJnzjHgIQ4=
-github.com/aws/aws-sdk-go-v2/service/ec2 v1.290.1/go.mod h1:2dMnUs1QzlGzsm46i9oBHAxVHQp7b6qF7PljWcgVEVE=
+github.com/aws/aws-sdk-go-v2/service/ec2 v1.293.0 h1:dgdIaG/GCiXMo16HAdFwpjt9Vn34bD2WVH5SiZdwzUc=
+github.com/aws/aws-sdk-go-v2/service/ec2 v1.293.0/go.mod h1:2dMnUs1QzlGzsm46i9oBHAxVHQp7b6qF7PljWcgVEVE=
 github.com/aws/aws-sdk-go-v2/service/eks v1.80.1 h1:Aivj88+23MYkW/B507eqsnLHTMmj4A/Us2AxKz+PDkM=
 github.com/aws/aws-sdk-go-v2/service/eks v1.80.1/go.mod h1:p30UgulgoiPvwWGGfVeiaCbOzD1PTObBVYn6MmCPHVg=
 github.com/aws/aws-sdk-go-v2/service/fis v1.37.17 h1:tydHMA8w6GU50ccUjG00T8eMnLupoTVtcroNFzLX7uU=
@@ -58,8 +58,8 @@ github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.35.17 h1:Wlwn7YHQD3EWt1n
 github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.35.17/go.mod h1:ENvCiX8Lsds2dgCXynL6PcPgxcdzmsG6BYH0RZ+xPng=
 github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881 h1:m9rhsGhdepdQV96tZgfy68oU75AWAjOH8u65OefTjwA=
 github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881/go.mod h1:+Mk5k0b6HpKobxNq+B56DOhZ+I/NiPhd5MIBhQMSTSs=
-github.com/aws/smithy-go v1.24.1 h1:VbyeNfmYkWoxMVpGUAbQumkODcYmfMRfZ8yQiH30SK0=
-github.com/aws/smithy-go v1.24.1/go.mod h1:LEj2LM3rBRQJxPZTB4KuzZkaZYnZPnvgIhb4pu07mx0=
+github.com/aws/smithy-go v1.24.2 h1:FzA3bu/nt/vDvmnkg+R8Xl46gmzEDam6mZ1hzmwXFng=
+github.com/aws/smithy-go v1.24.2/go.mod h1:YE2RhdIuDbA5E5bTdciG9KrW3+TiEONeUWCqxX9i1Fc=
 github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647 h1:8yRBVsjGmI7qQsPWtIrbWP+XfwHO9Wq7gdLVzjqiZFs=
 github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647/go.mod h1:9NafTAUHL0FlMeL6Cu5PXnMZ1q/LnC9X2emLXHsVbM8=
 github.com/awslabs/operatorpkg v0.0.0-20251222193911-34e9a1898737 h1:hF8FFDPnboX/ABn1r8oS77t8tG4TVS8i99iPXMaL8Jk=

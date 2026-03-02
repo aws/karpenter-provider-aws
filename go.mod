@@ -14,7 +14,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.41.2
 	github.com/aws/aws-sdk-go-v2/config v1.32.10
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.18
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.290.1
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.293.0
 	github.com/aws/aws-sdk-go-v2/service/eks v1.80.1
 	github.com/aws/aws-sdk-go-v2/service/fis v1.37.17
 	github.com/aws/aws-sdk-go-v2/service/iam v1.53.3
@@ -24,7 +24,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.7
 	github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.35.17
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
-	github.com/aws/smithy-go v1.24.1
+	github.com/aws/smithy-go v1.24.2
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
 	github.com/awslabs/operatorpkg v0.0.0-20251222193911-34e9a1898737
 	github.com/awslabs/operatorpkg/aws v0.0.0-20250414225955-b47cd315ffe9
