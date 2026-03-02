@@ -360,20 +360,51 @@ In this scenario, Karpenter cannot voluntary disrupt the node because:
 
 As seen in this example, the more PDBs there are affecting a Node, the more difficult it will be for Karpenter to find an opportunity to perform voluntary disruption actions.
 
-Secondly, you can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt: "true"` annotation to the pod.
-You can treat this annotation as a single-pod, permanently blocking PDB.
+Secondly, you can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt` annotation to the pod.
+This annotation supports two formats:
+
+| Format | Example | Behavior |
+|--------|---------|----------|
+| **Boolean** | `karpenter.sh/do-not-disrupt: "true"` | Provides permanent protection from disruption |
+| **Duration** | `karpenter.sh/do-not-disrupt: "30m"` | Provides time-based protection for the specified duration after the pod starts running |
+
+#### Duration-Based Protection
+
+When using the duration format, the annotation will be "active" and pods will be protected from disruption for the specified time period after they start running (based on `pod.status.startTime`).
+Once the duration expires, the annotation becomes inactive and the pod becomes eligible for disruption.
+This is useful for workloads that need protection during startup or critical phases but can be safely disrupted later.
+
+The duration value must be a valid Go `time.Duration` string. Supported formats include:
+
+| Duration | Description |
+|----------|-------------|
+| `"5m"` | 5 minutes |
+| `"1h"` | 1 hour |
+| `"2h30m"` | 2 hours and 30 minutes |
+| `"24h"` | 24 hours |
+| `"1h30m45s"` | 1 hour, 30 minutes, and 45 seconds |
+
+{{% alert title="Note" color="primary" %}}
+If an invalid duration is specified, the annotation will be ignored and an event will be emitted on the pod indicating that the duration format is invalid.
+{{% /alert %}}
+
+#### Behavior and Consequences
+
+You can treat this annotation as a single-pod blocking PDB that is active either permanently (boolean format) or temporarily while the duration hasn't elapsed (duration format).
 This has the following consequences:
-- Nodes with `karpenter.sh/do-not-disrupt` pods will be excluded from [Consolidation]({{<ref "#consolidation" >}}), and conditionally excluded from [Drift]({{<ref "#drift" >}}).
+- Nodes with active `karpenter.sh/do-not-disrupt` pods will be excluded from [Consolidation]({{<ref "#consolidation" >}}), and conditionally excluded from [Drift]({{<ref "#drift" >}}).
   - If the Node's owning NodeClaim has a [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) configured, it will still be eligible for disruption via drift.
-- Like pods with a blocking PDB, pods with the `karpenter.sh/do-not-disrupt` annotation will **not** be gracefully evicted by the [Termination Controller]({{<ref "#termination-controller">}}).
+- Like pods with a blocking PDB, pods with an active `karpenter.sh/do-not-disrupt` annotation will **not** be gracefully evicted by the [Termination Controller]({{<ref "#termination-controller">}}).
   Karpenter will not be able to complete termination of the node until one of the following conditions is met:
-  - All pods with the `karpenter.sh/do-not-disrupt` annotation are removed.
+  - All pods with the `karpenter.sh/do-not-disrupt` annotation are removed, or their annotation becomes inactive (duration has elapsed).
   - All pods with the `karpenter.sh/do-not-disrupt` annotation have entered a [terminal phase](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) (`Succeeded` or `Failed`).
   - The owning NodeClaim's [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) has elapsed.
 
-This is useful for pods that you want to run from start to finish without disruption.
-Examples of pods that you might want to opt-out of disruption include an interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
+#### Examples
 
+This is useful for pods that you want to run from start to finish without disruption, or that need protection during critical startup phases.
+
+**Permanent protection** - useful for interactive games or long-running batch jobs:
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -382,6 +413,18 @@ spec:
     metadata:
       annotations:
         karpenter.sh/do-not-disrupt: "true"
+```
+
+**Duration-based protection** - useful for workloads with critical startup phases:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+spec:
+  template:
+    metadata:
+      annotations:
+        # Protect for 30 minutes after pod starts running
+        karpenter.sh/do-not-disrupt: "30m"
 ```
 
 {{% alert title="Note" color="primary" %}}
