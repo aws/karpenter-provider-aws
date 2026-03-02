@@ -43,6 +43,7 @@ type Options struct {
 	InterruptionQueue       string
 	ReservedENIs            int
 	DisableDryRun           bool
+	MinSubnetAvailableIPs   int
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
@@ -55,6 +56,7 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.StringVar(&o.InterruptionQueue, "interruption-queue", env.WithDefaultString("INTERRUPTION_QUEUE", ""), "Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.")
 	fs.IntVar(&o.ReservedENIs, "reserved-enis", env.WithDefaultInt("RESERVED_ENIS", 0), "Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.")
 	fs.BoolVarWithEnv(&o.DisableDryRun, "disable-dry-run", "DISABLE_DRY_RUN", false, "If true, then disable dry run validation for EC2NodeClasses.")
+	fs.IntVar(&o.MinSubnetAvailableIPs, "min-subnet-available-ips", env.WithDefaultInt("MIN_SUBNET_AVAILABLE_IPS", 0), "Minimum available IPs required in a subnet before launching nodes in that zone. Zones where all subnets are below this threshold will be skipped. Set to 0 to disable filtering (default). Recommended value: 10-50.")
 }
 
 func (o *Options) Parse(fs *coreoptions.FlagSet, args ...string) error {
