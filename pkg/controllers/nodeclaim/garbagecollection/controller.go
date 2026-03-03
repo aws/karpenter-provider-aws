@@ -60,6 +60,10 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	// This works since our CloudProvider cloudNodeClaims are deleted based on whether the Machine exists or not, not vise-versa
 	cloudNodeClaims, err := c.cloudProvider.List(ctx)
 	if err != nil {
+		if cloudprovider.IsUnevaluatedNodePoolError(err) {
+			log.FromContext(ctx).V(1).Info("skipping, awaiting nodeoverlay evaluation")
+			return reconciler.Result{RequeueAfter: lo.Ternary(c.successfulCount <= 20, time.Second*10, time.Minute*2)}, nil
+		}
 		return reconciler.Result{}, fmt.Errorf("listing cloudprovider nodeclaims, %w", err)
 	}
 	// Filter out any cloudprovider NodeClaim which is already terminating

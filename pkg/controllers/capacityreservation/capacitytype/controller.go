@@ -64,6 +64,10 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
 	cpNodeClaims, err := c.cp.List(ctx)
 	if err != nil {
+		if cloudprovider.IsUnevaluatedNodePoolError(err) {
+			log.FromContext(ctx).V(1).Info("skipping, awaiting nodeoverlay evaluation")
+			return reconciler.Result{RequeueAfter: time.Minute}, nil
+		}
 		return reconciler.Result{}, fmt.Errorf("listing instance types, %w", err)
 	}
 	providerIDsToCPNodeClaims := lo.SliceToMap(cpNodeClaims, func(nc *karpv1.NodeClaim) (string, *karpv1.NodeClaim) {

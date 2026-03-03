@@ -59,6 +59,9 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	for _, nodePool := range nodePools.Items {
 		instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, &nodePool)
 		if err != nil {
+			if cloudprovider.IsUnevaluatedNodePoolError(err) {
+				continue
+			}
 			return reconciler.Result{}, err
 		}
 		for _, instanceType := range instanceTypes {
