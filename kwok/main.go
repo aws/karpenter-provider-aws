@@ -100,6 +100,7 @@ func main() {
 			op.InstanceTypesProvider,
 			op.CapacityReservationProvider,
 			op.AMIResolver,
+			op.ZonalShiftProvider,
 		)...).
 		Start(ctx)
 	wg.Wait()

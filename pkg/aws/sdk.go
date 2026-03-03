@@ -17,6 +17,7 @@ package sdk
 import (
 	"context"
 
+	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -27,6 +28,7 @@ import (
 )
 
 type EC2API interface {
+	DescribeAvailabilityZones(context.Context, *ec2.DescribeAvailabilityZonesInput, ...func(*ec2.Options)) (*ec2.DescribeAvailabilityZonesOutput, error)
 	DescribeCapacityReservations(context.Context, *ec2.DescribeCapacityReservationsInput, ...func(*ec2.Options)) (*ec2.DescribeCapacityReservationsOutput, error)
 	DescribeImages(context.Context, *ec2.DescribeImagesInput, ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error)
 	DescribeLaunchTemplates(context.Context, *ec2.DescribeLaunchTemplatesInput, ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplatesOutput, error)
@@ -70,6 +72,11 @@ type SQSAPI interface {
 	ReceiveMessage(context.Context, *sqs.ReceiveMessageInput, ...func(*sqs.Options)) (*sqs.ReceiveMessageOutput, error)
 	DeleteMessage(context.Context, *sqs.DeleteMessageInput, ...func(*sqs.Options)) (*sqs.DeleteMessageOutput, error)
 	SendMessage(context.Context, *sqs.SendMessageInput, ...func(*sqs.Options)) (*sqs.SendMessageOutput, error)
+}
+
+type ARCZonalShiftAPI interface {
+	ListZonalShifts(context.Context, *arczonalshift.ListZonalShiftsInput, ...func(*arczonalshift.Options)) (*arczonalshift.ListZonalShiftsOutput, error)
+	GetManagedResource(context.Context, *arczonalshift.GetManagedResourceInput, ...func(*arczonalshift.Options)) (*arczonalshift.GetManagedResourceOutput, error)
 }
 
 type TimestreamWriteAPI interface {

@@ -26,6 +26,7 @@ import (
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -54,6 +55,7 @@ import (
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	arczonalshiftProvider "github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
@@ -92,6 +94,7 @@ type Operator struct {
 	SSMProvider                 ssmp.Provider
 	CapacityReservationProvider capacityreservation.Provider
 	EC2API                      *ec2.Client
+	ZonalShiftProvider          arczonalshiftProvider.Provider
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
@@ -126,6 +129,25 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		log.FromContext(ctx).V(1).Info(fmt.Sprintf("unable to detect the IP of the kube-dns service, %s", err))
 	} else {
 		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
+	}
+	var zsProvider arczonalshiftProvider.Provider
+	if options.FromContext(ctx).EnableZonalShift {
+		inputzs := eks.DescribeClusterInput{Name: &options.FromContext(ctx).ClusterName}
+		outputzs, _ := eksapi.DescribeCluster(ctx, &inputzs)
+		clusterArn := outputzs.Cluster.Arn
+		arczonalshiftAPI := arczonalshift.NewFromConfig(cfg)
+		inputGMR := arczonalshift.GetManagedResourceInput{ResourceIdentifier: clusterArn}
+		_, getManagedResourceErr := arczonalshiftAPI.GetManagedResource(ctx, &inputGMR)
+		if getManagedResourceErr != nil {
+			// Resource is not found/registered in Zonal Shift. Log a message and use the NoopProvider so we don't block starting up.
+			log.FromContext(ctx).WithValues("Cluster", clusterArn).V(1).Info("Cluster not found in Zonal Shift")
+			zsProvider = arczonalshiftProvider.NewNoopProvider()
+		} else {
+			azMap := GetAvailablityZoneMapping(ctx, ec2api)
+			zsProvider = arczonalshiftProvider.NewProvider(arczonalshiftAPI, operator.Clock, *clusterArn, azMap)
+		}
+	} else {
+		zsProvider = arczonalshiftProvider.NewNoopProvider()
 	}
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
@@ -184,6 +206,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		capacityReservationProvider,
 		unavailableOfferingsCache,
 		instancetype.NewDefaultResolver(cfg.Region),
+		zsProvider,
 	)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
@@ -225,6 +248,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		SSMProvider:                 ssmProvider,
 		CapacityReservationProvider: capacityReservationProvider,
 		EC2API:                      ec2api,
+		ZonalShiftProvider:          zsProvider,
 	}
 }
 
@@ -319,4 +343,13 @@ func SetupIndexers(ctx context.Context, mgr manager.Manager) {
 		}
 		return []string{id}
 	}), "failed to setup node instanceID indexer")
+}
+
+func GetAvailablityZoneMapping(ctx context.Context, ec2Api sdk.EC2API) map[string]string {
+	azMap := make(map[string]string)
+	output, _ := ec2Api.DescribeAvailabilityZones(ctx, &ec2.DescribeAvailabilityZonesInput{})
+	for _, az := range output.AvailabilityZones {
+		azMap[*az.ZoneName] = *az.ZoneId
+	}
+	return azMap
 }

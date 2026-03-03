@@ -30,6 +30,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
+	arczonalshiftProvider "github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
@@ -48,6 +50,7 @@ type NodeClass interface {
 type DefaultProvider struct {
 	pricingProvider                pricing.Provider
 	capacityReservationProvider    capacityreservation.Provider
+	zonalshiftProvider             arczonalshiftProvider.Provider
 	unavailableOfferings           *awscache.UnavailableOfferings
 	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
 	cache                          *cache.Cache
@@ -58,12 +61,14 @@ func NewDefaultProvider(
 	capacityReservationProvider capacityreservation.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	offeringCache *cache.Cache,
+	zonalshiftProvider arczonalshiftProvider.Provider,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		pricingProvider:             pricingProvider,
 		capacityReservationProvider: capacityReservationProvider,
 		unavailableOfferings:        unavailableOfferingsCache,
 		cache:                       offeringCache,
+		zonalshiftProvider:          zonalshiftProvider,
 	}
 }
 
@@ -121,6 +126,7 @@ func (p *DefaultProvider) createOfferings(
 	} else {
 		var cachedOfferings []*cloudprovider.Offering
 		for zone := range allZones {
+			isZonalShifted := p.zonalshiftProvider.IsZonalShifted(ctx, zone)
 			for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
 				// Reserved capacity types are constructed separately
 				if capacityType == karpv1.CapacityTypeReserved {
@@ -145,7 +151,7 @@ func (p *DefaultProvider) createOfferings(
 						scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpDoesNotExist),
 					),
 					Price:     price,
-					Available: !isUnavailable && hasPrice && itZones.Has(zone),
+					Available: !isUnavailable && hasPrice && itZones.Has(zone) && !isZonalShifted,
 				}
 				if id, ok := subnetZonesToZoneIDs[zone]; ok {
 					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
