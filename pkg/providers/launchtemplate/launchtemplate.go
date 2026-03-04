@@ -278,6 +278,31 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
 				PrimaryIpv6:              lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
 				Ipv6AddressCount:         lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+				ConnectionTrackingSpecification: func() *ec2types.ConnectionTrackingSpecificationRequest {
+					if options.ConnectionTracking == nil {
+						return nil
+					}
+					return &ec2types.ConnectionTrackingSpecificationRequest{
+						TcpEstablishedTimeout: func() *int32 {
+							if options.ConnectionTracking.TCPEstablishedTimeout == nil {
+								return nil
+							}
+							return aws.Int32(int32(options.ConnectionTracking.TCPEstablishedTimeout.Seconds()))
+						}(),
+						UdpStreamTimeout: func() *int32 {
+							if options.ConnectionTracking.UDPStreamTimeout == nil {
+								return nil
+							}
+							return aws.Int32(int32(options.ConnectionTracking.UDPStreamTimeout.Seconds()))
+						}(),
+						UdpTimeout: func() *int32 {
+							if options.ConnectionTracking.UDPTimeout == nil {
+								return nil
+							}
+							return aws.Int32(int32(options.ConnectionTracking.UDPTimeout.Seconds()))
+						}(),
+					}
+				}(),
 			}
 		})
 	}
@@ -293,6 +318,31 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 			}),
 			PrimaryIpv6:      lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
 			Ipv6AddressCount: lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+			ConnectionTrackingSpecification: func() *ec2types.ConnectionTrackingSpecificationRequest {
+				if options.ConnectionTracking == nil {
+					return nil
+				}
+				return &ec2types.ConnectionTrackingSpecificationRequest{
+					TcpEstablishedTimeout: func() *int32 {
+						if options.ConnectionTracking.TCPEstablishedTimeout == nil {
+							return nil
+						}
+						return aws.Int32(int32(options.ConnectionTracking.TCPEstablishedTimeout.Seconds()))
+					}(),
+					UdpStreamTimeout: func() *int32 {
+						if options.ConnectionTracking.UDPStreamTimeout == nil {
+							return nil
+						}
+						return aws.Int32(int32(options.ConnectionTracking.UDPStreamTimeout.Seconds()))
+					}(),
+					UdpTimeout: func() *int32 {
+						if options.ConnectionTracking.UDPTimeout == nil {
+							return nil
+						}
+						return aws.Int32(int32(options.ConnectionTracking.UDPTimeout.Seconds()))
+					}(),
+				}
+			}(),
 		},
 	}
 }
