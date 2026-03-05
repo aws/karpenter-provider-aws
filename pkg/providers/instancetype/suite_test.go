@@ -2371,6 +2371,86 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(zones).To(HaveLen(2))
 			Expect(zones.UnsortedList()).To(ConsistOf([]string{"test-zone-1b", "test-zone-1c"}))
 		})
+		It("should invalidate offering cache for an instance type across different nodeclasses when an ICE error occurs", func() {
+			// BUG: The offering cache's lastUnavailableOfferingsSeqNum is keyed by instance type
+			// name only, not by the full offering cache key (name + zones hash). When two
+			// nodeclasses have different subnet zones, they produce different offering cache keys
+			// for the same instance type. After an ICE error increments the seqNum, whichever
+			// nodeclass's offerings are rebuilt FIRST updates the shared lastSeqNum. The other
+			// nodeclass then sees lastSeqNum == seqNum (a false "up-to-date" signal) and gets
+			// a stale cache hit with pre-ICE availability data.
+			nodeClassA := test.EC2NodeClass(v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					SubnetSelectorTerms: []v1.SubnetSelectorTerm{{Tags: map[string]string{"zone": "a"}}},
+				},
+				Status: v1.EC2NodeClassStatus{
+					InstanceProfile: "test-profile",
+					SecurityGroups:  nodeClass.Status.SecurityGroups,
+					Subnets: []v1.Subnet{
+						{ID: "subnet-zone-a", Zone: "test-zone-1a", ZoneID: "tstz1-1a"},
+					},
+				},
+			})
+			nodeClassA.StatusConditions().SetTrue(status.ConditionReady)
+
+			nodeClassB := test.EC2NodeClass(v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					SubnetSelectorTerms: []v1.SubnetSelectorTerm{{Tags: map[string]string{"zone": "b"}}},
+				},
+				Status: v1.EC2NodeClassStatus{
+					InstanceProfile: "test-profile",
+					SecurityGroups:  nodeClass.Status.SecurityGroups,
+					Subnets: []v1.Subnet{
+						{ID: "subnet-zone-b", Zone: "test-zone-1b", ZoneID: "tstz1-1b"},
+					},
+				},
+			})
+			nodeClassB.StatusConditions().SetTrue(status.ConditionReady)
+
+			// Step 1: Populate offering cache for both nodeclasses.
+			// NodeClassA's m5.large has zones=[test-zone-1a], offering cache key = f(m5.large, hash(1a)).
+			// NodeClassB's m5.large has zones=[test-zone-1b], offering cache key = f(m5.large, hash(1b)).
+			// Both set the shared lastSeqNum["m5.large"] = 0.
+			listA, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClassA)
+			Expect(err).ToNot(HaveOccurred())
+			m5a, ok := lo.Find(listA, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == string(ec2types.InstanceTypeM5Large)
+			})
+			Expect(ok).To(BeTrue())
+			Expect(m5a.Requirements.Get(corev1.LabelTopologyZone).Values()).To(ConsistOf("test-zone-1a"))
+			Expect(m5a.Offerings.Compatible(scheduling.NewLabelRequirements(map[string]string{
+				corev1.LabelTopologyZone:    "test-zone-1a",
+				karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand,
+			}))[0].Available).To(BeTrue())
+
+			_, err = awsEnv.InstanceTypesProvider.List(ctx, nodeClassB)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Step 2: ICE marks m5.large/test-zone-1a/on-demand unavailable → seqNum becomes 1.
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeOnDemand, map[string]string{"reason": "InsufficientInstanceCapacity"})
+
+			// Step 3: Query nodeClassB FIRST. Its offering cache entry (keyed by zones=[1b])
+			// is rebuilt because seqNum (1) != lastSeqNum (0). This stores lastSeqNum["m5.large"] = 1.
+			_, err = awsEnv.InstanceTypesProvider.List(ctx, nodeClassB)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Step 4: Query nodeClassA. The offering cache check sees seqNum (1) == lastSeqNum (1)
+			// (updated by step 3 for a DIFFERENT cache key) → stale cache hit. The pre-ICE
+			// offering for test-zone-1a/on-demand is returned with Available=true.
+			listA, err = awsEnv.InstanceTypesProvider.List(ctx, nodeClassA)
+			Expect(err).ToNot(HaveOccurred())
+			m5a, ok = lo.Find(listA, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == string(ec2types.InstanceTypeM5Large)
+			})
+			Expect(ok).To(BeTrue())
+
+			// BUG: The ICE for test-zone-1a/on-demand should make this offering unavailable,
+			// but the stale cache returns Available=true. When fixed, change to BeFalse().
+			Expect(m5a.Offerings.Compatible(scheduling.NewLabelRequirements(map[string]string{
+				corev1.LabelTopologyZone:    "test-zone-1a",
+				karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand,
+			}))[0].Available).To(BeTrue()) // BUG: should be BeFalse()
+		})
 	})
 	Context("CapacityType", func() {
 		It("should default to on-demand", func() {
