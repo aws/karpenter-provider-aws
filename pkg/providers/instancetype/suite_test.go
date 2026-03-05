@@ -520,6 +520,71 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(spotPrice).To(BeNumerically("<", cheapestODPrice))
 		}
 	})
+	It("should assign high price to instances without pricing data", func() {
+		// Create a custom instance type that won't have pricing data
+		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+			InstanceTypes: []ec2types.InstanceTypeInfo{
+				{
+					InstanceType: "p99.custom", // Custom type not in pricing data
+					ProcessorInfo: &ec2types.ProcessorInfo{
+						SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+					},
+					VCpuInfo: &ec2types.VCpuInfo{
+						DefaultCores: aws.Int32(1),
+						DefaultVCpus: aws.Int32(2),
+					},
+					MemoryInfo: &ec2types.MemoryInfo{
+						SizeInMiB: aws.Int64(4096),
+					},
+					NetworkInfo: &ec2types.NetworkInfo{
+						Ipv4AddressesPerInterface: aws.Int32(10),
+						DefaultNetworkCardIndex:   aws.Int32(0),
+						NetworkCards: []ec2types.NetworkCardInfo{{
+							NetworkCardIndex:         aws.Int32(0),
+							MaximumNetworkInterfaces: aws.Int32(3),
+						}},
+					},
+					SupportedUsageClasses: []ec2types.UsageClassType{ec2types.UsageClassTypeOnDemand},
+				},
+			},
+		})
+		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+			InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
+				{
+					InstanceType: "p99.custom",
+					Location:     aws.String("test-zone-1a"),
+					LocationType: ec2types.LocationTypeAvailabilityZone,
+				},
+			},
+		})
+
+		// Don't call UpdateOnDemandPricing - this simulates missing pricing data
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+		// Verify pricing provider has no price for this instance
+		_, hasPrice := awsEnv.PricingProvider.OnDemandPrice("p99.custom")
+		Expect(hasPrice).To(BeFalse())
+
+		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			{
+				Key:      corev1.LabelInstanceTypeStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"p99.custom"},
+			},
+		}
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+		its, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).To(BeNil())
+		Expect(its).To(HaveLen(1))
+
+		// Verify the instance type has high price (1e9) due to missing pricing
+		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodePool.Spec.Template.Spec.Requirements...)
+		offering := its[0].Offerings.Compatible(reqs).Cheapest()
+		Expect(offering.Price).To(Equal(1e9))
+		Expect(offering.Available).To(BeTrue())
+	})
 	It("should not remove expensive metal instanceTypeOptions if any of the requirement with minValues is provided", func() {
 		// Construct requirements with minValues for capacityType requirement.
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
