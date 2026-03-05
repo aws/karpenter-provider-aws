@@ -268,7 +268,7 @@ Consolidation packs pods tightly onto nodes which can leave little free allocata
 
 ### How do I customize or configure the log output?
 
-Karpenter uses [uber-go/zap](https://github.com/uber-go/zap) for logging. You can customize the logging configuration with the following environment variables:
+Karpenter's logging can be customized with the following environment variables:
 
 * `LOG_LEVEL`
 * `LOG_OUTPUT_PATHS`
