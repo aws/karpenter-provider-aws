@@ -967,6 +967,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			resReq, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
 				return req.Key == v1.LabelCapacityReservationID
 			})
+			Expect(ok).To(BeTrue())
 			iReq, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
 				return req.Key == v1.LabelCapacityReservationInterruptible
 			})

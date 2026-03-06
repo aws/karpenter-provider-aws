@@ -325,7 +325,6 @@ func (p *DefaultProvider) launchInstance(
 		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
 	}
 
-	// TODO: will need to change here with CreateFleet surface
 	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs)
 	if _, ok := nodeClaim.Annotations[v1alpha1.PriceOverlayAppliedAnnotationKey]; ok {
 		cfiBuilder.WithOverlay()
@@ -338,7 +337,7 @@ func (p *DefaultProvider) launchInstance(
 		if crt == nil {
 			panic(fmt.Sprintf("%s label isn't set for instance types in reserved launch", v1.LabelCapacityReservationType))
 		}
-		cfiBuilder.WithCapacityReservationType(*crt)
+		cfiBuilder.WithCapacityReservationType(*crt, getCapacityReservationInterruptible(instanceTypes))
 	}
 	createFleetInput := cfiBuilder.Build()
 
@@ -598,6 +597,17 @@ func getCapacityReservationType(instanceTypes []*cloudprovider.InstanceType) *v1
 		}
 	}
 	return nil
+}
+
+func getCapacityReservationInterruptible(instanceTypes []*cloudprovider.InstanceType) bool {
+	for _, it := range instanceTypes {
+		for _, o := range it.Offerings {
+			if o.Requirements.Has(v1.LabelCapacityReservationInterruptible) {
+				return o.Requirements.Get(v1.LabelCapacityReservationInterruptible).Any() == "true"
+			}
+		}
+	}
+	return false
 }
 
 func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) ([]*Instance, error) {

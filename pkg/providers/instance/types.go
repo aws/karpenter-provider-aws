@@ -147,9 +147,10 @@ type CreateFleetInputBuilder struct {
 	tagSpecifications     []ec2types.TagSpecification
 	launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest
 
-	contextID               *string
-	capacityReservationType v1.CapacityReservationType
-	overlay                 bool
+	contextID                         *string
+	capacityReservationType           v1.CapacityReservationType
+	capacityReservationInterrruptible bool
+	overlay                           bool
 }
 
 func NewCreateFleetInputBuilder(capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) *CreateFleetInputBuilder {
@@ -178,12 +179,12 @@ func (b *CreateFleetInputBuilder) WithOverlay() *CreateFleetInputBuilder {
 	return b
 }
 
-// TODO: CF builder changes
-func (b *CreateFleetInputBuilder) WithCapacityReservationType(crt v1.CapacityReservationType) *CreateFleetInputBuilder {
+func (b *CreateFleetInputBuilder) WithCapacityReservationType(crt v1.CapacityReservationType, i bool) *CreateFleetInputBuilder {
 	if b.capacityType != karpv1.CapacityTypeReserved {
 		panic("can not specify capacity reservation type when capacity type is not reserved")
 	}
 	b.capacityReservationType = crt
+	b.capacityReservationInterrruptible = i
 	return b
 }
 
@@ -192,6 +193,8 @@ func (b *CreateFleetInputBuilder) defaultTargetCapacityType() ec2types.DefaultTa
 	case karpv1.CapacityTypeReserved:
 		if b.capacityReservationType == v1.CapacityReservationTypeCapacityBlock {
 			return ec2types.DefaultTargetCapacityTypeCapacityBlock
+		} else if b.capacityReservationInterrruptible {
+			return ec2types.DefaultTargetCapacityTypeReservedCapacity
 		} else {
 			return ec2types.DefaultTargetCapacityTypeOnDemand
 		}
@@ -219,6 +222,13 @@ func (b *CreateFleetInputBuilder) Build() *ec2.CreateFleetInput {
 	} else if b.capacityReservationType != v1.CapacityReservationTypeCapacityBlock {
 		input.OnDemandOptions = &ec2types.OnDemandOptionsRequest{
 			AllocationStrategy: lo.Ternary(b.overlay, ec2types.FleetOnDemandAllocationStrategyPrioritized, ec2types.FleetOnDemandAllocationStrategyLowestPrice),
+		}
+	}
+	if b.capacityReservationInterrruptible {
+		input.ReservedCapacityOptions = &ec2types.ReservedCapacityOptionsRequest{
+			ReservationTypes: []ec2types.FleetReservationType{
+				ec2types.FleetReservationTypeInterruptibleCapacityReservation,
+			},
 		}
 	}
 	return input
