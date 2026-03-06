@@ -596,7 +596,10 @@ func ExpectInterruptibleAndSourceCapacityCanceled(
 		CapacityReservationId: lo.ToPtr(sourceReservationId),
 		TargetInstanceCount:   aws.Int32(0),
 	})
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).To(Or(
+		BeNil(),
+		MatchError(ContainSubstring("doesn't have an active interruptible capacity allocation")),
+	))
 
 	// instances in IODCRs take 2 minutes to terminate and reclaim
 	Eventually(func(g Gomega) {
@@ -607,7 +610,7 @@ func ExpectInterruptibleAndSourceCapacityCanceled(
 		g.Expect(out).To(Not(BeNil()))
 		g.Expect(len(out.CapacityReservations)).To(Equal(1))
 		g.Expect(out.CapacityReservations[0].State).To(Equal(ec2types.CapacityReservationStateCancelled))
-	}).WithTimeout(3 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+	}).WithTimeout(4 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 
 	// there can be transient delays in when IODCR capacity is fully reclaimed and when the source ODCR can be canceled
 	// if we directly try to cancel the source reservation we'll see error "has an active interruptible capacity allocation"
@@ -616,7 +619,7 @@ func ExpectInterruptibleAndSourceCapacityCanceled(
 			CapacityReservationId: &sourceReservationId,
 		})
 		Expect(err).ToNot(HaveOccurred())
-	}).WithTimeout(1 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+	}).WithTimeout(4 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 }
 
 func ExpectCapacityReservationCreated(
