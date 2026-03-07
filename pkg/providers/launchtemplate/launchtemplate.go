@@ -261,24 +261,43 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 }
 
 // generateNetworkInterfaces generates network interfaces for the launch template.
+// When EFAOnlySecondaryInterfaces is true, secondary EFA interfaces (index > 0) are configured
+// as "efa-only" type without IP addresses, saving CIDR space for RDMA-only workloads.
 func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamily corev1.IPFamily) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 	if options.EFACount != 0 {
 		return lo.Times(options.EFACount, func(i int) ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
-			return ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+			isPrimary := i == 0
+			// When EFAOnlySecondaryInterfaces is true, secondary interfaces use efa-only type (no IP allocation)
+			// This saves CIDR IP space for RDMA-only workloads where secondary interfaces don't need IPs
+			useEfaOnly := !isPrimary && options.EFAOnlySecondaryInterfaces
+
+			nic := ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 				//nolint: gosec
 				NetworkCardIndex: lo.ToPtr(int32(i)),
-				// Some networking magic to ensure that one network card has higher priority than all the others (important if an instance needs a public IP w/o adding an EIP to every network card)
-				DeviceIndex:     lo.ToPtr(lo.Ternary[int32](i == 0, 0, 1)),
-				InterfaceType:   lo.ToPtr(string(ec2types.NetworkInterfaceTypeEfa)),
-				Ipv4PrefixCount: lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, nil, options.IPPrefixCount),
-				Ipv6PrefixCount: lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, options.IPPrefixCount, nil),
-				Groups:          lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
-				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
-				// with a single EFA network interface, and we should support those use cases. Launch failures with multiple enis should be considered user misconfiguration.
-				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
-				PrimaryIpv6:              lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
-				Ipv6AddressCount:         lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+				// Some networking magic to ensure that one network card has higher priority than all the others
+				// (important if an instance needs a public IP w/o adding an EIP to every network card)
+				DeviceIndex: lo.ToPtr(lo.Ternary[int32](isPrimary, 0, 1)),
+				Groups:      lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
 			}
+
+			if useEfaOnly {
+				// EFA-only interfaces: no IP allocation, RDMA traffic only
+				// Per AWS docs: "EFA-only network interfaces do not support IP addresses"
+				nic.InterfaceType = lo.ToPtr(string(ec2types.NetworkInterfaceTypeEfaOnly))
+			} else {
+				// Regular EFA interfaces with full IP allocation
+				nic.InterfaceType = lo.ToPtr(string(ec2types.NetworkInterfaceTypeEfa))
+				nic.Ipv4PrefixCount = lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, nil, options.IPPrefixCount)
+				nic.Ipv6PrefixCount = lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, options.IPPrefixCount, nil)
+				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true.
+				// This is an EC2 limitation. However, this does not apply for instances with a single EFA network interface,
+				// and we should support those use cases. Launch failures with multiple enis should be considered user misconfiguration.
+				nic.AssociatePublicIpAddress = lo.Ternary(isPrimary, options.AssociatePublicIPAddress, nil)
+				nic.PrimaryIpv6 = lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && isPrimary, lo.ToPtr(true), nil)
+				nic.Ipv6AddressCount = lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil)
+			}
+
+			return nic
 		})
 	}
 

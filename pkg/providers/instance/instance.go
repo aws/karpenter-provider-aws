@@ -156,7 +156,12 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 		)
 		opts = append(opts, WithCapacityReservationDetails(id, crt))
 	}
-	if lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) {
+	// Check both pod-driven EFA requests AND EC2NodeClass EFA configuration
+	efaEnabled := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA)
+	if !efaEnabled && nodeClass.Spec.EFA != nil {
+		efaEnabled = lo.FromPtr(nodeClass.Spec.EFA.Enabled)
+	}
+	if efaEnabled {
 		opts = append(opts, WithEFAEnabled())
 	}
 	return NewInstanceFromFleet(

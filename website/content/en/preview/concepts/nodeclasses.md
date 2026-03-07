@@ -1572,6 +1572,68 @@ requires that the field is only set to true when configuring an instance with a 
 
 This value is a integer field that controls how many ip prefixes will be assigned to `NodeClaim`. See the [EC2 Launch Template Network Interface Spec](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ec2-launchtemplate-networkinterface.html) for more information. Sets ipv4PrefixCount if you are using an IPv4 Cluster, or ipv6PrefixCount if you are using IPv6.
 
+## spec.efa
+
+The `efa` field configures [Elastic Fabric Adapter (EFA)](https://aws.amazon.com/hpc/efa/) settings for high-performance networking on EC2 instances. 
+EFA enables low-latency, high-bandwidth communication between instances, which is essential for distributed machine learning training and high-performance computing (HPC) workloads.
+
+By default, Karpenter provisions EFA interfaces based on pod resource requests for `vpc.amazonaws.com/efa`. However, for static NodePools (using `spec.replicas`) 
+where no pods drive the provisioning, you can use the `spec.efa` configuration to explicitly enable EFA interfaces on all nodes provisioned by this EC2NodeClass.
+
+```yaml
+spec:
+  efa:
+    # Enable EFA interfaces for all nodes provisioned by this EC2NodeClass
+    enabled: true
+    # Number of EFA interfaces to attach (defaults to max supported by instance type)
+    count: 4
+    # Use efa-only type for secondary interfaces to save CIDR IP space (default: true)
+    efaOnlySecondaryInterfaces: true
+```
+
+### Fields
+
+| Field                        | Type  | Default | Description                                                                                                                                               |
+|------------------------------|-------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `enabled`                    | bool  | `false` | When true, forces EFA interfaces to be attached to all nodes provisioned by this EC2NodeClass, regardless of pod requests.                                |
+| `count`                      | int32 | -       | Number of EFA interfaces to attach. If not specified, uses the maximum supported by the instance type.                                                    |
+| `efaOnlySecondaryInterfaces` | bool  | `true`  | When true, secondary EFA interfaces (index > 0) are configured as `efa-only` type without IP addresses. This saves CIDR IP space for RDMA-only workloads. |
+
+### EFA-only Interfaces
+
+When `efaOnlySecondaryInterfaces` is enabled (default), Karpenter configures secondary EFA interfaces using the `efa-only` network interface type. These interfaces:
+- Do not allocate IP addresses, saving valuable CIDR space
+- Support only RDMA traffic (Remote Direct Memory Access)
+- Are ideal for distributed training workloads that use libraries like NCCL
+
+The primary interface (index 0) always uses the standard `efa` type with full IP allocation to ensure the node can communicate normally with the cluster.
+
+### Examples
+
+Enable EFA with automatic count detection:
+```yaml
+spec:
+  efa:
+    enabled: true
+```
+
+Enable EFA with a specific count and IP allocation on all interfaces:
+```yaml
+spec:
+  efa:
+    enabled: true
+    count: 4
+    efaOnlySecondaryInterfaces: false
+```
+
+{{% alert title="Note" color="primary" %}}
+Pod-driven EFA requests (via `vpc.amazonaws.com/efa` resource requests) take precedence over the `spec.efa` configuration. The `efaOnlySecondaryInterfaces` setting from EC2NodeClass still applies to pod-driven EFA allocations.
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+EFA is only supported on specific instance types. See [Supported instance types](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-instance-types) for the full list.
+{{% /alert %}}
+
 ## status.subnets
 [`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
 

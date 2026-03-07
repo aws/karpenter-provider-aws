@@ -300,6 +300,33 @@ spec:
                 detailedMonitoring:
                   description: DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
                   type: boolean
+                efa:
+                  description: |-
+                    EFA configures Elastic Fabric Adapter (EFA) settings for high-performance networking.
+                    When enabled, nodes are provisioned with EFA interfaces regardless of pod requests,
+                    which is useful for static NodePools (spec.replicas) where no pods drive provisioning.
+                  properties:
+                    count:
+                      description: |-
+                        Count specifies the number of EFA interfaces to attach to each node.
+                        If not specified, uses the maximum number of EFA interfaces supported by the instance type.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    efaOnlySecondaryInterfaces:
+                      default: true
+                      description: |-
+                        EFAOnlySecondaryInterfaces when true, configures secondary EFA interfaces (index > 0)
+                        as "efa-only" type without IP addresses. This saves CIDR IP space for RDMA-only workloads
+                        where secondary interfaces only need to support RDMA traffic.
+                      type: boolean
+                    enabled:
+                      default: false
+                      description: |-
+                        Enabled forces EFA interfaces to be attached to all nodes provisioned by this EC2NodeClass.
+                        When false (default), EFA interfaces are only attached when pods request vpc.amazonaws.com/efa resources.
+                      type: boolean
+                  type: object
                 instanceProfile:
                   description: |-
                     InstanceProfile is the AWS entity that instances use.
