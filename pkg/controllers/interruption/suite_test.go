@@ -53,6 +53,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -127,7 +128,9 @@ var _ = Describe("InterruptionHandling", func() {
 	})
 	Context("Processing Messages", func() {
 		It("should delete the NodeClaim when receiving a spot interruption warning", func() {
-			ExpectMessagesCreated(spotInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
+			message := spotInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID)))
+			ExpectMessagesCreated(message)
+			nodeClaim.Finalizers = append(nodeClaim.Finalizers, common.TestingFinalizer)
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
 
 			ExpectSingletonReconciled(ctx, controller)
@@ -136,11 +139,19 @@ var _ = Describe("InterruptionHandling", func() {
 				"nodepool":          "default",
 			})
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
-			ExpectNotFound(ctx, env.Client, nodeClaim)
+			nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
+			Expect(nodeClaim.DeletionTimestamp).NotTo(BeNil())
+
+			cond := ExpectStatusConditionExists(nodeClaim, karpv1.ConditionTypeDisruptionReason)
+			Expect(cond.Reason).To(Equal(string(message.Kind())))
+			Expect(cond.Message).To(Equal(string(message.Kind())))
+
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
 		It("should delete the NodeClaim when receiving a scheduled change message", func() {
-			ExpectMessagesCreated(scheduledChangeMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
+			scheduledChange := scheduledChangeMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID)))
+			ExpectMessagesCreated(scheduledChange)
+			nodeClaim.Finalizers = append(nodeClaim.Finalizers, common.TestingFinalizer)
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
 
 			ExpectSingletonReconciled(ctx, controller)
@@ -149,7 +160,12 @@ var _ = Describe("InterruptionHandling", func() {
 				"nodepool":          "default",
 			})
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
-			ExpectNotFound(ctx, env.Client, nodeClaim)
+			nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
+			Expect(nodeClaim.DeletionTimestamp).NotTo(BeNil())
+
+			cond := ExpectStatusConditionExists(nodeClaim, karpv1.ConditionTypeDisruptionReason)
+			Expect(cond.Reason).To(Equal(string(scheduledChange.Kind())))
+			Expect(cond.Message).To(Equal(string(scheduledChange.Kind())))
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
 		It("should delete the NodeClaim when receiving a state change message", func() {
@@ -159,6 +175,7 @@ var _ = Describe("InterruptionHandling", func() {
 				instanceID := fake.InstanceID()
 				nc, n := coretest.NodeClaimAndNode(karpv1.NodeClaim{
 					ObjectMeta: metav1.ObjectMeta{
+						Finalizers: []string{common.TestingFinalizer},
 						Labels: map[string]string{
 							karpv1.NodePoolLabelKey: "default",
 						},
@@ -182,7 +199,15 @@ var _ = Describe("InterruptionHandling", func() {
 				"nodepool":          "default",
 			})
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
-			ExpectNotFound(ctx, env.Client, lo.Map(nodeClaims, func(nc *karpv1.NodeClaim, _ int) client.Object { return nc })...)
+			for i, nodeClaim := range nodeClaims {
+				nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
+				Expect(nodeClaim.DeletionTimestamp).NotTo(BeNil())
+
+				cond := ExpectStatusConditionExists(nodeClaim, karpv1.ConditionTypeDisruptionReason)
+				reason := string(messages[i].(statechange.Message).Kind())
+				Expect(cond.Reason).To(Equal(reason))
+				Expect(cond.Message).To(Equal(reason))
+			}
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(4))
 		})
 		It("should handle multiple messages that cause nodeClaim deletion", func() {
