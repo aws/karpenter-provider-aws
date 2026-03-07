@@ -31,7 +31,8 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
-	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/scheduledchange"
+	"	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/rebalancerecommendation"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/scheduledchange""
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -207,6 +208,112 @@ var _ = Describe("Interruption", func() {
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 })
+
+var _ = Describe("RebalanceRecommendation", func() {
+	It("should terminate the node when receiving a rebalance recommendation with handleRebalance enabled", func() {
+		By("Creating EC2NodeClass with handleRebalance enabled")
+		nodeClass.Spec.HandleRebalance = lo.ToPtr(true)
+
+		By("Creating a single healthy node with a healthy deployment")
+		nodePool = coretest.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      karpv1.CapacityTypeLabelKey,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{karpv1.CapacityTypeSpot},
+		})
+		numPods := 1
+		dep := coretest.Deployment(coretest.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: coretest.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "my-app"},
+				},
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(0)),
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+
+		env.ExpectCreated(nodeClass, nodePool, dep)
+
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		node := env.Monitor.CreatedNodes()[0]
+		instanceID, err := utils.ParseInstanceID(node.Spec.ProviderID)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Creating a rebalance recommendation event in the SQS message queue")
+		env.ExpectMessagesCreated(rebalanceRecommendationMessage(env.Region, "000000000000", instanceID))
+
+		By("Expecting the node to be terminated")
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+			g.Expect(!node.DeletionTimestamp.IsZero()).To(BeTrue())
+		}).WithTimeout(time.Minute).Should(Succeed())
+		env.EventuallyExpectNotFound(node)
+		env.EventuallyExpectHealthyPodCount(selector, 1)
+	})
+	It("should NOT terminate the node when receiving a rebalance recommendation with handleRebalance disabled", func() {
+		By("Creating EC2NodeClass with handleRebalance disabled (default)")
+		// handleRebalance is nil by default (disabled)
+
+		By("Creating a single healthy node with a healthy deployment")
+		nodePool = coretest.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      karpv1.CapacityTypeLabelKey,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{karpv1.CapacityTypeSpot},
+		})
+		numPods := 1
+		dep := coretest.Deployment(coretest.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: coretest.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "my-app"},
+				},
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(0)),
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+
+		env.ExpectCreated(nodeClass, nodePool, dep)
+
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		node := env.Monitor.CreatedNodes()[0]
+		instanceID, err := utils.ParseInstanceID(node.Spec.ProviderID)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Creating a rebalance recommendation event in the SQS message queue")
+		env.ExpectMessagesCreated(rebalanceRecommendationMessage(env.Region, "000000000000", instanceID))
+
+		By("Expecting the node to NOT be terminated")
+		Consistently(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+			g.Expect(node.DeletionTimestamp.IsZero()).To(BeTrue())
+		}).WithTimeout(time.Second * 30).Should(Succeed())
+		env.EventuallyExpectHealthyPodCount(selector, 1)
+	})
+})
+
+func rebalanceRecommendationMessage(region, accountID, involvedInstanceID string) rebalancerecommendation.Message {
+	return rebalancerecommendation.Message{
+		Metadata: messages.Metadata{
+			Version:    "0",
+			Account:    accountID,
+			DetailType: "EC2 Instance Rebalance Recommendation",
+			ID:         string(uuid.NewUUID()),
+			Region:     region,
+			Resources: []string{
+				fmt.Sprintf("arn:aws:ec2:%s:instance/%s", region, involvedInstanceID),
+			},
+			Source: "aws.ec2",
+			Time:   time.Now(),
+		},
+		Detail: rebalancerecommendation.Detail{
+			InstanceID: involvedInstanceID,
+		},
+	}
+}
 
 func scheduledChangeMessage(region, accountID, involvedInstanceID string) scheduledchange.Message {
 	return scheduledchange.Message{

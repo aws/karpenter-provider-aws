@@ -143,6 +143,12 @@ type EC2NodeClassSpec struct {
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
 	Context *string `json:"context,omitempty"`
+	// HandleRebalance controls whether Karpenter should cordon and drain nodes when
+	// EC2 rebalance recommendations are received. When enabled, Karpenter treats rebalance
+	// recommendations the same as spot interruption warnings.
+	// Defaults to false (disabled).
+	// +optional
+	HandleRebalance *bool `json:"handleRebalance,omitempty" hash:"ignore"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.

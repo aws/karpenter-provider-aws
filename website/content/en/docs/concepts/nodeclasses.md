@@ -154,6 +154,10 @@ spec:
   # Optional, configures if the instance should be launched with an associated public IP address.
   # If not specified, the default value depends on the subnet's public IP auto-assign setting.
   associatePublicIPAddress: true
+
+  # Optional, controls whether Karpenter should cordon and drain nodes when EC2 rebalance
+  # recommendations are received. Defaults to false (disabled).
+  handleRebalance: false
 status:
   # Resolved subnets
   subnets:
@@ -1566,6 +1570,23 @@ This value is a boolean field that controls whether instances created by Karpent
 {{% alert title="Note" color="warning" %}}
 If a `NodeClaim` requests `vpc.amazonaws.com/efa` resources, `spec.associatePublicIPAddress` is respected. However, if this `NodeClaim` requests **multiple** EFA resources and the value for `spec.associatePublicIPAddress` is true, the instance will fail to launch. This is due to an EC2 restriction which
 requires that the field is only set to true when configuring an instance with a single ENI at launch. When using this field, it is advised that users segregate their EFA workload to use a separate `NodePool` / `EC2NodeClass` pair.
+{{% /alert %}}
+
+## spec.handleRebalance
+
+This value is a boolean field that controls whether Karpenter should cordon and drain nodes when EC2 rebalance recommendations are received. When enabled, Karpenter treats rebalance recommendations the same as spot interruption warnings - it will delete the affected NodeClaim, triggering graceful node termination.
+
+By default, this field is `false` (disabled), meaning rebalance recommendations are only logged as Kubernetes events but no action is taken.
+
+```yaml
+spec:
+  handleRebalance: true
+```
+
+{{% alert title="Note" color="primary" %}}
+EC2 rebalance recommendations are signals that a Spot Instance is at elevated risk of interruption. Enabling this setting allows Karpenter to proactively migrate workloads before a potential interruption occurs. However, this may result in more frequent node replacements. Consider your workload requirements and tolerance for disruption when enabling this feature.
+
+For more information on EC2 rebalance recommendations, see the [AWS documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html).
 {{% /alert %}}
 
 ## spec.ipPrefixCount

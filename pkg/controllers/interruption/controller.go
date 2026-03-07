@@ -29,6 +29,7 @@ import (
 	"github.com/awslabs/operatorpkg/singleton"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
@@ -43,6 +44,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/events"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	interruptionevents "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
@@ -206,7 +208,14 @@ func (c *Controller) deleteMessage(ctx context.Context, msg *sqstypes.Message) e
 
 // handleNodeClaim retrieves the action for the message and then performs the appropriate action against the node
 func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, nodeClaim *karpv1.NodeClaim, node *corev1.Node) error {
-	action := actionForMessage(msg)
+	nodeClass := new(v1.EC2NodeClass)
+	if msg.Kind() == messages.RebalanceRecommendationKind {
+		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodeClaim.Spec.NodeClassRef.Name}, nodeClass); client.IgnoreNotFound(err) != nil {
+			return fmt.Errorf("resolving EC2NodeClass %q, %w", nodeClaim.Spec.NodeClassRef.Name, err)
+		}
+	}
+
+	action := actionForMessage(msg, nodeClass)
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("NodeClaim", klog.KObj(nodeClaim), "action", string(action)))
 	if node != nil {
 		ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("Node", klog.KObj(node)))
@@ -215,8 +224,8 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 	// Record metric and event for this action
 	c.notifyForMessage(msg, nodeClaim, node)
 
-	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
-	if msg.Kind() == messages.SpotInterruptionKind {
+	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning or rebalance recommendation
+	if msg.Kind() == messages.SpotInterruptionKind || (msg.Kind() == messages.RebalanceRecommendationKind && action == CordonAndDrain) {
 		zone := nodeClaim.Labels[corev1.LabelTopologyZone]
 		instanceType := nodeClaim.Labels[corev1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
@@ -272,10 +281,16 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 	}
 }
 
-func actionForMessage(msg messages.Message) Action {
+func actionForMessage(msg messages.Message, nodeClass *v1.EC2NodeClass) Action {
 	switch msg.Kind() {
 	case messages.ScheduledChangeKind, messages.SpotInterruptionKind, messages.InstanceStoppedKind, messages.InstanceTerminatedKind:
 		return CordonAndDrain
+	case messages.RebalanceRecommendationKind:
+		// Optionally handle rebalance recommendation.
+		if nodeClass.Spec.HandleRebalance != nil && *nodeClass.Spec.HandleRebalance {
+			return CordonAndDrain
+		}
+		return NoAction
 	default:
 		return NoAction
 	}

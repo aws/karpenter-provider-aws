@@ -57,6 +57,13 @@ spec:
                 EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
                 This will contain configuration necessary to launch instances in AWS.
               properties:
+                handleRebalance:
+                  description: |-
+                    HandleRebalance controls whether Karpenter should cordon and drain nodes when
+                    EC2 rebalance recommendations are received. When enabled, Karpenter treats rebalance
+                    recommendations the same as spot interruption warnings.
+                    Defaults to false (disabled).
+                  type: boolean
                 amiFamily:
                   description: |-
                     AMIFamily dictates the UserData format and default BlockDeviceMappings used when generating launch templates.

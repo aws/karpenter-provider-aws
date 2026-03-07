@@ -40,11 +40,13 @@ import (
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/rebalancerecommendation"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/scheduledchange"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/spotinterruption"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/statechange"
@@ -259,6 +261,68 @@ var _ = Describe("InterruptionHandling", func() {
 	})
 })
 
+var _ = Describe("RebalanceRecommendation", func() {
+	var nodeClass *v1.EC2NodeClass
+	var node *corev1.Node
+	var nodeClaim *karpv1.NodeClaim
+
+	BeforeEach(func() {
+		nodeClass = test.EC2NodeClass()
+		nodeClaim, node = coretest.NodeClaimAndNode(karpv1.NodeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					karpv1.NodePoolLabelKey: "default",
+				},
+			},
+			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
+					Group: "karpenter.k8s.aws",
+					Kind:  "EC2NodeClass",
+					Name:  nodeClass.Name,
+				},
+			},
+			Status: karpv1.NodeClaimStatus{
+				ProviderID: fake.RandomProviderID(),
+			},
+		})
+		metrics.NodeClaimsDisruptedTotal.Reset()
+	})
+
+	It("should NOT delete the NodeClaim when receiving a rebalance recommendation with handleRebalance disabled", func() {
+		// handleRebalance is nil (disabled by default)
+		ExpectApplied(ctx, env.Client, nodeClass, nodeClaim, node)
+		ExpectMessagesCreated(rebalanceRecommendationMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
+
+		ExpectSingletonReconciled(ctx, controller)
+		ExpectExists(ctx, env.Client, nodeClaim)
+		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+	})
+
+	It("should NOT delete the NodeClaim when handleRebalance is explicitly false", func() {
+		nodeClass.Spec.HandleRebalance = lo.ToPtr(false)
+		ExpectApplied(ctx, env.Client, nodeClass, nodeClaim, node)
+		ExpectMessagesCreated(rebalanceRecommendationMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
+
+		ExpectSingletonReconciled(ctx, controller)
+		ExpectExists(ctx, env.Client, nodeClaim)
+		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+	})
+
+	It("should delete the NodeClaim when handleRebalance is enabled", func() {
+		nodeClass.Spec.HandleRebalance = lo.ToPtr(true)
+		ExpectApplied(ctx, env.Client, nodeClass, nodeClaim, node)
+		ExpectMessagesCreated(rebalanceRecommendationMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
+
+		ExpectSingletonReconciled(ctx, controller)
+		ExpectNotFound(ctx, env.Client, nodeClaim)
+		ExpectMetricCounterValue(metrics.NodeClaimsDisruptedTotal, 1, map[string]string{
+			metrics.ReasonLabel: "rebalance_recommendation",
+			"nodepool":          "default",
+		})
+		Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+	})
+})
+
 var _ = Describe("Error Handling", func() {
 	It("should send an error on polling when QueueNotExists", func() {
 		sqsapi.ReceiveMessageBehavior.Error.Set(smithyErrWithCode("QueueDoesNotExist"), fake.MaxCalls(0))
@@ -358,6 +422,26 @@ func scheduledChangeMessage(involvedInstanceID string) scheduledchange.Message {
 					EntityValue: involvedInstanceID,
 				},
 			},
+		},
+	}
+}
+
+func rebalanceRecommendationMessage(involvedInstanceID string) rebalancerecommendation.Message {
+	return rebalancerecommendation.Message{
+		Metadata: messages.Metadata{
+			Version:    "0",
+			Account:    defaultAccountID,
+			DetailType: "EC2 Instance Rebalance Recommendation",
+			ID:         string(uuid.NewUUID()),
+			Region:     fake.DefaultRegion,
+			Resources: []string{
+				fmt.Sprintf("arn:aws:ec2:%s:instance/%s", fake.DefaultRegion, involvedInstanceID),
+			},
+			Source: ec2Source,
+			Time:   time.Now(),
+		},
+		Detail: rebalancerecommendation.Detail{
+			InstanceID: involvedInstanceID,
 		},
 	}
 }
