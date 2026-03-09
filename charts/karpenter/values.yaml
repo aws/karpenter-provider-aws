@@ -207,6 +207,16 @@ settings:
   # Interruption handling is disabled if not specified. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs.
   interruptionQueue: ""
+  # -- Webhook URL is the endpoint to send node termination notifications to.
+  # Webhook notifications are disabled if not specified. Defaults to Slack-compatible format.
+  webhookURL: ""
+  # -- Webhook template is a Go template for formatting webhook payloads.
+  # If not specified, defaults to Slack-compatible Block Kit format.
+  webhookTemplate: ""
+  # -- Webhook events is a comma-separated list of events to notify on.
+  # Options: spot_interrupted, scheduled_change, instance_stopped, instance_terminated, rebalance_recommendation, all.
+  # Default: all.
+  webhookEvents: "all"
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved.
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.
   reservedENIs: "0"

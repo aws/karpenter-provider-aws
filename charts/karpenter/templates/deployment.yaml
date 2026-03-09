@@ -169,6 +169,18 @@ spec:
             - name: INTERRUPTION_QUEUE
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.webhookURL }}
+            - name: WEBHOOK_URL
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- with .Values.settings.webhookTemplate }}
+            - name: WEBHOOK_TEMPLATE
+              value: {{ tpl (toString .) $ | quote }}
+          {{- end }}
+          {{- with .Values.settings.webhookEvents }}
+            - name: WEBHOOK_EVENTS
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.settings.reservedENIs }}
             - name: RESERVED_ENIS
               value: "{{ tpl (toString .) $ }}"

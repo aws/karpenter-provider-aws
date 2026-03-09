@@ -191,3 +191,151 @@ I’d recommend *Option 1 - Karpenter Managed Queueing Infrastructure* since it 
 ## EDIT
 
 During implementation we discovered that some users wanted to manage their own SQS and EventBridge infrastructure, so we opted to implement Option 1 but without creating and managing the infrastructure.
+
+## Webhook Notifications (Added 2026)
+
+### Motivation
+
+Users migrating from the aws-node-termination-handler (NTH) to Karpenter's native interruption handling requested the ability to send notifications when nodes are terminated due to interruption events. This provides operational visibility and enables integration with monitoring systems like Slack, PagerDuty, Microsoft Teams, etc.
+
+See [GitHub Issue #8662](https://github.com/aws/karpenter-provider-aws/issues/8662) for the original feature request.
+
+### Implementation
+
+Webhook notifications are sent asynchronously when Karpenter receives interruption messages from the SQS queue. The implementation follows these principles:
+
+1. **Fire-and-forget delivery**: Webhook failures never block node termination
+2. **Retry with backoff**: Failed deliveries are retried 3 times (1s, 2s, 4s delays)
+3. **Configurable event filtering**: Users can choose which event types trigger notifications
+4. **Customizable templates**: Support for Slack (default), Teams, PagerDuty, or custom formats
+
+### Configuration
+
+Webhooks are configured via environment variables or Helm chart values:
+
+- `WEBHOOK_URL` - The webhook endpoint URL (required to enable webhooks)
+- `WEBHOOK_TEMPLATE` - Go template for the payload (optional, defaults to Slack Block Kit format)
+- `WEBHOOK_EVENTS` - Comma-separated event list: `spot_interrupted`, `scheduled_change`, `instance_stopped`, `instance_terminated`, `rebalance_recommendation`, or `all` (default)
+
+### Supported Event Types
+
+| Event Type | Description | Action Taken |
+|------------|-------------|--------------|
+| `spot_interrupted` | EC2 Spot interruption warning (2-minute notice) | Cordon & drain |
+| `scheduled_change` | AWS health scheduled maintenance event | Cordon & drain |
+| `instance_stopped` | Instance stopped event | Cordon & drain |
+| `instance_terminated` | Instance terminated event | Cordon & drain |
+| `rebalance_recommendation` | Spot rebalance recommendation | No action (informational) |
+
+### Template Variables
+
+Webhook templates use Go template syntax with these available variables:
+
+- `{{.Timestamp}}` - When the event occurred
+- `{{.ClusterName}}` - Kubernetes cluster name
+- `{{.EventType}}` - Raw event type (e.g., `spot_interrupted`)
+- `{{.EventReason}}` - Human-readable reason (e.g., `Spot Interruption`)
+- `{{.Message}}` - Descriptive message
+- `{{.NodeClaimName}}` - NodeClaim being terminated
+- `{{.NodeName}}` - Node name (may be empty if not yet registered)
+- `{{.InstanceID}}` - EC2 instance ID
+- `{{.InstanceType}}` - EC2 instance type
+- `{{.Zone}}` - Availability zone
+- `{{.NodePoolName}}` - NodePool name
+- `{{.CapacityType}}` - `spot` or `on-demand`
+
+### Example: Slack (Default Template)
+
+```json
+{
+  "text": "{{.EventReason}}: {{.Message}}",
+  "blocks": [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*{{.EventReason}}*: {{.Message}}"
+      }
+    },
+    {
+      "type": "section",
+      "fields": [
+        {"type": "mrkdwn", "text": "*Cluster:*\n{{.ClusterName}}"},
+        {"type": "mrkdwn", "text": "*NodeClaim:*\n{{.NodeClaimName}}"},
+        {"type": "mrkdwn", "text": "*Instance:*\n{{.InstanceID}}"},
+        {"type": "mrkdwn", "text": "*Type:*\n{{.InstanceType}}"},
+        {"type": "mrkdwn", "text": "*Zone:*\n{{.Zone}}"},
+        {"type": "mrkdwn", "text": "*NodePool:*\n{{.NodePoolName}}"},
+        {"type": "mrkdwn", "text": "*Capacity:*\n{{.CapacityType}}"}
+      ]
+    }
+  ]
+}
+```
+
+### Example: Microsoft Teams
+
+```json
+{
+  "@type": "MessageCard",
+  "@context": "https://schema.org/extensions",
+  "summary": "Karpenter Node Termination",
+  "themeColor": "FFA500",
+  "title": "{{.EventReason}}",
+  "sections": [{
+    "activityTitle": "{{.Message}}",
+    "facts": [
+      {"name": "Cluster", "value": "{{.ClusterName}}"},
+      {"name": "Instance", "value": "{{.InstanceID}}"},
+      {"name": "Type", "value": "{{.InstanceType}}"},
+      {"name": "Zone", "value": "{{.Zone}}"},
+      {"name": "NodePool", "value": "{{.NodePoolName}}"}
+    ]
+  }]
+}
+```
+
+### Example: Generic Webhook
+
+```json
+{
+  "alert_type": "node_termination",
+  "severity": "warning",
+  "cluster": "{{.ClusterName}}",
+  "event": {
+    "type": "{{.EventType}}",
+    "reason": "{{.EventReason}}",
+    "message": "{{.Message}}",
+    "timestamp": "{{.Timestamp.Format \"2006-01-02T15:04:05Z07:00\"}}"
+  },
+  "instance": {
+    "id": "{{.InstanceID}}",
+    "type": "{{.InstanceType}}",
+    "zone": "{{.Zone}}",
+    "capacity_type": "{{.CapacityType}}"
+  },
+  "kubernetes": {
+    "nodeclaim": "{{.NodeClaimName}}",
+    "node": "{{.NodeName}}",
+    "nodepool": "{{.NodePoolName}}"
+  }
+}
+```
+
+### Security Considerations
+
+- **Webhook URLs may contain secrets**: Slack webhook URLs include authentication tokens in the path. These are passed via environment variables and never logged.
+- **SSRF risk**: Webhook URLs are admin-controlled configuration. Avoid pointing webhooks at internal cluster services or cloud metadata endpoints.
+- **Template execution**: Templates are validated at startup to ensure they produce valid JSON and contain no syntax errors.
+
+### Error Handling
+
+- **Invalid configuration**: Fails at startup with clear error messages
+- **Network failures**: Retries 3 times with exponential backoff, then logs error and continues
+- **Slow endpoints**: 10-second HTTP client timeout prevents blocking
+- **Webhook unavailable**: Logs error but never blocks node termination (fire-and-forget)
+- **Panic recovery**: Goroutine panics are caught and logged as metrics
+
+### Observability
+
+See the [Metrics Design](./metrics.md#interruption-webhook-metrics) for Prometheus metrics exposed for webhook monitoring.

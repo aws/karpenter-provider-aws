@@ -36,6 +36,35 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.9.0 \
   --annotations version=1.9.0
 ```
 
+## Webhook Notifications
+
+Karpenter can send webhook notifications when nodes are terminated due to interruption events. This provides operational visibility and integration with monitoring systems like Slack, Microsoft Teams, PagerDuty, etc.
+
+### Quick Start - Slack
+
+```bash
+helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
+  --set settings.clusterName=${CLUSTER_NAME} \
+  --set settings.interruptionQueue=${CLUSTER_NAME} \
+  --set settings.webhookURL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL \
+  --wait
+```
+
+The default template uses Slack's Block Kit format, so no additional configuration is needed for Slack.
+
+### Configuration
+
+- `settings.webhookURL` - The webhook endpoint URL (required to enable webhooks)
+- `settings.webhookTemplate` - Custom Go template for the payload (optional, defaults to Slack format)
+- `settings.webhookEvents` - Comma-separated list of events (default: `all`)
+  - Options: `spot_interrupted`, `scheduled_change`, `instance_stopped`, `instance_terminated`, `rebalance_recommendation`, `all`
+
+### Documentation
+
+For detailed configuration including custom templates, available variables, metrics, and examples for different platforms, see:
+- [Interruption Handling Design - Webhook Notifications](https://github.com/aws/karpenter-provider-aws/blob/main/designs/interruption-handling.md#webhook-notifications-added-2026)
+- [Metrics Design - Interruption Webhook Metrics](https://github.com/aws/karpenter-provider-aws/blob/main/designs/metrics.md#interruption-webhook-metrics)
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -91,7 +120,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.9.0 \
 | serviceMonitor.metricRelabelings | list | `[]` | Metric relabelings for the `http-metrics` endpoint on the ServiceMonitor. For more details on metric relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#metric_relabel_configs |
 | serviceMonitor.relabelings | list | `[]` | Relabelings for the `http-metrics` endpoint on the ServiceMonitor. For more details on relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config |
 | serviceMonitor.sampleLimit | string | `nil` | Specifies the sampleLimit for prometheus scrapes. Per-scrape limit on the number of scraped samples that will be accepted. If more than this number of samples are present after metric relabeling the entire scrape will be treated as failed. 0 means no limit. |
-| settings | object | `{"batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","disableClusterStateObservability":false,"disableDryRun":false,"eksControlPlane":false,"featureGates":{"nodeOverlay":false,"nodeRepair":false,"reservedCapacity":true,"spotToSpotConsolidation":false,"staticCapacity":false},"ignoreDRARequests":true,"interruptionQueue":"","isolatedVPC":false,"minValuesPolicy":"Strict","preferencePolicy":"Respect","reservedENIs":"0","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
+| settings | object | `{"batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","disableClusterStateObservability":false,"disableDryRun":false,"eksControlPlane":false,"featureGates":{"nodeOverlay":false,"nodeRepair":false,"reservedCapacity":true,"spotToSpotConsolidation":false,"staticCapacity":false},"ignoreDRARequests":true,"interruptionQueue":"","isolatedVPC":false,"minValuesPolicy":"Strict","preferencePolicy":"Respect","reservedENIs":"0","vmMemoryOverheadPercent":0.075,"webhookEvents":"all","webhookTemplate":"","webhookURL":""}` | Global Settings to configure Karpenter |
 | settings.batchIdleDuration | string | `"1s"` | The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. |
 | settings.batchMaxDuration | string | `"10s"` | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. |
 | settings.clusterCABundle | string | `""` | Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server. |
@@ -108,6 +137,9 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.9.0 \
 | settings.featureGates.staticCapacity | bool | `false` | staticCapacity is ALPHA and is disabled by default. Setting this to true will enable static capacity provisioning. |
 | settings.ignoreDRARequests | bool | `true` | Ignore pods' DRA requests during scheduling simulations. |
 | settings.interruptionQueue | string | `""` | Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs. |
+| settings.webhookURL | string | `""` | Webhook URL is the endpoint to send node termination notifications to. Webhook notifications are disabled if not specified. Defaults to Slack-compatible format. |
+| settings.webhookTemplate | string | `""` | Webhook template is a Go template for formatting webhook payloads. If not specified, defaults to Slack-compatible Block Kit format. |
+| settings.webhookEvents | string | `"all"` | Webhook events is a comma-separated list of events to notify on. Options: spot_interrupted, scheduled_change, instance_stopped, instance_terminated, rebalance_recommendation, all. Default: all. |
 | settings.isolatedVPC | bool | `false` | If true then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS pricing endpoint. |
 | settings.minValuesPolicy | string | `"Strict"` | How the Karpenter scheduler treats min values. Options include 'Strict' (fails scheduling when min values can't be met) and 'BestEffort' (relaxes min values when they can't be met). |
 | settings.preferencePolicy | string | `"Respect"` | How the Karpenter scheduler should treat preferences. Preferences include preferredDuringSchedulingIgnoreDuringExecution node and pod affinities/anti-affinities and ScheduleAnyways topologySpreadConstraints. Can be one of 'Ignore' and 'Respect' |

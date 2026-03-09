@@ -46,7 +46,9 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	interruptionevents "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/webhook"
 )
 
 type Action string
@@ -54,6 +56,19 @@ type Action string
 const (
 	CordonAndDrain Action = "CordonAndDrain"
 	NoAction       Action = "NoAction"
+
+	// webhookTimeout is the maximum time allowed for a webhook notification to complete
+	// This is set to 30s to allow for 3 retries with 10s HTTP timeout each plus backoff delays (1s + 2s + 4s)
+	webhookTimeout = 30 * time.Second
+
+	// maxConcurrentWebhooks limits the number of simultaneous webhook HTTP requests
+	// to prevent file descriptor exhaustion during mass interruption events
+	maxConcurrentWebhooks = 100
+)
+
+var (
+	// webhookSemaphore limits concurrent webhook notifications to prevent resource exhaustion
+	webhookSemaphore = make(chan struct{}, maxConcurrentWebhooks)
 )
 
 // Controller is an AWS interruption controller.
@@ -67,6 +82,7 @@ type Controller struct {
 	sqsProvider               sqs.Provider
 	sqsAPI                    *sqsapi.Client
 	unavailableOfferingsCache *cache.UnavailableOfferings
+	webhookProvider           webhook.Provider
 	parser                    *EventParser
 	cm                        *pretty.ChangeMonitor
 }
@@ -79,6 +95,7 @@ func NewController(
 	sqsProvider sqs.Provider,
 	sqsAPI *sqsapi.Client,
 	unavailableOfferingsCache *cache.UnavailableOfferings,
+	webhookProvider webhook.Provider,
 ) *Controller {
 	return &Controller{
 		kubeClient:                kubeClient,
@@ -88,6 +105,7 @@ func NewController(
 		sqsProvider:               sqsProvider,
 		sqsAPI:                    sqsAPI,
 		unavailableOfferingsCache: unavailableOfferingsCache,
+		webhookProvider:           webhookProvider,
 		parser:                    NewEventParser(DefaultParsers...),
 		cm:                        pretty.NewChangeMonitor(),
 	}
@@ -213,7 +231,7 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 	}
 
 	// Record metric and event for this action
-	c.notifyForMessage(msg, nodeClaim, node)
+	c.notifyForMessage(ctx, msg, nodeClaim, node)
 
 	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
 	if msg.Kind() == messages.SpotInterruptionKind {
@@ -251,7 +269,7 @@ func (c *Controller) deleteNodeClaim(ctx context.Context, msg messages.Message, 
 }
 
 // notifyForMessage publishes the relevant alert based on the message kind
-func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.NodeClaim, n *corev1.Node) {
+func (c *Controller) notifyForMessage(ctx context.Context, msg messages.Message, nodeClaim *karpv1.NodeClaim, n *corev1.Node) {
 	switch msg.Kind() {
 	case messages.RebalanceRecommendationKind:
 		c.recorder.Publish(interruptionevents.RebalanceRecommendation(n, nodeClaim)...)
@@ -270,6 +288,79 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 
 	default:
 	}
+
+	// Send webhook notification if provider is configured
+	if c.webhookProvider != nil && c.webhookProvider.ShouldNotify(msg.Kind()) {
+		payload := c.buildWebhookPayload(ctx, msg, nodeClaim, n)
+		if payload == nil {
+			return // Skip webhook if payload could not be built (e.g., missing cluster name)
+		}
+
+		// Send asynchronously to avoid blocking interruption handling
+		// Use a detached context with timeout to allow webhook send to complete
+		// even if parent context is cancelled, but with a reasonable time limit
+		// Capture logger from parent context before entering goroutine
+		logger := log.FromContext(ctx)
+
+		// Try to acquire semaphore slot, drop webhook if queue is full
+		select {
+		case webhookSemaphore <- struct{}{}:
+			// Acquired slot, proceed with webhook
+		default:
+			// Queue full, drop webhook notification
+			logger.V(1).Info("webhook queue full, dropping notification",
+				"messageKind", msg.Kind(),
+				"nodeClaim", nodeClaim.Name)
+			WebhookNotificationsTotal.Inc(map[string]string{
+				"status":     "dropped",
+				"event_type": string(msg.Kind()),
+			})
+			return
+		}
+
+		go func() {
+			defer func() { <-webhookSemaphore }() // Release semaphore slot
+			defer func() {
+				if r := recover(); r != nil {
+					WebhookNotificationsTotal.Inc(map[string]string{
+						"status":     "panic",
+						"event_type": string(msg.Kind()),
+					})
+					logger.Error(nil, "webhook notification panicked",
+						"panic", r,
+						"nodeClaim", nodeClaim.Name)
+				}
+			}()
+
+			webhookCtx, cancel := context.WithTimeout(context.Background(), webhookTimeout)
+			defer cancel()
+
+			start := time.Now()
+			err := c.webhookProvider.SendNotification(webhookCtx, payload)
+			duration := time.Since(start).Seconds()
+
+			if err != nil {
+				WebhookNotificationsTotal.Inc(map[string]string{
+					"status":     "failure",
+					"event_type": string(msg.Kind()),
+				})
+				WebhookNotificationDuration.Observe(duration, map[string]string{
+					"status": "failure",
+				})
+				logger.Error(err, "failed to send webhook notification",
+					"messageKind", msg.Kind(),
+					"nodeClaim", nodeClaim.Name)
+			} else {
+				WebhookNotificationsTotal.Inc(map[string]string{
+					"status":     "success",
+					"event_type": string(msg.Kind()),
+				})
+				WebhookNotificationDuration.Observe(duration, map[string]string{
+					"status": "success",
+				})
+			}
+		}()
+	}
 }
 
 func actionForMessage(msg messages.Message) Action {
@@ -278,5 +369,64 @@ func actionForMessage(msg messages.Message) Action {
 		return CordonAndDrain
 	default:
 		return NoAction
+	}
+}
+
+// buildWebhookPayload creates a webhook notification payload from the message and nodeclaim
+func (c *Controller) buildWebhookPayload(ctx context.Context, msg messages.Message, nodeClaim *karpv1.NodeClaim, n *corev1.Node) *webhook.NotificationPayload {
+	var eventReason, eventMessage string
+
+	switch msg.Kind() {
+	case messages.SpotInterruptionKind:
+		eventReason = "Spot Interruption"
+		eventMessage = "Spot instance will be terminated in 2 minutes"
+	case messages.ScheduledChangeKind:
+		eventReason = "Scheduled Change"
+		eventMessage = "Instance has a scheduled maintenance event"
+	case messages.InstanceStoppedKind:
+		eventReason = "Instance Stopped"
+		eventMessage = "Instance has been stopped"
+	case messages.InstanceTerminatedKind:
+		eventReason = "Instance Terminated"
+		eventMessage = "Instance has been terminated"
+	case messages.RebalanceRecommendationKind:
+		eventReason = "Rebalance Recommendation"
+		eventMessage = "Instance received a rebalance recommendation"
+	default:
+		eventReason = string(msg.Kind())
+		eventMessage = "Instance interruption event"
+	}
+
+	// Extract instance ID from EC2 instance IDs in the message
+	instanceID := ""
+	if ids := msg.EC2InstanceIDs(); len(ids) > 0 {
+		instanceID = ids[0]
+	}
+
+	nodeName := ""
+	if n != nil {
+		nodeName = n.Name
+	}
+
+	// Get cluster name safely from context
+	opts := options.FromContext(ctx)
+	if opts == nil || opts.ClusterName == "" {
+		log.FromContext(ctx).V(1).Info("skipping webhook notification: cluster name not configured")
+		return nil
+	}
+
+	return &webhook.NotificationPayload{
+		Timestamp:     msg.StartTime(),
+		ClusterName:   opts.ClusterName,
+		EventType:     string(msg.Kind()),
+		EventReason:   eventReason,
+		Message:       eventMessage,
+		NodeClaimName: nodeClaim.Name,
+		NodeName:      nodeName,
+		InstanceID:    instanceID,
+		InstanceType:  nodeClaim.Labels[corev1.LabelInstanceTypeStable],
+		Zone:          nodeClaim.Labels[corev1.LabelTopologyZone],
+		NodePoolName:  nodeClaim.Labels[karpv1.NodePoolLabelKey],
+		CapacityType:  nodeClaim.Labels[karpv1.CapacityTypeLabelKey],
 	}
 }

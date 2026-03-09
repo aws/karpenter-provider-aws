@@ -245,3 +245,34 @@ node.
 | `workqueue_retries_total`                                     | Counter   | `name`                                                                                                         | Total number of retries handled by workqueue
 | `workqueue_unfinished_work_seconds`                           | Gauge     | `name`                                                                                                         | How many seconds of work has been done that is in progress and hasn't been observed by work_duration.
 | `workqueue_work_duration_seconds`                             | Histogram | `name`                                                                                                         | How long in seconds processing an item from workqueue takes
+
+## Interruption Webhook Metrics
+
+The following metrics track webhook notification delivery for interruption events (added 2026):
+
+| **Name**                                                         | **Type**  | **Labels**                | **Description**
+|------------------------------------------------------------------|-----------|---------------------------|---------------------------------------------------------------------------------
+| `karpenter_interruption_webhook_notifications_total`             | Counter   | `status`, `event_type`    | Total number of webhook notifications sent. Status is `success`, `failure`, or `panic`. Event type is one of: `spot_interrupted`, `scheduled_change`, `instance_stopped`, `instance_terminated`, `rebalance_recommendation`
+| `karpenter_interruption_webhook_notification_duration_seconds`   | Histogram | `status`                  | Time taken to send webhook notifications in seconds. Status is `success` or `failure`
+
+### Example PromQL Queries
+
+```promql
+# Webhook success rate over 5 minutes
+rate(karpenter_interruption_webhook_notifications_total{status="success"}[5m])
+/
+rate(karpenter_interruption_webhook_notifications_total[5m])
+
+# P95 webhook notification latency
+histogram_quantile(0.95,
+  rate(karpenter_interruption_webhook_notification_duration_seconds_bucket[5m])
+)
+
+# Failed webhook notifications per minute
+rate(karpenter_interruption_webhook_notifications_total{status="failure"}[1m]) * 60
+
+# Webhook notifications by event type
+sum by (event_type) (
+  rate(karpenter_interruption_webhook_notifications_total[5m])
+)
+```
