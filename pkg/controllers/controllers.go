@@ -20,6 +20,7 @@ import (
 	"github.com/awslabs/operatorpkg/controller"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/patrickmn/go-cache"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
@@ -61,6 +62,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/webhook"
 )
 
 func NewControllers(
@@ -111,7 +113,25 @@ func NewControllers(
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsAPI := servicesqs.NewFromConfig(cfg)
 		prov, _ := sqs.NewSQSProvider(ctx, sqsAPI)
-		controllers = append(controllers, interruption.NewController(kubeClient, cloudProvider, clk, recorder, prov, sqsAPI, unavailableOfferings))
+
+		// Create webhook provider if configured
+		var webhookProv webhook.Provider
+		if options.FromContext(ctx).WebhookURL != "" {
+			var err error
+			webhookProv, err = webhook.NewDefaultProvider(
+				options.FromContext(ctx).WebhookURL,
+				options.FromContext(ctx).WebhookTemplate,
+				options.FromContext(ctx).WebhookEvents,
+			)
+			if err != nil {
+				// Log error but continue without webhook support
+				// This allows the controller to still function even if webhook config is invalid
+				log.FromContext(ctx).Error(err, "failed to create webhook provider, webhook notifications disabled")
+				webhookProv = nil
+			}
+		}
+
+		controllers = append(controllers, interruption.NewController(kubeClient, cloudProvider, clk, recorder, prov, sqsAPI, unavailableOfferings, webhookProv))
 	}
 	return controllers
 }

@@ -59,4 +59,28 @@ var (
 		},
 		[]string{},
 	)
+	WebhookNotificationsTotal = opmetrics.NewPrometheusCounter(
+		crmetrics.Registry,
+		prometheus.CounterOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: interruptionSubsystem,
+			Name:      "webhook_notifications_total",
+			Help:      "Total number of webhook notifications sent by result and event type.",
+			// Note: event_type is bounded to known message kinds: spot_interrupted,
+			// scheduled_change, instance_stopped, instance_terminated, rebalance_recommendation, panic
+			// Note: status is bounded to: success, failure, panic, dropped
+		},
+		[]string{"status", "event_type"},
+	)
+	WebhookNotificationDuration = opmetrics.NewPrometheusHistogram(
+		crmetrics.Registry,
+		prometheus.HistogramOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: interruptionSubsystem,
+			Name:      "webhook_notification_duration_seconds",
+			Help:      "Time taken to send webhook notifications.",
+			Buckets:   metrics.DurationBuckets(),
+		},
+		[]string{"status"},
+	)
 )

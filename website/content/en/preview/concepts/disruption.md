@@ -215,6 +215,114 @@ Karpenter enables this feature by watching an SQS queue which receives critical 
 
 To enable interruption handling, configure the `--interruption-queue` CLI argument with the name of the interruption queue provisioned to handle interruption events.
 
+#### Webhook Notifications
+
+Karpenter can send webhook notifications when it terminates nodes due to interruption events. This feature is useful for operational visibility, alerting, and integration with external monitoring systems.
+
+##### Configuration
+
+Webhook notifications are configured through environment variables or CLI flags:
+
+* `--webhook-url` / `WEBHOOK_URL`: The URL to send notifications to (required to enable webhooks)
+* `--webhook-template` / `WEBHOOK_TEMPLATE`: Custom Go template for formatting webhook payloads (optional, defaults to Slack-compatible format)
+* `--webhook-events` / `WEBHOOK_EVENTS`: Comma-separated list of events to notify on (optional, defaults to "all")
+
+##### Supported Events
+
+You can configure which interruption events trigger webhook notifications:
+
+* `spot_interrupted` - Spot interruption warnings (2-minute notice)
+* `scheduled_change` - AWS health scheduled maintenance events
+* `instance_stopped` - Instance stopped events
+* `instance_terminated` - Instance terminated events
+* `rebalance_recommendation` - Spot rebalance recommendations
+* `all` - All of the above events (default)
+
+##### Default Slack Configuration
+
+By default, Karpenter sends Slack-compatible messages in Block Kit format:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: karpenter-global-settings
+  namespace: kube-system
+data:
+  webhook.url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+  webhook.events: "all"
+```
+
+Or using Helm values:
+
+```yaml
+controller:
+  env:
+    - name: WEBHOOK_URL
+      value: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+    - name: WEBHOOK_EVENTS
+      value: "spot_interrupted,instance_stopped"
+```
+
+##### Custom Templates
+
+You can customize the webhook payload format for other services like Microsoft Teams, PagerDuty, or custom endpoints:
+
+```yaml
+controller:
+  env:
+    - name: WEBHOOK_URL
+      value: "https://your-custom-endpoint.example.com/webhook"
+    - name: WEBHOOK_TEMPLATE
+      value: |
+        {
+          "title": "Karpenter Node Termination",
+          "severity": "warning",
+          "cluster": "{{.ClusterName}}",
+          "event_type": "{{.EventType}}",
+          "event_reason": "{{.EventReason}}",
+          "message": "{{.Message}}",
+          "details": {
+            "nodeclaim": "{{.NodeClaimName}}",
+            "node": "{{.NodeName}}",
+            "instance_id": "{{.InstanceID}}",
+            "instance_type": "{{.InstanceType}}",
+            "zone": "{{.Zone}}",
+            "nodepool": "{{.NodePoolName}}",
+            "capacity_type": "{{.CapacityType}}"
+          },
+          "timestamp": "{{.Timestamp}}"
+        }
+```
+
+##### Available Template Variables
+
+The following variables are available in custom webhook templates:
+
+* `{{.Timestamp}}` - Time when the interruption event was received
+* `{{.ClusterName}}` - Name of the Kubernetes cluster
+* `{{.EventType}}` - Type of event (e.g., "spot_interrupted")
+* `{{.EventReason}}` - Human-readable event reason
+* `{{.Message}}` - Detailed message about the event
+* `{{.NodeClaimName}}` - Name of the NodeClaim being terminated
+* `{{.NodeName}}` - Name of the Node (may be empty if node not yet created)
+* `{{.InstanceID}}` - EC2 instance ID
+* `{{.InstanceType}}` - EC2 instance type
+* `{{.Zone}}` - Availability zone
+* `{{.NodePoolName}}` - Name of the NodePool
+* `{{.CapacityType}}` - Capacity type (spot or on-demand)
+
+##### Behavior
+
+* Webhooks are sent asynchronously and will not block node termination if they fail
+* Failed webhook deliveries are retried 3 times with exponential backoff (1s, 2s, 4s)
+* Webhook requests timeout after 10 seconds
+* Failures are logged but do not prevent disruption handling
+
+{{% alert title="Note" color="primary" %}}
+Webhook notifications are only sent for interruption events detected through the interruption queue. They are not sent for other disruption methods like consolidation, drift, or expiration.
+{{% /alert %}}
+
 ### Node Auto Repair
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> Karpenter v1.1.0 [alpha]({{<ref "../reference/settings#feature-gates" >}})

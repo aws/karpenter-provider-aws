@@ -43,6 +43,9 @@ type Options struct {
 	InterruptionQueue       string
 	ReservedENIs            int
 	DisableDryRun           bool
+	WebhookURL              string
+	WebhookTemplate         string
+	WebhookEvents           string
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
@@ -55,6 +58,9 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.StringVar(&o.InterruptionQueue, "interruption-queue", env.WithDefaultString("INTERRUPTION_QUEUE", ""), "Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.")
 	fs.IntVar(&o.ReservedENIs, "reserved-enis", env.WithDefaultInt("RESERVED_ENIS", 0), "Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.")
 	fs.BoolVarWithEnv(&o.DisableDryRun, "disable-dry-run", "DISABLE_DRY_RUN", false, "If true, then disable dry run validation for EC2NodeClasses.")
+	fs.StringVar(&o.WebhookURL, "webhook-url", env.WithDefaultString("WEBHOOK_URL", ""), "Webhook URL is the endpoint to send node termination notifications to. Webhook notifications are disabled if not specified. Defaults to Slack-compatible format.")
+	fs.StringVar(&o.WebhookTemplate, "webhook-template", env.WithDefaultString("WEBHOOK_TEMPLATE", ""), "Webhook template is a Go template for formatting webhook payloads. If not specified, defaults to Slack-compatible Block Kit format.")
+	fs.StringVar(&o.WebhookEvents, "webhook-events", env.WithDefaultString("WEBHOOK_EVENTS", "all"), "Webhook events is a comma-separated list of events to notify on. Options: spot_interrupted, scheduled_change, instance_stopped, instance_terminated, rebalance_recommendation, all. Default: all.")
 }
 
 func (o *Options) Parse(fs *coreoptions.FlagSet, args ...string) error {
