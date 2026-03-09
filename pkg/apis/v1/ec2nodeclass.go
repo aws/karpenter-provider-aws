@@ -19,7 +19,6 @@ import (
 	"log"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -507,7 +506,7 @@ func (in *EC2NodeClass) LegacyInstanceProfileName(clusterName, region string) st
 }
 
 func (in *EC2NodeClass) InstanceProfileName(clusterName, region string) string {
-	return fmt.Sprintf("%s_%d", clusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s%s", region, in.Name, uuid.New().String()), hashstructure.FormatV2, nil)))
+	return fmt.Sprintf("%s_%d", clusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s%s", region, in.Name, in.Spec.Role), hashstructure.FormatV2, nil)))
 }
 
 func (in *EC2NodeClass) InstanceProfileRole() string {

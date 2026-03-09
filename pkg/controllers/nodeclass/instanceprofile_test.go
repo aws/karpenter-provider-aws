@@ -467,9 +467,9 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		profileA2 := nodeClass.Status.InstanceProfile
 
-		// Verify unique names even when reusing role-A
-		Expect(profileA2).NotTo(Equal(profileA))
-		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(4))
+		// With deterministic naming, returning to the same role reuses the same profile name
+		Expect(profileA2).To(Equal(profileA))
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(3))
 	})
 
 	It("should return error on transient failures getting instance profile", func() {
@@ -547,5 +547,76 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
 		Expect(awsEnv.IAMAPI.DeleteInstanceProfileBehavior.CalledWithInput.Len()).To(Equal(1))
+	})
+
+	It("should not create duplicate profiles when cache expires and status is lost", func() {
+		nodeClass.Spec.Role = "role-A"
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		initialProfileName := nodeClass.Status.InstanceProfile
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+
+		// Simulate cache expiry and status patch failure (controller restart scenario)
+		awsEnv.InstanceProfileCache.Flush()
+		awsEnv.RecreationCache.Flush()
+		nodeClass.Status.InstanceProfile = ""
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		// Should reuse the same deterministic profile name, not create a new one
+		Expect(nodeClass.Status.InstanceProfile).To(Equal(initialProfileName))
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+	})
+
+	It("should not create duplicate profiles when IAM returns profile with empty roles", func() {
+		nodeClass.Spec.Role = "role-A"
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		profileName := nodeClass.Status.InstanceProfile
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+
+		// Simulate IAM eventual consistency: profile exists but roles list is empty
+		awsEnv.IAMAPI.InstanceProfiles[profileName].Roles = []iamtypes.Role{}
+		awsEnv.InstanceProfileCache.Flush()
+
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		// Deterministic naming generates the same name, provider finds existing profile and re-attaches role
+		Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+	})
+
+	It("should not create new profile when IAM returns role name without path prefix", func() {
+		nodeClass.Spec.Role = "/custom-path/role-A"
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		profileName := nodeClass.Status.InstanceProfile
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+
+		// IAM strips path prefixes from role names in its responses.
+		// Simulate this by replacing the cached role with the path-stripped version.
+		awsEnv.IAMAPI.InstanceProfiles[profileName].Roles = []iamtypes.Role{
+			{RoleName: aws.String("role-A")},
+		}
+		awsEnv.InstanceProfileCache.Flush()
+
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		// Path normalization should prevent the reconciler from treating this as a role change
+		Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(Equal(1))
 	})
 })

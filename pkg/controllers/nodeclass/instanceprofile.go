@@ -17,6 +17,7 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -75,7 +76,12 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 		}
 
 		// If role has changed, create new profile
-		if currentRole != nodeClass.Spec.Role {
+		// Normalize role names by stripping IAM path prefixes before comparison.
+		// IAM returns role names without paths (e.g., "my-role" instead of "/custom-path/my-role"),
+		// so comparing the raw values would cause false mismatches after cache expiry.
+		normalizedCurrentRole := lo.LastOr(strings.Split(currentRole, "/"), currentRole)
+		normalizedSpecRole := lo.LastOr(strings.Split(nodeClass.Spec.Role, "/"), nodeClass.Spec.Role)
+		if normalizedCurrentRole != normalizedSpecRole {
 			// Generate new profile name
 			newProfileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
 
