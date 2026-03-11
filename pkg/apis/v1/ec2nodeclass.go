@@ -139,6 +139,13 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":1,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
+
+	// ConnectionTracking configures per-instance idle connection tracking timeouts
+	// for AWS Elastic Network Interfaces. Idle connections left too long can
+	// exhaust the security group’s connection tracking table and lead to dropped packets.
+	// +optional
+	ConnectionTracking *ConnectionTracking `json:"connectionTracking,omitempty"`
+
 	// Context is a Reserved field in EC2 APIs
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
@@ -457,6 +464,30 @@ const (
 	// pods that request ephemeral storage and container images that are downloaded to the node.
 	InstanceStorePolicyRAID0 InstanceStorePolicy = "RAID0"
 )
+
+// ConnectionTracking configures per-instance idle connection tracking timeouts
+// for AWS Elastic Network Interfaces. Idle connections left too long can
+// exhaust the security group's connection tracking table and lead to dropped packets.
+// +kubebuilder:validation:XValidation:message="tcpEstablishedTimeout must be between 60s and 432000s (5 days)",rule="!has(self.tcpEstablishedTimeout) || (duration(self.tcpEstablishedTimeout) >= duration('60s') && duration(self.tcpEstablishedTimeout) <= duration('432000s'))"
+// +kubebuilder:validation:XValidation:message="udpStreamTimeout must be between 60s and 180s",rule="!has(self.udpStreamTimeout) || (duration(self.udpStreamTimeout) >= duration('60s') && duration(self.udpStreamTimeout) <= duration('180s'))"
+// +kubebuilder:validation:XValidation:message="udpTimeout must be between 30s and 60s",rule="!has(self.udpTimeout) || (duration(self.udpTimeout) >= duration('30s') && duration(self.udpTimeout) <= duration('60s'))"
+type ConnectionTracking struct {
+	// TCPEstablishedTimeout is the timeout for idle TCP connections in an established
+	// state.
+	// Value must be between 60 seconds and 432,000 seconds (5 days).
+	// +optional
+	TCPEstablishedTimeout *metav1.Duration `json:"tcpEstablishedTimeout,omitempty"`
+	// UDPStreamTimeout is the timeout for idle UDP "stream" flows that have
+	// seen more than one request-response transaction.
+	// Value must be between 60 and 180 seconds.
+	// +optional
+	UDPStreamTimeout *metav1.Duration `json:"udpStreamTimeout,omitempty"`
+	// UDPTimeout is the timeout for idle UDP flows that have seen traffic only
+	// in a single direction or a single request-response transaction.
+	// Value must be between 30 seconds and 60 seconds.
+	// +optional
+	UDPTimeout *metav1.Duration `json:"udpTimeout,omitempty"`
+}
 
 // EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true
