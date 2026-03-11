@@ -115,6 +115,10 @@ spec:
     - id: cr-123
     - instanceMatchCriteria: open
 
+  # Optional, adding enclave option allows user to specify if node launch will have nitro enclave enabled
+  enclaveOptions:
+    enabled: false
+
   # Optional, propagates tags to underlying EC2 resources
   tags:
     team: team-a
@@ -1559,7 +1563,7 @@ spec:
 ## spec.associatePublicIPAddress
 
 You can explicitly set `AssociatePublicIPAddress: false` when you are only launching into private subnets.
-Previously, Karpenter auto-set `associatePublicIPAddress` on the primary ENI to false if a user’s subnet options were all private subnets.
+Previously, Karpenter auto-set `associatePublicIPAddress` on the primary ENI to false if a user's subnet options were all private subnets.
 This value is a boolean field that controls whether instances created by Karpenter for this EC2NodeClass will have an associated public IP address. This overrides the `MapPublicIpOnLaunch` setting applied to the subnet the node is launched in. If this field is not set, the `MapPublicIpOnLaunch` field will be respected.
 
 
@@ -1568,6 +1572,47 @@ If a `NodeClaim` requests `vpc.amazonaws.com/efa` resources, `spec.associatePubl
 requires that the field is only set to true when configuring an instance with a single ENI at launch. When using this field, it is advised that users segregate their EFA workload to use a separate `NodePool` / `EC2NodeClass` pair.
 {{% /alert %}}
 
+## spec.enclaveOptions
+
+The `enclaveOptions` field allows you to specify whether instances should be enabled for AWS Nitro Enclaves. When enabled, Karpenter will launch instances with Nitro Enclave support, allowing you to run isolated compute environments for processing highly sensitive data.
+
+```yaml
+spec:
+  enclaveOptions:
+    enabled: true  # Enable Nitro Enclaves (default: false)
+```
+
+{{% alert title="Note" color="primary" %}}
+To use Nitro Enclaves with Karpenter, you must enable the `NodeOverlay` feature gate and create a `NodeOverlay` resource to adjust node capacity for enclave resource allocation. See the [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}) task guide for complete configuration instructions.
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+When `enclaveOptions.enabled` is set to `true`, instance types that do not support Nitro Enclaves will not launch properly. Not all instance types support enclaves - see the [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}) guide for supported instance families. Separate nodeclasses can be used to launch Nitro Enclave instances and non-Nitro Enclave instances in the same cluster.
+{{% /alert %}}
+
+### Example
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: enclave-enabled
+spec:
+  amiFamily: AL2023
+  enclaveOptions:
+    enabled: true
+  amiSelectorTerms:
+    - alias: al2023@latest
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  role: "KarpenterNodeRole-${CLUSTER_NAME}"
+```
+
+For detailed configuration examples including `NodeOverlay` setup, troubleshooting, and best practices, see [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}).
 ## spec.ipPrefixCount
 
 This value is a integer field that controls how many ip prefixes will be assigned to `NodeClaim`. See the [EC2 Launch Template Network Interface Spec](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ec2-launchtemplate-networkinterface.html) for more information. Sets ipv4PrefixCount if you are using an IPv4 Cluster, or ipv6PrefixCount if you are using IPv6.
