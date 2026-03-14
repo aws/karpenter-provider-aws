@@ -115,6 +115,14 @@ spec:
     - id: cr-123
     - instanceMatchCriteria: open
 
+  # Optional, launches nodes into an existing EC2 placement group.
+  # Specify `name` for a placement group in the same account, or `id`
+  # for a shared placement group. `partition` is only valid for partition
+  # placement groups.
+  placementGroup:
+    name: analytics-partition
+    partition: 2
+
   # Optional, propagates tags to underlying EC2 resources
   tags:
     team: team-a
@@ -211,6 +219,13 @@ status:
       reservationType: default
       state: active
 
+  # Resolved placement group
+  placementGroup:
+    id: pg-0fc13f6eb3example
+    name: analytics-partition
+    strategy: partition
+    partitionCount: 5
+
   # Generated instance profile name from "role"
   instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
   conditions:
@@ -223,6 +238,9 @@ status:
     - lastTransitionTime: "2024-02-02T19:54:34Z"
       status: "True"
       type: SecurityGroupsReady
+    - lastTransitionTime: "2024-02-02T19:54:34Z"
+      status: "True"
+      type: PlacementGroupReady
     - lastTransitionTime: "2024-02-02T19:54:34Z"
       status: "True"
       type: AMIsReady
@@ -959,6 +977,37 @@ spec:
     tags:
       key: foo
 ```
+
+## spec.placementGroup
+
+Use `spec.placementGroup` to launch nodes into an existing EC2 placement group.
+
+Karpenter does not create or delete the placement group. The placement group must already exist in EC2, and Karpenter only references it during instance launch.
+
+```yaml
+spec:
+  placementGroup:
+    name: analytics-partition
+```
+
+Use `name` for placement groups in the same account. Use `id` when launching into a [shared placement group](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html), because EC2 requires the placement-group ID for shared launches.
+
+`partition` is optional and only applies to partition placement groups:
+
+```yaml
+spec:
+  placementGroup:
+    name: analytics-partition
+    partition: 2
+```
+
+If `partition` is omitted, EC2 chooses the partition placement according to the placement-group strategy. If it is set, Karpenter will request that specific partition for launched instances.
+
+Placement-group behavior still follows AWS limits and semantics:
+
+- cluster placement groups are single-AZ, so combine them with subnet selection or NodePool zone requirements that keep launches in one Availability Zone
+- spread and partition placement groups can span multiple Availability Zones, but their per-AZ limits still apply
+- Karpenter does not manage placement-group strategy, partition count, or spread level; those are properties of the placement group you create in EC2
 
 ## spec.tags
 

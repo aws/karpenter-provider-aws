@@ -37,6 +37,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	ssmp "github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
@@ -85,12 +86,14 @@ type Environment struct {
 	DiscoveredCapacityCache              *cache.Cache
 	CapacityReservationCache             *cache.Cache
 	CapacityReservationAvailabilityCache *cache.Cache
+	PlacementGroupCache                  *cache.Cache
 	ValidationCache                      *cache.Cache
 	RecreationCache                      *cache.Cache
 	ProtectedProfilesCache               *cache.Cache
 
 	// Providers
 	CapacityReservationProvider *capacityreservation.DefaultProvider
+	PlacementGroupProvider      *placementgroup.DefaultProvider
 	InstanceTypesResolver       *instancetype.DefaultResolver
 	InstanceTypesProvider       *instancetype.DefaultProvider
 	InstanceProvider            *instance.DefaultProvider
@@ -135,6 +138,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationAvailabilityCache := cache.New(24*time.Hour, awscache.DefaultCleanupInterval)
+	placementGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	validationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	recreationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
@@ -142,6 +146,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 
 	// Providers
 	pricingProvider := pricing.NewDefaultProvider(fakePricingAPI, ec2api, fake.DefaultRegion, false)
+	placementGroupProvider := placementgroup.NewDefaultProvider(ec2api, placementGroupCache)
 	subnetProvider := subnet.NewDefaultProvider(ec2api, subnetCache, availableIPAdressCache, associatePublicIPAddressCache)
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, securityGroupCache)
 	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, eksapi)
@@ -218,11 +223,13 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		DiscoveredCapacityCache:              discoveredCapacityCache,
 		CapacityReservationCache:             capacityReservationCache,
 		CapacityReservationAvailabilityCache: capacityReservationAvailabilityCache,
+		PlacementGroupCache:                  placementGroupCache,
 		ValidationCache:                      validationCache,
 		RecreationCache:                      recreationCache,
 		ProtectedProfilesCache:               protectedProfilesCache,
 
 		CapacityReservationProvider: capacityReservationProvider,
+		PlacementGroupProvider:      placementGroupProvider,
 		InstanceTypesResolver:       instanceTypesResolver,
 		InstanceTypesProvider:       instanceTypesProvider,
 		InstanceProvider:            instanceProvider,
@@ -262,6 +269,7 @@ func (env *Environment) Reset() {
 	env.SSMCache.Flush()
 	env.DiscoveredCapacityCache.Flush()
 	env.CapacityReservationCache.Flush()
+	env.PlacementGroupCache.Flush()
 	env.ValidationCache.Flush()
 	env.RecreationCache.Flush()
 	env.ProtectedProfilesCache.Flush()

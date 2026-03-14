@@ -167,5 +167,10 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			}
 		}
 	}
+	if b.options.PlacementGroup != nil {
+		lt.LaunchTemplateData.Placement.GroupName = lo.EmptyableToPtr(b.options.PlacementGroup.Name)
+		lt.LaunchTemplateData.Placement.GroupId = lo.EmptyableToPtr(b.options.PlacementGroup.ID)
+		lt.LaunchTemplateData.Placement.PartitionNumber = b.options.PlacementGroupPartition
+	}
 	return lt
 }

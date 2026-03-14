@@ -1,0 +1,38 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: placement-group
+spec:
+  template:
+    spec:
+      requirements:
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values:
+            - us-west-2a
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: placement-group
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: placement-group
+spec:
+  amiFamily: AL2023
+  role: "KarpenterNodeRole-${CLUSTER_NAME}"
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  amiSelectorTerms:
+    - alias: al2023@latest
+  placementGroup:
+    # Use `name` for placement groups in the same account.
+    # Use `id` instead when launching into a shared placement group.
+    name: analytics-partition
+    # Optional, only valid for partition placement groups.
+    partition: 2

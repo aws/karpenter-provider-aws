@@ -123,7 +123,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		nodeClass.StatusConditions().SetFalse(
 			v1.ConditionTypeValidationSucceeded,
 			ConditionReasonDependenciesNotReady,
-			"Awaiting AMI, Instance Profile, Security Group, and Subnet resolution",
+			"Awaiting AMI, Instance Profile, Placement Group, Security Group, and Subnet resolution",
 		)
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
@@ -135,7 +135,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		nodeClass.StatusConditions().SetUnknownWithReason(
 			v1.ConditionTypeValidationSucceeded,
 			ConditionReasonDependenciesNotReady,
-			"Awaiting AMI, Instance Profile, Security Group, and Subnet resolution",
+			"Awaiting AMI, Instance Profile, Placement Group, Security Group, and Subnet resolution",
 		)
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
@@ -297,6 +297,7 @@ func (*Validation) requiredConditions() []string {
 	return []string{
 		v1.ConditionTypeAMIsReady,
 		v1.ConditionTypeInstanceProfileReady,
+		v1.ConditionTypePlacementGroupReady,
 		v1.ConditionTypeSecurityGroupsReady,
 		v1.ConditionTypeSubnetsReady,
 	}
@@ -306,6 +307,7 @@ func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) 
 	hash := lo.Must(hashstructure.Hash([]any{
 		nodeClass.Status.Subnets,
 		nodeClass.Status.SecurityGroups,
+		nodeClass.Status.PlacementGroup,
 		nodeClass.Status.AMIs,
 		nodeClass.Status.InstanceProfile,
 		nodeClass.Spec,

@@ -52,6 +52,11 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:MaxItems:=30
 	// +optional
 	CapacityReservationSelectorTerms []CapacityReservationSelectorTerm `json:"capacityReservationSelectorTerms" hash:"ignore"`
+	// PlacementGroup configures the EC2 placement group that Karpenter should launch instances into.
+	// The referenced placement group must already exist; Karpenter does not create or delete placement groups.
+	// +kubebuilder:validation:XValidation:message="expected exactly one of ['name', 'id']",rule="has(self.name) != has(self.id)"
+	// +optional
+	PlacementGroup *PlacementGroup `json:"placementGroup,omitempty" hash:"ignore"`
 	// AssociatePublicIPAddress controls if public IP addresses are assigned to instances that are launched with the nodeclass.
 	// +optional
 	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
@@ -197,6 +202,26 @@ type CapacityReservationSelectorTerm struct {
 	// +kubebuilder:validation:Enum:={open,targeted}
 	// +optional
 	InstanceMatchCriteria string `json:"instanceMatchCriteria,omitempty"`
+}
+
+// PlacementGroup defines placement-group membership for instances launched with this node class.
+type PlacementGroup struct {
+	// Name is the name of the placement group in EC2.
+	// Mutually exclusive with ID.
+	// +kubebuilder:validation:MaxLength:=255
+	// +optional
+	Name string `json:"name,omitempty"`
+	// ID is the placement group id in EC2. This must be used when launching into a shared placement group.
+	// Mutually exclusive with Name.
+	// +kubebuilder:validation:Pattern:="^pg-[0-9a-z]+$"
+	// +optional
+	ID string `json:"id,omitempty"`
+	// Partition is the partition number that instances should launch into.
+	// Valid only for partition placement groups.
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:validation:Maximum:=7
+	// +optional
+	Partition *int32 `json:"partition,omitempty"`
 }
 
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.

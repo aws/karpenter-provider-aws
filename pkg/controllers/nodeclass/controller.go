@@ -57,6 +57,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
@@ -79,6 +80,7 @@ func NewController(
 	region string,
 	subnetProvider subnet.Provider,
 	securityGroupProvider securitygroup.Provider,
+	placementGroupProvider placementgroup.Provider,
 	amiProvider amifamily.Provider,
 	instanceProfileProvider instanceprofile.Provider,
 	instanceTypeProvider instancetype.Provider,
@@ -103,6 +105,7 @@ func NewController(
 			NewCapacityReservationReconciler(clk, capacityReservationProvider),
 			NewSubnetReconciler(subnetProvider),
 			NewSecurityGroupReconciler(securityGroupProvider),
+			NewPlacementGroupReconciler(placementGroupProvider),
 			NewInstanceProfileReconciler(instanceProfileProvider, region, recreationCache),
 			validation,
 		},

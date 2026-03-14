@@ -209,6 +209,8 @@ func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC
 		KubeDNSIP:                p.KubeDNSIP,
 		AssociatePublicIPAddress: nodeClass.Spec.AssociatePublicIPAddress,
 		IPPrefixCount:            nodeClass.Spec.IPPrefixCount,
+		PlacementGroup:           nodeClass.Status.PlacementGroup,
+		PlacementGroupPartition:  placementGroupPartition(nodeClass),
 		NodeClassName:            nodeClass.Name,
 	}, nil
 }
@@ -449,6 +451,13 @@ func (p *DefaultProvider) ResolveClusterCIDR(ctx context.Context) error {
 		return nil
 	}
 	return fmt.Errorf("no CIDR found in DescribeCluster response")
+}
+
+func placementGroupPartition(nodeClass *v1.EC2NodeClass) *int32 {
+	if nodeClass.Spec.PlacementGroup != nil {
+		return nodeClass.Spec.PlacementGroup.Partition
+	}
+	return nil
 }
 
 // InjectDoNotSyncTaintsLabel adds a label for all non-custom AMI families. It is exported just for ease
