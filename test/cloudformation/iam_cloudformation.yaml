@@ -214,7 +214,7 @@ Resources:
               - iam:CreatePolicyVersion
               - iam:DeletePolicyVersion
               - iam:ListPolicyVersions
-            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy-*"
+            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterController*"
   GithubActionsEKSPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -242,7 +242,7 @@ Resources:
           - Effect: Allow
             Action:
               - eks:DeleteAccessEntry
-            Resource: 
+            Resource:
               - !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:access-entry/*/role/${AWS::AccountId}/KarpenterNodeRole-*"
             Condition:
               StringEquals:
@@ -356,7 +356,7 @@ Resources:
               StringLike:
                 aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass: "*"
           - Effect: Allow
-            Action: 
+            Action:
               - iam:GetInstanceProfile
               - iam:ListInstanceProfiles
             Resource: "*"

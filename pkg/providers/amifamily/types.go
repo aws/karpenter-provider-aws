@@ -141,3 +141,15 @@ func IsAl2DeprecationError(err error) bool {
 	var al2Err *AL2DeprecationError
 	return errors.As(err, &al2Err)
 }
+
+type WS2025UnsupportedVersionError struct {
+	error
+}
+
+func IsWS2025UnsupportedVersionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var ws2025Err *WS2025UnsupportedVersionError
+	return errors.As(err, &ws2025Err)
+}
