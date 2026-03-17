@@ -18,6 +18,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"os"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -240,6 +241,12 @@ func (c *CloudProvider) getInstanceType(ctx context.Context, nodePool *karpv1.No
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim) error {
+	if impairedZone := os.Getenv("IMPAIRED_ZONE"); impairedZone != "" {
+		if zone := nodeClaim.Labels[corev1.LabelTopologyZone]; zone == impairedZone {
+			log.FromContext(ctx).Info("skipping termination, zone is impaired", "zone", zone, "nodeClaim", nodeClaim.Name)
+			return fmt.Errorf("zone %q is impaired, skipping termination of NodeClaim %q", zone, nodeClaim.Name)
+		}
+	}
 	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
 	if err != nil {
 		return fmt.Errorf("getting instance ID, %w", err)
