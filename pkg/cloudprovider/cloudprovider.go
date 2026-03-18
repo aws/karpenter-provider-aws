@@ -156,6 +156,8 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 }
 
 func (c *CloudProvider) List(ctx context.Context) ([]*karpv1.NodeClaim, error) {
+	log.FromContext(ctx).Info("custom karpenter-aws-provider build")
+
 	instances, err := c.instanceProvider.List(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("listing instances, %w", err)
