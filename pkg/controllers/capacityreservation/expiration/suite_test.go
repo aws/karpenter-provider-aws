@@ -172,9 +172,9 @@ func withEndTime(t time.Time) mockCapacityReservationOpts {
 	}
 }
 
-func withInterruptible(i bool) mockCapacityReservationOpts {
+func withInterruptible(interruptible bool) mockCapacityReservationOpts {
 	return func(cr *ec2types.CapacityReservation) {
-		cr.Interruptible = lo.ToPtr(i)
+		cr.Interruptible = lo.ToPtr(interruptible)
 	}
 }
 

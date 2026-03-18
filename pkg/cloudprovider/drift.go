@@ -140,7 +140,7 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 // would cancel it out.
 func (c *CloudProvider) isCapacityReservationDrifted(instance *instance.Instance, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {
 	capacityReservationIDs := sets.New(lo.Map(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation, _ int) string { return cr.ID })...)
-	if instance.CapacityReservationID != nil && !capacityReservationIDs.Has(*instance.CapacityReservationID) {
+	if instance.CapacityReservationDetails.ID != nil && !capacityReservationIDs.Has(*instance.CapacityReservationDetails.ID) {
 		return CapacityReservationDrift
 	}
 	return ""

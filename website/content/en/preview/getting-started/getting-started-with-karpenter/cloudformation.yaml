@@ -424,7 +424,7 @@ Resources:
       Targets:
         - Id: KarpenterInterruptionQueueTarget
           Arn: !GetAtt KarpenterInterruptionQueue.Arn
-  SpotInterruptionRule:
+  CapacityReservationInterruptionRule:
     Type: 'AWS::Events::Rule'
     Properties:
       EventPattern:

@@ -370,7 +370,7 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 		Expect(nodeClass.Status.CapacityReservations).To(HaveLen(1))
 		cr := nodeClass.Status.CapacityReservations[0]
 		Expect(cr.ID).To(Equal("cr-i-m5.large-1a-1"))
-		Expect(cr.ReservationInterruptible).To(Equal(true))
+		Expect(cr.Interruptible).To(Equal(true))
 		Expect(cr.State).To(Equal(v1.CapacityReservationStateActive))
 	})
 })

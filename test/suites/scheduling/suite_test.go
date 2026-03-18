@@ -952,13 +952,13 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			}
 		})
 
-		DescribeTable("should schedule against a specific reservation interruptibiltiy", func(i bool) {
+		DescribeTable("should schedule against a specific reservation interruptibiltiy", func(interruptible bool) {
 			selectors.Insert(v1.LabelCapacityReservationInterruptible)
 			pod := test.Pod(test.PodOptions{
 				NodeRequirements: []corev1.NodeSelectorRequirement{{
 					Key:      v1.LabelCapacityReservationInterruptible,
 					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{strconv.FormatBool(i)},
+					Values:   []string{strconv.FormatBool(interruptible)},
 				}},
 			})
 			env.ExpectCreated(nodePool, nodeClass, pod)
@@ -972,12 +972,12 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				return req.Key == v1.LabelCapacityReservationInterruptible
 			})
 			Expect(ok).To(BeTrue())
-			Expect(resReq.Values).To(ConsistOf(lo.Ternary(i, interruptibleReservationID, sourceReservationID)))
-			Expect(iReq.Values).To(ConsistOf(strconv.FormatBool(i)))
+			Expect(resReq.Values).To(ConsistOf(lo.Ternary(interruptible, interruptibleReservationID, sourceReservationID)))
+			Expect(iReq.Values).To(ConsistOf(strconv.FormatBool(interruptible)))
 
 			env.EventuallyExpectNodeClaimsReady(nc)
 			n := env.EventuallyExpectNodeCount("==", 1)[0]
-			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, strconv.FormatBool(i)))
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, strconv.FormatBool(interruptible)))
 		},
 			Entry("interruptible", true),
 			Entry("non-interruptible", false),

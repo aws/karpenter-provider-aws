@@ -17,6 +17,7 @@ package filter
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/awslabs/operatorpkg/serrors"
@@ -113,7 +114,7 @@ func (f capacityReservationTypeFilter) FilterReject(instanceTypes []*cloudprovid
 			if o.Requirements.Get(v1.LabelCapacityReservationType).Any() != string(selectedPartition.capacityReservationType) {
 				return false
 			}
-			if selectedPartition.capacityReservationInterruptible != (o.Requirements.Get(v1.LabelCapacityReservationInterruptible).Any() == "true") {
+			if (o.Requirements.Get(v1.LabelCapacityReservationInterruptible).Any() == "true") != selectedPartition.capacityReservationInterruptible {
 				return false
 			}
 			return true
@@ -171,6 +172,7 @@ func (f capacityReservationTypeFilter) Partition(instanceTypes []*cloudprovider.
 				lo.Must0(serrors.Wrap(
 					fmt.Errorf("failed to partition capacity reservations, invalid capacity reservation type"),
 					"type", string(t),
+					"interruptible", strconv.FormatBool(i),
 					"valid-types", lo.Map(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) string { return string(crt) }),
 				))
 			}

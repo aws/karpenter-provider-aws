@@ -109,7 +109,7 @@ type CapacityReservation struct {
 	ReservationType CapacityReservationType `json:"reservationType"`
 	// Indicates whether this capacity reservation is interruptible
 	// +optional
-	ReservationInterruptible bool `json:"reservationInterruptible"`
+	Interruptible bool `json:"interruptible"`
 	// The state of the capacity reservation. A capacity reservation is considered to be expiring if it is within the EC2
 	// reclaimation window. Only capacity-block reservations may be in this state.
 	// +kubebuilder:validation:Enum:={active,expiring}
@@ -254,14 +254,14 @@ func CapacityReservationFromEC2(clk clock.Clock, cr *ec2types.CapacityReservatio
 		state = CapacityReservationStateExpiring
 	}
 	return CapacityReservation{
-		AvailabilityZone:         *cr.AvailabilityZone,
-		EndTime:                  endTime,
-		ID:                       *cr.CapacityReservationId,
-		InstanceMatchCriteria:    string(cr.InstanceMatchCriteria),
-		InstanceType:             *cr.InstanceType,
-		OwnerID:                  *cr.OwnerId,
-		ReservationType:          reservationType,
-		ReservationInterruptible: *cr.Interruptible,
-		State:                    state,
+		AvailabilityZone:      *cr.AvailabilityZone,
+		EndTime:               endTime,
+		ID:                    *cr.CapacityReservationId,
+		InstanceMatchCriteria: string(cr.InstanceMatchCriteria),
+		InstanceType:          *cr.InstanceType,
+		OwnerID:               *cr.OwnerId,
+		ReservationType:       reservationType,
+		Interruptible:         lo.Ternary(cr.Interruptible == nil, false, *cr.Interruptible),
+		State:                 state,
 	}, nil
 }

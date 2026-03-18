@@ -1428,8 +1428,8 @@ var _ = Describe("CloudProvider", func() {
 		BeforeEach(func() {
 			crs = []ec2types.CapacityReservation{}
 			crs = lo.FlatMap(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) []ec2types.CapacityReservation {
-				return lo.FilterMap([]bool{true, false}, func(i bool, _ int) (ec2types.CapacityReservation, bool) {
-					if i && crt == v1.CapacityReservationTypeCapacityBlock {
+				return lo.FilterMap([]bool{true, false}, func(interruptible bool, _ int) (ec2types.CapacityReservation, bool) {
+					if interruptible && crt == v1.CapacityReservationTypeCapacityBlock {
 						return ec2types.CapacityReservation{}, false
 					}
 					return ec2types.CapacityReservation{
@@ -1437,11 +1437,11 @@ var _ = Describe("CloudProvider", func() {
 						InstanceType:           lo.ToPtr("m5.large"),
 						OwnerId:                lo.ToPtr("012345678901"),
 						InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
-						CapacityReservationId:  lo.ToPtr(fmt.Sprintf("cr-m5.large-1a-%s-%s", string(crt), strconv.FormatBool(i))),
+						CapacityReservationId:  lo.ToPtr(fmt.Sprintf("cr-m5.large-1a-%s-%s", string(crt), strconv.FormatBool(interruptible))),
 						AvailableInstanceCount: lo.ToPtr[int32](reservationCapacity),
 						State:                  ec2types.CapacityReservationStateActive,
 						ReservationType:        ec2types.CapacityReservationType(crt),
-						Interruptible:          lo.ToPtr(i),
+						Interruptible:          lo.ToPtr(interruptible),
 					}, true
 				})
 			})
