@@ -224,16 +224,15 @@ func (b *CreateFleetInputBuilder) Build() *ec2.CreateFleetInput {
 		input.SpotOptions = &ec2types.SpotOptionsRequest{
 			AllocationStrategy: lo.Ternary(b.overlay, ec2types.SpotAllocationStrategyCapacityOptimizedPrioritized, ec2types.SpotAllocationStrategyPriceCapacityOptimized),
 		}
-	} else if b.capacityReservationType != v1.CapacityReservationTypeCapacityBlock {
-		input.OnDemandOptions = &ec2types.OnDemandOptionsRequest{
-			AllocationStrategy: lo.Ternary(b.overlay, ec2types.FleetOnDemandAllocationStrategyPrioritized, ec2types.FleetOnDemandAllocationStrategyLowestPrice),
-		}
-	}
-	if b.capacityReservationInterruptible {
+	} else if b.capacityReservationInterruptible {
 		input.ReservedCapacityOptions = &ec2types.ReservedCapacityOptionsRequest{
 			ReservationTypes: []ec2types.FleetReservationType{
 				ec2types.FleetReservationTypeInterruptibleCapacityReservation,
 			},
+		}
+	} else if b.capacityReservationType != v1.CapacityReservationTypeCapacityBlock {
+		input.OnDemandOptions = &ec2types.OnDemandOptionsRequest{
+			AllocationStrategy: lo.Ternary(b.overlay, ec2types.FleetOnDemandAllocationStrategyPrioritized, ec2types.FleetOnDemandAllocationStrategyLowestPrice),
 		}
 	}
 	return input
