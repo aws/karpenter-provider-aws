@@ -398,7 +398,8 @@ func getFleetLaunchTemplateConfig(
 
 func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	// Select an instance type to use for validation. If NodePools exist for this NodeClass, we'll use an instance type
-	// selected by one of those NodePools. We should also prioritize an InstanceType which will launch with a non-GPU
+	// selected by one of those NodePools. If no NodePools exists for this NodeClass, we'll use an instance type that could be
+	// selected with an open NodePool. We should also prioritize an InstanceType which will launch with a non-GPU
 	// (VariantStandard) AMI, since GPU AMIs may have a larger snapshot size than that supported by the NodeClass'
 	// blockDeviceMappings.
 	// Historical Issue: https://github.com/aws/karpenter-provider-aws/issues/7928
@@ -448,17 +449,20 @@ func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass 
 }
 
 // getInstanceTypesForNodeClass returns the set of instances which could be launched using this NodeClass based on the
-// requirements of linked NodePools. If no NodePools exist for the given NodeClass, this function returns two default
-// instance types (one x86_64 and one arm64).
+// requirements of linked NodePools. If no NodePools exist, this function returns the instances which could be launched using
+// the NodeClass and an open NodePool.
 func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	instanceTypes, err := v.instanceTypeProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, fmt.Errorf("listing instance types for nodeclass, %w", err)
 	}
-	instanceTypes = v.instanceTypeProvider.FilterWithNodeClass(instanceTypes, nodeClass)
+	instanceTypes = v.instanceTypeProvider.FilterForNodeClass(instanceTypes, nodeClass)
 	nodePools, err := nodepoolutils.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepoolutils.ForNodeClass(nodeClass))
 	if err != nil {
 		return nil, fmt.Errorf("listing nodepools for nodeclass, %w", err)
+	}
+	if len(nodePools) == 0 {
+		return getAMICompatibleInstanceTypes(instanceTypes, nodeClass), nil
 	}
 	var compatibleInstanceTypes []*cloudprovider.InstanceType
 	names := sets.New[string]()

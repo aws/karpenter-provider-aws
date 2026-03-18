@@ -72,7 +72,7 @@ func NewDefaultProvider(
 func (p *DefaultProvider) InjectOfferings(
 	ctx context.Context,
 	instanceTypes []*cloudprovider.InstanceType,
-	instanceTypeInfo *map[ec2types.InstanceType]ec2types.InstanceTypeInfo,
+	instanceTypeInfo map[ec2types.InstanceType]ec2types.InstanceTypeInfo,
 	nodeClass NodeClass,
 	allZones sets.Set[string],
 ) []*cloudprovider.InstanceType {
@@ -83,7 +83,7 @@ func (p *DefaultProvider) InjectOfferings(
 	})
 	var its []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
-		info := (*instanceTypeInfo)[ec2types.InstanceType(it.Name)]
+		info := instanceTypeInfo[ec2types.InstanceType(it.Name)]
 		offerings := p.createOfferings(
 			ctx,
 			it,
