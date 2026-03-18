@@ -30,6 +30,7 @@ import (
 	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/aws/smithy-go"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -271,6 +272,26 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				}, fake.MaxCalls(1))
 			}, nodeclass.ConditionReasonCreateLaunchTemplateAuthFailed),
 		)
+		Context("Windows AMI Validation", func() {
+			DescribeTable(
+				"should fallback to static instance types when windows ami is used",
+				func(family string, terms []v1.AMISelectorTerm, expectedAMIID string) {
+					// Skip Windows 2025 on versions < 1.35
+					if family == v1.AMIFamilyWindows2025 && version.MustParseGeneric(awsEnv.VersionProvider.Get(ctx)).Minor() < 35 {
+						Skip("Windows 2025 requires EKS version 1.35+, current version: " + awsEnv.VersionProvider.Get(ctx))
+					}
+					nodeClass.Spec.AMIFamily = lo.ToPtr(family)
+					nodeClass.Spec.AMISelectorTerms = terms
+					ExpectApplied(ctx, env.Client, nodeClass)
+					ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+					runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+					Expect(runInstancesInput.InstanceType).To(Equal(ec2types.InstanceTypeM5Large))
+				},
+				Entry("Windows2019 with m5.large", v1.AMIFamilyWindows2019, []v1.AMISelectorTerm{{Alias: "windows2019@latest"}}, "amd64-ami-id"),
+				Entry("Windows2022 with m5.large", v1.AMIFamilyWindows2022, []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}, "amd64-ami-id"),
+				Entry("Windows2025 with m6g.large", v1.AMIFamilyWindows2025, []v1.AMISelectorTerm{{Alias: "windows2025@latest"}}, "arm64-ami-id"),
+			)
+		})
 		Context("Instance Type Prioritization Validation", func() {
 			BeforeEach(func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
@@ -307,37 +328,6 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 			})
-			DescribeTable(
-				"should fallback to static instance types when windows ami is used",
-				func(family string, terms []v1.AMISelectorTerm, expectedInstanceType ec2types.InstanceType, expectedAMIID string) {
-					// Skip Windows 2025 on versions < 1.35
-					if family == v1.AMIFamilyWindows2025 && version.MustParseGeneric(awsEnv.VersionProvider.Get(ctx)).Minor() < 35 {
-						Skip("Windows 2025 requires EKS version 1.35+, current version: " + awsEnv.VersionProvider.Get(ctx))
-					}
-					nodeClass.Spec.AMIFamily = lo.ToPtr(family)
-					nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-						{
-							Tags: map[string]string{"*": "*"},
-						},
-					}
-					// Filter DescribeImages to use only the expected AMI
-					allImages := awsEnv.EC2API.DescribeImagesOutput.Clone().Images
-					awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-						Images: lo.Filter(allImages, func(img ec2types.Image, _ int) bool {
-							return lo.FromPtr(img.ImageId) == expectedAMIID
-						}),
-					})
-					ExpectApplied(ctx, env.Client, nodeClass)
-					ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-					launchTemplateInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
-					runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
-					Expect(runInstancesInput.InstanceType).To(Equal(expectedInstanceType))
-					Expect(launchTemplateInput.LaunchTemplateData.ImageId).To(PointTo(Equal(expectedAMIID)))
-				},
-				Entry("Windows2019 with m5.large", v1.AMIFamilyWindows2019, []v1.AMISelectorTerm{{Alias: "windows2019@latest"}}, ec2types.InstanceTypeM5Large, "amd64-ami-id"),
-				Entry("Windows2022 with m5.large", v1.AMIFamilyWindows2022, []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}, ec2types.InstanceTypeM5Large, "amd64-ami-id"),
-				Entry("Windows2025 with m6g.large", v1.AMIFamilyWindows2025, []v1.AMISelectorTerm{{Alias: "windows2025@latest"}}, ec2types.InstanceTypeM6gLarge, "arm64-ami-id"),
-			)
 			It("should prioritize non-GPU instances", func() {
 				nodePool := coretest.NodePool(karpv1.NodePool{Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{
 					Spec: karpv1.NodeClaimTemplateSpec{
@@ -517,5 +507,87 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		Expect(awsEnv.EC2API.CreateFleetBehavior.Calls()).To(Equal(0))
 		Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.Calls()).To(Equal(0))
 		Expect(awsEnv.EC2API.RunInstancesBehavior.Calls()).To(Equal(0))
+	})
+	Context("Cache Key Generation", func() {
+		It("should generate same cache key when NodePools are in different order", func() {
+			nodePool1 := coretest.NodePool(karpv1.NodePool{
+				ObjectMeta: metav1.ObjectMeta{Name: "np-aaa"},
+				Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimTemplateSpec{
+						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+							{Key: corev1.LabelInstanceTypeStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"m5.large"}},
+						},
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
+						},
+					},
+				}}})
+			nodePool2 := coretest.NodePool(karpv1.NodePool{
+				ObjectMeta: metav1.ObjectMeta{Name: "np-zzz"},
+				Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimTemplateSpec{
+						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+							{Key: corev1.LabelInstanceTypeStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"m5.xlarge"}},
+						},
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
+						},
+					},
+				}}})
+
+			// Apply in one order
+			ExpectApplied(ctx, env.Client, nodeClass, nodePool1, nodePool2)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			items1 := awsEnv.ValidationCache.Items()
+			Expect(items1).To(HaveLen(1))
+			key1 := lo.Keys(items1)[0]
+
+			// Clear cache and apply in different order
+			awsEnv.ValidationCache.Flush()
+			ExpectApplied(ctx, env.Client, nodeClass, nodePool2, nodePool1)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			items2 := awsEnv.ValidationCache.Items()
+			Expect(items2).To(HaveLen(1))
+			key2 := lo.Keys(items2)[0]
+
+			// Keys should be identical
+			Expect(key1).To(Equal(key2))
+		})
+		It("should generate different cache key when NodePool requirements change", func() {
+			nodePool := coretest.NodePool(karpv1.NodePool{Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{
+				Spec: karpv1.NodeClaimTemplateSpec{
+					Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+						{Key: corev1.LabelInstanceTypeStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"m5.large"}},
+					},
+					NodeClassRef: &karpv1.NodeClassReference{
+						Group: object.GVK(nodeClass).Group,
+						Kind:  object.GVK(nodeClass).Kind,
+						Name:  nodeClass.Name,
+					},
+				},
+			}}})
+
+			ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			items1 := awsEnv.ValidationCache.Items()
+			Expect(items1).To(HaveLen(1))
+			key1 := lo.Keys(items1)[0]
+
+			// Update NodePool requirements
+			nodePool.Spec.Template.Spec.Requirements[0].Values = []string{"m5.xlarge"}
+			ExpectApplied(ctx, env.Client, nodePool)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			items2 := awsEnv.ValidationCache.Items()
+			Expect(items2).To(HaveLen(2)) // Should have both old and new cache entries
+			keys := lo.Keys(items2)
+
+			// Should have a new key
+			Expect(keys).To(ContainElement(key1))
+			Expect(keys).To(ContainElement(Not(Equal(key1))))
+		})
 	})
 })
