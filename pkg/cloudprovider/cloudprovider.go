@@ -140,7 +140,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, fmt.Errorf("creating instance, %w", err)
 	}
 	if instance.CapacityType == karpv1.CapacityTypeReserved {
-		c.capacityReservationProvider.MarkLaunched(*instance.CapacityReservationDetails.ID)
+		c.capacityReservationProvider.MarkLaunched(instance.CapacityReservationDetails.ID)
 	}
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return i.Name == string(instance.Type)
@@ -456,9 +456,9 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	labels[karpv1.CapacityTypeLabelKey] = i.CapacityType
 	labels[v1.LabelInstanceTenancy] = i.Tenancy
 	if i.CapacityType == karpv1.CapacityTypeReserved {
-		labels[cloudprovider.ReservationIDLabel] = *i.CapacityReservationDetails.ID
-		labels[v1.LabelCapacityReservationType] = string(*i.CapacityReservationDetails.Type)
-		labels[v1.LabelCapacityReservationInterruptible] = fmt.Sprintf("%t", *i.CapacityReservationDetails.Interruptible)
+		labels[cloudprovider.ReservationIDLabel] = i.CapacityReservationDetails.ID
+		labels[v1.LabelCapacityReservationType] = string(i.CapacityReservationDetails.Type)
+		labels[v1.LabelCapacityReservationInterruptible] = fmt.Sprintf("%t", i.CapacityReservationDetails.Interruptible)
 	}
 	if v, ok := i.Tags[karpv1.NodePoolLabelKey]; ok {
 		labels[karpv1.NodePoolLabelKey] = v

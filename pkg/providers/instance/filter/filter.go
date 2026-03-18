@@ -169,11 +169,20 @@ func (f capacityReservationTypeFilter) Partition(instanceTypes []*cloudprovider.
 			if !ok {
 				// SAFETY: Valid reservation types are enforced during capacity reservation construction in the NodeClass
 				// controller. An invalid value indicates a user manually edited their NodeClass' status, breaking an invariant.
+				validTypes := []string{}
+				for _, crt := range v1.CapacityReservationType("").Values() {
+					for _, interruptible := range []bool{true, false} {
+						if interruptible && crt == v1.CapacityReservationTypeCapacityBlock {
+							continue
+						}
+						validTypes = append(validTypes, fmt.Sprintf("(%s, %s)", string(crt), lo.Ternary(interruptible, "interruptible", "non-interruptible")))
+					}
+				}
 				lo.Must0(serrors.Wrap(
 					fmt.Errorf("failed to partition capacity reservations, invalid capacity reservation type"),
 					"type", string(t),
 					"interruptible", strconv.FormatBool(i),
-					"valid-types", lo.Map(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) string { return string(crt) }),
+					"valid-types", validTypes,
 				))
 			}
 			if p.cheapestPrice > o.Price {

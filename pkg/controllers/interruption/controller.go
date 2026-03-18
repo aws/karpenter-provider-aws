@@ -277,7 +277,7 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 		c.recorder.Publish(interruptionevents.SpotInterrupted(n, nodeClaim)...)
 
 	case messages.CapacityReservationInterruptionKind:
-		c.recorder.Publish(interruptionevents.CapacityReservationInterrupted(n, nodeClaim)...)
+		c.recorder.Publish(interruptionevents.CapacityReservationInstanceInterrupted(n, nodeClaim)...)
 
 	case messages.InstanceStoppedKind:
 		c.recorder.Publish(interruptionevents.Stopping(n, nodeClaim)...)

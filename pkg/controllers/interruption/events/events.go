@@ -41,11 +41,11 @@ func SpotInterrupted(node *corev1.Node, nodeClaim *karpv1.NodeClaim) (evts []eve
 	return evts
 }
 
-func CapacityReservationInterrupted(node *corev1.Node, nodeClaim *karpv1.NodeClaim) (evts []events.Event) {
+func CapacityReservationInstanceInterrupted(node *corev1.Node, nodeClaim *karpv1.NodeClaim) (evts []events.Event) {
 	evts = append(evts, events.Event{
 		InvolvedObject: nodeClaim,
 		Type:           corev1.EventTypeWarning,
-		Reason:         "CapacityReservationInterrupted",
+		Reason:         "CapacityReservationInstanceInterrupted",
 		Message:        "Capacity Reservation interruption warning was triggered",
 		DedupeValues:   []string{string(nodeClaim.UID)},
 	})
@@ -53,7 +53,7 @@ func CapacityReservationInterrupted(node *corev1.Node, nodeClaim *karpv1.NodeCla
 		evts = append(evts, events.Event{
 			InvolvedObject: node,
 			Type:           corev1.EventTypeWarning,
-			Reason:         "CapacityReservationInterrupted",
+			Reason:         "CapacityReservationInstanceInterrupted",
 			Message:        "Capacity Reservation interruption warning was triggered",
 			DedupeValues:   []string{string(node.UID)},
 		})

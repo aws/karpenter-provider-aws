@@ -525,12 +525,12 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 				lo.FromPtr(errs[i].LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
 				instanceTypes,
 			)
-			reservationIDs = append(reservationIDs, *capacityReservationDetails.ID)
+			reservationIDs = append(reservationIDs, capacityReservationDetails.ID)
 			log.FromContext(ctx).WithValues(
 				"reason", lo.FromPtr(errs[i].ErrorCode),
 				"instance-type", errs[i].LaunchTemplateAndOverrides.Overrides.InstanceType,
 				"zone", lo.FromPtr(errs[i].LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
-				"capacity-reservation-id", *capacityReservationDetails.ID,
+				"capacity-reservation-id", capacityReservationDetails.ID,
 			).V(1).Info("marking capacity reservation unavailable")
 		}
 	}
@@ -539,7 +539,7 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	}
 }
 
-func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zone string, instanceTypes []*cloudprovider.InstanceType) CapacityReservationDetails {
+func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zone string, instanceTypes []*cloudprovider.InstanceType) *CapacityReservationDetails {
 	for _, it := range instanceTypes {
 		if it.Name != instance {
 			continue
@@ -549,10 +549,10 @@ func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zon
 				continue
 			}
 			// NOTE: Filtering at the beginning of Create ensures there's only a single reservation per zone, even when the NodeClass supports multiple.
-			return CapacityReservationDetails{
-				ID:            lo.ToPtr(o.ReservationID()),
-				Type:          lo.ToPtr(v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any())),
-				Interruptible: lo.ToPtr(o.Requirements.Get(v1.LabelCapacityReservationInterruptible).Any() == "true"),
+			return &CapacityReservationDetails{
+				ID:            o.ReservationID(),
+				Type:          v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any()),
+				Interruptible: o.Requirements.Get(v1.LabelCapacityReservationInterruptible).Any() == "true",
 			}
 		}
 	}

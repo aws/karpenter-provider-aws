@@ -46,31 +46,28 @@ type Instance struct {
 	SubnetID                   string
 	Tags                       map[string]string
 	EFAEnabled                 bool
-	CapacityReservationDetails CapacityReservationDetails
+	CapacityReservationDetails *CapacityReservationDetails
 	Tenancy                    string
 }
 
 type CapacityReservationDetails struct {
-	ID            *string
-	Type          *v1.CapacityReservationType
-	Interruptible *bool
+	ID            string
+	Type          v1.CapacityReservationType
+	Interruptible bool
 }
 
 func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
 	capacityType := capacityTypeFromInstance(ctx, instance)
-	var capacityReservationID *string
+	var capacityReservationID string
 	if capacityType == karpv1.CapacityTypeReserved {
-		capacityReservationID = lo.ToPtr(*instance.CapacityReservationId)
+		capacityReservationID = *instance.CapacityReservationId
 	}
-	capacityReservationDetails := CapacityReservationDetails{
+	capacityReservationDetails := lo.Ternary(capacityType != karpv1.CapacityTypeReserved, nil, &CapacityReservationDetails{
 		ID: capacityReservationID,
-		Type: lo.If[*v1.CapacityReservationType](capacityType != karpv1.CapacityTypeReserved, nil).
-			ElseIf(instance.InstanceLifecycle == ec2types.InstanceLifecycleTypeCapacityBlock, lo.ToPtr(v1.CapacityReservationTypeCapacityBlock)).
-			Else(lo.ToPtr(v1.CapacityReservationTypeDefault)),
-		Interruptible: lo.If[*bool](capacityType != karpv1.CapacityTypeReserved, nil).
-			ElseIf(instance.InstanceLifecycle == ec2types.InstanceLifecycleTypeInterruptibleCapacityReservation, lo.ToPtr(true)).
-			Else(lo.ToPtr(false)),
-	}
+		Type: lo.Ternary(instance.InstanceLifecycle == ec2types.InstanceLifecycleTypeCapacityBlock,
+			v1.CapacityReservationTypeCapacityBlock, v1.CapacityReservationTypeDefault),
+		Interruptible: instance.InstanceLifecycle == ec2types.InstanceLifecycleTypeInterruptibleCapacityReservation,
+	})
 	return &Instance{
 		LaunchTime: lo.FromPtr(instance.LaunchTime),
 		State:      instance.State.Name,
@@ -114,7 +111,7 @@ func capacityTypeFromInstance(ctx context.Context, instance ec2types.Instance) s
 
 type NewInstanceFromFleetOpts = option.Function[Instance]
 
-func WithCapacityReservationDetails(capacityReservationDetails CapacityReservationDetails) NewInstanceFromFleetOpts {
+func WithCapacityReservationDetails(capacityReservationDetails *CapacityReservationDetails) NewInstanceFromFleetOpts {
 	return func(i *Instance) {
 		i.CapacityReservationDetails = capacityReservationDetails
 	}
