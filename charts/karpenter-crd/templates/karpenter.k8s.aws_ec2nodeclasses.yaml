@@ -6,7 +6,7 @@ metadata:
     {{- with .Values.additionalAnnotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-    controller-gen.kubebuilder.io/version: v0.20.0
+    controller-gen.kubebuilder.io/version: v0.20.1
   name: ec2nodeclasses.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws
@@ -516,6 +516,36 @@ spec:
                         - optional
                       type: string
                   type: object
+                networkInterfaces:
+                  description: NetworkInterfaces specifies the network interface configurations to be attached to provisioned instances.
+                  items:
+                    description: |-
+                      NetworkInterface specifies the configuration for a network interface to be attached
+                      to provisioned instances.
+                    properties:
+                      deviceIndex:
+                        description: DeviceIndex is the device index for the network interface attachment.
+                        format: int32
+                        minimum: 0
+                        type: integer
+                      interfaceType:
+                        description: InterfaceType is the type of network interface. Valid values are "interface" and "efa-only".
+                        enum:
+                          - interface
+                          - efa-only
+                        type: string
+                      networkCardIndex:
+                        description: NetworkCardIndex is the index of the network card to attach the interface to.
+                        format: int32
+                        minimum: 0
+                        type: integer
+                    required:
+                      - deviceIndex
+                      - interfaceType
+                      - networkCardIndex
+                    type: object
+                  maxItems: 150
+                  type: array
                 role:
                   description: |-
                     Role is the AWS identity that nodes use.

@@ -19,6 +19,7 @@ import (
 	"log"
 	"strings"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/google/uuid"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
@@ -119,6 +120,10 @@ type EC2NodeClassSpec struct {
 	// InstanceStorePolicy specifies how to handle instance-store disks.
 	// +optional
 	InstanceStorePolicy *InstanceStorePolicy `json:"instanceStorePolicy,omitempty"`
+	// NetworkInterfaces specifies the network interface configurations to be attached to provisioned instances.
+	// +kubebuilder:validation:MaxItems:=150
+	// +optional
+	NetworkInterfaces []*NetworkInterface `json:"networkInterfaces,omitempty"`
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
 	// +optional
 	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
@@ -458,6 +463,30 @@ const (
 	InstanceStorePolicyRAID0 InstanceStorePolicy = "RAID0"
 )
 
+// InterfaceType specifies the network interface type for a network interface.
+type InterfaceType string
+
+const (
+	// InterfaceTypeInterface indicates a standard Elastic Network Adapter (ENA) interface.
+	InterfaceTypeInterface = string(ec2types.NetworkInterfaceTypeInterface)
+	// InterfaceTypeEFAOnly indicates an Elastic Fabric Adapter only (EFA-only) interface for high-performance networking.
+	InterfaceTypeEFAOnly = string(ec2types.NetworkInterfaceTypeEfaOnly)
+)
+
+// NetworkInterface specifies the configuration for a network interface to be attached
+// to provisioned instances.
+type NetworkInterface struct {
+	// NetworkCardIndex is the index of the network card to attach the interface to.
+	// +kubebuilder:validation:Minimum:=0
+	NetworkCardIndex int32 `json:"networkCardIndex"`
+	// DeviceIndex is the device index for the network interface attachment.
+	// +kubebuilder:validation:Minimum:=0
+	DeviceIndex int32 `json:"deviceIndex"`
+	// InterfaceType is the type of network interface. Valid values are "interface" and "efa-only".
+	// +kubebuilder:validation:Enum:={interface,efa-only}
+	InterfaceType InterfaceType `json:"interfaceType"`
+}
+
 // EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
@@ -529,6 +558,10 @@ func (in *EC2NodeClass) BlockDeviceMappings() []*BlockDeviceMapping {
 
 func (in *EC2NodeClass) InstanceStorePolicy() *InstanceStorePolicy {
 	return in.Spec.InstanceStorePolicy
+}
+
+func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {
+	return in.Spec.NetworkInterfaces
 }
 
 func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {

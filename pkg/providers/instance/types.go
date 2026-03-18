@@ -45,7 +45,7 @@ type Instance struct {
 	SecurityGroupIDs        []string
 	SubnetID                string
 	Tags                    map[string]string
-	EFAEnabled              bool
+	EFACount                int
 	CapacityReservationID   *string
 	CapacityReservationType *v1.CapacityReservationType
 	Tenancy                 string
@@ -73,8 +73,9 @@ func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
 		}),
 		SubnetID: lo.FromPtr(instance.SubnetId),
 		Tags:     lo.SliceToMap(instance.Tags, func(t ec2types.Tag) (string, string) { return lo.FromPtr(t.Key), lo.FromPtr(t.Value) }),
-		EFAEnabled: lo.ContainsBy(instance.NetworkInterfaces, func(item ec2types.InstanceNetworkInterface) bool {
-			return item.InterfaceType != nil && *item.InterfaceType == string(ec2types.NetworkInterfaceTypeEfa)
+		EFACount: lo.CountBy(instance.NetworkInterfaces, func(item ec2types.InstanceNetworkInterface) bool {
+			return item.InterfaceType != nil && (*item.InterfaceType == string(ec2types.NetworkInterfaceTypeEfa) ||
+				*item.InterfaceType == string(ec2types.NetworkInterfaceTypeEfaOnly))
 		}),
 		CapacityReservationID: capacityReservationID,
 		CapacityReservationType: lo.If[*v1.CapacityReservationType](capacityType != karpv1.CapacityTypeReserved, nil).
@@ -110,8 +111,8 @@ func WithCapacityReservationDetails(id string, crt v1.CapacityReservationType) N
 	}
 }
 
-func WithEFAEnabled() NewInstanceFromFleetOpts {
-	return func(i *Instance) { i.EFAEnabled = true }
+func WithEFACount(efaCount int) NewInstanceFromFleetOpts {
+	return func(i *Instance) { i.EFACount = efaCount }
 }
 
 func NewInstanceFromFleet(

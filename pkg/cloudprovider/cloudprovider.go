@@ -18,6 +18,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -430,10 +431,10 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 			if resources.IsZero(v) {
 				return false
 			}
-			// The nodeclaim should only advertise an EFA resource if it was requested. EFA network interfaces are only
-			// added to the launch template if they're requested, otherwise the instance is launched with a normal ENI.
+			// The nodeclaim should only advertise an EFA resource if it was requested by the pod or configured on the NodeClass. EFA network interfaces are
+			// added to the launch template if they're requested or NodeClass network interfaces are configured, otherwise the instance is launched with a normal ENI.
 			if n == v1.ResourceEFA {
-				return i.EFAEnabled
+				return i.EFACount > 0
 			}
 			return true
 		}
@@ -454,6 +455,10 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	}
 	labels[karpv1.CapacityTypeLabelKey] = i.CapacityType
 	labels[v1.LabelInstanceTenancy] = i.Tenancy
+	if i.EFACount > 0 {
+		labels[v1.LabelEFACount] = strconv.Itoa(i.EFACount)
+	}
+
 	if i.CapacityType == karpv1.CapacityTypeReserved {
 		labels[cloudprovider.ReservationIDLabel] = *i.CapacityReservationID
 		labels[v1.LabelCapacityReservationType] = string(*i.CapacityReservationType)

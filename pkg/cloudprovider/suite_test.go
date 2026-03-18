@@ -1420,6 +1420,56 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).To(BeNil())
 			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).ToNot(ContainElement(v1.ResourceEFA))
 		})
+		It("should include vpc.amazonaws.com/efa on a nodeclaim if nodeclass configured with EFA-only interfaces", func() {
+			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+				},
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeEFAOnly),
+				},
+			}
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"dl1.24xlarge"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+			Expect(err).To(BeNil())
+			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1.ResourceEFA))
+		})
+		It("should not include vpc.amazonaws.com/efa on a nodeclaim if nodeclass configured with only interface (ENA) network interfaces", func() {
+			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+				},
+			}
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"dl1.24xlarge"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+			Expect(err).To(BeNil())
+			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).ToNot(ContainElement(v1.ResourceEFA))
+		})
 	})
 	Context("Capacity Reservations", func() {
 		const reservationCapacity = 10

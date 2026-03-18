@@ -28,6 +28,7 @@ import (
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
@@ -595,5 +596,73 @@ var _ = Describe("InstanceProvider", func() {
 		priotiztied := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 
 		Expect(priotiztied.SpotOptions.AllocationStrategy).To(Equal(ec2types.SpotAllocationStrategyPriceCapacityOptimized))
+	})
+	Context("EFA Count", func() {
+		DescribeTable("should set EFACount based on NodeClass NetworkInterfaces configuration",
+			func(networkInterfaces []*v1.NetworkInterface, numEFAs int) {
+				nodeClass.Spec.NetworkInterfaces = networkInterfaces
+				ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+				Expect(err).ToNot(HaveOccurred())
+
+				instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool {
+					return i.Name == "g4dn.8xlarge"
+				})
+
+				createdInstance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+				Expect(err).To(BeNil())
+				Expect(createdInstance).ToNot(BeNil())
+				Expect(createdInstance.EFACount).To(Equal(numEFAs))
+			},
+			Entry("with 1 EFA device", []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+				},
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeEFAOnly),
+				},
+			}, 1),
+			Entry("with no EFA device", []*v1.NetworkInterface{{
+				NetworkCardIndex: 0,
+				DeviceIndex:      0,
+				InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+			},
+			}, 0),
+		)
+		It("should set EFACount based on instance type capacity when NodeClaim requests EFA", func() {
+			// NodeClaim requests EFA resource
+			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
+				v1.ResourceEFA: resource.MustParse(fmt.Sprint(1)),
+			}
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool {
+				return i.Name == "g4dn.8xlarge"
+			})
+
+			createdInstance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+			Expect(createdInstance).ToNot(BeNil())
+			Expect(createdInstance.EFACount).To(Equal(1))
+		})
+		It("should set EFACount to 0 when no EFA is configured", func() {
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			createdInstance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+			Expect(createdInstance).ToNot(BeNil())
+			Expect(createdInstance.EFACount).To(Equal(0))
+		})
 	})
 })

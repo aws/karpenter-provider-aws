@@ -1257,6 +1257,62 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
 	})
+	Context("NetworkInterfaces", func() {
+		It("should succeed with valid multiple network interfaces", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+				},
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeEFAOnly),
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed when network interfaces is empty", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail with an invalid interface type", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    "efa",
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with a negative NetworkCardIndex", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: -1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with a negative DeviceIndex", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      -1,
+					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+	})
 	Context("Role Immutability", func() {
 		It("should fail if role is not defined", func() {
 			nc.Spec.Role = ""
