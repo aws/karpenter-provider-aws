@@ -321,10 +321,10 @@ func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, nodePools []*karpv1.Node
 	sort.Slice(nodePools, func(i, j int) bool {
 		return nodePools[i].Name < nodePools[j].Name
 	})
-	nodePoolReqHashes := lo.Reduce(nodePools, func(agg []uint64, np *karpv1.NodePool, _ int) []uint64 {
+	nodePoolReqHashes := lo.Reduce(nodePools, func(agg uint64, np *karpv1.NodePool, _ int) uint64 {
 		reqHash := lo.Must(hashstructure.Hash(np.Spec.Template.Spec.Requirements, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-		return append(agg, reqHash)
-	}, []uint64{})
+		return lo.Must(hashstructure.Hash([]uint64{agg, reqHash}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
+	}, 0)
 	hash := lo.Must(hashstructure.Hash([]any{
 		nodeClass.Status.Subnets,
 		nodeClass.Status.SecurityGroups,
