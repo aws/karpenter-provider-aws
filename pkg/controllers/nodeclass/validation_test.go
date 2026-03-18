@@ -16,7 +16,6 @@ package nodeclass_test
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/awslabs/operatorpkg/object"
@@ -309,15 +308,25 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 			})
 			DescribeTable(
-				"should fallback to static instance types when no linked NodePools exist",
-				func(expectedInstanceType ec2types.InstanceType, expectedAMIID string) {
-					// Filter out the non-target standard AMI to ensure the right instance is selected, but leave the nvidia AMI to
-					// test AMI selection.
-					awsEnv.SSMAPI.Parameters = lo.PickBy(awsEnv.SSMAPI.Parameters, func(_, amiID string) bool {
-						return amiID == expectedAMIID || strings.Contains(amiID, "nvidia")
+				"should fallback to static instance types when windows ami is used",
+				func(family string, terms []v1.AMISelectorTerm, expectedInstanceType ec2types.InstanceType, expectedAMIID string) {
+					// Skip Windows 2025 on versions < 1.35
+					if family == v1.AMIFamilyWindows2025 && version.MustParseGeneric(awsEnv.VersionProvider.Get(ctx)).Minor() < 35 {
+						Skip("Windows 2025 requires EKS version 1.35+, current version: " + awsEnv.VersionProvider.Get(ctx))
+					}
+					nodeClass.Spec.AMIFamily = lo.ToPtr(family)
+					nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+						{
+							Tags: map[string]string{"*": "*"},
+						},
+					}
+					// Filter DescribeImages to use only the expected AMI
+					allImages := awsEnv.EC2API.DescribeImagesOutput.Clone().Images
+					awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+						Images: lo.Filter(allImages, func(img ec2types.Image, _ int) bool {
+							return lo.FromPtr(img.ImageId) == expectedAMIID
+						}),
 					})
-					Expect(len(awsEnv.SSMAPI.Parameters)).To(BeNumerically(">", 1))
-
 					ExpectApplied(ctx, env.Client, nodeClass)
 					ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 					launchTemplateInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
@@ -325,8 +334,9 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 					Expect(runInstancesInput.InstanceType).To(Equal(expectedInstanceType))
 					Expect(launchTemplateInput.LaunchTemplateData.ImageId).To(PointTo(Equal(expectedAMIID)))
 				},
-				Entry("m5.large", ec2types.InstanceTypeM5Large, "amd64-ami-id"),
-				Entry("m6g.large", ec2types.InstanceTypeM6gLarge, "arm64-ami-id"),
+				Entry("Windows2019 with m5.large", v1.AMIFamilyWindows2019, []v1.AMISelectorTerm{{Alias: "windows2019@latest"}}, ec2types.InstanceTypeM5Large, "amd64-ami-id"),
+				Entry("Windows2022 with m5.large", v1.AMIFamilyWindows2022, []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}, ec2types.InstanceTypeM5Large, "amd64-ami-id"),
+				Entry("Windows2025 with m6g.large", v1.AMIFamilyWindows2025, []v1.AMISelectorTerm{{Alias: "windows2025@latest"}}, ec2types.InstanceTypeM6gLarge, "arm64-ami-id"),
 			)
 			It("should prioritize non-GPU instances", func() {
 				nodePool := coretest.NodePool(karpv1.NodePool{Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{

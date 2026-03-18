@@ -246,6 +246,25 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 				DeleteFunc: func(e event.DeleteEvent) bool { return true },
 			}),
 		).
+		Watches(
+			&karpv1.NodePool{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+				np := o.(*karpv1.NodePool)
+				if np.Spec.Template.Spec.NodeClassRef == nil {
+					return nil
+				}
+				return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: np.Spec.Template.Spec.NodeClassRef.Name}}}
+			}),
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool { return true },
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					oldNP := e.ObjectOld.(*karpv1.NodePool)
+					newNP := e.ObjectNew.(*karpv1.NodePool)
+					return !equality.Semantic.DeepEqual(oldNP.Spec.Template.Spec.Requirements, newNP.Spec.Template.Spec.Requirements)
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool { return true },
+			}),
+		).
 		WithOptions(controller.Options{
 			RateLimiter:             reasonable.RateLimiter(),
 			MaxConcurrentReconciles: 10,
