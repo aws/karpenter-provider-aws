@@ -518,20 +518,24 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 
 	reservationIDs := make([]string, 0, len(errs))
 	for i := range errs {
-		capacityReservationDetails := p.getCapacityReservationDetailsForInstance(
-			string(errs[i].LaunchTemplateAndOverrides.Overrides.InstanceType),
-			lo.FromPtr(errs[i].LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
-			instanceTypes,
-		)
-		reservationIDs = append(reservationIDs, *capacityReservationDetails.ID)
-		log.FromContext(ctx).WithValues(
-			"reason", lo.FromPtr(errs[i].ErrorCode),
-			"instance-type", errs[i].LaunchTemplateAndOverrides.Overrides.InstanceType,
-			"zone", lo.FromPtr(errs[i].LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
-			"capacity-reservation-id", *capacityReservationDetails.ID,
-		).V(1).Info("marking capacity reservation unavailable")
+		if awserrors.IsUnfulfillableCapacity(errs[i]) {
+			capacityReservationDetails := p.getCapacityReservationDetailsForInstance(
+				string(errs[i].LaunchTemplateAndOverrides.Overrides.InstanceType),
+				lo.FromPtr(errs[i].LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
+				instanceTypes,
+			)
+			reservationIDs = append(reservationIDs, *capacityReservationDetails.ID)
+			log.FromContext(ctx).WithValues(
+				"reason", lo.FromPtr(errs[i].ErrorCode),
+				"instance-type", errs[i].LaunchTemplateAndOverrides.Overrides.InstanceType,
+				"zone", lo.FromPtr(errs[i].LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
+				"capacity-reservation-id", *capacityReservationDetails.ID,
+			).V(1).Info("marking capacity reservation unavailable")
+		}
 	}
-	p.capacityReservationProvider.MarkUnavailable(reservationIDs...)
+	if len(reservationIDs) > 0 {
+		p.capacityReservationProvider.MarkUnavailable(reservationIDs...)
+	}
 }
 
 func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zone string, instanceTypes []*cloudprovider.InstanceType) CapacityReservationDetails {
