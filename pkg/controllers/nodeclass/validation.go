@@ -455,6 +455,7 @@ func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass
 	if err != nil {
 		return nil, fmt.Errorf("listing instance types for nodeclass, %w", err)
 	}
+	instanceTypes = v.instanceTypeProvider.FilterWithNodeClass(instanceTypes, nodeClass)
 	nodePools, err := nodepoolutils.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepoolutils.ForNodeClass(nodeClass))
 	if err != nil {
 		return nil, fmt.Errorf("listing nodepools for nodeclass, %w", err)

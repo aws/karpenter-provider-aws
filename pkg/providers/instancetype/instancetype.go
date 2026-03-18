@@ -25,6 +25,7 @@ import (
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/offering"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 
@@ -64,6 +65,7 @@ type NodeClass interface {
 type Provider interface {
 	Get(context.Context, NodeClass, ec2types.InstanceType) (*cloudprovider.InstanceType, error)
 	List(context.Context, NodeClass) ([]*cloudprovider.InstanceType, error)
+	FilterWithNodeClass([]*cloudprovider.InstanceType, NodeClass) []*cloudprovider.InstanceType
 }
 
 type DefaultProvider struct {
@@ -159,6 +161,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*clo
 	return p.offeringProvider.InjectOfferings(
 		ctx,
 		instanceTypes,
+		&p.instanceTypesInfo,
 		nodeClass,
 		p.allZones,
 	), nil
@@ -192,7 +195,7 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass, name ec2
 			return nil, err
 		}
 	}
-	return p.offeringProvider.InjectOfferings(ctx, []*cloudprovider.InstanceType{instanceType}, nodeClass, p.allZones)[0], nil
+	return p.offeringProvider.InjectOfferings(ctx, []*cloudprovider.InstanceType{instanceType}, &p.instanceTypesInfo, nodeClass, p.allZones)[0], nil
 }
 
 func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2types.InstanceType) (*cloudprovider.InstanceType, error) {
@@ -348,6 +351,19 @@ func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context
 		}
 	}
 	return nil
+}
+
+func (p *DefaultProvider) FilterWithNodeClass(its []*cloudprovider.InstanceType, nodeClass NodeClass) []*cloudprovider.InstanceType {
+	p.muInstanceTypesInfo.RLock()
+	defer p.muInstanceTypesInfo.RUnlock()
+	compatible := []*cloudprovider.InstanceType{}
+	for _, it := range its {
+		info, found := p.instanceTypesInfo[ec2types.InstanceType(it.Name)]
+		if found && compatibility.IsCompatibleWithNodeClass(info, nodeClass) {
+			compatible = append(compatible, it)
+		}
+	}
+	return compatible
 }
 
 func (p *DefaultProvider) Reset() {
