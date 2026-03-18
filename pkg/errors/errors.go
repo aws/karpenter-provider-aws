@@ -246,6 +246,9 @@ func ToReasonMessage(err error) (string, string) {
 	if strings.Contains(err.Error(), "InternalError") {
 		return "InternalError", "An internal error has occurred"
 	}
+	if strings.Contains(err.Error(), "not eligible for Free Tier") {
+		return "FreeTierIneligible", "The specified instance type is not eligible for Free Tier"
+	}
 	// ICE Errors come last in this list because we should return a generic ICE error if all of the errors that are returned from
 	// fleet are ICE errors
 	if strings.Contains(err.Error(), "MaxFleetCountExceeded") {

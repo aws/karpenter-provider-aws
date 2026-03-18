@@ -479,6 +479,7 @@ func (p *DefaultProvider) getOverrides(
 	return overrides
 }
 
+//nolint:gocyclo
 func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	ctx context.Context,
 	errs []ec2types.CreateFleetError,
