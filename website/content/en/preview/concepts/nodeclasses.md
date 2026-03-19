@@ -1714,7 +1714,7 @@ status:
 | `ownerID`               | `459763720645`         | The account ID that owns the capacity reservation                                    |
 | `reservationType`       | `default`              | The type of the capacity reservation. Can be `default` or `capacity-block`.          |
 | `state`                 | `active`               | The state of the capacity reservation. Can be `active` or `expiring`.                |
-| `interruptible`         | `true` or `false`      | T Whether the capacity reservation is interruptible.                                 |
+| `interruptible`         | `true` or `false`      | Whether the capacity reservation is interruptible.                                   |
 
 #### Examples
 
