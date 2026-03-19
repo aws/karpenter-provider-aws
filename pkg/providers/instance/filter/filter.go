@@ -142,6 +142,7 @@ type capacityReservation struct {
 	capacityReservationInterruptible bool
 }
 
+//nolint:gocyclo
 func (f capacityReservationTypeFilter) Partition(instanceTypes []*cloudprovider.InstanceType) []*capacityReservationTypePartition {
 	partitions := map[capacityReservation]*capacityReservationTypePartition{}
 	for _, t := range v1.CapacityReservationType("").Values() {
