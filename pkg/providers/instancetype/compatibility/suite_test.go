@@ -37,7 +37,7 @@ var _ = Describe("CompatibilityTest", func() {
 		DescribeTable("should handle various instance types across different AMI families",
 			func(instanceType string, amiFamily string, expected bool) {
 				info := makeInstanceTypeInfo(instanceType, nil)
-				nc := newMockNodeClass(amiFamily, nil)
+				nc := newMockNodeClass(amiFamily, nil, nil)
 				result := compatibility.IsCompatibleWithNodeClass(info, nc)
 				Expect(result).To(Equal(expected))
 			},
@@ -53,7 +53,7 @@ var _ = Describe("CompatibilityTest", func() {
 		DescribeTable("should validate network interface compatibility with instance types",
 			func(networkInterfaces []*v1.NetworkInterface, networkInfo *ec2types.NetworkInfo, expected bool) {
 				info := makeInstanceTypeInfo("", networkInfo)
-				nc := newMockNodeClass(v1.AMIFamilyAL2023, networkInterfaces)
+				nc := newMockNodeClass(v1.AMIFamilyAL2023, networkInterfaces, nil)
 				result := compatibility.IsCompatibleWithNodeClass(info, nc)
 				Expect(result).To(Equal(expected))
 			},
@@ -111,22 +111,65 @@ var _ = Describe("CompatibilityTest", func() {
 			),
 		)
 	})
+	Context("PlacementGroupCompatibility", func() {
+		DescribeTable("should handle placement group strategy compatibility",
+			func(instanceType string, supportedStrategies []ec2types.PlacementGroupStrategy, placementGroups []v1.PlacementGroup, expected bool) {
+				info := makeInstanceTypeInfo(instanceType, nil)
+				info.PlacementGroupInfo = &ec2types.PlacementGroupInfo{
+					SupportedStrategies: supportedStrategies,
+				}
+				nc := newMockNodeClass(v1.AMIFamilyAL2023, nil, placementGroups)
+				result := compatibility.IsCompatibleWithNodeClass(info, nc)
+				Expect(result).To(Equal(expected))
+			},
+			Entry("nil placement groups", "m5.large",
+				[]ec2types.PlacementGroupStrategy{ec2types.PlacementGroupStrategyCluster},
+				nil, true),
+			Entry("empty placement groups", "m5.large",
+				[]ec2types.PlacementGroupStrategy{ec2types.PlacementGroupStrategyCluster},
+				[]v1.PlacementGroup{}, true),
+			Entry("cluster strategy supported", "m5.large",
+				[]ec2types.PlacementGroupStrategy{ec2types.PlacementGroupStrategyCluster, ec2types.PlacementGroupStrategyPartition, ec2types.PlacementGroupStrategySpread},
+				[]v1.PlacementGroup{{Strategy: v1.PlacementGroupStrategyCluster}}, true),
+			Entry("cluster strategy not supported", "t3.medium",
+				[]ec2types.PlacementGroupStrategy{ec2types.PlacementGroupStrategyPartition, ec2types.PlacementGroupStrategySpread},
+				[]v1.PlacementGroup{{Strategy: v1.PlacementGroupStrategyCluster}}, false),
+			Entry("partition strategy supported", "m5.large",
+				[]ec2types.PlacementGroupStrategy{ec2types.PlacementGroupStrategyCluster, ec2types.PlacementGroupStrategyPartition, ec2types.PlacementGroupStrategySpread},
+				[]v1.PlacementGroup{{Strategy: v1.PlacementGroupStrategyPartition}}, true),
+			Entry("partition strategy not supported", "t3.medium",
+				[]ec2types.PlacementGroupStrategy{ec2types.PlacementGroupStrategySpread},
+				[]v1.PlacementGroup{{Strategy: v1.PlacementGroupStrategyPartition}}, false),
+			Entry("spread strategy supported", "m5.large",
+				[]ec2types.PlacementGroupStrategy{ec2types.PlacementGroupStrategySpread},
+				[]v1.PlacementGroup{{Strategy: v1.PlacementGroupStrategySpread}}, true),
+			Entry("spread strategy not supported", "t3.medium",
+				[]ec2types.PlacementGroupStrategy{ec2types.PlacementGroupStrategyCluster},
+				[]v1.PlacementGroup{{Strategy: v1.PlacementGroupStrategySpread}}, false),
+		)
+	})
 })
 
-func newMockNodeClass(amiFamily string, networkInterfaces []*v1.NetworkInterface) *mockNodeClass {
+func newMockNodeClass(amiFamily string, networkInterfaces []*v1.NetworkInterface, placementGroups []v1.PlacementGroup) *mockNodeClass {
 	return &mockNodeClass{
 		amiFamily:         amiFamily,
 		networkInterfaces: networkInterfaces,
+		placementGroups:   placementGroups,
 	}
 }
 
 type mockNodeClass struct {
 	amiFamily         string
 	networkInterfaces []*v1.NetworkInterface
+	placementGroups   []v1.PlacementGroup
 }
 
 func (m mockNodeClass) AMIFamily() string {
 	return m.amiFamily
+}
+
+func (m mockNodeClass) PlacementGroups() []v1.PlacementGroup {
+	return m.placementGroups
 }
 
 func (m *mockNodeClass) NetworkInterfaces() []*v1.NetworkInterface {

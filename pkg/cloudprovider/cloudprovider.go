@@ -460,6 +460,11 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 		labels[v1.LabelCapacityReservationType] = string(i.CapacityReservationDetails.Type)
 		labels[v1.LabelCapacityReservationInterruptible] = fmt.Sprintf("%t", i.CapacityReservationDetails.Interruptible)
 	}
+	// Placement group labels
+	if nodeClass != nil && len(nodeClass.Status.PlacementGroups) > 0 {
+		pg := nodeClass.Status.PlacementGroups[0]
+		labels[v1.LabelPlacementGroupID] = pg.ID
+	}
 	if v, ok := i.Tags[karpv1.NodePoolLabelKey]; ok {
 		labels[karpv1.NodePoolLabelKey] = v
 	}

@@ -356,7 +356,7 @@ func (p *DefaultProvider) launchInstance(
 		}
 		return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w", err), reason, fmt.Sprintf("Error creating fleet request: %s", message))
 	}
-	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, nodeClaim, instanceTypes, aws.ToString(createFleetOutput.FleetId))
+	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, nodeClaim, nodeClass, instanceTypes, aws.ToString(createFleetOutput.FleetId))
 	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
 		requestID, _ := awsmiddleware.GetRequestIDMetadata(createFleetOutput.ResultMetadata)
 		return ec2types.CreateFleetInstance{}, serrors.Wrap(
@@ -488,9 +488,23 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	errs []ec2types.CreateFleetError,
 	capacityType string,
 	nodeClaim *karpv1.NodeClaim,
+	nodeClass *v1.EC2NodeClass,
 	instanceTypes []*cloudprovider.InstanceType,
 	fleetID string,
 ) {
+	// Resolve the placement group scope from the nodeClass and nodeClaim for scoping ICE cache entries.
+	// When a specific partition is targeted (via NodeClaim requirements), the ICE entry is scoped to
+	// that partition so other partitions remain available for scheduling.
+	var pgScope awscache.PlacementGroupScope
+	if len(nodeClass.Status.PlacementGroups) > 0 {
+		pgScope.ID = nodeClass.Status.PlacementGroups[0].ID
+		// Check if a specific partition was targeted for this launch
+		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+		if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil && partitionReq.Len() == 1 {
+			pgScope.Partition = partitionReq.Any()
+		}
+	}
+
 	for _, err := range errs {
 		zone := lo.FromPtr(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
 		if awserrors.IsInsufficientFreeAddressesInSubnet(err) && zone != "" {
@@ -509,7 +523,29 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 				if fleetID != "" {
 					unavailableReason["fleet-id"] = fleetID
 				}
-				p.unavailableOfferings.MarkUnavailable(ctx, instanceType, zone, capacityType, unavailableReason)
+				// For spread placement groups, detect the 7-instance-per-AZ limit error.
+				// When this limit is reached, mark all instance types in the AZ as unavailable
+				// for this placement group, since the limit is per-AZ per-group (not per instance type).
+				if awserrors.IsSpreadPlacementGroupLimitError(err) && pgScope.ID != "" {
+					log.FromContext(ctx).WithValues(
+						"placement-group-id", pgScope.ID,
+						"zone", zone,
+					).V(1).Info("spread placement group AZ limit reached, marking all instance types unavailable for this PG in AZ")
+					// Mark every instance type in this AZ as unavailable for this placement group.
+					// Spread PGs don't have partitions, so we only scope by PG ID.
+					spreadScope := awscache.PlacementGroupScope{ID: pgScope.ID}
+					for _, it := range instanceTypes {
+						p.unavailableOfferings.MarkUnavailable(ctx, ec2types.InstanceType(it.Name), zone, capacityType, unavailableReason, spreadScope)
+					}
+					continue
+				}
+				// For all other ICE errors, scope the cache entry to the placement group
+				// (and partition if targeted) so PG-specific ICEs don't block non-PG launches
+				if pgScope.ID != "" {
+					p.unavailableOfferings.MarkUnavailable(ctx, instanceType, zone, capacityType, unavailableReason, pgScope)
+				} else {
+					p.unavailableOfferings.MarkUnavailable(ctx, instanceType, zone, capacityType, unavailableReason)
+				}
 			}
 			if awserrors.IsServiceLinkedRoleCreationNotPermitted(err) {
 				p.unavailableOfferings.MarkCapacityTypeUnavailable(karpv1.CapacityTypeSpot)
@@ -523,6 +559,9 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	reservationIDs := make([]string, 0, len(errs))
 	for i := range errs {
 		if awserrors.IsUnfulfillableCapacity(errs[i]) {
+			if awserrors.IsSpreadPlacementGroupLimitError(errs[i]) {
+				continue
+			}
 			capacityReservationDetails := p.getCapacityReservationDetailsForInstance(
 				string(errs[i].LaunchTemplateAndOverrides.Overrides.InstanceType),
 				lo.FromPtr(errs[i].LaunchTemplateAndOverrides.Overrides.AvailabilityZone),

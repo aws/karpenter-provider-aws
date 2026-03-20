@@ -38,6 +38,7 @@ const (
 	ConditionTypeInstanceProfileReady      = "InstanceProfileReady"
 	ConditionTypeCapacityReservationsReady = "CapacityReservationsReady"
 	ConditionTypeValidationSucceeded       = "ValidationSucceeded"
+	ConditionTypePlacementGroupReady       = "PlacementGroupReady"
 )
 
 // Subnet contains resolved Subnet selector values utilized for node launch
@@ -139,6 +140,80 @@ const (
 	CapacityReservationStateExpiring CapacityReservationState = "expiring"
 )
 
+type PlacementGroup struct {
+	// The id for the placement group.
+	// +kubebuilder:validation:Pattern:="^pg-[0-9a-z]+$"
+	// +required
+	ID string `json:"id"`
+	// The name for the placement group.
+	// +required
+	Name string `json:"name"`
+	// The partition count for the partition placement group.
+	// +optional
+	PartitionCount int32 `json:"partitionCount,omitempty"`
+	// The spread level for the spread placement group.
+	// +kubebuilder:validation:Enum:={host,rack}
+	// +optional
+	SpreadLevel PlacementGroupSpreadLevel `json:"spreadLevel,omitempty"`
+	// The state of the placement group.
+	// +kubebuilder:validation:Enum:={available,pending,deleting,deleted}
+	// +kubebuilder:default=available
+	// +required
+	State PlacementGroupState `json:"state"`
+	// The strategy for the placement group.
+	// +kubebuilder:validation:Enum:={cluster,partition,spread}
+	// +required
+	Strategy PlacementGroupStrategy `json:"strategy,omitempty"`
+}
+
+type PlacementGroupSpreadLevel string
+
+const (
+	PlacementGroupSpreadLevelRack PlacementGroupSpreadLevel = "rack"
+	PlacementGroupSpreadLevelHost PlacementGroupSpreadLevel = "host"
+)
+
+func (PlacementGroupSpreadLevel) Values() []PlacementGroupSpreadLevel {
+	return []PlacementGroupSpreadLevel{
+		PlacementGroupSpreadLevelRack,
+		PlacementGroupSpreadLevelHost,
+	}
+}
+
+type PlacementGroupState string
+
+const (
+	PlacementGroupStateAvailable PlacementGroupState = "available"
+	PlacementGroupStatePending   PlacementGroupState = "pending"
+	PlacementGroupStateDeleting  PlacementGroupState = "deleting"
+	PlacementGroupStateDeleted   PlacementGroupState = "deleted"
+)
+
+func (PlacementGroupState) Values() []PlacementGroupState {
+	return []PlacementGroupState{
+		PlacementGroupStateAvailable,
+		PlacementGroupStatePending,
+		PlacementGroupStateDeleting,
+		PlacementGroupStateDeleted,
+	}
+}
+
+type PlacementGroupStrategy string
+
+const (
+	PlacementGroupStrategyCluster   PlacementGroupStrategy = "cluster"
+	PlacementGroupStrategyPartition PlacementGroupStrategy = "partition"
+	PlacementGroupStrategySpread    PlacementGroupStrategy = "spread"
+)
+
+func (PlacementGroupStrategy) Values() []PlacementGroupStrategy {
+	return []PlacementGroupStrategy{
+		PlacementGroupStrategyCluster,
+		PlacementGroupStrategyPartition,
+		PlacementGroupStrategySpread,
+	}
+}
+
 // EC2NodeClassStatus contains the resolved state of the EC2NodeClass
 type EC2NodeClassStatus struct {
 	// Subnets contains the current subnet values that are available to the
@@ -153,6 +228,9 @@ type EC2NodeClassStatus struct {
 	// CapacityReservation selectors.
 	// +optional
 	CapacityReservations []CapacityReservation `json:"capacityReservations,omitempty"`
+	// PlacementGroups contains the placement group values that are available to this NodeClass.
+	// +optional
+	PlacementGroups []PlacementGroup `json:"placementGroups,omitempty"`
 	// AMI contains the current AMI values that are available to the
 	// cluster under the AMI selectors.
 	// +optional
@@ -176,6 +254,9 @@ func (in *EC2NodeClass) StatusConditions() status.ConditionSet {
 	if CapacityReservationsEnabled {
 		conds = append(conds, ConditionTypeCapacityReservationsReady)
 	}
+	if in.Spec.PlacementGroupSelector != nil {
+		conds = append(conds, ConditionTypePlacementGroupReady)
+	}
 	return status.NewReadyConditions(conds...).For(in)
 }
 
@@ -193,6 +274,10 @@ func (in *EC2NodeClass) AMIs() []AMI {
 
 func (in *EC2NodeClass) CapacityReservations() []CapacityReservation {
 	return in.Status.CapacityReservations
+}
+
+func (in *EC2NodeClass) PlacementGroups() []PlacementGroup {
+	return in.Status.PlacementGroups
 }
 
 type ZoneInfo struct {
@@ -263,5 +348,74 @@ func CapacityReservationFromEC2(clk clock.Clock, cr *ec2types.CapacityReservatio
 		ReservationType:       reservationType,
 		Interruptible:         lo.Ternary(cr.Interruptible == nil, false, *cr.Interruptible),
 		State:                 state,
+	}, nil
+}
+
+func PlacementGroupSpreadLevelFromEC2(spreadLevel ec2types.SpreadLevel) (PlacementGroupSpreadLevel, error) {
+	if spreadLevel == "" {
+		return "", nil
+	}
+	resolvedType, ok := lo.Find(PlacementGroupSpreadLevel("").Values(), func(crt PlacementGroupSpreadLevel) bool {
+		return string(crt) == string(spreadLevel)
+	})
+	if !ok {
+		return "", serrors.Wrap(
+			fmt.Errorf("received placement group with unsupported spread level from ec2"),
+			"spread-level", string(spreadLevel),
+		)
+	}
+	return resolvedType, nil
+}
+
+func PlacementGroupStateFromEC2(state ec2types.PlacementGroupState) (PlacementGroupState, error) {
+	if state == "" {
+		return "", serrors.Wrap(fmt.Errorf("received placement group with no state from ec2"))
+	}
+	resolvedType, ok := lo.Find(PlacementGroupState("").Values(), func(crt PlacementGroupState) bool {
+		return string(crt) == string(state)
+	})
+	if !ok {
+		return "", serrors.Wrap(
+			fmt.Errorf("received placement group with unrecognized state from ec2"),
+			"state", string(state),
+		)
+	}
+	return resolvedType, nil
+}
+
+func PlacementGroupStrategyFromEC2(strategy ec2types.PlacementStrategy) (PlacementGroupStrategy, error) {
+	resolvedType, ok := lo.Find(PlacementGroupStrategy("").Values(), func(crt PlacementGroupStrategy) bool {
+		return string(crt) == string(strategy)
+	})
+	if !ok {
+		return "", serrors.Wrap(
+			fmt.Errorf("received placement group with unsupported strategy from ec2"),
+			"strategy", string(strategy),
+		)
+	}
+	return resolvedType, nil
+}
+
+func PlacementGroupFromEC2(pg *ec2types.PlacementGroup) (PlacementGroup, error) {
+	spreadLevel, err := PlacementGroupSpreadLevelFromEC2(pg.SpreadLevel)
+	if err != nil {
+		return PlacementGroup{}, serrors.Wrap(err, "placement-group", *pg.GroupId)
+	}
+	state, err := PlacementGroupStateFromEC2(pg.State)
+	if err != nil {
+		return PlacementGroup{}, serrors.Wrap(err, "state", pg.State)
+	}
+	strategy, err := PlacementGroupStrategyFromEC2(pg.Strategy)
+	if err != nil {
+		return PlacementGroup{}, serrors.Wrap(err, "strategy", pg.Strategy)
+	}
+
+	return PlacementGroup{
+		ID:             *pg.GroupId,
+		Name:           *pg.GroupName,
+		PartitionCount: lo.FromPtr(pg.PartitionCount),
+		SpreadLevel:    spreadLevel,
+		State:          state,
+		Strategy:       strategy,
 	}, nil
 }

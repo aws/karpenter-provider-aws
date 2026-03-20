@@ -115,6 +115,11 @@ spec:
     - id: cr-123
     - instanceMatchCriteria: open
 
+  # Optional, the terms are exclusive
+  placementGroupSelector:
+    name: my-pg
+    id: pg-123
+
   # Optional, propagates tags to underlying EC2 resources
   tags:
     team: team-a
@@ -221,6 +226,15 @@ status:
       ownerID: "98765432109"
       reservationType: default
       state: active
+
+  # Placement Group
+  placementGroup:
+    - id: pg-01234567890123456
+      name: my-pg
+      partitionCount: 7
+      spreadLevel: rack
+      state: available
+      strategy: cluster
 
   # Generated instance profile name from "role"
   instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
@@ -969,6 +983,39 @@ spec:
   - instanceMatchCriteria: targeted
     tags:
       key: foo
+```
+
+## spec.placementGroupSelector
+
+Placement Group Selector allows you to select a [placement group](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html) for instances launched by this EC2NodeClass. Each EC2NodeClass maps to exactly one placement group — all instances launched from that EC2NodeClass are placed into the resolved placement group.
+
+Placement groups can be selected by either name or ID. Only one of `name` or `id` may be specified.
+
+Karpenter supports all three placement group strategies:
+- **Cluster** — instances are placed in a single AZ on the same network segment for low-latency, high-throughput networking (e.g., EFA workloads)
+- **Partition** — instances are distributed across isolated partitions (up to 7 per AZ) for hardware fault isolation. Applications can use `topologySpreadConstraints` with the `karpenter.k8s.aws/placement-group-partition` label to spread workloads across partitions.
+- **Spread** — each instance is placed on distinct hardware (up to 7 instances per AZ per group) for maximum fault isolation
+
+{{% alert title="Note" color="primary" %}}
+The IAM role Karpenter assumes must have permissions for the [ec2:DescribePlacementGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribePlacementGroups.html) action to discover placement groups and the [ec2:RunInstances](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-RunInstances) / [ec2:CreateFleet](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-CreateFleet) actions to launch instances into the placement group.
+{{% /alert %}}
+
+#### Examples
+
+Select the placement group with the given ID:
+
+```yaml
+spec:
+  placementGroupSelector:
+    id: pg-123
+```
+
+Select the placement group with the given name:
+
+```yaml
+spec:
+  placementGroupSelector:
+    name: my-pg-a
 ```
 
 ## spec.tags

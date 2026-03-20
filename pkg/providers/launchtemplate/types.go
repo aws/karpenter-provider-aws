@@ -133,9 +133,7 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			},
 			NetworkInterfaces: networkInterfaces,
 			TagSpecifications: launchTemplateDataTags,
-			Placement: &ec2types.LaunchTemplatePlacementRequest{
-				Tenancy: ec2types.Tenancy(b.options.Tenancy),
-			},
+			Placement:         b.buildPlacement(),
 		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{
@@ -175,4 +173,17 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			).Else(nil)
 	}
 	return lt
+}
+
+func (b *CreateLaunchTemplateInputBuilder) buildPlacement() *ec2types.LaunchTemplatePlacementRequest {
+	placement := &ec2types.LaunchTemplatePlacementRequest{
+		Tenancy: ec2types.Tenancy(b.options.Tenancy),
+	}
+	if b.options.PlacementGroupID != "" {
+		placement.GroupId = lo.ToPtr(b.options.PlacementGroupID)
+	}
+	if b.options.PlacementGroupPartition != 0 {
+		placement.PartitionNumber = lo.ToPtr(b.options.PlacementGroupPartition)
+	}
+	return placement
 }
