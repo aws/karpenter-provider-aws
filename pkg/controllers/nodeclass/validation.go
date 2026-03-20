@@ -398,11 +398,9 @@ func getFleetLaunchTemplateConfig(
 
 func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	// Select an instance type to use for validation. If NodePools exist for this NodeClass, we'll use an instance type
-	// selected by one of those NodePools that is also compatible with the NodeClass. If no instance types are, we'll
-	// fall back to instance type that could be selected with an open NodePool. If no NodePools exists for this NodeClass,
-	// we'll use an instance type that could be selected with an open NodePool. We should also prioritize an InstanceType
-	// which will launch with a non-GPU (VariantStandard) AMI, since GPU AMIs may have a larger snapshot size than that
-	// supported by the NodeClass' blockDeviceMappings.
+	// selected by one of those NodePools that is also compatible with the NodeClass. We should also prioritize an InstanceType
+	// which will launch with a non-GPU (VariantStandard) AMI, since GPU AMIs may have a larger snapshot size than that supported
+	// by the NodeClass' blockDeviceMappings.
 	// Historical Issue: https://github.com/aws/karpenter-provider-aws/issues/7928
 	instanceTypes, err := v.getInstanceTypesForNodeClass(ctx, nodeClass)
 	if err != nil {
@@ -450,25 +448,38 @@ func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass 
 }
 
 // getInstanceTypesForNodeClass returns the set of instances which could be launched using this NodeClass based on the
-// requirements of linked NodePools. If no NodePools exist, this function returns the instances which could be launched using
-// the NodeClass and an open NodePool.
+// requirements of linked NodePools. If no NodePools exist for the given NodeClass, this function returns two default
+// instance types (one x86_64 and one arm64).
 func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	instanceTypes, err := v.instanceTypeProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, fmt.Errorf("listing instance types for nodeclass, %w", err)
 	}
+	instanceTypes = v.instanceTypeProvider.FilterForNodeClass(instanceTypes, nodeClass)
+
 	nodePools, err := nodepoolutils.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepoolutils.ForNodeClass(nodeClass))
 	if err != nil {
 		return nil, fmt.Errorf("listing nodepools for nodeclass, %w", err)
 	}
-
-	filteredInstanceTypes := v.instanceTypeProvider.FilterForNodeClass(instanceTypes, nodeClass)
-	compatibleInstanceTypes := getNodePoolCompatibleInstanceTypes(filteredInstanceTypes, nodePools)
-	if len(compatibleInstanceTypes) != 0 {
-		return getAMICompatibleInstanceTypes(compatibleInstanceTypes, nodeClass), nil
+	var compatibleInstanceTypes []*cloudprovider.InstanceType
+	names := sets.New[string]()
+	for _, np := range nodePools {
+		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
+		if np.Spec.Template.Labels != nil {
+			reqs.Add(lo.Values(scheduling.NewLabelRequirements(np.Spec.Template.Labels))...)
+		}
+		for _, it := range instanceTypes {
+			if it.Requirements.Intersects(reqs) != nil {
+				continue
+			}
+			if names.Has(it.Name) {
+				continue
+			}
+			names.Insert(it.Name)
+			compatibleInstanceTypes = append(compatibleInstanceTypes, it)
+		}
 	}
-
-	return getAMICompatibleInstanceTypes(instanceTypes, nodeClass), nil
+	return getAMICompatibleInstanceTypes(compatibleInstanceTypes, nodeClass), nil
 }
 
 func (v *Validation) getTenancyType(ctx context.Context, nodeClass *v1.EC2NodeClass) (ec2types.Tenancy, error) {
@@ -504,29 +515,4 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 	}
 
 	return selectedInstanceTypes
-}
-
-func getNodePoolCompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, nodePools []*karpv1.NodePool) []*cloudprovider.InstanceType {
-	if len(nodePools) == 0 {
-		return instanceTypes
-	}
-	var compatibleInstanceTypes []*cloudprovider.InstanceType
-	names := sets.New[string]()
-	for _, np := range nodePools {
-		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
-		if np.Spec.Template.Labels != nil {
-			reqs.Add(lo.Values(scheduling.NewLabelRequirements(np.Spec.Template.Labels))...)
-		}
-		for _, it := range instanceTypes {
-			if it.Requirements.Intersects(reqs) != nil {
-				continue
-			}
-			if names.Has(it.Name) {
-				continue
-			}
-			names.Insert(it.Name)
-			compatibleInstanceTypes = append(compatibleInstanceTypes, it)
-		}
-	}
-	return compatibleInstanceTypes
 }
