@@ -712,3 +712,19 @@ These rules include:
        - Id: KarpenterInterruptionQueueTarget
          Arn: !GetAtt KarpenterInterruptionQueue.Arn
   ```
+
+* 
+
+  ```yaml
+  CapacityReservationInterruptionRule:
+   Type: 'AWS::Events::Rule'
+   Properties:
+     EventPattern:
+       source:
+         - aws.ec2
+       detail-type:
+         - EC2 Capacity Reservation Instance Interruption Warning
+     Targets:
+       - Id: KarpenterInterruptionQueueTarget
+         Arn: !GetAtt KarpenterInterruptionQueue.Arn
+  ```
