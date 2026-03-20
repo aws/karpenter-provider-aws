@@ -17,7 +17,6 @@ package nodeclass
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -51,7 +50,6 @@ import (
 
 const (
 	requeueAfterTime                              = 10 * time.Minute
-	ConditionReasonNoInstanceTypesCompatible      = "NoInstanceTypesCompatible"
 	ConditionReasonCreateFleetAuthFailed          = "CreateFleetAuthCheckFailed"
 	ConditionReasonCreateLaunchTemplateAuthFailed = "CreateLaunchTemplateAuthCheckFailed"
 	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
@@ -155,11 +153,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating tags, %w", err))
 	}
 
-	nodePools, err := nodepoolutils.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepoolutils.ForNodeClass(nodeClass))
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("listing nodepools for nodeclass, %w", err)
-	}
-	if val, ok := v.cache.Get(v.cacheKey(nodeClass, nodePools, tags)); ok {
+	if val, ok := v.cache.Get(v.cacheKey(nodeClass, tags)); ok {
 		// We still update the status condition even if it's cached since we may have had a conflict error previously
 		if val == "" {
 			nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
@@ -175,32 +169,32 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 
 	if v.dryRunDisabled {
 		nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
-		v.cache.SetDefault(v.cacheKey(nodeClass, nodePools, tags), "")
+		v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 
-	launchTemplate, result, err := v.validateCreateLaunchTemplateAuthorization(ctx, nodeClass, nodePools, nodeClaim, tags)
+	launchTemplate, result, err := v.validateCreateLaunchTemplateAuthorization(ctx, nodeClass, nodeClaim, tags)
 	if err != nil || !lo.IsEmpty(result) {
 		return result, err
 	}
 
-	result, err = v.validateCreateFleetAuthorization(ctx, nodeClass, nodePools, tags, launchTemplate)
+	result, err = v.validateCreateFleetAuthorization(ctx, nodeClass, tags, launchTemplate)
 	if err != nil || !lo.IsEmpty(result) {
 		return result, err
 	}
 
-	result, err = v.validateRunInstancesAuthorization(ctx, nodeClass, nodePools, tags, launchTemplate)
+	result, err = v.validateRunInstancesAuthorization(ctx, nodeClass, tags, launchTemplate)
 	if err != nil || !lo.IsEmpty(result) {
 		return result, err
 	}
 
-	v.cache.SetDefault(v.cacheKey(nodeClass, nodePools, tags), "")
+	v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 	return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 }
 
-func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, nodePools []*karpv1.NodePool, tags map[string]string, failureReason string) {
-	v.cache.SetDefault(v.cacheKey(nodeClass, nodePools, tags), failureReason)
+func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[string]string, failureReason string) {
+	v.cache.SetDefault(v.cacheKey(nodeClass, tags), failureReason)
 	nodeClass.StatusConditions().SetFalse(
 		v1.ConditionTypeValidationSucceeded,
 		failureReason,
@@ -211,19 +205,12 @@ func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, nodePools 
 func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
-	nodePools []*karpv1.NodePool,
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
 ) (launchTemplate *launchtemplate.LaunchTemplate, result reconcile.Result, err error) {
-	instanceTypes, err := v.getPrioritizedInstanceTypes(ctx, nodeClass, nodePools)
+	instanceTypes, err := v.getPrioritizedInstanceTypes(ctx, nodeClass)
 	if err != nil {
 		return nil, reconcile.Result{}, fmt.Errorf("generating options, %w", err)
-	}
-	// this can only happen when the NodeClass has no compatible instance types, so we should invalidate it
-	if len(instanceTypes) == 0 {
-		log.FromContext(ctx).Error(fmt.Errorf("getting instance types for NodeClass validation"), "no instance type is compatible with NodeClass")
-		v.updateCacheOnFailure(nodeClass, nodePools, tags, ConditionReasonNoInstanceTypesCompatible)
-		return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 	// pass 1 instance type in EnsureAll to only create 1 launch template
 	tenancyType, err := v.getTenancyType(ctx, nodeClass)
@@ -240,7 +227,7 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 			return nil, reconcile.Result{}, fmt.Errorf("validating ec2:CreateLaunchTemplate authorization, %w", err)
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateLaunchTemplate")
-		v.updateCacheOnFailure(nodeClass, nodePools, tags, ConditionReasonCreateLaunchTemplateAuthFailed)
+		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateLaunchTemplateAuthFailed)
 		return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 	// this case should never occur as we ensure instance types are compatible with AMI
@@ -253,7 +240,6 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 func (v *Validation) validateCreateFleetAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
-	nodePools []*karpv1.NodePool,
 	tags map[string]string,
 	launchTemplate *launchtemplate.LaunchTemplate,
 ) (result reconcile.Result, err error) {
@@ -273,7 +259,7 @@ func (v *Validation) validateCreateFleetAuthorization(
 			return reconcile.Result{}, fmt.Errorf("validating ec2:CreateFleet authorization, %w", err)
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateFleet")
-		v.updateCacheOnFailure(nodeClass, nodePools, tags, ConditionReasonCreateFleetAuthFailed)
+		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateFleetAuthFailed)
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 	return reconcile.Result{}, nil
@@ -282,7 +268,6 @@ func (v *Validation) validateCreateFleetAuthorization(
 func (v *Validation) validateRunInstancesAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
-	nodePools []*karpv1.NodePool,
 	tags map[string]string,
 	launchTemplate *launchtemplate.LaunchTemplate,
 ) (result reconcile.Result, err error) {
@@ -302,7 +287,7 @@ func (v *Validation) validateRunInstancesAuthorization(
 			return reconcile.Result{}, fmt.Errorf("validating ec2:RunInstances authorization, %w", err)
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:RunInstances")
-		v.updateCacheOnFailure(nodeClass, nodePools, tags, ConditionReasonRunInstancesAuthFailed)
+		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesAuthFailed)
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 	return reconcile.Result{}, nil
@@ -317,14 +302,7 @@ func (*Validation) requiredConditions() []string {
 	}
 }
 
-func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, nodePools []*karpv1.NodePool, tags map[string]string) string {
-	sort.Slice(nodePools, func(i, j int) bool {
-		return nodePools[i].Name < nodePools[j].Name
-	})
-	nodePoolReqHashes := lo.Reduce(nodePools, func(agg uint64, np *karpv1.NodePool, _ int) uint64 {
-		reqHash := lo.Must(hashstructure.Hash(np.Spec.Template.Spec.Requirements, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-		return lo.Must(hashstructure.Hash([]uint64{agg, reqHash}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-	}, 0)
+func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) string {
 	hash := lo.Must(hashstructure.Hash([]any{
 		nodeClass.Status.Subnets,
 		nodeClass.Status.SecurityGroups,
@@ -333,7 +311,6 @@ func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, nodePools []*karpv1.Node
 		nodeClass.Spec,
 		nodeClass.Annotations,
 		tags,
-		nodePoolReqHashes,
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
 	return fmt.Sprintf("%s:%016x", nodeClass.Name, hash)
 }
@@ -419,20 +396,17 @@ func getFleetLaunchTemplateConfig(
 	}
 }
 
-func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass *v1.EC2NodeClass, nodePools []*karpv1.NodePool) ([]*cloudprovider.InstanceType, error) {
+func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	// Select an instance type to use for validation. If NodePools exist for this NodeClass, we'll use an instance type
-	// selected by one of those NodePools. If no NodePools exists for this NodeClass, we'll use an instance type that could be
-	// selected with an open NodePool. We should also prioritize an InstanceType which will launch with a non-GPU
-	// (VariantStandard) AMI, since GPU AMIs may have a larger snapshot size than that supported by the NodeClass'
-	// blockDeviceMappings.
+	// selected by one of those NodePools that is also compatible with the NodeClass. If no instance types are, we'll
+	// fall back to instance type that could be selected with an open NodePool. If no NodePools exists for this NodeClass,
+	// we'll use an instance type that could be selected with an open NodePool. We should also prioritize an InstanceType
+	// which will launch with a non-GPU (VariantStandard) AMI, since GPU AMIs may have a larger snapshot size than that
+	// supported by the NodeClass' blockDeviceMappings.
 	// Historical Issue: https://github.com/aws/karpenter-provider-aws/issues/7928
-	instanceTypes, err := v.getInstanceTypesForNodeClass(ctx, nodeClass, nodePools)
+	instanceTypes, err := v.getInstanceTypesForNodeClass(ctx, nodeClass)
 	if err != nil {
 		return nil, err
-	}
-	// If there weren't any matching instance types, we should invalidate the NodeClass.
-	if len(instanceTypes) == 0 {
-		return nil, nil
 	}
 	// We fallback to the default instance type if the AMI family is Windows. Karpenter currently incorrectly marks certain instance
 	// types as Windows compatible, and dynamic instance type resolution may choose those instance types for the dry-run, even if they
@@ -460,40 +434,33 @@ func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass 
 		instanceTypes = getAMICompatibleInstanceTypes(instanceTypes, nodeClass)
 	}
 
+	if len(instanceTypes) == 0 {
+		panic("Could not select on any instance type during NodeClass validation")
+	}
+
 	return instanceTypes, nil
 }
 
 // getInstanceTypesForNodeClass returns the set of instances which could be launched using this NodeClass based on the
 // requirements of linked NodePools. If no NodePools exist, this function returns the instances which could be launched using
 // the NodeClass and an open NodePool.
-func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass *v1.EC2NodeClass, nodePools []*karpv1.NodePool) ([]*cloudprovider.InstanceType, error) {
+func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	instanceTypes, err := v.instanceTypeProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, fmt.Errorf("listing instance types for nodeclass, %w", err)
 	}
-	instanceTypes = v.instanceTypeProvider.FilterForNodeClass(instanceTypes, nodeClass)
-	if len(nodePools) == 0 {
-		return getAMICompatibleInstanceTypes(instanceTypes, nodeClass), nil
+	nodePools, err := nodepoolutils.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepoolutils.ForNodeClass(nodeClass))
+	if err != nil {
+		return nil, fmt.Errorf("listing nodepools for nodeclass, %w", err)
 	}
-	var compatibleInstanceTypes []*cloudprovider.InstanceType
-	names := sets.New[string]()
-	for _, np := range nodePools {
-		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
-		if np.Spec.Template.Labels != nil {
-			reqs.Add(lo.Values(scheduling.NewLabelRequirements(np.Spec.Template.Labels))...)
-		}
-		for _, it := range instanceTypes {
-			if it.Requirements.Intersects(reqs) != nil {
-				continue
-			}
-			if names.Has(it.Name) {
-				continue
-			}
-			names.Insert(it.Name)
-			compatibleInstanceTypes = append(compatibleInstanceTypes, it)
-		}
+
+	filteredInstanceTypes := v.instanceTypeProvider.FilterForNodeClass(instanceTypes, nodeClass)
+	compatibleInstanceTypes := getNodePoolCompatibleInstanceTypes(filteredInstanceTypes, nodePools)
+	if len(compatibleInstanceTypes) != 0 {
+		return getAMICompatibleInstanceTypes(compatibleInstanceTypes, nodeClass), nil
 	}
-	return getAMICompatibleInstanceTypes(compatibleInstanceTypes, nodeClass), nil
+
+	return getAMICompatibleInstanceTypes(instanceTypes, nodeClass), nil
 }
 
 func (v *Validation) getTenancyType(ctx context.Context, nodeClass *v1.EC2NodeClass) (ec2types.Tenancy, error) {
@@ -529,4 +496,29 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 	}
 
 	return selectedInstanceTypes
+}
+
+func getNodePoolCompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, nodePools []*karpv1.NodePool) []*cloudprovider.InstanceType {
+	if len(nodePools) == 0 {
+		return instanceTypes
+	}
+	var compatibleInstanceTypes []*cloudprovider.InstanceType
+	names := sets.New[string]()
+	for _, np := range nodePools {
+		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
+		if np.Spec.Template.Labels != nil {
+			reqs.Add(lo.Values(scheduling.NewLabelRequirements(np.Spec.Template.Labels))...)
+		}
+		for _, it := range instanceTypes {
+			if it.Requirements.Intersects(reqs) != nil {
+				continue
+			}
+			if names.Has(it.Name) {
+				continue
+			}
+			names.Insert(it.Name)
+			compatibleInstanceTypes = append(compatibleInstanceTypes, it)
+		}
+	}
+	return compatibleInstanceTypes
 }
