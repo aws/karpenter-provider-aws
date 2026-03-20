@@ -99,6 +99,7 @@ func main() {
 			op.VersionProvider,
 			op.InstanceTypesProvider,
 			op.CapacityReservationProvider,
+			op.PlacementGroupProvider,
 			op.AMIResolver,
 		)...).
 		Start(ctx)

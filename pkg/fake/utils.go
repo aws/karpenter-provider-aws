@@ -111,6 +111,20 @@ func FilterDescribeCapacityReservations(crs []ec2types.CapacityReservation, ids 
 	})
 }
 
+func FilterDescribePlacementGroups(pgs []ec2types.PlacementGroup, ids []string, names []string, filters []ec2types.Filter) []ec2types.PlacementGroup {
+	idSet := sets.New(ids...)
+	nameSet := sets.New(names...)
+	return lo.Filter(pgs, func(pg ec2types.PlacementGroup, _ int) bool {
+		if len(ids) != 0 && !idSet.Has(lo.FromPtr(pg.GroupId)) {
+			return false
+		}
+		if len(names) != 0 && !nameSet.Has(lo.FromPtr(pg.GroupName)) {
+			return false
+		}
+		return Filter(filters, lo.FromPtr(pg.GroupId), lo.FromPtr(pg.GroupName), "", string(pg.State), pg.Tags)
+	})
+}
+
 func FilterDescribeImages(images []ec2types.Image, filters []ec2types.Filter) []ec2types.Image {
 	return lo.Filter(images, func(image ec2types.Image, _ int) bool {
 		return Filter(filters, *image.ImageId, *image.Name, "", string(image.State), image.Tags)
@@ -200,6 +214,13 @@ func MakeInstances() []ec2types.InstanceTypeInfo {
 					NetworkCardIndex:         lo.ToPtr(int32(0)),
 					MaximumNetworkInterfaces: aws.Int32(3),
 				}},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{
+					ec2types.PlacementGroupStrategyCluster,
+					ec2types.PlacementGroupStrategyPartition,
+					ec2types.PlacementGroupStrategySpread,
+				},
 			},
 			SupportedUsageClasses: DefaultSupportedUsageClasses,
 		})

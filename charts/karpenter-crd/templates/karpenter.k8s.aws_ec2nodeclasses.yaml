@@ -516,6 +516,23 @@ spec:
                         - optional
                       type: string
                   type: object
+                placementGroupSelector:
+                  description: PlacementGroupSelector defines the name or the id of the placement to resolve with the nodeclass.
+                  properties:
+                    id:
+                      description: ID is the placement group id in EC2
+                      pattern: ^pg-[0-9a-z]+$
+                      type: string
+                    name:
+                      description: Name is the placement group name in EC2
+                      minLength: 1
+                      type: string
+                  type: object
+                  x-kubernetes-validations:
+                    - message: expected at least one, got none, ['name', 'id']
+                      rule: has(self.name) || has(self.id)
+                    - message: '''name'' and ''id'' are mutually exclusive'
+                      rule: '!(has(self.name) && has(self.id))'
                 role:
                   description: |-
                     Role is the AWS identity that nodes use.
@@ -814,6 +831,50 @@ spec:
                 instanceProfile:
                   description: InstanceProfile contains the resolved instance profile for the role
                   type: string
+                placementGroups:
+                  description: PlacementGroups contains the placement group values that are available to this NodeClass.
+                  items:
+                    properties:
+                      id:
+                        description: The id for the placement group.
+                        pattern: ^pg-[0-9a-z]+$
+                        type: string
+                      name:
+                        description: The name for the placement group.
+                        type: string
+                      partitionCount:
+                        description: The partition count for the partition placement group.
+                        format: int32
+                        type: integer
+                      spreadLevel:
+                        description: The spread level for the spread placement group.
+                        enum:
+                          - host
+                          - rack
+                        type: string
+                      state:
+                        default: available
+                        description: The state of the placement group.
+                        enum:
+                          - available
+                          - pending
+                          - deleting
+                          - deleted
+                        type: string
+                      strategy:
+                        description: The strategy for the placement group.
+                        enum:
+                          - cluster
+                          - partition
+                          - spread
+                        type: string
+                    required:
+                      - id
+                      - name
+                      - state
+                      - strategy
+                    type: object
+                  type: array
                 securityGroups:
                   description: |-
                     SecurityGroups contains the current security group values that are available to the
