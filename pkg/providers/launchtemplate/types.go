@@ -161,11 +161,18 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 				nil,
 			),
 		}
-		if b.options.CapacityReservationType == v1.CapacityReservationTypeCapacityBlock {
-			lt.LaunchTemplateData.InstanceMarketOptions = &ec2types.LaunchTemplateInstanceMarketOptionsRequest{
-				MarketType: ec2types.MarketTypeCapacityBlock,
-			}
-		}
+		lt.LaunchTemplateData.InstanceMarketOptions =
+			lo.If(
+				b.options.CapacityReservationType == v1.CapacityReservationTypeCapacityBlock,
+				&ec2types.LaunchTemplateInstanceMarketOptionsRequest{
+					MarketType: ec2types.MarketTypeCapacityBlock,
+				},
+			).ElseIf(
+				b.options.CapacityReservationInterruptible,
+				&ec2types.LaunchTemplateInstanceMarketOptionsRequest{
+					MarketType: ec2types.MarketTypeInterruptibleCapacityReservation,
+				},
+			).Else(nil)
 	}
 	return lt
 }

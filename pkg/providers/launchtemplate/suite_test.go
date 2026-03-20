@@ -2534,6 +2534,7 @@ eviction-max-pod-grace-period = 10
 				AvailableInstanceCount: lo.ToPtr[int32](10),
 				State:                  ec2types.CapacityReservationStateActive,
 				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(false),
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
@@ -2544,6 +2545,7 @@ eviction-max-pod-grace-period = 10
 				AvailableInstanceCount: lo.ToPtr[int32](15),
 				State:                  ec2types.CapacityReservationStateActive,
 				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(false),
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1b"),
@@ -2554,6 +2556,7 @@ eviction-max-pod-grace-period = 10
 				AvailableInstanceCount: lo.ToPtr[int32](10),
 				State:                  ec2types.CapacityReservationStateActive,
 				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(false),
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1b"),
@@ -2564,6 +2567,7 @@ eviction-max-pod-grace-period = 10
 				AvailableInstanceCount: lo.ToPtr[int32](15),
 				State:                  ec2types.CapacityReservationStateActive,
 				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(false),
 			},
 		}
 		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
@@ -2589,7 +2593,7 @@ eviction-max-pod-grace-period = 10
 			lt := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
 			launchTemplates[*lt.LaunchTemplateName] = lt
 		}
-		// We should have created 3 launch templates, rather than 4 since we only create 1 launch template per capacity pool
+		// We should have created 3 launch templates, rather than 5 since we only create 1 launch template per capacity pool
 		Expect(launchTemplates).To(HaveLen(3))
 		reservationIDs := lo.Uniq(lo.Map(lo.Values(launchTemplates), func(input *ec2.CreateLaunchTemplateInput, _ int) string {
 			return *input.LaunchTemplateData.CapacityReservationSpecification.CapacityReservationTarget.CapacityReservationId
@@ -2622,6 +2626,60 @@ eviction-max-pod-grace-period = 10
 			Expect(ltc.Overrides[0].InstanceType).To(Equal(ec2types.InstanceType(*cr.InstanceType)))
 		}
 	})
+	DescribeTable(
+		"should correctly assign the market type for reserved capacity", func(cr ec2types.CapacityReservation, expectedMarketType ec2types.MarketType) {
+			awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
+				CapacityReservations: []ec2types.CapacityReservation{cr},
+			})
+			nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, lo.Must(v1.CapacityReservationFromEC2(fakeClock, &cr)))
+			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(*cr.CapacityReservationId, int(*cr.AvailableInstanceCount))
+
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.CapacityTypeReserved},
+			}}
+			pod := coretest.UnschedulablePod()
+			ExpectApplied(ctx, env.Client, pod, nodePool, nodeClass)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			launchTemplates := map[string]*ec2.CreateLaunchTemplateInput{}
+			for awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len() != 0 {
+				lt := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+				launchTemplates[*lt.LaunchTemplateName] = lt
+			}
+			Expect(lo.Values(launchTemplates)[0].LaunchTemplateData.InstanceMarketOptions.MarketType).To(Equal(expectedMarketType))
+		},
+		Entry(
+			"with default interruptible reservation type", ec2types.CapacityReservation{
+				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+				InstanceType:           lo.ToPtr("m5.large"),
+				OwnerId:                lo.ToPtr("012345678901"),
+				InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
+				AvailableInstanceCount: lo.ToPtr[int32](10),
+				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(true),
+			},
+			ec2types.MarketTypeInterruptibleCapacityReservation,
+		),
+		Entry(
+			"with capacity block reservation type", ec2types.CapacityReservation{
+				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+				InstanceType:           lo.ToPtr("m5.large"),
+				OwnerId:                lo.ToPtr("012345678901"),
+				InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
+				AvailableInstanceCount: lo.ToPtr[int32](10),
+				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeCapacityBlock,
+				Interruptible:          lo.ToPtr(false),
+			},
+			ec2types.MarketTypeCapacityBlock,
+		),
+	)
 	DescribeTable(
 		"should set the capacity reservation specification according to the capacity reservation feature flag",
 		func(enabled bool) {
