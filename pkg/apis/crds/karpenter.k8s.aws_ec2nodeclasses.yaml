@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.20.0
+    controller-gen.kubebuilder.io/version: v0.20.1
   name: ec2nodeclasses.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws
@@ -721,6 +721,9 @@ spec:
                       instanceType:
                         description: The instance type for the capacity reservation.
                         type: string
+                      interruptible:
+                        description: Indicates whether this capacity reservation is interruptible
+                        type: boolean
                       ownerID:
                         description: The ID of the AWS account that owns the capacity reservation.
                         pattern: ^[0-9]{12}$

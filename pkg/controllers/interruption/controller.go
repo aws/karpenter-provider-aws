@@ -43,9 +43,11 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/events"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	interruptionevents "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 )
 
@@ -58,17 +60,18 @@ const (
 
 // Controller is an AWS interruption controller.
 // It continually polls an SQS queue for events from aws.ec2 and aws.health that
-// trigger node health events or node spot interruption/rebalance events.
+// trigger node health events, spot interruption/rebalance events, and capacity reservation interruptions.
 type Controller struct {
-	kubeClient                client.Client
-	cloudProvider             cloudprovider.CloudProvider
-	clk                       clock.Clock
-	recorder                  events.Recorder
-	sqsProvider               sqs.Provider
-	sqsAPI                    *sqsapi.Client
-	unavailableOfferingsCache *cache.UnavailableOfferings
-	parser                    *EventParser
-	cm                        *pretty.ChangeMonitor
+	kubeClient                  client.Client
+	cloudProvider               cloudprovider.CloudProvider
+	clk                         clock.Clock
+	recorder                    events.Recorder
+	sqsProvider                 sqs.Provider
+	sqsAPI                      *sqsapi.Client
+	unavailableOfferingsCache   *cache.UnavailableOfferings
+	capacityReservationProvider capacityreservation.Provider
+	parser                      *EventParser
+	cm                          *pretty.ChangeMonitor
 }
 
 func NewController(
@@ -79,17 +82,19 @@ func NewController(
 	sqsProvider sqs.Provider,
 	sqsAPI *sqsapi.Client,
 	unavailableOfferingsCache *cache.UnavailableOfferings,
+	capacityReservationProvider capacityreservation.Provider,
 ) *Controller {
 	return &Controller{
-		kubeClient:                kubeClient,
-		cloudProvider:             cloudProvider,
-		clk:                       clk,
-		recorder:                  recorder,
-		sqsProvider:               sqsProvider,
-		sqsAPI:                    sqsAPI,
-		unavailableOfferingsCache: unavailableOfferingsCache,
-		parser:                    NewEventParser(DefaultParsers...),
-		cm:                        pretty.NewChangeMonitor(),
+		kubeClient:                  kubeClient,
+		cloudProvider:               cloudProvider,
+		clk:                         clk,
+		recorder:                    recorder,
+		sqsProvider:                 sqsProvider,
+		sqsAPI:                      sqsAPI,
+		unavailableOfferingsCache:   unavailableOfferingsCache,
+		capacityReservationProvider: capacityReservationProvider,
+		parser:                      NewEventParser(DefaultParsers...),
+		cm:                          pretty.NewChangeMonitor(),
 	}
 }
 
@@ -226,6 +231,15 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 			c.unavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(instanceType), zone, karpv1.CapacityTypeSpot, unavailableReason)
 		}
 	}
+
+	// Mark the reservation as unavailable in the ICE cache since we got a capacity reservation interruption warning
+	if msg.Kind() == messages.CapacityReservationInterruptionKind {
+		reservationID := nodeClaim.Labels[v1.LabelCapacityReservationID]
+		if reservationID != "" {
+			c.capacityReservationProvider.MarkUnavailable(reservationID)
+		}
+	}
+
 	if action != NoAction {
 		return c.deleteNodeClaim(ctx, msg, nodeClaim, node)
 	}
@@ -262,6 +276,9 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 	case messages.SpotInterruptionKind:
 		c.recorder.Publish(interruptionevents.SpotInterrupted(n, nodeClaim)...)
 
+	case messages.CapacityReservationInterruptionKind:
+		c.recorder.Publish(interruptionevents.CapacityReservationInstanceInterrupted(n, nodeClaim)...)
+
 	case messages.InstanceStoppedKind:
 		c.recorder.Publish(interruptionevents.Stopping(n, nodeClaim)...)
 
@@ -274,7 +291,7 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 
 func actionForMessage(msg messages.Message) Action {
 	switch msg.Kind() {
-	case messages.ScheduledChangeKind, messages.SpotInterruptionKind, messages.InstanceStoppedKind, messages.InstanceTerminatedKind:
+	case messages.ScheduledChangeKind, messages.SpotInterruptionKind, messages.InstanceStoppedKind, messages.InstanceTerminatedKind, messages.CapacityReservationInterruptionKind:
 		return CordonAndDrain
 	default:
 		return NoAction
