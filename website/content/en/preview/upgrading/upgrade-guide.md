@@ -93,9 +93,9 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 **Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
 {{% /alert %}}
 
-* In the getting started guide's cloudformation template, there is an extra `detail-type` for EventBridge 
-  rules to capture Capacity Reservation Instance Interruption warnings. If you are using interruptible 
-  ODCRs, you will need to update your EventBridge rules to add this `detail-type`.
+* In the [getting started guide's cloudformation template](https://karpenter.sh/preview/reference/cloudformation/#rules), 
+  there is an extra `detail-type` for EventBridge rules to capture Capacity Reservation Instance Interruption warnings. 
+  If you are using interruptible ODCRs, you will need to update your EventBridge rules to add this `detail-type`.
 
 Full Changelog:
 * https://github.com/aws/karpenter-provider-aws/releases/tag/v1.10.0
