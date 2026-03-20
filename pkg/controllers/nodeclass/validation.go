@@ -408,12 +408,15 @@ func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass 
 	if err != nil {
 		return nil, err
 	}
-	// We fallback to the default instance type if the AMI family is Windows. Karpenter currently incorrectly marks certain instance
-	// types as Windows compatible, and dynamic instance type resolution may choose those instance types for the dry-run, even if they
+
+	// If there weren't any matching instance types, we should fallback to some defaults. There's an instance type included
+	// for both x86_64 and arm64 architectures, ensuring that there will be a matching AMI. We also fallback to the default
+	// instance types if the AMI family is Windows. Karpenter currently incorrectly marks certain instance types as Windows
+	// compatible, and dynamic instance type resolution may choose those instance types for the dry-run, even if they
 	// wouldn't be chosen due to cost in practice. This ensures the behavior matches that on Karpenter v1.3, preventing a
 	// potential regression for Windows users.
 	// Tracking issue: https://github.com/aws/karpenter-provider-aws/issues/7985
-	if lo.ContainsBy([]string{
+	if len(instanceTypes) == 0 || lo.ContainsBy([]string{
 		v1.AMIFamilyWindows2019,
 		v1.AMIFamilyWindows2022,
 		v1.AMIFamilyWindows2025,
@@ -430,12 +433,17 @@ func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass 
 					scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
 				)...),
 			},
+			{
+				Name: string(ec2types.InstanceTypeM6gLarge),
+				Requirements: scheduling.NewRequirements(append(
+					lo.Values(amifamily.VariantStandard.Requirements()),
+					scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureArm64),
+					scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpExists),
+					scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
+				)...),
+			},
 		}
 		instanceTypes = getAMICompatibleInstanceTypes(instanceTypes, nodeClass)
-	}
-
-	if len(instanceTypes) == 0 {
-		panic("Could not select on any instance type during NodeClass validation")
 	}
 
 	return instanceTypes, nil

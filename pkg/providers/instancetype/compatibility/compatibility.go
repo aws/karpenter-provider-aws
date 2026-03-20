@@ -52,7 +52,7 @@ func amiFamilyCompatibility(amiFamily string) CompatibleCheck {
 }
 
 func (c amiFamilyCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
-	// a1 instance types are not support with al2023s (https://docs.aws.amazon.com/linux/al2023/ug/system-requirements.html)
+	// a1 instance types are not supported with al2023s (https://docs.aws.amazon.com/linux/al2023/ug/system-requirements.html)
 	if c.amiFamily == v1.AMIFamilyAL2023 && strings.HasPrefix(string(info.InstanceType), "a1.") {
 		return false
 	}
