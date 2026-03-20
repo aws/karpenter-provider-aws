@@ -713,7 +713,7 @@ These rules include:
          Arn: !GetAtt KarpenterInterruptionQueue.Arn
   ```
 
-* 
+* CapacityReservationInterruptionRule: An EC2 Capacity Reservation Interruption warning informs users that the capacity owner within an AWS Organization is reclaiming reserved capacity, triggering a notification for node reclamation. The the [AWS::Events::Rule](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-events-rule.html) creates a rule to send event from the `aws.ec2` source to `KarpenterInterruptionQueue`.
 
   ```yaml
   CapacityReservationInterruptionRule:
