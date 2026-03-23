@@ -229,9 +229,13 @@ func computeRequirements(
 		requirements.Add(scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpIn, lo.Map(capacityReservations, func(cr v1.CapacityReservation, _ int) string {
 			return string(cr.ReservationType)
 		})...))
+		requirements.Add(scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpIn, lo.Map(capacityReservations, func(cr v1.CapacityReservation, _ int) string {
+			return fmt.Sprintf("%t", cr.Interruptible)
+		})...))
 	} else {
 		requirements.Add(scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpDoesNotExist))
 		requirements.Add(scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpDoesNotExist))
+		requirements.Add(scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpDoesNotExist))
 	}
 	// Instance Type Labels
 	instanceFamilyParts := instanceTypeScheme.FindStringSubmatch(string(info.InstanceType))
