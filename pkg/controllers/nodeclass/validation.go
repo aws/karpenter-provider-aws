@@ -208,15 +208,17 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
 ) (launchTemplate *launchtemplate.LaunchTemplate, result reconcile.Result, err error) {
-	instanceTypes, err := v.getPrioritizedInstanceTypes(ctx, nodeClass)
+	nodePools, err := nodepoolutils.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepoolutils.ForNodeClass(nodeClass))
+	if err != nil {
+		return nil, reconcile.Result{}, fmt.Errorf("listing nodepools for nodeclass, %w", err)
+	}
+	instanceTypes, err := v.getPrioritizedInstanceTypes(ctx, nodeClass, nodePools)
 	if err != nil {
 		return nil, reconcile.Result{}, fmt.Errorf("generating options, %w", err)
 	}
 	// pass 1 instance type in EnsureAll to only create 1 launch template
-	tenancyType, err := v.getTenancyType(ctx, nodeClass)
-	if err != nil {
-		return nil, reconcile.Result{}, fmt.Errorf("determining instance tenancy, %w", err)
-	}
+	tenancyType := getTenancyType(nodePools)
+
 	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes[:1], karpv1.CapacityTypeOnDemand, tags, string(tenancyType))
 	if err != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
@@ -396,16 +398,20 @@ func getFleetLaunchTemplateConfig(
 	}
 }
 
-func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	// Select an instance type to use for validation. If NodePools exist for this NodeClass, we'll use an instance type
-	// selected by one of those NodePools that is also compatible with the NodeClass. We should also prioritize an InstanceType
-	// which will launch with a non-GPU (VariantStandard) AMI, since GPU AMIs may have a larger snapshot size than that supported
-	// by the NodeClass' blockDeviceMappings.
+// getPrioritizedInstanceTypes returns the set of instances which could be launched using this NodeClass based on the
+// requirements of linked NodePools. If no NodePools exist for the given NodeClass, this function returns two default
+// instance types (one x86_64 and one arm64). If the 2 default instance types are not compatible with the NodeClass,
+// this function we'll use an instance type that could be selected with an open NodePool.
+func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass *v1.EC2NodeClass, nodePools []*karpv1.NodePool) ([]*cloudprovider.InstanceType, error) {
+	// We should prioritize an InstanceType which will launch with a non-GPU (VariantStandard) AMI, since GPU
+	// AMIs may have a larger snapshot size than that supported by the NodeClass' blockDeviceMappings.
 	// Historical Issue: https://github.com/aws/karpenter-provider-aws/issues/7928
-	instanceTypes, err := v.getInstanceTypesForNodeClass(ctx, nodeClass)
+	instanceTypes, err := v.instanceTypeProvider.List(ctx, nodeClass)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("listing instance types for nodeclass, %w", err)
 	}
+	instanceTypes = v.instanceTypeProvider.FilterForNodeClass(instanceTypes, nodeClass)
+	compatibleInstanceTypes := getNodePoolCompatibleInstanceTypes(instanceTypes, nodePools)
 
 	// If there weren't any matching instance types, we should fallback to some defaults. There's an instance type included
 	// for both x86_64 and arm64 architectures, ensuring that there will be a matching AMI. We also fallback to the default
@@ -414,53 +420,54 @@ func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass 
 	// wouldn't be chosen due to cost in practice. This ensures the behavior matches that on Karpenter v1.3, preventing a
 	// potential regression for Windows users.
 	// Tracking issue: https://github.com/aws/karpenter-provider-aws/issues/7985
-	if len(instanceTypes) == 0 || lo.ContainsBy([]string{
+	if len(compatibleInstanceTypes) == 0 || lo.ContainsBy([]string{
 		v1.AMIFamilyWindows2019,
 		v1.AMIFamilyWindows2022,
 		v1.AMIFamilyWindows2025,
 	}, func(family string) bool {
 		return family == nodeClass.AMIFamily()
 	}) {
-		instanceTypes = []*cloudprovider.InstanceType{
-			{
-				Name: string(ec2types.InstanceTypeM5Large),
-				Requirements: scheduling.NewRequirements(append(
-					lo.Values(amifamily.VariantStandard.Requirements()),
-					scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
-					scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpExists),
-					scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
-				)...),
-			},
-			{
-				Name: string(ec2types.InstanceTypeM6gLarge),
-				Requirements: scheduling.NewRequirements(append(
-					lo.Values(amifamily.VariantStandard.Requirements()),
-					scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureArm64),
-					scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpExists),
-					scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
-				)...),
-			},
-		}
-		instanceTypes = getAMICompatibleInstanceTypes(instanceTypes, nodeClass)
+		compatibleInstanceTypes = v.getFallbackInstanceTypes(instanceTypes, nodeClass)
 	}
-
-	return instanceTypes, nil
+	return getAMICompatibleInstanceTypes(compatibleInstanceTypes, nodeClass), nil
 }
 
-// getInstanceTypesForNodeClass returns the set of instances which could be launched using this NodeClass based on the
-// requirements of linked NodePools. If no NodePools exist for the given NodeClass, this function returns two default
-// instance types (one x86_64 and one arm64).
-func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	instanceTypes, err := v.instanceTypeProvider.List(ctx, nodeClass)
-	if err != nil {
-		return nil, fmt.Errorf("listing instance types for nodeclass, %w", err)
+func (v *Validation) getFallbackInstanceTypes(instanceTypes []*cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass) []*cloudprovider.InstanceType {
+	fallbackInstanceTypes := []*cloudprovider.InstanceType{
+		{
+			Name: string(ec2types.InstanceTypeM5Large),
+			Requirements: scheduling.NewRequirements(append(
+				lo.Values(amifamily.VariantStandard.Requirements()),
+				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
+				scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpExists),
+				scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
+			)...),
+		},
+		{
+			Name: string(ec2types.InstanceTypeM6gLarge),
+			Requirements: scheduling.NewRequirements(append(
+				lo.Values(amifamily.VariantStandard.Requirements()),
+				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureArm64),
+				scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpExists),
+				scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
+			)...),
+		},
 	}
-	instanceTypes = v.instanceTypeProvider.FilterForNodeClass(instanceTypes, nodeClass)
+	fallbackInstanceTypes = v.instanceTypeProvider.FilterForNodeClass(fallbackInstanceTypes, nodeClass)
+	return lo.Ternary(len(fallbackInstanceTypes) == 0, instanceTypes, fallbackInstanceTypes)
+}
 
-	nodePools, err := nodepoolutils.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepoolutils.ForNodeClass(nodeClass))
-	if err != nil {
-		return nil, fmt.Errorf("listing nodepools for nodeclass, %w", err)
+func getTenancyType(nodePools []*karpv1.NodePool) ec2types.Tenancy {
+	for _, np := range nodePools {
+		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
+		if reqs.Has(v1.LabelInstanceTenancy) && reqs.Get(v1.LabelInstanceTenancy).Has(string(ec2types.TenancyDedicated)) {
+			return ec2types.TenancyDedicated
+		}
 	}
+	return ec2types.TenancyDefault
+}
+
+func getNodePoolCompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, nodePools []*karpv1.NodePool) []*cloudprovider.InstanceType {
 	var compatibleInstanceTypes []*cloudprovider.InstanceType
 	names := sets.New[string]()
 	for _, np := range nodePools {
@@ -479,22 +486,7 @@ func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass
 			compatibleInstanceTypes = append(compatibleInstanceTypes, it)
 		}
 	}
-	return getAMICompatibleInstanceTypes(compatibleInstanceTypes, nodeClass), nil
-}
-
-func (v *Validation) getTenancyType(ctx context.Context, nodeClass *v1.EC2NodeClass) (ec2types.Tenancy, error) {
-	nodePools, err := nodepoolutils.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepoolutils.ForNodeClass(nodeClass))
-	if err != nil {
-		return "", fmt.Errorf("listing nodepools for nodeclass, %w", err)
-	}
-
-	for _, np := range nodePools {
-		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
-		if reqs.Has(v1.LabelInstanceTenancy) && reqs.Get(v1.LabelInstanceTenancy).Has(string(ec2types.TenancyDedicated)) {
-			return ec2types.TenancyDedicated, nil
-		}
-	}
-	return ec2types.TenancyDefault, nil
+	return compatibleInstanceTypes
 }
 
 func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass) []*cloudprovider.InstanceType {
