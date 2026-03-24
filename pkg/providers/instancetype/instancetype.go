@@ -218,7 +218,7 @@ func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2
 
 func (p *DefaultProvider) cacheKey(nodeClass NodeClass) string {
 	// Compute fully initialized instance types hash key
-	subnetZonesHash, _ := hashstructure.Hash(nodeClass.ZoneInfo(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	subnetZonesHash := hashZoneInfo(nodeClass.ZoneInfo())
 	// Compute hash key against node class AMIs (used to force cache rebuild when AMIs change)
 	amiHash, _ := hashstructure.Hash(nodeClass.AMIs(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	return fmt.Sprintf("%016x-%016x-%s",
@@ -360,4 +360,14 @@ func (p *DefaultProvider) Reset() {
 func discoveredCapacityCacheKey(instanceType string, nodeClass NodeClass) string {
 	amiHash, _ := hashstructure.Hash(nodeClass.AMIs(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	return fmt.Sprintf("%s-%016x", instanceType, amiHash)
+}
+
+// hashZoneInfo hashes each ZoneInfo element individually and collects the hashes
+// into a set, avoiding the hashstructure SlicesAsSets bug from https://github.com/mitchellh/hashstructure/issues/36
+func hashZoneInfo(zoneInfo []v1.ZoneInfo) uint64 {
+	zoneInfoHashes := sets.New[uint64]()
+	for i := range zoneInfo {
+		zoneInfoHashes.Insert(lo.Must(hashstructure.Hash(zoneInfo[i], hashstructure.FormatV2, nil)))
+	}
+	return lo.Must(hashstructure.Hash(zoneInfoHashes, hashstructure.FormatV2, nil))
 }
