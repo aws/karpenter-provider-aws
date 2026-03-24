@@ -17,7 +17,7 @@ These descriptions should allow you to understand:
 To download a particular version of `cloudformation.yaml`, set the version and use `curl` to pull the file to your local system:
 
 ```bash
-export KARPENTER_VERSION="1.9.0"
+export KARPENTER_VERSION="1.10.0"
 curl https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > cloudformation.yaml
 ```
 
@@ -708,6 +708,22 @@ These rules include:
          - aws.ec2
        detail-type:
          - EC2 Instance State-change Notification
+     Targets:
+       - Id: KarpenterInterruptionQueueTarget
+         Arn: !GetAtt KarpenterInterruptionQueue.Arn
+  ```
+
+* CapacityReservationInterruptionRule: An EC2 Capacity Reservation Interruption warning informs users that the capacity owner within an AWS Organization is reclaiming reserved capacity, triggering a notification for node reclamation. The [AWS::Events::Rule](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-events-rule.html) here creates a rule to send events from the `aws.ec2` source to `KarpenterInterruptionQueue`.
+
+  ```yaml
+  CapacityReservationInterruptionRule:
+   Type: 'AWS::Events::Rule'
+   Properties:
+     EventPattern:
+       source:
+         - aws.ec2
+       detail-type:
+         - EC2 Capacity Reservation Instance Interruption Warning
      Targets:
        - Id: KarpenterInterruptionQueueTarget
          Arn: !GetAtt KarpenterInterruptionQueue.Arn

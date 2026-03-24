@@ -64,19 +64,19 @@ func (e EKS) eksBootstrapScript() string {
 	userData.WriteString("#!/bin/bash -xe\n")
 	userData.WriteString("exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n")
 	// Due to the way bootstrap.sh is written, parameters should not be passed to it with an equal sign
-	userData.WriteString(fmt.Sprintf("/etc/eks/bootstrap.sh '%s' --apiserver-endpoint '%s' %s", e.ClusterName, e.ClusterEndpoint, caBundleArg))
+	fmt.Fprintf(&userData, "/etc/eks/bootstrap.sh '%s' --apiserver-endpoint '%s' %s", e.ClusterName, e.ClusterEndpoint, caBundleArg)
 
 	if e.isIPv6() {
 		userData.WriteString(" \\\n--ip-family ipv6")
 	}
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
-		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
+		fmt.Fprintf(&userData, " \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0])
 	}
 	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
 		userData.WriteString(" \\\n--use-max-pods false")
 	}
 	if args := e.kubeletExtraArgs(); len(args) > 0 {
-		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", strings.Join(args, " ")))
+		fmt.Fprintf(&userData, " \\\n--kubelet-extra-args '%s'", strings.Join(args, " "))
 	}
 	if lo.FromPtr(e.InstanceStorePolicy) == v1.InstanceStorePolicyRAID0 {
 		userData.WriteString(" \\\n--local-disks raid0")

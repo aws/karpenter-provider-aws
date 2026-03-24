@@ -41,10 +41,12 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/capacityreservationinterruption"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/scheduledchange"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/spotinterruption"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/statechange"
@@ -92,7 +94,7 @@ var _ = BeforeSuite(func() {
 	sqsProvider = lo.Must(sqs.NewDefaultProvider(sqsapi, fmt.Sprintf("https://sqs.%s.amazonaws.com/%s/test-cluster", fake.DefaultRegion, fake.DefaultAccount)))
 	cloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.InstanceTypeStore)
-	controller = interruption.NewController(env.Client, cloudProvider, fakeClock, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, servicesqs.NewFromConfig(aws.Config{}), unavailableOfferingsCache)
+	controller = interruption.NewController(env.Client, cloudProvider, fakeClock, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, servicesqs.NewFromConfig(aws.Config{}), unavailableOfferingsCache, awsEnv.CapacityReservationProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -133,6 +135,31 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectSingletonReconciled(ctx, controller)
 			ExpectMetricCounterValue(metrics.NodeClaimsDisruptedTotal, 1, map[string]string{
 				metrics.ReasonLabel: "spot_interrupted",
+				"nodepool":          "default",
+			})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
+			ExpectNotFound(ctx, env.Client, nodeClaim)
+			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+		})
+		It("should delete the NodeClaim when receiving a capacity reservation interruption warning", func() {
+			nodeClaim, node = coretest.NodeClaimAndNode(karpv1.NodeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						karpv1.NodePoolLabelKey:         "default",
+						v1.LabelCapacityReservationID:   "cr-56fac701cc1951b03",
+						v1.LabelCapacityReservationType: "default",
+					},
+				},
+				Status: karpv1.NodeClaimStatus{
+					ProviderID: fake.RandomProviderID(),
+				},
+			})
+			ExpectMessagesCreated(capacityReservationInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+
+			ExpectSingletonReconciled(ctx, controller)
+			ExpectMetricCounterValue(metrics.NodeClaimsDisruptedTotal, 1, map[string]string{
+				metrics.ReasonLabel: "capacity_reservation_interrupted",
 				"nodepool":          "default",
 			})
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
@@ -185,36 +212,40 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectNotFound(ctx, env.Client, lo.Map(nodeClaims, func(nc *karpv1.NodeClaim, _ int) client.Object { return nc })...)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(4))
 		})
-		It("should handle multiple messages that cause nodeClaim deletion", func() {
-			var nodeClaims []*karpv1.NodeClaim
-			var instanceIDs []string
-			for i := 0; i < 100; i++ {
-				instanceID := fake.InstanceID()
-				nc, n := coretest.NodeClaimAndNode(karpv1.NodeClaim{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							karpv1.NodePoolLabelKey: "default",
+		DescribeTable("should handle multiple messages that cause nodeClaim deletion",
+			func(messageBuilder func(string) any) {
+				var nodeClaims []*karpv1.NodeClaim
+				var instanceIDs []string
+				for i := 0; i < 100; i++ {
+					instanceID := fake.InstanceID()
+					nc, n := coretest.NodeClaimAndNode(karpv1.NodeClaim{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								karpv1.NodePoolLabelKey: "default",
+							},
 						},
-					},
-					Status: karpv1.NodeClaimStatus{
-						ProviderID: fake.ProviderID(instanceID),
-					},
-				})
-				ExpectApplied(ctx, env.Client, nc, n)
-				instanceIDs = append(instanceIDs, instanceID)
-				nodeClaims = append(nodeClaims, nc)
-			}
+						Status: karpv1.NodeClaimStatus{
+							ProviderID: fake.ProviderID(instanceID),
+						},
+					})
+					ExpectApplied(ctx, env.Client, nc, n)
+					instanceIDs = append(instanceIDs, instanceID)
+					nodeClaims = append(nodeClaims, nc)
+				}
 
-			var messages []any
-			for _, id := range instanceIDs {
-				messages = append(messages, spotInterruptionMessage(id))
-			}
-			ExpectMessagesCreated(messages...)
-			ExpectSingletonReconciled(ctx, controller)
-			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
-			ExpectNotFound(ctx, env.Client, lo.Map(nodeClaims, func(nc *karpv1.NodeClaim, _ int) client.Object { return nc })...)
-			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(100))
-		})
+				var messages []any
+				for _, id := range instanceIDs {
+					messages = append(messages, messageBuilder(id))
+				}
+				ExpectMessagesCreated(messages...)
+				ExpectSingletonReconciled(ctx, controller)
+				Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
+				ExpectNotFound(ctx, env.Client, lo.Map(nodeClaims, func(nc *karpv1.NodeClaim, _ int) client.Object { return nc })...)
+				Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(100))
+			},
+			Entry("with spot interruption messages", func(id string) any { return spotInterruptionMessage(id) }),
+			Entry("with capacity reservation interruption messages", func(id string) any { return capacityReservationInterruptionMessage(id) }),
+		)
 		It("should delete a message when the message can't be parsed", func() {
 			badMessage := &sqstypes.Message{
 				Body: aws.String(string(lo.Must(json.Marshal(map[string]string{
@@ -256,6 +287,31 @@ var _ = Describe("InterruptionHandling", func() {
 			// Expect a t3.large in coretest-zone-1a to be added to the ICE cache
 			Expect(unavailableOfferingsCache.IsUnavailable("t3.large", "coretest-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
 		})
+		It("should mark the capacity reservation as unavailable when getting an interruption warning", func() {
+			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount("cr-56fac701cc1951b03", 10)
+
+			nodeClaim, node = coretest.NodeClaimAndNode(karpv1.NodeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						karpv1.NodePoolLabelKey:         "default",
+						v1.LabelCapacityReservationID:   "cr-56fac701cc1951b03",
+						v1.LabelCapacityReservationType: "default",
+					},
+				},
+				Status: karpv1.NodeClaimStatus{
+					ProviderID: fake.RandomProviderID(),
+				},
+			})
+			ExpectMessagesCreated(capacityReservationInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+
+			ExpectSingletonReconciled(ctx, controller)
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
+			ExpectNotFound(ctx, env.Client, nodeClaim)
+			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+
+			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount("cr-56fac701cc1951b03")).To(Equal(0))
+		})
 	})
 })
 
@@ -267,10 +323,14 @@ var _ = Describe("Error Handling", func() {
 		sqsapi.ReceiveMessageBehavior.Error.Set(smithyErrWithCode("AccessDenied"), fake.MaxCalls(0))
 		_ = ExpectSingletonReconcileFailed(ctx, controller)
 	})
-	It("should not return an error when deleting a nodeClaim that is already deleted", func() {
-		ExpectMessagesCreated(spotInterruptionMessage(fake.InstanceID()))
-		ExpectSingletonReconciled(ctx, controller)
-	})
+	DescribeTable("should not return an error when deleting a nodeClaim that is already deleted",
+		func(messageBuilder func(string) any) {
+			ExpectMessagesCreated(messageBuilder(fake.InstanceID()))
+			ExpectSingletonReconciled(ctx, controller)
+		},
+		Entry("with spot interruption messages", func(id string) any { return spotInterruptionMessage(id) }),
+		Entry("with capacity reservation interruption messages", func(id string) any { return capacityReservationInterruptionMessage(id) }),
+	)
 })
 
 func ExpectMessagesCreated(messages ...any) {
@@ -309,6 +369,27 @@ func spotInterruptionMessage(involvedInstanceID string) spotinterruption.Message
 			Time:   time.Now(),
 		},
 		Detail: spotinterruption.Detail{
+			InstanceID:     involvedInstanceID,
+			InstanceAction: "terminate",
+		},
+	}
+}
+
+func capacityReservationInterruptionMessage(involvedInstanceID string) capacityreservationinterruption.Message {
+	return capacityreservationinterruption.Message{
+		Metadata: messages.Metadata{
+			Version:    "0",
+			Account:    defaultAccountID,
+			DetailType: "EC2 Capacity Reservation Instance Interruption Warning",
+			ID:         string(uuid.NewUUID()),
+			Region:     fake.DefaultRegion,
+			Resources: []string{
+				fmt.Sprintf("arn:aws:ec2:%s:instance/%s", fake.DefaultRegion, involvedInstanceID),
+			},
+			Source: ec2Source,
+			Time:   time.Now(),
+		},
+		Detail: capacityreservationinterruption.Detail{
 			InstanceID:     involvedInstanceID,
 			InstanceAction: "terminate",
 		},
