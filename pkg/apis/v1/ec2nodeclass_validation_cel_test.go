@@ -1263,17 +1263,17 @@ var _ = Describe("CEL/Validation", func() {
 				{
 					NetworkCardIndex: 0,
 					DeviceIndex:      0,
-					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+					InterfaceType:    v1.InterfaceTypeInterface,
 				},
 				{
 					NetworkCardIndex: 0,
 					DeviceIndex:      1,
-					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeEFAOnly),
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
 				},
 				{
 					NetworkCardIndex: 1,
 					DeviceIndex:      0,
-					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+					InterfaceType:    v1.InterfaceTypeInterface,
 				},
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
@@ -1295,9 +1295,14 @@ var _ = Describe("CEL/Validation", func() {
 		It("should fail with a negative NetworkCardIndex", func() {
 			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
 				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
 					NetworkCardIndex: -1,
 					DeviceIndex:      0,
-					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+					InterfaceType:    v1.InterfaceTypeInterface,
 				},
 			}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
@@ -1305,9 +1310,59 @@ var _ = Describe("CEL/Validation", func() {
 		It("should fail with a negative DeviceIndex", func() {
 			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
 				{
+					NetworkCardIndex: -1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
 					NetworkCardIndex: 0,
 					DeviceIndex:      -1,
-					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with duplicate Network Interface and Device Index fields", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with no primary network interface", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when primary network interface is not ENA", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
 				},
 			}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())

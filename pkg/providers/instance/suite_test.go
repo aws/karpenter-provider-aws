@@ -619,18 +619,18 @@ var _ = Describe("InstanceProvider", func() {
 				{
 					NetworkCardIndex: 0,
 					DeviceIndex:      0,
-					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+					InterfaceType:    v1.InterfaceTypeInterface,
 				},
 				{
 					NetworkCardIndex: 0,
 					DeviceIndex:      1,
-					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeEFAOnly),
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
 				},
 			}, 1),
 			Entry("with no EFA device", []*v1.NetworkInterface{{
 				NetworkCardIndex: 0,
 				DeviceIndex:      0,
-				InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+				InterfaceType:    v1.InterfaceTypeInterface,
 			},
 			}, 0),
 		)

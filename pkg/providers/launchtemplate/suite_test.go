@@ -2507,10 +2507,10 @@ eviction-max-pod-grace-period = 10
 		DescribeTable("should configure network interfaces with same configuration as NodeClass",
 			func(pod *corev1.Pod) {
 				nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
-					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeInterface)},
-					{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
-					{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
-					{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceType(v1.InterfaceTypeInterface)},
+					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+					{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+					{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeInterface},
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2541,9 +2541,9 @@ eviction-max-pod-grace-period = 10
 		)
 		It("should not set prefix count on EFA-only interfaces", func() {
 			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
-				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeInterface)},
-				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
-				{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceType(v1.InterfaceTypeInterface)},
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+				{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeInterface},
 			}
 			nodeClass.Spec.IPPrefixCount = lo.ToPtr(int32(2))
 			awsEnv.LaunchTemplateProvider.ClusterIPFamily = corev1.IPv4Protocol
@@ -2566,8 +2566,8 @@ eviction-max-pod-grace-period = 10
 		})
 		It("should not set AssociatePublicIpAddress on EFA-only interfaces", func() {
 			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
-				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeInterface)},
-				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
 			}
 			nodeClass.Spec.AssociatePublicIPAddress = lo.ToPtr(true)
 			pod := coretest.UnschedulablePod()
@@ -2586,8 +2586,8 @@ eviction-max-pod-grace-period = 10
 		})
 		It("should not set Ipv6 specs on EFA-only interfaces", func() {
 			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
-				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeInterface)},
-				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
 			}
 			awsEnv.LaunchTemplateProvider.ClusterIPFamily = corev1.IPv6Protocol
 			pod := coretest.UnschedulablePod()

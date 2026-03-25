@@ -297,17 +297,17 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 					{
 						NetworkCardIndex: 0,
 						DeviceIndex:      0,
-						InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+						InterfaceType:    v1.InterfaceTypeInterface,
 					},
 					{
 						NetworkCardIndex: 0,
 						DeviceIndex:      1,
-						InterfaceType:    v1.InterfaceType(v1.InterfaceTypeEFAOnly),
+						InterfaceType:    v1.InterfaceTypeEFAOnly,
 					},
 					{
 						NetworkCardIndex: 1,
 						DeviceIndex:      0,
-						InterfaceType:    v1.InterfaceType(v1.InterfaceTypeEFAOnly),
+						InterfaceType:    v1.InterfaceTypeEFAOnly,
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodeClass)
@@ -319,7 +319,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				// Verify a fallback instance type is used for valdiation; not m5 / m6g
 				runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
 				Expect(string(runInstancesInput.InstanceType)).ToNot(HavePrefix("m5"))
-				Expect(string(runInstancesInput.InstanceType)).ToNot(HavePrefix("mg6"))
+				Expect(string(runInstancesInput.InstanceType)).ToNot(HavePrefix("m6g"))
 			})
 		})
 		Context("Instance Type Prioritization Validation", func() {

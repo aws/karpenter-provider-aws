@@ -1425,12 +1425,12 @@ var _ = Describe("CloudProvider", func() {
 				{
 					NetworkCardIndex: 0,
 					DeviceIndex:      0,
-					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+					InterfaceType:    v1.InterfaceTypeInterface,
 				},
 				{
 					NetworkCardIndex: 0,
 					DeviceIndex:      1,
-					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeEFAOnly),
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
 				},
 			}
 			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
@@ -1450,12 +1450,12 @@ var _ = Describe("CloudProvider", func() {
 				{
 					NetworkCardIndex: 0,
 					DeviceIndex:      0,
-					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+					InterfaceType:    v1.InterfaceTypeInterface,
 				},
 				{
 					NetworkCardIndex: 1,
 					DeviceIndex:      1,
-					InterfaceType:    v1.InterfaceType(v1.InterfaceTypeInterface),
+					InterfaceType:    v1.InterfaceTypeInterface,
 				},
 			}
 			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{

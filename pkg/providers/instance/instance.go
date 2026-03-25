@@ -568,7 +568,7 @@ func (p *DefaultProvider) getEFACountForInstance(
 	// if NodeClass is configured with network interfaces, we launch with that configuration
 	if nodeClass.NetworkInterfaces() != nil {
 		return lo.CountBy(nodeClass.NetworkInterfaces(), func(nic *v1.NetworkInterface) bool {
-			return nic.InterfaceType == v1.InterfaceType(v1.InterfaceTypeEFAOnly)
+			return nic.InterfaceType == v1.InterfaceTypeEFAOnly
 		})
 	}
 	// if NodeClass is not configured with network interfaces and NodeClaim requires the EFA resource

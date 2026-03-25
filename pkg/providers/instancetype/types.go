@@ -477,7 +477,7 @@ func efas(info ec2types.InstanceTypeInfo, networkInterfaces []*v1.NetworkInterfa
 	count := 0
 	if networkInterfaces != nil {
 		count = lo.CountBy(networkInterfaces, func(nic *v1.NetworkInterface) bool {
-			return nic.InterfaceType == v1.InterfaceType(v1.InterfaceTypeEFAOnly)
+			return nic.InterfaceType == v1.InterfaceTypeEFAOnly
 		})
 	} else if info.NetworkInfo != nil && info.NetworkInfo.EfaInfo != nil && info.NetworkInfo.EfaInfo.MaximumEfaInterfaces != nil {
 		count = int(*info.NetworkInfo.EfaInfo.MaximumEfaInterfaces)

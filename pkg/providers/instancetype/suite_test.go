@@ -3040,8 +3040,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			availableOfferingsBefore := len(dl1InstanceBefore.Offerings.Available())
 
 			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
-				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeInterface)},
-				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
 			}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
@@ -3057,12 +3057,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		It("should mark instance type offering as unavailable when it does not support network interface configuration", func() {
 			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
-				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeInterface)},
-				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
-				{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
-				{NetworkCardIndex: 2, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
-				{NetworkCardIndex: 3, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
-				{NetworkCardIndex: 4, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+				{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+				{NetworkCardIndex: 2, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+				{NetworkCardIndex: 3, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+				{NetworkCardIndex: 4, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
 			}
 			ExpectApplied(ctx, env.Client, nodeClass)
 
@@ -3082,9 +3082,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 	Context("Network Interfaces", func() {
 		It("should set LabelEFACount when NodeClass has EFA-only interfaces", func() {
 			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
-				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeInterface)},
-				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
-				{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+				{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 
@@ -3126,8 +3126,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Context("Max Pods", func() {
 			It("should calculate max pods according when no EFA-only interfaces used on NC 0", func() {
 				nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
-					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeInterface)},
-					{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
+					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
 				}
 				ExpectApplied(ctx, env.Client, nodeClass)
 
@@ -3144,8 +3144,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 			It("should calculate max pods according to EFA-only interfaces used", func() {
 				nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
-					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceType(v1.InterfaceTypeInterface)},
-					{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceType(v1.InterfaceTypeEFAOnly)},
+					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
 				}
 				ExpectApplied(ctx, env.Client, nodeClass)
 

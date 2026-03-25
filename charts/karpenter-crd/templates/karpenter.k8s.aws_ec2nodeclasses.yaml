@@ -546,6 +546,11 @@ spec:
                     type: object
                   maxItems: 150
                   type: array
+                  x-kubernetes-validations:
+                    - message: networkInterfaces must not have duplicate networkCardIndex and deviceIndex pairs
+                      rule: self.all(x, self.filter(y, x.networkCardIndex == y.networkCardIndex && x.deviceIndex == y.deviceIndex).size() == 1)
+                    - message: networkInterfaces must include a primary interface with interfaceType='interface'
+                      rule: self.size() == 0 || self.exists(x, x.deviceIndex == 0 && x.networkCardIndex == 0 && x.interfaceType == 'interface')
                 role:
                   description: |-
                     Role is the AWS identity that nodes use.

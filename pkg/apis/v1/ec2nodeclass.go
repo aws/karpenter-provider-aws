@@ -121,6 +121,8 @@ type EC2NodeClassSpec struct {
 	// +optional
 	InstanceStorePolicy *InstanceStorePolicy `json:"instanceStorePolicy,omitempty"`
 	// NetworkInterfaces specifies the network interface configurations to be attached to provisioned instances.
+	// +kubebuilder:validation:XValidation:message="networkInterfaces must not have duplicate networkCardIndex and deviceIndex pairs",rule="self.all(x, self.filter(y, x.networkCardIndex == y.networkCardIndex && x.deviceIndex == y.deviceIndex).size() == 1)"
+	// +kubebuilder:validation:XValidation:message="networkInterfaces must include a primary interface with interfaceType='interface'",rule="self.size() == 0 || self.exists(x, x.deviceIndex == 0 && x.networkCardIndex == 0 && x.interfaceType == 'interface')"
 	// +kubebuilder:validation:MaxItems:=150
 	// +optional
 	NetworkInterfaces []*NetworkInterface `json:"networkInterfaces,omitempty"`
@@ -468,9 +470,9 @@ type InterfaceType string
 
 const (
 	// InterfaceTypeInterface indicates a standard Elastic Network Adapter (ENA) interface.
-	InterfaceTypeInterface = string(ec2types.NetworkInterfaceTypeInterface)
+	InterfaceTypeInterface InterfaceType = InterfaceType(ec2types.NetworkInterfaceTypeInterface)
 	// InterfaceTypeEFAOnly indicates an Elastic Fabric Adapter only (EFA-only) interface for high-performance networking.
-	InterfaceTypeEFAOnly = string(ec2types.NetworkInterfaceTypeEfaOnly)
+	InterfaceTypeEFAOnly InterfaceType = InterfaceType(ec2types.NetworkInterfaceTypeEfaOnly)
 )
 
 // NetworkInterface specifies the configuration for a network interface to be attached
