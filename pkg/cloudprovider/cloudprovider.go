@@ -420,9 +420,11 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 			// three. Capacity reservation IDs are a special case since we don't have a way to represent that the label may or
 			// may not exist. Since this requirement will be present regardless of the capacity type, we can't insert it here.
 			// Otherwise, you may end up with spot and on-demand NodeClaims with a reservation ID label.
+			// With EFA count, we should only add it when it is not 0.
 			if req.Len() == 1 && !lo.Contains([]string{
 				cloudprovider.ReservationIDLabel,
 				v1.LabelCapacityReservationType,
+				v1.LabelEFACount,
 			}, req.Key) {
 				labels[key] = req.Values()[0]
 			}

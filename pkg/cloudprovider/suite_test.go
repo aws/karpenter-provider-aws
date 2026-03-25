@@ -1406,8 +1406,9 @@ var _ = Describe("CloudProvider", func() {
 			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 			Expect(err).To(BeNil())
 			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1.ResourceEFA))
+			Expect(cloudProviderNodeClaim.Labels).To(HaveKey(v1.LabelEFACount))
 		})
-		It("shouldn't include vpc.amazonaws.com/efa on a nodeclaim if it doesn't request it", func() {
+		It("shouldn't include vpc.amazonaws.com/efa on a nodeclaim if it doesn't request it", func() { // FAILS
 			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
 					Key:      corev1.LabelInstanceTypeStable,
@@ -1419,6 +1420,7 @@ var _ = Describe("CloudProvider", func() {
 			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 			Expect(err).To(BeNil())
 			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).ToNot(ContainElement(v1.ResourceEFA))
+			Expect(cloudProviderNodeClaim.Labels).ToNot(HaveKey(v1.LabelEFACount))
 		})
 		It("should include vpc.amazonaws.com/efa on a nodeclaim if nodeclass configured with EFA-only interfaces", func() {
 			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
@@ -1444,6 +1446,7 @@ var _ = Describe("CloudProvider", func() {
 			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 			Expect(err).To(BeNil())
 			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1.ResourceEFA))
+			Expect(cloudProviderNodeClaim.Labels).To(HaveKeyWithValue(v1.LabelEFACount, "1"))
 		})
 		It("should not include vpc.amazonaws.com/efa on a nodeclaim if nodeclass configured with only interface (ENA) network interfaces", func() {
 			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
@@ -1469,7 +1472,42 @@ var _ = Describe("CloudProvider", func() {
 			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 			Expect(err).To(BeNil())
 			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).ToNot(ContainElement(v1.ResourceEFA))
+			Expect(cloudProviderNodeClaim.Labels).ToNot(HaveKey(v1.LabelEFACount))
 		})
+		DescribeTable("should handle LabelEFACount based on NodeClaim requirements",
+			func(efaRequirement *karpv1.NodeSelectorRequirementWithMinValues, efaExpected bool) {
+				nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+					{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"dl1.24xlarge"},
+					},
+				}
+				if efaRequirement != nil {
+					nodeClaim.Spec.Requirements = append(nodeClaim.Spec.Requirements, *efaRequirement)
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+				cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+				Expect(err).To(BeNil())
+
+				if efaExpected {
+					Expect(cloudProviderNodeClaim.Labels).To(HaveKey(v1.LabelEFACount))
+					Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1.ResourceEFA))
+				} else {
+					Expect(cloudProviderNodeClaim.Labels).ToNot(HaveKey(v1.LabelEFACount))
+					Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).ToNot(ContainElement(v1.ResourceEFA))
+				}
+			},
+			Entry("with Gt 0 requirement",
+				&karpv1.NodeSelectorRequirementWithMinValues{Key: v1.LabelEFACount, Operator: corev1.NodeSelectorOpGt, Values: []string{"0"}}, true),
+			Entry("with In ['1', '4'] requirement",
+				&karpv1.NodeSelectorRequirementWithMinValues{Key: v1.LabelEFACount, Operator: corev1.NodeSelectorOpIn, Values: []string{"1", "4"}}, true),
+			Entry("with In ['0', '1'] requirement",
+				&karpv1.NodeSelectorRequirementWithMinValues{Key: v1.LabelEFACount, Operator: corev1.NodeSelectorOpIn, Values: []string{"0", "1"}}, false),
+			Entry("with Exists requirement",
+				&karpv1.NodeSelectorRequirementWithMinValues{Key: v1.LabelEFACount, Operator: corev1.NodeSelectorOpExists}, false),
+			Entry("with no EFA requirement", nil, false),
+		)
 	})
 	Context("Capacity Reservations", func() {
 		const reservationCapacity = 10

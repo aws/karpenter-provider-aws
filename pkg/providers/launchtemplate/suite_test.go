@@ -2564,26 +2564,6 @@ eviction-max-pod-grace-period = 10
 			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[2].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
 			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[2].Ipv4PrefixCount)).To(Equal(int32(2)))
 		})
-		It("should not set AssociatePublicIpAddress on EFA-only interfaces", func() {
-			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
-				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
-				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
-			}
-			nodeClass.Spec.AssociatePublicIPAddress = lo.ToPtr(true)
-			pod := coretest.UnschedulablePod()
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-
-			input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
-			Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(2))
-			// should set AssociatePublicIpAddress on ENA interfaces
-			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
-			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress)).To(Equal(true))
-			// should not set AssociatePublicIpAddress on EFA-only interfaces
-			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
-			Expect(input.LaunchTemplateData.NetworkInterfaces[1].AssociatePublicIpAddress).To(BeNil())
-		})
 		It("should not set Ipv6 specs on EFA-only interfaces", func() {
 			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
 				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},

@@ -217,7 +217,6 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceHypervisor, corev1.NodeSelectorOpIn, string(info.Hypervisor)),
 		scheduling.NewRequirement(v1.LabelInstanceEncryptionInTransitSupported, corev1.NodeSelectorOpIn, fmt.Sprint(aws.ToBool(info.NetworkInfo.EncryptionInTransitSupported))),
 		scheduling.NewRequirement(v1.LabelInstanceTenancy, corev1.NodeSelectorOpIn, string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)),
-		scheduling.NewRequirement(v1.LabelEFACount, corev1.NodeSelectorOpDoesNotExist),
 	)
 
 	// Only add zone-id label when available in offerings. It may not be available if a user has upgraded from a
@@ -305,11 +304,18 @@ func computeRequirements(
 		requirements.Get(v1.LabelInstanceEBSBandwidth).Insert(fmt.Sprint(lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.MaximumBandwidthInMbps)))
 	}
 	// EFA Labels
-	// we only add the EFA requirement when the NodeClass is configured with EFA-only network interfaces
-	// if the pod requests this resource without explicit NodeClass configuration, the requirement will already be present
-	if networkInterfaces != nil {
-		requirements[v1.LabelEFACount].Insert(fmt.Sprint(efas(info, networkInterfaces).Value()))
-	}
+	// we add the exact EFA requirement when the NodeClass is configured with EFA-only network interfaces
+	// otherwise the Node could be launched with either the maximium EFA configured or none
+	maxEFAs := efas(info, networkInterfaces).Value()
+	efaValues := lo.Ternary(networkInterfaces != nil,
+		[]string{fmt.Sprint(maxEFAs)},
+		lo.Ternary(maxEFAs > 0,
+			[]string{"0", fmt.Sprint(maxEFAs)},
+			[]string{"0"},
+		),
+	)
+	requirements.Add(scheduling.NewRequirement(v1.LabelEFACount, corev1.NodeSelectorOpIn, efaValues...))
+
 	return requirements
 }
 

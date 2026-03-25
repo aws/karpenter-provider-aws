@@ -571,10 +571,19 @@ func (p *DefaultProvider) getEFACountForInstance(
 			return nic.InterfaceType == v1.InterfaceTypeEFAOnly
 		})
 	}
-	// if NodeClass is not configured with network interfaces and NodeClaim requires the EFA resource
-	// then we launch with maximimum EFAs for that instance
-	if !lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) {
-		return 0
+
+	efaResourceRequest := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA)
+	// if there are no EFA resource requests, we should check for scheduling constraints from the EFA count label
+	if !efaResourceRequest {
+		requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+		efaReq := requirements.Get(v1.LabelEFACount)
+		if efaReq == nil || efaReq.Operator() == corev1.NodeSelectorOpDoesNotExist {
+			return 0
+		}
+		// checks if requirement allows EFA count of 0
+		if (efaReq.Operator() == corev1.NodeSelectorOpIn || efaReq.Operator() == corev1.NodeSelectorOpExists) && efaReq.Has("0") {
+			return 0
+		}
 	}
 	for _, it := range instanceTypes {
 		if it.Name != instanceType {

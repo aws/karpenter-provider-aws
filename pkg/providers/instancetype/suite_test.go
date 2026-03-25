@@ -3120,7 +3120,17 @@ var _ = Describe("InstanceTypeProvider", func() {
 			for _, it := range instanceTypes {
 				req := it.Requirements.Get(v1.LabelEFACount)
 				Expect(req).ToNot(BeNil())
-				Expect(req.Operator()).To(Equal(corev1.NodeSelectorOpDoesNotExist))
+				Expect(req.Operator()).To(Equal(corev1.NodeSelectorOpIn))
+				// Check values based on if the instance supports EFA
+				efaResource := it.Capacity[v1.ResourceEFA]
+				if !resources.IsZero(efaResource) {
+					Expect(req.Has("0")).To(BeTrue())
+					Expect(len(req.Values())).To(Equal(2))
+					maxEFAs := fmt.Sprint((&efaResource).Value())
+					Expect(req.Has(maxEFAs)).To(BeTrue())
+				} else {
+					Expect(req.Values()).To(Equal([]string{"0"}))
+				}
 			}
 		})
 		Context("Max Pods", func() {
