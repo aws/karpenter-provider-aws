@@ -68,7 +68,7 @@ func (c networkInterfaceCheck) compatibleCheck(info ec2types.InstanceTypeInfo) b
 			if len(info.NetworkInfo.NetworkCards) <= int(nci) {
 				return false
 			}
-			// (3) the configured number of deivce indices for a network card is greater than what the instance offers
+			// (3) the configured number of device indices for a network card is greater than what the instance offers
 			if lo.FromPtr(info.NetworkInfo.NetworkCards[nci].MaximumNetworkInterfaces) <= networkInterface.DeviceIndex {
 				return false
 			}

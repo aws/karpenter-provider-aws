@@ -276,8 +276,7 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 				Groups:          lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
 				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
 				// with a single ENA network interface, and we should support those use cases. Launch failures with multiple enis as ENA should be considered user misconfiguration.
-				// EFA-only interfaces do not have IP addresses.
-				AssociatePublicIpAddress: lo.Ternary(typeNotEFAOnly, options.AssociatePublicIPAddress, nil),
+				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
 				PrimaryIpv6:              lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, lo.ToPtr(true), nil),
 				Ipv6AddressCount:         lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, lo.ToPtr(int32(1)), nil),
 			}

@@ -515,8 +515,9 @@ func getNetworkInterfacesInput(nodeClass *v1.EC2NodeClass) []ec2types.InstanceNe
 		defaultInterface,
 		lo.Map(nodeClass.NetworkInterfaces(), func(networkInterface *v1.NetworkInterface, _ int) ec2types.InstanceNetworkInterfaceSpecification {
 			return ec2types.InstanceNetworkInterfaceSpecification{
-				NetworkCardIndex: &networkInterface.NetworkCardIndex,
-				DeviceIndex:      &networkInterface.DeviceIndex,
+				NetworkCardIndex: lo.ToPtr(networkInterface.NetworkCardIndex),
+				DeviceIndex:      lo.ToPtr(networkInterface.DeviceIndex),
+				InterfaceType:    lo.ToPtr(string(networkInterface.InterfaceType)),
 				SubnetId:         lo.ToPtr(nodeClass.Status.Subnets[0].ID),
 			}
 		}))
