@@ -422,12 +422,12 @@ func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass 
 	}, func(family string) bool {
 		return family == nodeClass.AMIFamily()
 	}) {
-		compatibleInstanceTypes = v.getFallbackInstanceTypes(instanceTypes, nodeClass)
+		compatibleInstanceTypes = v.getFallbackInstanceTypes(instanceTypes)
 	}
 	return getAMICompatibleInstanceTypes(compatibleInstanceTypes, nodeClass), nil
 }
 
-func (v *Validation) getFallbackInstanceTypes(instanceTypes []*cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass) []*cloudprovider.InstanceType {
+func (v *Validation) getFallbackInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
 	fallbackInstanceTypes := []*cloudprovider.InstanceType{
 		{
 			Name: string(ec2types.InstanceTypeM5Large),
@@ -448,7 +448,11 @@ func (v *Validation) getFallbackInstanceTypes(instanceTypes []*cloudprovider.Ins
 			)...),
 		},
 	}
-	fallbackInstanceTypes = v.instanceTypeProvider.FilterForNodeClass(fallbackInstanceTypes, nodeClass)
+	fallbackInstanceTypes = lo.Filter(fallbackInstanceTypes, func(itFallback *cloudprovider.InstanceType, _ int) bool {
+		return lo.ContainsBy(instanceTypes, func(it *cloudprovider.InstanceType) bool {
+			return it.Name == itFallback.Name
+		})
+	})
 	return lo.Ternary(len(fallbackInstanceTypes) == 0, instanceTypes, fallbackInstanceTypes)
 }
 

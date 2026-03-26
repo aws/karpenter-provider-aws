@@ -368,6 +368,50 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 			env.ExpectCreatedNodeCount("==", 1)
 		})
+		It("should support well-known labels for EFA count for static configurations", func() {
+			nodeSelector := map[string]string{v1.LabelEFACount: "1", v1.LabelInstanceCategory: "m"}
+			selectors.Insert(lo.Keys(nodeSelector)...)
+
+			requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {
+				return corev1.NodeSelectorRequirement{Key: key, Operator: corev1.NodeSelectorOpIn, Values: []string{value}}
+			})
+			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+			}
+			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
+				NodeSelector:     nodeSelector,
+				NodePreferences:  requirements,
+				NodeRequirements: requirements,
+			}})
+
+			env.ExpectCreated(nodeClass, nodePool, deployment)
+			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+			Expect(node.Labels).To(HaveKey(v1.LabelEFACount))
+			Expect(node.Labels[v1.LabelEFACount]).To(Equal("1"))
+		})
+		It("should support well-known labels for EFA count for dynamic configurations", func() {
+			nodeSelector := map[string]string{v1.LabelEFACount: "1", v1.LabelInstanceCategory: "m"}
+			selectors.Insert(lo.Keys(nodeSelector)...)
+
+			requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {
+				return corev1.NodeSelectorRequirement{Key: key, Operator: corev1.NodeSelectorOpIn, Values: []string{value}}
+			})
+			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
+				NodeSelector:     nodeSelector,
+				NodePreferences:  requirements,
+				NodeRequirements: requirements,
+			}})
+
+			env.ExpectCreated(nodeClass, nodePool, deployment)
+			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+			Expect(node.Labels).To(HaveKey(v1.LabelEFACount))
+			Expect(node.Labels[v1.LabelEFACount]).To(Equal("1"))
+		})
 	})
 
 	Context("Provisioning", func() {
@@ -1034,6 +1078,55 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Large)))
 			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "true"))
 		})
+	})
+
+	Context("Network Interfaces", func() {
+		It("should provision EFAs when pod has node affinity for EFA count", func() {
+			nodeClass.Spec.NetworkInterfaces = nil
+			pod := test.Pod(test.PodOptions{
+				NodeRequirements: []corev1.NodeSelectorRequirement{
+					{Key: v1.LabelEFACount, Operator: corev1.NodeSelectorOpGt, Values: []string{"0"}},
+					{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+				},
+				Tolerations: []corev1.Toleration{
+					{
+						Key:      "aws.amazon.com/efa",
+						Operator: corev1.TolerationOpExists,
+					},
+				},
+			})
+			env.ExpectCreated(nodeClass, nodePool, pod)
+			env.EventuallyExpectHealthy(pod)
+			node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+			Expect(node.Labels).To(HaveKey(v1.LabelEFACount))
+			Expect(strconv.Atoi(node.Labels[v1.LabelEFACount])).To(BeNumerically(">=", 0))
+		})
+		DescribeTable("should provision EFAs according to NodeClass coniguration", func(pod *corev1.Pod) {
+			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+				{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+			}
+			env.ExpectCreated(nodeClass, nodePool, pod)
+			env.EventuallyExpectHealthy(pod)
+			node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+			Expect(node.Labels).To(HaveKey(v1.LabelEFACount))
+			Expect(node.Labels[v1.LabelEFACount]).To(Equal("2"))
+		},
+			Entry("when pod has EFA count selection", test.Pod(test.PodOptions{
+				NodeRequirements: []corev1.NodeSelectorRequirement{
+					{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+					{Key: v1.LabelEFACount, Operator: corev1.NodeSelectorOpGt, Values: []string{"0"}},
+				},
+			})),
+			Entry("when pod doesn't require EFA", test.Pod(test.PodOptions{
+				NodeRequirements: []corev1.NodeSelectorRequirement{
+					{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+				},
+			})),
+		)
 	})
 },
 	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
