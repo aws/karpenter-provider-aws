@@ -75,18 +75,19 @@ type Options struct {
 // LaunchTemplate holds the dynamically generated launch template parameters
 type LaunchTemplate struct {
 	*Options
-	UserData                bootstrap.Bootstrapper
-	BlockDeviceMappings     []*v1.BlockDeviceMapping
-	MetadataOptions         *v1.MetadataOptions
-	AMIID                   string
-	InstanceTypes           []*cloudprovider.InstanceType `hash:"ignore"`
-	DetailedMonitoring      bool
-	EFACount                int
-	NetworkInterfaces       []*v1.NetworkInterface
-	CapacityType            string
-	CapacityReservationID   string
-	CapacityReservationType v1.CapacityReservationType
-	Tenancy                 string
+	UserData                         bootstrap.Bootstrapper
+	BlockDeviceMappings              []*v1.BlockDeviceMapping
+	MetadataOptions                  *v1.MetadataOptions
+	AMIID                            string
+	InstanceTypes                    []*cloudprovider.InstanceType `hash:"ignore"`
+	DetailedMonitoring               bool
+	EFACount                         int
+	NetworkInterfaces                []*v1.NetworkInterface
+	CapacityType                     string
+	CapacityReservationID            string
+	CapacityReservationType          v1.CapacityReservationType
+	CapacityReservationInterruptible bool
+	Tenancy                          string
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -156,11 +157,13 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 			efaCount int
 			maxPods  int
 			// reservationIDs is encoded as a string rather than a slice to ensure this type is comparable for use by `lo.GroupBy`.
-			reservationIDs  string
-			reservationType v1.CapacityReservationType
+			reservationIDs           string
+			reservationType          v1.CapacityReservationType
+			reservationInterruptible bool
 		}
 		paramsToInstanceTypes := lo.GroupBy(instanceTypes, func(it *cloudprovider.InstanceType) launchTemplateParams {
 			var reservationType v1.CapacityReservationType
+			var reservationInterruptible bool
 			var reservationIDs []string
 			if capacityType == karpv1.CapacityTypeReserved {
 				for _, o := range it.Offerings {
@@ -171,6 +174,7 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 					// Offerings are prefiltered such that there is only a single reservation type
 					if reservationType == "" {
 						reservationType = v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any())
+						reservationInterruptible = o.Requirements.Get(v1.LabelCapacityReservationInterruptible).Any() == "true"
 					}
 				}
 			}
@@ -184,14 +188,15 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 				// If we're dealing with reserved instances, there's only going to be a single instance per group. This invariant
 				// is due to reservation IDs not being shared across instance types. Because of this, we don't need to worry about
 				// ordering in this string.
-				reservationIDs:  strings.Join(reservationIDs, ","),
-				reservationType: reservationType,
+				reservationIDs:           strings.Join(reservationIDs, ","),
+				reservationType:          reservationType,
+				reservationInterruptible: reservationInterruptible,
 			}
 		})
 
 		for params, instanceTypes := range paramsToInstanceTypes {
 			reservationIDs := strings.Split(params.reservationIDs, ",")
-			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, options, tenancyType)...)
+			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType)...)
 		}
 	}
 	return resolvedTemplates, nil
@@ -253,6 +258,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	efaCount int,
 	capacityReservationIDs []string,
 	capacityReservationType v1.CapacityReservationType,
+	capacityReservationInterruptible bool,
 	options *Options,
 	tenancyType string,
 ) []*LaunchTemplate {
@@ -303,17 +309,18 @@ func (r DefaultResolver) resolveLaunchTemplates(
 				nodeClass.Spec.UserData,
 				options.InstanceStorePolicy,
 			),
-			BlockDeviceMappings:     nodeClass.Spec.BlockDeviceMappings,
-			MetadataOptions:         nodeClass.Spec.MetadataOptions,
-			DetailedMonitoring:      aws.ToBool(nodeClass.Spec.DetailedMonitoring),
-			AMIID:                   amiID,
-			InstanceTypes:           instanceTypes,
-			EFACount:                efaCount,
-			NetworkInterfaces:       nodeClass.Spec.NetworkInterfaces,
-			CapacityType:            capacityType,
-			CapacityReservationID:   id,
-			CapacityReservationType: capacityReservationType,
-			Tenancy:                 tenancyType,
+			BlockDeviceMappings:              nodeClass.Spec.BlockDeviceMappings,
+			MetadataOptions:                  nodeClass.Spec.MetadataOptions,
+			DetailedMonitoring:               aws.ToBool(nodeClass.Spec.DetailedMonitoring),
+			AMIID:                            amiID,
+			InstanceTypes:                    instanceTypes,
+			EFACount:                         efaCount,
+			NetworkInterfaces:                nodeClass.Spec.NetworkInterfaces,
+			CapacityType:                     capacityType,
+			CapacityReservationID:            id,
+			CapacityReservationType:          capacityReservationType,
+			CapacityReservationInterruptible: capacityReservationInterruptible,
+			Tenancy:                          tenancyType,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()

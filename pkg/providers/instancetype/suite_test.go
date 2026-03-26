@@ -266,6 +266,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
 			v1.LabelEFACount,
+			v1.LabelCapacityReservationInterruptible,
+			v1.LabelEFACount,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		var pods []*corev1.Pod
@@ -325,6 +327,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				karpv1.WellKnownLabels.Difference(sets.New(
 					v1.LabelCapacityReservationID,
 					v1.LabelCapacityReservationType,
+					v1.LabelCapacityReservationInterruptible,
 					v1.LabelInstanceAcceleratorCount,
 					v1.LabelInstanceAcceleratorName,
 					v1.LabelInstanceAcceleratorManufacturer,
@@ -380,6 +383,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		expectedLabels := append(karpv1.WellKnownLabels.Difference(sets.New(
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
+			v1.LabelCapacityReservationInterruptible,
 			v1.LabelInstanceGPUCount,
 			v1.LabelInstanceGPUName,
 			v1.LabelInstanceGPUManufacturer,

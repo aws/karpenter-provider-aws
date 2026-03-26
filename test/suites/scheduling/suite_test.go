@@ -17,6 +17,7 @@ package scheduling_test
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -907,6 +908,133 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		})
 	})
 
+	Context("Interruptible Capacity Resverations", func() {
+		var sourceReservationID, interruptibleReservationID, xlargeReservationID string
+		BeforeAll(func() {
+			sourceReservationID, interruptibleReservationID = environmentaws.ExpectInterruptibleCapacityReservationCreated(
+				env.Context,
+				env.EC2API,
+				ec2types.InstanceTypeM5Large,
+				env.ZoneInfo[0].Zone,
+				2,
+				1,
+				nil,
+			)
+			xlargeReservationID = environmentaws.ExpectCapacityReservationCreated(
+				env.Context,
+				env.EC2API,
+				ec2types.InstanceTypeM5Xlarge,
+				env.ZoneInfo[0].Zone,
+				1,
+				nil,
+				nil,
+			)
+		})
+		AfterAll(func() {
+			environmentaws.ExpectInterruptibleAndSourceCapacityCanceled(env.Context, env.EC2API, sourceReservationID, interruptibleReservationID)
+			environmentaws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, xlargeReservationID)
+		})
+		BeforeEach(func() {
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
+				{ID: sourceReservationID}, {ID: interruptibleReservationID},
+			}
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					Key:      karpv1.CapacityTypeLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved},
+				},
+				{
+					Key:      corev1.LabelOSStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{string(corev1.Linux)},
+				},
+			}
+		})
+
+		DescribeTable("should schedule against a specific reservation interruptibiltiy", func(interruptible bool) {
+			selectors.Insert(v1.LabelCapacityReservationInterruptible)
+			pod := test.Pod(test.PodOptions{
+				NodeRequirements: []corev1.NodeSelectorRequirement{{
+					Key:      v1.LabelCapacityReservationInterruptible,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{strconv.FormatBool(interruptible)},
+				}},
+			})
+			env.ExpectCreated(nodePool, nodeClass, pod)
+
+			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
+			resReq, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
+				return req.Key == v1.LabelCapacityReservationID
+			})
+			Expect(ok).To(BeTrue())
+			iReq, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
+				return req.Key == v1.LabelCapacityReservationInterruptible
+			})
+			Expect(ok).To(BeTrue())
+			Expect(resReq.Values).To(ConsistOf(lo.Ternary(interruptible, interruptibleReservationID, sourceReservationID)))
+			Expect(iReq.Values).To(ConsistOf(strconv.FormatBool(interruptible)))
+
+			env.EventuallyExpectNodeClaimsReady(nc)
+			n := env.EventuallyExpectNodeCount("==", 1)[0]
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, strconv.FormatBool(interruptible)))
+		},
+			Entry("interruptible", true),
+			Entry("non-interruptible", false),
+		)
+		It("should prioritize ODCR over IODCR if price is equal", func() {
+			pod := test.Pod(test.PodOptions{
+				NodeRequirements: []corev1.NodeSelectorRequirement{{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{string(ec2types.InstanceTypeM5Large)},
+				}},
+			})
+			env.ExpectCreated(nodePool, nodeClass, pod)
+
+			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
+			req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
+				return req.Key == v1.LabelCapacityReservationID
+			})
+			Expect(ok).To(BeTrue())
+			// NodeClaim should have both reservations (but launch with ODCR)
+			Expect(req.Values).To(ConsistOf(sourceReservationID, interruptibleReservationID))
+
+			env.EventuallyExpectNodeClaimsReady(nc)
+			n := env.EventuallyExpectNodeCount("==", 1)[0]
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "false"))
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, sourceReservationID))
+		})
+		It("should prioritize reservation with lower price", func() {
+			env.ExpectCreated(nodeClass)
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
+				{ID: xlargeReservationID}, {ID: interruptibleReservationID},
+			}
+			env.ExpectUpdated(nodeClass)
+
+			pod := test.Pod(test.PodOptions{
+				NodeRequirements: []corev1.NodeSelectorRequirement{{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{string(ec2types.InstanceTypeM5Large), string(ec2types.InstanceTypeM5Xlarge)},
+				}},
+			})
+			env.ExpectCreated(nodePool, pod)
+
+			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
+			req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
+				return req.Key == v1.LabelCapacityReservationID
+			})
+			Expect(ok).To(BeTrue())
+			// NodeClaim should have both reservations (but launch in IODCR as its cheaper)
+			Expect(req.Values).To(ConsistOf(xlargeReservationID, interruptibleReservationID))
+
+			env.EventuallyExpectNodeClaimsReady(nc)
+			n := env.EventuallyExpectNodeCount("==", 1)[0]
+			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Large)))
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "true"))
+		})
+	})
 },
 	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
 	Entry("MinValuesPolicyStrict", options.MinValuesPolicyStrict),

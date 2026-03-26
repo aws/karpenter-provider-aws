@@ -150,12 +150,12 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 
 	var opts []NewInstanceFromFleetOpts
 	if capacityType == karpv1.CapacityTypeReserved {
-		id, crt := p.getCapacityReservationDetailsForInstance(
+		capacityReservationDetails := p.getCapacityReservationDetailsForInstance(
 			string(fleetInstance.InstanceType),
 			*fleetInstance.LaunchTemplateAndOverrides.Overrides.AvailabilityZone,
 			instanceTypes,
 		)
-		opts = append(opts, WithCapacityReservationDetails(id, crt))
+		opts = append(opts, WithCapacityReservationDetails(capacityReservationDetails))
 	}
 
 	if efaCount := p.getEFACountForInstance(string(fleetInstance.InstanceType), instanceTypes, nodeClass, nodeClaim); efaCount > 0 {
@@ -340,7 +340,7 @@ func (p *DefaultProvider) launchInstance(
 		if crt == nil {
 			panic(fmt.Sprintf("%s label isn't set for instance types in reserved launch", v1.LabelCapacityReservationType))
 		}
-		cfiBuilder.WithCapacityReservationType(*crt)
+		cfiBuilder.WithCapacityReservationType(*crt, getCapacityReservationInterruptible(instanceTypes))
 	}
 	createFleetInput := cfiBuilder.Build()
 
@@ -523,17 +523,17 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	reservationIDs := make([]string, 0, len(errs))
 	for i := range errs {
 		if awserrors.IsUnfulfillableCapacity(errs[i]) {
-			id, _ := p.getCapacityReservationDetailsForInstance(
+			capacityReservationDetails := p.getCapacityReservationDetailsForInstance(
 				string(errs[i].LaunchTemplateAndOverrides.Overrides.InstanceType),
 				lo.FromPtr(errs[i].LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
 				instanceTypes,
 			)
-			reservationIDs = append(reservationIDs, id)
+			reservationIDs = append(reservationIDs, capacityReservationDetails.ID)
 			log.FromContext(ctx).WithValues(
 				"reason", lo.FromPtr(errs[i].ErrorCode),
 				"instance-type", errs[i].LaunchTemplateAndOverrides.Overrides.InstanceType,
 				"zone", lo.FromPtr(errs[i].LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
-				"capacity-reservation-id", id,
+				"capacity-reservation-id", capacityReservationDetails.ID,
 			).V(1).Info("marking capacity reservation unavailable")
 		}
 	}
@@ -542,7 +542,7 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	}
 }
 
-func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zone string, instanceTypes []*cloudprovider.InstanceType) (id string, crt v1.CapacityReservationType) {
+func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zone string, instanceTypes []*cloudprovider.InstanceType) *CapacityReservationDetails {
 	for _, it := range instanceTypes {
 		if it.Name != instance {
 			continue
@@ -551,7 +551,12 @@ func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zon
 			if o.CapacityType() != karpv1.CapacityTypeReserved || o.Zone() != zone {
 				continue
 			}
-			return o.ReservationID(), v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any())
+			// NOTE: Filtering at the beginning of Create ensures there's only a single reservation per zone, even when the NodeClass supports multiple.
+			return &CapacityReservationDetails{
+				ID:            o.ReservationID(),
+				Type:          v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any()),
+				Interruptible: o.Requirements.Get(v1.LabelCapacityReservationInterruptible).Any() == "true",
+			}
 		}
 	}
 	// note: this is an invariant that the caller must enforce, should not occur at runtime
@@ -646,6 +651,17 @@ func getCapacityReservationType(instanceTypes []*cloudprovider.InstanceType) *v1
 		}
 	}
 	return nil
+}
+
+func getCapacityReservationInterruptible(instanceTypes []*cloudprovider.InstanceType) bool {
+	for _, it := range instanceTypes {
+		for _, o := range it.Offerings {
+			if o.Requirements.Has(v1.LabelCapacityReservationInterruptible) {
+				return o.Requirements.Get(v1.LabelCapacityReservationInterruptible).Any() == "true"
+			}
+		}
+	}
+	return false
 }
 
 func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) ([]*Instance, error) {

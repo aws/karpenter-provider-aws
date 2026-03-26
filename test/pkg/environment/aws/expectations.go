@@ -534,6 +534,94 @@ func ignoreAlreadyContainsRole(err error) error {
 	return err
 }
 
+func ExpectInterruptibleCapacityReservationCreated(
+	ctx context.Context,
+	ec2api *ec2.Client,
+	instanceType ec2types.InstanceType,
+	zone string,
+	totalCapacity int32,
+	interruptibleCapacity int32,
+	tags map[string]string,
+) (string, string) {
+	GinkgoHelper()
+	odcrID := ExpectCapacityReservationCreated(ctx, ec2api, instanceType, zone, totalCapacity, nil, tags)
+
+	_, err := ec2api.CreateInterruptibleCapacityReservationAllocation(ctx, &ec2.CreateInterruptibleCapacityReservationAllocationInput{
+		CapacityReservationId: &odcrID,
+		InstanceCount:         lo.ToPtr(interruptibleCapacity),
+		TagSpecifications: lo.Ternary(len(tags) != 0, []ec2types.TagSpecification{{
+			ResourceType: ec2types.ResourceTypeCapacityReservation,
+			Tags:         utils.EC2MergeTags(tags),
+		}}, nil),
+	})
+	Expect(err).ToNot(HaveOccurred())
+
+	// the create IODCR API doesn't return the IODCR ID, so we have to describe the source reservation
+	var out *ec2.DescribeCapacityReservationsOutput
+	Eventually(func(g Gomega) {
+		out, err = ec2api.DescribeCapacityReservations(ctx, &ec2.DescribeCapacityReservationsInput{
+			CapacityReservationIds: []string{odcrID},
+		})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(out).To(Not(BeNil()))
+		Expect(len(out.CapacityReservations)).To(Equal(1))
+		Expect(out.CapacityReservations[0].InterruptibleCapacityAllocation).To(Not(BeNil()))
+	}).WithTimeout(15 * time.Second).WithPolling(2 * time.Second).Should(Succeed())
+
+	return odcrID, *out.CapacityReservations[0].InterruptibleCapacityAllocation.InterruptibleCapacityReservationId
+}
+
+func ExpectModifyInterruptibleCapacity(
+	ctx context.Context,
+	ec2api *ec2.Client,
+	sourceReservationId string,
+	targetInterruptibleCapacity int32,
+) {
+	GinkgoHelper()
+	_, err := ec2api.UpdateInterruptibleCapacityReservationAllocation(ctx, &ec2.UpdateInterruptibleCapacityReservationAllocationInput{
+		CapacityReservationId: lo.ToPtr(sourceReservationId),
+		TargetInstanceCount:   lo.ToPtr(targetInterruptibleCapacity),
+	})
+	Expect(err).ToNot(HaveOccurred())
+}
+
+func ExpectInterruptibleAndSourceCapacityCanceled(
+	ctx context.Context,
+	ec2api *ec2.Client,
+	sourceReservationId string,
+	interrutibleReservationID string,
+) {
+	GinkgoHelper()
+	_, err := ec2api.UpdateInterruptibleCapacityReservationAllocation(ctx, &ec2.UpdateInterruptibleCapacityReservationAllocationInput{
+		CapacityReservationId: lo.ToPtr(sourceReservationId),
+		TargetInstanceCount:   aws.Int32(0),
+	})
+	Expect(err).To(Or(
+		BeNil(),
+		MatchError(ContainSubstring("doesn't have an active interruptible capacity allocation")),
+	))
+
+	// instances in IODCRs take 2 minutes to terminate and reclaim
+	Eventually(func(g Gomega) {
+		out, err := ec2api.DescribeCapacityReservations(ctx, &ec2.DescribeCapacityReservationsInput{
+			CapacityReservationIds: []string{interrutibleReservationID},
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(out).To(Not(BeNil()))
+		g.Expect(len(out.CapacityReservations)).To(Equal(1))
+		g.Expect(out.CapacityReservations[0].State).To(Equal(ec2types.CapacityReservationStateCancelled))
+	}).WithTimeout(4 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+
+	// there can be transient delays in when IODCR capacity is fully reclaimed and when the source ODCR can be canceled
+	// if we directly try to cancel the source reservation we'll see error "has an active interruptible capacity allocation"
+	Eventually(func(g Gomega) {
+		_, err := ec2api.CancelCapacityReservation(ctx, &ec2.CancelCapacityReservationInput{
+			CapacityReservationId: &sourceReservationId,
+		})
+		Expect(err).ToNot(HaveOccurred())
+	}).WithTimeout(4 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+}
+
 func ExpectCapacityReservationCreated(
 	ctx context.Context,
 	ec2api *ec2.Client,

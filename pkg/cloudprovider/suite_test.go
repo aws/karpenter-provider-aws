@@ -17,6 +17,7 @@ package cloudprovider_test
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1513,17 +1514,24 @@ var _ = Describe("CloudProvider", func() {
 		const reservationCapacity = 10
 		var crs []ec2types.CapacityReservation
 		BeforeEach(func() {
-			crs = lo.Map(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) ec2types.CapacityReservation {
-				return ec2types.CapacityReservation{
-					AvailabilityZone:       lo.ToPtr("test-zone-1a"),
-					InstanceType:           lo.ToPtr("m5.large"),
-					OwnerId:                lo.ToPtr("012345678901"),
-					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
-					CapacityReservationId:  lo.ToPtr(fmt.Sprintf("cr-m5.large-1a-%s", string(crt))),
-					AvailableInstanceCount: lo.ToPtr[int32](reservationCapacity),
-					State:                  ec2types.CapacityReservationStateActive,
-					ReservationType:        ec2types.CapacityReservationType(crt),
-				}
+			crs = []ec2types.CapacityReservation{}
+			crs = lo.FlatMap(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) []ec2types.CapacityReservation {
+				return lo.FilterMap([]bool{true, false}, func(interruptible bool, _ int) (ec2types.CapacityReservation, bool) {
+					if interruptible && crt == v1.CapacityReservationTypeCapacityBlock {
+						return ec2types.CapacityReservation{}, false
+					}
+					return ec2types.CapacityReservation{
+						AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+						InstanceType:           lo.ToPtr("m5.large"),
+						OwnerId:                lo.ToPtr("012345678901"),
+						InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+						CapacityReservationId:  lo.ToPtr(fmt.Sprintf("cr-m5.large-1a-%s-%s", string(crt), strconv.FormatBool(interruptible))),
+						AvailableInstanceCount: lo.ToPtr[int32](reservationCapacity),
+						State:                  ec2types.CapacityReservationStateActive,
+						ReservationType:        ec2types.CapacityReservationType(crt),
+						Interruptible:          lo.ToPtr(interruptible),
+					}, true
+				})
 			})
 			for _, cr := range crs {
 				awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(*cr.CapacityReservationId, 10)
@@ -1571,10 +1579,11 @@ var _ = Describe("CloudProvider", func() {
 		})
 		DescribeTable(
 			"should include capacity reservation labels",
-			func(crt v1.CapacityReservationType) {
+			func(crt v1.CapacityReservationType, interruptible bool) {
 				pod := coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: map[string]string{
-						v1.LabelCapacityReservationType: string(crt),
+						v1.LabelCapacityReservationType:          string(crt),
+						v1.LabelCapacityReservationInterruptible: strconv.FormatBool(interruptible),
 					},
 				})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod)
@@ -1583,15 +1592,17 @@ var _ = Describe("CloudProvider", func() {
 				ncs := ExpectNodeClaims(ctx, env.Client)
 				Expect(ncs).To(HaveLen(1))
 				Expect(ncs[0].Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
-				Expect(ncs[0].Labels).To(HaveKeyWithValue(corecloudprovider.ReservationIDLabel, *lo.Must(lo.Find(crs, func(cr ec2types.CapacityReservation) bool {
-					return string(cr.ReservationType) == string(crt)
-
-				})).CapacityReservationId))
+				expectedCR := lo.Must(lo.Find(crs, func(cr ec2types.CapacityReservation) bool {
+					return string(cr.ReservationType) == string(crt) && *cr.Interruptible == interruptible
+				}))
+				Expect(ncs[0].Labels).To(HaveKeyWithValue(corecloudprovider.ReservationIDLabel, *expectedCR.CapacityReservationId))
 				Expect(ncs[0].Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(crt)))
+				Expect(ncs[0].Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, strconv.FormatBool(interruptible)))
+
 			},
-			lo.Map(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) TableEntry {
-				return Entry(fmt.Sprintf("when the capacity reservation type is %q", string(crt)), crt)
-			}),
+			Entry("when the capacity reservation type is default non-interruptible", v1.CapacityReservationTypeDefault, false),
+			Entry("when the capacity reservation type is default interruptible", v1.CapacityReservationTypeDefault, true),
+			Entry("when the capacity reservation type is capacity-block", v1.CapacityReservationTypeCapacityBlock, false),
 		)
 	})
 })
