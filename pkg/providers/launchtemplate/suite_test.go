@@ -2225,7 +2225,7 @@ eviction-max-pod-grace-period = 10
 				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 
-				controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
+				controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.PlacementGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 
 				pod := coretest.UnschedulablePod()
@@ -2522,6 +2522,50 @@ eviction-max-pod-grace-period = 10
 			Entry("when default specified", lo.ToPtr("default"), ec2types.TenancyDefault),
 			Entry("when dedicated specified", lo.ToPtr("dedicated"), ec2types.TenancyDedicated),
 		)
+	})
+	Context("PlacementGroup", func() {
+		It("should set placement group name on the launch template", func() {
+			nodeClass.Spec.PlacementGroup = &v1.PlacementGroup{Name: "analytics-cluster"}
+			nodeClass.Status.PlacementGroup = &v1.PlacementGroupStatus{
+				Name:     "analytics-cluster",
+				ID:       "pg-0123456789abcdef0",
+				Strategy: "cluster",
+				State:    "available",
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.Placement.GroupName)).To(Equal("analytics-cluster"))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.Placement.GroupId)).To(Equal("pg-0123456789abcdef0"))
+				Expect(ltInput.LaunchTemplateData.Placement.PartitionNumber).To(BeNil())
+			})
+		})
+		It("should set placement group id and partition on the launch template", func() {
+			nodeClass.Spec.PlacementGroup = &v1.PlacementGroup{
+				ID:        "pg-0123456789abcdef0",
+				Partition: lo.ToPtr(int32(1)),
+			}
+			nodeClass.Status.PlacementGroup = &v1.PlacementGroupStatus{
+				Name:           "partitioned-workload",
+				ID:             "pg-0123456789abcdef0",
+				Strategy:       "partition",
+				PartitionCount: lo.ToPtr(int32(3)),
+				State:          "available",
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.Placement.GroupId)).To(Equal("pg-0123456789abcdef0"))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.Placement.GroupName)).To(Equal("partitioned-workload"))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.Placement.PartitionNumber)).To(Equal(int32(1)))
+			})
+		})
 	})
 	It("should generate a unique launch template per capacity reservation", func() {
 		crs := []ec2types.CapacityReservation{

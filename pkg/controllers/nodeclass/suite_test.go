@@ -95,6 +95,7 @@ var _ = BeforeEach(func() {
 		fake.DefaultRegion,
 		awsEnv.SubnetProvider,
 		awsEnv.SecurityGroupProvider,
+		awsEnv.PlacementGroupProvider,
 		awsEnv.AMIProvider,
 		awsEnv.InstanceProfileProvider,
 		awsEnv.InstanceTypesProvider,

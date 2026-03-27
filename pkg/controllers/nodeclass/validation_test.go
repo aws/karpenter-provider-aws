@@ -56,6 +56,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			for _, cond := range []string{
 				v1.ConditionTypeAMIsReady,
 				v1.ConditionTypeInstanceProfileReady,
+				v1.ConditionTypePlacementGroupReady,
 				v1.ConditionTypeSecurityGroupsReady,
 				v1.ConditionTypeSubnetsReady,
 			} {
@@ -73,6 +74,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			},
 			Entry(v1.ConditionTypeAMIsReady, v1.ConditionTypeAMIsReady),
 			Entry(v1.ConditionTypeInstanceProfileReady, v1.ConditionTypeInstanceProfileReady),
+			Entry(v1.ConditionTypePlacementGroupReady, v1.ConditionTypePlacementGroupReady),
 			Entry(v1.ConditionTypeSecurityGroupsReady, v1.ConditionTypeSecurityGroupsReady),
 			Entry(v1.ConditionTypeSubnetsReady, v1.ConditionTypeSubnetsReady),
 		)
@@ -87,6 +89,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			},
 			Entry(v1.ConditionTypeAMIsReady, v1.ConditionTypeAMIsReady),
 			Entry(v1.ConditionTypeInstanceProfileReady, v1.ConditionTypeInstanceProfileReady),
+			Entry(v1.ConditionTypePlacementGroupReady, v1.ConditionTypePlacementGroupReady),
 			Entry(v1.ConditionTypeSecurityGroupsReady, v1.ConditionTypeSecurityGroupsReady),
 			Entry(v1.ConditionTypeSubnetsReady, v1.ConditionTypeSubnetsReady),
 		)
@@ -518,6 +521,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			fake.DefaultRegion,
 			awsEnv.SubnetProvider,
 			awsEnv.SecurityGroupProvider,
+			awsEnv.PlacementGroupProvider,
 			awsEnv.AMIProvider,
 			awsEnv.InstanceProfileProvider,
 			awsEnv.InstanceTypesProvider,

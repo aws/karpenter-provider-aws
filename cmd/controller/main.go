@@ -76,6 +76,7 @@ func main() {
 			cloudProvider,
 			op.SubnetProvider,
 			op.SecurityGroupProvider,
+			op.PlacementGroupProvider,
 			op.InstanceProfileProvider,
 			op.InstanceProvider,
 			op.PricingProvider,

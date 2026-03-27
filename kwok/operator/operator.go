@@ -61,6 +61,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	ssmp "github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
@@ -83,6 +84,7 @@ type Operator struct {
 	RecreationCache             *cache.Cache
 	SubnetProvider              subnet.Provider
 	SecurityGroupProvider       securitygroup.Provider
+	PlacementGroupProvider      placementgroup.Provider
 	InstanceProfileProvider     instanceprofile.Provider
 	AMIProvider                 amifamily.Provider
 	AMIResolver                 amifamily.Resolver
@@ -138,6 +140,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cfg.Region,
 		false,
 	)
+	placementGroupProvider := placementgroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, eksapi)
 	// Ensure we're able to hydrate the version before starting any reliant controllers.
 	// Version updates are hydrated asynchronously after this, in the event of a failure
@@ -205,6 +208,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		RecreationCache:             recreationCache,
 		SubnetProvider:              subnetProvider,
 		SecurityGroupProvider:       securityGroupProvider,
+		PlacementGroupProvider:      placementGroupProvider,
 		InstanceProfileProvider:     instanceProfileProvider,
 		AMIProvider:                 amiProvider,
 		AMIResolver:                 amiResolver,

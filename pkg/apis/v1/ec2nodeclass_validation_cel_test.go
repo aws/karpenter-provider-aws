@@ -208,6 +208,24 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 		})
 	})
+	Context("PlacementGroup", func() {
+		It("should succeed with a placement group name", func() {
+			nc.Spec.PlacementGroup = &v1.PlacementGroup{Name: "analytics-cluster"}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with a placement group id", func() {
+			nc.Spec.PlacementGroup = &v1.PlacementGroup{ID: "pg-0123456789abcdef0"}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail when both name and id are set", func() {
+			nc.Spec.PlacementGroup = &v1.PlacementGroup{Name: "analytics-cluster", ID: "pg-0123456789abcdef0"}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when neither name nor id are set", func() {
+			nc.Spec.PlacementGroup = &v1.PlacementGroup{}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+	})
 	Context("SubnetSelectorTerms", func() {
 		It("should succeed with a valid subnet selector on tags", func() {
 			nc.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{

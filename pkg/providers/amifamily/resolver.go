@@ -69,6 +69,8 @@ type Options struct {
 	KubeDNSIP                net.IP
 	AssociatePublicIPAddress *bool
 	IPPrefixCount            *int32
+	PlacementGroup           *v1.PlacementGroupStatus
+	PlacementGroupPartition  *int32
 	NodeClassName            string
 }
 

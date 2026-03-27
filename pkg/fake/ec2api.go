@@ -69,6 +69,7 @@ type EC2Behavior struct {
 	NextError                           AtomicError
 
 	Subnets                               sync.Map
+	PlacementGroups                       sync.Map
 	LaunchTemplates                       sync.Map
 	launchTemplatesToCapacityReservations sync.Map // map[lt-name]cr-id
 }
@@ -103,6 +104,10 @@ func (e *EC2API) Reset() {
 	e.DescribeSpotPriceHistoryBehavior.Reset()
 	e.Subnets.Range(func(k, v any) bool {
 		e.Subnets.Delete(k)
+		return true
+	})
+	e.PlacementGroups.Range(func(k, v any) bool {
+		e.PlacementGroups.Delete(k)
 		return true
 	})
 	e.Instances.Range(func(k, v any) bool {
@@ -450,6 +455,25 @@ func (e *EC2API) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 			Message: "At least one of the launch templates specified in the request does not exist.",
 		}
 	}
+	return output, nil
+}
+
+func (e *EC2API) DescribePlacementGroups(_ context.Context, input *ec2.DescribePlacementGroupsInput, _ ...func(*ec2.Options)) (*ec2.DescribePlacementGroupsOutput, error) {
+	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
+		return nil, e.NextError.Get()
+	}
+	output := &ec2.DescribePlacementGroupsOutput{}
+	e.PlacementGroups.Range(func(_, value any) bool {
+		placementGroup := value.(ec2types.PlacementGroup)
+		switch {
+		case len(input.GroupIds) != 0 && lo.Contains(input.GroupIds, lo.FromPtr(placementGroup.GroupId)):
+			output.PlacementGroups = append(output.PlacementGroups, placementGroup)
+		case len(input.GroupNames) != 0 && lo.Contains(input.GroupNames, lo.FromPtr(placementGroup.GroupName)):
+			output.PlacementGroups = append(output.PlacementGroups, placementGroup)
+		}
+		return true
+	})
 	return output, nil
 }
 

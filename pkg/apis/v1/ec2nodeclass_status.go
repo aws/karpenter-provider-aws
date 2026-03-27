@@ -35,6 +35,7 @@ const (
 	ConditionTypeSubnetsReady              = "SubnetsReady"
 	ConditionTypeSecurityGroupsReady       = "SecurityGroupsReady"
 	ConditionTypeAMIsReady                 = "AMIsReady"
+	ConditionTypePlacementGroupReady       = "PlacementGroupReady"
 	ConditionTypeInstanceProfileReady      = "InstanceProfileReady"
 	ConditionTypeCapacityReservationsReady = "CapacityReservationsReady"
 	ConditionTypeValidationSucceeded       = "ValidationSucceeded"
@@ -139,6 +140,31 @@ const (
 	CapacityReservationStateExpiring CapacityReservationState = "expiring"
 )
 
+// PlacementGroupStatus contains the resolved placement group configuration utilized for node launch.
+type PlacementGroupStatus struct {
+	// ID of the placement group.
+	// +kubebuilder:validation:Pattern:="^pg-[0-9a-z]+$"
+	// +required
+	ID string `json:"id"`
+	// Name of the placement group.
+	// +required
+	Name string `json:"name"`
+	// Strategy of the placement group.
+	// +kubebuilder:validation:Enum:={cluster,spread,partition}
+	// +required
+	Strategy string `json:"strategy"`
+	// PartitionCount is the number of partitions configured on the placement group.
+	// +optional
+	PartitionCount *int32 `json:"partitionCount,omitempty"`
+	// SpreadLevel determines how instances are spread when the placement group strategy is spread.
+	// +kubebuilder:validation:Enum:={host,rack}
+	// +optional
+	SpreadLevel string `json:"spreadLevel,omitempty"`
+	// State of the placement group.
+	// +optional
+	State string `json:"state,omitempty"`
+}
+
 // EC2NodeClassStatus contains the resolved state of the EC2NodeClass
 type EC2NodeClassStatus struct {
 	// Subnets contains the current subnet values that are available to the
@@ -149,6 +175,9 @@ type EC2NodeClassStatus struct {
 	// cluster under the SecurityGroups selectors.
 	// +optional
 	SecurityGroups []SecurityGroup `json:"securityGroups,omitempty"`
+	// PlacementGroup contains the current placement group that is available to this NodeClass under the placementGroup reference.
+	// +optional
+	PlacementGroup *PlacementGroupStatus `json:"placementGroup,omitempty"`
 	// CapacityReservations contains the current capacity reservation values that are available to this NodeClass under the
 	// CapacityReservation selectors.
 	// +optional
@@ -170,6 +199,7 @@ func (in *EC2NodeClass) StatusConditions() status.ConditionSet {
 		ConditionTypeAMIsReady,
 		ConditionTypeSubnetsReady,
 		ConditionTypeSecurityGroupsReady,
+		ConditionTypePlacementGroupReady,
 		ConditionTypeInstanceProfileReady,
 		ConditionTypeValidationSucceeded,
 	}
@@ -193,6 +223,20 @@ func (in *EC2NodeClass) AMIs() []AMI {
 
 func (in *EC2NodeClass) CapacityReservations() []CapacityReservation {
 	return in.Status.CapacityReservations
+}
+
+func PlacementGroupStatusFromEC2(pg *ec2types.PlacementGroup) *PlacementGroupStatus {
+	if pg == nil {
+		return nil
+	}
+	return &PlacementGroupStatus{
+		ID:             lo.FromPtr(pg.GroupId),
+		Name:           lo.FromPtr(pg.GroupName),
+		Strategy:       string(pg.Strategy),
+		PartitionCount: pg.PartitionCount,
+		SpreadLevel:    string(pg.SpreadLevel),
+		State:          string(pg.State),
+	}
 }
 
 type ZoneInfo struct {

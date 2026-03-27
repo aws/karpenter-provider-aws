@@ -513,6 +513,31 @@ spec:
                         - optional
                       type: string
                   type: object
+                placementGroup:
+                  description: |-
+                    PlacementGroup configures the EC2 placement group that Karpenter should launch instances into.
+                    The referenced placement group must already exist; Karpenter does not create or delete placement groups.
+                  properties:
+                    id:
+                      description: ID is the placement group id in EC2. This must be used when launching into a shared placement group.
+                      pattern: ^pg-[0-9a-z]+$
+                      type: string
+                    name:
+                      description: Name is the name of the placement group in EC2.
+                      maxLength: 255
+                      type: string
+                    partition:
+                      description: |-
+                        Partition is the partition number that instances should launch into.
+                        Valid only for partition placement groups.
+                      format: int32
+                      maximum: 7
+                      minimum: 1
+                      type: integer
+                  type: object
+                  x-kubernetes-validations:
+                    - message: expected exactly one of ['name', 'id']
+                      rule: has(self.name) != has(self.id)
                 role:
                   description: |-
                     Role is the AWS identity that nodes use.
@@ -811,6 +836,41 @@ spec:
                 instanceProfile:
                   description: InstanceProfile contains the resolved instance profile for the role
                   type: string
+                placementGroup:
+                  description: PlacementGroup contains the current placement group that is available to this NodeClass under the placementGroup reference.
+                  properties:
+                    id:
+                      description: ID of the placement group.
+                      pattern: ^pg-[0-9a-z]+$
+                      type: string
+                    name:
+                      description: Name of the placement group.
+                      type: string
+                    partitionCount:
+                      description: PartitionCount is the number of partitions configured on the placement group.
+                      format: int32
+                      type: integer
+                    spreadLevel:
+                      description: SpreadLevel determines how instances are spread when the placement group strategy is spread.
+                      enum:
+                        - host
+                        - rack
+                      type: string
+                    state:
+                      description: State of the placement group.
+                      type: string
+                    strategy:
+                      description: Strategy of the placement group.
+                      enum:
+                        - cluster
+                        - spread
+                        - partition
+                      type: string
+                  required:
+                    - id
+                    - name
+                    - strategy
+                  type: object
                 securityGroups:
                   description: |-
                     SecurityGroups contains the current security group values that are available to the
