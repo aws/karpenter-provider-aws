@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2026-03-23T13:43:57Z for us-east-1
+// generated at 2026-03-24T18:26:10Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
