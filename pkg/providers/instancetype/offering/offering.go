@@ -45,6 +45,7 @@ type NodeClass interface {
 	CapacityReservations() []v1.CapacityReservation
 	ZoneInfo() []v1.ZoneInfo
 	NetworkInterfaces() []*v1.NetworkInterface
+	AMIFamily() string
 }
 
 type DefaultProvider struct {

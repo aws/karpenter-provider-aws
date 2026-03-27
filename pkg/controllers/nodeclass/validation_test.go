@@ -292,6 +292,38 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			)
 		})
 		Context("NodeClass Filtering", func() {
+      It("should succeed validation using fallback instance types when NodePool requirements are incompatible with NodeClass AMI", func() {
+				// AL2023 AMI Family is not compatible with a1 instance family
+				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+
+				nodePool := coretest.NodePool(karpv1.NodePool{Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimTemplateSpec{
+						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+							{
+								Key:      v1.LabelInstanceFamily,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"a1"},
+							},
+						},
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
+						},
+					},
+				}}})
+
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+
+				// Verify a fallback instance type is used for valdiation; not a1
+				runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+				Expect(string(runInstancesInput.InstanceType)).ToNot(HavePrefix("a1"))
+      })
 			It("should succeed validation using fallback instance types with no NodePools and NodeClass network interface configs", func() {
 				nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
 					{

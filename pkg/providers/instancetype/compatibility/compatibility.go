@@ -17,12 +17,14 @@ package compatibility
 import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
+  "strings"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 type NodeClass interface {
 	NetworkInterfaces() []*v1.NetworkInterface
+	AMIFamily() string
 }
 
 type CompatibleCheck interface {
@@ -32,10 +34,29 @@ type CompatibleCheck interface {
 func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass) bool {
 	for _, check := range []CompatibleCheck{
 		networkInterfaceCompatibility(nodeClass.NetworkInterfaces()),
+		amiFamilyCompatibility(nodeClass.AMIFamily()),
 	} {
 		if !check.compatibleCheck(info) {
 			return false
 		}
+	}
+	return true
+}
+
+type amiFamilyCheck struct {
+	amiFamily string
+}
+
+func amiFamilyCompatibility(amiFamily string) CompatibleCheck {
+	return &amiFamilyCheck{
+		amiFamily: amiFamily,
+	}
+}
+
+func (c amiFamilyCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	// a1 instance types are not supported with al2023s (https://docs.aws.amazon.com/linux/al2023/ug/system-requirements.html)
+	if c.amiFamily == v1.AMIFamilyAL2023 && strings.HasPrefix(string(info.InstanceType), "a1.") {
+		return false
 	}
 	return true
 }

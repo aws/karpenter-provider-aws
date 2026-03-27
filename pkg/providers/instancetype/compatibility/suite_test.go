@@ -32,6 +32,22 @@ func TestCompatibility(t *testing.T) {
 }
 
 var _ = Describe("CompatibilityTest", func() {
+  Context("AMIFamilyCompatibility", func() {
+		DescribeTable("should handle various instance types across different AMI families",
+			func(instanceType string, amiFamily string, expected bool) {
+				info := makeInstanceTypeInfo(instanceType)
+				nc := newMockNodeClass(amiFamily)
+				result := compatibility.IsCompatibleWithNodeClass(info, nc)
+				Expect(result).To(Equal(expected))
+			},
+			Entry("a1.medium w/ Custom AMI", "a1.medium", v1.AMIFamilyCustom, true),
+			Entry("a1.large w/ Custom AMI", "a1.large", v1.AMIFamilyCustom, true),
+			Entry("t3.medium w/ Custom AMI", "t3.medium", v1.AMIFamilyCustom, true),
+			Entry("a1.medium w/ AL2023 AMI", "a1.medium", v1.AMIFamilyAL2023, false),
+			Entry("t3.medium w/ AL2023 AMI", "t3.medium", v1.AMIFamilyAL2023, true),
+			Entry("a1.large w/ Bottlerocket", "a1.large", v1.AMIFamilyBottlerocket, true),
+		)
+	})
 	Context("NetworkInterfaceCompatibility", func() {
 		DescribeTable("should validate network interface compatibility with instance types",
 			func(networkInterfaces []*v1.NetworkInterface, networkInfo *ec2types.NetworkInfo, expected bool) {
@@ -98,12 +114,18 @@ var _ = Describe("CompatibilityTest", func() {
 
 func newMockNodeClass(networkInterfaces []*v1.NetworkInterface) *mockNodeClass {
 	return &mockNodeClass{
+    amiFamily: amiFamily,
 		networkInterfaces: networkInterfaces,
 	}
 }
 
 type mockNodeClass struct {
+  amiFamily string
 	networkInterfaces []*v1.NetworkInterface
+}
+
+func (m mockNodeClass) AMIFamily() string {
+	return m.amiFamily
 }
 
 func (m *mockNodeClass) NetworkInterfaces() []*v1.NetworkInterface {
