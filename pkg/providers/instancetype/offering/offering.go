@@ -33,6 +33,7 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 )
 
@@ -43,6 +44,7 @@ type Provider interface {
 type NodeClass interface {
 	CapacityReservations() []v1.CapacityReservation
 	ZoneInfo() []v1.ZoneInfo
+	AMIFamily() string
 }
 
 type DefaultProvider struct {
@@ -70,17 +72,22 @@ func NewDefaultProvider(
 func (p *DefaultProvider) InjectOfferings(
 	ctx context.Context,
 	instanceTypes []*cloudprovider.InstanceType,
+	instanceTypeInfo map[ec2types.InstanceType]ec2types.InstanceTypeInfo,
 	nodeClass NodeClass,
 	allZones sets.Set[string],
 ) []*cloudprovider.InstanceType {
+	// The argument instanceTypeInfo is a pointer to the instanceTypeInfo mapping owned by the instance type provider.
+	// Functions that call InjectOfferings must have a read lock on this map.
 	subnetZonesToZoneIDs := lo.SliceToMap(nodeClass.ZoneInfo(), func(info v1.ZoneInfo) (string, string) {
 		return info.Zone, info.ZoneID
 	})
 	var its []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
+		info := instanceTypeInfo[ec2types.InstanceType(it.Name)]
 		offerings := p.createOfferings(
 			ctx,
 			it,
+			info,
 			nodeClass,
 			allZones,
 			subnetZonesToZoneIDs,
@@ -103,12 +110,16 @@ func (p *DefaultProvider) InjectOfferings(
 func (p *DefaultProvider) createOfferings(
 	ctx context.Context,
 	it *cloudprovider.InstanceType,
+	info ec2types.InstanceTypeInfo,
 	nodeClass NodeClass,
 	allZones sets.Set[string],
 	subnetZonesToZoneIDs map[string]string,
 ) cloudprovider.Offerings {
 	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
+	// Not all instance types are compatible with the NodeClass.
+	// In the event it is not, we mark the offering as unavailable.
+	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(info, nodeClass)
 
 	// If the sequence number has changed for the unavailable offerings, we know that we can't use the previously cached value
 	lastSeqNum, ok := p.lastUnavailableOfferingsSeqNum.Load(ec2types.InstanceType(it.Name))
@@ -146,7 +157,7 @@ func (p *DefaultProvider) createOfferings(
 						scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpDoesNotExist),
 					),
 					Price:     price,
-					Available: !isUnavailable && hasPrice && itZones.Has(zone),
+					Available: isCompatibleWithNodeClass && !isUnavailable && hasPrice && itZones.Has(zone),
 				}
 				if id, ok := subnetZonesToZoneIDs[zone]; ok {
 					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
@@ -186,7 +197,7 @@ func (p *DefaultProvider) createOfferings(
 				scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpIn, fmt.Sprintf("%t", reservation.Interruptible)),
 			),
 			Price:               price,
-			Available:           reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring,
+			Available:           isCompatibleWithNodeClass && reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring,
 			ReservationCapacity: reservationCapacity,
 		}
 		if id, ok := subnetZonesToZoneIDs[reservation.AvailabilityZone]; ok {
