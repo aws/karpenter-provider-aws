@@ -86,6 +86,53 @@ If you get the error `invalid ownership metadata; label validation error:` while
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+### Upgrading to `1.10.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* In the [getting started guide's cloudformation template]({{<ref "../../docs/reference/cloudformation/#rules">}}), 
+  there is an extra `detail-type` for EventBridge rules to capture Capacity Reservation Instance Interruption warnings. 
+  If you are using interruptible ODCRs, you will need to update your EventBridge rules to add this `detail-type`.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.10.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.10.0
+
+### Upgrading to `1.9.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* The IAM policy in the getting started guide's cloudformation template has been split into 5 policies (addresses
+  [aws/karpenter-provider-aws#7874](https://github.com/aws/karpenter-provider-aws/issues/7874)). If you've taken a
+  dependency on the policy created by this cloudformation template, you will need to update your IAM role to attach all
+  5 policies. There has not been any change to the permissions granted by the policies since 1.8.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.9.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.9.0
+
+
+### Upgrading to `1.8.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+
+Karpenter `v1.8.4` release contains a regression which may prevent Karpenter from scheduling pods with specific TopologySpreadConstraint configurations. Please do not upgrade to this version. For more details, see the following issue: https://github.com/kubernetes-sigs/karpenter/issues/2785
+{{% /alert %}}
+
+* This version adds support for [Static Capacity](https://github.com/kubernetes-sigs/karpenter/pull/2521). Make sure to upgrade your karpenter CRDs to use this feature.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.8.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.8.0
+
 ### Upgrading to `1.7.0`+
 
 {{% alert title="Warning" color="warning" %}}
