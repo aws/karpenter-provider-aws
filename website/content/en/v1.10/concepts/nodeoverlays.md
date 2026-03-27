@@ -36,7 +36,7 @@ spec:
       operator: In
       values: ["spot"]
     - key: karpenter.k8s.aws/instance-cpu 
-      operator: Gt
+      operator: Gte
       values: ["32"]
   
   # Price and priceAdjustment are mutually exclusive
