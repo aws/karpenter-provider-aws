@@ -21,6 +21,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
@@ -32,11 +33,11 @@ func TestCompatibility(t *testing.T) {
 }
 
 var _ = Describe("CompatibilityTest", func() {
-  Context("AMIFamilyCompatibility", func() {
+	Context("AMIFamilyCompatibility", func() {
 		DescribeTable("should handle various instance types across different AMI families",
 			func(instanceType string, amiFamily string, expected bool) {
-				info := makeInstanceTypeInfo(instanceType)
-				nc := newMockNodeClass(amiFamily)
+				info := makeInstanceTypeInfo(instanceType, nil)
+				nc := newMockNodeClass(amiFamily, nil)
 				result := compatibility.IsCompatibleWithNodeClass(info, nc)
 				Expect(result).To(Equal(expected))
 			},
@@ -51,8 +52,8 @@ var _ = Describe("CompatibilityTest", func() {
 	Context("NetworkInterfaceCompatibility", func() {
 		DescribeTable("should validate network interface compatibility with instance types",
 			func(networkInterfaces []*v1.NetworkInterface, networkInfo *ec2types.NetworkInfo, expected bool) {
-				info := makeInstanceTypeInfo(networkInfo)
-				nc := newMockNodeClass(networkInterfaces)
+				info := makeInstanceTypeInfo("", networkInfo)
+				nc := newMockNodeClass(v1.AMIFamilyAL2023, networkInterfaces)
 				result := compatibility.IsCompatibleWithNodeClass(info, nc)
 				Expect(result).To(Equal(expected))
 			},
@@ -112,15 +113,15 @@ var _ = Describe("CompatibilityTest", func() {
 	})
 })
 
-func newMockNodeClass(networkInterfaces []*v1.NetworkInterface) *mockNodeClass {
+func newMockNodeClass(amiFamily string, networkInterfaces []*v1.NetworkInterface) *mockNodeClass {
 	return &mockNodeClass{
-    amiFamily: amiFamily,
+		amiFamily:         amiFamily,
 		networkInterfaces: networkInterfaces,
 	}
 }
 
 type mockNodeClass struct {
-  amiFamily string
+	amiFamily         string
 	networkInterfaces []*v1.NetworkInterface
 }
 
@@ -132,9 +133,9 @@ func (m *mockNodeClass) NetworkInterfaces() []*v1.NetworkInterface {
 	return m.networkInterfaces
 }
 
-func makeInstanceTypeInfo(networkInfo *ec2types.NetworkInfo) ec2types.InstanceTypeInfo {
+func makeInstanceTypeInfo(instanceType string, networkInfo *ec2types.NetworkInfo) ec2types.InstanceTypeInfo {
 	return ec2types.InstanceTypeInfo{
-		InstanceType: ec2types.InstanceTypeM5Large,
+		InstanceType: lo.Ternary(instanceType == "", ec2types.InstanceTypeM5Large, ec2types.InstanceType(instanceType)),
 		ProcessorInfo: &ec2types.ProcessorInfo{
 			SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
 		},

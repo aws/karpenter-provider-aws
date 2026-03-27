@@ -292,7 +292,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			)
 		})
 		Context("NodeClass Filtering", func() {
-      It("should succeed validation using fallback instance types when NodePool requirements are incompatible with NodeClass AMI", func() {
+			It("should succeed validation using fallback instance types when NodePool requirements are incompatible with NodeClass AMI", func() {
 				// AL2023 AMI Family is not compatible with a1 instance family
 				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
@@ -323,7 +323,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				// Verify a fallback instance type is used for valdiation; not a1
 				runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
 				Expect(string(runInstancesInput.InstanceType)).ToNot(HavePrefix("a1"))
-      })
+			})
 			It("should succeed validation using fallback instance types with no NodePools and NodeClass network interface configs", func() {
 				nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
 					{

@@ -3032,7 +3032,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		)
 	})
 	Context("Instance Type and NodeClass Compatibility", func() {
-Context("AMI Compatibility", func() {
+		Context("AMI Compatibility", func() {
 			BeforeEach(func() {
 				awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
 					InstanceTypes: []ec2types.InstanceTypeInfo{

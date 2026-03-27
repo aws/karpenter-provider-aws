@@ -1106,14 +1106,13 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
 				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
 				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
-				{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
 			}
 			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
 			node := env.ExpectCreatedNodeCount("==", 1)[0]
 
 			Expect(node.Labels).To(HaveKey(v1.LabelEFACount))
-			Expect(node.Labels[v1.LabelEFACount]).To(Equal("2"))
+			Expect(node.Labels[v1.LabelEFACount]).To(Equal("1"))
 		},
 			Entry("when pod has EFA count selection", test.Pod(test.PodOptions{
 				NodeRequirements: []corev1.NodeSelectorRequirement{

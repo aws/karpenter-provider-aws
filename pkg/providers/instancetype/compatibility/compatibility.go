@@ -15,9 +15,10 @@ limitations under the License.
 package compatibility
 
 import (
+	"strings"
+
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
-  "strings"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
