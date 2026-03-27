@@ -385,7 +385,7 @@ spec:
 ```
 
 {{% alert title="Note" color="primary" %}}
-The `karpenter.sh/do-not-disrupt` annotation does **not** exclude nodes from the forceful disruption methods: [Expiration]({{<ref "#expiration" >}}), [Interruption]({{<ref "#interruption" >}}), [Node Repair](<ref "#node-repair" >), and manual deletion (e.g. `kubectl delete node ...`).
+The `karpenter.sh/do-not-disrupt` annotation does **not** exclude nodes from the forceful disruption methods: [Expiration]({{<ref "#expiration" >}}), [Interruption]({{<ref "#interruption" >}}), [Node Repair]({{<ref "#node-auto-repair" >}}), and manual deletion (e.g. `kubectl delete node ...`).
 While both interruption and node repair have implicit upper-bounds on termination time, expiration and manual termination do not.
 Manual intervention may be required to unblock node termination, by removing pods with the `karpenter.sh/do-not-disrupt` annotation.
 For this reason, it is not recommended to use the `karpenter.sh/do-not-disrupt` annotation with `expireAfter` **if** you have not also configured `terminationGracePeriod`.
