@@ -27,6 +27,16 @@ import (
 	"github.com/patrickmn/go-cache"
 )
 
+// PlacementGroupScope optionally scopes ICE cache entries to a specific placement group and partition.
+// When set, ICE entries are isolated so that placement-group-specific failures don't block non-PG launches.
+type PlacementGroupScope struct {
+	// ID is the placement group ID (e.g., "pg-0123456789abcdef0")
+	ID string
+	// Partition is the partition number as a string (e.g., "3"). Empty when no specific partition is targeted
+	// or for non-partition placement groups.
+	Partition string
+}
+
 // UnavailableOfferings stores any offerings that return ICE (insufficient capacity errors) when
 // attempting to launch the capacity. These offerings are ignored as long as they are in the cache on
 // GetInstanceTypes responses
@@ -54,8 +64,8 @@ func NewUnavailableOfferings() *UnavailableOfferings {
 	}
 	uo.offeringCache.OnEvicted(func(k string, _ any) {
 		elems := strings.Split(k, ":")
-		if len(elems) != 3 {
-			panic("unavailable offerings cache key is not of expected format <capacity-type>:<instance-type>:<zone>")
+		if len(elems) < 3 || len(elems) > 5 {
+			panic("unavailable offerings cache key is not of expected format <capacity-type>:<instance-type>:<zone>[:<pg-id>[:<partition>]]")
 		}
 		uo.offeringCacheSeqNumMu.Lock()
 		uo.offeringCacheSeqNum[ec2types.InstanceType(elems[1])]++
@@ -79,16 +89,22 @@ func (u *UnavailableOfferings) SeqNum(instanceType ec2types.InstanceType) uint64
 	return v + u.capacityTypeCacheSeqNum.Load() + u.azCacheSeqNum.Load()
 }
 
-// IsUnavailable returns true if the offering appears in the cache
-func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType, zone, capacityType string) bool {
-	_, offeringFound := u.offeringCache.Get(u.key(instanceType, zone, capacityType))
+// IsUnavailable returns true if the offering appears in the cache.
+// The pgScope parameter scopes the lookup so that an ICE from a placement group launch
+// does not incorrectly prevent launches of the same instance type + zone without that placement group.
+// When a partition is specified in the scope, the lookup is further scoped to that partition.
+func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType, zone, capacityType string, pgScope ...PlacementGroupScope) bool {
+	_, offeringFound := u.offeringCache.Get(u.key(instanceType, zone, capacityType, pgScope...))
 	_, capacityTypeFound := u.capacityTypeCache.Get(capacityType)
 	_, azFound := u.azCache.Get(zone)
 	return offeringFound || capacityTypeFound || azFound
 }
 
-// MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
-func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType ec2types.InstanceType, zone, capacityType string, unavailableReason map[string]string) {
+// MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings.
+// The pgScope parameter scopes the cache entry so that placement-group-specific ICEs don't
+// block non-PG launches of the same instance type + zone. When a partition is specified, the cache
+// entry is further scoped so only that partition is marked unavailable.
+func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType ec2types.InstanceType, zone, capacityType string, unavailableReason map[string]string, pgScope ...PlacementGroupScope) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	logValues := []any{
 		"reason", unavailableReason["reason"],
@@ -97,6 +113,12 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType
 		"capacity-type", capacityType,
 		"ttl", UnavailableOfferingsTTL,
 	}
+	if len(pgScope) > 0 && pgScope[0].ID != "" {
+		logValues = append(logValues, "placement-group-id", pgScope[0].ID)
+		if pgScope[0].Partition != "" {
+			logValues = append(logValues, "placement-group-partition", pgScope[0].Partition)
+		}
+	}
 	// Add fleetID if provided
 	key := "fleet-id"
 	_, ok := unavailableReason[key]
@@ -104,7 +126,7 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType
 		logValues = append(logValues, key, unavailableReason[key])
 	}
 	log.FromContext(ctx).WithValues(logValues...).V(1).Info("removing offering from offerings")
-	u.offeringCache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
+	u.offeringCache.SetDefault(u.key(instanceType, zone, capacityType, pgScope...), struct{}{})
 	u.offeringCacheSeqNumMu.Lock()
 	u.offeringCacheSeqNum[instanceType]++
 	u.offeringCacheSeqNumMu.Unlock()
@@ -130,7 +152,16 @@ func (u *UnavailableOfferings) Flush() {
 	u.azCache.Flush()
 }
 
-// key returns the cache key for all offerings in the cache
-func (u *UnavailableOfferings) key(instanceType ec2types.InstanceType, zone string, capacityType string) string {
+// key returns the cache key for all offerings in the cache.
+// When a placement group scope is provided, the PG ID (and optionally partition) is included in the key
+// to scope ICE entries per placement group and partition.
+// Format: <capacityType>:<instanceType>:<zone>[:<pgID>[:<partition>]]
+func (u *UnavailableOfferings) key(instanceType ec2types.InstanceType, zone string, capacityType string, pgScope ...PlacementGroupScope) string {
+	if len(pgScope) > 0 && pgScope[0].ID != "" {
+		if pgScope[0].Partition != "" {
+			return fmt.Sprintf("%s:%s:%s:%s:%s", capacityType, instanceType, zone, pgScope[0].ID, pgScope[0].Partition)
+		}
+		return fmt.Sprintf("%s:%s:%s:%s", capacityType, instanceType, zone, pgScope[0].ID)
+	}
 	return fmt.Sprintf("%s:%s:%s", capacityType, instanceType, zone)
 }

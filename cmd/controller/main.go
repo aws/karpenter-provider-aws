@@ -17,6 +17,7 @@ package main
 import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider/registrationhooks"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers"
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
 
@@ -60,6 +61,7 @@ func main() {
 			overlayUndecoratedCloudProvider,
 			clusterState,
 			op.InstanceTypeStore,
+			corecontrollers.WithRegistrationHook(registrationhooks.NewPlacementGroupRegistrationHook(op.GetClient(), op.InstanceProvider)),
 		)...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,
@@ -84,6 +86,7 @@ func main() {
 			op.VersionProvider,
 			op.InstanceTypesProvider,
 			op.CapacityReservationProvider,
+			op.PlacementGroupProvider,
 			op.AMIResolver,
 		)...).
 		Start(ctx)

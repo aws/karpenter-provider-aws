@@ -57,6 +57,7 @@ type NodeClass interface {
 	AMIs() []v1.AMI
 	BlockDeviceMappings() []*v1.BlockDeviceMapping
 	CapacityReservations() []v1.CapacityReservation
+	PlacementGroups() []v1.PlacementGroup
 	InstanceStorePolicy() *v1.InstanceStorePolicy
 	KubeletConfiguration() *v1.KubeletConfiguration
 	ZoneInfo() []v1.ZoneInfo

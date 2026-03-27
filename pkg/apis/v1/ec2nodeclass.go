@@ -52,6 +52,11 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:MaxItems:=30
 	// +optional
 	CapacityReservationSelectorTerms []CapacityReservationSelectorTerm `json:"capacityReservationSelectorTerms" hash:"ignore"`
+	// PlacementGroupSelector defines the name or the id of the placement to resolve with the nodeclass.
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['name', 'id']",rule="has(self.name) || has(self.id)"
+	// +kubebuilder:validation:XValidation:message="'name' and 'id' are mutually exclusive",rule="!(has(self.name) && has(self.id))"
+	// +optional
+	PlacementGroupSelector *PlacementGroupSelectorTerm `json:"placementGroupSelector,omitempty"`
 	// AssociatePublicIPAddress controls if public IP addresses are assigned to instances that are launched with the nodeclass.
 	// +optional
 	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
@@ -197,6 +202,17 @@ type CapacityReservationSelectorTerm struct {
 	// +kubebuilder:validation:Enum:={open,targeted}
 	// +optional
 	InstanceMatchCriteria string `json:"instanceMatchCriteria,omitempty"`
+}
+
+type PlacementGroupSelectorTerm struct {
+	// Name is the placement group name in EC2
+	// +kubebuilder:validation:MinLength:=1
+	// +optional
+	Name string `json:"name,omitempty"`
+	// ID is the placement group id in EC2
+	// +kubebuilder:validation:Pattern:="^pg-[0-9a-z]+$"
+	// +optional
+	ID string `json:"id,omitempty"`
 }
 
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.

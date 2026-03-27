@@ -31,6 +31,9 @@ const (
 	// updated every minute, but we want to persist the data longer in the event of an EC2 API outage. 24 hours was the
 	// compormise made for API outage reseliency and gargage collecting entries for orphaned reservations.
 	CapacityReservationAvailabilityTTL = 24 * time.Hour
+	// PlacementGroupTTL is the time we will persist cached placement group data. Like capacity reservations, we persist
+	// longer than the reconciliation interval to maintain availability during EC2 API outages.
+	PlacementGroupTTL = 6 * time.Hour
 	// InstanceTypesZonesAndOfferingsTTL is the time before we refresh instance types, zones, and offerings at EC2
 	InstanceTypesZonesAndOfferingsTTL = 5 * time.Minute
 	// InstanceProfileTTL is the time before we refresh checking instance profile existence at IAM

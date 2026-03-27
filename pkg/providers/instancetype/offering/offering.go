@@ -43,6 +43,7 @@ type Provider interface {
 
 type NodeClass interface {
 	CapacityReservations() []v1.CapacityReservation
+	PlacementGroups() []v1.PlacementGroup
 	ZoneInfo() []v1.ZoneInfo
 	AMIFamily() string
 }
@@ -92,6 +93,8 @@ func (p *DefaultProvider) InjectOfferings(
 			allZones,
 			subnetZonesToZoneIDs,
 		)
+		// For partition placement groups, expand each offering into N offerings (one per partition)
+		offerings = p.expandPartitionOfferings(offerings, nodeClass)
 		// NOTE: By making this copy one level deep, we can modify the offerings without mutating the results from previous
 		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and
 		// once in the instance provider (filterReservedInstanceTypes)
@@ -130,6 +133,11 @@ func (p *DefaultProvider) createOfferings(
 	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it)); ok && lastSeqNum == seqNum {
 		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
 	} else {
+		// Resolve the placement group scope for scoping ICE cache lookups
+		var pgScope awscache.PlacementGroupScope
+		if pgs := nodeClass.PlacementGroups(); len(pgs) > 0 {
+			pgScope.ID = pgs[0].ID
+		}
 		var cachedOfferings []*cloudprovider.Offering
 		for zone := range allZones {
 			for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
@@ -137,7 +145,12 @@ func (p *DefaultProvider) createOfferings(
 				if capacityType == karpv1.CapacityTypeReserved {
 					continue
 				}
-				isUnavailable := p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType)
+				var isUnavailable bool
+				if pgScope.ID != "" {
+					isUnavailable = p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType, pgScope)
+				} else {
+					isUnavailable = p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType)
+				}
 				var price float64
 				var hasPrice bool
 				switch capacityType {
@@ -169,43 +182,89 @@ func (p *DefaultProvider) createOfferings(
 		p.lastUnavailableOfferingsSeqNum.Store(ec2types.InstanceType(it.Name), seqNum)
 		offerings = append(offerings, cachedOfferings...)
 	}
-	if !options.FromContext(ctx).FeatureGates.ReservedCapacity {
-		return offerings
+	if options.FromContext(ctx).FeatureGates.ReservedCapacity {
+		capacityReservations := nodeClass.CapacityReservations()
+		for i := range capacityReservations {
+			if capacityReservations[i].InstanceType != it.Name {
+				continue
+			}
+			reservation := &capacityReservations[i]
+			price := 0.0
+			if odPrice, ok := p.pricingProvider.OnDemandPrice(ec2types.InstanceType(it.Name)); ok {
+				// Divide the on-demand price by a sufficiently large constant. This allows us to treat the reservation as "free",
+				// while maintaining relative ordering for consolidation. If the pricing details are unavailable for whatever reason,
+				// still succeed to create the offering and leave the price at zero. This will break consolidation, but will allow
+				// users to utilize the instances they're already paying for.
+				price = odPrice / 10_000_000.0
+			}
+			reservationCapacity := p.capacityReservationProvider.GetAvailableInstanceCount(reservation.ID)
+			offering := &cloudprovider.Offering{
+				Requirements: scheduling.NewRequirements(
+					scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, karpv1.CapacityTypeReserved),
+					scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, reservation.AvailabilityZone),
+					scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpIn, reservation.ID),
+					scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpIn, string(reservation.ReservationType)),
+					scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpIn, fmt.Sprintf("%t", reservation.Interruptible)),
+				),
+				Price:               price,
+				Available:           isCompatibleWithNodeClass && reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring,
+				ReservationCapacity: reservationCapacity,
+			}
+			if id, ok := subnetZonesToZoneIDs[reservation.AvailabilityZone]; ok {
+				offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
+			}
+			offerings = append(offerings, offering)
+		}
 	}
-
-	capacityReservations := nodeClass.CapacityReservations()
-	for i := range capacityReservations {
-		if capacityReservations[i].InstanceType != it.Name {
-			continue
+	// Add placement group ID requirement to all offerings (on-demand, spot, and reserved) when a placement group
+	// is configured. This enables the scheduler to match offerings against NodePool/pod constraints on placement
+	// group membership, and enables drift detection when the EC2NodeClass's placement group changes.
+	if pgs := nodeClass.PlacementGroups(); len(pgs) > 0 {
+		for i, offering := range offerings {
+			// Copy the offering and its requirements before mutating to avoid concurrent map writes
+			// on cached offering objects shared across goroutines.
+			reqs := scheduling.NewRequirements(offering.Requirements.Values()...)
+			reqs.Add(
+				scheduling.NewRequirement(v1.LabelPlacementGroupID, corev1.NodeSelectorOpIn, pgs[0].ID),
+			)
+			offerings[i] = &cloudprovider.Offering{
+				Requirements:        reqs,
+				Price:               offering.Price,
+				Available:           isCompatibleWithNodeClass && offering.Available,
+				ReservationCapacity: offering.ReservationCapacity,
+			}
 		}
-		reservation := &capacityReservations[i]
-		price := 0.0
-		if odPrice, ok := p.pricingProvider.OnDemandPrice(ec2types.InstanceType(it.Name)); ok {
-			// Divide the on-demand price by a sufficiently large constant. This allows us to treat the reservation as "free",
-			// while maintaining relative ordering for consolidation. If the pricing details are unavailable for whatever reason,
-			// still succeed to create the offering and leave the price at zero. This will break consolidation, but will allow
-			// users to utilize the instances they're already paying for.
-			price = odPrice / 10_000_000.0
-		}
-		reservationCapacity := p.capacityReservationProvider.GetAvailableInstanceCount(reservation.ID)
-		offering := &cloudprovider.Offering{
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, karpv1.CapacityTypeReserved),
-				scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, reservation.AvailabilityZone),
-				scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpIn, reservation.ID),
-				scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpIn, string(reservation.ReservationType)),
-				scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpIn, fmt.Sprintf("%t", reservation.Interruptible)),
-			),
-			Price:               price,
-			Available:           isCompatibleWithNodeClass && reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring,
-			ReservationCapacity: reservationCapacity,
-		}
-		if id, ok := subnetZonesToZoneIDs[reservation.AvailabilityZone]; ok {
-			offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
-		}
-		offerings = append(offerings, offering)
 	}
 	return offerings
+}
+
+// expandPartitionOfferings expands each offering into N offerings (one per partition) for partition placement groups.
+// This enables the scheduler to use TopologySpreadConstraints with the partition topology key.
+func (p *DefaultProvider) expandPartitionOfferings(offerings cloudprovider.Offerings, nodeClass NodeClass) cloudprovider.Offerings {
+	pgs := nodeClass.PlacementGroups()
+	if len(pgs) == 0 || pgs[0].Strategy != v1.PlacementGroupStrategyPartition {
+		return offerings
+	}
+	partitionCount := int(pgs[0].PartitionCount)
+	if partitionCount <= 0 {
+		return offerings
+	}
+	var expanded []*cloudprovider.Offering
+	for _, offering := range offerings {
+		// Copy the base offering's requirements and add the partition label
+		reqs := scheduling.NewRequirements(offering.Requirements.Values()...)
+		for partition := 1; partition <= partitionCount; partition++ {
+			// We do this to save on memory
+			reqs[v1.LabelPlacementGroupPartition] = scheduling.NewRequirement(v1.LabelPlacementGroupPartition, corev1.NodeSelectorOpIn, fmt.Sprintf("%d", partition))
+			expanded = append(expanded, &cloudprovider.Offering{
+				Requirements:        reqs,
+				Price:               offering.Price,
+				Available:           offering.Available,
+				ReservationCapacity: offering.ReservationCapacity,
+			})
+		}
+	}
+	return expanded
 }
 
 func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceType) string {
@@ -219,10 +278,22 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		hashstructure.FormatV2,
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
+	placementGroupsHash, _ := hashstructure.Hash(
+		it.Requirements.Get(v1.LabelPlacementGroupID).Values(),
+		hashstructure.FormatV2,
+		&hashstructure.HashOptions{SlicesAsSets: true},
+	)
+	placementGroupPartitionsHash, _ := hashstructure.Hash(
+		it.Requirements.Get(v1.LabelPlacementGroupPartition).Values(),
+		hashstructure.FormatV2,
+		&hashstructure.HashOptions{SlicesAsSets: true},
+	)
 	return fmt.Sprintf(
-		"%s-%016x-%016x",
+		"%s-%016x-%016x-%016x-%016x",
 		it.Name,
 		zonesHash,
 		capacityTypesHash,
+		placementGroupsHash,
+		placementGroupPartitionsHash,
 	)
 }
