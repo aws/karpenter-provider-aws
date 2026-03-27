@@ -28,6 +28,16 @@ const (
 )
 
 var (
+	MissedInterruptionTerminations = opmetrics.NewPrometheusCounter(
+		crmetrics.Registry,
+		prometheus.CounterOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: interruptionSubsystem,
+			Name:      "missed_termination_total",
+			Help:      "Count of instance terminations that were not notified via SQS interruption messages",
+		},
+		[]string{metrics.CapacityTypeLabel},
+	)
 	ReceivedMessages = opmetrics.NewPrometheusCounter(
 		crmetrics.Registry,
 		prometheus.CounterOpts{
