@@ -262,6 +262,27 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 
 // generateNetworkInterfaces generates network interfaces for the launch template.
 func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamily corev1.IPFamily) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+	if len(options.NetworkInterfaces) > 0 {
+		return lo.Map(options.NetworkInterfaces, func(networkInterface *v1.NetworkInterface, _ int) ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+			// Assigning IPPrefixCounts or AssociatePublicIpAddress to EFA-only ENIs results in RunInstances failures w/ InvalidParameterValue
+			typeNotEFAOnly := networkInterface.InterfaceType != v1.InterfaceType(ec2types.NetworkInterfaceTypeEfaOnly)
+			return ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+				NetworkCardIndex: lo.ToPtr(networkInterface.NetworkCardIndex),
+				// Some networking magic to ensure that one network card has higher priority than all the others (important if an instance needs a public IP w/o adding an EIP to every network card)
+				DeviceIndex:     lo.ToPtr(networkInterface.DeviceIndex),
+				InterfaceType:   lo.ToPtr(string(networkInterface.InterfaceType)),
+				Ipv4PrefixCount: lo.Ternary(clusterIPFamily == corev1.IPv4Protocol && typeNotEFAOnly, options.IPPrefixCount, nil),
+				Ipv6PrefixCount: lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, options.IPPrefixCount, nil),
+				Groups:          lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
+				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
+				// with a single ENA network interface, and we should support those use cases. Launch failures with multiple enis as ENA should be considered user misconfiguration.
+				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
+				PrimaryIpv6:              lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, lo.ToPtr(true), nil),
+				Ipv6AddressCount:         lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, lo.ToPtr(int32(1)), nil),
+			}
+		})
+	}
+
 	if options.EFACount != 0 {
 		return lo.Times(options.EFACount, func(i int) ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 			return ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{

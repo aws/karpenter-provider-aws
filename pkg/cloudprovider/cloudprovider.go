@@ -18,6 +18,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -419,10 +420,12 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 			// three. Capacity reservation IDs are a special case since we don't have a way to represent that the label may or
 			// may not exist. Since this requirement will be present regardless of the capacity type, we can't insert it here.
 			// Otherwise, you may end up with spot and on-demand NodeClaims with a reservation ID label.
+			// With EFA count, we should only add it when it is not 0.
 			if req.Len() == 1 && !lo.Contains([]string{
 				cloudprovider.ReservationIDLabel,
 				v1.LabelCapacityReservationType,
 				v1.LabelCapacityReservationInterruptible,
+				v1.LabelEFACount,
 			}, req.Key) {
 				labels[key] = req.Values()[0]
 			}
@@ -431,10 +434,10 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 			if resources.IsZero(v) {
 				return false
 			}
-			// The nodeclaim should only advertise an EFA resource if it was requested. EFA network interfaces are only
-			// added to the launch template if they're requested, otherwise the instance is launched with a normal ENI.
+			// The nodeclaim should only advertise an EFA resource if it was requested by the pod or configured on the NodeClass. EFA network interfaces are
+			// added to the launch template if they're requested or NodeClass network interfaces are configured, otherwise the instance is launched with a normal ENI.
 			if n == v1.ResourceEFA {
-				return i.EFAEnabled
+				return i.EFACount > 0
 			}
 			return true
 		}
@@ -455,6 +458,10 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	}
 	labels[karpv1.CapacityTypeLabelKey] = i.CapacityType
 	labels[v1.LabelInstanceTenancy] = i.Tenancy
+	if i.EFACount > 0 {
+		labels[v1.LabelEFACount] = strconv.Itoa(i.EFACount)
+	}
+
 	if i.CapacityType == karpv1.CapacityTypeReserved {
 		labels[cloudprovider.ReservationIDLabel] = i.CapacityReservationDetails.ID
 		labels[v1.LabelCapacityReservationType] = string(i.CapacityReservationDetails.Type)

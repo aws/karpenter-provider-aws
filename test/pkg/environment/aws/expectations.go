@@ -37,6 +37,8 @@ import (
 
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -764,4 +766,81 @@ func (env *Environment) ExpectNodeRoleDeleted(roleName string) {
 		RoleName: aws.String(roleName),
 	})
 	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
+}
+
+func (env *Environment) ExpectEFADevicePluginCreated() {
+	GinkgoHelper()
+	env.ExpectCreated(&appsv1.DaemonSet{
+		ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{
+			Name:      "aws-efa-k8s-device-plugin-daemonset",
+			Namespace: "kube-system",
+		}),
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"name": "aws-efa-k8s-device-plugin",
+				},
+			},
+			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
+				Type: appsv1.RollingUpdateDaemonSetStrategyType,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"scheduler.alpha.kubernetes.io/critical-pod": "",
+					},
+					Labels: map[string]string{
+						"name": "aws-efa-k8s-device-plugin",
+					},
+				}),
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"aws.amazon.com/efa": "true",
+					},
+					Tolerations: []corev1.Toleration{
+						{
+							Key:      "CriticalAddonsOnly",
+							Operator: corev1.TolerationOpExists,
+						},
+						{
+							Key:      "aws.amazon.com/efa",
+							Operator: corev1.TolerationOpExists,
+							Effect:   corev1.TaintEffectNoSchedule,
+						},
+					},
+					PriorityClassName: "system-node-critical",
+					HostNetwork:       true,
+					Containers: []corev1.Container{
+						{
+							Name:  "aws-efea-k8s-device-plugin",
+							Image: "602401143452.dkr.ecr.us-west-2.amazonaws.com/eks/aws-efa-k8s-device-plugin:v0.3.3",
+							SecurityContext: &corev1.SecurityContext{
+								AllowPrivilegeEscalation: lo.ToPtr(false),
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
+								},
+								RunAsNonRoot: lo.ToPtr(false),
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "device-plugin",
+									MountPath: "/var/lib/kubelet/device-plugins",
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "device-plugin",
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: "/var/lib/kubelet/device-plugins",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
 }

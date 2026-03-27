@@ -348,13 +348,8 @@ func getRunInstancesInput(
 			LaunchTemplateName: lo.ToPtr(launchTemplate.Name),
 			Version:            lo.ToPtr("$Latest"),
 		},
-		InstanceType: ec2types.InstanceType(launchTemplate.InstanceTypes[0].Name),
-		NetworkInterfaces: []ec2types.InstanceNetworkInterfaceSpecification{
-			{
-				DeviceIndex: lo.ToPtr[int32](0),
-				SubnetId:    lo.ToPtr(nodeClass.Status.Subnets[0].ID),
-			},
-		},
+		InstanceType:      ec2types.InstanceType(launchTemplate.InstanceTypes[0].Name),
+		NetworkInterfaces: getNetworkInterfacesInput(nodeClass),
 		TagSpecifications: []ec2types.TagSpecification{
 			{
 				ResourceType: ec2types.ResourceTypeInstance,
@@ -511,4 +506,24 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 	}
 
 	return selectedInstanceTypes
+}
+
+func getNetworkInterfacesInput(nodeClass *v1.EC2NodeClass) []ec2types.InstanceNetworkInterfaceSpecification {
+	defaultInterface := []ec2types.InstanceNetworkInterfaceSpecification{
+		{
+			DeviceIndex: lo.ToPtr[int32](0),
+			SubnetId:    lo.ToPtr(nodeClass.Status.Subnets[0].ID),
+		},
+	}
+	networkInterfaces := lo.Ternary(nodeClass.NetworkInterfaces() == nil,
+		defaultInterface,
+		lo.Map(nodeClass.NetworkInterfaces(), func(networkInterface *v1.NetworkInterface, _ int) ec2types.InstanceNetworkInterfaceSpecification {
+			return ec2types.InstanceNetworkInterfaceSpecification{
+				NetworkCardIndex: lo.ToPtr(networkInterface.NetworkCardIndex),
+				DeviceIndex:      lo.ToPtr(networkInterface.DeviceIndex),
+				InterfaceType:    lo.ToPtr(string(networkInterface.InterfaceType)),
+				SubnetId:         lo.ToPtr(nodeClass.Status.Subnets[0].ID),
+			}
+		}))
+	return networkInterfaces
 }

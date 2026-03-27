@@ -141,6 +141,15 @@ spec:
         snapshotID: snap-0123456789
         volumeInitializationRate: 100
 
+  # Optional, configures the network interfaces for the instance
+  networkInterfaces:
+    - networkCardIndex: 0
+      deviceIndex: 0
+      interfaceType: "interface"
+    - networkCardIndex: 0
+      deviceIndex: 1
+      interfaceType: "interface"
+
   # Optional, use instance-store volumes for node ephemeral-storage
   instanceStorePolicy: RAID0
 
@@ -1081,6 +1090,32 @@ spec:
 ### Custom
 
 The `Custom` AMIFamily ships without any default `blockDeviceMappings`.
+
+## spec.networkInterfaces
+
+The `networkInterfaces` field allows you to configure network interface attachments for instances, including support for EFA (Elastic Fabric Adapter) devices for high-performance computing and machine learning workloads. For more information see the [AWS EFA docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html).
+
+Configure network interfaces by specifying the network card index, device index, and interface type:
+
+```yaml
+spec:
+  networkInterfaces:
+    - networkCardIndex: 0
+      deviceIndex: 0
+      interfaceType: "interface"
+    - networkCardIndex: 0
+      deviceIndex: 1
+      interfaceType: "efa-only"
+```
+
+### Interface Types
+
+- __interface__: Standard ENA (Elastic Network Adapter) interface providing IP connectivity
+- __efa-only__: EFA interface that provides only the EFA device for RDMA communication without consuming an IP address
+
+### Labels and Dynamic EFA Provisioning
+
+When instances are launched with network interfaces configured, Karpenter applies the `karpenter.k8s.aws/instance-efa-count` label to the node, indicating the total number of EFA devices available on the instance. The presence of this label triggers Karpenter's dynamic EFA provisioning path (if NodeClass network interfaces are not configured). For instance, if a pod specifies node affinity with `karpenter.k8s.aws/instance-efa-count` greater than 0 and no network interface configuration is specified on the EC2NodeClass, Karpenter will launch instances with all EFA devices configured.
 
 ## spec.instanceStorePolicy
 
