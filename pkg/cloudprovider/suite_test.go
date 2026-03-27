@@ -43,6 +43,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -1516,5 +1517,45 @@ var _ = Describe("CloudProvider", func() {
 			Entry("when the capacity reservation type is default interruptible", v1.CapacityReservationTypeDefault, true),
 			Entry("when the capacity reservation type is capacity-block", v1.CapacityReservationTypeCapacityBlock, false),
 		)
+	})
+	Context("Interruption Metric Tracking", func() {
+		It("should increment MissedInterruptionTerminations metric depending on interruption annotation", func() {
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					Key:      karpv1.CapacityTypeLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.CapacityTypeSpot},
+				},
+			}
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				MaxPods: aws.Int32(1),
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			for range 2 {
+				pod := coretest.UnschedulablePod()
+				ExpectApplied(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+			}
+			ncs := ExpectNodeClaims(ctx, env.Client)
+			Expect(ncs).To(HaveLen(2))
+
+			// add annotation to only 1 nodeclaim
+			ncs[0].Annotations = lo.Assign(ncs[0].Annotations, map[string]string{
+				v1.AnnotationInstanceInterrupted: "true",
+			})
+			ExpectApplied(ctx, env.Client, ncs[0])
+
+			// mock underlying instance as already terminated
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+				Reservations: []ec2types.Reservation{},
+			})
+			err1 := cloudProvider.Delete(ctx, ncs[0])
+			err2 := cloudProvider.Delete(ctx, ncs[1])
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(err1)).To(BeTrue())
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(err2)).To(BeTrue())
+			// one nodeclaim did not have the interrupted annotation
+			ExpectMetricCounterValue(interruption.MissedInterruptionTerminations, 1, map[string]string{"capacity_type": karpv1.CapacityTypeSpot})
+		})
 	})
 })
