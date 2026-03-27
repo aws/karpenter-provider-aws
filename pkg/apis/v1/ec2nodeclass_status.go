@@ -77,6 +77,12 @@ type AMI struct {
 	// Requirements of the AMI to be utilized on an instance type
 	// +required
 	Requirements []corev1.NodeSelectorRequirement `json:"requirements"`
+	// RootDeviceName is the device name of the root volume (/dev/xvda)
+	// +optional
+	RootDeviceName string `json:"rootDeviceName,omitempty"`
+	// RootDeviceSnapshotID is the snapshot ID of the AMI's root device
+	// +optional
+	RootDeviceSnapshotID string `json:"rootDeviceSnapshotID,omitempty"`
 }
 
 type CapacityReservation struct {
