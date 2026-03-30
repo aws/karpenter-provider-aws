@@ -112,6 +112,8 @@ This label serves two primary purposes:
 
 2. __Triggers EFA provisioning__ - The presence of this label triggers Karpenter's dynamic EFA provisioning path (if NodeClass network interfaces are not configured). For instance, if a pod specifies node affinity with `karpenter.k8s.aws/instance-efa-count` greater than 0 and no network interface configuration is specified on the EC2NodeClass, Karpenter will launch instances with all EFA devices configured.
 
+The `karpenter.k8s.aws/instance-efa-count` label differs from the currently supported `vpc.amazonaws.com/efa` resource as it can be used as a scheduling label, while `vpc.amazonaws.com/efa` is a pod level resource request.
+
 ## Scheduling and Launch Behavior
 
 ### Network Interface Configuration and Instance Filtering

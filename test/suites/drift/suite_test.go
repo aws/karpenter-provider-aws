@@ -308,7 +308,6 @@ var _ = Describe("Drift", Ordered, func() {
 		Entry("NetworkInterfaces", v1.EC2NodeClassSpec{
 			NetworkInterfaces: []*v1.NetworkInterface{
 				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
-				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
 			},
 		}),
 	)

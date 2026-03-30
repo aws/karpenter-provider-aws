@@ -1409,7 +1409,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1.ResourceEFA))
 			Expect(cloudProviderNodeClaim.Labels).To(HaveKey(v1.LabelEFACount))
 		})
-		It("shouldn't include vpc.amazonaws.com/efa on a nodeclaim if it doesn't request it", func() { // FAILS
+		It("shouldn't include vpc.amazonaws.com/efa on a nodeclaim if it doesn't request it", func() {
 			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
 					Key:      corev1.LabelInstanceTypeStable,
