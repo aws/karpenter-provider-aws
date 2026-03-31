@@ -1273,6 +1273,11 @@ var _ = Describe("CEL/Validation", func() {
 				{
 					NetworkCardIndex: 1,
 					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      1,
 					InterfaceType:    v1.InterfaceTypeInterface,
 				},
 			}
@@ -1362,6 +1367,26 @@ var _ = Describe("CEL/Validation", func() {
 				{
 					NetworkCardIndex: 0,
 					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when multiple EFA devices on one network card", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      1,
 					InterfaceType:    v1.InterfaceTypeEFAOnly,
 				},
 			}

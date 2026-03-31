@@ -123,6 +123,7 @@ type EC2NodeClassSpec struct {
 	// NetworkInterfaces specifies the network interface configurations to be attached to provisioned instances.
 	// +kubebuilder:validation:XValidation:message="networkInterfaces must not have duplicate networkCardIndex and deviceIndex pairs",rule="self.all(x, self.filter(y, x.networkCardIndex == y.networkCardIndex && x.deviceIndex == y.deviceIndex).size() == 1)"
 	// +kubebuilder:validation:XValidation:message="networkInterfaces must include a primary interface with interfaceType='interface'",rule="self.size() == 0 || self.exists(x, x.deviceIndex == 0 && x.networkCardIndex == 0 && x.interfaceType == 'interface')"
+	// +kubebuilder:validation:XValidation:message="networkInterfaces can have at most one efa device per network card",rule="self.filter(x, x.interfaceType == 'efa-only').all(x, self.filter(y, x.networkCardIndex == y.networkCardIndex && y.interfaceType == 'efa-only').size() == 1)"
 	// +kubebuilder:validation:MaxItems:=150
 	// +optional
 	NetworkInterfaces []*NetworkInterface `json:"networkInterfaces,omitempty"`

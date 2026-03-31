@@ -570,12 +570,7 @@ func (p *DefaultProvider) getEFACountForInstance(
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 ) int {
-	if nodeClass.NetworkInterfaces() != nil {
-		return lo.CountBy(nodeClass.NetworkInterfaces(), func(nic *v1.NetworkInterface) bool {
-			return nic.InterfaceType == v1.InterfaceTypeEFAOnly
-		})
-	}
-	if found := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA); !found {
+	if found := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA); !found && nodeClass.NetworkInterfaces() == nil {
 		return 0
 	}
 	for _, it := range instanceTypes {

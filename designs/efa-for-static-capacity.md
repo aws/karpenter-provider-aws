@@ -91,9 +91,11 @@ spec:
   - networkCardIndex: int
     deviceIndex: int
     interfaceType: interface | efa-only
-  # CEL validation ensures the primary network interface must be configured with interfaceType "interface" (or ENA).
-  # CEL validation also ensures that there are no duplicate network card and device index configurations.
-  # CEL validation also ensures that both deviceIndex and networkCardIndex are non-negative.
+  # CEL validation ensures following:
+  # (1) the primary network interface must be configured with interfaceType "interface" (or ENA)
+  # (2) there are no duplicate network card and device index configurations
+  # (3) both deviceIndex and networkCardIndex are non-negative
+  # (4) there is only 1 EFA device per network card
 ```
 
 This API closely follows how [NetworkInterfaces](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ec2-launchtemplate-networkinterface.html) in the launch template are configured.

@@ -268,12 +268,11 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 			typeNotEFAOnly := networkInterface.InterfaceType != v1.InterfaceType(ec2types.NetworkInterfaceTypeEfaOnly)
 			return ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 				NetworkCardIndex: lo.ToPtr(networkInterface.NetworkCardIndex),
-				// Some networking magic to ensure that one network card has higher priority than all the others (important if an instance needs a public IP w/o adding an EIP to every network card)
-				DeviceIndex:     lo.ToPtr(networkInterface.DeviceIndex),
-				InterfaceType:   lo.ToPtr(string(networkInterface.InterfaceType)),
-				Ipv4PrefixCount: lo.Ternary(clusterIPFamily == corev1.IPv4Protocol && typeNotEFAOnly, options.IPPrefixCount, nil),
-				Ipv6PrefixCount: lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, options.IPPrefixCount, nil),
-				Groups:          lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
+				DeviceIndex:      lo.ToPtr(networkInterface.DeviceIndex),
+				InterfaceType:    lo.ToPtr(string(networkInterface.InterfaceType)),
+				Ipv4PrefixCount:  lo.Ternary(clusterIPFamily == corev1.IPv4Protocol && typeNotEFAOnly, options.IPPrefixCount, nil),
+				Ipv6PrefixCount:  lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, options.IPPrefixCount, nil),
+				Groups:           lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
 				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
 				// with a single ENA network interface, and we should support those use cases. Launch failures with multiple enis as ENA should be considered user misconfiguration.
 				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
