@@ -273,26 +273,38 @@ func (v *Validation) validateRunInstancesAuthorization(
 	tags map[string]string,
 	launchTemplate *launchtemplate.LaunchTemplate,
 ) (result reconcile.Result, err error) {
-	runInstancesInput := getRunInstancesInput(nodeClass, tags, launchTemplate)
-	// Adding NopRetryer to avoid aggressive retry when rate limited
-	if _, err = v.ec2api.RunInstances(ctx, runInstancesInput, func(o *ec2.Options) {
-		o.Retryer = aws.NopRetryer{}
-	}); awserrors.IgnoreDryRunError(err) != nil {
-		// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
-		// this means there is most likely an eventual consistency issue and we just need to requeue
-		if awserrors.IsInstanceProfileNotFound(err) || awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
-			return reconcile.Result{Requeue: true}, nil
+	// We use the first subnet's error to determine the outcome. Mixed-error scenarios across subnets
+	// are unlikely in practice since authorization policies are not subnet-specific, and transient
+	// failures on individual subnets are already handled by the early-exit-on-success pattern.
+	var firstSubnetErr error
+	for i, subnet := range nodeClass.Status.Subnets {
+		runInstancesInput := getRunInstancesInput(tags, launchTemplate, &subnet)
+		if _, err = v.ec2api.RunInstances(ctx, runInstancesInput, func(o *ec2.Options) {
+			// Adding NopRetryer to avoid aggressive retry when rate limited
+			o.Retryer = aws.NopRetryer{}
+		}); awserrors.IgnoreDryRunError(err) != nil {
+			if i == 0 {
+				firstSubnetErr = err
+			}
+		} else {
+			// if any of them succeed, we can exit early
+			return reconcile.Result{}, nil
 		}
-		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
-			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
-			// it would be an unexpected state
-			return reconcile.Result{}, fmt.Errorf("validating ec2:RunInstances authorization, %w", err)
-		}
-		log.FromContext(ctx).Error(err, "unauthorized to call ec2:RunInstances")
-		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesAuthFailed)
-		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
-	return reconcile.Result{}, nil
+
+	// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
+	// this means there is most likely an eventual consistency issue and we just need to requeue
+	if awserrors.IsInstanceProfileNotFound(firstSubnetErr) || awserrors.IsRateLimitedError(firstSubnetErr) || awserrors.IsServerError(firstSubnetErr) {
+		return reconcile.Result{Requeue: true}, nil
+	}
+	if awserrors.IgnoreUnauthorizedOperationError(firstSubnetErr) != nil {
+		// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
+		// it would be an unexpected state
+		return reconcile.Result{}, fmt.Errorf("validating ec2:RunInstances authorization, %w", firstSubnetErr)
+	}
+	log.FromContext(ctx).Error(firstSubnetErr, "unauthorized to call ec2:RunInstances")
+	v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesAuthFailed)
+	return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 }
 
 func (*Validation) requiredConditions() []string {
@@ -336,9 +348,9 @@ func (v *Validation) clearCacheEntries(nodeClass *v1.EC2NodeClass) {
 }
 
 func getRunInstancesInput(
-	nodeClass *v1.EC2NodeClass,
 	tags map[string]string,
 	launchTemplate *launchtemplate.LaunchTemplate,
+	subnet *v1.Subnet,
 ) *ec2.RunInstancesInput {
 	return &ec2.RunInstancesInput{
 		DryRun:   lo.ToPtr(true),
@@ -352,7 +364,7 @@ func getRunInstancesInput(
 		NetworkInterfaces: []ec2types.InstanceNetworkInterfaceSpecification{
 			{
 				DeviceIndex: lo.ToPtr[int32](0),
-				SubnetId:    lo.ToPtr(nodeClass.Status.Subnets[0].ID),
+				SubnetId:    lo.ToPtr(subnet.ID),
 			},
 		},
 		TagSpecifications: []ec2types.TagSpecification{
