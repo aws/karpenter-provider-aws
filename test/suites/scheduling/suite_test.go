@@ -1061,7 +1061,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			})
 			Expect(found).To(Equal(true))
 
-			Expect(networkInterface.InterfaceType).To(Equal(
+			Expect(lo.FromPtr(networkInterface.InterfaceType)).To(Equal(
 				lo.Ternary(deviceIndex == 0, string(ec2types.NetworkInterfaceTypeInterface), string(ec2types.NetworkInterfaceTypeEfaOnly)),
 			))
 		}
