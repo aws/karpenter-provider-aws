@@ -57,7 +57,7 @@ var _ = Describe("CEL/Validation", func() {
 	Context("Requirements", func() {
 		It("should allow well known label exceptions", func() {
 			oldNodePool := nodePool.DeepCopy()
-			for label := range karpv1.WellKnownLabels.Difference(sets.New(karpv1.NodePoolLabelKey, karpv1.CapacityTypeLabelKey, v1.LabelInstanceTenancy, v1.LabelEFACount)) {
+			for label := range karpv1.WellKnownLabels.Difference(sets.New(karpv1.NodePoolLabelKey, karpv1.CapacityTypeLabelKey, v1.LabelInstanceTenancy)) {
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{Key: label, Operator: corev1.NodeSelectorOpIn, Values: []string{"test"}},
 				}
@@ -145,7 +145,7 @@ var _ = Describe("CEL/Validation", func() {
 	Context("Labels", func() {
 		It("should allow well known label exceptions", func() {
 			oldNodePool := nodePool.DeepCopy()
-			for label := range karpv1.WellKnownLabels.Difference(sets.New(karpv1.NodePoolLabelKey, v1.LabelEFACount)) {
+			for label := range karpv1.WellKnownLabels.Difference(sets.New(karpv1.NodePoolLabelKey)) {
 				nodePool.Spec.Template.Labels = map[string]string{
 					label: "test",
 				}

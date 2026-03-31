@@ -58,7 +58,6 @@ func init() {
 		LabelTopologyZoneID,
 		LabelInstanceTenancy,
 		corev1.LabelWindowsBuild,
-		LabelEFACount,
 	)
 
 	karpv1.WellKnownValuesForRequirements[LabelInstanceTenancy] = sets.New(string(ec2types.TenancyDedicated), string(ec2types.TenancyDefault))
@@ -164,7 +163,6 @@ var (
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
 	LabelNodeClass                            = apis.Group + "/ec2nodeclass"
 	LabelInstanceTenancy                      = apis.Group + "/instance-tenancy"
-	LabelEFACount                             = apis.Group + "/instance-efa-count"
 
 	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
 

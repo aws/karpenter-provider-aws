@@ -1407,7 +1407,10 @@ var _ = Describe("CloudProvider", func() {
 			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 			Expect(err).To(BeNil())
 			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1.ResourceEFA))
-			Expect(cloudProviderNodeClaim.Labels).To(HaveKey(v1.LabelEFACount))
+
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			ltInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			ExpectLaunchTemplateNetworkInterfaces(ltInput, true, []*v1.NetworkInterface{})
 		})
 		It("shouldn't include vpc.amazonaws.com/efa on a nodeclaim if it doesn't request it", func() {
 			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
@@ -1421,7 +1424,6 @@ var _ = Describe("CloudProvider", func() {
 			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 			Expect(err).To(BeNil())
 			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).ToNot(ContainElement(v1.ResourceEFA))
-			Expect(cloudProviderNodeClaim.Labels).ToNot(HaveKey(v1.LabelEFACount))
 		})
 		It("should include vpc.amazonaws.com/efa on a nodeclaim if nodeclass configured with EFA-only interfaces", func() {
 			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
@@ -1447,7 +1449,10 @@ var _ = Describe("CloudProvider", func() {
 			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 			Expect(err).To(BeNil())
 			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1.ResourceEFA))
-			Expect(cloudProviderNodeClaim.Labels).To(HaveKeyWithValue(v1.LabelEFACount, "1"))
+
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			ltInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			ExpectLaunchTemplateNetworkInterfaces(ltInput, false, nodeClass.Spec.NetworkInterfaces)
 		})
 		It("should not include vpc.amazonaws.com/efa on a nodeclaim if nodeclass configured with only interface (ENA) network interfaces", func() {
 			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
@@ -1473,42 +1478,11 @@ var _ = Describe("CloudProvider", func() {
 			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 			Expect(err).To(BeNil())
 			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).ToNot(ContainElement(v1.ResourceEFA))
-			Expect(cloudProviderNodeClaim.Labels).ToNot(HaveKey(v1.LabelEFACount))
-		})
-		DescribeTable("should handle LabelEFACount based on NodeClaim requirements",
-			func(efaRequirement *karpv1.NodeSelectorRequirementWithMinValues, efaExpected bool) {
-				nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
-					{
-						Key:      corev1.LabelInstanceTypeStable,
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"dl1.24xlarge"},
-					},
-				}
-				if efaRequirement != nil {
-					nodeClaim.Spec.Requirements = append(nodeClaim.Spec.Requirements, *efaRequirement)
-				}
-				ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
-				cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
-				Expect(err).To(BeNil())
 
-				if efaExpected {
-					Expect(cloudProviderNodeClaim.Labels).To(HaveKey(v1.LabelEFACount))
-					Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1.ResourceEFA))
-				} else {
-					Expect(cloudProviderNodeClaim.Labels).ToNot(HaveKey(v1.LabelEFACount))
-					Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).ToNot(ContainElement(v1.ResourceEFA))
-				}
-			},
-			Entry("with Gt 0 requirement",
-				&karpv1.NodeSelectorRequirementWithMinValues{Key: v1.LabelEFACount, Operator: corev1.NodeSelectorOpGt, Values: []string{"0"}}, true),
-			Entry("with In ['1', '4'] requirement",
-				&karpv1.NodeSelectorRequirementWithMinValues{Key: v1.LabelEFACount, Operator: corev1.NodeSelectorOpIn, Values: []string{"1", "4"}}, true),
-			Entry("with In ['0', '1'] requirement",
-				&karpv1.NodeSelectorRequirementWithMinValues{Key: v1.LabelEFACount, Operator: corev1.NodeSelectorOpIn, Values: []string{"0", "1"}}, false),
-			Entry("with Exists requirement",
-				&karpv1.NodeSelectorRequirementWithMinValues{Key: v1.LabelEFACount, Operator: corev1.NodeSelectorOpExists}, false),
-			Entry("with no EFA requirement", nil, false),
-		)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			ltInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			ExpectLaunchTemplateNetworkInterfaces(ltInput, false, nodeClass.Spec.NetworkInterfaces)
+		})
 	})
 	Context("Capacity Reservations", func() {
 		const reservationCapacity = 10
@@ -1606,3 +1580,29 @@ var _ = Describe("CloudProvider", func() {
 		)
 	})
 })
+
+func ExpectLaunchTemplateNetworkInterfaces(ltInput *ec2.CreateLaunchTemplateInput, allEFA bool, expectedNetworkInterfaces []*v1.NetworkInterface) {
+	GinkgoHelper()
+
+	actualNetworkInterfaces := ltInput.LaunchTemplateData.NetworkInterfaces
+
+	if allEFA {
+		for _, actualNetworkInterface := range actualNetworkInterfaces {
+			Expect(actualNetworkInterface.InterfaceType).To(Not(BeNil()))
+			Expect(lo.FromPtr(actualNetworkInterface.InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
+		}
+		return
+	}
+
+	Expect(actualNetworkInterfaces).To(HaveLen(len(expectedNetworkInterfaces)))
+
+	for _, expected := range expectedNetworkInterfaces {
+		actualNetworkInterface, found := lo.Find(actualNetworkInterfaces, func(i ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest) bool {
+			return lo.FromPtr(i.NetworkCardIndex) == lo.FromPtr(expected).NetworkCardIndex && lo.FromPtr(i.DeviceIndex) == lo.FromPtr(expected).DeviceIndex
+		})
+		Expect(found).To(BeTrue(), fmt.Sprintf("network interface with NetworkCardIndex=%d DeviceIndex=%d not found",
+			lo.FromPtr(expected).NetworkCardIndex, lo.FromPtr(expected).DeviceIndex))
+		Expect(actualNetworkInterface.InterfaceType).To(Not(BeNil()))
+		Expect(lo.FromPtr(actualNetworkInterface.InterfaceType)).To(Equal(string(lo.FromPtr(expected).InterfaceType)))
+	}
+}

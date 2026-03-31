@@ -144,7 +144,7 @@ func NewInstanceType(
 	amiFamily := amifamily.GetAMIFamily(amiFamilyType, &amifamily.Options{})
 	it := &cloudprovider.InstanceType{
 		Name:         string(info.InstanceType),
-		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, capacityReservations, networkInterfaces),
+		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, capacityReservations),
 		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, networkInterfaces, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved: kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead,
@@ -167,7 +167,6 @@ func computeRequirements(
 	subnetZoneInfo []v1.ZoneInfo,
 	amiFamily amifamily.AMIFamily,
 	capacityReservations []v1.CapacityReservation,
-	networkInterfaces []*v1.NetworkInterface,
 ) scheduling.Requirements {
 	capacityTypes := lo.FilterMap(info.SupportedUsageClasses, func(uc ec2types.UsageClassType, _ int) (string, bool) {
 		if uc != ec2types.UsageClassTypeOnDemand && uc != ec2types.UsageClassTypeSpot {
@@ -307,18 +306,6 @@ func computeRequirements(
 	if info.EbsInfo != nil && info.EbsInfo.EbsOptimizedInfo != nil && info.EbsInfo.EbsOptimizedSupport == ec2types.EbsOptimizedSupportDefault {
 		requirements.Get(v1.LabelInstanceEBSBandwidth).Insert(fmt.Sprint(lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.MaximumBandwidthInMbps)))
 	}
-	// EFA Labels
-	// we add the exact EFA requirement when the NodeClass is configured with EFA-only network interfaces
-	// otherwise the Node could be launched with either the maximium EFA configured or none
-	maxEFAs := efas(info, networkInterfaces).Value()
-	efaValues := lo.Ternary(networkInterfaces != nil,
-		[]string{fmt.Sprint(maxEFAs)},
-		lo.Ternary(maxEFAs > 0,
-			[]string{"0", fmt.Sprint(maxEFAs)},
-			[]string{"0"},
-		),
-	)
-	requirements.Add(scheduling.NewRequirement(v1.LabelEFACount, corev1.NodeSelectorOpIn, efaValues...))
 
 	return requirements
 }

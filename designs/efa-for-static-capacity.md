@@ -10,7 +10,6 @@ This document proposes adding support for launch static capacity with EFA device
     * [Non-Goals](#non-goals)
     * [Network Interface Configuration](#network-interface-configuration)
         + [EC2NodeClass API](#ec2nodeclass-api)
-        + [Labels](#labels)
     * [Scheduling and Launch Behavior](#scheduling-and-launch-behavior)
         + [Network Interface Configuration and Instance Filtering](#network-interface-configuration-and-instance-filtering)
         + [EFA Resource Request Handling](#efa-resource-request-handling)
@@ -19,6 +18,7 @@ This document proposes adding support for launch static capacity with EFA device
     * [Drift](#drift)
     * [Appendix](#appendix)
         + [Other Design Considerations - InterfacePolicy](#other-design-considerations---interfacepolicy)
+        + [EFA Count Label](#efa-count-label)
 
 ## Overview
 In AWS [EFA](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html) is critical for Machine Learning training and High Performance Computing workloads requiring high-performance inter-node communication. Currently Karpenter provides a way to configure EFA launches with dynamic capacity, through `vpc.amazonaws.com/efa` requests on pods, but no way to do so for static capacity.
@@ -98,22 +98,6 @@ spec:
 
 This API closely follows how [NetworkInterfaces](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ec2-launchtemplate-networkinterface.html) in the launch template are configured.
 
-### Labels
-
-When Karpenter launches an instance with EFA devices, it will apply the following well-known labels to the Node/NodeClaim:
-
-| Label | Values | Description |
-|-------|--------|-------------|
-| `karpenter.k8s.aws/instance-efa-count` | int (e.g., `32`) | Identifies the number of EFA devices the node is launched with. |
-
-This label serves two primary purposes:
-
-1. __Informative labeling__ - Provides visibility into the EFA device count configured on the instance at launch time.
-
-2. __Triggers EFA provisioning__ - The presence of this label triggers Karpenter's dynamic EFA provisioning path (if NodeClass network interfaces are not configured). For instance, if a pod specifies node affinity with `karpenter.k8s.aws/instance-efa-count` greater than 0 and no network interface configuration is specified on the EC2NodeClass, Karpenter will launch instances with all EFA devices configured.
-
-The `karpenter.k8s.aws/instance-efa-count` label differs from the currently supported `vpc.amazonaws.com/efa` resource as it can be used as a scheduling label, while `vpc.amazonaws.com/efa` is a pod level resource request.
-
 ## Scheduling and Launch Behavior
 
 ### Network Interface Configuration and Instance Filtering
@@ -122,9 +106,7 @@ When network interfaces are configured on the EC2NodeClass, any instances launch
 
 ### EFA Resource Request Handling
 
-If a pod requests the EFA resource `vpc.amazonaws.com/efa` or uses the scheduling label `karpenter.k8s.aws/instance-efa-count` without an EC2NodeClass network interface configuration, Karpenter will maintain current dynamic provisioning behavior by maximizing the EFA devices configured for the instance.
-
-If the EFA resource or label is used with an EC2NodeClass network interface configuration, Karpenter will validate compatibility (e.g., the requested `karpenter.k8s.aws/instance-efa-count` cannot exceed the count configured in the EC2NodeClass). If compatible, Karpenter launches the instance with the configuration specified in the EC2NodeClass.
+If a pod requests the EFA resource `vpc.amazonaws.com/efa` without an EC2NodeClass network interface configuration, Karpenter will maintain current dynamic provisioning behavior by maximizing the EFA devices configured for the instance. If the EFA resource is used with an EC2NodeClass network interface configuration, Karpenter will validate compatibility and if compatible, Karpenter launches the instance with the configuration specified in the EC2NodeClass.
 
 ### Max Pods Calculation
 
@@ -167,3 +149,21 @@ An `interfacePolicy` of `bandwidthOptimized` results in instance launches with a
 An `interfacePolicy` of `ipOptimized` results in the primary network interface (DI=0, NC=0) as ENA and EFA-only for for the rest of the network cards (as well as NC=0, DI=1 if supported).
 
 With the decided approach of network card granular configurations, we can still support this `interfacePolicy` configuration later on.
+
+### EFA Count Label
+
+The idea this label is as follows. When Karpenter launches an instance with EFA devices, it will apply the following well-known labels to the Node/NodeClaim:
+
+| Label | Values | Description |
+|-------|--------|-------------|
+| `karpenter.k8s.aws/instance-efa-count` | int (e.g., `32`) | Identifies the number of EFA devices the node is launched with. |
+
+This label serves two primary purposes:
+
+1. __Informative labeling__ - Provides visibility into the EFA device count configured on the instance at launch time.
+
+2. __Triggers EFA provisioning__ - The presence of this label triggers Karpenter's dynamic EFA provisioning path (if NodeClass network interfaces are not configured). For instance, if a pod specifies node affinity with `karpenter.k8s.aws/instance-efa-count` greater than 0 and no network interface configuration is specified on the EC2NodeClass, Karpenter will launch instances with all EFA devices configured.
+
+The `karpenter.k8s.aws/instance-efa-count` label differs from the currently supported `vpc.amazonaws.com/efa` resource as it can be used as a scheduling label, while `vpc.amazonaws.com/efa` is a pod level resource request.
+
+We chose to not support this label at launch as it would require signifigant changes to core Karpenters scheduling simulation. Karpenter currently does not support scheduling with dynamic label applications. This rough edge with this is that since Karpenter would not apply `karpenter.k8s.aws/instance-efa-count` if it is 0, then when use the `Exists` operator this would result in NodeClaim launches without the label (as internally Karpenter would consider the EFA count label of 0 as exists).

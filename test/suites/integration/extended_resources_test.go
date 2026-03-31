@@ -17,7 +17,6 @@ package integration_test
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/samber/lo"
@@ -347,11 +346,8 @@ var _ = Describe("Extended Resources", func() {
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
-		node := env.ExpectCreatedNodeCount("==", 1)[0]
+		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectInitializedNodeCount("==", 1)
-
-		Expect(node.Labels).To(HaveKey(v1.LabelEFACount))
-		Expect(strconv.Atoi(node.Labels[v1.LabelEFACount])).To(BeNumerically(">=", 0))
 	},
 		Entry("with no Node Class network interface configurations", nil),
 		Entry("with Node Class network interface configurations", []*v1.NetworkInterface{

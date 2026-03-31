@@ -1113,10 +1113,6 @@ spec:
 - __interface__: Standard ENA (Elastic Network Adapter) interface providing IP connectivity
 - __efa-only__: EFA interface that provides only the EFA device for RDMA communication without consuming an IP address
 
-### Labels and Dynamic EFA Provisioning
-
-When instances are launched with network interfaces configured, Karpenter applies the `karpenter.k8s.aws/instance-efa-count` label to the node, indicating the total number of EFA devices available on the instance. The presence of this label triggers Karpenter's dynamic EFA provisioning path (if NodeClass network interfaces are not configured). For instance, if a pod specifies node affinity with `karpenter.k8s.aws/instance-efa-count` greater than 0 and no network interface configuration is specified on the EC2NodeClass, Karpenter will launch instances with all EFA devices configured.
-
 ## spec.instanceStorePolicy
 
 The `instanceStorePolicy` field controls how [instance-store](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/InstanceStorage.html) volumes are handled. By default, Karpenter and Kubernetes will simply ignore them.

@@ -570,25 +570,13 @@ func (p *DefaultProvider) getEFACountForInstance(
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 ) int {
-	// if NodeClass is configured with network interfaces, we launch with that configuration
 	if nodeClass.NetworkInterfaces() != nil {
 		return lo.CountBy(nodeClass.NetworkInterfaces(), func(nic *v1.NetworkInterface) bool {
 			return nic.InterfaceType == v1.InterfaceTypeEFAOnly
 		})
 	}
-
-	efaResourceRequest := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA)
-	// if there are no EFA resource requests, we should check for scheduling constraints from the EFA count label
-	if !efaResourceRequest {
-		requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
-		efaReq := requirements.Get(v1.LabelEFACount)
-		if efaReq == nil || efaReq.Operator() == corev1.NodeSelectorOpDoesNotExist {
-			return 0
-		}
-		// checks if requirement allows EFA count of 0
-		if (efaReq.Operator() == corev1.NodeSelectorOpIn || efaReq.Operator() == corev1.NodeSelectorOpExists) && efaReq.Has("0") {
-			return 0
-		}
+	if found := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA); !found {
+		return 0
 	}
 	for _, it := range instanceTypes {
 		if it.Name != instanceType {
