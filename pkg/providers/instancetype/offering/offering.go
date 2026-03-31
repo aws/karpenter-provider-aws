@@ -34,6 +34,7 @@ import (
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 )
 
@@ -43,7 +44,6 @@ type Provider interface {
 
 type NodeClass interface {
 	CapacityReservations() []v1.CapacityReservation
-	PlacementGroups() []v1.PlacementGroup
 	ZoneInfo() []v1.ZoneInfo
 	NetworkInterfaces() []*v1.NetworkInterface
 	AMIFamily() string
@@ -52,6 +52,7 @@ type NodeClass interface {
 type DefaultProvider struct {
 	pricingProvider                pricing.Provider
 	capacityReservationProvider    capacityreservation.Provider
+	placementGroupProvider         placementgroup.Provider
 	unavailableOfferings           *awscache.UnavailableOfferings
 	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
 	cache                          *cache.Cache
@@ -60,12 +61,14 @@ type DefaultProvider struct {
 func NewDefaultProvider(
 	pricingProvider pricing.Provider,
 	capacityReservationProvider capacityreservation.Provider,
+	placementGroupProvider placementgroup.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	offeringCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		pricingProvider:             pricingProvider,
 		capacityReservationProvider: capacityReservationProvider,
+		placementGroupProvider:      placementGroupProvider,
 		unavailableOfferings:        unavailableOfferingsCache,
 		cache:                       offeringCache,
 	}
@@ -83,6 +86,11 @@ func (p *DefaultProvider) InjectOfferings(
 	subnetZonesToZoneIDs := lo.SliceToMap(nodeClass.ZoneInfo(), func(info v1.ZoneInfo) (string, string) {
 		return info.Zone, info.ZoneID
 	})
+	// Resolve the placement group once and pass it through to avoid repeated type assertions and lookups
+	var pg *placementgroup.PlacementGroup
+	if nc, ok := nodeClass.(*v1.EC2NodeClass); ok {
+		pg = p.placementGroupProvider.GetForNodeClass(nc)
+	}
 	var its []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
 		info := instanceTypeInfo[ec2types.InstanceType(it.Name)]
@@ -91,11 +99,12 @@ func (p *DefaultProvider) InjectOfferings(
 			it,
 			info,
 			nodeClass,
+			pg,
 			allZones,
 			subnetZonesToZoneIDs,
 		)
 		// For partition placement groups, expand each offering into N offerings (one per partition)
-		offerings = p.expandPartitionOfferings(offerings, nodeClass)
+		offerings = p.expandPartitionOfferings(offerings, pg)
 		// NOTE: By making this copy one level deep, we can modify the offerings without mutating the results from previous
 		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and
 		// once in the instance provider (filterReservedInstanceTypes)
@@ -116,14 +125,16 @@ func (p *DefaultProvider) createOfferings(
 	it *cloudprovider.InstanceType,
 	info ec2types.InstanceTypeInfo,
 	nodeClass NodeClass,
+	pg *placementgroup.PlacementGroup,
 	allZones sets.Set[string],
 	subnetZonesToZoneIDs map[string]string,
 ) cloudprovider.Offerings {
 	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
+
 	// Not all instance types are compatible with the NodeClass.
 	// In the event it is not, we mark the offering as unavailable.
-	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(info, nodeClass)
+	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(info, nodeClass, pg)
 
 	// If the sequence number has changed for the unavailable offerings, we know that we can't use the previously cached value
 	lastSeqNum, ok := p.lastUnavailableOfferingsSeqNum.Load(ec2types.InstanceType(it.Name))
@@ -136,8 +147,8 @@ func (p *DefaultProvider) createOfferings(
 	} else {
 		// Resolve the placement group scope for scoping ICE cache lookups
 		var pgScope awscache.PlacementGroupScope
-		if pgs := nodeClass.PlacementGroups(); len(pgs) > 0 {
-			pgScope.ID = pgs[0].ID
+		if pg != nil {
+			pgScope.ID = pg.ID
 		}
 		var cachedOfferings []*cloudprovider.Offering
 		for zone := range allZones {
@@ -220,13 +231,13 @@ func (p *DefaultProvider) createOfferings(
 	// Add placement group ID requirement to all offerings (on-demand, spot, and reserved) when a placement group
 	// is configured. This enables the scheduler to match offerings against NodePool/pod constraints on placement
 	// group membership, and enables drift detection when the EC2NodeClass's placement group changes.
-	if pgs := nodeClass.PlacementGroups(); len(pgs) > 0 {
+	if pg != nil {
 		for i, offering := range offerings {
 			// Copy the offering and its requirements before mutating to avoid concurrent map writes
 			// on cached offering objects shared across goroutines.
 			reqs := scheduling.NewRequirements(offering.Requirements.Values()...)
 			reqs.Add(
-				scheduling.NewRequirement(v1.LabelPlacementGroupID, corev1.NodeSelectorOpIn, pgs[0].ID),
+				scheduling.NewRequirement(v1.LabelPlacementGroupID, corev1.NodeSelectorOpIn, pg.ID),
 			)
 			offerings[i] = &cloudprovider.Offering{
 				Requirements:        reqs,
@@ -241,22 +252,19 @@ func (p *DefaultProvider) createOfferings(
 
 // expandPartitionOfferings expands each offering into N offerings (one per partition) for partition placement groups.
 // This enables the scheduler to use TopologySpreadConstraints with the partition topology key.
-func (p *DefaultProvider) expandPartitionOfferings(offerings cloudprovider.Offerings, nodeClass NodeClass) cloudprovider.Offerings {
-	pgs := nodeClass.PlacementGroups()
-	if len(pgs) == 0 || pgs[0].Strategy != v1.PlacementGroupStrategyPartition {
+func (p *DefaultProvider) expandPartitionOfferings(offerings cloudprovider.Offerings, pg *placementgroup.PlacementGroup) cloudprovider.Offerings {
+	if pg == nil || pg.Strategy != placementgroup.StrategyPartition {
 		return offerings
 	}
-	partitionCount := int(pgs[0].PartitionCount)
+	partitionCount := int(pg.PartitionCount)
 	if partitionCount <= 0 {
 		return offerings
 	}
 	var expanded []*cloudprovider.Offering
 	for _, offering := range offerings {
-		// Copy the base offering's requirements and add the partition label
-		reqs := scheduling.NewRequirements(offering.Requirements.Values()...)
 		for partition := 1; partition <= partitionCount; partition++ {
-			// We do this to save on memory
-			reqs[v1.LabelPlacementGroupPartition] = scheduling.NewRequirement(v1.LabelPlacementGroupPartition, corev1.NodeSelectorOpIn, fmt.Sprintf("%d", partition))
+			reqs := scheduling.NewRequirements(offering.Requirements.Values()...)
+			reqs.Add(scheduling.NewRequirement(v1.LabelPlacementGroupPartition, corev1.NodeSelectorOpIn, fmt.Sprintf("%d", partition)))
 			expanded = append(expanded, &cloudprovider.Offering{
 				Requirements:        reqs,
 				Price:               offering.Price,

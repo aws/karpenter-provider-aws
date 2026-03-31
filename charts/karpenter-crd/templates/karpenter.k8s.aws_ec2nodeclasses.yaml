@@ -866,50 +866,6 @@ spec:
                 instanceProfile:
                   description: InstanceProfile contains the resolved instance profile for the role
                   type: string
-                placementGroups:
-                  description: PlacementGroups contains the placement group values that are available to this NodeClass.
-                  items:
-                    properties:
-                      id:
-                        description: The id for the placement group.
-                        pattern: ^pg-[0-9a-z]+$
-                        type: string
-                      name:
-                        description: The name for the placement group.
-                        type: string
-                      partitionCount:
-                        description: The partition count for the partition placement group.
-                        format: int32
-                        type: integer
-                      spreadLevel:
-                        description: The spread level for the spread placement group.
-                        enum:
-                          - host
-                          - rack
-                        type: string
-                      state:
-                        default: available
-                        description: The state of the placement group.
-                        enum:
-                          - available
-                          - pending
-                          - deleting
-                          - deleted
-                        type: string
-                      strategy:
-                        description: The strategy for the placement group.
-                        enum:
-                          - cluster
-                          - partition
-                          - spread
-                        type: string
-                    required:
-                      - id
-                      - name
-                      - state
-                      - strategy
-                    type: object
-                  type: array
                 securityGroups:
                   description: |-
                     SecurityGroups contains the current security group values that are available to the

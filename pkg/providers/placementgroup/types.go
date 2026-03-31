@@ -23,6 +23,47 @@ import (
 	"github.com/samber/lo"
 )
 
+type Strategy string
+
+const (
+	StrategyCluster   Strategy = "cluster"
+	StrategyPartition Strategy = "partition"
+	StrategySpread    Strategy = "spread"
+)
+
+type SpreadLevel string
+
+const (
+	SpreadLevelRack SpreadLevel = "rack"
+	SpreadLevelHost SpreadLevel = "host"
+)
+
+// PlacementGroup represents a resolved EC2 placement group stored in-memory by the provider.
+type PlacementGroup struct {
+	// ID is the placement group ID (e.g., "pg-0123456789abcdef0")
+	ID string
+	// Name is the placement group name
+	Name string
+	// PartitionCount is the number of partitions for partition placement groups
+	PartitionCount int32
+	// SpreadLevel is the spread level for spread placement groups
+	SpreadLevel SpreadLevel
+	// Strategy is the placement group strategy
+	Strategy Strategy
+}
+
+// PlacementGroupFromEC2 converts an EC2 PlacementGroup to the provider's PlacementGroup type.
+func PlacementGroupFromEC2(pg *ec2types.PlacementGroup) *PlacementGroup {
+	return &PlacementGroup{
+		ID:             lo.FromPtr(pg.GroupId),
+		Name:           lo.FromPtr(pg.GroupName),
+		PartitionCount: lo.FromPtr(pg.PartitionCount),
+		SpreadLevel:    SpreadLevel(pg.SpreadLevel),
+		Strategy:       Strategy(pg.Strategy),
+	}
+}
+
+// Query represents a placement group lookup query by name or ID.
 type Query struct {
 	ID   string
 	Name string

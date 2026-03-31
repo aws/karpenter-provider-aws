@@ -19,9 +19,7 @@ import (
 	"fmt"
 	"sync"
 
-	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/patrickmn/go-cache"
-	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -29,49 +27,113 @@ import (
 )
 
 type Provider interface {
-	// Get resolves a single placement group from a PlacementGroupSelectorTerm.
-	Get(context.Context, v1.PlacementGroupSelectorTerm) (*ec2types.PlacementGroup, error)
+	// Get resolves the placement group for a nodeclass from EC2, stores it in-memory,
+	// and returns it. Called by the nodeclass reconciler.
+	Get(context.Context, *v1.EC2NodeClass) (*PlacementGroup, error)
+	// GetForNodeClass returns the in-memory resolved placement group for a nodeclass.
+	// Returns nil if no placement group is configured, has not been resolved yet,
+	// or the resolved data is stale (nodeclass generation has changed since resolution).
+	GetForNodeClass(*v1.EC2NodeClass) *PlacementGroup
+	// Clear removes the in-memory resolved placement group for a nodeclass.
+	Clear(*v1.EC2NodeClass)
+}
+
+// resolvedEntry pairs a resolved placement group with the nodeclass generation
+// it was resolved for. This ensures that callers of GetForNodeClass never see
+// stale data from a previous spec revision.
+type resolvedEntry struct {
+	pg         *PlacementGroup
+	generation int64
 }
 
 type DefaultProvider struct {
-	sync.Mutex
+	sync.RWMutex
 
 	ec2api sdk.EC2API
 	cache  *cache.Cache
-	cm     *pretty.ChangeMonitor
+
+	// resolved stores the resolved placement group for each nodeclass, keyed by nodeclass name
+	resolved map[string]*resolvedEntry
 }
 
 func NewProvider(ec2api sdk.EC2API, placementGroupCache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
-		ec2api: ec2api,
-		cache:  placementGroupCache,
-		cm:     pretty.NewChangeMonitor(),
+		ec2api:   ec2api,
+		cache:    placementGroupCache,
+		resolved: make(map[string]*resolvedEntry),
 	}
 }
 
-func (p *DefaultProvider) Get(ctx context.Context, term v1.PlacementGroupSelectorTerm) (*ec2types.PlacementGroup, error) {
-	p.Lock()
-	defer p.Unlock()
+func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1.EC2NodeClass) (*PlacementGroup, error) {
+	if nodeClass.Spec.PlacementGroupSelector == nil {
+		p.Clear(nodeClass)
+		return nil, nil
+	}
 
+	term := *nodeClass.Spec.PlacementGroupSelector
 	q := &Query{ID: term.ID, Name: term.Name}
 
+	p.RLock()
 	if entry, ok := p.cache.Get(q.CacheKey()); ok {
-		return entry.(*ec2types.PlacementGroup), nil
+		resolved := entry.(*PlacementGroup)
+		p.RUnlock()
+		p.Lock()
+		p.resolved[nodeClass.Name] = &resolvedEntry{pg: resolved, generation: nodeClass.Generation}
+		p.Unlock()
+		return resolved, nil
 	}
+	p.RUnlock()
 
 	out, err := p.ec2api.DescribePlacementGroups(ctx, q.DescribePlacementGroupsInput())
 	if err != nil {
 		if awserrors.IsNotFound(err) {
+			p.Lock()
 			p.cache.Delete(q.CacheKey())
+			delete(p.resolved, nodeClass.Name)
+			p.Unlock()
 			return nil, nil
 		}
+		p.Clear(nodeClass)
 		return nil, fmt.Errorf("describing placement groups, %w", err)
 	}
 	if len(out.PlacementGroups) == 0 {
+		p.Clear(nodeClass)
 		return nil, nil
 	}
 
-	pg := &out.PlacementGroups[0]
-	p.cache.SetDefault(q.CacheKey(), pg)
-	return pg, nil
+	resolved := PlacementGroupFromEC2(&out.PlacementGroups[0])
+
+	p.Lock()
+	p.cache.SetDefault(q.CacheKey(), resolved)
+	p.resolved[nodeClass.Name] = &resolvedEntry{pg: resolved, generation: nodeClass.Generation}
+	p.Unlock()
+
+	return resolved, nil
+}
+
+func (p *DefaultProvider) GetForNodeClass(nodeClass *v1.EC2NodeClass) *PlacementGroup {
+	p.RLock()
+	defer p.RUnlock()
+	entry := p.resolved[nodeClass.Name]
+	if entry == nil || entry.generation != nodeClass.Generation {
+		return nil
+	}
+	// Validate the resolved PG still matches the current spec selector as a defense-in-depth check
+	if nodeClass.Spec.PlacementGroupSelector == nil {
+		return nil
+	}
+	term := nodeClass.Spec.PlacementGroupSelector
+	if term.ID != "" && entry.pg.ID != term.ID {
+		return nil
+	}
+	if term.Name != "" && entry.pg.Name != term.Name {
+		return nil
+	}
+	return entry.pg
+}
+
+func (p *DefaultProvider) Clear(nodeClass *v1.EC2NodeClass) {
+	p.Lock()
+	defer p.Unlock()
+	delete(p.resolved, nodeClass.Name)
 }

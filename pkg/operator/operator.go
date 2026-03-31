@@ -156,6 +156,10 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	lo.Must0(versionProvider.UpdateVersion(ctx))
 	ssmProvider := ssmp.NewDefaultProvider(ssm.NewFromConfig(cfg), ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	placementGroupProvider := placementgroup.NewProvider(
+		ec2api,
+		cache.New(awscache.PlacementGroupTTL, awscache.DefaultCleanupInterval),
+	)
 	amiResolver := amifamily.NewDefaultResolver(cfg.Region)
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
@@ -165,6 +169,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
+		placementGroupProvider,
 		lo.Must(GetCABundle(ctx, operator.GetConfig())),
 		operator.Elected(),
 		kubeDNSIP,
@@ -176,10 +181,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.CapacityReservationAvailabilityTTL, awscache.DefaultCleanupInterval),
 	)
-	placementGroupProvider := placementgroup.NewProvider(
-		ec2api,
-		cache.New(awscache.PlacementGroupTTL, awscache.DefaultCleanupInterval),
-	)
 	instanceTypeProvider := instancetype.NewDefaultProvider(
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
@@ -188,6 +189,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		pricingProvider,
 		capacityReservationProvider,
+		placementGroupProvider,
 		unavailableOfferingsCache,
 		instancetype.NewDefaultResolver(cfg.Region),
 	)
@@ -204,6 +206,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 		capacityReservationProvider,
+		placementGroupProvider,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 	)
 

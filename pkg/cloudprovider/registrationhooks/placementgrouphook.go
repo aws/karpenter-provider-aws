@@ -27,6 +27,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
@@ -37,14 +38,16 @@ import (
 // taint is removed, so that TopologySpreadConstraints using the partition topology key always
 // see accurate partition data.
 type PlacementGroupRegistrationHook struct {
-	kubeClient       client.Client
-	instanceProvider instance.Provider
+	kubeClient             client.Client
+	instanceProvider       instance.Provider
+	placementGroupProvider placementgroup.Provider
 }
 
-func NewPlacementGroupRegistrationHook(kubeClient client.Client, instanceProvider instance.Provider) *PlacementGroupRegistrationHook {
+func NewPlacementGroupRegistrationHook(kubeClient client.Client, instanceProvider instance.Provider, placementGroupProvider placementgroup.Provider) *PlacementGroupRegistrationHook {
 	return &PlacementGroupRegistrationHook{
-		kubeClient:       kubeClient,
-		instanceProvider: instanceProvider,
+		kubeClient:             kubeClient,
+		instanceProvider:       instanceProvider,
+		placementGroupProvider: placementGroupProvider,
 	}
 }
 
@@ -60,8 +63,8 @@ func (h *PlacementGroupRegistrationHook) Registered(ctx context.Context, nodeCla
 	}
 
 	// Check if the EC2NodeClass has a partition placement group
-	if len(nodeClass.Status.PlacementGroups) == 0 ||
-		nodeClass.Status.PlacementGroups[0].Strategy != v1.PlacementGroupStrategyPartition {
+	pg := h.placementGroupProvider.GetForNodeClass(nodeClass)
+	if pg == nil || pg.Strategy != placementgroup.StrategyPartition {
 		return cloudprovider.NodeLifecycleHookResult{}, nil
 	}
 

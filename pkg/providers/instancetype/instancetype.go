@@ -27,6 +27,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/offering"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 
 	"github.com/mitchellh/hashstructure/v2"
@@ -57,7 +58,6 @@ type NodeClass interface {
 	AMIs() []v1.AMI
 	BlockDeviceMappings() []*v1.BlockDeviceMapping
 	CapacityReservations() []v1.CapacityReservation
-	PlacementGroups() []v1.PlacementGroup
 	InstanceStorePolicy() *v1.InstanceStorePolicy
 	NetworkInterfaces() []*v1.NetworkInterface
 	KubeletConfiguration() *v1.KubeletConfiguration
@@ -91,7 +91,8 @@ type DefaultProvider struct {
 	discoveredCapacityCache *cache.Cache
 	cm                      *pretty.ChangeMonitor
 
-	offeringProvider *offering.DefaultProvider
+	placementGroupProvider placementgroup.Provider
+	offeringProvider       *offering.DefaultProvider
 }
 
 func NewDefaultProvider(
@@ -102,6 +103,7 @@ func NewDefaultProvider(
 	subnetProvider subnet.Provider,
 	pricingProvider pricing.Provider,
 	capacityReservationProvider capacityreservation.Provider,
+	placementGroupProvider placementgroup.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	instanceTypesResolver Resolver,
 ) *DefaultProvider {
@@ -114,9 +116,11 @@ func NewDefaultProvider(
 		instanceTypesCache:      instanceTypesCache,
 		discoveredCapacityCache: discoveredCapacityCache,
 		cm:                      pretty.NewChangeMonitor(),
+		placementGroupProvider:  placementGroupProvider,
 		offeringProvider: offering.NewDefaultProvider(
 			pricingProvider,
 			capacityReservationProvider,
+			placementGroupProvider,
 			unavailableOfferingsCache,
 			offeringCache,
 		),
@@ -358,10 +362,15 @@ func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context
 func (p *DefaultProvider) FilterForNodeClass(its []*cloudprovider.InstanceType, nodeClass NodeClass) []*cloudprovider.InstanceType {
 	p.muInstanceTypesInfo.RLock()
 	defer p.muInstanceTypesInfo.RUnlock()
+	// Resolve the placement group for compatibility checking
+	var pg *placementgroup.PlacementGroup
+	if nc, ok := nodeClass.(*v1.EC2NodeClass); ok {
+		pg = p.placementGroupProvider.GetForNodeClass(nc)
+	}
 	compatible := []*cloudprovider.InstanceType{}
 	for _, it := range its {
 		info, found := p.instanceTypesInfo[ec2types.InstanceType(it.Name)]
-		if found && compatibility.IsCompatibleWithNodeClass(info, nodeClass) {
+		if found && compatibility.IsCompatibleWithNodeClass(info, nodeClass, pg) {
 			compatible = append(compatible, it)
 		}
 	}

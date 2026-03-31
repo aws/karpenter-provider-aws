@@ -156,11 +156,11 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, instanceProfileCache, roleCache, protectedProfilesCache, fake.DefaultRegion)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, amiCache)
+	placementGroupProvider := placementgroup.NewProvider(ec2api, placementGroupCache)
 	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
 	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion)
 	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
-	placementGroupProvider := placementgroup.NewProvider(ec2api, placementGroupCache)
-	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, unavailableOfferingsCache, instanceTypesResolver)
+	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, placementGroupProvider, unavailableOfferingsCache, instanceTypesResolver)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
 	lo.Must0(instanceTypesProvider.UpdateInstanceTypes(ctx))
@@ -173,6 +173,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
+		placementGroupProvider,
 		lo.ToPtr("ca-bundle"),
 		make(chan struct{}),
 		net.ParseIP("10.0.100.10"),
@@ -191,6 +192,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		subnetProvider,
 		launchTemplateProvider,
 		capacityReservationProvider,
+		placementGroupProvider,
 		instanceCache,
 	)
 

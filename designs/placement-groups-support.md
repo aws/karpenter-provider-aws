@@ -278,7 +278,7 @@ Below lists the non-goals for _this RFC design._ Each of these items represents 
 - Add a new struct under `spec` for `placementGroupSelector` to `EC2NodeClass` for defining which Placement Group to be used for a specific `EC2NodeClass`
   - Each EC2NodeClass maps to exactly one Placement Group
   - The struct accepts either a placement group name or id as a string value
-- Add a new field under `status` for the resolved Placement Group by the `spec.placementGroupSelector` for the `EC2NodeClass`
+- The resolved placement group details are stored **in-memory** by the placement group provider
 
 ```yaml
 apiVersion: karpenter.k8s.aws/v1
@@ -300,26 +300,17 @@ status:
       # The EC2NodeClass is not ready if this condition is False,
       # blocking all launches from this NodeClass.
       type: PlacementGroupReady
-  # placementGroup contains the resolved placement group details.
-  placementGroup:
-    # Id for the Placement Group
-    id: String
-    # Name of the Placement Group
-    name: String
-    # Number of partitions for partition Placement Groups
-    partitionCount: int | None
-    # Spread level for spread Placement Groups {host, rack}
-    spreadLevel: String | None
-    # State of the placement group
-    # {pending, available, deleting, deleted}
-    # Karpenter sets PlacementGroupReady to False for any state other than "available"
-    state: String
-    # Strategy of the placement group
-    # {cluster, partition, spread}
-    strategy: String
 ```
 
-This API closely follows how [DescribePlacementGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribePlacementGroups.html) can filter placement groups -- allowing Karpenter to receive the server-side filtered version of the placement groups to store in its status.
+The placement group provider resolves placement groups from the EC2 `DescribePlacementGroups` API and stores the result in-memory, keyed by nodeclass name. The resolved placement group contains the following fields:
+
+- **ID**: Placement group ID (e.g., `"pg-0123456789abcdef0"`)
+- **Name**: Placement group name
+- **PartitionCount**: Number of partitions (partition strategy only)
+- **SpreadLevel**: Spread level (`"rack"` or `"host"`, spread strategy only)
+- **Strategy**: Placement group strategy (`"cluster"`, `"partition"`, or `"spread"`)
+
+All consumers (drift detection, offering resolution, launch template creation, etc.) read from the provider's in-memory store. The nodeclass reconciler is responsible for calling the provider to resolve and store the placement group on each reconciliation loop, ensuring the in-memory state is always fresh.
 
 ### Labels
 
@@ -447,7 +438,7 @@ For partition placement groups, the `karpenter.k8s.aws/placement-group-partition
 
 1. When a NodeClaim is created for an EC2NodeClass with a partition placement group, the instance is launched via `CreateFleet` without specifying a `PartitionNumber`, allowing EC2 to auto-assign the partition.
 2. During node registration, before the `karpenter.sh/unregistered` taint is removed, the `PlacementGroupRegistrationHook` runs as part of the NodeClaim lifecycle controller's registration phase.
-3. The hook resolves the EC2NodeClass from the NodeClaim's `spec.nodeClassRef` and checks `status.placementGroup` to determine if this is a partition placement group. If not, the hook passes through immediately.
+3. The hook resolves the EC2NodeClass from the NodeClaim's `spec.nodeClassRef` and queries the placement group provider's in-memory store to determine if this is a partition placement group. If not, the hook passes through immediately.
 4. For partition placement groups, the hook calls `DescribeInstances` to discover the EC2-assigned partition number from `Placement.PartitionNumber`.
 5. Once the partition number is available, the hook sets the `karpenter.k8s.aws/placement-group-partition` label on the NodeClaim and allows registration to proceed. The label is then synced to the Node as part of the normal registration sync.
 6. If the partition number is not yet available (e.g., the instance is still initializing), the hook returns `false`, causing the lifecycle controller to requeue after 1 second and retry.
@@ -522,7 +513,7 @@ Placement groups do not directly affect pricing, but they constrain the set of v
 
 ## Drift
 
-Nodes are marked as drifted when their placement group ID label (`karpenter.k8s.aws/placement-group-id`) no longer matches the EC2NodeClass's resolved placement group ID (`status.placementGroup.id`). This is checked explicitly in the `isPlacementGroupDrifted` function, which compares the NodeClaim's `placement-group-id` label against the resolved PG ID from the NodeClass status.
+Nodes are marked as drifted when their placement group ID label (`karpenter.k8s.aws/placement-group-id`) no longer matches the EC2NodeClass's resolved placement group ID stored in the placement group provider's in-memory store. This is checked explicitly in the `isPlacementGroupDrifted` function, which compares the NodeClaim's `placement-group-id` label against the resolved PG ID from the provider.
 
 | Scenario | Detection | Recovery |
 |----------|-----------|----------|

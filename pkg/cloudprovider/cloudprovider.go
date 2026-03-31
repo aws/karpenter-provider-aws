@@ -50,6 +50,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -66,6 +67,7 @@ type CloudProvider struct {
 	amiProvider                 amifamily.Provider
 	securityGroupProvider       securitygroup.Provider
 	capacityReservationProvider capacityreservation.Provider
+	placementGroupProvider      placementgroup.Provider
 	instanceTypeStore           *nodeoverlay.InstanceTypeStore
 }
 
@@ -77,6 +79,7 @@ func New(
 	amiProvider amifamily.Provider,
 	securityGroupProvider securitygroup.Provider,
 	capacityReservationProvider capacityreservation.Provider,
+	placementGroupProvider placementgroup.Provider,
 	store *nodeoverlay.InstanceTypeStore,
 ) *CloudProvider {
 	return &CloudProvider{
@@ -86,6 +89,7 @@ func New(
 		amiProvider:                 amiProvider,
 		securityGroupProvider:       securityGroupProvider,
 		capacityReservationProvider: capacityReservationProvider,
+		placementGroupProvider:      placementGroupProvider,
 		recorder:                    recorder,
 		instanceTypeStore:           store,
 	}
@@ -461,9 +465,10 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 		labels[v1.LabelCapacityReservationInterruptible] = fmt.Sprintf("%t", i.CapacityReservationDetails.Interruptible)
 	}
 	// Placement group labels
-	if nodeClass != nil && len(nodeClass.Status.PlacementGroups) > 0 {
-		pg := nodeClass.Status.PlacementGroups[0]
-		labels[v1.LabelPlacementGroupID] = pg.ID
+	if nodeClass != nil {
+		if pg := c.placementGroupProvider.GetForNodeClass(nodeClass); pg != nil {
+			labels[v1.LabelPlacementGroupID] = pg.ID
+		}
 	}
 	if v, ok := i.Tags[karpv1.NodePoolLabelKey]; ok {
 		labels[karpv1.NodePoolLabelKey] = v

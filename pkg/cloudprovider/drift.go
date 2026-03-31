@@ -154,8 +154,8 @@ func (c *CloudProvider) isCapacityReservationDrifted(instance *instance.Instance
 func (c *CloudProvider) isPlacementGroupDrifted(nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {
 	nodeClaimPGID := nodeClaim.Labels[v1.LabelPlacementGroupID]
 	var nodeClassPGID string
-	if len(nodeClass.Status.PlacementGroups) > 0 {
-		nodeClassPGID = nodeClass.Status.PlacementGroups[0].ID
+	if pg := c.placementGroupProvider.GetForNodeClass(nodeClass); pg != nil {
+		nodeClassPGID = pg.ID
 	}
 	if nodeClaimPGID != nodeClassPGID {
 		return PlacementGroupDrift

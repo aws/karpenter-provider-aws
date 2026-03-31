@@ -50,6 +50,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	instancefilter "github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 
 	"github.com/patrickmn/go-cache"
@@ -104,6 +105,7 @@ type DefaultProvider struct {
 	launchTemplateProvider      launchtemplate.Provider
 	ec2Batcher                  *batcher.EC2API
 	capacityReservationProvider capacityreservation.Provider
+	placementGroupProvider      placementgroup.Provider
 	instanceCache               *cache.Cache
 }
 
@@ -116,6 +118,7 @@ func NewDefaultProvider(
 	subnetProvider subnet.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	capacityReservationProvider capacityreservation.Provider,
+	placementGroupProvider placementgroup.Provider,
 	instanceCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
@@ -127,6 +130,7 @@ func NewDefaultProvider(
 		launchTemplateProvider:      launchTemplateProvider,
 		ec2Batcher:                  batcher.EC2(ctx, ec2api),
 		capacityReservationProvider: capacityReservationProvider,
+		placementGroupProvider:      placementGroupProvider,
 		instanceCache:               instanceCache,
 	}
 }
@@ -496,8 +500,8 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	// When a specific partition is targeted (via NodeClaim requirements), the ICE entry is scoped to
 	// that partition so other partitions remain available for scheduling.
 	var pgScope awscache.PlacementGroupScope
-	if len(nodeClass.Status.PlacementGroups) > 0 {
-		pgScope.ID = nodeClass.Status.PlacementGroups[0].ID
+	if pg := p.placementGroupProvider.GetForNodeClass(nodeClass); pg != nil {
+		pgScope.ID = pg.ID
 		// Check if a specific partition was targeted for this launch
 		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 		if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil && partitionReq.Len() == 1 {

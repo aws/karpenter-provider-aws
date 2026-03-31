@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -45,7 +44,7 @@ var DefaultEBS = v1.BlockDevice{
 }
 
 type Resolver interface {
-	Resolve(*v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, string, *Options) ([]*LaunchTemplate, error)
+	Resolve(*v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, string, *Options, string, int32) ([]*LaunchTemplate, error)
 }
 
 // DefaultResolver is able to fill-in dynamic launch template parameters
@@ -139,7 +138,7 @@ func NewDefaultResolver(region string) *DefaultResolver {
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 //
 //nolint:gocyclo
-func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options) ([]*LaunchTemplate, error) {
+func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options, placementGroupID string, placementGroupPartition int32) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.AMIFamily(), options)
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
@@ -147,22 +146,6 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 	mappedAMIs := MapToInstanceTypes(instanceTypes, nodeClass.Status.AMIs)
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", lo.Uniq(lo.Map(nodeClass.Status.AMIs, func(a v1.AMI, _ int) string { return a.ID })))
-	}
-	// Resolve placement group ID and partition targeting from nodeClass status and nodeClaim requirements.
-	var placementGroupID string
-	var placementGroupPartition int32
-	if len(nodeClass.Status.PlacementGroups) > 0 {
-		placementGroupID = nodeClass.Status.PlacementGroups[0].ID
-		// If the NodeClaim targets a specific partition (via nodeSelector/affinity on the partition label),
-		// pass the partition number through to the launch template so EC2 places the instance in that partition.
-		if nodeClass.Status.PlacementGroups[0].Strategy == v1.PlacementGroupStrategyPartition {
-			reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
-			if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil && partitionReq.Len() == 1 {
-				if parsed, err := strconv.ParseInt(partitionReq.Any(), 10, 32); err == nil {
-					placementGroupPartition = int32(parsed)
-				}
-			}
-		}
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {

@@ -40,6 +40,7 @@ func main() {
 		op.AMIProvider,
 		op.SecurityGroupProvider,
 		op.CapacityReservationProvider,
+		op.PlacementGroupProvider,
 		op.InstanceTypeStore,
 	)
 	overlayUndecoratedCloudProvider := metrics.Decorate(awsCloudProvider)
@@ -61,7 +62,7 @@ func main() {
 			overlayUndecoratedCloudProvider,
 			clusterState,
 			op.InstanceTypeStore,
-			corecontrollers.WithRegistrationHook(registrationhooks.NewPlacementGroupRegistrationHook(op.GetClient(), op.InstanceProvider)),
+			corecontrollers.WithRegistrationHook(registrationhooks.NewPlacementGroupRegistrationHook(op.GetClient(), op.InstanceProvider, op.PlacementGroupProvider)),
 		)...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,
