@@ -263,7 +263,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Entry("should update status condition as NotReady when RunInstances unauthorized", func() {
 				awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
 					Code: "UnauthorizedOperation",
-				}, fake.MaxCalls(1))
+				}, fake.MaxCalls(4))
 			}, nodeclass.ConditionReasonRunInstancesAuthFailed),
 			Entry("should update status condition as NotReady when CreateLaunchTemplate unauthorized", func() {
 				awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
@@ -271,6 +271,15 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				}, fake.MaxCalls(1))
 			}, nodeclass.ConditionReasonCreateLaunchTemplateAuthFailed),
 		)
+		It("should succeed RunInstances validation when first subnet returns 500 but another subnet succeeds", func() {
+			// Fail the first RunInstances call (first subnet) with a server error,
+			// then let subsequent calls (remaining subnets) succeed via the default dry-run path
+			awsEnv.EC2API.RunInstancesBehavior.Error.Set(fmt.Errorf("InternalError"), fake.MaxCalls(1))
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
 		Context("Windows AMI Validation", func() {
 			DescribeTable(
 				"should fallback to static instance types when windows ami is used",
