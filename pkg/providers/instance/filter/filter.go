@@ -429,3 +429,26 @@ func (f spotOfferingFilter) FilterReject(instanceTypes []*cloudprovider.Instance
 func (spotOfferingFilter) Name() string {
 	return "spot-offering-filter"
 }
+
+// NestedVirtualizationFilter removes instance types that lack the EC2 nested-virtualization
+// processor feature (ProcessorInfo.SupportedFeatures from DescribeInstanceTypes).
+func NestedVirtualizationFilter(enabled bool) Filter {
+	return nestedVirtualizationFilter{enabled: enabled}
+}
+
+type nestedVirtualizationFilter struct {
+	enabled bool
+}
+
+func (f nestedVirtualizationFilter) FilterReject(instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
+	if !f.enabled {
+		return instanceTypes, nil
+	}
+	return lo.FilterReject(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
+		return lo.Contains(it.Requirements.Get(v1.LabelInstanceNestedVirtualization).Values(), "true")
+	})
+}
+
+func (nestedVirtualizationFilter) Name() string {
+	return "nested-virtualization-filter"
+}

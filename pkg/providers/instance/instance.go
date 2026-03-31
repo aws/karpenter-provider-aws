@@ -136,7 +136,7 @@ func NewDefaultProvider(
 }
 
 func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, tags map[string]string, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
-	instanceTypes, err := p.filterInstanceTypes(ctx, instanceTypes, nodeClaim)
+	instanceTypes, err := p.filterInstanceTypes(ctx, instanceTypes, nodeClass, nodeClaim)
 	if err != nil {
 		return nil, err
 	}
@@ -277,11 +277,15 @@ func (p *DefaultProvider) CreateTags(ctx context.Context, id string, tags map[st
 	return nil
 }
 
-func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes []*cloudprovider.InstanceType, nodeClaim *karpv1.NodeClaim) ([]*cloudprovider.InstanceType, error) {
+func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes []*cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) ([]*cloudprovider.InstanceType, error) {
 	rejectedInstanceTypes := map[string][]*cloudprovider.InstanceType{}
 	reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+	nestedVirtEnabled := nodeClass.Spec.CPUOptions != nil &&
+		nodeClass.Spec.CPUOptions.NestedVirtualization != nil &&
+		*nodeClass.Spec.CPUOptions.NestedVirtualization == "enabled"
 	for _, filter := range []instancefilter.Filter{
 		instancefilter.CompatibleAvailableFilter(reqs, nodeClaim.Spec.Resources.Requests),
+		instancefilter.NestedVirtualizationFilter(nestedVirtEnabled),
 		instancefilter.CapacityReservationTypeFilter(reqs),
 		instancefilter.CapacityBlockFilter(reqs),
 		instancefilter.ReservedOfferingFilter(reqs),

@@ -385,11 +385,17 @@ func cpuOptions(cpuOptions *v1.CPUOptions) *ec2types.LaunchTemplateCpuOptionsReq
 	if cpuOptions == nil {
 		return nil
 	}
-	return &ec2types.LaunchTemplateCpuOptionsRequest{
-		CoreCount:            cpuOptions.CoreCount,
-		ThreadsPerCore:       cpuOptions.ThreadsPerCore,
-		NestedVirtualization: cpuOptions.NestedVirtualization,
+	if cpuOptions.CoreCount == nil && cpuOptions.ThreadsPerCore == nil && cpuOptions.NestedVirtualization == nil {
+		return nil
 	}
+	opts := &ec2types.LaunchTemplateCpuOptionsRequest{
+		CoreCount:      cpuOptions.CoreCount,
+		ThreadsPerCore: cpuOptions.ThreadsPerCore,
+	}
+	if cpuOptions.NestedVirtualization != nil {
+		opts.NestedVirtualization = ec2types.NestedVirtualizationSpecification(*cpuOptions.NestedVirtualization)
+	}
+	return opts
 }
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.

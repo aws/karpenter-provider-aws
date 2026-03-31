@@ -383,6 +383,7 @@ type MetadataOptions struct {
 }
 
 // CPUOptions contains parameters for specifying the CPU configuration for provisioned EC2 nodes.
+// +kubebuilder:validation:XValidation:message="nestedVirtualization cannot be set alongside coreCount or threadsPerCore",rule="!has(self.nestedVirtualization) || self.nestedVirtualization == 'disabled' || (!has(self.coreCount) && !has(self.threadsPerCore))"
 type CPUOptions struct {
 	// CoreCount specifies the number of CPU cores for the instance.
 	// +kubebuilder:validation:Minimum:=1

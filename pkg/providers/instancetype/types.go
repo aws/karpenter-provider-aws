@@ -213,6 +213,7 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorName, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorManufacturer, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1.LabelInstanceNestedVirtualization, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceHypervisor, corev1.NodeSelectorOpIn, string(info.Hypervisor)),
 		scheduling.NewRequirement(v1.LabelInstanceEncryptionInTransitSupported, corev1.NodeSelectorOpIn, fmt.Sprint(aws.ToBool(info.NetworkInfo.EncryptionInTransitSupported))),
 		scheduling.NewRequirement(v1.LabelInstanceTenancy, corev1.NodeSelectorOpIn, string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)),
@@ -296,6 +297,10 @@ func computeRequirements(
 	// CPU Manufacturer, valid options: aws, intel, amd
 	if info.ProcessorInfo != nil {
 		requirements.Get(v1.LabelInstanceCPUManufacturer).Insert(lowerKabobCase(aws.ToString(info.ProcessorInfo.Manufacturer)))
+	}
+	// Nested virtualization support (from ProcessorInfo.SupportedFeatures)
+	if info.ProcessorInfo != nil && lo.Contains(info.ProcessorInfo.SupportedFeatures, "nested-virtualization") {
+		requirements.Get(v1.LabelInstanceNestedVirtualization).Insert("true")
 	}
 	// CPU Sustained Clock Speed
 	if info.ProcessorInfo != nil {
