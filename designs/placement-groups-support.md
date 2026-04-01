@@ -297,8 +297,10 @@ status:
   conditions:
     - # PlacementGroupReady indicates whether the placement group specified
       # by spec.placementGroupSelector has been successfully resolved.
-      # The EC2NodeClass is not ready if this condition is False,
-      # blocking all launches from this NodeClass.
+      # This condition is always present on the EC2NodeClass. When no
+      # placementGroupSelector is configured, it is set to True ("successfully
+      # resolved nothing"). The EC2NodeClass is not ready if this condition
+      # is False, blocking all launches from this NodeClass.
       type: PlacementGroupReady
 ```
 
@@ -438,16 +440,16 @@ For partition placement groups, the `karpenter.k8s.aws/placement-group-partition
 
 1. When a NodeClaim is created for an EC2NodeClass with a partition placement group, the instance is launched via `CreateFleet` without specifying a `PartitionNumber`, allowing EC2 to auto-assign the partition.
 2. During node registration, before the `karpenter.sh/unregistered` taint is removed, the `PlacementGroupRegistrationHook` runs as part of the NodeClaim lifecycle controller's registration phase.
-3. The hook resolves the EC2NodeClass from the NodeClaim's `spec.nodeClassRef` and queries the placement group provider's in-memory store to determine if this is a partition placement group. If not, the hook passes through immediately.
-4. For partition placement groups, the hook calls `DescribeInstances` to discover the EC2-assigned partition number from `Placement.PartitionNumber`.
+3. The hook uses the `karpenter.k8s.aws/placement-group-id` label on the NodeClaim as the source of truth for whether this node is in a placement group. If the label is absent, the hook passes through immediately. If the `karpenter.k8s.aws/placement-group-partition` label is already set, the hook also passes through.
+4. The hook calls `DescribeInstances` to discover the EC2-assigned partition number from `Placement.PartitionNumber`. If the instance has no partition number (i.e., it's in a cluster or spread placement group, not a partition PG), the hook passes through — there is nothing to gate.
 5. Once the partition number is available, the hook sets the `karpenter.k8s.aws/placement-group-partition` label on the NodeClaim and allows registration to proceed. The label is then synced to the Node as part of the normal registration sync.
-6. If the partition number is not yet available (e.g., the instance is still initializing), the hook returns `false`, causing the lifecycle controller to requeue after 1 second and retry.
+6. If the provider ID is not yet available on the NodeClaim, the hook requeues.
 
 This approach leverages the existing `karpenter.sh/unregistered` taint to block pod scheduling until the partition label is set, without requiring any additional startup taints. The hook is registered via `WithRegistrationHook()` in `cmd/controller/main.go` and is evaluated alongside any other registration hooks before the unregistered taint is removed.
 
 ### Placement Groups as Constraints on Instance Type Offerings
 
-Unlike ODCRs which add additional offerings, placement groups primarily _constrain_ existing offerings. When an EC2NodeClass resolves a placement group, Karpenter filters instance type offerings based on the strategy and adds placement group labels as requirements on offerings so the scheduler can match them against NodePool/pod constraints. This is analogous to how `karpenter.sh/capacity-type: reserved` is used in the ODCR design.
+Unlike ODCRs which add additional offerings, placement groups primarily _constrain_ existing offerings. When an EC2NodeClass resolves a placement group, Karpenter filters instance types based on strategy-specific compatibility and injects the placement group ID as a requirement on the **instance type**. This allows the scheduler to match NodePool/pod constraints on placement group membership. For partition placement groups, per-partition offerings are expanded to support TopologySpreadConstraints.
 
 **Strategy-specific filtering:**
 
@@ -455,10 +457,15 @@ Unlike ODCRs which add additional offerings, placement groups primarily _constra
 - **Partition**: No AZ or instance type filtering. Offerings are expanded into per-partition variants (one per partition count) to support TopologySpreadConstraints on `karpenter.k8s.aws/placement-group-partition`. When a specific partition is targeted (via nodeSelector/affinity), the scheduler picks only offerings for that partition, and the partition number is passed through to the launch template's `Placement.PartitionNumber`.
 - **Spread**: No proactive filtering during offering resolution. The 7-instance-per-AZ limit is enforced reactively by EC2 — when the limit is exceeded, EC2 returns an `InsufficientInstanceCapacity` error with a spread-specific message, and Karpenter marks the AZ as unavailable for that placement group in the ICE cache.
 
-Example offering for a `p5.48xlarge` in a placement group:
+Example instance type with placement group requirement:
 
 ```yaml
 name: p5.48xlarge
+requirements:
+  - key: karpenter.k8s.aws/placement-group-id
+    operator: In
+    values: ["pg-dsf832nr1232"]
+  # ... other instance type requirements (arch, OS, etc.)
 offerings:
   - price: 98.32
     available: 4294967295
@@ -469,9 +476,6 @@ offerings:
       - key: topology.kubernetes.io/zone
         operator: In
         values: ["us-east-1a"]
-      - key: karpenter.k8s.aws/placement-group-id
-        operator: In
-        values: ["pg-dsf832nr1232"]
 ```
 
 ### Interaction with Capacity Reservations (ODCRs)
