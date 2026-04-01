@@ -62,7 +62,7 @@ func main() {
 			overlayUndecoratedCloudProvider,
 			clusterState,
 			op.InstanceTypeStore,
-			corecontrollers.WithRegistrationHook(registrationhooks.NewPlacementGroupRegistrationHook(op.GetClient(), op.InstanceProvider, op.PlacementGroupProvider)),
+			corecontrollers.WithRegistrationHook(registrationhooks.NewPlacementGroupRegistrationHook(op.InstanceProvider)),
 		)...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,

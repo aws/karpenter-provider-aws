@@ -89,7 +89,7 @@ func (p *DefaultProvider) InjectOfferings(
 	// Resolve the placement group once and pass it through to avoid repeated type assertions and lookups
 	var pg *placementgroup.PlacementGroup
 	if nc, ok := nodeClass.(*v1.EC2NodeClass); ok {
-		pg = p.placementGroupProvider.GetForNodeClass(nc)
+		pg, _ = p.placementGroupProvider.Get(ctx, nc)
 	}
 	var its []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
@@ -108,9 +108,17 @@ func (p *DefaultProvider) InjectOfferings(
 		// NOTE: By making this copy one level deep, we can modify the offerings without mutating the results from previous
 		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and
 		// once in the instance provider (filterReservedInstanceTypes)
+
+		// Inject placement group ID into instance type requirements (not per-offering) since
+		// the PG ID is the same for all offerings.
+		reqs := it.Requirements
+		if pg != nil {
+			reqs = scheduling.NewRequirements(it.Requirements.Values()...)
+			reqs.Add(scheduling.NewRequirement(v1.LabelPlacementGroupID, corev1.NodeSelectorOpIn, pg.ID))
+		}
 		its = append(its, &cloudprovider.InstanceType{
 			Name:         it.Name,
-			Requirements: it.Requirements,
+			Requirements: reqs,
 			Offerings:    offerings,
 			Capacity:     it.Capacity,
 			Overhead:     it.Overhead,
@@ -145,10 +153,9 @@ func (p *DefaultProvider) createOfferings(
 	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it, nodeClass)); ok && lastSeqNum == seqNum {
 		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
 	} else {
-		// Resolve the placement group scope for scoping ICE cache lookups
-		var pgScope awscache.PlacementGroupScope
+		var pgOpts []awscache.UnavailableOfferingsOption
 		if pg != nil {
-			pgScope.ID = pg.ID
+			pgOpts = append(pgOpts, awscache.WithPlacementGroup(pg.ID))
 		}
 		var cachedOfferings []*cloudprovider.Offering
 		for zone := range allZones {
@@ -157,11 +164,11 @@ func (p *DefaultProvider) createOfferings(
 				if capacityType == karpv1.CapacityTypeReserved {
 					continue
 				}
-				var isUnavailable bool
-				if pgScope.ID != "" {
-					isUnavailable = p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType, pgScope)
-				} else {
-					isUnavailable = p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType)
+				// Check both the general ICE signal and the PG-scoped signal.
+				// An offering is unavailable if either the general key or the PG-specific key is in the cache.
+				isUnavailable := p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType)
+				if !isUnavailable && len(pgOpts) > 0 {
+					isUnavailable = p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType, pgOpts...)
 				}
 				var price float64
 				var hasPrice bool
@@ -228,25 +235,6 @@ func (p *DefaultProvider) createOfferings(
 			offerings = append(offerings, offering)
 		}
 	}
-	// Add placement group ID requirement to all offerings (on-demand, spot, and reserved) when a placement group
-	// is configured. This enables the scheduler to match offerings against NodePool/pod constraints on placement
-	// group membership, and enables drift detection when the EC2NodeClass's placement group changes.
-	if pg != nil {
-		for i, offering := range offerings {
-			// Copy the offering and its requirements before mutating to avoid concurrent map writes
-			// on cached offering objects shared across goroutines.
-			reqs := scheduling.NewRequirements(offering.Requirements.Values()...)
-			reqs.Add(
-				scheduling.NewRequirement(v1.LabelPlacementGroupID, corev1.NodeSelectorOpIn, pg.ID),
-			)
-			offerings[i] = &cloudprovider.Offering{
-				Requirements:        reqs,
-				Price:               offering.Price,
-				Available:           isCompatibleWithNodeClass && offering.Available,
-				ReservationCapacity: offering.ReservationCapacity,
-			}
-		}
-	}
 	return offerings
 }
 
@@ -288,23 +276,17 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
 	networkInterfaceHash, _ := hashstructure.Hash(nodeClass.NetworkInterfaces(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	placementGroupsHash, _ := hashstructure.Hash(
-		it.Requirements.Get(v1.LabelPlacementGroupID).Values(),
-		hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true},
-	)
 	placementGroupPartitionsHash, _ := hashstructure.Hash(
 		it.Requirements.Get(v1.LabelPlacementGroupPartition).Values(),
 		hashstructure.FormatV2,
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
 	return fmt.Sprintf(
-		"%s-%016x-%016x-%016x-%016x-%016x",
+		"%s-%016x-%016x-%016x-%016x",
 		it.Name,
 		zonesHash,
 		capacityTypesHash,
 		networkInterfaceHash,
-		placementGroupsHash,
 		placementGroupPartitionsHash,
 	)
 }

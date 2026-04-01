@@ -173,12 +173,10 @@ func (in *EC2NodeClass) StatusConditions() status.ConditionSet {
 		ConditionTypeSecurityGroupsReady,
 		ConditionTypeInstanceProfileReady,
 		ConditionTypeValidationSucceeded,
+		ConditionTypePlacementGroupReady,
 	}
 	if CapacityReservationsEnabled {
 		conds = append(conds, ConditionTypeCapacityReservationsReady)
-	}
-	if in.Spec.PlacementGroupSelector != nil {
-		conds = append(conds, ConditionTypePlacementGroupReady)
 	}
 	return status.NewReadyConditions(conds...).For(in)
 }

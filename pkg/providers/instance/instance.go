@@ -360,7 +360,22 @@ func (p *DefaultProvider) launchInstance(
 		}
 		return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w", err), reason, fmt.Sprintf("Error creating fleet request: %s", message))
 	}
-	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, nodeClaim, nodeClass, instanceTypes, aws.ToString(createFleetOutput.FleetId))
+	// Resolve PG scope once upfront so updateUnavailableOfferingsCache doesn't need to re-resolve
+	// from the NodeClass (which could change mid-launch).
+	var pgOpts []awscache.UnavailableOfferingsOption
+	var pgID string
+	if pg, _ := p.placementGroupProvider.Get(ctx, nodeClass); pg != nil {
+		pgID = pg.ID
+		pgOpts = append(pgOpts, awscache.WithPlacementGroup(pg.ID))
+		// The scheduler narrows to a single partition before launch. If somehow multiple partitions
+		// are present, we scope the ICE to the PG without a specific partition, which conservatively
+		// marks the entire PG as unavailable for this instance-type+zone.
+		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+		if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil && partitionReq.Len() == 1 {
+			pgOpts = append(pgOpts, awscache.WithPlacementGroupPartition(partitionReq.Any()))
+		}
+	}
+	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, nodeClaim, instanceTypes, aws.ToString(createFleetOutput.FleetId), pgID, pgOpts)
 	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
 		requestID, _ := awsmiddleware.GetRequestIDMetadata(createFleetOutput.ResultMetadata)
 		return ec2types.CreateFleetInstance{}, serrors.Wrap(
@@ -492,22 +507,11 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	errs []ec2types.CreateFleetError,
 	capacityType string,
 	nodeClaim *karpv1.NodeClaim,
-	nodeClass *v1.EC2NodeClass,
 	instanceTypes []*cloudprovider.InstanceType,
 	fleetID string,
+	pgID string,
+	pgOpts []awscache.UnavailableOfferingsOption,
 ) {
-	// Resolve the placement group scope from the nodeClass and nodeClaim for scoping ICE cache entries.
-	// When a specific partition is targeted (via NodeClaim requirements), the ICE entry is scoped to
-	// that partition so other partitions remain available for scheduling.
-	var pgScope awscache.PlacementGroupScope
-	if pg := p.placementGroupProvider.GetForNodeClass(nodeClass); pg != nil {
-		pgScope.ID = pg.ID
-		// Check if a specific partition was targeted for this launch
-		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
-		if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil && partitionReq.Len() == 1 {
-			pgScope.Partition = partitionReq.Any()
-		}
-	}
 
 	for _, err := range errs {
 		zone := lo.FromPtr(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
@@ -530,23 +534,22 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 				// For spread placement groups, detect the 7-instance-per-AZ limit error.
 				// When this limit is reached, mark all instance types in the AZ as unavailable
 				// for this placement group, since the limit is per-AZ per-group (not per instance type).
-				if awserrors.IsSpreadPlacementGroupLimitError(err) && pgScope.ID != "" {
+				if awserrors.IsSpreadPlacementGroupLimitError(err) && pgID != "" {
 					log.FromContext(ctx).WithValues(
-						"placement-group-id", pgScope.ID,
+						"placement-group-id", pgID,
 						"zone", zone,
-					).V(1).Info("spread placement group AZ limit reached, marking all instance types unavailable for this PG in AZ")
+					).V(1).Info("spread placement group availability zone limit reached, marking all instance types unavailable for this placement group in availability zone")
 					// Mark every instance type in this AZ as unavailable for this placement group.
 					// Spread PGs don't have partitions, so we only scope by PG ID.
-					spreadScope := awscache.PlacementGroupScope{ID: pgScope.ID}
 					for _, it := range instanceTypes {
-						p.unavailableOfferings.MarkUnavailable(ctx, ec2types.InstanceType(it.Name), zone, capacityType, unavailableReason, spreadScope)
+						p.unavailableOfferings.MarkUnavailable(ctx, ec2types.InstanceType(it.Name), zone, capacityType, unavailableReason, awscache.WithPlacementGroup(pgID))
 					}
 					continue
 				}
 				// For all other ICE errors, scope the cache entry to the placement group
 				// (and partition if targeted) so PG-specific ICEs don't block non-PG launches
-				if pgScope.ID != "" {
-					p.unavailableOfferings.MarkUnavailable(ctx, instanceType, zone, capacityType, unavailableReason, pgScope)
+				if len(pgOpts) > 0 {
+					p.unavailableOfferings.MarkUnavailable(ctx, instanceType, zone, capacityType, unavailableReason, pgOpts...)
 				} else {
 					p.unavailableOfferings.MarkUnavailable(ctx, instanceType, zone, capacityType, unavailableReason)
 				}

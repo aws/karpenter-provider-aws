@@ -57,7 +57,7 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['name', 'id']",rule="has(self.name) || has(self.id)"
 	// +kubebuilder:validation:XValidation:message="'name' and 'id' are mutually exclusive",rule="!(has(self.name) && has(self.id))"
 	// +optional
-	PlacementGroupSelector *PlacementGroupSelectorTerm `json:"placementGroupSelector,omitempty"`
+	PlacementGroupSelector *PlacementGroupSelector `json:"placementGroupSelector,omitempty"`
 	// AssociatePublicIPAddress controls if public IP addresses are assigned to instances that are launched with the nodeclass.
 	// +optional
 	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
@@ -211,7 +211,7 @@ type CapacityReservationSelectorTerm struct {
 	InstanceMatchCriteria string `json:"instanceMatchCriteria,omitempty"`
 }
 
-type PlacementGroupSelectorTerm struct {
+type PlacementGroupSelector struct {
 	// Name is the placement group name in EC2
 	// +kubebuilder:validation:MinLength:=1
 	// +optional

@@ -49,7 +49,7 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 	var nc *karpv1.NodeClaim
 
 	BeforeEach(func() {
-		hook = registrationhooks.NewPlacementGroupRegistrationHook(env.Client, awsEnv.InstanceProvider, awsEnv.PlacementGroupProvider)
+		hook = registrationhooks.NewPlacementGroupRegistrationHook(awsEnv.InstanceProvider)
 		nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
 			Status: v1.EC2NodeClassStatus{
 				InstanceProfile: "test-profile",
@@ -84,7 +84,7 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 	})
 
 	It("should pass through immediately when EC2NodeClass has a cluster placement group", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "cluster-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "cluster-pg"}
 		setupPlacementGroupInProvider(nodeClass, &ec2.DescribePlacementGroupsOutput{
 			PlacementGroups: []ec2types.PlacementGroup{{
 				GroupId:   lo.ToPtr("pg-cluster123"),
@@ -101,7 +101,7 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 	})
 
 	It("should pass through immediately when EC2NodeClass has a spread placement group", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "spread-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "spread-pg"}
 		setupPlacementGroupInProvider(nodeClass, &ec2.DescribePlacementGroupsOutput{
 			PlacementGroups: []ec2types.PlacementGroup{{
 				GroupId:     lo.ToPtr("pg-spread123"),
@@ -119,16 +119,7 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 	})
 
 	It("should pass through when partition label is already set", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "partition-pg"}
-		setupPlacementGroupInProvider(nodeClass, &ec2.DescribePlacementGroupsOutput{
-			PlacementGroups: []ec2types.PlacementGroup{{
-				GroupId:        lo.ToPtr("pg-partition123"),
-				GroupName:      lo.ToPtr("partition-pg"),
-				PartitionCount: lo.ToPtr[int32](7),
-				State:          ec2types.PlacementGroupStateAvailable,
-				Strategy:       ec2types.PlacementStrategyPartition,
-			}},
-		})
+		nc.Labels[v1.LabelPlacementGroupID] = "pg-partition123"
 		nc.Labels[v1.LabelPlacementGroupPartition] = "3"
 		ExpectApplied(ctx, env.Client, nodeClass, nc)
 
@@ -138,16 +129,7 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 	})
 
 	It("should block registration when providerID is empty for partition placement group", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "partition-pg"}
-		setupPlacementGroupInProvider(nodeClass, &ec2.DescribePlacementGroupsOutput{
-			PlacementGroups: []ec2types.PlacementGroup{{
-				GroupId:        lo.ToPtr("pg-partition123"),
-				GroupName:      lo.ToPtr("partition-pg"),
-				PartitionCount: lo.ToPtr[int32](7),
-				State:          ec2types.PlacementGroupStateAvailable,
-				Strategy:       ec2types.PlacementStrategyPartition,
-			}},
-		})
+		nc.Labels[v1.LabelPlacementGroupID] = "pg-partition123"
 		nc.Status.ProviderID = ""
 		ExpectApplied(ctx, env.Client, nodeClass, nc)
 
@@ -158,19 +140,9 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 
 	It("should set partition label and proceed when DescribeInstances returns partition number", func() {
 		instanceID := fake.InstanceID()
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "partition-pg"}
-		setupPlacementGroupInProvider(nodeClass, &ec2.DescribePlacementGroupsOutput{
-			PlacementGroups: []ec2types.PlacementGroup{{
-				GroupId:        lo.ToPtr("pg-partition123"),
-				GroupName:      lo.ToPtr("partition-pg"),
-				PartitionCount: lo.ToPtr[int32](7),
-				State:          ec2types.PlacementGroupStateAvailable,
-				Strategy:       ec2types.PlacementStrategyPartition,
-			}},
-		})
+		nc.Labels[v1.LabelPlacementGroupID] = "pg-partition123"
 		nc.Status.ProviderID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		ExpectApplied(ctx, env.Client, nodeClass, nc)
-		nc.Labels = map[string]string{}
 
 		awsEnv.EC2API.Instances.Store(instanceID, ec2types.Instance{
 			InstanceId:   lo.ToPtr(instanceID),
@@ -190,18 +162,9 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 		Expect(nc.Labels[v1.LabelPlacementGroupPartition]).To(Equal("3"))
 	})
 
-	It("should block registration when instance has no partition number yet", func() {
+	It("should pass through when instance has no partition number (not a partition PG)", func() {
 		instanceID := fake.InstanceID()
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "partition-pg"}
-		setupPlacementGroupInProvider(nodeClass, &ec2.DescribePlacementGroupsOutput{
-			PlacementGroups: []ec2types.PlacementGroup{{
-				GroupId:        lo.ToPtr("pg-partition123"),
-				GroupName:      lo.ToPtr("partition-pg"),
-				PartitionCount: lo.ToPtr[int32](7),
-				State:          ec2types.PlacementGroupStateAvailable,
-				Strategy:       ec2types.PlacementStrategyPartition,
-			}},
-		})
+		nc.Labels[v1.LabelPlacementGroupID] = "pg-cluster123"
 		nc.Status.ProviderID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		ExpectApplied(ctx, env.Client, nodeClass, nc)
 
@@ -218,21 +181,12 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 
 		result, err := hook.Registered(ctx, nc)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(result.Requeue).To(BeTrue())
+		Expect(result.Requeue).To(BeFalse())
 	})
 
 	It("should return error when instance is not found", func() {
 		instanceID := fake.InstanceID()
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "partition-pg"}
-		setupPlacementGroupInProvider(nodeClass, &ec2.DescribePlacementGroupsOutput{
-			PlacementGroups: []ec2types.PlacementGroup{{
-				GroupId:        lo.ToPtr("pg-partition123"),
-				GroupName:      lo.ToPtr("partition-pg"),
-				PartitionCount: lo.ToPtr[int32](7),
-				State:          ec2types.PlacementGroupStateAvailable,
-				Strategy:       ec2types.PlacementStrategyPartition,
-			}},
-		})
+		nc.Labels[v1.LabelPlacementGroupID] = "pg-partition123"
 		nc.Status.ProviderID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		ExpectApplied(ctx, env.Client, nodeClass, nc)
 
@@ -241,17 +195,6 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 	})
 
 	It("should handle multiple partition numbers correctly", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "partition-pg"}
-		setupPlacementGroupInProvider(nodeClass, &ec2.DescribePlacementGroupsOutput{
-			PlacementGroups: []ec2types.PlacementGroup{{
-				GroupId:        lo.ToPtr("pg-partition123"),
-				GroupName:      lo.ToPtr("partition-pg"),
-				PartitionCount: lo.ToPtr[int32](7),
-				State:          ec2types.PlacementGroupStateAvailable,
-				Strategy:       ec2types.PlacementStrategyPartition,
-			}},
-		})
-
 		for _, partitionNum := range []int32{1, 4, 7} {
 			instanceID := fake.InstanceID()
 			testNC := coretest.NodeClaim(karpv1.NodeClaim{
@@ -263,10 +206,11 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 					},
 				},
 			})
-			testNC.Labels = map[string]string{}
+			testNC.Labels = map[string]string{
+				v1.LabelPlacementGroupID: "pg-partition123",
+			}
 			testNC.Status.ProviderID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 			ExpectApplied(ctx, env.Client, nodeClass, testNC)
-			testNC.Labels = map[string]string{}
 
 			awsEnv.EC2API.Instances.Store(instanceID, ec2types.Instance{
 				InstanceId:   lo.ToPtr(instanceID),

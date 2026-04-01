@@ -66,7 +66,7 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 		return "", fmt.Errorf("calculating subnet drift, %w", err)
 	}
 	capacityReservationsDrifted := c.isCapacityReservationDrifted(instance, nodeClass)
-	placementGroupDrifted := c.isPlacementGroupDrifted(nodeClaim, nodeClass)
+	placementGroupDrifted := c.isPlacementGroupDrifted(ctx, nodeClaim, nodeClass)
 	drifted := lo.FindOrElse([]cloudprovider.DriftReason{
 		securitygroupDrifted,
 		subnetDrifted,
@@ -151,10 +151,10 @@ func (c *CloudProvider) isCapacityReservationDrifted(instance *instance.Instance
 
 // isPlacementGroupDrifted checks if the node's placement group ID label no longer matches the EC2NodeClass's
 // resolved placement group. This covers scenarios where placementGroupSelector was added, removed, or changed.
-func (c *CloudProvider) isPlacementGroupDrifted(nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {
+func (c *CloudProvider) isPlacementGroupDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {
 	nodeClaimPGID := nodeClaim.Labels[v1.LabelPlacementGroupID]
 	var nodeClassPGID string
-	if pg := c.placementGroupProvider.GetForNodeClass(nodeClass); pg != nil {
+	if pg, _ := c.placementGroupProvider.Get(ctx, nodeClass); pg != nil {
 		nodeClassPGID = pg.ID
 	}
 	if nodeClaimPGID != nodeClassPGID {

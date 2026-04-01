@@ -67,7 +67,7 @@ type NodeClass interface {
 type Provider interface {
 	Get(context.Context, NodeClass, ec2types.InstanceType) (*cloudprovider.InstanceType, error)
 	List(context.Context, NodeClass) ([]*cloudprovider.InstanceType, error)
-	FilterForNodeClass([]*cloudprovider.InstanceType, NodeClass) []*cloudprovider.InstanceType
+	FilterForNodeClass(context.Context, []*cloudprovider.InstanceType, NodeClass) []*cloudprovider.InstanceType
 }
 
 type DefaultProvider struct {
@@ -359,13 +359,13 @@ func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context
 	return nil
 }
 
-func (p *DefaultProvider) FilterForNodeClass(its []*cloudprovider.InstanceType, nodeClass NodeClass) []*cloudprovider.InstanceType {
+func (p *DefaultProvider) FilterForNodeClass(ctx context.Context, its []*cloudprovider.InstanceType, nodeClass NodeClass) []*cloudprovider.InstanceType {
 	p.muInstanceTypesInfo.RLock()
 	defer p.muInstanceTypesInfo.RUnlock()
 	// Resolve the placement group for compatibility checking
 	var pg *placementgroup.PlacementGroup
 	if nc, ok := nodeClass.(*v1.EC2NodeClass); ok {
-		pg = p.placementGroupProvider.GetForNodeClass(nc)
+		pg, _ = p.placementGroupProvider.Get(ctx, nc)
 	}
 	compatible := []*cloudprovider.InstanceType{}
 	for _, it := range its {

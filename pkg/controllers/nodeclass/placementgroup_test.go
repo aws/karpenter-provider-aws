@@ -60,44 +60,46 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 		})
 	})
 
-	It("should not have PlacementGroupReady condition when no placement group selector is specified", func() {
+	It("should have PlacementGroupReady condition set to true when no placement group selector is specified", func() {
 		// nodeClass has no PlacementGroupSelector by default
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypePlacementGroupReady)).To(BeNil())
-		Expect(awsEnv.PlacementGroupProvider.GetForNodeClass(nodeClass)).To(BeNil())
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypePlacementGroupReady).IsTrue()).To(BeTrue())
+		pg, err := awsEnv.PlacementGroupProvider.Get(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(pg).To(BeNil())
 	})
 	It("should resolve a cluster placement group by name", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "my-cluster-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-cluster-pg"}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypePlacementGroupReady).IsTrue()).To(BeTrue())
-		pg := awsEnv.PlacementGroupProvider.GetForNodeClass(nodeClass)
+		pg, _ := awsEnv.PlacementGroupProvider.Get(ctx, nodeClass)
 		Expect(pg).ToNot(BeNil())
 		Expect(pg.ID).To(Equal("pg-cluster123"))
 		Expect(pg.Name).To(Equal("my-cluster-pg"))
 		Expect(pg.Strategy).To(Equal(placementgroup.StrategyCluster))
 	})
 	It("should resolve a placement group by ID", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{ID: "pg-cluster123"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{ID: "pg-cluster123"}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypePlacementGroupReady).IsTrue()).To(BeTrue())
-		pg := awsEnv.PlacementGroupProvider.GetForNodeClass(nodeClass)
+		pg, _ := awsEnv.PlacementGroupProvider.Get(ctx, nodeClass)
 		Expect(pg).ToNot(BeNil())
 		Expect(pg.ID).To(Equal("pg-cluster123"))
 		Expect(pg.Name).To(Equal("my-cluster-pg"))
 	})
 	It("should resolve a partition placement group with partition count", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "my-partition-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-partition-pg"}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypePlacementGroupReady).IsTrue()).To(BeTrue())
-		pg := awsEnv.PlacementGroupProvider.GetForNodeClass(nodeClass)
+		pg, _ := awsEnv.PlacementGroupProvider.Get(ctx, nodeClass)
 		Expect(pg).ToNot(BeNil())
 		Expect(pg.ID).To(Equal("pg-partition456"))
 		Expect(pg.Name).To(Equal("my-partition-pg"))
@@ -105,12 +107,12 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 		Expect(pg.PartitionCount).To(Equal(int32(7)))
 	})
 	It("should resolve a spread placement group with spread level", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "my-spread-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-spread-pg"}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypePlacementGroupReady).IsTrue()).To(BeTrue())
-		pg := awsEnv.PlacementGroupProvider.GetForNodeClass(nodeClass)
+		pg, _ := awsEnv.PlacementGroupProvider.Get(ctx, nodeClass)
 		Expect(pg).ToNot(BeNil())
 		Expect(pg.ID).To(Equal("pg-spread789"))
 		Expect(pg.Name).To(Equal("my-spread-pg"))
@@ -118,7 +120,7 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 		Expect(pg.SpreadLevel).To(Equal(placementgroup.SpreadLevelRack))
 	})
 	It("should set condition false when placement group is not found", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "nonexistent-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "nonexistent-pg"}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -126,13 +128,15 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 		Expect(condition.IsFalse()).To(BeTrue())
 		Expect(condition.Reason).To(Equal("PlacementGroupNotFound"))
 		Expect(condition.Message).To(ContainSubstring("nonexistent-pg"))
-		Expect(awsEnv.PlacementGroupProvider.GetForNodeClass(nodeClass)).To(BeNil())
+		pg, err := awsEnv.PlacementGroupProvider.Get(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(pg).To(BeNil())
 	})
 	It("should set condition false when placement group is not in available state", func() {
 		// The DescribePlacementGroupsInput always filters by state=available, so a pending PG
 		// is filtered out at the EC2 API level. The reconciler sees nil from the provider and
 		// sets "PlacementGroupNotFound".
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "my-pending-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-pending-pg"}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -140,40 +144,46 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 		Expect(condition.IsFalse()).To(BeTrue())
 		Expect(condition.Reason).To(Equal("PlacementGroupNotFound"))
 		Expect(condition.Message).To(ContainSubstring("my-pending-pg"))
-		Expect(awsEnv.PlacementGroupProvider.GetForNodeClass(nodeClass)).To(BeNil())
+		pg, err := awsEnv.PlacementGroupProvider.Get(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(pg).To(BeNil())
 	})
 	It("should clear in-memory state and condition when placement group selector is removed", func() {
 		// First, set up with a placement group
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "my-cluster-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-cluster-pg"}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(awsEnv.PlacementGroupProvider.GetForNodeClass(nodeClass)).ToNot(BeNil())
+		pg, err := awsEnv.PlacementGroupProvider.Get(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(pg).ToNot(BeNil())
 
-		// Now remove the selector - PlacementGroupReady condition should be cleared
+		// Now remove the selector - PlacementGroupReady condition should be set to true (resolved nothing)
 		nodeClass.Spec.PlacementGroupSelector = nil
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypePlacementGroupReady)).To(BeNil())
-		Expect(awsEnv.PlacementGroupProvider.GetForNodeClass(nodeClass)).To(BeNil())
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypePlacementGroupReady).IsTrue()).To(BeTrue())
+		pg, err = awsEnv.PlacementGroupProvider.Get(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(pg).To(BeNil())
 	})
 	It("should update in-memory state when placement group selector changes", func() {
 		// Start with cluster PG
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "my-cluster-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-cluster-pg"}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		pg := awsEnv.PlacementGroupProvider.GetForNodeClass(nodeClass)
+		pg, _ := awsEnv.PlacementGroupProvider.Get(ctx, nodeClass)
 		Expect(pg).ToNot(BeNil())
 		Expect(pg.ID).To(Equal("pg-cluster123"))
 
 		// Switch to spread PG
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelectorTerm{Name: "my-spread-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-spread-pg"}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		pg = awsEnv.PlacementGroupProvider.GetForNodeClass(nodeClass)
+		pg, _ = awsEnv.PlacementGroupProvider.Get(ctx, nodeClass)
 		Expect(pg).ToNot(BeNil())
 		Expect(pg.ID).To(Equal("pg-spread789"))
 		Expect(pg.Strategy).To(Equal(placementgroup.StrategySpread))

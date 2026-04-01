@@ -152,12 +152,15 @@ func (p *DefaultProvider) EnsureAll(
 	if err != nil {
 		return nil, err
 	}
-	// Resolve placement group ID and partition targeting
+
 	var pgID string
 	var pgPartition int32
-	if pg := p.placementGroupProvider.GetForNodeClass(nodeClass); pg != nil {
+	if pg, _ := p.placementGroupProvider.Get(ctx, nodeClass); pg != nil {
 		pgID = pg.ID
 		if pg.Strategy == placementgroup.StrategyPartition {
+			// The scheduler narrows to a single partition before launch. If somehow multiple partitions
+			// are present, we don't target a specific partition and let EC2 auto-assign. The registration
+			// hook will discover the actual partition via DescribeInstances.
 			reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 			if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil && partitionReq.Len() == 1 {
 				if parsed, err := strconv.ParseInt(partitionReq.Any(), 10, 32); err == nil {

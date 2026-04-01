@@ -149,7 +149,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	placementGroupProvider := placementgroup.NewProvider(
 		ec2api,
-		cache.New(awscache.PlacementGroupTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 	)
 	amiResolver := amifamily.NewDefaultResolver(cfg.Region)
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(

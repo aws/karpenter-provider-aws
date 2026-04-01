@@ -149,7 +149,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return i.Name == string(instance.Type)
 	})
-	nc := c.instanceToNodeClaim(instance, instanceType, nodeClass)
+	nc := c.instanceToNodeClaim(ctx, instance, instanceType, nodeClass)
 	nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
 		v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
 		v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
@@ -173,7 +173,7 @@ func (c *CloudProvider) List(ctx context.Context) ([]*karpv1.NodeClaim, error) {
 		if client.IgnoreNotFound(err) != nil {
 			return nil, fmt.Errorf("resolving nodeclass, %w", err)
 		}
-		nodeClaims = append(nodeClaims, c.instanceToNodeClaim(it, instanceType, nc))
+		nodeClaims = append(nodeClaims, c.instanceToNodeClaim(ctx, it, instanceType, nc))
 	}
 	return nodeClaims, nil
 }
@@ -196,7 +196,7 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*karpv1.Nod
 	if client.IgnoreNotFound(err) != nil {
 		return nil, fmt.Errorf("resolving nodeclass, %w", err)
 	}
-	return c.instanceToNodeClaim(instance, instanceType, nc), nil
+	return c.instanceToNodeClaim(ctx, instance, instanceType, nc), nil
 }
 
 // GetInstanceTypes returns all available InstanceTypes
@@ -411,7 +411,7 @@ func (c *CloudProvider) resolveNodePoolFromInstance(ctx context.Context, instanc
 }
 
 //nolint:gocyclo
-func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass) *karpv1.NodeClaim {
+func (c *CloudProvider) instanceToNodeClaim(ctx context.Context, i *instance.Instance, instanceType *cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass) *karpv1.NodeClaim {
 	nodeClaim := &karpv1.NodeClaim{}
 	labels := map[string]string{}
 	annotations := map[string]string{}
@@ -466,7 +466,7 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	}
 	// Placement group labels
 	if nodeClass != nil {
-		if pg := c.placementGroupProvider.GetForNodeClass(nodeClass); pg != nil {
+		if pg, _ := c.placementGroupProvider.Get(ctx, nodeClass); pg != nil {
 			labels[v1.LabelPlacementGroupID] = pg.ID
 		}
 	}

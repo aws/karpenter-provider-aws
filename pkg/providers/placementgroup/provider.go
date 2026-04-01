@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/patrickmn/go-cache"
+	"k8s.io/apimachinery/pkg/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -27,23 +28,13 @@ import (
 )
 
 type Provider interface {
-	// Get resolves the placement group for a nodeclass from EC2, stores it in-memory,
-	// and returns it. Called by the nodeclass reconciler.
+	// Get resolves the placement group for a nodeclass. It uses an in-memory cache keyed by
+	// NodeClass UID and generation to avoid unnecessary EC2 API calls. When the cache entry
+	// expires (TTL) or the NodeClass spec changes (bumping generation), the next call
+	// re-resolves from EC2. Returns nil when no placement group is configured.
+	// On transient EC2 errors, returns the last known good result and surfaces the error.
+	// On not-found errors, clears the resolved state and returns nil.
 	Get(context.Context, *v1.EC2NodeClass) (*PlacementGroup, error)
-	// GetForNodeClass returns the in-memory resolved placement group for a nodeclass.
-	// Returns nil if no placement group is configured, has not been resolved yet,
-	// or the resolved data is stale (nodeclass generation has changed since resolution).
-	GetForNodeClass(*v1.EC2NodeClass) *PlacementGroup
-	// Clear removes the in-memory resolved placement group for a nodeclass.
-	Clear(*v1.EC2NodeClass)
-}
-
-// resolvedEntry pairs a resolved placement group with the nodeclass generation
-// it was resolved for. This ensures that callers of GetForNodeClass never see
-// stale data from a previous spec revision.
-type resolvedEntry struct {
-	pg         *PlacementGroup
-	generation int64
 }
 
 type DefaultProvider struct {
@@ -52,88 +43,77 @@ type DefaultProvider struct {
 	ec2api sdk.EC2API
 	cache  *cache.Cache
 
-	// resolved stores the resolved placement group for each nodeclass, keyed by nodeclass name
-	resolved map[string]*resolvedEntry
+	// resolved stores the last known good placement group for each nodeclass, keyed by UID.
+	// This is preserved across transient EC2 errors so callers can continue to use stale data.
+	resolved map[types.UID]*PlacementGroup
 }
 
 func NewProvider(ec2api sdk.EC2API, placementGroupCache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api:   ec2api,
 		cache:    placementGroupCache,
-		resolved: make(map[string]*resolvedEntry),
+		resolved: make(map[types.UID]*PlacementGroup),
 	}
 }
 
+// cacheKey returns a key that incorporates both the UID and generation,
+// so spec changes naturally cause a cache miss without separate generation tracking.
+func cacheKey(nodeClass *v1.EC2NodeClass) string {
+	return fmt.Sprintf("%s:%d", nodeClass.UID, nodeClass.Generation)
+}
+
 func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1.EC2NodeClass) (*PlacementGroup, error) {
+	uid := nodeClass.UID
+
 	if nodeClass.Spec.PlacementGroupSelector == nil {
-		p.Clear(nodeClass)
+		p.Lock()
+		delete(p.resolved, uid)
+		p.cache.Delete(cacheKey(nodeClass))
+		p.Unlock()
 		return nil, nil
 	}
 
-	term := *nodeClass.Spec.PlacementGroupSelector
-	q := &Query{ID: term.ID, Name: term.Name}
-
 	p.RLock()
-	if entry, ok := p.cache.Get(q.CacheKey()); ok {
-		resolved := entry.(*PlacementGroup)
+	if _, ok := p.cache.Get(cacheKey(nodeClass)); ok {
+		resolved := p.resolved[uid]
 		p.RUnlock()
-		p.Lock()
-		p.resolved[nodeClass.Name] = &resolvedEntry{pg: resolved, generation: nodeClass.Generation}
-		p.Unlock()
 		return resolved, nil
 	}
 	p.RUnlock()
+
+	term := *nodeClass.Spec.PlacementGroupSelector
+	q := &Query{ID: term.ID, Name: term.Name}
 
 	out, err := p.ec2api.DescribePlacementGroups(ctx, q.DescribePlacementGroupsInput())
 	if err != nil {
 		if awserrors.IsNotFound(err) {
 			p.Lock()
-			p.cache.Delete(q.CacheKey())
-			delete(p.resolved, nodeClass.Name)
+			delete(p.resolved, uid)
+			p.cache.Delete(cacheKey(nodeClass))
 			p.Unlock()
 			return nil, nil
 		}
-		p.Clear(nodeClass)
-		return nil, fmt.Errorf("describing placement groups, %w", err)
+		// Transient error (EC2 outage, throttling) — return last known good, surface error
+		p.RLock()
+		resolved := p.resolved[uid]
+		p.RUnlock()
+		return resolved, fmt.Errorf("describing placement groups, %w", err)
 	}
+
 	if len(out.PlacementGroups) == 0 {
-		p.Clear(nodeClass)
+		p.Lock()
+		delete(p.resolved, uid)
+		p.cache.Delete(cacheKey(nodeClass))
+		p.Unlock()
 		return nil, nil
 	}
 
 	resolved := PlacementGroupFromEC2(&out.PlacementGroups[0])
 
 	p.Lock()
-	p.cache.SetDefault(q.CacheKey(), resolved)
-	p.resolved[nodeClass.Name] = &resolvedEntry{pg: resolved, generation: nodeClass.Generation}
+	p.resolved[uid] = resolved
+	p.cache.SetDefault(cacheKey(nodeClass), struct{}{})
 	p.Unlock()
 
 	return resolved, nil
-}
-
-func (p *DefaultProvider) GetForNodeClass(nodeClass *v1.EC2NodeClass) *PlacementGroup {
-	p.RLock()
-	defer p.RUnlock()
-	entry := p.resolved[nodeClass.Name]
-	if entry == nil || entry.generation != nodeClass.Generation {
-		return nil
-	}
-	// Validate the resolved PG still matches the current spec selector as a defense-in-depth check
-	if nodeClass.Spec.PlacementGroupSelector == nil {
-		return nil
-	}
-	term := nodeClass.Spec.PlacementGroupSelector
-	if term.ID != "" && entry.pg.ID != term.ID {
-		return nil
-	}
-	if term.Name != "" && entry.pg.Name != term.Name {
-		return nil
-	}
-	return entry.pg
-}
-
-func (p *DefaultProvider) Clear(nodeClass *v1.EC2NodeClass) {
-	p.Lock()
-	defer p.Unlock()
-	delete(p.resolved, nodeClass.Name)
 }

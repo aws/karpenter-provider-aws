@@ -22,19 +22,28 @@ import (
 	"sync/atomic"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/option"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/patrickmn/go-cache"
 )
 
-// PlacementGroupScope optionally scopes ICE cache entries to a specific placement group and partition.
-// When set, ICE entries are isolated so that placement-group-specific failures don't block non-PG launches.
-type PlacementGroupScope struct {
-	// ID is the placement group ID (e.g., "pg-0123456789abcdef0")
-	ID string
-	// Partition is the partition number as a string (e.g., "3"). Empty when no specific partition is targeted
-	// or for non-partition placement groups.
-	Partition string
+// UnavailableOfferingsOption is a functional option for scoping ICE cache entries.
+type UnavailableOfferingsOption = option.Function[unavailableOfferingsOptions]
+
+type unavailableOfferingsOptions struct {
+	placementGroupID        string
+	placementGroupPartition string
+}
+
+// WithPlacementGroup scopes an ICE cache entry to a specific placement group ID.
+func WithPlacementGroup(id string) UnavailableOfferingsOption {
+	return func(o *unavailableOfferingsOptions) { o.placementGroupID = id }
+}
+
+// WithPlacementGroupPartition further scopes an ICE cache entry to a specific partition.
+func WithPlacementGroupPartition(partition string) UnavailableOfferingsOption {
+	return func(o *unavailableOfferingsOptions) { o.placementGroupPartition = partition }
 }
 
 // UnavailableOfferings stores any offerings that return ICE (insufficient capacity errors) when
@@ -93,8 +102,8 @@ func (u *UnavailableOfferings) SeqNum(instanceType ec2types.InstanceType) uint64
 // The pgScope parameter scopes the lookup so that an ICE from a placement group launch
 // does not incorrectly prevent launches of the same instance type + zone without that placement group.
 // When a partition is specified in the scope, the lookup is further scoped to that partition.
-func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType, zone, capacityType string, pgScope ...PlacementGroupScope) bool {
-	_, offeringFound := u.offeringCache.Get(u.key(instanceType, zone, capacityType, pgScope...))
+func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType, zone, capacityType string, opts ...UnavailableOfferingsOption) bool {
+	_, offeringFound := u.offeringCache.Get(u.key(instanceType, zone, capacityType, opts...))
 	_, capacityTypeFound := u.capacityTypeCache.Get(capacityType)
 	_, azFound := u.azCache.Get(zone)
 	return offeringFound || capacityTypeFound || azFound
@@ -104,7 +113,8 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType,
 // The pgScope parameter scopes the cache entry so that placement-group-specific ICEs don't
 // block non-PG launches of the same instance type + zone. When a partition is specified, the cache
 // entry is further scoped so only that partition is marked unavailable.
-func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType ec2types.InstanceType, zone, capacityType string, unavailableReason map[string]string, pgScope ...PlacementGroupScope) {
+func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType ec2types.InstanceType, zone, capacityType string, unavailableReason map[string]string, opts ...UnavailableOfferingsOption) {
+	resolved := option.Resolve(opts...)
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	logValues := []any{
 		"reason", unavailableReason["reason"],
@@ -113,10 +123,10 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType
 		"capacity-type", capacityType,
 		"ttl", UnavailableOfferingsTTL,
 	}
-	if len(pgScope) > 0 && pgScope[0].ID != "" {
-		logValues = append(logValues, "placement-group-id", pgScope[0].ID)
-		if pgScope[0].Partition != "" {
-			logValues = append(logValues, "placement-group-partition", pgScope[0].Partition)
+	if resolved.placementGroupID != "" {
+		logValues = append(logValues, "placement-group-id", resolved.placementGroupID)
+		if resolved.placementGroupPartition != "" {
+			logValues = append(logValues, "placement-group-partition", resolved.placementGroupPartition)
 		}
 	}
 	// Add fleetID if provided
@@ -126,7 +136,7 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType
 		logValues = append(logValues, key, unavailableReason[key])
 	}
 	log.FromContext(ctx).WithValues(logValues...).V(1).Info("removing offering from offerings")
-	u.offeringCache.SetDefault(u.key(instanceType, zone, capacityType, pgScope...), struct{}{})
+	u.offeringCache.SetDefault(u.key(instanceType, zone, capacityType, opts...), struct{}{})
 	u.offeringCacheSeqNumMu.Lock()
 	u.offeringCacheSeqNum[instanceType]++
 	u.offeringCacheSeqNumMu.Unlock()
@@ -156,12 +166,13 @@ func (u *UnavailableOfferings) Flush() {
 // When a placement group scope is provided, the PG ID (and optionally partition) is included in the key
 // to scope ICE entries per placement group and partition.
 // Format: <capacityType>:<instanceType>:<zone>[:<pgID>[:<partition>]]
-func (u *UnavailableOfferings) key(instanceType ec2types.InstanceType, zone string, capacityType string, pgScope ...PlacementGroupScope) string {
-	if len(pgScope) > 0 && pgScope[0].ID != "" {
-		if pgScope[0].Partition != "" {
-			return fmt.Sprintf("%s:%s:%s:%s:%s", capacityType, instanceType, zone, pgScope[0].ID, pgScope[0].Partition)
+func (u *UnavailableOfferings) key(instanceType ec2types.InstanceType, zone string, capacityType string, opts ...UnavailableOfferingsOption) string {
+	resolved := option.Resolve(opts...)
+	if resolved.placementGroupID != "" {
+		if resolved.placementGroupPartition != "" {
+			return fmt.Sprintf("%s:%s:%s:%s:%s", capacityType, instanceType, zone, resolved.placementGroupID, resolved.placementGroupPartition)
 		}
-		return fmt.Sprintf("%s:%s:%s:%s", capacityType, instanceType, zone, pgScope[0].ID)
+		return fmt.Sprintf("%s:%s:%s:%s", capacityType, instanceType, zone, resolved.placementGroupID)
 	}
 	return fmt.Sprintf("%s:%s:%s", capacityType, instanceType, zone)
 }

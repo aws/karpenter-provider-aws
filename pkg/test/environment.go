@@ -138,7 +138,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationAvailabilityCache := cache.New(24*time.Hour, awscache.DefaultCleanupInterval)
-	placementGroupCache := cache.New(awscache.PlacementGroupTTL, awscache.DefaultCleanupInterval)
+	placementGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	validationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	recreationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}

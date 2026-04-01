@@ -70,9 +70,7 @@ type Query struct {
 }
 
 func (q *Query) CacheKey() string {
-	return fmt.Sprintf("%d", lo.Must(hashstructure.Hash(q, hashstructure.FormatV2, &hashstructure.HashOptions{
-		SlicesAsSets: true,
-	})))
+	return fmt.Sprintf("%d", lo.Must(hashstructure.Hash(q, hashstructure.FormatV2, &hashstructure.HashOptions{})))
 }
 
 func (q *Query) DescribePlacementGroupsInput() *ec2.DescribePlacementGroupsInput {
