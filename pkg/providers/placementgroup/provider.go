@@ -21,11 +21,17 @@ import (
 
 	"github.com/patrickmn/go-cache"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 )
+
+type NodeClass interface {
+	client.Object // Provides Name, UID, Generation
+	PlacementGroupSelector() *v1.PlacementGroupSelector
+}
 
 type Provider interface {
 	// Get resolves the placement group for a nodeclass. It uses an in-memory cache keyed by
@@ -34,7 +40,7 @@ type Provider interface {
 	// re-resolves from EC2. Returns nil when no placement group is configured.
 	// On transient EC2 errors, returns the last known good result and surfaces the error.
 	// On not-found errors, clears the resolved state and returns nil.
-	Get(context.Context, *v1.EC2NodeClass) (*PlacementGroup, error)
+	Get(context.Context, NodeClass) (*PlacementGroup, error)
 }
 
 type DefaultProvider struct {
@@ -58,14 +64,14 @@ func NewProvider(ec2api sdk.EC2API, placementGroupCache *cache.Cache) *DefaultPr
 
 // cacheKey returns a key that incorporates both the UID and generation,
 // so spec changes naturally cause a cache miss without separate generation tracking.
-func cacheKey(nodeClass *v1.EC2NodeClass) string {
-	return fmt.Sprintf("%s:%d", nodeClass.UID, nodeClass.Generation)
+func cacheKey(nodeClass NodeClass) string {
+	return fmt.Sprintf("%s:%d", nodeClass.GetUID(), nodeClass.GetGeneration())
 }
 
-func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1.EC2NodeClass) (*PlacementGroup, error) {
-	uid := nodeClass.UID
+func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass) (*PlacementGroup, error) {
+	uid := nodeClass.GetUID()
 
-	if nodeClass.Spec.PlacementGroupSelector == nil {
+	if nodeClass.PlacementGroupSelector() == nil {
 		p.Lock()
 		delete(p.resolved, uid)
 		p.cache.Delete(cacheKey(nodeClass))
@@ -81,7 +87,7 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	}
 	p.RUnlock()
 
-	term := *nodeClass.Spec.PlacementGroupSelector
+	term := *nodeClass.PlacementGroupSelector()
 	q := &Query{ID: term.ID, Name: term.Name}
 
 	out, err := p.ec2api.DescribePlacementGroups(ctx, q.DescribePlacementGroupsInput())

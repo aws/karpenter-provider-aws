@@ -61,6 +61,7 @@ type NodeClass interface {
 	InstanceStorePolicy() *v1.InstanceStorePolicy
 	NetworkInterfaces() []*v1.NetworkInterface
 	KubeletConfiguration() *v1.KubeletConfiguration
+	PlacementGroupSelector() *v1.PlacementGroupSelector
 	ZoneInfo() []v1.ZoneInfo
 }
 
@@ -364,8 +365,8 @@ func (p *DefaultProvider) FilterForNodeClass(ctx context.Context, its []*cloudpr
 	defer p.muInstanceTypesInfo.RUnlock()
 	// Resolve the placement group for compatibility checking
 	var pg *placementgroup.PlacementGroup
-	if nc, ok := nodeClass.(*v1.EC2NodeClass); ok {
-		pg, _ = p.placementGroupProvider.Get(ctx, nc)
+	if nodeClass.PlacementGroupSelector() != nil {
+		pg, _ = p.placementGroupProvider.Get(ctx, nodeClass)
 	}
 	compatible := []*cloudprovider.InstanceType{}
 	for _, it := range its {

@@ -25,6 +25,7 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/options"
@@ -43,10 +44,12 @@ type Provider interface {
 }
 
 type NodeClass interface {
+	client.Object
 	CapacityReservations() []v1.CapacityReservation
 	ZoneInfo() []v1.ZoneInfo
 	NetworkInterfaces() []*v1.NetworkInterface
 	AMIFamily() string
+	PlacementGroupSelector() *v1.PlacementGroupSelector
 }
 
 type DefaultProvider struct {
@@ -88,8 +91,8 @@ func (p *DefaultProvider) InjectOfferings(
 	})
 	// Resolve the placement group once and pass it through to avoid repeated type assertions and lookups
 	var pg *placementgroup.PlacementGroup
-	if nc, ok := nodeClass.(*v1.EC2NodeClass); ok {
-		pg, _ = p.placementGroupProvider.Get(ctx, nc)
+	if nodeClass.PlacementGroupSelector() != nil {
+		pg, _ = p.placementGroupProvider.Get(ctx, nodeClass)
 	}
 	var its []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {

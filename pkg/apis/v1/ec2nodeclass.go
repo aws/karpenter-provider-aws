@@ -582,6 +582,10 @@ func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {
 	return in.Spec.NetworkInterfaces
 }
 
+func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {
+	return in.Spec.PlacementGroupSelector
+}
+
 func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {
 	return in.Spec.Kubelet
 }

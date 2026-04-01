@@ -227,15 +227,6 @@ status:
       reservationType: default
       state: active
 
-  # Placement Group
-  placementGroup:
-    - id: pg-01234567890123456
-      name: my-pg
-      partitionCount: 7
-      spreadLevel: rack
-      state: available
-      strategy: cluster
-
   # Generated instance profile name from "role"
   instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
   conditions:
