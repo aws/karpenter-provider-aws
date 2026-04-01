@@ -907,6 +907,7 @@ func (c *Client) toNode(ctx context.Context, instance ec2types.Instance) *corev1
 		nil,
 		nil,
 		nil,
+		nil,
 		// TODO: Eventually support different AMIFamilies from userData
 		"al2023",
 		nil,

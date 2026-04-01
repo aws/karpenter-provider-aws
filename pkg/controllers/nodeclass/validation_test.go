@@ -333,6 +333,35 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
 				Expect(string(runInstancesInput.InstanceType)).ToNot(HavePrefix("a1"))
 			})
+			It("should succeed validation using fallback instance types with no NodePools and NodeClass network interface configs", func() {
+				nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+					{
+						NetworkCardIndex: 0,
+						DeviceIndex:      0,
+						InterfaceType:    v1.InterfaceTypeInterface,
+					},
+					{
+						NetworkCardIndex: 0,
+						DeviceIndex:      1,
+						InterfaceType:    v1.InterfaceTypeEFAOnly,
+					},
+					{
+						NetworkCardIndex: 1,
+						DeviceIndex:      0,
+						InterfaceType:    v1.InterfaceTypeEFAOnly,
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+
+				// Verify a fallback instance type is used for valdiation; not m5 / m6g
+				runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+				Expect(string(runInstancesInput.InstanceType)).ToNot(HavePrefix("m5"))
+				Expect(string(runInstancesInput.InstanceType)).ToNot(HavePrefix("m6g"))
+			})
 		})
 		Context("Instance Type Prioritization Validation", func() {
 			BeforeEach(func() {

@@ -82,6 +82,7 @@ type LaunchTemplate struct {
 	InstanceTypes                    []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring               bool
 	EFACount                         int
+	NetworkInterfaces                []*v1.NetworkInterface
 	CapacityType                     string
 	CapacityReservationID            string
 	CapacityReservationType          v1.CapacityReservationType
@@ -314,6 +315,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			AMIID:                            amiID,
 			InstanceTypes:                    instanceTypes,
 			EFACount:                         efaCount,
+			NetworkInterfaces:                nodeClass.Spec.NetworkInterfaces,
 			CapacityType:                     capacityType,
 			CapacityReservationID:            id,
 			CapacityReservationType:          capacityReservationType,

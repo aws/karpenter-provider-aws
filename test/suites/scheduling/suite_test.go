@@ -1035,6 +1035,37 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "true"))
 		})
 	})
+	It("should provision EFAs according to NodeClass configuration", func() {
+		pod := test.Pod(test.PodOptions{
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+			},
+		})
+		nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+			{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+			{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+		}
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		instance := env.GetInstance(node.Name)
+		networkInterfaces := instance.NetworkInterfaces
+		Expect(networkInterfaces).To(HaveLen(2))
+
+		for _, deviceIndex := range []int32{0, 1} {
+			networkInterface, found := lo.Find(networkInterfaces, func(i ec2types.InstanceNetworkInterface) bool {
+				Expect(i.Attachment).ToNot(BeNil())
+				Expect(i.Attachment.DeviceIndex).ToNot(BeNil())
+				return deviceIndex == lo.FromPtr(i.Attachment.DeviceIndex)
+			})
+			Expect(found).To(Equal(true))
+
+			Expect(lo.FromPtr(networkInterface.InterfaceType)).To(Equal(
+				lo.Ternary(deviceIndex == 0, string(ec2types.NetworkInterfaceTypeInterface), string(ec2types.NetworkInterfaceTypeEfaOnly)),
+			))
+		}
+	})
 },
 	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
 	Entry("MinValuesPolicyStrict", options.MinValuesPolicyStrict),

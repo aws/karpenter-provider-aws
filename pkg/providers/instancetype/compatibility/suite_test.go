@@ -21,6 +21,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
@@ -35,8 +36,8 @@ var _ = Describe("CompatibilityTest", func() {
 	Context("AMIFamilyCompatibility", func() {
 		DescribeTable("should handle various instance types across different AMI families",
 			func(instanceType string, amiFamily string, expected bool) {
-				info := makeInstanceTypeInfo(instanceType)
-				nc := newMockNodeClass(amiFamily)
+				info := makeInstanceTypeInfo(instanceType, nil)
+				nc := newMockNodeClass(amiFamily, nil)
 				result := compatibility.IsCompatibleWithNodeClass(info, nc)
 				Expect(result).To(Equal(expected))
 			},
@@ -48,33 +49,122 @@ var _ = Describe("CompatibilityTest", func() {
 			Entry("a1.large w/ Bottlerocket", "a1.large", v1.AMIFamilyBottlerocket, true),
 		)
 	})
+	Context("NetworkInterfaceCompatibility", func() {
+		DescribeTable("should validate network interface compatibility with instance types",
+			func(networkInterfaces []*v1.NetworkInterface, networkInfo *ec2types.NetworkInfo, expected bool) {
+				info := makeInstanceTypeInfo("", networkInfo)
+				nc := newMockNodeClass(v1.AMIFamilyAL2023, networkInterfaces)
+				result := compatibility.IsCompatibleWithNodeClass(info, nc)
+				Expect(result).To(Equal(expected))
+			},
+			Entry("compatible instance with EFA support and single EFA interface",
+				[]*v1.NetworkInterface{
+					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+				},
+				makeNetworkInfo(1, 2, aws.Int32(1)),
+				true,
+			),
+			Entry("compatible instance with EFA support and multiple EFA interfaces",
+				[]*v1.NetworkInterface{
+					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+					{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+				},
+				makeNetworkInfo(2, 2, aws.Int32(2)),
+				true,
+			),
+			Entry("EFA interfaces exceed maximum supported",
+				[]*v1.NetworkInterface{
+					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+					{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+				},
+				makeNetworkInfo(2, 2, aws.Int32(1)),
+				false,
+			),
+			Entry("instance does not support with EFA",
+				[]*v1.NetworkInterface{
+					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+				},
+				makeNetworkInfo(1, 4, nil),
+				false,
+			),
+			Entry("instance does not support with ENA",
+				[]*v1.NetworkInterface{{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface}},
+				&ec2types.NetworkInfo{
+					EnaSupport:   ec2types.EnaSupportUnsupported,
+					NetworkCards: []ec2types.NetworkCardInfo{{NetworkCardIndex: aws.Int32(0), MaximumNetworkInterfaces: aws.Int32(4)}},
+				},
+				false,
+			),
+			Entry("network card index exceeds available cards",
+				[]*v1.NetworkInterface{{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface}},
+				makeNetworkInfo(1, 4, nil),
+				false,
+			),
+			Entry("device index exceeds maximum ENIs",
+				[]*v1.NetworkInterface{{NetworkCardIndex: 0, DeviceIndex: 5, InterfaceType: v1.InterfaceTypeInterface}},
+				makeNetworkInfo(1, 4, nil),
+				false,
+			),
+		)
+	})
 })
 
-func newMockNodeClass(amiFamily string) *mockNodeClass {
+func newMockNodeClass(amiFamily string, networkInterfaces []*v1.NetworkInterface) *mockNodeClass {
 	return &mockNodeClass{
-		amiFamily: amiFamily,
+		amiFamily:         amiFamily,
+		networkInterfaces: networkInterfaces,
 	}
 }
 
 type mockNodeClass struct {
-	amiFamily string
+	amiFamily         string
+	networkInterfaces []*v1.NetworkInterface
 }
 
 func (m mockNodeClass) AMIFamily() string {
 	return m.amiFamily
 }
 
-func makeInstanceTypeInfo(instanceType string) ec2types.InstanceTypeInfo {
+func (m *mockNodeClass) NetworkInterfaces() []*v1.NetworkInterface {
+	return m.networkInterfaces
+}
+
+func makeInstanceTypeInfo(instanceType string, networkInfo *ec2types.NetworkInfo) ec2types.InstanceTypeInfo {
 	return ec2types.InstanceTypeInfo{
-		InstanceType: ec2types.InstanceType(instanceType),
+		InstanceType: lo.Ternary(instanceType == "", ec2types.InstanceTypeM5Large, ec2types.InstanceType(instanceType)),
 		ProcessorInfo: &ec2types.ProcessorInfo{
-			SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeArm64},
+			SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
 		},
 		VCpuInfo: &ec2types.VCpuInfo{
 			DefaultVCpus: aws.Int32(2),
 		},
 		MemoryInfo: &ec2types.MemoryInfo{
-			SizeInMiB: aws.Int64(4096),
+			SizeInMiB: aws.Int64(8192),
 		},
+		NetworkInfo: networkInfo,
 	}
+}
+
+func makeNetworkInfo(numCards int, deviceIndeces int32, maxEfaInterfaces *int32) *ec2types.NetworkInfo {
+	networkCards := make([]ec2types.NetworkCardInfo, numCards)
+	for i := 0; i < numCards; i++ {
+		networkCards[i] = ec2types.NetworkCardInfo{
+			NetworkCardIndex:         aws.Int32(int32(i)),
+			MaximumNetworkInterfaces: aws.Int32(deviceIndeces),
+		}
+	}
+	networkInfo := &ec2types.NetworkInfo{
+		EnaSupport:   ec2types.EnaSupportSupported,
+		NetworkCards: networkCards,
+	}
+	if maxEfaInterfaces != nil {
+		networkInfo.EfaInfo = &ec2types.EfaInfo{
+			MaximumEfaInterfaces: maxEfaInterfaces,
+		}
+	}
+	return networkInfo
 }

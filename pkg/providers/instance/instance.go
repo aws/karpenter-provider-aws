@@ -25,6 +25,7 @@ import (
 	"github.com/awslabs/operatorpkg/option"
 	"github.com/awslabs/operatorpkg/serrors"
 	"sigs.k8s.io/karpenter/pkg/events"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -156,9 +157,11 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 		)
 		opts = append(opts, WithCapacityReservationDetails(capacityReservationDetails))
 	}
-	if lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) {
-		opts = append(opts, WithEFAEnabled())
+
+	if efaCount := p.getEFACountForInstance(string(fleetInstance.InstanceType), instanceTypes, nodeClass, nodeClaim); efaCount > 0 {
+		opts = append(opts, WithEFACount(efaCount))
 	}
+
 	return NewInstanceFromFleet(
 		fleetInstance,
 		capacityType,
@@ -558,6 +561,30 @@ func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zon
 	}
 	// note: this is an invariant that the caller must enforce, should not occur at runtime
 	panic("reservation ID doesn't exist for reserved launch")
+}
+
+// getEFACountForInstance returns the EFA count for a specific instance type based on the NodeClass configurations and NodeClaim requirements
+func (p *DefaultProvider) getEFACountForInstance(
+	instanceType string,
+	instanceTypes []*cloudprovider.InstanceType,
+	nodeClass *v1.EC2NodeClass,
+	nodeClaim *karpv1.NodeClaim,
+) int {
+	if found := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA); !found && nodeClass.NetworkInterfaces() == nil {
+		return 0
+	}
+	for _, it := range instanceTypes {
+		if it.Name != instanceType {
+			continue
+		}
+		efaResource := it.Capacity[v1.ResourceEFA]
+		if !resources.IsZero(efaResource) {
+			return int(efaResource.Value())
+		}
+		return 0
+	}
+	// note: this is an invariant that the caller must enforce, should not occur at runtime
+	panic(fmt.Sprintf("instance type %s not found in instance types list", instanceType))
 }
 
 // getTenancyType selects the tenancy for the nodeclaim.

@@ -58,6 +58,7 @@ type NodeClass interface {
 	BlockDeviceMappings() []*v1.BlockDeviceMapping
 	CapacityReservations() []v1.CapacityReservation
 	InstanceStorePolicy() *v1.InstanceStorePolicy
+	NetworkInterfaces() []*v1.NetworkInterface
 	KubeletConfiguration() *v1.KubeletConfiguration
 	ZoneInfo() []v1.ZoneInfo
 }

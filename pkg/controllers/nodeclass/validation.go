@@ -278,7 +278,7 @@ func (v *Validation) validateRunInstancesAuthorization(
 	// failures on individual subnets are already handled by the early-exit-on-success pattern.
 	var firstSubnetErr error
 	for i, subnet := range nodeClass.Status.Subnets {
-		runInstancesInput := getRunInstancesInput(tags, launchTemplate, &subnet)
+		runInstancesInput := getRunInstancesInput(tags, launchTemplate, nodeClass.NetworkInterfaces(), &subnet)
 		if _, err = v.ec2api.RunInstances(ctx, runInstancesInput, func(o *ec2.Options) {
 			// Adding NopRetryer to avoid aggressive retry when rate limited
 			o.Retryer = aws.NopRetryer{}
@@ -350,6 +350,7 @@ func (v *Validation) clearCacheEntries(nodeClass *v1.EC2NodeClass) {
 func getRunInstancesInput(
 	tags map[string]string,
 	launchTemplate *launchtemplate.LaunchTemplate,
+	networkInterfaces []*v1.NetworkInterface,
 	subnet *v1.Subnet,
 ) *ec2.RunInstancesInput {
 	return &ec2.RunInstancesInput{
@@ -360,13 +361,8 @@ func getRunInstancesInput(
 			LaunchTemplateName: lo.ToPtr(launchTemplate.Name),
 			Version:            lo.ToPtr("$Latest"),
 		},
-		InstanceType: ec2types.InstanceType(launchTemplate.InstanceTypes[0].Name),
-		NetworkInterfaces: []ec2types.InstanceNetworkInterfaceSpecification{
-			{
-				DeviceIndex: lo.ToPtr[int32](0),
-				SubnetId:    lo.ToPtr(subnet.ID),
-			},
-		},
+		InstanceType:      ec2types.InstanceType(launchTemplate.InstanceTypes[0].Name),
+		NetworkInterfaces: getNetworkInterfacesInput(networkInterfaces, subnet),
 		TagSpecifications: []ec2types.TagSpecification{
 			{
 				ResourceType: ec2types.ResourceTypeInstance,
@@ -523,4 +519,24 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 	}
 
 	return selectedInstanceTypes
+}
+
+func getNetworkInterfacesInput(ncNetworkInterfaces []*v1.NetworkInterface, subnet *v1.Subnet) []ec2types.InstanceNetworkInterfaceSpecification {
+	defaultInterface := []ec2types.InstanceNetworkInterfaceSpecification{
+		{
+			DeviceIndex: lo.ToPtr[int32](0),
+			SubnetId:    lo.ToPtr(subnet.ID),
+		},
+	}
+	networkInterfaces := lo.Ternary(ncNetworkInterfaces == nil,
+		defaultInterface,
+		lo.Map(ncNetworkInterfaces, func(networkInterface *v1.NetworkInterface, _ int) ec2types.InstanceNetworkInterfaceSpecification {
+			return ec2types.InstanceNetworkInterfaceSpecification{
+				NetworkCardIndex: lo.ToPtr(networkInterface.NetworkCardIndex),
+				DeviceIndex:      lo.ToPtr(networkInterface.DeviceIndex),
+				InterfaceType:    lo.ToPtr(string(networkInterface.InterfaceType)),
+				SubnetId:         lo.ToPtr(subnet.ID),
+			}
+		}))
+	return networkInterfaces
 }
