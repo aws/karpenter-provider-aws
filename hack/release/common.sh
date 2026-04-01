@@ -194,7 +194,7 @@ removeOldWebsiteDirectories() {
   # preview, docs, and v1.0 are special directories that we always propagate into the set of directory options
   # Keep the v1.0 version around while we are supporting v1beta1 migration
   # Drop it once we no longer want to maintain the v1.00 version in the docs
-  last_n_versions=$(find website/content/en/* -maxdepth 0 -type d -name "*" | grep -v "preview\|docs\|v1.0" | sort | tail -n "${n}")
+  last_n_versions=$(find website/content/en/* -maxdepth 0 -type d -name "*" | grep -v "preview\|docs\|v1.0" | sort -V | tail -n "${n}")
   last_n_versions+=$(echo -e "\nwebsite/content/en/preview")
   last_n_versions+=$(echo -e "\nwebsite/content/en/docs")
   last_n_versions+=$(echo -e "\nwebsite/content/en/v1.0")
@@ -202,7 +202,7 @@ removeOldWebsiteDirectories() {
 
   ## symmetric difference
   # shellcheck disable=SC2086
-  comm -3 <(sort <<< ${last_n_versions}) <(sort <<< ${all}) | tr -d '\t' | xargs -r -n 1 rm -r
+  comm -3 <(sort <<< "${last_n_versions}") <(sort <<< "${all}") | tr -d '\t' | xargs -r -n 1 rm -r
 }
 
 editWebsiteConfig() {

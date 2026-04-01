@@ -723,7 +723,7 @@ You can provision and assign a role to an IAM instance profile using [CloudForma
 
 {{% alert title="Note" color="primary" %}}
 
-For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html) that do not have access to the public internet, using `spec.instanceProfile` is required. `spec.role` cannot be used since Karpenter needs to access IAM endpoints to manage a generated instance profile. IAM [doesn't support private endpoints](https://docs.aws.amazon.com/vpc/latest/privatelink/aws-services-privatelink-support.html) to enable accessing the service without going to the public internet.
+For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html) without access to their AWS region's IAM API endpoint, using `spec.instanceProfile` is required. `spec.role` cannot be used since Karpenter needs to access IAM endpoints to manage a generated instance profile. IAM [doesn't support private endpoints](https://docs.aws.amazon.com/vpc/latest/privatelink/aws-services-privatelink-support.html) to enable accessing the service without going to the public internet.
 
 {{% /alert %}}
 
