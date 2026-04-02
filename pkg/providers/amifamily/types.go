@@ -153,3 +153,15 @@ func IsWS2025UnsupportedVersionError(err error) bool {
 	var ws2025Err *WS2025UnsupportedVersionError
 	return errors.As(err, &ws2025Err)
 }
+
+type AMINotFoundForAliasError struct {
+	error
+}
+
+func IsAMINotFoundForAliasError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var notFoundErr *AMINotFoundForAliasError
+	return errors.As(err, &notFoundErr)
+}

@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/errors"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
@@ -42,6 +43,7 @@ type AL2 struct {
 
 func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
 	ids := map[string][]Variant{}
+	isAllNotFoundErrors := true
 	for path, variants := range map[string][]Variant{
 		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/%s/image_id", k8sVersion, lo.Ternary(
 			amiVersion == v1.AliasVersionLatest,
@@ -64,12 +66,18 @@ func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k
 			IsMutable: amiVersion == v1.AliasVersionLatest,
 		})
 		if err != nil {
+			isAllNotFoundErrors = isAllNotFoundErrors && errors.IsNotFound(err)
 			continue
 		}
 		ids[imageID] = variants
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
 	if len(ids) == 0 {
+		if isAllNotFoundErrors {
+			return DescribeImageQuery{}, &AMINotFoundForAliasError{
+				error: serrors.Wrap(fmt.Errorf("failed to discover any AMIs for alias"), "alias", fmt.Sprintf("al2@%s", amiVersion)),
+			}
+		}
 		return DescribeImageQuery{}, serrors.Wrap(fmt.Errorf("failed to discover any AMIs for alias"), "alias", fmt.Sprintf("al2@%s", amiVersion))
 	}
 
