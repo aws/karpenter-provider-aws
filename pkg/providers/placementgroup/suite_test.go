@@ -82,7 +82,7 @@ func nodeClassWithSelector(selector *v1.PlacementGroupSelector) *v1.EC2NodeClass
 
 var _ = Describe("Query", func() {
 	It("should use GroupNames when query specifies Name", func() {
-		q := &placementgroup.Query{Name: "my-placement-group"}
+		q := &placementgroup.Query{Name: lo.ToPtr("my-placement-group")}
 		input := q.DescribePlacementGroupsInput()
 		Expect(input.GroupNames).To(ConsistOf("my-placement-group"))
 		Expect(input.GroupIds).To(BeEmpty())
@@ -91,7 +91,7 @@ var _ = Describe("Query", func() {
 		Expect(input.Filters[0].Values).To(ConsistOf(string(ec2types.PlacementGroupStateAvailable)))
 	})
 	It("should use GroupIds when query specifies ID", func() {
-		q := &placementgroup.Query{ID: "pg-0123456789abcdef0"}
+		q := &placementgroup.Query{ID: lo.ToPtr("pg-0123456789abcdef0")}
 		input := q.DescribePlacementGroupsInput()
 		Expect(input.GroupIds).To(ConsistOf("pg-0123456789abcdef0"))
 		Expect(input.GroupNames).To(BeEmpty())
@@ -100,19 +100,19 @@ var _ = Describe("Query", func() {
 		Expect(input.Filters[0].Values).To(ConsistOf(string(ec2types.PlacementGroupStateAvailable)))
 	})
 	It("should use GroupNames even when name has pg- prefix", func() {
-		q := &placementgroup.Query{Name: "pg-mygroup"}
+		q := &placementgroup.Query{Name: lo.ToPtr("pg-mygroup")}
 		input := q.DescribePlacementGroupsInput()
 		Expect(input.GroupNames).To(ConsistOf("pg-mygroup"))
 		Expect(input.GroupIds).To(BeEmpty())
 	})
 	It("should produce consistent cache keys for the same query", func() {
-		q1 := &placementgroup.Query{Name: "my-pg"}
-		q2 := &placementgroup.Query{Name: "my-pg"}
+		q1 := &placementgroup.Query{Name: lo.ToPtr("my-pg")}
+		q2 := &placementgroup.Query{Name: lo.ToPtr("my-pg")}
 		Expect(q1.CacheKey()).To(Equal(q2.CacheKey()))
 	})
 	It("should produce different cache keys for different queries", func() {
-		q1 := &placementgroup.Query{Name: "my-pg"}
-		q2 := &placementgroup.Query{ID: "pg-123"}
+		q1 := &placementgroup.Query{Name: lo.ToPtr("my-pg")}
+		q2 := &placementgroup.Query{ID: lo.ToPtr("pg-123")}
 		Expect(q1.CacheKey()).ToNot(Equal(q2.CacheKey()))
 	})
 })
@@ -133,7 +133,7 @@ var _ = Describe("Placement Group Provider", func() {
 	})
 
 	It("should return a placement group by name from the EC2 API", func() {
-		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: "my-cluster-pg"})
+		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: lo.ToPtr("my-cluster-pg")})
 		pg, err := awsEnv.PlacementGroupProvider.Get(ctx, nc)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(pg).ToNot(BeNil())
@@ -142,7 +142,7 @@ var _ = Describe("Placement Group Provider", func() {
 		Expect(pg.Strategy).To(Equal(placementgroup.StrategyCluster))
 	})
 	It("should return a placement group by ID from the EC2 API", func() {
-		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{ID: "pg-cluster123"})
+		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{ID: lo.ToPtr("pg-cluster123")})
 		pg, err := awsEnv.PlacementGroupProvider.Get(ctx, nc)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(pg).ToNot(BeNil())
@@ -152,27 +152,37 @@ var _ = Describe("Placement Group Provider", func() {
 		awsEnv.EC2API.DescribePlacementGroupsOutput.Set(&ec2.DescribePlacementGroupsOutput{
 			PlacementGroups: []ec2types.PlacementGroup{},
 		})
-		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: "nonexistent"})
+		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: lo.ToPtr("nonexistent")})
 		pg, err := awsEnv.PlacementGroupProvider.Get(ctx, nc)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(pg).To(BeNil())
 	})
 	It("should return nil when no matching placement group is found by name", func() {
-		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: "does-not-exist"})
+		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: lo.ToPtr("does-not-exist")})
 		pg, err := awsEnv.PlacementGroupProvider.Get(ctx, nc)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(pg).To(BeNil())
 	})
-	It("should return an error when EC2 API returns a non-not-found error", func() {
-		awsEnv.EC2API.NextError.Set(fmt.Errorf("InternalError: something went wrong"))
-		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: "my-cluster-pg"})
+	It("should return an error and stale data when EC2 API returns an error", func() {
+		// First call succeeds and populates the availability cache
+		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: lo.ToPtr("my-cluster-pg")})
 		pg, err := awsEnv.PlacementGroupProvider.Get(ctx, nc)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(pg).ToNot(BeNil())
+
+		// Expire the short-lived pgCache to force a re-resolve
+		awsEnv.PlacementGroupCache.Flush()
+
+		// Second call fails but returns stale data from availability cache
+		awsEnv.EC2API.NextError.Set(fmt.Errorf("InternalError: something went wrong"))
+		pg, err = awsEnv.PlacementGroupProvider.Get(ctx, nc)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("describing placement groups"))
-		Expect(pg).To(BeNil())
+		Expect(pg).ToNot(BeNil())
+		Expect(pg.Name).To(Equal("my-cluster-pg"))
 	})
 	It("should cache results and return from cache on subsequent calls", func() {
-		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: "my-cluster-pg"})
+		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: lo.ToPtr("my-cluster-pg")})
 		pg1, err := awsEnv.PlacementGroupProvider.Get(ctx, nc)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(pg1).ToNot(BeNil())
@@ -187,12 +197,12 @@ var _ = Describe("Placement Group Provider", func() {
 		Expect(pg2.ID).To(Equal("pg-cluster123"))
 	})
 	It("should not return a cached entry for a different selector", func() {
-		nc1 := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: "my-cluster-pg"})
+		nc1 := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: lo.ToPtr("my-cluster-pg")})
 		pg1, err := awsEnv.PlacementGroupProvider.Get(ctx, nc1)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(pg1).ToNot(BeNil())
 
-		nc2 := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: "other-pg"})
+		nc2 := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: lo.ToPtr("other-pg")})
 		pg2, err := awsEnv.PlacementGroupProvider.Get(ctx, nc2)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(pg2).To(BeNil())
@@ -201,7 +211,7 @@ var _ = Describe("Placement Group Provider", func() {
 		awsEnv.EC2API.DescribePlacementGroupsOutput.Set(&ec2.DescribePlacementGroupsOutput{
 			PlacementGroups: []ec2types.PlacementGroup{},
 		})
-		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: "empty"})
+		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: lo.ToPtr("empty")})
 		pg, err := awsEnv.PlacementGroupProvider.Get(ctx, nc)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(pg).To(BeNil())
@@ -229,14 +239,14 @@ var _ = Describe("Placement Group Provider", func() {
 				},
 			},
 		})
-		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: "first-pg"})
+		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: lo.ToPtr("first-pg")})
 		pg, err := awsEnv.PlacementGroupProvider.Get(ctx, nc)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(pg).ToNot(BeNil())
 		Expect(pg.ID).To(Equal("pg-first"))
 	})
 	It("should return cached placement group on subsequent Get calls", func() {
-		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: "my-cluster-pg"})
+		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: lo.ToPtr("my-cluster-pg")})
 		pg, err := awsEnv.PlacementGroupProvider.Get(ctx, nc)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(pg).ToNot(BeNil())
@@ -247,7 +257,7 @@ var _ = Describe("Placement Group Provider", func() {
 		Expect(resolved.ID).To(Equal("pg-cluster123"))
 	})
 	It("should clear resolved placement group when selector is removed", func() {
-		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: "my-cluster-pg"})
+		nc := nodeClassWithSelector(&v1.PlacementGroupSelector{Name: lo.ToPtr("my-cluster-pg")})
 		_, err := awsEnv.PlacementGroupProvider.Get(ctx, nc)
 		Expect(err).ToNot(HaveOccurred())
 

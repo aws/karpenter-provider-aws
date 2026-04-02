@@ -17,109 +17,66 @@ package placementgroup
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/patrickmn/go-cache"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
-	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 )
 
 type NodeClass interface {
-	client.Object // Provides Name, UID, Generation
+	client.Object
 	PlacementGroupSelector() *v1.PlacementGroupSelector
 }
 
 type Provider interface {
-	// Get resolves the placement group for a nodeclass. It uses an in-memory cache keyed by
-	// NodeClass UID and generation to avoid unnecessary EC2 API calls. When the cache entry
-	// expires (TTL) or the NodeClass spec changes (bumping generation), the next call
-	// re-resolves from EC2. Returns nil when no placement group is configured.
-	// On transient EC2 errors, returns the last known good result and surfaces the error.
-	// On not-found errors, clears the resolved state and returns nil.
 	Get(context.Context, NodeClass) (*PlacementGroup, error)
 }
 
 type DefaultProvider struct {
-	sync.RWMutex
-
-	ec2api sdk.EC2API
-	cache  *cache.Cache
-
-	// resolved stores the last known good placement group for each nodeclass, keyed by UID.
-	// This is preserved across transient EC2 errors so callers can continue to use stale data.
-	resolved map[types.UID]*PlacementGroup
+	ec2api              sdk.EC2API
+	pgCache             *cache.Cache
+	pgAvailabilityCache *cache.Cache
 }
 
-func NewProvider(ec2api sdk.EC2API, placementGroupCache *cache.Cache) *DefaultProvider {
+func NewProvider(ec2api sdk.EC2API, pgCache *cache.Cache, pgAvailabilityCache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
-		ec2api:   ec2api,
-		cache:    placementGroupCache,
-		resolved: make(map[types.UID]*PlacementGroup),
+		ec2api:              ec2api,
+		pgCache:             pgCache,
+		pgAvailabilityCache: pgAvailabilityCache,
 	}
-}
-
-// cacheKey returns a key that incorporates both the UID and generation,
-// so spec changes naturally cause a cache miss without separate generation tracking.
-func cacheKey(nodeClass NodeClass) string {
-	return fmt.Sprintf("%s:%d", nodeClass.GetUID(), nodeClass.GetGeneration())
 }
 
 func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass) (*PlacementGroup, error) {
-	uid := nodeClass.GetUID()
-
 	if nodeClass.PlacementGroupSelector() == nil {
-		p.Lock()
-		delete(p.resolved, uid)
-		p.cache.Delete(cacheKey(nodeClass))
-		p.Unlock()
 		return nil, nil
 	}
 
-	p.RLock()
-	if _, ok := p.cache.Get(cacheKey(nodeClass)); ok {
-		resolved := p.resolved[uid]
-		p.RUnlock()
-		return resolved, nil
-	}
-	p.RUnlock()
-
-	term := *nodeClass.PlacementGroupSelector()
+	term := nodeClass.PlacementGroupSelector()
 	q := &Query{ID: term.ID, Name: term.Name}
+	key := q.CacheKey()
+
+	if _, ok := p.pgCache.Get(key); ok {
+		if pg, ok := p.pgAvailabilityCache.Get(key); ok {
+			return pg.(*PlacementGroup), nil
+		}
+		return nil, nil
+	}
 
 	out, err := p.ec2api.DescribePlacementGroups(ctx, q.DescribePlacementGroupsInput())
 	if err != nil {
-		if awserrors.IsNotFound(err) {
-			p.Lock()
-			delete(p.resolved, uid)
-			p.cache.Delete(cacheKey(nodeClass))
-			p.Unlock()
-			return nil, nil
+		if pg, ok := p.pgAvailabilityCache.Get(key); ok {
+			return pg.(*PlacementGroup), fmt.Errorf("describing placement groups, %w", err)
 		}
-		// Transient error (EC2 outage, throttling) — return last known good, surface error
-		p.RLock()
-		resolved := p.resolved[uid]
-		p.RUnlock()
-		return resolved, fmt.Errorf("describing placement groups, %w", err)
+		return nil, fmt.Errorf("describing placement groups, %w", err)
 	}
 
-	if len(out.PlacementGroups) == 0 {
-		p.Lock()
-		delete(p.resolved, uid)
-		p.cache.Delete(cacheKey(nodeClass))
-		p.Unlock()
-		return nil, nil
+	var resolved *PlacementGroup
+	if len(out.PlacementGroups) > 0 {
+		resolved = PlacementGroupFromEC2(&out.PlacementGroups[0])
+		p.pgAvailabilityCache.SetDefault(key, resolved)
 	}
-
-	resolved := PlacementGroupFromEC2(&out.PlacementGroups[0])
-
-	p.Lock()
-	p.resolved[uid] = resolved
-	p.cache.SetDefault(cacheKey(nodeClass), struct{}{})
-	p.Unlock()
-
+	p.pgCache.SetDefault(key, struct{}{})
 	return resolved, nil
 }

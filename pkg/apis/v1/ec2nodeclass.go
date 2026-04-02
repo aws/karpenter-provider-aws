@@ -215,11 +215,11 @@ type PlacementGroupSelector struct {
 	// Name is the placement group name in EC2
 	// +kubebuilder:validation:MinLength:=1
 	// +optional
-	Name string `json:"name,omitempty"`
+	Name *string `json:"name,omitempty"`
 	// ID is the placement group id in EC2
 	// +kubebuilder:validation:Pattern:="^pg-[0-9a-z]+$"
 	// +optional
-	ID string `json:"id,omitempty"`
+	ID *string `json:"id,omitempty"`
 }
 
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -158,13 +159,16 @@ func (p *DefaultProvider) EnsureAll(
 	if pg, _ := p.placementGroupProvider.Get(ctx, nodeClass); pg != nil {
 		pgID = pg.ID
 		if pg.Strategy == placementgroup.StrategyPartition {
-			// The scheduler narrows to a single partition before launch. If somehow multiple partitions
-			// are present, we don't target a specific partition and let EC2 auto-assign. The registration
-			// hook will discover the actual partition via DescribeInstances.
 			reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
-			if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil && partitionReq.Len() == 1 {
-				if parsed, err := strconv.ParseInt(partitionReq.Any(), 10, 32); err == nil {
-					pgPartition = int32(parsed)
+			// Pick the lowest partition deterministically. EC2 only accepts one partition number.
+			// If this partition ICEs, the offering is marked unavailable and the provisioner
+			// generates a new NodeClaim with the remaining partitions.
+			if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil {
+				if values := partitionReq.Values(); len(values) > 0 {
+					sort.Strings(values)
+					if parsed, err := strconv.ParseInt(values[0], 10, 32); err == nil {
+						pgPartition = int32(parsed)
+					}
 				}
 			}
 		}

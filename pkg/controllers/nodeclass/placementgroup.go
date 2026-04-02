@@ -45,11 +45,8 @@ func (p *PlacementGroupReconciler) Reconcile(ctx context.Context, nc *v1.EC2Node
 	// Determine selector string for error messages
 	var selector string
 	if nc.Spec.PlacementGroupSelector != nil {
-		term := lo.FromPtr(nc.Spec.PlacementGroupSelector)
-		selector = term.Name
-		if selector == "" {
-			selector = term.ID
-		}
+		term := nc.Spec.PlacementGroupSelector
+		selector = lo.FromPtr(lo.CoalesceOrEmpty(term.Name, term.ID))
 	}
 	if err != nil {
 		nc.StatusConditions().SetFalse(v1.ConditionTypePlacementGroupReady, "PlacementGroupResolutionFailed", "Failed to resolve placement group")

@@ -468,6 +468,11 @@ func (c *CloudProvider) instanceToNodeClaim(ctx context.Context, i *instance.Ins
 	if nodeClass != nil {
 		if pg, _ := c.placementGroupProvider.Get(ctx, nodeClass); pg != nil {
 			labels[v1.LabelPlacementGroupID] = pg.ID
+			if pg.Strategy == placementgroup.StrategyPartition {
+				// Set empty partition label as sentinel for the registration hook.
+				// The hook will resolve the actual partition number via DescribeInstances.
+				labels[v1.LabelPlacementGroupPartition] = ""
+			}
 		}
 	}
 	if v, ok := i.Tags[karpv1.NodePoolLabelKey]; ok {

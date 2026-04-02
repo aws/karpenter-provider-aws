@@ -84,7 +84,7 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 	})
 
 	It("should pass through immediately when EC2NodeClass has a cluster placement group", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "cluster-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr("cluster-pg")}
 		setupPlacementGroupInProvider(nodeClass, &ec2.DescribePlacementGroupsOutput{
 			PlacementGroups: []ec2types.PlacementGroup{{
 				GroupId:   lo.ToPtr("pg-cluster123"),
@@ -101,7 +101,7 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 	})
 
 	It("should pass through immediately when EC2NodeClass has a spread placement group", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "spread-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr("spread-pg")}
 		setupPlacementGroupInProvider(nodeClass, &ec2.DescribePlacementGroupsOutput{
 			PlacementGroups: []ec2types.PlacementGroup{{
 				GroupId:     lo.ToPtr("pg-spread123"),
@@ -130,6 +130,7 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 
 	It("should block registration when providerID is empty for partition placement group", func() {
 		nc.Labels[v1.LabelPlacementGroupID] = "pg-partition123"
+		nc.Labels[v1.LabelPlacementGroupPartition] = ""
 		nc.Status.ProviderID = ""
 		ExpectApplied(ctx, env.Client, nodeClass, nc)
 
@@ -141,6 +142,7 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 	It("should set partition label and proceed when DescribeInstances returns partition number", func() {
 		instanceID := fake.InstanceID()
 		nc.Labels[v1.LabelPlacementGroupID] = "pg-partition123"
+		nc.Labels[v1.LabelPlacementGroupPartition] = ""
 		nc.Status.ProviderID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		ExpectApplied(ctx, env.Client, nodeClass, nc)
 
@@ -187,6 +189,7 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 	It("should return error when instance is not found", func() {
 		instanceID := fake.InstanceID()
 		nc.Labels[v1.LabelPlacementGroupID] = "pg-partition123"
+		nc.Labels[v1.LabelPlacementGroupPartition] = ""
 		nc.Status.ProviderID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		ExpectApplied(ctx, env.Client, nodeClass, nc)
 
@@ -207,7 +210,8 @@ var _ = Describe("PlacementGroupRegistrationHook", func() {
 				},
 			})
 			testNC.Labels = map[string]string{
-				v1.LabelPlacementGroupID: "pg-partition123",
+				v1.LabelPlacementGroupID:        "pg-partition123",
+				v1.LabelPlacementGroupPartition: "",
 			}
 			testNC.Status.ProviderID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 			ExpectApplied(ctx, env.Client, nodeClass, testNC)

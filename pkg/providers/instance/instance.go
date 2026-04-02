@@ -367,12 +367,16 @@ func (p *DefaultProvider) launchInstance(
 	if pg, _ := p.placementGroupProvider.Get(ctx, nodeClass); pg != nil {
 		pgID = pg.ID
 		pgOpts = append(pgOpts, awscache.WithPlacementGroup(pg.ID))
-		// The scheduler narrows to a single partition before launch. If somehow multiple partitions
-		// are present, we scope the ICE to the PG without a specific partition, which conservatively
-		// marks the entire PG as unavailable for this instance-type+zone.
 		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
-		if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil && partitionReq.Len() == 1 {
-			pgOpts = append(pgOpts, awscache.WithPlacementGroupPartition(partitionReq.Any()))
+		// Pick the lowest partition deterministically for ICE cache scoping.
+		// When multiple partitions are allowed (e.g. IN [1, 3, 5]), we scope the ICE
+		// to the partition we actually targeted. If it ICEs, only that partition is
+		// marked unavailable and the provisioner generates a new NodeClaim.
+		if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil {
+			if values := partitionReq.Values(); len(values) > 0 {
+				sort.Strings(values)
+				pgOpts = append(pgOpts, awscache.WithPlacementGroupPartition(values[0]))
+			}
 		}
 	}
 	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, nodeClaim, instanceTypes, aws.ToString(createFleetOutput.FleetId), pgID, pgOpts)

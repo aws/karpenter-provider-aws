@@ -71,7 +71,7 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 		Expect(pg).To(BeNil())
 	})
 	It("should resolve a cluster placement group by name", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-cluster-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr("my-cluster-pg")}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -83,7 +83,7 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 		Expect(pg.Strategy).To(Equal(placementgroup.StrategyCluster))
 	})
 	It("should resolve a placement group by ID", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{ID: "pg-cluster123"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{ID: lo.ToPtr("pg-cluster123")}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -94,7 +94,7 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 		Expect(pg.Name).To(Equal("my-cluster-pg"))
 	})
 	It("should resolve a partition placement group with partition count", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-partition-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr("my-partition-pg")}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -107,7 +107,7 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 		Expect(pg.PartitionCount).To(Equal(int32(7)))
 	})
 	It("should resolve a spread placement group with spread level", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-spread-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr("my-spread-pg")}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -120,7 +120,7 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 		Expect(pg.SpreadLevel).To(Equal(placementgroup.SpreadLevelRack))
 	})
 	It("should set condition false when placement group is not found", func() {
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "nonexistent-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr("nonexistent-pg")}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -136,7 +136,7 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 		// The DescribePlacementGroupsInput always filters by state=available, so a pending PG
 		// is filtered out at the EC2 API level. The reconciler sees nil from the provider and
 		// sets "PlacementGroupNotFound".
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-pending-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr("my-pending-pg")}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -150,7 +150,7 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 	})
 	It("should clear in-memory state and condition when placement group selector is removed", func() {
 		// First, set up with a placement group
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-cluster-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr("my-cluster-pg")}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -170,7 +170,7 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 	})
 	It("should update in-memory state when placement group selector changes", func() {
 		// Start with cluster PG
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-cluster-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr("my-cluster-pg")}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -179,7 +179,7 @@ var _ = Describe("NodeClass Placement Group Reconciler", func() {
 		Expect(pg.ID).To(Equal("pg-cluster123"))
 
 		// Switch to spread PG
-		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: "my-spread-pg"}
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr("my-spread-pg")}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)

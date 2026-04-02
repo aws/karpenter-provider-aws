@@ -52,7 +52,12 @@ func (h *PlacementGroupRegistrationHook) Registered(ctx context.Context, nodeCla
 		return cloudprovider.NodeLifecycleHookResult{}, nil
 	}
 
-	if _, ok := nodeClaim.Labels[v1.LabelPlacementGroupPartition]; ok {
+	partitionValue, hasPartitionLabel := nodeClaim.Labels[v1.LabelPlacementGroupPartition]
+	if !hasPartitionLabel {
+		return cloudprovider.NodeLifecycleHookResult{}, nil
+	}
+
+	if partitionValue != "" {
 		return cloudprovider.NodeLifecycleHookResult{}, nil
 	}
 
@@ -70,10 +75,8 @@ func (h *PlacementGroupRegistrationHook) Registered(ctx context.Context, nodeCla
 		return cloudprovider.NodeLifecycleHookResult{}, fmt.Errorf("describing instance for partition number, %w", err)
 	}
 
-	// If the instance doesn't have a partition number, it's not in a partition placement group
-	// (e.g., cluster or spread PGs don't have partitions). Nothing to gate.
 	if inst.PartitionNumber == nil {
-		return cloudprovider.NodeLifecycleHookResult{}, nil
+		return cloudprovider.NodeLifecycleHookResult{Requeue: true}, nil
 	}
 
 	nodeClaim.Labels[v1.LabelPlacementGroupPartition] = strconv.FormatInt(int64(*inst.PartitionNumber), 10)

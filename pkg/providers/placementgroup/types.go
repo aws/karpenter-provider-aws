@@ -65,8 +65,8 @@ func PlacementGroupFromEC2(pg *ec2types.PlacementGroup) *PlacementGroup {
 
 // Query represents a placement group lookup query by name or ID.
 type Query struct {
-	ID   string
-	Name string
+	ID   *string
+	Name *string
 }
 
 func (q *Query) CacheKey() string {
@@ -82,10 +82,10 @@ func (q *Query) DescribePlacementGroupsInput() *ec2.DescribePlacementGroupsInput
 			},
 		},
 	}
-	if q.ID != "" {
-		input.GroupIds = []string{q.ID}
-	} else if q.Name != "" {
-		input.GroupNames = []string{q.Name}
+	if id := lo.FromPtr(q.ID); id != "" {
+		input.GroupIds = []string{id}
+	} else if name := lo.FromPtr(q.Name); name != "" {
+		input.GroupNames = []string{name}
 	}
 	return input
 }

@@ -159,6 +159,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	placementGroupProvider := placementgroup.NewProvider(
 		ec2api,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.PlacementGroupAvailabilityTTL, awscache.DefaultCleanupInterval),
 	)
 	amiResolver := amifamily.NewDefaultResolver(cfg.Region)
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
