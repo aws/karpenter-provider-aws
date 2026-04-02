@@ -19,11 +19,11 @@ import (
 	"fmt"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	ssmtypes "github.com/aws/aws-sdk-go-v2/service/ssm/types"
+	"github.com/aws/smithy-go"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 )
@@ -54,7 +54,10 @@ func (a SSMAPI) GetParameter(_ context.Context, input *ssm.GetParameterInput, _ 
 	if len(a.Parameters) != 0 {
 		value, ok := a.Parameters[parameter]
 		if !ok {
-			return &ssm.GetParameterOutput{}, serrors.Wrap(fmt.Errorf("parameter not found"), "parameter", lo.FromPtr(input.Name))
+			return &ssm.GetParameterOutput{}, &smithy.GenericAPIError{
+				Code:    "ParameterNotFound",
+				Message: fmt.Sprintf("parameter %s not found", parameter),
+			}
 		}
 		return &ssm.GetParameterOutput{
 			Parameter: &ssmtypes.Parameter{

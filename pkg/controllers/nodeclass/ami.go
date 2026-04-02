@@ -55,6 +55,13 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 			nodeClass.StatusConditions(status.WithClock(a.clk)).SetFalse(v1.ConditionTypeAMIsReady, "UnsupportedAlias", err.Error())
 			return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("getting amis, %w", err))
 		}
+		// The SSM parameters for the alias don't exist. This may be because the alias references an AMI version that
+		// doesn't exist, or because the AMIs for the alias haven't been published yet (e.g. a new Kubernetes version).
+		// Mark the NodeClass as not ready, but keep retrying so the NodeClass recovers once the AMIs are published.
+		if amifamily.IsAMINotFoundForAliasError(err) {
+			nodeClass.StatusConditions(status.WithClock(a.clk)).SetFalse(v1.ConditionTypeAMIsReady, "AMINotFound", err.Error())
+			return reconcile.Result{}, fmt.Errorf("getting amis, %w", err)
+		}
 		return reconcile.Result{}, fmt.Errorf("getting amis, %w", err)
 	}
 	if len(amis) == 0 {

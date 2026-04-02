@@ -23,6 +23,7 @@ import (
 	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
@@ -45,6 +46,7 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 	// Bottlerocket AMIs versions are prefixed with a v on GitHub, but not in the SSM path. We should accept both.
 	trimmedAMIVersion := strings.TrimLeft(amiVersion, "v")
 	ids := map[string][]Variant{}
+	isAllNotFoundErrors := true
 	for path, variants := range map[string][]Variant{
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion):        {VariantStandard, VariantNeuron},
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):         {VariantStandard},
@@ -56,12 +58,18 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 			IsMutable: amiVersion == v1.AliasVersionLatest,
 		})
 		if err != nil {
+			isAllNotFoundErrors = isAllNotFoundErrors && errors.IsNotFound(err)
 			continue
 		}
 		ids[imageID] = variants
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
 	if len(ids) == 0 {
+		if isAllNotFoundErrors {
+			return DescribeImageQuery{}, &AMINotFoundForAliasError{
+				error: serrors.Wrap(fmt.Errorf(`failed to discover any AMIs for alias`), "alias", fmt.Sprintf("bottlerocket@%s", amiVersion)),
+			}
+		}
 		return DescribeImageQuery{}, serrors.Wrap(fmt.Errorf(`failed to discover any AMIs for alias`), "alias", fmt.Sprintf("bottlerocket@%s", amiVersion))
 	}
 
