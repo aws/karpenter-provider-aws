@@ -304,7 +304,7 @@ status:
       type: PlacementGroupReady
 ```
 
-The placement group provider resolves placement groups from the EC2 `DescribePlacementGroups` API and stores the result in-memory, keyed by nodeclass name. The resolved placement group contains the following fields:
+The placement group provider resolves placement groups from the EC2 `DescribePlacementGroups` API and caches the result using a dual-layer cache keyed by a hash of the selector (name or ID). The first cache layer (`pgCache`, short TTL) controls when to re-resolve from EC2, while the second layer (`pgAvailabilityCache`, 24h TTL) stores the resolved placement group data for resilience against transient EC2 API failures. The resolved placement group contains the following fields:
 
 - **ID**: Placement group ID (e.g., `"pg-0123456789abcdef0"`)
 - **Name**: Placement group name
@@ -438,10 +438,13 @@ For partition placement groups, the `karpenter.k8s.aws/placement-group-partition
 
 **How it works:**
 
-1. When a NodeClaim is created for an EC2NodeClass with a partition placement group, the instance is launched via `CreateFleet` without specifying a `PartitionNumber`, allowing EC2 to auto-assign the partition.
+1. When a NodeClaim is created for an EC2NodeClass with a partition placement group, the `karpenter.k8s.aws/placement-group-partition` label is set to an empty string (`""`) as a sentinel during `instanceToNodeClaim`. For cluster and spread PGs, this label is not set.
 2. During node registration, before the `karpenter.sh/unregistered` taint is removed, the `PlacementGroupRegistrationHook` runs as part of the NodeClaim lifecycle controller's registration phase.
-3. The hook uses the `karpenter.k8s.aws/placement-group-id` label on the NodeClaim as the source of truth for whether this node is in a placement group. If the label is absent, the hook passes through immediately. If the `karpenter.k8s.aws/placement-group-partition` label is already set, the hook also passes through.
-4. The hook calls `DescribeInstances` to discover the EC2-assigned partition number from `Placement.PartitionNumber`. If the instance has no partition number (i.e., it's in a cluster or spread placement group, not a partition PG), the hook passes through — there is nothing to gate.
+3. The hook uses the following three-state logic based on the `karpenter.k8s.aws/placement-group-partition` label:
+   - **Label absent**: Not a partition PG (cluster or spread). Pass through immediately.
+   - **Label present and non-empty**: Partition already resolved. Pass through.
+   - **Label present and empty (`""`)**: Partition PG, pending resolution. Proceed to DescribeInstances.
+4. The hook calls `DescribeInstances` to discover the EC2-assigned partition number from `Placement.PartitionNumber`. If the partition number is not yet available (EC2 eventual consistency), the hook requeues.
 5. Once the partition number is available, the hook sets the `karpenter.k8s.aws/placement-group-partition` label on the NodeClaim and allows registration to proceed. The label is then synced to the Node as part of the normal registration sync.
 6. If the provider ID is not yet available on the NodeClaim, the hook requeues.
 
