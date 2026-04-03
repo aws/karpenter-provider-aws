@@ -43,7 +43,7 @@ Resources:
                 "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
-                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*"
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:placement-group/*"
               ],
               "Action": [
