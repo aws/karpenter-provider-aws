@@ -17,6 +17,7 @@ package placementgroup
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,11 +36,13 @@ type Provider interface {
 }
 
 type DefaultProvider struct {
+	sync.RWMutex
 	ec2api              sdk.EC2API
 	pgCache             *cache.Cache
 	pgAvailabilityCache *cache.Cache
 }
 
+// We use two caches, a placement group data cache (default 1 minute TTL) and a placement group availability cache (24 hour TTL).
 func NewProvider(ec2api sdk.EC2API, pgCache *cache.Cache, pgAvailabilityCache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api:              ec2api,
@@ -57,11 +60,21 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass) (*Placem
 	q := &Query{ID: term.ID, Name: term.Name}
 	key := q.CacheKey()
 
-	if _, ok := p.pgCache.Get(key); ok {
-		if pg, ok := p.pgAvailabilityCache.Get(key); ok {
-			return pg.(*PlacementGroup), nil
-		}
-		return nil, nil
+	// Fast path: read lock, check cache
+	p.RLock()
+	if pg, ok := p.getCached(key); ok {
+		p.RUnlock()
+		return pg, nil
+	}
+	p.RUnlock()
+
+	// Slow path: write lock, double-check cache, then call EC2
+	p.Lock()
+	defer p.Unlock()
+
+	// Re-check after acquiring write lock — another goroutine may have updated the cache
+	if pg, ok := p.getCached(key); ok {
+		return pg, nil
 	}
 
 	out, err := p.ec2api.DescribePlacementGroups(ctx, q.DescribePlacementGroupsInput())
@@ -79,4 +92,16 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass) (*Placem
 	}
 	p.pgCache.SetDefault(key, struct{}{})
 	return resolved, nil
+}
+
+// getCached checks both cache layers and returns the cached result.
+// Returns (result, true) on cache hit, (nil, false) on cache miss.
+func (p *DefaultProvider) getCached(key string) (*PlacementGroup, bool) {
+	if _, ok := p.pgCache.Get(key); ok {
+		if pg, ok := p.pgAvailabilityCache.Get(key); ok {
+			return pg.(*PlacementGroup), true
+		}
+		return nil, true
+	}
+	return nil, false
 }

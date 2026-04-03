@@ -1066,6 +1066,32 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			))
 		}
 	})
+	It("should launch an instance into a partition placement group targeting a specific partition", func() {
+		selectors.Insert(v1.LabelPlacementGroupID, v1.LabelPlacementGroupPartition)
+		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategyPartition)
+		DeferCleanup(func() {
+			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
+		})
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr(pgName)}
+		pod := test.Pod(test.PodOptions{
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+				{Key: v1.LabelPlacementGroupPartition, Operator: corev1.NodeSelectorOpIn, Values: []string{"5"}},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupID))
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelPlacementGroupPartition, "5"))
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.Placement).ToNot(BeNil())
+		Expect(lo.FromPtr(instance.Placement.GroupName)).To(Equal(pgName))
+		Expect(lo.FromPtr(instance.Placement.PartitionNumber)).To(Equal(int32(5)))
+	})
 },
 	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
 	Entry("MinValuesPolicyStrict", options.MinValuesPolicyStrict),
