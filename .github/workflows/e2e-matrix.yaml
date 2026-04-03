@@ -66,7 +66,10 @@ jobs:
           - name: AMI
             region: ${{ inputs.region }}
             source: aws
-          - name: Scheduling
+          - name: Scheduling-BestEffort
+            region: ${{ inputs.region }}
+            source: aws
+          - name: Scheduling-Strict
             region: ${{ inputs.region }}
             source: aws
           - name: Storage
