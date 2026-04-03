@@ -1069,7 +1069,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 	It("should launch an instance into a partition placement group targeting a specific partition", func() {
 		selectors.Insert(v1.LabelPlacementGroupID, v1.LabelPlacementGroupPartition)
 		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
-		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategyPartition)
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategyPartition, 7)
 		DeferCleanup(func() {
 			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
 		})
