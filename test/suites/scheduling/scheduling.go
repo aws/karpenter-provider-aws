@@ -12,13 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package scheduling_test
+package scheduling
 
 import (
 	"fmt"
 	"os"
 	"strconv"
-	"testing"
+	
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -44,34 +44,18 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var env *environmentaws.Environment
-var nodeClass *v1.EC2NodeClass
-var nodePool *karpv1.NodePool
+var Env *environmentaws.Environment
+var NodeClass *v1.EC2NodeClass
+var NodePool *karpv1.NodePool
 
-func TestScheduling(t *testing.T) {
-	RegisterFailHandler(Fail)
-	BeforeSuite(func() {
-		env = environmentaws.NewEnvironment(t)
-	})
-	AfterSuite(func() {
-		env.Stop()
-	})
-	RunSpecs(t, "Scheduling")
-}
 
-var _ = BeforeEach(func() {
-	env.BeforeEach()
-	nodeClass = env.DefaultEC2NodeClass()
-	nodePool = env.DefaultNodePool(nodeClass)
-})
-var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.AfterEach() })
-var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minValuesPolicy options.MinValuesPolicy) {
+func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
+	return Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 	var selectors sets.Set[string]
 
 	BeforeEach(func() {
 		// Make the NodePool requirements fully flexible, so we can match well-known label keys
-		nodePool = test.ReplaceRequirements(nodePool,
+		NodePool = test.ReplaceRequirements(NodePool,
 			karpv1.NodeSelectorRequirementWithMinValues{
 				Key:      v1.LabelInstanceCategory,
 				Operator: corev1.NodeSelectorOpExists,
@@ -81,7 +65,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				Operator: corev1.NodeSelectorOpExists,
 			},
 		)
-		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "MIN_VALUES_POLICY", Value: string(minValuesPolicy)})
+		Env.ExpectSettingsOverridden(corev1.EnvVar{Name: "MIN_VALUES_POLICY", Value: string(minValuesPolicy)})
 	})
 	BeforeAll(func() {
 		selectors = sets.New[string]()
@@ -92,22 +76,22 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 	})
 
 	It("should apply annotations to the node", func() {
-		nodePool.Spec.Template.Annotations = map[string]string{
+		NodePool.Spec.Template.Annotations = map[string]string{
 			"foo":                            "bar",
 			karpv1.DoNotDisruptAnnotationKey: "true",
 		}
 		pod := test.Pod()
-		env.ExpectCreated(nodeClass, nodePool, pod)
-		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
-		Expect(env.GetNode(pod.Spec.NodeName).Annotations).To(And(HaveKeyWithValue("foo", "bar"), HaveKeyWithValue(karpv1.DoNotDisruptAnnotationKey, "true")))
+		Env.ExpectCreated(NodeClass, NodePool, pod)
+		Env.EventuallyExpectHealthy(pod)
+		Env.ExpectCreatedNodeCount("==", 1)
+		Expect(Env.GetNode(pod.Spec.NodeName).Annotations).To(And(HaveKeyWithValue("foo", "bar"), HaveKeyWithValue(karpv1.DoNotDisruptAnnotationKey, "true")))
 	})
 
 	Context("Labels", func() {
 		It("should support well-known labels for instance type selection", func() {
 			nodeSelector := map[string]string{
 				// Well Known
-				karpv1.NodePoolLabelKey:        nodePool.Name,
+				karpv1.NodePoolLabelKey:        NodePool.Name,
 				corev1.LabelInstanceTypeStable: "c5.large",
 				// Well Known to AWS
 				v1.LabelInstanceHypervisor:                "nitro",
@@ -131,9 +115,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
 			}})
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-			env.ExpectCreatedNodeCount("==", 1)
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			Env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support well-known labels for zone id selection", func() {
 			selectors.Insert(v1.LabelTopologyZoneID) // Add node selector keys to selectors used in testing to ensure we test all labels
@@ -142,13 +126,13 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					{
 						Key:      v1.LabelTopologyZoneID,
 						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})[0].ZoneID},
+						Values:   []string{Env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": Env.ClusterName})[0].ZoneID},
 					},
 				},
 			}})
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-			env.ExpectCreatedNodeCount("==", 1)
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			Env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support well-known labels for local NVME storage", func() {
 			selectors.Insert(v1.LabelInstanceLocalNVME) // Add node selector keys to selectors used in testing to ensure we test all labels
@@ -168,9 +152,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					},
 				},
 			}})
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-			env.ExpectCreatedNodeCount("==", 1)
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			Env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support well-known labels for encryption in transit", func() {
 			selectors.Insert(v1.LabelInstanceEncryptionInTransitSupported) // Add node selector keys to selectors used in testing to ensure we test all labels
@@ -190,16 +174,16 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					},
 				},
 			}})
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-			env.ExpectCreatedNodeCount("==", 1)
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			Env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support well-known deprecated labels", func() {
 			nodeSelector := map[string]string{
 				// Deprecated Labels
-				corev1.LabelFailureDomainBetaRegion: env.Region,
-				corev1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", env.Region),
-				"topology.ebs.csi.aws.com/zone":     fmt.Sprintf("%sa", env.Region),
+				corev1.LabelFailureDomainBetaRegion: Env.Region,
+				corev1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", Env.Region),
+				"topology.ebs.csi.aws.com/zone":     fmt.Sprintf("%sa", Env.Region),
 
 				"beta.kubernetes.io/arch": "amd64",
 				"beta.kubernetes.io/os":   "linux",
@@ -214,16 +198,16 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
 			}})
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-			env.ExpectCreatedNodeCount("==", 1)
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			Env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support well-known labels for topology and architecture", func() {
 			nodeSelector := map[string]string{
 				// Well Known
-				karpv1.NodePoolLabelKey:     nodePool.Name,
-				corev1.LabelTopologyRegion:  env.Region,
-				corev1.LabelTopologyZone:    fmt.Sprintf("%sa", env.Region),
+				karpv1.NodePoolLabelKey:     NodePool.Name,
+				corev1.LabelTopologyRegion:  Env.Region,
+				corev1.LabelTopologyZone:    fmt.Sprintf("%sa", Env.Region),
 				corev1.LabelOSStable:        "linux",
 				corev1.LabelArchStable:      "amd64",
 				karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand,
@@ -237,9 +221,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
 			}})
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-			env.ExpectCreatedNodeCount("==", 1)
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			Env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support well-known labels for a gpu (nvidia)", func() {
 			nodeSelector := map[string]string{
@@ -257,9 +241,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
 			}})
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-			env.ExpectCreatedNodeCount("==", 1)
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			Env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support well-known labels for an accelerator (inferentia2)", func() {
 			nodeSelector := map[string]string{
@@ -276,9 +260,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
 			}})
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-			env.ExpectCreatedNodeCount("==", 1)
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			Env.ExpectCreatedNodeCount("==", 1)
 		})
 		// Windows tests are can flake due to the instance types that are used in testing.
 		// The VPC Resource controller will need to support the instance types that are used.
@@ -286,9 +270,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		// Issue: https://github.com/aws/karpenter-provider-aws/issues/4472
 		// See: https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go
 		It("should support well-known labels for windows-build version", func() {
-			env.ExpectWindowsIPAMEnabled()
+			Env.ExpectWindowsIPAMEnabled()
 			DeferCleanup(func() {
-				env.ExpectWindowsIPAMDisabled()
+				Env.ExpectWindowsIPAMDisabled()
 			})
 
 			nodeSelector := map[string]string{
@@ -306,21 +290,21 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				NodeRequirements: requirements,
 				Image:            environmentaws.WindowsDefaultImage,
 			}})
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
-			test.ReplaceRequirements(nodePool,
+			NodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
+			test.ReplaceRequirements(NodePool,
 				karpv1.NodeSelectorRequirementWithMinValues{
 					Key:      corev1.LabelOSStable,
 					Operator: corev1.NodeSelectorOpIn,
 					Values:   []string{string(corev1.Windows)},
 				},
 			)
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*15, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-			env.ExpectCreatedNodeCount("==", 1)
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*15, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			Env.ExpectCreatedNodeCount("==", 1)
 		})
 		DescribeTable("should support restricted label domain exceptions", func(domain string) {
 			// Assign labels to the nodepool so that it has known values
-			test.ReplaceRequirements(nodePool,
+			test.ReplaceRequirements(NodePool,
 				karpv1.NodeSelectorRequirementWithMinValues{Key: domain + "/team", Operator: corev1.NodeSelectorOpExists},
 				karpv1.NodeSelectorRequirementWithMinValues{Key: domain + "/custom-label", Operator: corev1.NodeSelectorOpExists},
 				karpv1.NodeSelectorRequirementWithMinValues{Key: "subdomain." + domain + "/custom-label", Operator: corev1.NodeSelectorOpExists},
@@ -339,9 +323,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
 			}})
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-			node := env.ExpectCreatedNodeCount("==", 1)[0]
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			node := Env.ExpectCreatedNodeCount("==", 1)[0]
 			// Ensure that the requirements/labels specified above are propagated onto the node
 			for k, v := range nodeSelector {
 				Expect(node.Labels).To(HaveKeyWithValue(k, v))
@@ -364,9 +348,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
 			}})
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-			env.ExpectCreatedNodeCount("==", 1)
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			Env.ExpectCreatedNodeCount("==", 1)
 		})
 	})
 
@@ -374,26 +358,26 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		It("should provision a node for naked pods", func() {
 			pod := test.Pod()
 
-			env.ExpectCreated(nodeClass, nodePool, pod)
-			env.EventuallyExpectHealthy(pod)
-			env.ExpectCreatedNodeCount("==", 1)
+			Env.ExpectCreated(NodeClass, NodePool, pod)
+			Env.EventuallyExpectHealthy(pod)
+			Env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should honor minValuesPolicy when provisioning a node", func() {
-			eventClient := debug.NewEventClient(env.Client)
+			eventClient := debug.NewEventClient(Env.Client)
 			pod := test.Pod()
-			nodePoolWithMinValues := test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			nodePoolWithMinValues := test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
 				Key:       corev1.LabelInstanceTypeStable,
 				Operator:  corev1.NodeSelectorOpIn,
 				Values:    []string{"c5.large", "invalid-instance-type-1", "invalid-instance-type-2"},
 				MinValues: lo.ToPtr(3),
 			})
-			env.ExpectCreated(nodeClass, nodePoolWithMinValues, pod)
+			Env.ExpectCreated(NodeClass, nodePoolWithMinValues, pod)
 
 			// minValues should only be relaxed when policy is set to BestEffort
 			if minValuesPolicy == options.MinValuesPolicyBestEffort {
-				env.EventuallyExpectHealthy(pod)
-				env.ExpectCreatedNodeCount("==", 1)
-				nodeClaim := env.ExpectNodeClaimCount("==", 1)
+				Env.EventuallyExpectHealthy(pod)
+				Env.ExpectCreatedNodeCount("==", 1)
+				nodeClaim := Env.ExpectNodeClaimCount("==", 1)
 				Expect(nodeClaim[0].Annotations).To(HaveKeyWithValue(karpv1.NodeClaimMinValuesRelaxedAnnotationKey, "true"))
 				Expect(nodeClaim[0].Spec.Requirements).To(ContainElement(karpv1.NodeSelectorRequirementWithMinValues{
 					Key:       corev1.LabelInstanceTypeStable,
@@ -402,12 +386,12 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					MinValues: lo.ToPtr(1),
 				}))
 			} else {
-				env.ExpectExists(pod)
+				Env.ExpectExists(pod)
 				// Give a min for the scheduling decision to be done.
-				env.ConsistentlyExpectPendingPods(time.Minute, pod)
-				env.EventuallyExpectNodeCount("==", 0)
-				env.ExpectNodeClaimCount("==", 0)
-				events, err := eventClient.GetEvents(env.Context, "NodePool")
+				Env.ConsistentlyExpectPendingPods(time.Minute, pod)
+				Env.EventuallyExpectNodeCount("==", 0)
+				Env.ExpectNodeClaimCount("==", 0)
+				events, err := eventClient.GetEvents(Env.Context, "NodePool")
 				Expect(err).ToNot(HaveOccurred())
 				key, found := lo.FindKeyBy(events, func(k corev1.ObjectReference, v *corev1.EventList) bool {
 					return k.Name == nodePoolWithMinValues.Name &&
@@ -424,9 +408,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		})
 		It("should provision a node for a deployment", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 			deployment := test.Deployment(test.DeploymentOptions{Replicas: 50})
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-			env.ExpectCreatedNodeCount("<=", 2) // should probably all land on a single node, but at worst two depending on batching
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			Env.ExpectCreatedNodeCount("<=", 2) // should probably all land on a single node, but at worst two depending on batching
 		})
 		It("should provision a node for a self-affinity deployment", func() {
 			// just two pods as they all need to land on the same node
@@ -446,9 +430,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				},
 			})
 
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), 2)
-			env.ExpectCreatedNodeCount("==", 1)
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), 2)
+			Env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should provision three nodes for a zonal topology spread", func() {
 			// one pod per zone
@@ -471,23 +455,23 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				},
 			})
 
-			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), 3)
+			Env.ExpectCreated(NodeClass, NodePool, deployment)
+			Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), 3)
 			// Karpenter will launch three nodes, however if all three nodes don't get register with the cluster at the same time, two pods will be placed on one node.
 			// This can result in a case where all 3 pods are healthy, while there are only two created nodes.
 			// In that case, we still expect to eventually have three nodes.
-			env.EventuallyExpectNodeCount("==", 3)
+			Env.EventuallyExpectNodeCount("==", 3)
 		})
 		It("should provision a node using a NodePool with higher priority", func() {
-			nodePoolLowPri := test.NodePool(karpv1.NodePool{
+			NodePoolLowPri := test.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Weight: lo.ToPtr(int32(10)),
 					Template: karpv1.NodeClaimTemplate{
 						Spec: karpv1.NodeClaimTemplateSpec{
 							NodeClassRef: &karpv1.NodeClassReference{
-								Group: object.GVK(nodeClass).Group,
-								Kind:  object.GVK(nodeClass).Kind,
-								Name:  nodeClass.Name,
+								Group: object.GVK(NodeClass).Group,
+								Kind:  object.GVK(NodeClass).Kind,
+								Name:  NodeClass.Name,
 							},
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
@@ -505,15 +489,15 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					},
 				},
 			})
-			nodePoolHighPri := test.NodePool(karpv1.NodePool{
+			NodePoolHighPri := test.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Weight: lo.ToPtr(int32(100)),
 					Template: karpv1.NodeClaimTemplate{
 						Spec: karpv1.NodeClaimTemplateSpec{
 							NodeClassRef: &karpv1.NodeClassReference{
-								Group: object.GVK(nodeClass).Group,
-								Kind:  object.GVK(nodeClass).Kind,
-								Name:  nodeClass.Name,
+								Group: object.GVK(NodeClass).Group,
+								Kind:  object.GVK(NodeClass).Kind,
+								Name:  NodeClass.Name,
 							},
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
@@ -532,30 +516,30 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				},
 			})
 			pod := test.Pod()
-			env.ExpectCreated(pod, nodeClass, nodePoolLowPri, nodePoolHighPri)
-			env.EventuallyExpectHealthy(pod)
-			env.ExpectCreatedNodeCount("==", 1)
-			Expect(env.GetInstance(pod.Spec.NodeName).InstanceType).To(Equal(ec2types.InstanceType("c5.large")))
-			Expect(env.GetNode(pod.Spec.NodeName).Labels[karpv1.NodePoolLabelKey]).To(Equal(nodePoolHighPri.Name))
+			Env.ExpectCreated(pod, NodeClass, NodePoolLowPri, NodePoolHighPri)
+			Env.EventuallyExpectHealthy(pod)
+			Env.ExpectCreatedNodeCount("==", 1)
+			Expect(Env.GetInstance(pod.Spec.NodeName).InstanceType).To(Equal(ec2types.InstanceType("c5.large")))
+			Expect(Env.GetNode(pod.Spec.NodeName).Labels[karpv1.NodePoolLabelKey]).To(Equal(NodePoolHighPri.Name))
 		})
 		It("should provision a flex node for a pod", func() {
 			selectors.Insert(v1.LabelInstanceCapabilityFlex)
 			pod := test.Pod()
-			nodePoolWithMinValues := test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			nodePoolWithMinValues := test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
 				Key:      v1.LabelInstanceCapabilityFlex,
 				Operator: corev1.NodeSelectorOpIn,
 				Values:   []string{"true"},
 			})
-			env.ExpectCreated(nodeClass, nodePoolWithMinValues, pod)
-			env.EventuallyExpectHealthy(pod)
-			env.ExpectCreatedNodeCount("==", 1)
-			Expect(env.GetNode(pod.Spec.NodeName).Labels).To(And(HaveKeyWithValue(corev1.LabelInstanceType, ContainSubstring("flex"))))
+			Env.ExpectCreated(NodeClass, nodePoolWithMinValues, pod)
+			Env.EventuallyExpectHealthy(pod)
+			Env.ExpectCreatedNodeCount("==", 1)
+			Expect(Env.GetNode(pod.Spec.NodeName).Labels).To(And(HaveKeyWithValue(corev1.LabelInstanceType, ContainSubstring("flex"))))
 		})
 
 		DescribeTable(
 			"should provision a right-sized node when a pod has InitContainers (cpu)",
 			func(expectedNodeCPU string, containerRequirements corev1.ResourceRequirements, initContainers ...corev1.Container) {
-				if env.K8sMinorVersion() < 29 {
+				if Env.K8sMinorVersion() < 29 {
 					Skip("native sidecar containers are only enabled on EKS 1.29+")
 				}
 
@@ -575,7 +559,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					ResourceRequirements: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceCPU: func() resource.Quantity {
-								dsOverhead := env.GetDaemonSetOverhead(nodePool)
+								dsOverhead := Env.GetDaemonSetOverhead(NodePool)
 								base := lo.ToPtr(resource.MustParse("3"))
 								base.Sub(*dsOverhead.Cpu())
 								return *base
@@ -584,7 +568,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					},
 				})
 
-				test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
 					Key:      v1.LabelInstanceCPU,
 					Operator: corev1.NodeSelectorOpIn,
 					Values:   []string{"4", "8"},
@@ -606,9 +590,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					InitContainers:       initContainers,
 					ResourceRequirements: containerRequirements,
 				})
-				env.ExpectCreated(nodePool, nodeClass, dsBufferPod, pod)
-				env.EventuallyExpectHealthy(pod)
-				node := env.ExpectCreatedNodeCount("==", 1)[0]
+				Env.ExpectCreated(NodePool, NodeClass, dsBufferPod, pod)
+				Env.EventuallyExpectHealthy(pod)
+				node := Env.ExpectCreatedNodeCount("==", 1)[0]
 				Expect(node.ObjectMeta.GetLabels()[v1.LabelInstanceCPU]).To(Equal(expectedNodeCPU))
 			},
 			Entry("sidecar requirements + later init requirements do exceed container requirements", "8", corev1.ResourceRequirements{
@@ -652,10 +636,10 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			}),
 		)
 		It("should provision a right-sized node when a pod has InitContainers (mixed resources)", func() {
-			if env.K8sMinorVersion() < 29 {
+			if Env.K8sMinorVersion() < 29 {
 				Skip("native sidecar containers are only enabled on EKS 1.29+")
 			}
-			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
 				Key:      v1.LabelInstanceCategory,
 				Operator: corev1.NodeSelectorOpNotIn,
 				Values:   []string{"t"},
@@ -679,12 +663,12 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					corev1.ResourceMemory: resource.MustParse("128Mi"),
 				}},
 			})
-			env.ExpectCreated(nodePool, nodeClass, pod)
-			env.EventuallyExpectHealthy(pod)
+			Env.ExpectCreated(NodePool, NodeClass, pod)
+			Env.EventuallyExpectHealthy(pod)
 		})
 
 		It("should provision a node for a pod with overlapping zone and zone-id requirements", func() {
-			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s environmentaws.SubnetInfo) string {
+			subnetInfo := lo.UniqBy(Env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": Env.ClusterName}), func(s environmentaws.SubnetInfo) string {
 				return s.Zone
 			})
 			Expect(len(subnetInfo)).To(BeNumerically(">=", 3))
@@ -705,8 +689,8 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					},
 				},
 			})
-			env.ExpectCreated(nodePool, nodeClass, pod)
-			node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
+			Env.ExpectCreated(NodePool, NodeClass, pod)
+			node := Env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 			Expect(node.Labels[corev1.LabelTopologyZone]).To(Equal(subnetInfo[1].Zone))
 			Expect(node.Labels[v1.LabelTopologyZoneID]).To(Equal(subnetInfo[1].ZoneID))
 		})
@@ -717,12 +701,12 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			// succeed even if Karpenter doesn't add the label and /or incorrectly generated offerings on k8s 1.30 and
 			// above. This is an unlikely scenario, and adding this check is a defense in depth measure.
 			const expectedZoneLabel = "expected-zone-label"
-			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
 				Key:      expectedZoneLabel,
 				Operator: corev1.NodeSelectorOpExists,
 			})
 
-			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s environmentaws.SubnetInfo) string {
+			subnetInfo := lo.UniqBy(Env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": Env.ClusterName}), func(s environmentaws.SubnetInfo) string {
 				return s.Zone
 			})
 			pods := lo.Map(subnetInfo, func(info environmentaws.SubnetInfo, _ int) *corev1.Pod {
@@ -742,11 +726,11 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				})
 			})
 
-			env.ExpectCreated(nodePool, nodeClass)
+			Env.ExpectCreated(NodePool, NodeClass)
 			for _, pod := range pods {
-				env.ExpectCreated(pod)
+				Env.ExpectCreated(pod)
 			}
-			nodes := env.EventuallyExpectInitializedNodeCount("==", len(subnetInfo))
+			nodes := Env.EventuallyExpectInitializedNodeCount("==", len(subnetInfo))
 			for _, node := range nodes {
 				expectedZone, ok := node.Labels[expectedZoneLabel]
 				Expect(ok).To(BeTrue())
@@ -764,29 +748,29 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		var largeCapacityReservationID, xlargeCapacityReservationID string
 		BeforeAll(func() {
 			largeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
-				env.Context,
-				env.EC2API,
+				Env.Context,
+				Env.EC2API,
 				ec2types.InstanceTypeM5Large,
-				env.ZoneInfo[0].Zone,
+				Env.ZoneInfo[0].Zone,
 				1,
 				nil,
 				nil,
 			)
 			xlargeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
-				env.Context,
-				env.EC2API,
+				Env.Context,
+				Env.EC2API,
 				ec2types.InstanceTypeM5Xlarge,
-				env.ZoneInfo[0].Zone,
+				Env.ZoneInfo[0].Zone,
 				2,
 				nil,
 				nil,
 			)
 		})
 		AfterAll(func() {
-			environmentaws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, largeCapacityReservationID, xlargeCapacityReservationID)
+			environmentaws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, largeCapacityReservationID, xlargeCapacityReservationID)
 		})
 		BeforeEach(func() {
-			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
+			NodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
 				{
 					ID: largeCapacityReservationID,
 				},
@@ -794,7 +778,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					ID: xlargeCapacityReservationID,
 				},
 			}
-			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			NodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
 					Key:      karpv1.CapacityTypeLabelKey,
 					Operator: corev1.NodeSelectorOpIn,
@@ -818,17 +802,17 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					Values:   []string{xlargeCapacityReservationID},
 				}},
 			})
-			env.ExpectCreated(nodePool, nodeClass, pod)
+			Env.ExpectCreated(NodePool, NodeClass, pod)
 
-			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
+			nc := Env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
 			req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
 				return req.Key == v1.LabelCapacityReservationID
 			})
 			Expect(ok).To(BeTrue())
 			Expect(req.Values).To(ConsistOf(xlargeCapacityReservationID))
 
-			env.EventuallyExpectNodeClaimsReady(nc)
-			n := env.EventuallyExpectNodeCount("==", 1)[0]
+			Env.EventuallyExpectNodeClaimsReady(nc)
+			n := Env.EventuallyExpectNodeCount("==", 1)[0]
 			Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
 			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(v1.CapacityReservationTypeDefault)))
 			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
@@ -854,17 +838,17 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					},
 				},
 			})
-			env.ExpectCreated(nodePool, nodeClass, pod)
+			Env.ExpectCreated(NodePool, NodeClass, pod)
 
-			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
+			nc := Env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
 			req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
 				return req.Key == v1.LabelCapacityReservationType
 			})
 			Expect(ok).To(BeTrue())
 			Expect(req.Values).To(ConsistOf(string(v1.CapacityReservationTypeDefault)))
 
-			env.EventuallyExpectNodeClaimsReady(nc)
-			n := env.EventuallyExpectNodeCount("==", 1)[0]
+			Env.EventuallyExpectNodeClaimsReady(nc)
+			n := Env.EventuallyExpectNodeCount("==", 1)[0]
 			Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
 			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(v1.CapacityReservationTypeDefault)))
 			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
@@ -891,10 +875,10 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					},
 				}},
 			})
-			env.ExpectCreated(nodePool, nodeClass, pods[0], pods[1])
+			Env.ExpectCreated(NodePool, NodeClass, pods[0], pods[1])
 
 			reservedCount := 0
-			for _, nc := range env.EventuallyExpectLaunchedNodeClaimCount("==", 2) {
+			for _, nc := range Env.EventuallyExpectLaunchedNodeClaimCount("==", 2) {
 				req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
 					return req.Key == v1.LabelCapacityReservationID
 				})
@@ -904,7 +888,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				}
 			}
 			Expect(reservedCount).To(Equal(1))
-			env.EventuallyExpectNodeCount("==", 2)
+			Env.EventuallyExpectNodeCount("==", 2)
 		})
 	})
 
@@ -912,33 +896,33 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		var sourceReservationID, interruptibleReservationID, xlargeReservationID string
 		BeforeAll(func() {
 			sourceReservationID, interruptibleReservationID = environmentaws.ExpectInterruptibleCapacityReservationCreated(
-				env.Context,
-				env.EC2API,
+				Env.Context,
+				Env.EC2API,
 				ec2types.InstanceTypeM5Large,
-				env.ZoneInfo[0].Zone,
+				Env.ZoneInfo[0].Zone,
 				2,
 				1,
 				nil,
 			)
 			xlargeReservationID = environmentaws.ExpectCapacityReservationCreated(
-				env.Context,
-				env.EC2API,
+				Env.Context,
+				Env.EC2API,
 				ec2types.InstanceTypeM5Xlarge,
-				env.ZoneInfo[0].Zone,
+				Env.ZoneInfo[0].Zone,
 				1,
 				nil,
 				nil,
 			)
 		})
 		AfterAll(func() {
-			environmentaws.ExpectInterruptibleAndSourceCapacityCanceled(env.Context, env.EC2API, sourceReservationID, interruptibleReservationID)
-			environmentaws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, xlargeReservationID)
+			environmentaws.ExpectInterruptibleAndSourceCapacityCanceled(Env.Context, Env.EC2API, sourceReservationID, interruptibleReservationID)
+			environmentaws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, xlargeReservationID)
 		})
 		BeforeEach(func() {
-			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
+			NodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
 				{ID: sourceReservationID}, {ID: interruptibleReservationID},
 			}
-			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			NodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
 					Key:      karpv1.CapacityTypeLabelKey,
 					Operator: corev1.NodeSelectorOpIn,
@@ -961,9 +945,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					Values:   []string{strconv.FormatBool(interruptible)},
 				}},
 			})
-			env.ExpectCreated(nodePool, nodeClass, pod)
+			Env.ExpectCreated(NodePool, NodeClass, pod)
 
-			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
+			nc := Env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
 			resReq, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
 				return req.Key == v1.LabelCapacityReservationID
 			})
@@ -975,8 +959,8 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			Expect(resReq.Values).To(ConsistOf(lo.Ternary(interruptible, interruptibleReservationID, sourceReservationID)))
 			Expect(iReq.Values).To(ConsistOf(strconv.FormatBool(interruptible)))
 
-			env.EventuallyExpectNodeClaimsReady(nc)
-			n := env.EventuallyExpectNodeCount("==", 1)[0]
+			Env.EventuallyExpectNodeClaimsReady(nc)
+			n := Env.EventuallyExpectNodeCount("==", 1)[0]
 			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, strconv.FormatBool(interruptible)))
 		},
 			Entry("interruptible", true),
@@ -990,9 +974,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					Values:   []string{string(ec2types.InstanceTypeM5Large)},
 				}},
 			})
-			env.ExpectCreated(nodePool, nodeClass, pod)
+			Env.ExpectCreated(NodePool, NodeClass, pod)
 
-			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
+			nc := Env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
 			req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
 				return req.Key == v1.LabelCapacityReservationID
 			})
@@ -1000,17 +984,17 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			// NodeClaim should have both reservations (but launch with ODCR)
 			Expect(req.Values).To(ConsistOf(sourceReservationID, interruptibleReservationID))
 
-			env.EventuallyExpectNodeClaimsReady(nc)
-			n := env.EventuallyExpectNodeCount("==", 1)[0]
+			Env.EventuallyExpectNodeClaimsReady(nc)
+			n := Env.EventuallyExpectNodeCount("==", 1)[0]
 			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "false"))
 			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, sourceReservationID))
 		})
 		It("should prioritize reservation with lower price", func() {
-			env.ExpectCreated(nodeClass)
-			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
+			Env.ExpectCreated(NodeClass)
+			NodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
 				{ID: xlargeReservationID}, {ID: interruptibleReservationID},
 			}
-			env.ExpectUpdated(nodeClass)
+			Env.ExpectUpdated(NodeClass)
 
 			pod := test.Pod(test.PodOptions{
 				NodeRequirements: []corev1.NodeSelectorRequirement{{
@@ -1019,9 +1003,9 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 					Values:   []string{string(ec2types.InstanceTypeM5Large), string(ec2types.InstanceTypeM5Xlarge)},
 				}},
 			})
-			env.ExpectCreated(nodePool, pod)
+			Env.ExpectCreated(NodePool, pod)
 
-			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
+			nc := Env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
 			req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
 				return req.Key == v1.LabelCapacityReservationID
 			})
@@ -1029,8 +1013,8 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			// NodeClaim should have both reservations (but launch in IODCR as its cheaper)
 			Expect(req.Values).To(ConsistOf(xlargeReservationID, interruptibleReservationID))
 
-			env.EventuallyExpectNodeClaimsReady(nc)
-			n := env.EventuallyExpectNodeCount("==", 1)[0]
+			Env.EventuallyExpectNodeClaimsReady(nc)
+			n := Env.EventuallyExpectNodeCount("==", 1)[0]
 			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Large)))
 			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "true"))
 		})
@@ -1041,15 +1025,15 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
 			},
 		})
-		nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+		NodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
 			{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
 			{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
 		}
-		env.ExpectCreated(nodeClass, nodePool, pod)
-		env.EventuallyExpectHealthy(pod)
-		node := env.ExpectCreatedNodeCount("==", 1)[0]
+		Env.ExpectCreated(NodeClass, NodePool, pod)
+		Env.EventuallyExpectHealthy(pod)
+		node := Env.ExpectCreatedNodeCount("==", 1)[0]
 
-		instance := env.GetInstance(node.Name)
+		instance := Env.GetInstance(node.Name)
 		networkInterfaces := instance.NetworkInterfaces
 		Expect(networkInterfaces).To(HaveLen(2))
 
@@ -1066,12 +1050,11 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			))
 		}
 	})
-},
-	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
-	Entry("MinValuesPolicyStrict", options.MinValuesPolicyStrict),
-)
+})
+}
 
-var _ = Describe("Node Overlay", func() {
+func RegisterNodeOverlayTests() bool {
+	return Describe("Node Overlay", func() {
 	It("should provision the instance that is the cheepest based on a price adjustment node overlay applied", func() {
 		overlaiedInstanceType := "m7a.8xlarge"
 		pod := test.Pod()
@@ -1087,9 +1070,9 @@ var _ = Describe("Node Overlay", func() {
 				},
 			},
 		})
-		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
-		env.EventuallyExpectHealthy(pod)
-		node := env.EventuallyExpectInitializedNodeCount("==", 1)
+		Env.ExpectCreated(NodePool, NodeClass, nodeOverlay, pod)
+		Env.EventuallyExpectHealthy(pod)
+		node := Env.EventuallyExpectInitializedNodeCount("==", 1)
 
 		instanceType, foundInstanceType := node[0].Labels[corev1.LabelInstanceTypeStable]
 		Expect(foundInstanceType).To(BeTrue())
@@ -1110,9 +1093,9 @@ var _ = Describe("Node Overlay", func() {
 				},
 			},
 		})
-		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
-		env.EventuallyExpectHealthy(pod)
-		node := env.EventuallyExpectInitializedNodeCount("==", 1)
+		Env.ExpectCreated(NodePool, NodeClass, nodeOverlay, pod)
+		Env.EventuallyExpectHealthy(pod)
+		node := Env.EventuallyExpectInitializedNodeCount("==", 1)
 
 		instanceType, foundInstanceType := node[0].Labels[corev1.LabelInstanceTypeStable]
 		Expect(foundInstanceType).To(BeTrue())
@@ -1149,18 +1132,18 @@ var _ = Describe("Node Overlay", func() {
 
 		content, err := os.ReadFile("testdata/hugepage_userdata_input.sh")
 		Expect(err).To(BeNil())
-		nodeClass.Spec.UserData = lo.ToPtr(string(content))
+		NodeClass.Spec.UserData = lo.ToPtr(string(content))
 
-		env.ExpectCreated(nodePool, nodeClass, nodeOverlay, pod)
-		env.EventuallyExpectHealthy(pod)
-		node := env.EventuallyExpectInitializedNodeCount("==", 1)
+		Env.ExpectCreated(NodePool, NodeClass, nodeOverlay, pod)
+		Env.EventuallyExpectHealthy(pod)
+		node := Env.EventuallyExpectInitializedNodeCount("==", 1)
 
 		instanceType, foundInstanceType := node[0].Labels[corev1.LabelInstanceTypeStable]
 		Expect(foundInstanceType).To(BeTrue())
 		Expect(instanceType).To(Equal(overlaiedInstanceType))
 	})
 })
-
+}
 func ephemeralInitContainer(requirements corev1.ResourceRequirements) corev1.Container {
 	return corev1.Container{
 		Image:     environmentaws.EphemeralInitContainerImage,
