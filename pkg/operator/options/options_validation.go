@@ -28,6 +28,7 @@ func (o *Options) Validate() error {
 		o.validateVMMemoryOverheadPercent(),
 		o.validateReservedENIs(),
 		o.validateRequiredFields(),
+		o.validateAMICacheTTL(),
 	)
 }
 
@@ -64,3 +65,11 @@ func (o *Options) validateRequiredFields() error {
 	}
 	return nil
 }
+
+func (o *Options) validateAMICacheTTL() error {
+	if o.AMICacheTTL <= 0 {
+		return fmt.Errorf("ami-cache-ttl must be positive")
+	}
+	return nil
+}
+

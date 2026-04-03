@@ -19,6 +19,7 @@ import (
 	"flag"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/samber/lo"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
@@ -63,7 +64,8 @@ var _ = Describe("Options", func() {
 			"--vm-memory-overhead-percent", "0.1",
 			"--interruption-queue", "env-cluster",
 			"--reserved-enis", "10",
-			"--disable-dry-run")
+			"--disable-dry-run",
+			"--ami-cache-ttl", "15m")
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
 			ClusterCABundle:         lo.ToPtr("env-bundle"),
@@ -74,6 +76,7 @@ var _ = Describe("Options", func() {
 			InterruptionQueue:       lo.ToPtr("env-cluster"),
 			ReservedENIs:            lo.ToPtr(10),
 			DisableDryRun:           lo.ToPtr(true),
+			AMICacheTTL:             lo.ToPtr(15 * time.Minute),
 		}))
 	})
 	It("should correctly fallback to env vars when CLI flags aren't set", func() {
@@ -85,6 +88,7 @@ var _ = Describe("Options", func() {
 		os.Setenv("INTERRUPTION_QUEUE", "env-cluster")
 		os.Setenv("RESERVED_ENIS", "10")
 		os.Setenv("DISABLE_DRY_RUN", "false")
+		os.Setenv("AMI_CACHE_TTL", "15m")
 
 		// Add flags after we set the environment variables so that the parsing logic correctly refers
 		// to the new environment variable values
@@ -100,6 +104,7 @@ var _ = Describe("Options", func() {
 			InterruptionQueue:       lo.ToPtr("env-cluster"),
 			ReservedENIs:            lo.ToPtr(10),
 			DisableDryRun:           lo.ToPtr(false),
+			AMICacheTTL:             lo.ToPtr(15 * time.Minute),
 		}))
 	})
 
@@ -123,6 +128,10 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--reserved-enis", "-1")
 			Expect(err).To(HaveOccurred())
 		})
+		It("should fail when ami-cache-ttl is zero", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--ami-cache-ttl", "0")
+			Expect(err).To(HaveOccurred())
+		})
 	})
 })
 
@@ -136,4 +145,5 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.InterruptionQueue).To(Equal(optsB.InterruptionQueue))
 	Expect(optsA.ReservedENIs).To(Equal(optsB.ReservedENIs))
 	Expect(optsA.DisableDryRun).To(Equal(optsB.DisableDryRun))
+	Expect(optsA.AMICacheTTL).To(Equal(optsB.AMICacheTTL))
 }

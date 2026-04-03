@@ -16,6 +16,7 @@ package test
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
@@ -33,6 +34,7 @@ type OptionsFields struct {
 	InterruptionQueue       *string
 	ReservedENIs            *int
 	DisableDryRun           *bool
+	AMICacheTTL             *time.Duration
 }
 
 func Options(overrides ...OptionsFields) *options.Options {
@@ -52,5 +54,6 @@ func Options(overrides ...OptionsFields) *options.Options {
 		InterruptionQueue:       lo.FromPtrOr(opts.InterruptionQueue, ""),
 		ReservedENIs:            lo.FromPtrOr(opts.ReservedENIs, 0),
 		DisableDryRun:           lo.FromPtrOr(opts.DisableDryRun, false),
+		AMICacheTTL:             lo.FromPtrOr(opts.AMICacheTTL, time.Minute),
 	}
 }

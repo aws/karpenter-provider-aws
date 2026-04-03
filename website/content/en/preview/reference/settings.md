@@ -12,6 +12,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 
 | Environment Variable | CLI Flag | Description |
 |--|--|--|
+| AMI_CACHE_TTL | \-\-ami-cache-ttl | TTL for cached AMI discovery results. (default = 1m0s)|
 | BATCH_IDLE_DURATION | \-\-batch-idle-duration | The maximum amount of time with no new pending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. (default = 1s)|
 | BATCH_MAX_DURATION | \-\-batch-max-duration | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. (default = 10s)|
 | CLUSTER_CA_BUNDLE | \-\-cluster-ca-bundle | Cluster CA bundle for nodes to use for TLS connections with the API server. If not set, this is taken from the controller's TLS configuration.|

@@ -120,7 +120,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	iamapi := fake.NewIAMAPI()
 
 	// cache
-	amiCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	amiCache := cache.New(awscache.AMICacheTTL, awscache.DefaultCleanupInterval)
 	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceTypeCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)

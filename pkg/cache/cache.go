@@ -24,6 +24,11 @@ const (
 	// AWS APIs, which can have a serious impact on performance and scalability.
 	// DO NOT CHANGE THIS VALUE WITHOUT DUE CONSIDERATION
 	DefaultTTL = time.Minute
+	// AMICacheTTL is the default TTL for cached AMI discovery results. Operators
+	// can override this at runtime via the --ami-cache-ttl flag. Setting the cache
+	// TTL >= the requeue interval ensures scheduled reconciles are served from cache
+	// rather than re-querying the EC2 API on every reconcile.
+	AMICacheTTL = time.Minute
 	// PlacementGroupAvailabilityTTL is the TTL for resolved placement group data.
 	PlacementGroupAvailabilityTTL = 24 * time.Hour
 	// UnavailableOfferingsTTL is the time before offerings that were marked as unavailable

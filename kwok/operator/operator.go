@@ -146,7 +146,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	// the previously resolved value will be used.
 	lo.Must0(versionProvider.UpdateVersion(ctx))
 	ssmProvider := ssmp.NewDefaultProvider(ssm.NewFromConfig(cfg), ssmCache)
-	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(options.FromContext(ctx).AMICacheTTL, awscache.DefaultCleanupInterval))
 	placementGroupProvider := placementgroup.NewProvider(
 		ec2api,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
