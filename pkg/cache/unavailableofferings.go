@@ -22,6 +22,7 @@ import (
 	"sync/atomic"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/patrickmn/go-cache"
@@ -39,8 +40,8 @@ type UnavailableOfferings struct {
 	capacityTypeCache       *cache.Cache
 	capacityTypeCacheSeqNum atomic.Uint64
 
-	azCache       *cache.Cache
-	azCacheSeqNum atomic.Uint64
+	subnetCache       *cache.Cache
+	subnetCacheSeqNum atomic.Uint64
 }
 
 func NewUnavailableOfferings() *UnavailableOfferings {
@@ -50,7 +51,7 @@ func NewUnavailableOfferings() *UnavailableOfferings {
 		offeringCacheSeqNum:   map[ec2types.InstanceType]uint64{},
 
 		capacityTypeCache: cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
-		azCache:           cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
+		subnetCache:       cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
 	}
 	uo.offeringCache.OnEvicted(func(k string, _ any) {
 		elems := strings.Split(k, ":")
@@ -64,8 +65,8 @@ func NewUnavailableOfferings() *UnavailableOfferings {
 	uo.capacityTypeCache.OnEvicted(func(k string, _ any) {
 		uo.capacityTypeCacheSeqNum.Add(1)
 	})
-	uo.azCache.OnEvicted(func(k string, _ any) {
-		uo.azCacheSeqNum.Add(1)
+	uo.subnetCache.OnEvicted(func(k string, _ any) {
+		uo.subnetCacheSeqNum.Add(1)
 	})
 	return uo
 }
@@ -76,15 +77,20 @@ func (u *UnavailableOfferings) SeqNum(instanceType ec2types.InstanceType) uint64
 	defer u.offeringCacheSeqNumMu.RUnlock()
 
 	v := u.offeringCacheSeqNum[instanceType]
-	return v + u.capacityTypeCacheSeqNum.Load() + u.azCacheSeqNum.Load()
+	return v + u.capacityTypeCacheSeqNum.Load() + u.subnetCacheSeqNum.Load()
 }
 
 // IsUnavailable returns true if the offering appears in the cache
-func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType, zone, capacityType string) bool {
+func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType, zone string, subnetIDs []string, capacityType string) bool {
 	_, offeringFound := u.offeringCache.Get(u.key(instanceType, zone, capacityType))
 	_, capacityTypeFound := u.capacityTypeCache.Get(capacityType)
-	_, azFound := u.azCache.Get(zone)
-	return offeringFound || capacityTypeFound || azFound
+	// we should only mark the zone as unavaialble if all subnets are in the cache
+	// if there are no subnets in the list, it should not cause unavaialbility as we expect scheduling requirements to capture that
+	subnetFoundInAZ := lo.Reduce(subnetIDs, func(agg bool, subnetID string, _ int) bool {
+		_, subnetFound := u.subnetCache.Get(subnetID)
+		return agg && subnetFound
+	}, true)
+	return offeringFound || capacityTypeFound || (subnetFoundInAZ && len(subnetIDs) != 0)
 }
 
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
@@ -115,9 +121,9 @@ func (u *UnavailableOfferings) MarkCapacityTypeUnavailable(capacityType string) 
 	u.capacityTypeCacheSeqNum.Add(1)
 }
 
-func (u *UnavailableOfferings) MarkAZUnavailable(zone string) {
-	u.azCache.SetDefault(zone, struct{}{})
-	u.azCacheSeqNum.Add(1)
+func (u *UnavailableOfferings) MarkSubnetUnavailable(subnetID string) {
+	u.subnetCache.SetDefault(subnetID, struct{}{})
+	u.subnetCacheSeqNum.Add(1)
 }
 
 func (u *UnavailableOfferings) Delete(instanceType ec2types.InstanceType, zone string, capacityType string) {
@@ -127,7 +133,7 @@ func (u *UnavailableOfferings) Delete(instanceType ec2types.InstanceType, zone s
 func (u *UnavailableOfferings) Flush() {
 	u.offeringCache.Flush()
 	u.capacityTypeCache.Flush()
-	u.azCache.Flush()
+	u.subnetCache.Flush()
 }
 
 // key returns the cache key for all offerings in the cache

@@ -285,7 +285,7 @@ var _ = Describe("InterruptionHandling", func() {
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 
 			// Expect a t3.large in coretest-zone-1a to be added to the ICE cache
-			Expect(unavailableOfferingsCache.IsUnavailable("t3.large", "coretest-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
+			Expect(unavailableOfferingsCache.IsUnavailable("t3.large", "coretest-zone-1a", []string{}, karpv1.CapacityTypeSpot)).To(BeTrue())
 		})
 		It("should mark the capacity reservation as unavailable when getting an interruption warning", func() {
 			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount("cr-56fac701cc1951b03", 10)

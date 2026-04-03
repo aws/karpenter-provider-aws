@@ -77,11 +77,6 @@ func (p *DefaultProvider) InjectOfferings(
 	nodeClass NodeClass,
 	allZones sets.Set[string],
 ) []*cloudprovider.InstanceType {
-	// The argument instanceTypeInfo is a pointer to the instanceTypeInfo mapping owned by the instance type provider.
-	// Functions that call InjectOfferings must have a read lock on this map.
-	subnetZonesToZoneIDs := lo.SliceToMap(nodeClass.ZoneInfo(), func(info v1.ZoneInfo) (string, string) {
-		return info.Zone, info.ZoneID
-	})
 	var its []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
 		info := instanceTypeInfo[ec2types.InstanceType(it.Name)]
@@ -91,7 +86,6 @@ func (p *DefaultProvider) InjectOfferings(
 			info,
 			nodeClass,
 			allZones,
-			subnetZonesToZoneIDs,
 		)
 		// NOTE: By making this copy one level deep, we can modify the offerings without mutating the results from previous
 		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and
@@ -114,10 +108,10 @@ func (p *DefaultProvider) createOfferings(
 	info ec2types.InstanceTypeInfo,
 	nodeClass NodeClass,
 	allZones sets.Set[string],
-	subnetZonesToZoneIDs map[string]string,
 ) cloudprovider.Offerings {
 	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
+	zoneInfo := nodeClass.ZoneInfo()
 	// Not all instance types are compatible with the NodeClass.
 	// In the event it is not, we mark the offering as unavailable.
 	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(info, nodeClass)
@@ -133,12 +127,16 @@ func (p *DefaultProvider) createOfferings(
 	} else {
 		var cachedOfferings []*cloudprovider.Offering
 		for zone := range allZones {
+			zonalInfo, zonefound := lo.Find(zoneInfo, func(i v1.ZoneInfo) bool {
+				return i.Zone == zone
+			})
+			subnetIDs := lo.Ternary(zonefound, zonalInfo.SubnetIDs, []string{})
 			for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
 				// Reserved capacity types are constructed separately
 				if capacityType == karpv1.CapacityTypeReserved {
 					continue
 				}
-				isUnavailable := p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType)
+				isUnavailable := p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, subnetIDs, capacityType)
 				var price float64
 				var hasPrice bool
 				switch capacityType {
@@ -160,8 +158,8 @@ func (p *DefaultProvider) createOfferings(
 					Price:     price,
 					Available: isCompatibleWithNodeClass && !isUnavailable && hasPrice && itZones.Has(zone),
 				}
-				if id, ok := subnetZonesToZoneIDs[zone]; ok {
-					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
+				if zonefound {
+					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, zonalInfo.ZoneID))
 				}
 				cachedOfferings = append(cachedOfferings, offering)
 			}
@@ -201,8 +199,10 @@ func (p *DefaultProvider) createOfferings(
 			Available:           isCompatibleWithNodeClass && reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring,
 			ReservationCapacity: reservationCapacity,
 		}
-		if id, ok := subnetZonesToZoneIDs[reservation.AvailabilityZone]; ok {
-			offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
+		if zonalInfo, ok := lo.Find(zoneInfo, func(i v1.ZoneInfo) bool {
+			return i.Zone == reservation.AvailabilityZone
+		}); ok {
+			offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, zonalInfo.ZoneID))
 		}
 		offerings = append(offerings, offering)
 	}
@@ -221,11 +221,19 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
 	networkInterfaceHash, _ := hashstructure.Hash(nodeClass.NetworkInterfaces(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	subnetsHash, _ := hashstructure.Hash(
+		lo.Reduce(nodeClass.ZoneInfo(), func(agg []string, i v1.ZoneInfo, _ int) []string {
+			return append(agg, i.SubnetIDs...)
+		}, []string{}),
+		hashstructure.FormatV2,
+		&hashstructure.HashOptions{SlicesAsSets: true},
+	)
 	return fmt.Sprintf(
-		"%s-%016x-%016x-%016x",
+		"%s-%016x-%016x-%016x-%016x",
 		it.Name,
 		zonesHash,
 		capacityTypesHash,
 		networkInterfaceHash,
+		subnetsHash,
 	)
 }

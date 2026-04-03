@@ -492,9 +492,9 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	fleetID string,
 ) {
 	for _, err := range errs {
-		zone := lo.FromPtr(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
-		if awserrors.IsInsufficientFreeAddressesInSubnet(err) && zone != "" {
-			p.unavailableOfferings.MarkAZUnavailable(zone)
+		subnet := lo.FromPtr(err.LaunchTemplateAndOverrides.Overrides.SubnetId)
+		if awserrors.IsInsufficientFreeAddressesInSubnet(err) && subnet != "" {
+			p.unavailableOfferings.MarkSubnetUnavailable(subnet)
 		}
 	}
 
