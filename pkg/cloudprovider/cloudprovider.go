@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
@@ -149,7 +150,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return i.Name == string(instance.Type)
 	})
-	nc := c.instanceToNodeClaim(ctx, instance, instanceType, nodeClass)
+	nc := c.instanceToNodeClaim(ctx, instance, instanceType, nodeClass, nodeClaim)
 	nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
 		v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
 		v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
@@ -173,7 +174,7 @@ func (c *CloudProvider) List(ctx context.Context) ([]*karpv1.NodeClaim, error) {
 		if client.IgnoreNotFound(err) != nil {
 			return nil, fmt.Errorf("resolving nodeclass, %w", err)
 		}
-		nodeClaims = append(nodeClaims, c.instanceToNodeClaim(ctx, it, instanceType, nc))
+		nodeClaims = append(nodeClaims, c.instanceToNodeClaim(ctx, it, instanceType, nc, nil))
 	}
 	return nodeClaims, nil
 }
@@ -196,7 +197,7 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*karpv1.Nod
 	if client.IgnoreNotFound(err) != nil {
 		return nil, fmt.Errorf("resolving nodeclass, %w", err)
 	}
-	return c.instanceToNodeClaim(ctx, instance, instanceType, nc), nil
+	return c.instanceToNodeClaim(ctx, instance, instanceType, nc, nil), nil
 }
 
 // GetInstanceTypes returns all available InstanceTypes
@@ -411,7 +412,7 @@ func (c *CloudProvider) resolveNodePoolFromInstance(ctx context.Context, instanc
 }
 
 //nolint:gocyclo
-func (c *CloudProvider) instanceToNodeClaim(ctx context.Context, i *instance.Instance, instanceType *cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass) *karpv1.NodeClaim {
+func (c *CloudProvider) instanceToNodeClaim(ctx context.Context, i *instance.Instance, instanceType *cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass, originalNodeClaim *karpv1.NodeClaim) *karpv1.NodeClaim {
 	nodeClaim := &karpv1.NodeClaim{}
 	labels := map[string]string{}
 	annotations := map[string]string{}
@@ -469,9 +470,17 @@ func (c *CloudProvider) instanceToNodeClaim(ctx context.Context, i *instance.Ins
 		if pg, _ := c.placementGroupProvider.Get(ctx, nodeClass); pg != nil {
 			labels[v1.LabelPlacementGroupID] = pg.ID
 			if pg.Strategy == placementgroup.StrategyPartition {
-				// Set empty partition label as sentinel for the registration hook.
-				// The hook will resolve the actual partition number via DescribeInstances.
+				// If the scheduler targeted a specific partition (from the offering), use that value.
+				// Otherwise, set the empty sentinel for the registration hook to resolve via DescribeInstances.
 				labels[v1.LabelPlacementGroupPartition] = ""
+				if originalNodeClaim != nil {
+					reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(originalNodeClaim.Spec.Requirements...)
+					if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil {
+						if values := partitionReq.Values(); len(values) > 0 {
+							labels[v1.LabelPlacementGroupPartition] = values[0]
+						}
+					}
+				}
 			}
 		}
 	}
