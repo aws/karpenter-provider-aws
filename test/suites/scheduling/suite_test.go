@@ -1243,7 +1243,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 	})
 },
 	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
-	// Entry("MinValuesPolicyStrict", options.MinValuesPolicyStrict),
+	Entry("MinValuesPolicyStrict", options.MinValuesPolicyStrict),
 )
 
 var _ = Describe("Node Overlay", func() {
