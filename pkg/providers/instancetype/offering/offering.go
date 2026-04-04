@@ -112,12 +112,19 @@ func (p *DefaultProvider) InjectOfferings(
 		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and
 		// once in the instance provider (filterReservedInstanceTypes)
 
-		// Inject placement group ID into instance type requirements (not per-offering) since
-		// the PG ID is the same for all offerings.
+		// Inject placement group requirements into instance type requirements so the scheduler
+		// can discover partition topology domains for TopologySpreadConstraints.
 		reqs := it.Requirements
 		if pg != nil {
 			reqs = scheduling.NewRequirements(it.Requirements.Values()...)
 			reqs.Add(scheduling.NewRequirement(v1.LabelPlacementGroupID, corev1.NodeSelectorOpIn, pg.ID))
+			if pg.Strategy == placementgroup.StrategyPartition && pg.PartitionCount > 0 {
+				partitions := make([]string, pg.PartitionCount)
+				for i := int32(0); i < pg.PartitionCount; i++ {
+					partitions[i] = fmt.Sprintf("%d", i+1)
+				}
+				reqs.Add(scheduling.NewRequirement(v1.LabelPlacementGroupPartition, corev1.NodeSelectorOpIn, partitions...))
+			}
 		}
 		its = append(its, &cloudprovider.InstanceType{
 			Name:         it.Name,

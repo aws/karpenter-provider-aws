@@ -482,6 +482,19 @@ func (p *DefaultProvider) getOverrides(
 			})
 		}
 	}
+	// Deduplicate offerings that differ only by partition number. The partition is set in the
+	// launch template's Placement config, not in overrides, so multiple partition offerings for the
+	// same (instanceType, zone) produce identical overrides and just waste CreateFleet payload.
+	seen := map[string]bool{}
+	filteredOfferings = lo.Filter(filteredOfferings, func(o offeringWithParentName, _ int) bool {
+		key := fmt.Sprintf("%s/%s", o.parentInstanceTypeName, o.Zone())
+		if seen[key] {
+			return false
+		}
+		seen[key] = true
+		return true
+	})
+
 	var overrides []ec2types.FleetLaunchTemplateOverridesRequest
 	for _, offering := range filteredOfferings {
 		subnet, ok := zonalSubnets[offering.Zone()]
