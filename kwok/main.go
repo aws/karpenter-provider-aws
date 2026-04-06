@@ -40,6 +40,7 @@ func main() {
 		op.AMIProvider,
 		op.SecurityGroupProvider,
 		op.CapacityReservationProvider,
+		op.PlacementGroupProvider,
 		op.InstanceTypeStore,
 	)
 	overlayUndecoratedCloudProvider := metrics.Decorate(kwokAWSCloudProvider)
@@ -99,6 +100,7 @@ func main() {
 			op.VersionProvider,
 			op.InstanceTypesProvider,
 			op.CapacityReservationProvider,
+			op.PlacementGroupProvider,
 			op.AMIResolver,
 		)...).
 		Start(ctx)

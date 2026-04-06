@@ -27,6 +27,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/offering"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 
 	"github.com/mitchellh/hashstructure/v2"
@@ -60,13 +61,14 @@ type NodeClass interface {
 	InstanceStorePolicy() *v1.InstanceStorePolicy
 	NetworkInterfaces() []*v1.NetworkInterface
 	KubeletConfiguration() *v1.KubeletConfiguration
+	PlacementGroupSelector() *v1.PlacementGroupSelector
 	ZoneInfo() []v1.ZoneInfo
 }
 
 type Provider interface {
 	Get(context.Context, NodeClass, ec2types.InstanceType) (*cloudprovider.InstanceType, error)
 	List(context.Context, NodeClass) ([]*cloudprovider.InstanceType, error)
-	FilterForNodeClass([]*cloudprovider.InstanceType, NodeClass) []*cloudprovider.InstanceType
+	FilterForNodeClass(context.Context, []*cloudprovider.InstanceType, NodeClass) []*cloudprovider.InstanceType
 }
 
 type DefaultProvider struct {
@@ -90,7 +92,8 @@ type DefaultProvider struct {
 	discoveredCapacityCache *cache.Cache
 	cm                      *pretty.ChangeMonitor
 
-	offeringProvider *offering.DefaultProvider
+	placementGroupProvider placementgroup.Provider
+	offeringProvider       *offering.DefaultProvider
 }
 
 func NewDefaultProvider(
@@ -101,6 +104,7 @@ func NewDefaultProvider(
 	subnetProvider subnet.Provider,
 	pricingProvider pricing.Provider,
 	capacityReservationProvider capacityreservation.Provider,
+	placementGroupProvider placementgroup.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	instanceTypesResolver Resolver,
 ) *DefaultProvider {
@@ -113,9 +117,11 @@ func NewDefaultProvider(
 		instanceTypesCache:      instanceTypesCache,
 		discoveredCapacityCache: discoveredCapacityCache,
 		cm:                      pretty.NewChangeMonitor(),
+		placementGroupProvider:  placementGroupProvider,
 		offeringProvider: offering.NewDefaultProvider(
 			pricingProvider,
 			capacityReservationProvider,
+			placementGroupProvider,
 			unavailableOfferingsCache,
 			offeringCache,
 		),
@@ -354,13 +360,18 @@ func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context
 	return nil
 }
 
-func (p *DefaultProvider) FilterForNodeClass(its []*cloudprovider.InstanceType, nodeClass NodeClass) []*cloudprovider.InstanceType {
+func (p *DefaultProvider) FilterForNodeClass(ctx context.Context, its []*cloudprovider.InstanceType, nodeClass NodeClass) []*cloudprovider.InstanceType {
 	p.muInstanceTypesInfo.RLock()
 	defer p.muInstanceTypesInfo.RUnlock()
+	// Resolve the placement group for compatibility checking
+	var pg *placementgroup.PlacementGroup
+	if nodeClass.PlacementGroupSelector() != nil {
+		pg, _ = p.placementGroupProvider.Get(ctx, nodeClass)
+	}
 	compatible := []*cloudprovider.InstanceType{}
 	for _, it := range its {
 		info, found := p.instanceTypesInfo[ec2types.InstanceType(it.Name)]
-		if found && compatibility.IsCompatibleWithNodeClass(info, nodeClass) {
+		if found && compatibility.IsCompatibleWithNodeClass(info, nodeClass, pg) {
 			compatible = append(compatible, it)
 		}
 	}

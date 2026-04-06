@@ -73,6 +73,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "dl1.24xlarge",
@@ -148,6 +151,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "g4ad.16xlarge",
@@ -207,6 +213,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(8),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
 			},
 		},
 		{
@@ -271,6 +280,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "inf2.24xlarge",
@@ -330,6 +342,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(15),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
 			},
 		},
 		{
@@ -391,6 +406,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "m5.large",
@@ -435,6 +453,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(3),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
 			},
 		},
 		{
@@ -481,6 +502,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "m5.xlarge",
@@ -525,6 +549,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(4),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
 			},
 		},
 		{
@@ -581,6 +608,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "m7i-flex.large",
@@ -625,6 +655,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(3),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"partition", "spread"},
 			},
 		},
 		{
@@ -683,6 +716,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "t3.large",
@@ -727,6 +763,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(3),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"partition", "spread"},
 			},
 		},
 		{
@@ -773,6 +812,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "t4g.small",
@@ -818,6 +860,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "t4g.xlarge",
@@ -862,6 +907,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(4),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"partition", "spread"},
 			},
 		},
 		{
@@ -925,6 +973,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(4),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
 			},
 		},
 	},

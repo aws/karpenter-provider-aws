@@ -103,7 +103,7 @@ var _ = BeforeSuite(func() {
 	fakeClock = &clock.FakeClock{}
 	recorder = events.NewRecorder(&record.FakeRecorder{})
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.InstanceTypeStore)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock)
 })
@@ -2228,7 +2228,7 @@ eviction-max-pod-grace-period = 10
 				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 
-				controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
+				controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 
 				pod := coretest.UnschedulablePod()
@@ -2454,6 +2454,7 @@ eviction-max-pod-grace-period = 10
 						awsEnv.AMIResolver,
 						awsEnv.SecurityGroupProvider,
 						awsEnv.SubnetProvider,
+						awsEnv.PlacementGroupProvider,
 						awsEnv.LaunchTemplateProvider.CABundle,
 						make(chan struct{}),
 						net.ParseIP(lo.Ternary(ipFamily == corev1.IPv4Protocol, "10.0.100.10", "fd01:99f0:d47b::a")),

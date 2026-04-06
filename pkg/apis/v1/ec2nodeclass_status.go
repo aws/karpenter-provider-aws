@@ -38,6 +38,7 @@ const (
 	ConditionTypeInstanceProfileReady      = "InstanceProfileReady"
 	ConditionTypeCapacityReservationsReady = "CapacityReservationsReady"
 	ConditionTypeValidationSucceeded       = "ValidationSucceeded"
+	ConditionTypePlacementGroupReady       = "PlacementGroupReady"
 )
 
 // Subnet contains resolved Subnet selector values utilized for node launch
@@ -172,6 +173,7 @@ func (in *EC2NodeClass) StatusConditions() status.ConditionSet {
 		ConditionTypeSecurityGroupsReady,
 		ConditionTypeInstanceProfileReady,
 		ConditionTypeValidationSucceeded,
+		ConditionTypePlacementGroupReady,
 	}
 	if CapacityReservationsEnabled {
 		conds = append(conds, ConditionTypeCapacityReservationsReady)

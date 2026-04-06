@@ -91,6 +91,7 @@ var _ = BeforeSuite(func() {
 		awsEnv.AMIProvider,
 		awsEnv.SecurityGroupProvider,
 		awsEnv.CapacityReservationProvider,
+		awsEnv.PlacementGroupProvider,
 		awsEnv.InstanceTypeStore,
 	)
 

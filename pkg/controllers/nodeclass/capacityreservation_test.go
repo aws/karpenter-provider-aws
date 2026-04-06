@@ -353,7 +353,7 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-			Expect(nodeClass.Status.Conditions).To(HaveLen(lo.Ternary(reservedCapacity, 7, 6)))
+			Expect(nodeClass.Status.Conditions).To(HaveLen(lo.Ternary(reservedCapacity, 8, 7)))
 			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
 		},
 		Entry("when reserved capacity feature flag is enabled", true),

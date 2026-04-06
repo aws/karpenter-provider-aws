@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -38,11 +40,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -68,18 +72,19 @@ func WithLaunchModeProvider(provider LaunchModeProvider) DefaultProviderOpts {
 type DefaultProvider struct {
 	sync.Mutex
 	LaunchModeProvider
-	ec2api                sdk.EC2API
-	eksapi                sdk.EKSAPI
-	amiFamily             amifamily.Resolver
-	securityGroupProvider securitygroup.Provider
-	subnetProvider        subnet.Provider
-	cache                 *cache.Cache
-	cm                    *pretty.ChangeMonitor
-	KubeDNSIP             net.IP
-	CABundle              *string
-	ClusterEndpoint       string
-	ClusterCIDR           atomic.Pointer[string]
-	ClusterIPFamily       corev1.IPFamily
+	ec2api                 sdk.EC2API
+	eksapi                 sdk.EKSAPI
+	amiFamily              amifamily.Resolver
+	securityGroupProvider  securitygroup.Provider
+	subnetProvider         subnet.Provider
+	placementGroupProvider placementgroup.Provider
+	cache                  *cache.Cache
+	cm                     *pretty.ChangeMonitor
+	KubeDNSIP              net.IP
+	CABundle               *string
+	ClusterEndpoint        string
+	ClusterCIDR            atomic.Pointer[string]
+	ClusterIPFamily        corev1.IPFamily
 }
 
 func NewDefaultProvider(
@@ -90,6 +95,7 @@ func NewDefaultProvider(
 	amiFamily amifamily.Resolver,
 	securityGroupProvider securitygroup.Provider,
 	subnetProvider subnet.Provider,
+	placementGroupProvider placementgroup.Provider,
 	caBundle *string,
 	startAsync <-chan struct{},
 	kubeDNSIP net.IP,
@@ -101,18 +107,19 @@ func NewDefaultProvider(
 		resolvedOpts.launchModeProvider = defaultLaunchModeProvider{}
 	}
 	l := &DefaultProvider{
-		LaunchModeProvider:    resolvedOpts.launchModeProvider,
-		ec2api:                ec2api,
-		eksapi:                eksapi,
-		amiFamily:             amiFamily,
-		securityGroupProvider: securityGroupProvider,
-		subnetProvider:        subnetProvider,
-		cache:                 cache,
-		CABundle:              caBundle,
-		cm:                    pretty.NewChangeMonitor(),
-		KubeDNSIP:             kubeDNSIP,
-		ClusterEndpoint:       clusterEndpoint,
-		ClusterIPFamily:       lo.Ternary(kubeDNSIP != nil && kubeDNSIP.To4() == nil, corev1.IPv6Protocol, corev1.IPv4Protocol),
+		LaunchModeProvider:     resolvedOpts.launchModeProvider,
+		ec2api:                 ec2api,
+		eksapi:                 eksapi,
+		amiFamily:              amiFamily,
+		securityGroupProvider:  securityGroupProvider,
+		subnetProvider:         subnetProvider,
+		placementGroupProvider: placementGroupProvider,
+		cache:                  cache,
+		CABundle:               caBundle,
+		cm:                     pretty.NewChangeMonitor(),
+		KubeDNSIP:              kubeDNSIP,
+		ClusterEndpoint:        clusterEndpoint,
+		ClusterIPFamily:        lo.Ternary(kubeDNSIP != nil && kubeDNSIP.To4() == nil, corev1.IPv6Protocol, corev1.IPv4Protocol),
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -146,7 +153,27 @@ func (p *DefaultProvider) EnsureAll(
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, tenancyType, opts)
+
+	var pgID string
+	var pgPartition int32
+	if pg, _ := p.placementGroupProvider.Get(ctx, nodeClass); pg != nil {
+		pgID = pg.ID
+		if pg.Strategy == placementgroup.StrategyPartition {
+			reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+			// Pick the lowest partition deterministically. EC2 only accepts one partition number.
+			// If this partition ICEs, the offering is marked unavailable and the provisioner
+			// generates a new NodeClaim with the remaining partitions.
+			if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil {
+				if values := partitionReq.Values(); len(values) > 0 {
+					sort.Strings(values)
+					if parsed, err := strconv.ParseInt(values[0], 10, 32); err == nil {
+						pgPartition = int32(parsed)
+					}
+				}
+			}
+		}
+	}
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, tenancyType, opts, pgID, pgPartition)
 	if err != nil {
 		return nil, err
 	}

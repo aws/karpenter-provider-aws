@@ -1066,6 +1066,181 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			))
 		}
 	})
+	It("should launch an instance into a partition placement group targeting a specific partition", func() {
+		selectors.Insert(v1.LabelPlacementGroupID, v1.LabelPlacementGroupPartition)
+		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategyPartition, 7)
+		DeferCleanup(func() {
+			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
+		})
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr(pgName)}
+		pod := test.Pod(test.PodOptions{
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+				{Key: v1.LabelPlacementGroupPartition, Operator: corev1.NodeSelectorOpIn, Values: []string{"5"}},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupID))
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelPlacementGroupPartition, "5"))
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.Placement).ToNot(BeNil())
+		Expect(lo.FromPtr(instance.Placement.GroupName)).To(Equal(pgName))
+		Expect(lo.FromPtr(instance.Placement.PartitionNumber)).To(Equal(int32(5)))
+	})
+	It("should launch an instance into a partition placement group with auto-assigned partition", func() {
+		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategyPartition, 7)
+		DeferCleanup(func() {
+			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
+		})
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr(pgName)}
+		pod := test.Pod(test.PodOptions{
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupID))
+		Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupPartition))
+		// EC2 auto-assigns a partition between 1 and 7
+		partitionStr := node.Labels[v1.LabelPlacementGroupPartition]
+		Expect(partitionStr).ToNot(BeEmpty())
+		partition, err := strconv.Atoi(partitionStr)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(partition).To(BeNumerically(">=", 1))
+		Expect(partition).To(BeNumerically("<=", 7))
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.Placement).ToNot(BeNil())
+		Expect(lo.FromPtr(instance.Placement.GroupName)).To(Equal(pgName))
+		Expect(lo.FromPtr(instance.Placement.PartitionNumber)).To(BeNumerically(">=", int32(1)))
+	})
+	It("should launch an instance into a cluster placement group", func() {
+		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategyCluster)
+		DeferCleanup(func() {
+			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
+		})
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr(pgName)}
+		pod := test.Pod(test.PodOptions{
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupID))
+		Expect(node.Labels).ToNot(HaveKey(v1.LabelPlacementGroupPartition))
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.Placement).ToNot(BeNil())
+		Expect(lo.FromPtr(instance.Placement.GroupName)).To(Equal(pgName))
+	})
+	It("should launch an instance into a spread placement group", func() {
+		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategySpread)
+		DeferCleanup(func() {
+			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
+		})
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr(pgName)}
+		pod := test.Pod(test.PodOptions{
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupID))
+		Expect(node.Labels).ToNot(HaveKey(v1.LabelPlacementGroupPartition))
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.Placement).ToNot(BeNil())
+		Expect(lo.FromPtr(instance.Placement.GroupName)).To(Equal(pgName))
+	})
+	It("should launch an instance into one of the specified partitions when multiple partitions are allowed", func() {
+		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategyPartition, 7)
+		DeferCleanup(func() {
+			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
+		})
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr(pgName)}
+		allowedPartitions := []string{"2", "3", "4", "5", "6", "7"}
+		pod := test.Pod(test.PodOptions{
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"c", "m", "r"}},
+				{Key: v1.LabelPlacementGroupPartition, Operator: corev1.NodeSelectorOpIn, Values: allowedPartitions},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupID))
+		// The scheduler picks one of the allowed partitions for the offering
+		partition := node.Labels[v1.LabelPlacementGroupPartition]
+		Expect(allowedPartitions).To(ContainElement(partition))
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.Placement).ToNot(BeNil())
+		Expect(lo.FromPtr(instance.Placement.GroupName)).To(Equal(pgName))
+		Expect(lo.FromPtr(instance.Placement.PartitionNumber)).To(BeNumerically(">=", int32(2)))
+		Expect(lo.FromPtr(instance.Placement.PartitionNumber)).To(BeNumerically("<=", int32(7)))
+	})
+	It("should spread pods across partitions using TopologySpreadConstraints", func() {
+		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategyPartition, 7)
+		DeferCleanup(func() {
+			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
+		})
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr(pgName)}
+		podLabels := map[string]string{"test": "partition-spread"}
+		deployment := test.Deployment(test.DeploymentOptions{
+			Replicas: 3,
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: podLabels,
+				},
+				NodeRequirements: []corev1.NodeSelectorRequirement{
+					{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"c", "m", "r"}},
+				},
+				TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+					{
+						MaxSkew:           1,
+						TopologyKey:       v1.LabelPlacementGroupPartition,
+						WhenUnsatisfiable: corev1.DoNotSchedule,
+						LabelSelector:     &metav1.LabelSelector{MatchLabels: podLabels},
+						MinDomains:        lo.ToPtr(int32(3)),
+					},
+				},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, deployment)
+		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), 3)
+		env.EventuallyExpectNodeCount("==", 3)
+
+		// Verify all 3 nodes are in the placement group and have distinct partitions
+		nodes := env.EventuallyExpectInitializedNodeCount("==", 3)
+		partitions := sets.New[string]()
+		for _, node := range nodes {
+			Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupID))
+			Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupPartition))
+			partitions.Insert(node.Labels[v1.LabelPlacementGroupPartition])
+		}
+		// Each pod should be in a different partition
+		Expect(partitions.Len()).To(Equal(3))
+	})
 },
 	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
 	Entry("MinValuesPolicyStrict", options.MinValuesPolicyStrict),

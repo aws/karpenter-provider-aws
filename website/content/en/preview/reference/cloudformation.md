@@ -113,7 +113,7 @@ NodeLifecyclePolicy:
 
 The AllowScopedEC2InstanceAccessActions statement ID (Sid) identifies a set of EC2 resources that are allowed to be accessed with
 [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html) and [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html) actions.
-For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read (but not create) `image`, `snapshot`, `security-group`, `subnet` and `capacity-reservation` EC2 resources, scoped for the particular AWS partition and region.
+For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read (but not create) `image`, `snapshot`, `security-group`, `subnet`, `capacity-reservation`, and `placement group` EC2 resources, scoped for the particular AWS partition and region.
 
 ```json
 {
@@ -124,7 +124,8 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read 
     "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
-    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*"
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*",
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:placement-group/*",
   ],
   "Action": [
     "ec2:RunInstances",
@@ -496,7 +497,7 @@ ResourceDiscoveryPolicy:
 
 #### AllowRegionalReadActions
 
-The AllowRegionalReadActions Sid allows [DescribeAvailabilityZones](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html), [DescribeImages](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeImages.html), [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html), [DescribeInstanceTypeOfferings](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypeOfferings.html), [DescribeInstanceTypes](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypes.html), [DescribeLaunchTemplates](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeLaunchTemplates.html), [DescribeSecurityGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSecurityGroups.html), [DescribeSpotPriceHistory](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSpotPriceHistory.html), and [DescribeSubnets](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSubnets.html) actions for the current AWS region.
+The AllowRegionalReadActions Sid allows [DescribeCapacityReservations](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeCapacityReservations.html), [DescribeAvailabilityZones](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html), [DescribeImages](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeImages.html), [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html), [DescribeInstanceTypeOfferings](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypeOfferings.html), [DescribeInstanceTypes](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypes.html), [DescribeLaunchTemplates](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeLaunchTemplates.html), [DescribePlacementGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribePlacementGroups.html), [DescribeSecurityGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSecurityGroups.html), [DescribeSpotPriceHistory](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSpotPriceHistory.html), and [DescribeSubnets](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSubnets.html) actions for the current AWS region.
 This allows the Karpenter controller to do any of those read-only actions across all related resources for that AWS region.
 
 ```json
@@ -511,6 +512,7 @@ This allows the Karpenter controller to do any of those read-only actions across
     "ec2:DescribeInstanceTypeOfferings",
     "ec2:DescribeInstanceTypes",
     "ec2:DescribeLaunchTemplates",
+    "ec2:DescribePlacementGroups",
     "ec2:DescribeSecurityGroups",
     "ec2:DescribeSpotPriceHistory",
     "ec2:DescribeSubnets"
