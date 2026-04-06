@@ -21,7 +21,7 @@ tools() {
     go install github.com/norwoodj/helm-docs/cmd/helm-docs@latest
     go install sigs.k8s.io/controller-runtime/tools/setup-envtest@b9bccfd419149d26d14130887a5e5819e4a3b2be
     go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
-    go install github.com/sigstore/cosign/v2/cmd/cosign@v2.6.1
+    go install github.com/sigstore/cosign/v2/cmd/cosign@v2.6.2
     go install -tags extended github.com/gohugoio/hugo@v0.110.0
     go install golang.org/x/vuln/cmd/govulncheck@latest
     go install github.com/onsi/ginkgo/v2/ginkgo@latest
