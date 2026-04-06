@@ -169,6 +169,10 @@ spec:
             - name: INTERRUPTION_QUEUE
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.enableZonalShift }}
+            - name: ENABLE_ZONAL_SHIFT
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.settings.reservedENIs }}
             - name: RESERVED_ENIS
               value: "{{ tpl (toString .) $ }}"

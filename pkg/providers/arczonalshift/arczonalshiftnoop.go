@@ -34,6 +34,6 @@ func (p *DefaultNoopProvider) UpdateZonalShifts(ctx context.Context) error {
 	return nil
 }
 
-func (p *DefaultNoopProvider) IsZonalShifted(ctx context.Context, zone string) bool {
+func (p *DefaultNoopProvider) IsZonalShifted(ctx context.Context, zoneId string) bool {
 	return false
 }

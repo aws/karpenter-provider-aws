@@ -126,7 +126,7 @@ func (p *DefaultProvider) createOfferings(
 	} else {
 		var cachedOfferings []*cloudprovider.Offering
 		for zone := range allZones {
-			isZonalShifted := p.zonalshiftProvider.IsZonalShifted(ctx, zone)
+			isZonalShifted := p.zonalshiftProvider.IsZonalShifted(ctx, subnetZonesToZoneIDs[zone])
 			for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
 				// Reserved capacity types are constructed separately
 				if capacityType == karpv1.CapacityTypeReserved {

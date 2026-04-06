@@ -34,12 +34,11 @@ type Provider interface {
 
 type DefaultProvider struct {
 	sync.RWMutex
-	zonalShiftStatuses map[string]shiftStatus
+	zonalShiftStatuses map[string]shiftStatus // map zoneid (string) -> shiftStatus
 
-	client     sdk.ARCZonalShiftAPI
-	clk        clock.Clock
-	clusterArn string
-	azMap      map[string]string
+	arcZonalShiftAPI sdk.ARCZonalShiftAPI
+	clk              clock.Clock
+	clusterArn       string
 }
 
 type shiftStatus struct {
@@ -47,23 +46,22 @@ type shiftStatus struct {
 	applied     bool
 }
 
-func NewProvider(client sdk.ARCZonalShiftAPI, clk clock.Clock, clusterArn string, azMap map[string]string) *DefaultProvider {
+func NewProvider(client sdk.ARCZonalShiftAPI, clk clock.Clock, clusterArn string) *DefaultProvider {
 	return &DefaultProvider{
-		client:             client,
+		arcZonalShiftAPI:   client,
 		zonalShiftStatuses: make(map[string]shiftStatus),
 		clk:                clk,
 		clusterArn:         clusterArn,
-		azMap:              azMap,
 	}
 }
 
-func (p *DefaultProvider) FetchZonalShifts(ctx context.Context) (map[string]shiftStatus, error) {
-	// Take a write lock over the entire operation to ensure minimize duplicate ListZonalShift calls
+func (p *DefaultProvider) ListZonalShifts(ctx context.Context) (map[string]shiftStatus, error) {
+	// Take a write lock over the entire operation to ensure minimize duplicate GetManagedResource calls
 	p.Lock()
 	defer p.Unlock()
 
 	input := &arczonalshift.GetManagedResourceInput{ResourceIdentifier: &p.clusterArn}
-	result, err := p.client.GetManagedResource(ctx, input)
+	result, err := p.arcZonalShiftAPI.GetManagedResource(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("getting zonal shifts: %w", err)
 	}
@@ -93,9 +91,7 @@ func (p *DefaultProvider) FetchZonalShifts(ctx context.Context) (map[string]shif
 }
 
 func (p *DefaultProvider) UpdateZonalShifts(ctx context.Context) error {
-	p.Lock()
-	defer p.Unlock()
-	shiftStatuses, err := p.FetchZonalShifts(ctx)
+	shiftStatuses, err := p.ListZonalShifts(ctx)
 	if err != nil {
 		return fmt.Errorf("retrieving zonal shift statues, %w", err)
 	}
@@ -109,45 +105,15 @@ func (p *DefaultProvider) UpdateZonalShifts(ctx context.Context) error {
 	return nil
 }
 
-func (p *DefaultProvider) IsZonalShifted(ctx context.Context, zone string) bool {
+func (p *DefaultProvider) IsZonalShifted(ctx context.Context, zoneId string) bool {
 	p.RLock()
 	defer p.RUnlock()
-	//if shift, ok := p.zonalShiftStatuses[zone]; ok {
-	//	if shift.shiftExpiry.After(p.clk.Now()) && shift.applied {
-	//		return true
-	//	}
-	//}
-	//return false
-	//zoneMapping := map[string]string{
-	//	"us-east-2a": "use2-az1",
-	//	"us-east-2b": "use2-az2",
-	//	"us-east-2c": "use2-az3",
-	//}
 
-	zoneId := p.azMap[zone]
 	if shift, ok := p.zonalShiftStatuses[zoneId]; ok {
 		if shift.shiftExpiry.After(p.clk.Now()) && shift.applied {
 			return true
 		}
 	}
 
-	//input := &arczonalshift.GetManagedResourceInput{ResourceIdentifier: &p.clusterArn}
-	//result, _ := p.client.GetManagedResource(ctx, input)
-	//activeZonalShifts := result.ZonalShifts
-	//activeAutoShifts := result.Autoshifts
-	//if len(activeZonalShifts) > 0 {
-	//	for _, shift := range activeZonalShifts {
-	//		if *shift.AwayFrom == zoneId && shift.AppliedStatus == "APPLIED" {
-	//			return true
-	//		}
-	//	}
-	//}
-	//if len(activeAutoShifts) > 0 {
-	//	for _, autoShift := range activeAutoShifts {
-	//		if *autoShift.AwayFrom == zoneId && autoShift.AppliedStatus == "APPLIED" {
-	//			return true
-	//		}
-	//	}
-	//}
 	return false
 }

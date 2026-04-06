@@ -34,7 +34,7 @@ import (
 	"github.com/awslabs/operatorpkg/option"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	arczonalshiftProvider "github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
+	ZonalShiftProvider "github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 
 	"github.com/aws/smithy-go"
 	"github.com/patrickmn/go-cache"
@@ -97,7 +97,7 @@ type Operator struct {
 	SSMProvider                 ssmp.Provider
 	CapacityReservationProvider capacityreservation.Provider
 	EC2API                      *kwokec2.Client
-	ZonalShiftProvider          arczonalshiftProvider.Provider
+	ZonalShiftProvider          ZonalShiftProvider.Provider
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
@@ -122,7 +122,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	} else {
 		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
 	}
-	var zsProvider arczonalshiftProvider.Provider
+	var zsProvider ZonalShiftProvider.Provider
 	if options.FromContext(ctx).EnableZonalShift {
 		input := eks.DescribeClusterInput{Name: &options.FromContext(ctx).ClusterName}
 		output, _ := eksapi.DescribeCluster(ctx, &input)
@@ -131,15 +131,14 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		inputGMR := arczonalshift.GetManagedResourceInput{ResourceIdentifier: clusterArn}
 		_, getManagedResourceErr := arczonalshiftAPI.GetManagedResource(ctx, &inputGMR)
 		if getManagedResourceErr != nil {
-			// Resource is not found/registered in Zonal Shift. Log a message and use the NoopProvider so we don't block starting up.
-			log.FromContext(ctx).WithValues("Cluster", clusterArn).V(1).Info("Cluster not found in Zonal Shift")
-			zsProvider = arczonalshiftProvider.NewNoopProvider()
+			// Resource is not found/registered in Zonal Shift. Throw an error.
+			log.FromContext(ctx).WithValues("Cluster", clusterArn).V(1).Error(getManagedResourceErr, "Cluster not found in Zonal Shift")
+			panic(fmt.Sprintf("Unable to find Cluster %v in Zonal Shift. Please check that the cluster is enabled for Zonal Shift", clusterArn))
 		} else {
-			azMap := GetAvailablityZoneMapping(ctx, ec2api)
-			zsProvider = arczonalshiftProvider.NewProvider(arczonalshiftAPI, operator.Clock, *clusterArn, azMap)
+			zsProvider = ZonalShiftProvider.NewProvider(arczonalshiftAPI, operator.Clock, *clusterArn)
 		}
 	} else {
-		zsProvider = arczonalshiftProvider.NewNoopProvider()
+		zsProvider = ZonalShiftProvider.NewNoopProvider()
 	}
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
@@ -335,13 +334,4 @@ func SetupIndexers(ctx context.Context, mgr manager.Manager) {
 		}
 		return []string{id}
 	}), "failed to setup node instanceID indexer")
-}
-
-func GetAvailablityZoneMapping(ctx context.Context, ec2Api sdk.EC2API) map[string]string {
-	azMap := make(map[string]string)
-	output, _ := ec2Api.DescribeAvailabilityZones(ctx, &ec2.DescribeAvailabilityZonesInput{})
-	for _, az := range output.AvailabilityZones {
-		azMap[*az.ZoneName] = *az.ZoneId
-	}
-	return azMap
 }

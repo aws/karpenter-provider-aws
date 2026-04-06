@@ -51,5 +51,9 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
-	return controllerruntime.NewControllerManagedBy(m).Named("zonalshift").WatchesRawSource(singleton.Source()).Complete(singleton.AsReconciler(c))
+	return controllerruntime.
+		NewControllerManagedBy(m).
+		Named("zonalshift").
+		WatchesRawSource(singleton.Source()).
+		Complete(singleton.AsReconciler(c))
 }
