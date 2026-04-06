@@ -28,7 +28,6 @@ import (
 )
 
 type EC2API interface {
-	DescribeAvailabilityZones(context.Context, *ec2.DescribeAvailabilityZonesInput, ...func(*ec2.Options)) (*ec2.DescribeAvailabilityZonesOutput, error)
 	DescribeCapacityReservations(context.Context, *ec2.DescribeCapacityReservationsInput, ...func(*ec2.Options)) (*ec2.DescribeCapacityReservationsOutput, error)
 	DescribeImages(context.Context, *ec2.DescribeImagesInput, ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error)
 	DescribeLaunchTemplates(context.Context, *ec2.DescribeLaunchTemplatesInput, ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplatesOutput, error)
@@ -75,7 +74,6 @@ type SQSAPI interface {
 }
 
 type ARCZonalShiftAPI interface {
-	ListZonalShifts(context.Context, *arczonalshift.ListZonalShiftsInput, ...func(*arczonalshift.Options)) (*arczonalshift.ListZonalShiftsOutput, error)
 	GetManagedResource(context.Context, *arczonalshift.GetManagedResourceInput, ...func(*arczonalshift.Options)) (*arczonalshift.GetManagedResourceOutput, error)
 }
 

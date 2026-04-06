@@ -34,7 +34,7 @@ type Provider interface {
 
 type DefaultProvider struct {
 	sync.RWMutex
-	zonalShiftStatuses map[string]shiftStatus // map zoneid (string) -> shiftStatus
+	zonalShiftStatuses map[string]shiftStatus
 
 	arcZonalShiftAPI sdk.ARCZonalShiftAPI
 	clk              clock.Clock
@@ -55,51 +55,31 @@ func NewProvider(client sdk.ARCZonalShiftAPI, clk clock.Clock, clusterArn string
 	}
 }
 
-func (p *DefaultProvider) ListZonalShifts(ctx context.Context) (map[string]shiftStatus, error) {
-	// Take a write lock over the entire operation to ensure minimize duplicate GetManagedResource calls
+func (p *DefaultProvider) UpdateZonalShifts(ctx context.Context) error {
 	p.Lock()
 	defer p.Unlock()
 
 	input := &arczonalshift.GetManagedResourceInput{ResourceIdentifier: &p.clusterArn}
 	result, err := p.arcZonalShiftAPI.GetManagedResource(ctx, input)
 	if err != nil {
-		return nil, fmt.Errorf("getting zonal shifts: %w", err)
+		return fmt.Errorf("getting zonal shifts: %w", err)
 	}
 	activeZonalShifts := result.ZonalShifts
-	activeAutoShifts := result.Autoshifts
 	shiftStatuses := make(map[string]shiftStatus)
 
-	if len(activeZonalShifts) > 0 {
-		for _, shift := range activeZonalShifts {
-			shiftStatuses[*shift.AwayFrom] = shiftStatus{
-				shiftExpiry: *shift.ExpiryTime,
-				applied:     shift.AppliedStatus == "APPLIED",
-			}
+	for _, shift := range activeZonalShifts {
+		shiftStatuses[*shift.AwayFrom] = shiftStatus{
+			shiftExpiry: *shift.ExpiryTime,
+			applied:     shift.AppliedStatus == "APPLIED",
 		}
-	}
-	if len(activeAutoShifts) > 0 {
-		for _, autoShift := range activeAutoShifts {
-			shiftStatuses[*autoShift.AwayFrom] = shiftStatus{
-				// Autoshifts do not have an expiration time. Setting expiration to 24 hrs from current timestamp
-				// this will get updated on every poll to keep the autoshift expiry updated.
-				shiftExpiry: time.Now().Add(24 * time.Hour),
-				applied:     autoShift.AppliedStatus == "APPLIED",
-			}
-		}
-	}
-	return shiftStatuses, nil
-}
-
-func (p *DefaultProvider) UpdateZonalShifts(ctx context.Context) error {
-	shiftStatuses, err := p.ListZonalShifts(ctx)
-	if err != nil {
-		return fmt.Errorf("retrieving zonal shift statues, %w", err)
 	}
 	if len(shiftStatuses) == 0 {
+		// If there are no shifts on the resource, reset the map
 		p.zonalShiftStatuses = make(map[string]shiftStatus)
-	}
-	for zone, status := range shiftStatuses {
-		p.zonalShiftStatuses[zone] = status
+	} else {
+		for zone, status := range shiftStatuses {
+			p.zonalShiftStatuses[zone] = status
+		}
 	}
 	log.FromContext(ctx).V(1).Info(fmt.Sprintf("successfully updated zonal shifts %#v", shiftStatuses))
 	return nil
