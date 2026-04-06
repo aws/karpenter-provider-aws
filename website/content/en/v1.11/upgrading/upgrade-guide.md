@@ -97,6 +97,7 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
   there are new changes to IAM permissions in the Karpenter controller role for supporting placement groups: 
   - `ec2:DescribePlacementGroups` action in [AllowRegionalReadActions]({{<ref "../../docs/reference/cloudformation/#allowregionalreadactions">}})
   - `arn:${AWS::Partition}:ec2:${AWS::Region}:*:placement-group/*` resource in [AllowScopedEC2InstanceAccessActions]({{<ref "../../docs/reference/cloudformation/#allowscopedec2instanceaccessactions">}})
+
   If you are using placement groups, you will need to update your Karpenter controller role.
 
 Full Changelog:
