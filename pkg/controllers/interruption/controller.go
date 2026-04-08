@@ -160,6 +160,13 @@ func (c *Controller) reconcileInstanceStatus(ctx context.Context) error {
 
 	errs := make([]error, len(instanceStatuses))
 	workqueue.ParallelizeUntil(ctx, 10, len(instanceStatuses), func(i int) {
+		categories := map[string]bool{}
+		for _, d := range instanceStatuses[i].Details {
+			categories[string(d.Category)] = true
+		}
+		for cat := range categories {
+			InstanceStatusUnhealthy.Inc(map[string]string{categoryLabel: cat})
+		}
 		if err := c.handleMessage(ctx, instancestatusfailure.Message(instanceStatuses[i])); err != nil {
 			errs[i] = fmt.Errorf("handling instance status check message, %w", err)
 		}

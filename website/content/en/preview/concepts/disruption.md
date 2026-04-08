@@ -220,8 +220,9 @@ Additionally, Karpenter utilizes the [EC2 DescribeInstanceStatus](https://docs.a
 
 * System Status - surfaces failures in the underlying physical host (hardware or software)
 * Instance Status - surfaces failures in the virtual machine 
+* Scheduled Maintenance Events - surfaces upcoming maintenance events that may affect the instance
 
-System and Instance status checks do not require the `--interruption-queue` to be configured, just EC2 DescribeInstanceStatus IAM permissions.
+These status checks do not require the `--interruption-queue` to be configured, just EC2 DescribeInstanceStatus IAM permissions.
 
 ### Node Auto Repair
 

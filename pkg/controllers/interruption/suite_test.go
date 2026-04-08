@@ -109,6 +109,7 @@ var _ = BeforeEach(func() {
 	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("test-cluster")}))
 	unavailableOfferingsCache.Flush()
 	sqsapi.Reset()
+	interruption.InstanceStatusUnhealthy.Reset()
 })
 
 var _ = AfterEach(func() {
@@ -316,7 +317,7 @@ var _ = Describe("InterruptionHandling", func() {
 
 			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount("cr-56fac701cc1951b03")).To(Equal(0))
 		})
-		It("should delete the NodeClaim when an instance is unhealthy due to EC2 status checks", func() {
+		It("should delete the NodeClaim when an instance is unhealthy due to EC2 status checks or scheduled events", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
 			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
 				InstanceStatuses: []ec2types.InstanceStatus{
@@ -341,6 +342,11 @@ var _ = Describe("InterruptionHandling", func() {
 								},
 							},
 						},
+						Events: []ec2types.InstanceStatusEvent{
+							{
+								Code: ec2types.EventCodeInstanceRetirement,
+							},
+						},
 					},
 				},
 			})
@@ -351,9 +357,15 @@ var _ = Describe("InterruptionHandling", func() {
 				metrics.ReasonLabel: "instance_status_failure",
 				"nodepool":          "default",
 			})
+			ExpectMetricCounterValue(interruption.InstanceStatusUnhealthy, 1, map[string]string{
+				"category": "SystemStatus",
+			})
+			ExpectMetricCounterValue(interruption.InstanceStatusUnhealthy, 1, map[string]string{
+				"category": "EventStatus",
+			})
 			ExpectNotFound(ctx, env.Client, nodeClaim)
 		})
-		It("should NOT delete the NodeClaim when an instance is unhealthy due to a Scheduled Event Status or EBS Status", func() {
+		It("should NOT delete the NodeClaim when an instance is unhealthy due to EBS Status only", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
 			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
 				InstanceStatuses: []ec2types.InstanceStatus{
@@ -367,11 +379,6 @@ var _ = Describe("InterruptionHandling", func() {
 									Name:          ec2types.StatusNameReachability,
 									ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
 								},
-							},
-						},
-						Events: []ec2types.InstanceStatusEvent{
-							{
-								Code: ec2types.EventCodeInstanceRetirement,
 							},
 						},
 					},

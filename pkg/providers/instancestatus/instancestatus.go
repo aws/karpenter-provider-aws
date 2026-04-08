@@ -33,10 +33,9 @@ type Category string
 const (
 	InstanceStatus = Category("InstanceStatus")
 	SystemStatus   = Category("SystemStatus")
-	// EventStatus is currently ignored since this is already consumed via EventBridge in the Interruption controller.
-	// The handling of maintenance events is currently primitive where we treat all events as instance degradation
-	// with an involuntary replacement. Only consuming events via EventBridge allows some users to opt-out of maintenance
-	// event handling (https://github.com/aws/karpenter-provider-aws/issues/8524).
+	// EventStatus surfaces scheduled maintenance events. These are also consumed via EventBridge
+	// in the Interruption controller when an SQS queue is configured. The handling of maintenance events is
+	// currently primitive where we treat all events as instance degradation with an involuntary replacement.
 	EventStatus = Category("EventStatus")
 	// EBSStatus check failures are currently ignored until we can differentiate which volumes affect the node vs pods w/ PVCs
 	EBSStatus = Category("EBSStatus")
@@ -96,12 +95,12 @@ func (p DefaultProvider) List(ctx context.Context) ([]HealthStatus, error) {
 			if details.Status != ec2types.StatusTypeFailed {
 				return false
 			}
-			// ignore EBS and Scheduled Event health checks for now
-			if details.Category == EBSStatus || details.Category == EventStatus {
+			// ignore EBS health checks for now
+			if details.Category == EBSStatus {
 				return false
 			}
 			// Do not evaluate against the unhealthy threshold when its a scheduled maintenance event.
-			// Scheduled maintenance events often have a future scheduled time which makes a thershold
+			// Scheduled maintenance events often have a future scheduled time which makes a threshold
 			// difficult to utilize. We take the stance that if there is a scheduled maintenance event,
 			// then there is something wrong with the underlying host that warrants vacating immediately.
 			// This matches how we process scheduled maintenance events from EventBridge.

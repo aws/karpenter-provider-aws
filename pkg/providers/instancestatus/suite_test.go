@@ -107,20 +107,26 @@ var _ = Describe("Instance Status Provider", func() {
 			Expect(statuses).To(HaveLen(1))
 			Expect(statuses[0].InstanceID).To(Equal("i-0123456789"))
 			Expect(statuses[0].Overall).To(Equal(ec2types.SummaryStatusImpaired))
-			Expect(statuses[0].Details).To(ContainElements([]instancestatus.Details{
-				{
+			Expect(statuses[0].Details).To(ContainElements(
+				instancestatus.Details{
 					Category:      instancestatus.InstanceStatus,
 					Name:          string(ec2types.StatusNameReachability),
 					Status:        ec2types.StatusTypeFailed,
 					ImpairedSince: impairedTime,
 				},
-				{
+				instancestatus.Details{
 					Category:      instancestatus.SystemStatus,
 					Name:          string(ec2types.StatusNameReachability),
 					Status:        ec2types.StatusTypeFailed,
 					ImpairedSince: impairedTime,
 				},
-			}))
+				instancestatus.Details{
+					Category:      instancestatus.EventStatus,
+					Name:          string(ec2types.EventCodeInstanceRetirement),
+					Status:        ec2types.StatusTypeFailed,
+					ImpairedSince: awsEnv.Clock.Now(),
+				},
+			))
 		})
 		It("should not return healthy statuses", func() {
 			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
@@ -136,6 +142,24 @@ var _ = Describe("Instance Status Provider", func() {
 						AttachedEbsStatus: &ec2types.EbsStatusSummary{
 							Status: ec2types.SummaryStatusInitializing,
 						},
+					},
+				},
+			})
+			statuses, err := awsEnv.InstanceStatusProvider.List(ctx)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(statuses).To(HaveLen(0))
+		})
+		It("should return scheduled maintenance events even when other statuses are healthy", func() {
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr("i-0123456789"),
+						SystemStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusInitializing,
+						},
+						InstanceStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusInsufficientData,
+						},
 						Events: []ec2types.InstanceStatusEvent{
 							{
 								Code: ec2types.EventCodeInstanceRetirement,
@@ -146,7 +170,9 @@ var _ = Describe("Instance Status Provider", func() {
 			})
 			statuses, err := awsEnv.InstanceStatusProvider.List(ctx)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(statuses).To(HaveLen(0))
+			Expect(statuses).To(HaveLen(1))
+			Expect(statuses[0].Details).To(HaveLen(1))
+			Expect(statuses[0].Details[0].Category).To(Equal(instancestatus.EventStatus))
 		})
 	})
 })

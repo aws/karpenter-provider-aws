@@ -267,7 +267,7 @@ var _ = Describe("Interruption", func() {
 		env.EventuallyExpectNotFound(node)
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
-	FIt("should terminate the node when receiving an instance status failure", func() {
+	It("should terminate the node when receiving an instance status failure", func() {
 		numPods := 1
 		dep := coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),
