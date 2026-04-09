@@ -1,6 +1,6 @@
 module github.com/aws/karpenter-provider-aws
 
-go 1.26.1
+go 1.26.2
 
 // TODO: migrate tablewriter to v1.0.8
 // https://github.com/olekukonko/tablewriter/blob/c64d84b3ecc64a18cfc8ba10cdd8c52cc13a7d23/MIGRATION.md?plain=1#L661
@@ -50,7 +50,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20251222233032-718f0e51e6d2
 	sigs.k8s.io/controller-runtime v0.22.4
-	sigs.k8s.io/karpenter v1.11.0
+	sigs.k8s.io/karpenter v1.11.1-0.20260409012931-4e80a7e534d0
 	sigs.k8s.io/yaml v1.6.0
 )
 
