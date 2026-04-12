@@ -15,42 +15,29 @@ limitations under the License.
 package launchtemplate
 
 import (
-	"testing"
-
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
-func TestCpuOptions_Nil(t *testing.T) {
-	if cpuOptions(nil) != nil {
-		t.Fatal("expected nil for nil input")
-	}
-}
-
-func TestCpuOptions_AllFieldsNil(t *testing.T) {
-	if cpuOptions(&v1.CPUOptions{}) != nil {
-		t.Fatal("expected nil for empty CPUOptions")
-	}
-}
-
-func TestCpuOptions_NestedVirtualizationEnabled(t *testing.T) {
-	result := cpuOptions(&v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")})
-	if result == nil {
-		t.Fatal("expected non-nil result")
-	}
-	if result.NestedVirtualization != ec2types.NestedVirtualizationSpecification("enabled") {
-		t.Fatalf("expected 'enabled', got %q", result.NestedVirtualization)
-	}
-}
-
-func TestCpuOptions_NestedVirtualizationDisabled(t *testing.T) {
-	result := cpuOptions(&v1.CPUOptions{NestedVirtualization: lo.ToPtr("disabled")})
-	if result == nil {
-		t.Fatal("expected non-nil result")
-	}
-	if result.NestedVirtualization != ec2types.NestedVirtualizationSpecification("disabled") {
-		t.Fatalf("expected 'disabled', got %q", result.NestedVirtualization)
-	}
-}
+var _ = Describe("cpuOptions", func() {
+	It("should return nil for nil input", func() {
+		Expect(cpuOptions(nil)).To(BeNil())
+	})
+	It("should return nil for empty CPUOptions", func() {
+		Expect(cpuOptions(&v1.CPUOptions{})).To(BeNil())
+	})
+	It("should set NestedVirtualization when enabled", func() {
+		result := cpuOptions(&v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")})
+		Expect(result).ToNot(BeNil())
+		Expect(result.NestedVirtualization).To(Equal(ec2types.NestedVirtualizationSpecification("enabled")))
+	})
+	It("should set NestedVirtualization when disabled", func() {
+		result := cpuOptions(&v1.CPUOptions{NestedVirtualization: lo.ToPtr("disabled")})
+		Expect(result).ToNot(BeNil())
+		Expect(result.NestedVirtualization).To(Equal(ec2types.NestedVirtualizationSpecification("disabled")))
+	})
+})
