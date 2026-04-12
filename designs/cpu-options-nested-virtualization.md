@@ -1,4 +1,4 @@
-# CPU Options and Nested Virtualization
+# Nested Virtualization Support
 
 ## Overview
 
@@ -13,14 +13,19 @@ do not support the feature to avoid launch failures.
 
 ## Goals
 
-- Expose `cpuOptions` on `EC2NodeClass.spec` with `coreCount`, `threadsPerCore`, and
-  `nestedVirtualization` fields.
+- Expose `cpuOptions.nestedVirtualization` on `EC2NodeClass.spec`.
 - Pass `CpuOptions` through to the EC2 launch template.
 - Filter instance types to only those reporting `nested-virtualization` in
   `ProcessorInfo.SupportedFeatures` from `DescribeInstanceTypes`.
-- Validate that `nestedVirtualization` is mutually exclusive with `coreCount` and
-  `threadsPerCore` (EC2 API constraint).
 - Cache `UnsupportedOperation` fleet errors as unfulfillable capacity.
+
+## Non-Goals (Future Work)
+
+`coreCount` and `threadsPerCore` are valid `CpuOptions` fields in the EC2 API and can be
+combined with `nestedVirtualization` (verified empirically). However, they introduce design
+complexity in Karpenter: each instance type has different `ValidCores` values, so a static
+`coreCount` on the NodeClass would need instance-type-aware filtering to avoid restricting
+NodePool diversity. These fields will be addressed in a follow-up PR with dynamic selection.
 
 ## API Updates
 
@@ -34,32 +39,24 @@ metadata:
 spec:
   cpuOptions:
     nestedVirtualization: enabled
-  # ... other fields
 ```
 
 ### CPUOptions Struct
 
 ```go
 type CPUOptions struct {
-    CoreCount            *int32  `json:"coreCount,omitempty"`
-    ThreadsPerCore       *int32  `json:"threadsPerCore,omitempty"`
     NestedVirtualization *string `json:"nestedVirtualization,omitempty"`
 }
 ```
 
-CEL validation enforces that `nestedVirtualization: enabled` cannot be combined with
-`coreCount` or `threadsPerCore` (EC2 rejects the combination).
+No well-known label is exposed. The NodeClass configuration is the only user-facing surface
+for this feature. Label-based selection can be added in the future based on real-world
+use cases, consistent with the project's convention of introducing labels only when they
+drive instance configuration (e.g., `instance-tenancy`).
 
-### Instance Type Label
-
-A new well-known label `karpenter.k8s.aws/instance-nested-virtualization` is populated
-from `ProcessorInfo.SupportedFeatures` during instance type resolution. Instance types
-that report `nested-virtualization` in their supported features receive the label value
-`"true"`.
-
-As of March 2026, only the `*8i*` families support this feature: c8i, c8i-flex, m8i,
-m8i-flex, r8i, r8i-flex (54 instance types total). No ARM, Xen, or bare-metal instances
-support it.
+Internally, an `instance-nested-virtualization` requirement is populated on instance types
+during resolution so the filter can distinguish capable types. This requirement is not
+registered as a WellKnownLabel and is not user-schedulable.
 
 ## Launch Behavior
 
@@ -67,21 +64,25 @@ support it.
 
 When an `EC2NodeClass` sets `cpuOptions.nestedVirtualization: enabled`, a
 `NestedVirtualizationFilter` in the instance filter chain rejects any instance type
-lacking the `instance-nested-virtualization=true` label. This runs after the
+without the internal nested-virtualization requirement. This runs after the
 `CompatibleAvailableFilter` and before capacity reservation filters.
 
 ### Launch Template
 
 The `cpuOptions()` converter maps the `CPUOptions` struct to
-`LaunchTemplateCpuOptionsRequest`. It returns `nil` when all fields are nil (avoiding an
-empty `CpuOptions` block in the API call). The `NestedVirtualization` string is cast to
-the SDK enum type `ec2types.NestedVirtualizationSpecification`.
+`LaunchTemplateCpuOptionsRequest`. It returns `nil` when `NestedVirtualization` is nil
+(avoiding an empty `CpuOptions` block in the API call). The value is cast to
+`ec2types.NestedVirtualizationSpecification`.
 
 ### Error Handling
 
-`UnsupportedOperation` is added to the `unfulfillableCapacityErrorCodes` set so that
-launches against incompatible instance types (if they bypass the filter) are cached as
-unavailable rather than retried indefinitely.
+`UnsupportedOperation` is added to the `unfulfillableCapacityErrorCodes` set. This is
+defensive: the filter should catch all incompatible types before launch, but if a new
+instance type is added to a family that doesn't yet report `nested-virtualization` in
+`SupportedFeatures` (stale `DescribeInstanceTypes` cache), or if AWS extends the feature
+to a family with partial support, the launch would fail with `UnsupportedOperation`.
+Caching it as unfulfillable avoids retrying a doomed launch every scheduling cycle until
+the instance type cache refreshes.
 
 ## Instance Type Compatibility
 
@@ -93,7 +94,6 @@ aws ec2 describe-instance-types \
   --query 'InstanceTypes[*].InstanceType'
 ```
 
-This returns only the families that actually support the feature, avoiding heuristic-based
-filtering (e.g., checking architecture + hypervisor) which would be both over-inclusive
-(allowing older Intel families that don't support it) and fragile (breaking when AWS adds
-support to new families).
+As of April 2026, this returns 54 instance types across c8i, c8i-flex, m8i, m8i-flex,
+r8i, r8i-flex. No ARM, Xen, or bare-metal instances support the feature. Using the API
+filter avoids heuristic-based filtering which would be both over-inclusive and fragile.
