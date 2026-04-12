@@ -382,20 +382,12 @@ func volumeSize(quantity *resource.Quantity) *int32 {
 }
 
 func cpuOptions(cpuOptions *v1.CPUOptions) *ec2types.LaunchTemplateCpuOptionsRequest {
-	if cpuOptions == nil {
+	if cpuOptions == nil || cpuOptions.NestedVirtualization == nil {
 		return nil
 	}
-	if cpuOptions.CoreCount == nil && cpuOptions.ThreadsPerCore == nil && cpuOptions.NestedVirtualization == nil {
-		return nil
+	return &ec2types.LaunchTemplateCpuOptionsRequest{
+		NestedVirtualization: ec2types.NestedVirtualizationSpecification(*cpuOptions.NestedVirtualization),
 	}
-	opts := &ec2types.LaunchTemplateCpuOptionsRequest{
-		CoreCount:      cpuOptions.CoreCount,
-		ThreadsPerCore: cpuOptions.ThreadsPerCore,
-	}
-	if cpuOptions.NestedVirtualization != nil {
-		opts.NestedVirtualization = ec2types.NestedVirtualizationSpecification(*cpuOptions.NestedVirtualization)
-	}
-	return opts
 }
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.

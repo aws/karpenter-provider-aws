@@ -383,20 +383,11 @@ type MetadataOptions struct {
 }
 
 // CPUOptions contains parameters for specifying the CPU configuration for provisioned EC2 nodes.
-// +kubebuilder:validation:XValidation:message="nestedVirtualization cannot be set alongside coreCount or threadsPerCore",rule="!has(self.nestedVirtualization) || self.nestedVirtualization == 'disabled' || (!has(self.coreCount) && !has(self.threadsPerCore))"
 type CPUOptions struct {
-	// CoreCount specifies the number of CPU cores for the instance.
-	// +kubebuilder:validation:Minimum:=1
-	// +kubebuilder:validation:Maximum:=128
-	// +optional
-	CoreCount *int32 `json:"coreCount,omitempty"`
-	// ThreadsPerCore specifies the number of threads per core for the instance.
-	// +kubebuilder:validation:Minimum:=1
-	// +kubebuilder:validation:Maximum:=2
-	// +optional
-	ThreadsPerCore *int32 `json:"threadsPerCore,omitempty"`
 	// NestedVirtualization enables or disables nested virtualization on the instance.
-	// This feature allows running virtual machines inside the EC2 instance.
+	// When enabled, Karpenter filters instance types to only those reporting
+	// "nested-virtualization" in ProcessorInfo.SupportedFeatures from DescribeInstanceTypes.
+	// Currently supported on c8i, m8i, r8i, and their flex variants.
 	// +kubebuilder:validation:Enum:={enabled,disabled}
 	// +optional
 	NestedVirtualization *string `json:"nestedVirtualization,omitempty"`

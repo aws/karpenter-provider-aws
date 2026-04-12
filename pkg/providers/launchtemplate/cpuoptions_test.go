@@ -43,9 +43,6 @@ func TestCpuOptions_NestedVirtualizationEnabled(t *testing.T) {
 	if result.NestedVirtualization != ec2types.NestedVirtualizationSpecification("enabled") {
 		t.Fatalf("expected 'enabled', got %q", result.NestedVirtualization)
 	}
-	if result.CoreCount != nil || result.ThreadsPerCore != nil {
-		t.Fatal("expected nil CoreCount and ThreadsPerCore")
-	}
 }
 
 func TestCpuOptions_NestedVirtualizationDisabled(t *testing.T) {
@@ -55,21 +52,5 @@ func TestCpuOptions_NestedVirtualizationDisabled(t *testing.T) {
 	}
 	if result.NestedVirtualization != ec2types.NestedVirtualizationSpecification("disabled") {
 		t.Fatalf("expected 'disabled', got %q", result.NestedVirtualization)
-	}
-}
-
-func TestCpuOptions_CoreCountAndThreads(t *testing.T) {
-	result := cpuOptions(&v1.CPUOptions{CoreCount: lo.ToPtr(int32(4)), ThreadsPerCore: lo.ToPtr(int32(2))})
-	if result == nil {
-		t.Fatal("expected non-nil result")
-	}
-	if *result.CoreCount != 4 {
-		t.Fatalf("expected CoreCount 4, got %d", *result.CoreCount)
-	}
-	if *result.ThreadsPerCore != 2 {
-		t.Fatalf("expected ThreadsPerCore 2, got %d", *result.ThreadsPerCore)
-	}
-	if result.NestedVirtualization != "" {
-		t.Fatalf("expected empty NestedVirtualization, got %q", result.NestedVirtualization)
 	}
 }
