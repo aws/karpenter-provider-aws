@@ -29,7 +29,7 @@ import (
 )
 
 var _ = Describe("Launch Template Deletion", func() {
-	It("should remove itself generated Launch Templates when deleting NodeClass", func() {
+	It("should remove the generated Launch Templates when deleting the NodeClass", func() {
 		pod := coretest.Pod()
 		env.ExpectCreated(nodePool, nodeClass, pod)
 		env.EventuallyExpectHealthy(pod)
