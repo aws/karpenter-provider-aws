@@ -55,7 +55,6 @@ func init() {
 		LabelInstanceAcceleratorName,
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
-		LabelInstanceNestedVirtualization,
 		LabelTopologyZoneID,
 		LabelInstanceTenancy,
 		corev1.LabelWindowsBuild,
