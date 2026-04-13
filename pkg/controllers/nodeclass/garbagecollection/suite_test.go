@@ -93,6 +93,7 @@ var _ = BeforeSuite(func() {
 		awsEnv.CapacityReservationProvider,
 		awsEnv.PlacementGroupProvider,
 		awsEnv.InstanceTypeStore,
+		lo.ToPtr(""),
 	)
 
 	gcController = garbagecollection.NewController(
