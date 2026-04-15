@@ -79,6 +79,7 @@ var sqsProvider *sqs.DefaultProvider
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var fakeClock *clock.FakeClock
 var controller *interruption.Controller
+var instanceStatusController *interruption.InstanceStatusController
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -96,8 +97,8 @@ var _ = BeforeSuite(func() {
 	sqsProvider = lo.Must(sqs.NewDefaultProvider(sqsapi, fmt.Sprintf("https://sqs.%s.amazonaws.com/%s/test-cluster", fake.DefaultRegion, fake.DefaultAccount)))
 	cloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore)
-	controller = interruption.NewController(env.Client, cloudProvider, fakeClock, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, sqsapi, unavailableOfferingsCache, awsEnv.CapacityReservationProvider, awsEnv.InstanceStatusProvider)
-	interruption.InstanceStatusInterval = 0
+	controller = interruption.NewController(env.Client, cloudProvider, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, sqsapi, unavailableOfferingsCache, awsEnv.CapacityReservationProvider)
+	instanceStatusController = interruption.NewInstanceStatusController(env.Client, cloudProvider, fakeClock, events.NewRecorder(&record.FakeRecorder{}), awsEnv.InstanceStatusProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -352,7 +353,7 @@ var _ = Describe("InterruptionHandling", func() {
 			})
 			awsEnv.Clock.Step(time.Hour)
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
-			ExpectSingletonReconciled(ctx, controller)
+			ExpectSingletonReconciled(ctx, instanceStatusController)
 			ExpectMetricCounterValue(metrics.NodeClaimsDisruptedTotal, 1, map[string]string{
 				metrics.ReasonLabel: "instance_status_failure",
 				"nodepool":          "default",
@@ -386,7 +387,7 @@ var _ = Describe("InterruptionHandling", func() {
 			})
 			awsEnv.Clock.Step(time.Hour)
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
-			ExpectSingletonReconciled(ctx, controller)
+			ExpectSingletonReconciled(ctx, instanceStatusController)
 			ExpectExists(ctx, env.Client, nodeClaim)
 		})
 	})

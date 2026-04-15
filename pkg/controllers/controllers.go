@@ -106,6 +106,7 @@ func NewControllers(
 		crcapacitytype.NewController(kubeClient, cloudProvider),
 		crexpiration.NewController(clk, kubeClient, cloudProvider, capacityReservationProvider),
 		metrics.NewController(kubeClient, cloudProvider),
+		interruption.NewInstanceStatusController(kubeClient, cloudProvider, clk, recorder, instanceStatusProvider),
 	}
 	// Instance profile garbage collection requires IAM API access. Skip registering the controller when running
 	// in isolated VPC mode to avoid initiating calls to public AWS endpoints that won’t be reachable.
@@ -115,10 +116,7 @@ func NewControllers(
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsAPI := servicesqs.NewFromConfig(cfg)
 		prov, _ := sqs.NewSQSProvider(ctx, sqsAPI)
-		controllers = append(controllers, interruption.NewController(kubeClient, cloudProvider, clk, recorder, prov, sqsAPI, unavailableOfferings, capacityReservationProvider, instanceStatusProvider))
-	} else {
-		// if no queue is configured, start the interruption controller with only instance status monitoring
-		controllers = append(controllers, interruption.NewController(kubeClient, cloudProvider, clk, recorder, nil, nil, unavailableOfferings, capacityReservationProvider, instanceStatusProvider))
+		controllers = append(controllers, interruption.NewController(kubeClient, cloudProvider, recorder, prov, sqsAPI, unavailableOfferings, capacityReservationProvider))
 	}
 	return controllers
 }

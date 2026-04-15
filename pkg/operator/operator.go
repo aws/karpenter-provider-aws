@@ -214,10 +214,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	)
 	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, operator.Clock)
 
-	// Setup field indexers on instanceID -- specifically for the interruption controller
-	if options.FromContext(ctx).InterruptionQueue != "" {
-		SetupIndexers(ctx, operator.Manager)
-	}
+	// Setup field indexers on instanceID -- used by the interruption and instance status controllers
+	SetupIndexers(ctx, operator.Manager)
 	return ctx, &Operator{
 		Operator:                    operator,
 		Config:                      cfg,
