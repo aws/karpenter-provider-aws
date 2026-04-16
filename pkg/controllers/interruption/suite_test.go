@@ -318,7 +318,7 @@ var _ = Describe("InterruptionHandling", func() {
 
 			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount("cr-56fac701cc1951b03")).To(Equal(0))
 		})
-		It("should delete the NodeClaim when an instance is unhealthy due to EC2 status checks or scheduled events", func() {
+		It("should delete the NodeClaim when an instance is unhealthy due to EC2 status checks", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
 			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
 				InstanceStatuses: []ec2types.InstanceStatus{
@@ -343,11 +343,6 @@ var _ = Describe("InterruptionHandling", func() {
 								},
 							},
 						},
-						Events: []ec2types.InstanceStatusEvent{
-							{
-								Code: ec2types.EventCodeInstanceRetirement,
-							},
-						},
 					},
 				},
 			})
@@ -360,6 +355,28 @@ var _ = Describe("InterruptionHandling", func() {
 			})
 			ExpectMetricCounterValue(interruption.InstanceStatusUnhealthy, 1, map[string]string{
 				"category": "SystemStatus",
+			})
+			ExpectNotFound(ctx, env.Client, nodeClaim)
+		})
+		It("should delete the NodeClaim when an instance has a scheduled maintenance event", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+						Events: []ec2types.InstanceStatusEvent{
+							{
+								Code: ec2types.EventCodeInstanceRetirement,
+							},
+						},
+					},
+				},
+			})
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, instanceStatusController)
+			ExpectMetricCounterValue(metrics.NodeClaimsDisruptedTotal, 1, map[string]string{
+				metrics.ReasonLabel: "instance_status_failure",
+				"nodepool":          "default",
 			})
 			ExpectMetricCounterValue(interruption.InstanceStatusUnhealthy, 1, map[string]string{
 				"category": "EventStatus",
