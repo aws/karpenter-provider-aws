@@ -38,6 +38,16 @@ var (
 		},
 		[]string{messageTypeLabel},
 	)
+	NodeClaimInterruptionSignalsTotal = opmetrics.NewPrometheusCounter(
+		crmetrics.Registry,
+		prometheus.CounterOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: interruptionSubsystem,
+			Name:      "nodeclaim_interruption_signals_total",
+			Help:      "Count of interruption signals received for NodeClaims, broken down by signal type (spot_interrupted, rebalance_recommendation) and nodepool.",
+		},
+		[]string{metrics.ReasonLabel, metrics.NodePoolLabel, metrics.CapacityTypeLabel},
+	)
 	DeletedMessages = opmetrics.NewPrometheusCounter(
 		crmetrics.Registry,
 		prometheus.CounterOpts{

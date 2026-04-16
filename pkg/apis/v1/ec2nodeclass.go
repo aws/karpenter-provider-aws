@@ -155,6 +155,19 @@ type EC2NodeClassSpec struct {
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
 	Context *string `json:"context,omitempty"`
+	// HandleRebalance controls whether Karpenter should cordon and drain nodes when
+	// EC2 rebalance recommendations are received. When enabled, Karpenter applies a
+	// NoExecute taint to the node and waits for rebalanceGracePeriod before deleting it.
+	// Defaults to false (disabled).
+	// +optional
+	HandleRebalance *bool `json:"handleRebalance,omitempty" hash:"ignore"`
+	// RebalanceGracePeriod is the duration Karpenter will wait before deleting a node
+	// after receiving an EC2 rebalance recommendation. During this period, a NoExecute
+	// taint (karpenter.k8s.aws/rebalancing) is applied to the node, allowing existing
+	// pods to finish and be rescheduled. Only applies when handleRebalance is true.
+	// Defaults to 10 minutes if handleRebalance is true and this field is not set.
+	// +optional
+	RebalanceGracePeriod *metav1.Duration `json:"rebalanceGracePeriod,omitempty" hash:"ignore"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.

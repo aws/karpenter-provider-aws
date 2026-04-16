@@ -300,6 +300,21 @@ spec:
                     Context is a Reserved field in EC2 APIs
                     https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
                   type: string
+                handleRebalance:
+                  description: |-
+                    HandleRebalance controls whether Karpenter should cordon and drain nodes when
+                    EC2 rebalance recommendations are received. When enabled, Karpenter applies a
+                    NoSchedule taint to the node and waits for rebalanceGracePeriod before deleting it.
+                    Defaults to false (disabled).
+                  type: boolean
+                rebalanceGracePeriod:
+                  description: |-
+                    RebalanceGracePeriod is the duration Karpenter will wait before deleting a node
+                    after receiving an EC2 rebalance recommendation. During this period, a NoSchedule
+                    taint (karpenter.k8s.aws/rebalancing) is applied to the node, allowing existing
+                    pods to finish and be rescheduled. Only applies when handleRebalance is true.
+                    Defaults to 10 minutes if handleRebalance is true and this field is not set.
+                  type: string
                 detailedMonitoring:
                   description: DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
                   type: boolean

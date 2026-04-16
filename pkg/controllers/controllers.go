@@ -51,6 +51,7 @@ import (
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
 	nodeclaimgarbagecollection "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclaim/garbagecollection"
+	nodeclaimrebalance "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclaim/rebalance"
 	nodeclaimtagging "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclaim/tagging"
 	nodeclassgarbagecollection "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/garbagecollection"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -91,6 +92,7 @@ func NewControllers(
 	amiResolver amifamily.Resolver,
 ) []controller.Controller {
 	controllers := []controller.Controller{
+		nodeclaimrebalance.NewController(kubeClient, clk),
 		nodeclasshash.NewController(kubeClient),
 		nodeclass.NewController(clk, kubeClient, cloudProvider, recorder, cfg.Region, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, instanceTypeProvider, launchTemplateProvider, capacityReservationProvider, placementGroupProvider, ec2api, validationCache, recreationCache, amiResolver, options.FromContext(ctx).DisableDryRun),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),

@@ -29,6 +29,7 @@ import (
 	"github.com/awslabs/operatorpkg/singleton"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
@@ -211,7 +212,14 @@ func (c *Controller) deleteMessage(ctx context.Context, msg *sqstypes.Message) e
 
 // handleNodeClaim retrieves the action for the message and then performs the appropriate action against the node
 func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, nodeClaim *karpv1.NodeClaim, node *corev1.Node) error {
-	action := actionForMessage(msg)
+	nodeClass := new(v1.EC2NodeClass)
+	if msg.Kind() == messages.RebalanceRecommendationKind {
+		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodeClaim.Spec.NodeClassRef.Name}, nodeClass); client.IgnoreNotFound(err) != nil {
+			return fmt.Errorf("resolving EC2NodeClass %q, %w", nodeClaim.Spec.NodeClassRef.Name, err)
+		}
+	}
+
+	action := actionForMessage(msg, nodeClass)
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("NodeClaim", klog.KObj(nodeClaim), "action", string(action)))
 	if node != nil {
 		ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("Node", klog.KObj(node)))
@@ -220,15 +228,19 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 	// Record metric and event for this action
 	c.notifyForMessage(msg, nodeClaim, node)
 
-	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
-	if msg.Kind() == messages.SpotInterruptionKind {
+	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning or rebalance recommendation
+	if msg.Kind() == messages.SpotInterruptionKind || (msg.Kind() == messages.RebalanceRecommendationKind && action == CordonAndDrain) {
 		zone := nodeClaim.Labels[corev1.LabelTopologyZone]
 		instanceType := nodeClaim.Labels[corev1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			unavailableReason := map[string]string{
-				"reason": string(msg.Kind()),
+			if msg.Kind() == messages.RebalanceRecommendationKind && nodeClass.Spec.RebalanceGracePeriod != nil {
+				c.unavailableOfferingsCache.MarkUnavailableWithTTL(ctx, string(msg.Kind()), ec2types.InstanceType(instanceType), zone, karpv1.CapacityTypeSpot, nodeClass.Spec.RebalanceGracePeriod.Duration)
+			} else {
+				unavailableReason := map[string]string{
+					"reason": string(msg.Kind()),
+				}
+				c.unavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(instanceType), zone, karpv1.CapacityTypeSpot, unavailableReason)
 			}
-			c.unavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(instanceType), zone, karpv1.CapacityTypeSpot, unavailableReason)
 		}
 	}
 
@@ -241,8 +253,56 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 	}
 
 	if action != NoAction {
+		// For rebalance recommendations with a grace period, apply a NoSchedule taint instead of immediately deleting.
+		// The node will be deleted by the nodeclaim.rebalance controller once the deadline expires.
+		if msg.Kind() == messages.RebalanceRecommendationKind && nodeClass.Spec.RebalanceGracePeriod != nil {
+			return c.taintNodeForRebalance(ctx, nodeClaim, node, nodeClass.Spec.RebalanceGracePeriod.Duration)
+		}
 		return c.deleteNodeClaim(ctx, msg, nodeClaim, node)
 	}
+	return nil
+}
+
+// taintNodeForRebalance applies a NoSchedule taint to the node to prevent new pods from scheduling,
+// and annotates the NodeClaim with the grace period deadline. A separate rebalance controller
+// will delete the NodeClaim once the deadline expires.
+func (c *Controller) taintNodeForRebalance(ctx context.Context, nodeClaim *karpv1.NodeClaim, node *corev1.Node, gracePeriod time.Duration) error {
+	// Idempotency: if the annotation is already set, nothing to do
+	if _, exists := nodeClaim.Annotations[v1.AnnotationRebalanceGracePeriodEnd]; exists {
+		return nil
+	}
+	NodeClaimInterruptionSignalsTotal.Inc(map[string]string{
+		metrics.ReasonLabel:       string(messages.RebalanceRecommendationKind),
+		metrics.NodePoolLabel:     nodeClaim.Labels[karpv1.NodePoolLabelKey],
+		metrics.CapacityTypeLabel: nodeClaim.Labels[karpv1.CapacityTypeLabelKey],
+	})
+	// Annotate the NodeClaim with the deadline for the rebalance controller to act on
+	storedNodeClaim := nodeClaim.DeepCopy()
+	if nodeClaim.Annotations == nil {
+		nodeClaim.Annotations = map[string]string{}
+	}
+	nodeClaim.Annotations[v1.AnnotationRebalanceGracePeriodEnd] = c.clk.Now().Add(gracePeriod).Format(time.RFC3339)
+	if err := c.kubeClient.Patch(ctx, nodeClaim, client.MergeFrom(storedNodeClaim)); err != nil {
+		return client.IgnoreNotFound(fmt.Errorf("annotating nodeclaim for rebalance, %w", err))
+	}
+	// Apply NoSchedule taint to the node to prevent new pods from scheduling
+	if node != nil {
+		for _, t := range node.Spec.Taints {
+			if t.Key == v1.RebalancingTaintKey && t.Effect == corev1.TaintEffectNoSchedule {
+				log.FromContext(ctx).Info("applied rebalance grace period", "deadline", nodeClaim.Annotations[v1.AnnotationRebalanceGracePeriodEnd])
+				return nil
+			}
+		}
+		storedNode := node.DeepCopy()
+		node.Spec.Taints = append(node.Spec.Taints, corev1.Taint{
+			Key:    v1.RebalancingTaintKey,
+			Effect: corev1.TaintEffectNoSchedule,
+		})
+		if err := c.kubeClient.Patch(ctx, node, client.MergeFrom(storedNode)); err != nil {
+			return client.IgnoreNotFound(fmt.Errorf("tainting node for rebalance, %w", err))
+		}
+	}
+	log.FromContext(ctx).Info("applied rebalance grace period", "deadline", nodeClaim.Annotations[v1.AnnotationRebalanceGracePeriodEnd])
 	return nil
 }
 
@@ -256,6 +316,11 @@ func (c *Controller) deleteNodeClaim(ctx context.Context, msg messages.Message, 
 	}
 	log.FromContext(ctx).Info("initiating delete from interruption message")
 	c.recorder.Publish(interruptionevents.TerminatingOnInterruption(node, nodeClaim)...)
+	NodeClaimInterruptionSignalsTotal.Inc(map[string]string{
+		metrics.ReasonLabel:       string(msg.Kind()),
+		metrics.NodePoolLabel:     nodeClaim.Labels[karpv1.NodePoolLabelKey],
+		metrics.CapacityTypeLabel: nodeClaim.Labels[karpv1.CapacityTypeLabelKey],
+	})
 	metrics.NodeClaimsDisruptedTotal.Inc(map[string]string{
 		metrics.ReasonLabel:       string(msg.Kind()),
 		metrics.NodePoolLabel:     nodeClaim.Labels[karpv1.NodePoolLabelKey],
@@ -289,10 +354,16 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 	}
 }
 
-func actionForMessage(msg messages.Message) Action {
+func actionForMessage(msg messages.Message, nodeClass *v1.EC2NodeClass) Action {
 	switch msg.Kind() {
 	case messages.ScheduledChangeKind, messages.SpotInterruptionKind, messages.InstanceStoppedKind, messages.InstanceTerminatedKind, messages.CapacityReservationInterruptionKind:
 		return CordonAndDrain
+	case messages.RebalanceRecommendationKind:
+		// Optionally handle rebalance recommendation.
+		if nodeClass.Spec.HandleRebalance != nil && *nodeClass.Spec.HandleRebalance {
+			return CordonAndDrain
+		}
+		return NoAction
 	default:
 		return NoAction
 	}
