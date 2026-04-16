@@ -366,7 +366,7 @@ This annotation supports two formats:
 | Format | Example | Behavior |
 |--------|---------|----------|
 | **Boolean** | `karpenter.sh/do-not-disrupt: "true"` | Provides permanent protection from disruption |
-| **Duration (Go time.Duration string)** | `karpenter.sh/do-not-disrupt: "30m"` | Provides time-based protection for the specified duration after the pod starts running (based on `pod.status.startTime`) |
+| **Duration (Go duration string)** | `karpenter.sh/do-not-disrupt: "30m"` | Provides time-based protection for the specified duration after the pod starts running |
 
 {{% alert title="Note" color="primary" %}}
 If an invalid duration is specified, the annotation will be ignored and an event will be emitted on the pod indicating that the duration format is invalid.
