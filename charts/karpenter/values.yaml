@@ -207,7 +207,8 @@ settings:
   # Interruption handling is disabled if not specified. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs.
   interruptionQueue: ""
-  # -- Marking this true signals EKS to onboard the cluster to Zonal Shift.
+  # -- Marking this true signals Karpenter to respect zonal shifts when making node claims.
+  # More information about Zonal Shift here: https://docs.aws.amazon.com/eks/latest/userguide/zone-shift-enable.html#zone-shift-enable-steps
   enableZonalShift: false
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved.
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.
