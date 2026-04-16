@@ -21,11 +21,6 @@ import (
 
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 
-	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
-	"github.com/aws/karpenter-provider-aws/pkg/cache"
-	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/singleton"
 	"go.uber.org/multierr"
@@ -38,6 +33,12 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
+
+	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/cache"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 )
 
 // Controller is an AWS interruption controller.

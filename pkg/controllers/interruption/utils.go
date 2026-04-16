@@ -19,11 +19,6 @@ import (
 	"fmt"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	"github.com/aws/karpenter-provider-aws/pkg/cache"
-	interruptionevents "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
-	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
@@ -33,6 +28,12 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/metrics"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/cache"
+	interruptionevents "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 )
 
 type Action string

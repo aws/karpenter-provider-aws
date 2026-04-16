@@ -19,9 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/instancestatusfailure"
-	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/singleton"
 	"go.uber.org/multierr"
@@ -34,6 +31,10 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/instancestatusfailure"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 )
 
 var (
