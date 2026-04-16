@@ -49,7 +49,7 @@ type shiftStatus struct {
 func NewProvider(client sdk.ARCZonalShiftAPI, clk clock.Clock, clusterArn string) *DefaultProvider {
 	return &DefaultProvider{
 		arcZonalShiftAPI:   client,
-		zonalShiftStatuses: make(map[string]shiftStatus),
+		zonalShiftStatuses: make(map[string]shiftStatus), // map zoneid (string) -> shiftStatus
 		clk:                clk,
 		clusterArn:         clusterArn,
 	}
