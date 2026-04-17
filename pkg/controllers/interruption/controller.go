@@ -27,8 +27,10 @@ import (
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/singleton"
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
@@ -230,6 +232,9 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 			}
 			c.unavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(instanceType), zone, karpv1.CapacityTypeSpot, unavailableReason)
 		}
+		if err := c.annotateForInterruption(ctx, nodeClaim); err != nil {
+			return err
+		}
 	}
 
 	// Mark the reservation as unavailable in the ICE cache since we got a capacity reservation interruption warning
@@ -237,6 +242,9 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 		reservationID := nodeClaim.Labels[v1.LabelCapacityReservationID]
 		if reservationID != "" {
 			c.capacityReservationProvider.MarkUnavailable(reservationID)
+		}
+		if err := c.annotateForInterruption(ctx, nodeClaim); err != nil {
+			return err
 		}
 	}
 
@@ -287,6 +295,19 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 
 	default:
 	}
+}
+
+func (c *Controller) annotateForInterruption(ctx context.Context, nodeClaim *karpv1.NodeClaim) error {
+	stored := nodeClaim.DeepCopy()
+	nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
+		v1.AnnotationInstanceInterrupted: "true",
+	})
+	if !equality.Semantic.DeepEqual(stored, nodeClaim) {
+		if err := c.kubeClient.Patch(ctx, nodeClaim, client.MergeFrom(stored)); err != nil {
+			return fmt.Errorf("annotating nodeclaim as interrupted, %w", err)
+		}
+	}
+	return nil
 }
 
 func actionForMessage(msg messages.Message) Action {

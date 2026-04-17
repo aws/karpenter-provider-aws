@@ -37,6 +37,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
@@ -254,6 +255,20 @@ func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if id := nodeClaim.Labels[cloudprovider.ReservationIDLabel]; id != "" && cloudprovider.IsNodeClaimNotFoundError(err) {
 		c.capacityReservationProvider.MarkTerminated(id)
 	}
+
+	if cloudprovider.IsNodeClaimNotFoundError(err) && isInterruptibleInstance(nodeClaim) {
+		capacityType := nodeClaim.Labels[karpv1.CapacityTypeLabelKey]
+		instanceInterrupted := nodeClaim.Annotations[v1.AnnotationInstanceInterrupted]
+		disruptionCondition := nodeClaim.StatusConditions().Get(karpv1.ConditionTypeDisruptionReason)
+		if (disruptionCondition == nil || !disruptionCondition.IsTrue()) && instanceInterrupted == "" {
+			log.FromContext(ctx).Info("detected instance termination without interruption notification",
+				"capacity-type", capacityType)
+			interruption.MissedInterruptionTerminations.Inc(map[string]string{
+				"capacity_type": capacityType,
+			})
+		}
+	}
+
 	return err
 }
 
@@ -505,4 +520,17 @@ func newTerminatingNodeClassError(name string) *errors.StatusError {
 	err := errors.NewNotFound(qualifiedResource, name)
 	err.ErrStatus.Message = fmt.Sprintf("%s %q is terminating, treating as not found", qualifiedResource.String(), name)
 	return err
+}
+
+func isInterruptibleInstance(nodeClaim *karpv1.NodeClaim) bool {
+	capacityType := nodeClaim.Labels[karpv1.CapacityTypeLabelKey]
+	if capacityType == karpv1.CapacityTypeSpot {
+		return true
+	}
+	if capacityType == karpv1.CapacityTypeReserved {
+		if interruptibleLabel, ok := nodeClaim.Labels[v1.LabelCapacityReservationInterruptible]; ok && interruptibleLabel == "true" {
+			return true
+		}
+	}
+	return false
 }

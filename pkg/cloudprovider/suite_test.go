@@ -43,6 +43,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -1575,6 +1576,56 @@ var _ = Describe("CloudProvider", func() {
 			Entry("when the capacity reservation type is default non-interruptible", v1.CapacityReservationTypeDefault, false),
 			Entry("when the capacity reservation type is default interruptible", v1.CapacityReservationTypeDefault, true),
 			Entry("when the capacity reservation type is capacity-block", v1.CapacityReservationTypeCapacityBlock, false),
+		)
+	})
+	Context("Interruption Metric Tracking", func() {
+		BeforeEach(func() {
+			interruption.MissedInterruptionTerminations.Add(0, map[string]string{
+				"capacity_type": karpv1.CapacityTypeSpot,
+			})
+		})
+		DescribeTable("should track MissedInterruptionTerminations based on disruption state",
+			func(hasInterruptionAnnotation bool, wasDisrupted bool, expectedMetricIncrement float64) {
+				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+					{
+						Key:      karpv1.CapacityTypeLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{karpv1.CapacityTypeSpot},
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectApplied(ctx, env.Client, pod)
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+
+				ncs := ExpectNodeClaims(ctx, env.Client)
+				Expect(ncs).To(HaveLen(1))
+				nc := ncs[0]
+				if hasInterruptionAnnotation {
+					nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
+						v1.AnnotationInstanceInterrupted: "true",
+					})
+				}
+				if wasDisrupted {
+					nc.StatusConditions().SetTrueWithReason(karpv1.ConditionTypeDisruptionReason, "Underutilized", "Underutilized")
+				}
+				ExpectApplied(ctx, env.Client, nc)
+
+				// mock underlying instance as already terminated
+				awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+					Reservations: []ec2types.Reservation{},
+				})
+				err := cloudProvider.Delete(ctx, nc)
+				Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
+
+				ExpectMetricCounterValue(interruption.MissedInterruptionTerminations, expectedMetricIncrement,
+					map[string]string{"capacity_type": karpv1.CapacityTypeSpot})
+			},
+			Entry("when only interruption annotation is set - interrupted by interruption controller", true, false, 0.0),
+			Entry("when only disruption condition is set", false, true, 0.0),
+			Entry("when both annotation and disruption condition are set", true, true, 0.0),
+			Entry("when neither annotation nor disruption condition is set - missed", false, false, 1.0),
 		)
 	})
 })

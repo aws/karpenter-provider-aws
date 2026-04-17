@@ -275,6 +275,10 @@ Amount of time an interruption message is on the queue before it is processed by
 Count of messages deleted from the SQS queue.
 - Stability Level: STABLE
 
+### `karpenter_interruption_missed_termination_total`
+Count of instance terminations that were not notified via SQS interruption messages
+- Stability Level: STABLE
+
 ## Cluster Metrics
 
 ### `karpenter_cluster_utilization_percent`
