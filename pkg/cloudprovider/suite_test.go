@@ -1519,43 +1519,53 @@ var _ = Describe("CloudProvider", func() {
 		)
 	})
 	Context("Interruption Metric Tracking", func() {
-		It("should increment MissedInterruptionTerminations metric depending on interruption annotation", func() {
-			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
-				{
-					Key:      karpv1.CapacityTypeLabelKey,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{karpv1.CapacityTypeSpot},
-				},
-			}
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods: aws.Int32(1),
-			}
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			for range 2 {
+		BeforeEach(func() {
+			interruption.MissedInterruptionTerminations.Add(0, map[string]string{
+				"capacity_type": karpv1.CapacityTypeSpot,
+			})
+		})
+		DescribeTable("should track MissedInterruptionTerminations based on disruption state",
+			func(hasInterruptionAnnotation bool, wasDisrupted bool, expectedMetricIncrement float64) {
+				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+					{
+						Key:      karpv1.CapacityTypeLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{karpv1.CapacityTypeSpot},
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectApplied(ctx, env.Client, pod)
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-			}
-			ncs := ExpectNodeClaims(ctx, env.Client)
-			Expect(ncs).To(HaveLen(2))
 
-			// add annotation to only 1 nodeclaim
-			ncs[0].Annotations = lo.Assign(ncs[0].Annotations, map[string]string{
-				v1.AnnotationInstanceInterrupted: "true",
-			})
-			ExpectApplied(ctx, env.Client, ncs[0])
+				ncs := ExpectNodeClaims(ctx, env.Client)
+				Expect(ncs).To(HaveLen(1))
+				nc := ncs[0]
+				if hasInterruptionAnnotation {
+					nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
+						v1.AnnotationInstanceInterrupted: "true",
+					})
+				}
+				if wasDisrupted {
+					nc.StatusConditions().SetTrueWithReason(karpv1.ConditionTypeDisruptionReason, "Underutilized", "Underutilized")
+				}
+				ExpectApplied(ctx, env.Client, nc)
 
-			// mock underlying instance as already terminated
-			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
-				Reservations: []ec2types.Reservation{},
-			})
-			err1 := cloudProvider.Delete(ctx, ncs[0])
-			err2 := cloudProvider.Delete(ctx, ncs[1])
-			Expect(corecloudprovider.IsNodeClaimNotFoundError(err1)).To(BeTrue())
-			Expect(corecloudprovider.IsNodeClaimNotFoundError(err2)).To(BeTrue())
-			// one nodeclaim did not have the interrupted annotation
-			ExpectMetricCounterValue(interruption.MissedInterruptionTerminations, 1, map[string]string{"capacity_type": karpv1.CapacityTypeSpot})
-		})
+				// mock underlying instance as already terminated
+				awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+					Reservations: []ec2types.Reservation{},
+				})
+				err := cloudProvider.Delete(ctx, nc)
+				Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
+
+				ExpectMetricCounterValue(interruption.MissedInterruptionTerminations, expectedMetricIncrement,
+					map[string]string{"capacity_type": karpv1.CapacityTypeSpot})
+			},
+			Entry("when only interruption annotation is set - interrupted by interruption controller", true, false, 0.0),
+			Entry("when only disruption condition is set", false, true, 0.0),
+			Entry("when both annotation and disruption condition are set", true, true, 0.0),
+			Entry("when neither annotation nor disruption condition is set - missed", false, false, 1.0),
+		)
 	})
 })

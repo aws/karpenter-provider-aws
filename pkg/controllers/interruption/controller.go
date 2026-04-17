@@ -232,6 +232,9 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 			}
 			c.unavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(instanceType), zone, karpv1.CapacityTypeSpot, unavailableReason)
 		}
+		if err := c.annotateForInterruption(ctx, nodeClaim); err != nil {
+			return err
+		}
 	}
 
 	// Mark the reservation as unavailable in the ICE cache since we got a capacity reservation interruption warning
@@ -240,18 +243,12 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 		if reservationID != "" {
 			c.capacityReservationProvider.MarkUnavailable(reservationID)
 		}
+		if err := c.annotateForInterruption(ctx, nodeClaim); err != nil {
+			return err
+		}
 	}
 
 	if action != NoAction {
-		stored := nodeClaim.DeepCopy()
-		nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
-			v1.AnnotationInstanceInterrupted: "true",
-		})
-		if !equality.Semantic.DeepEqual(stored, nodeClaim) {
-			if err := c.kubeClient.Patch(ctx, nodeClaim, client.MergeFrom(stored)); err != nil {
-				return fmt.Errorf("annotating nodeclaim as interrupted, %w", err)
-			}
-		}
 		return c.deleteNodeClaim(ctx, msg, nodeClaim, node)
 	}
 	return nil
@@ -298,6 +295,19 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 
 	default:
 	}
+}
+
+func (c *Controller) annotateForInterruption(ctx context.Context, nodeClaim *karpv1.NodeClaim) error {
+	stored := nodeClaim.DeepCopy()
+	nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
+		v1.AnnotationInstanceInterrupted: "true",
+	})
+	if !equality.Semantic.DeepEqual(stored, nodeClaim) {
+		if err := c.kubeClient.Patch(ctx, nodeClaim, client.MergeFrom(stored)); err != nil {
+			return fmt.Errorf("annotating nodeclaim as interrupted, %w", err)
+		}
+	}
+	return nil
 }
 
 func actionForMessage(msg messages.Message) Action {

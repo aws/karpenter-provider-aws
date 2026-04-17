@@ -254,7 +254,8 @@ func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if cloudprovider.IsNodeClaimNotFoundError(err) && isInterruptibleInstance(nodeClaim) {
 		capacityType := nodeClaim.Labels[karpv1.CapacityTypeLabelKey]
 		instanceInterrupted := nodeClaim.Annotations[v1.AnnotationInstanceInterrupted]
-		if instanceInterrupted == "" {
+		disruptionCondition := nodeClaim.StatusConditions().Get(karpv1.ConditionTypeDisruptionReason)
+		if (disruptionCondition == nil || !disruptionCondition.IsTrue()) && instanceInterrupted == "" {
 			log.FromContext(ctx).Info("detected instance termination without interruption notification",
 				"capacity-type", capacityType)
 			interruption.MissedInterruptionTerminations.Inc(map[string]string{
