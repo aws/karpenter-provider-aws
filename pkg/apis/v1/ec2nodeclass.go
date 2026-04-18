@@ -151,7 +151,7 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":1,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
-	// NetworkPerformanceOptions configure the network performance options for instances
+	// NetworkPerformanceOptions configures the network performance options for instances
 	// launched with this EC2NodeClass. Allows configuring bandwidth weighting between
 	// networking and EBS for supported 8th-gen instance types (M8, C8, R8, X8 families).
 	// +optional
