@@ -152,9 +152,13 @@ type EC2NodeClassSpec struct {
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
 
-	// ConnectionTracking configures per-instance idle connection tracking timeouts
-	// for AWS Elastic Network Interfaces. Idle connections left too long can
-	// exhaust the security group’s connection tracking table and lead to dropped packets.
+	// ConnectionTracking configures idle connection tracking timeouts on ENIs
+	// provisioned by Karpenter in the launch template: the primary ENI and any
+	// EFA ENIs. Secondary ENIs created at runtime by the CNI (e.g. VPC-CNI,
+	// Cilium in ENI IPAM mode) are out of scope and must be configured through
+	// the CNI.
+	// Idle connections left too long can exhaust the security group's connection
+	// tracking table and lead to dropped packets.
 	// +optional
 	ConnectionTracking *ConnectionTracking `json:"connectionTracking,omitempty"`
 
@@ -512,9 +516,12 @@ type NetworkInterface struct {
 	InterfaceType InterfaceType `json:"interfaceType"`
 }
 
-// ConnectionTracking configures per-instance idle connection tracking timeouts
-// for AWS Elastic Network Interfaces. Idle connections left too long can
-// exhaust the security group's connection tracking table and lead to dropped packets.
+// ConnectionTracking configures idle connection tracking timeouts on ENIs
+// provisioned by Karpenter in the launch template: the primary ENI and any
+// EFA ENIs. Secondary ENIs created at runtime by the CNI are out of scope
+// and must be configured through the CNI.
+// Idle connections left too long can exhaust the security group's connection
+// tracking table and lead to dropped packets.
 // +kubebuilder:validation:XValidation:message="tcpEstablishedTimeout must be between 60s and 432000s (5 days)",rule="!has(self.tcpEstablishedTimeout) || (duration(self.tcpEstablishedTimeout) >= duration('60s') && duration(self.tcpEstablishedTimeout) <= duration('432000s'))"
 // +kubebuilder:validation:XValidation:message="udpStreamTimeout must be between 60s and 180s",rule="!has(self.udpStreamTimeout) || (duration(self.udpStreamTimeout) >= duration('60s') && duration(self.udpStreamTimeout) <= duration('180s'))"
 // +kubebuilder:validation:XValidation:message="udpTimeout must be between 30s and 60s",rule="!has(self.udpTimeout) || (duration(self.udpTimeout) >= duration('30s') && duration(self.udpTimeout) <= duration('60s'))"

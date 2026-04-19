@@ -39,6 +39,7 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
@@ -289,6 +290,7 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 
 // generateNetworkInterfaces generates network interfaces for the launch template.
 func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamily corev1.IPFamily) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+	connTrackSpec := connectionTrackingSpec(options.ConnectionTracking)
 	if len(options.NetworkInterfaces) > 0 {
 		return lo.Map(options.NetworkInterfaces, func(networkInterface *v1.NetworkInterface, _ int) ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 			// Assigning IPPrefixCounts or AssociatePublicIpAddress to EFA-only ENIs results in RunInstances failures w/ InvalidParameterValue
@@ -302,9 +304,10 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 				Groups:           lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
 				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
 				// with a single ENA network interface, and we should support those use cases. Launch failures with multiple enis as ENA should be considered user misconfiguration.
-				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
-				PrimaryIpv6:              lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, lo.ToPtr(true), nil),
-				Ipv6AddressCount:         lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, lo.ToPtr(int32(1)), nil),
+				AssociatePublicIpAddress:        options.AssociatePublicIPAddress,
+				PrimaryIpv6:                     lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, lo.ToPtr(true), nil),
+				Ipv6AddressCount:                lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, lo.ToPtr(int32(1)), nil),
+				ConnectionTrackingSpecification: connTrackSpec,
 			}
 		})
 	}
@@ -322,34 +325,10 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 				Groups:          lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
 				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
 				// with a single EFA network interface, and we should support those use cases. Launch failures with multiple enis should be considered user misconfiguration.
-				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
-				PrimaryIpv6:              lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
-				Ipv6AddressCount:         lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
-				ConnectionTrackingSpecification: func() *ec2types.ConnectionTrackingSpecificationRequest {
-					if options.ConnectionTracking == nil {
-						return nil
-					}
-					return &ec2types.ConnectionTrackingSpecificationRequest{
-						TcpEstablishedTimeout: func() *int32 {
-							if options.ConnectionTracking.TCPEstablishedTimeout == nil {
-								return nil
-							}
-							return aws.Int32(int32(options.ConnectionTracking.TCPEstablishedTimeout.Seconds()))
-						}(),
-						UdpStreamTimeout: func() *int32 {
-							if options.ConnectionTracking.UDPStreamTimeout == nil {
-								return nil
-							}
-							return aws.Int32(int32(options.ConnectionTracking.UDPStreamTimeout.Seconds()))
-						}(),
-						UdpTimeout: func() *int32 {
-							if options.ConnectionTracking.UDPTimeout == nil {
-								return nil
-							}
-							return aws.Int32(int32(options.ConnectionTracking.UDPTimeout.Seconds()))
-						}(),
-					}
-				}(),
+				AssociatePublicIpAddress:        options.AssociatePublicIPAddress,
+				PrimaryIpv6:                     lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
+				Ipv6AddressCount:                lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+				ConnectionTrackingSpecification: connTrackSpec,
 			}
 		})
 	}
@@ -363,34 +342,27 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 			Groups: lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string {
 				return s.ID
 			}),
-			PrimaryIpv6:      lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
-			Ipv6AddressCount: lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
-			ConnectionTrackingSpecification: func() *ec2types.ConnectionTrackingSpecificationRequest {
-				if options.ConnectionTracking == nil {
-					return nil
-				}
-				return &ec2types.ConnectionTrackingSpecificationRequest{
-					TcpEstablishedTimeout: func() *int32 {
-						if options.ConnectionTracking.TCPEstablishedTimeout == nil {
-							return nil
-						}
-						return aws.Int32(int32(options.ConnectionTracking.TCPEstablishedTimeout.Seconds()))
-					}(),
-					UdpStreamTimeout: func() *int32 {
-						if options.ConnectionTracking.UDPStreamTimeout == nil {
-							return nil
-						}
-						return aws.Int32(int32(options.ConnectionTracking.UDPStreamTimeout.Seconds()))
-					}(),
-					UdpTimeout: func() *int32 {
-						if options.ConnectionTracking.UDPTimeout == nil {
-							return nil
-						}
-						return aws.Int32(int32(options.ConnectionTracking.UDPTimeout.Seconds()))
-					}(),
-				}
-			}(),
+			PrimaryIpv6:                     lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
+			Ipv6AddressCount:                lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
+			ConnectionTrackingSpecification: connTrackSpec,
 		},
+	}
+}
+
+func connectionTrackingSpec(ct *v1.ConnectionTracking) *ec2types.ConnectionTrackingSpecificationRequest {
+	if ct == nil {
+		return nil
+	}
+	secondsPtr := func(d *metav1.Duration) *int32 {
+		if d == nil {
+			return nil
+		}
+		return aws.Int32(int32(d.Seconds()))
+	}
+	return &ec2types.ConnectionTrackingSpecificationRequest{
+		TcpEstablishedTimeout: secondsPtr(ct.TCPEstablishedTimeout),
+		UdpStreamTimeout:      secondsPtr(ct.UDPStreamTimeout),
+		UdpTimeout:            secondsPtr(ct.UDPTimeout),
 	}
 }
 

@@ -19,7 +19,12 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -63,34 +68,57 @@ var _ = Describe("ConnectionTracking", func() {
 		Expect(aws.ToInt32(ni.ConnectionTrackingConfiguration.UdpTimeout)).To(Equal(int32(45)))
 	})
 
-	It("should allow partial connection tracking configuration", func() {
+	It("should apply connection tracking settings to all EFA network interfaces", func() {
+		env.ExpectEFADevicePluginCreated()
+
 		nodeClass.Spec.ConnectionTracking = &v1.ConnectionTracking{
-			TCPEstablishedTimeout: &metav1.Duration{Duration: 600 * time.Second},
+			TCPEstablishedTimeout: &metav1.Duration{Duration: 300 * time.Second},
+			UDPStreamTimeout:      &metav1.Duration{Duration: 120 * time.Second},
+			UDPTimeout:            &metav1.Duration{Duration: 45 * time.Second},
+		}
+		// Instances launched with multiple network interfaces cannot get a public IP.
+		nodeClass.Spec.SubnetSelectorTerms[0].Tags["Name"] = "*Private*"
+
+		nodePool.Spec.Template.Labels = map[string]string{"aws.amazon.com/efa": "true"}
+		nodePool.Spec.Template.Spec.Taints = []corev1.Taint{
+			{Key: "aws.amazon.com/efa", Effect: corev1.TaintEffectNoSchedule},
 		}
 
-		pod := test.Pod()
-		env.ExpectCreated(pod, nodeClass, nodePool)
-		env.EventuallyExpectHealthy(pod)
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: 1,
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "conntrack-efa"}},
+				Tolerations: []corev1.Toleration{
+					{Key: "aws.amazon.com/efa", Operator: corev1.TolerationOpExists},
+				},
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{"vpc.amazonaws.com/efa": resource.MustParse("1")},
+					Limits:   corev1.ResourceList{"vpc.amazonaws.com/efa": resource.MustParse("1")},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		env.ExpectCreated(nodeClass, nodePool, dep)
+		pods := env.EventuallyExpectHealthyPodCount(selector, 1)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		instance := env.GetInstance(pod.Spec.NodeName)
+		instance := env.GetInstance(pods[0].Spec.NodeName)
 		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
 
-		primaryNI := instance.NetworkInterfaces[0]
-
-		// Verify connection tracking via DescribeNetworkInterfaces
+		niIDs := lo.Map(instance.NetworkInterfaces, func(ni ec2types.InstanceNetworkInterface, _ int) string {
+			return aws.ToString(ni.NetworkInterfaceId)
+		})
 		niOutput, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{
-			NetworkInterfaceIds: []string{aws.ToString(primaryNI.NetworkInterfaceId)},
+			NetworkInterfaceIds: niIDs,
 		})
 		Expect(err).ToNot(HaveOccurred())
-		Expect(niOutput.NetworkInterfaces).To(HaveLen(1))
-
-		ni := niOutput.NetworkInterfaces[0]
-		Expect(ni.ConnectionTrackingConfiguration).ToNot(BeNil())
-		Expect(aws.ToInt32(ni.ConnectionTrackingConfiguration.TcpEstablishedTimeout)).To(Equal(int32(600)))
-		// When only some fields are set, others should be nil or default
-		Expect(ni.ConnectionTrackingConfiguration.UdpStreamTimeout).To(BeNil())
-		Expect(ni.ConnectionTrackingConfiguration.UdpTimeout).To(BeNil())
+		Expect(niOutput.NetworkInterfaces).To(HaveLen(len(niIDs)))
+		for _, ni := range niOutput.NetworkInterfaces {
+			Expect(ni.ConnectionTrackingConfiguration).ToNot(BeNil(), "ENI %s missing connection tracking config", aws.ToString(ni.NetworkInterfaceId))
+			Expect(aws.ToInt32(ni.ConnectionTrackingConfiguration.TcpEstablishedTimeout)).To(Equal(int32(300)))
+			Expect(aws.ToInt32(ni.ConnectionTrackingConfiguration.UdpStreamTimeout)).To(Equal(int32(120)))
+			Expect(aws.ToInt32(ni.ConnectionTrackingConfiguration.UdpTimeout)).To(Equal(int32(45)))
+		}
 	})
 
 	It("should not set connection tracking when not specified", func() {

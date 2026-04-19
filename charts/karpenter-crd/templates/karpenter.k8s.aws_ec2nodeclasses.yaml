@@ -297,9 +297,13 @@ spec:
                       rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))'
                 connectionTracking:
                   description: |-
-                    ConnectionTracking configures per-instance idle connection tracking timeouts
-                    for AWS Elastic Network Interfaces. Idle connections left too long can
-                    exhaust the security group’s connection tracking table and lead to dropped packets.
+                    ConnectionTracking configures idle connection tracking timeouts on ENIs
+                    provisioned by Karpenter in the launch template: the primary ENI and any
+                    EFA ENIs. Secondary ENIs created at runtime by the CNI (e.g. VPC-CNI,
+                    Cilium in ENI IPAM mode) are out of scope and must be configured through
+                    the CNI.
+                    Idle connections left too long can exhaust the security group's connection
+                    tracking table and lead to dropped packets.
                   properties:
                     tcpEstablishedTimeout:
                       description: |-
