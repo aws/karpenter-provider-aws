@@ -19,6 +19,7 @@ import (
 	"log"
 	"strings"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/google/uuid"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
@@ -52,6 +53,11 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:MaxItems:=30
 	// +optional
 	CapacityReservationSelectorTerms []CapacityReservationSelectorTerm `json:"capacityReservationSelectorTerms" hash:"ignore"`
+	// PlacementGroupSelector defines the name or the id of the placement to resolve with the nodeclass.
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['name', 'id']",rule="has(self.name) || has(self.id)"
+	// +kubebuilder:validation:XValidation:message="'name' and 'id' are mutually exclusive",rule="!(has(self.name) && has(self.id))"
+	// +optional
+	PlacementGroupSelector *PlacementGroupSelector `json:"placementGroupSelector,omitempty"`
 	// AssociatePublicIPAddress controls if public IP addresses are assigned to instances that are launched with the nodeclass.
 	// +optional
 	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
@@ -74,7 +80,7 @@ type EC2NodeClassSpec struct {
 	// alias is specified, this field is required.
 	// NOTE: We ignore the AMIFamily for hashing here because we hash the AMIFamily dynamically by using the alias using
 	// the AMIFamily() helper function
-	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Custom,Windows2019,Windows2022}
+	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Custom,Windows2019,Windows2022,Windows2025}
 	// +optional
 	AMIFamily *string `json:"amiFamily,omitempty" hash:"ignore"`
 	// UserData to be applied to the provisioned nodes.
@@ -119,6 +125,12 @@ type EC2NodeClassSpec struct {
 	// InstanceStorePolicy specifies how to handle instance-store disks.
 	// +optional
 	InstanceStorePolicy *InstanceStorePolicy `json:"instanceStorePolicy,omitempty"`
+	// NetworkInterfaces specifies the network interface configurations to be attached to provisioned instances.
+	// +kubebuilder:validation:XValidation:message="networkInterfaces must include a primary interface with interfaceType='interface'",rule="self.size() == 0 || self.exists(x, x.deviceIndex == 0 && x.networkCardIndex == 0 && x.interfaceType == 'interface')"
+	// +kubebuilder:validation:XValidation:message="networkInterfaces must not have duplicate networkCardIndex and deviceIndex pairs, and can have at most one efa device per network card",rule="self.all(x, self.filter(y, x.networkCardIndex == y.networkCardIndex && x.deviceIndex == y.deviceIndex).size() == 1 && (x.interfaceType != 'efa-only' || self.filter(y, x.networkCardIndex == y.networkCardIndex && y.interfaceType == 'efa-only').size() == 1))"
+	// +kubebuilder:validation:MaxItems:=150
+	// +optional
+	NetworkInterfaces []*NetworkInterface `json:"networkInterfaces,omitempty"`
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
 	// +optional
 	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
@@ -206,18 +218,29 @@ type CapacityReservationSelectorTerm struct {
 	InstanceMatchCriteria string `json:"instanceMatchCriteria,omitempty"`
 }
 
+type PlacementGroupSelector struct {
+	// Name is the placement group name in EC2
+	// +kubebuilder:validation:MinLength:=1
+	// +optional
+	Name *string `json:"name,omitempty"`
+	// ID is the placement group id in EC2
+	// +kubebuilder:validation:Pattern:="^pg-[0-9a-z]+$"
+	// +optional
+	ID *string `json:"id,omitempty"`
+}
+
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.
 // If multiple fields are used for selection, the requirements are ANDed.
 type AMISelectorTerm struct {
 	// Alias specifies which EKS optimized AMI to select.
 	// Each alias consists of a family and an AMI version, specified as "family@version".
-	// Valid families include: al2, al2023, bottlerocket, windows2019, and windows2022.
+	// Valid families include: al2, al2023, bottlerocket, windows2019, windows2022, windows2025.
 	// The version can either be pinned to a specific AMI release, with that AMIs version format (ex: "al2023@v20240625" or "bottlerocket@v1.10.0").
 	// The version can also be set to "latest" for any family. Setting the version to latest will result in drift when a new AMI is released. This is **not** recommended for production environments.
 	// Note: The Windows families do **not** support version pinning, and only latest may be used.
 	// +kubebuilder:validation:XValidation:message="'alias' is improperly formatted, must match the format 'family@version'",rule="self.matches('^[a-zA-Z0-9]+@.+$')"
-	// +kubebuilder:validation:XValidation:message="family is not supported, must be one of the following: 'al2', 'al2023', 'bottlerocket', 'windows2019', 'windows2022'",rule="self.split('@')[0] in ['al2','al2023','bottlerocket','windows2019','windows2022']"
-	// +kubebuilder:validation:XValidation:message="windows families may only specify version 'latest'",rule="self.split('@')[0] in ['windows2019','windows2022'] ? self.split('@')[1] == 'latest' : true"
+	// +kubebuilder:validation:XValidation:message="family is not supported, must be one of the following: 'al2', 'al2023', 'bottlerocket', 'windows2019', 'windows2022', 'windows2025'",rule="self.split('@')[0] in ['al2','al2023','bottlerocket','windows2019','windows2022','windows2025']"
+	// +kubebuilder:validation:XValidation:message="windows families may only specify version 'latest'",rule="self.split('@')[0] in ['windows2019','windows2022','windows2025'] ? self.split('@')[1] == 'latest' : true"
 	// +kubebuilder:validation:MaxLength=30
 	// +optional
 	Alias string `json:"alias,omitempty"`
@@ -465,6 +488,30 @@ const (
 	InstanceStorePolicyRAID0 InstanceStorePolicy = "RAID0"
 )
 
+// InterfaceType specifies the network interface type for a network interface.
+type InterfaceType string
+
+const (
+	// InterfaceTypeInterface indicates a standard Elastic Network Adapter (ENA) interface.
+	InterfaceTypeInterface InterfaceType = InterfaceType(ec2types.NetworkInterfaceTypeInterface)
+	// InterfaceTypeEFAOnly indicates an Elastic Fabric Adapter only (EFA-only) interface for high-performance networking.
+	InterfaceTypeEFAOnly InterfaceType = InterfaceType(ec2types.NetworkInterfaceTypeEfaOnly)
+)
+
+// NetworkInterface specifies the configuration for a network interface to be attached
+// to provisioned instances.
+type NetworkInterface struct {
+	// NetworkCardIndex is the index of the network card to attach the interface to.
+	// +kubebuilder:validation:Minimum:=0
+	NetworkCardIndex int32 `json:"networkCardIndex"`
+	// DeviceIndex is the device index for the network interface attachment.
+	// +kubebuilder:validation:Minimum:=0
+	DeviceIndex int32 `json:"deviceIndex"`
+	// InterfaceType is the type of network interface. Valid values are "interface" and "efa-only".
+	// +kubebuilder:validation:Enum:={interface,efa-only}
+	InterfaceType InterfaceType `json:"interfaceType"`
+}
+
 // ConnectionTracking configures per-instance idle connection tracking timeouts
 // for AWS Elastic Network Interfaces. Idle connections left too long can
 // exhaust the security group's connection tracking table and lead to dropped packets.
@@ -507,6 +554,7 @@ type EC2NodeClass struct {
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Bottlerocket' or 'Custom' when using a Bottlerocket alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'bottlerocket') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Bottlerocket') : true)"
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Windows2019' or 'Custom' when using a Windows2019 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'windows2019') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Windows2019') : true)"
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Windows2022' or 'Custom' when using a Windows2022 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'windows2022') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Windows2022') : true)"
+	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Windows2025' or 'Custom' when using a Windows2025 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'windows2025') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Windows2025') : true)"
 	// +kubebuilder:validation:XValidation:message="must specify amiFamily if amiSelectorTerms does not contain an alias",rule="self.amiSelectorTerms.exists(x, has(x.alias)) ? true : has(self.amiFamily)"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
 	Status EC2NodeClassStatus `json:"status,omitempty"`
@@ -559,6 +607,14 @@ func (in *EC2NodeClass) BlockDeviceMappings() []*BlockDeviceMapping {
 
 func (in *EC2NodeClass) InstanceStorePolicy() *InstanceStorePolicy {
 	return in.Spec.InstanceStorePolicy
+}
+
+func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {
+	return in.Spec.NetworkInterfaces
+}
+
+func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {
+	return in.Spec.PlacementGroupSelector
 }
 
 func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {
@@ -618,6 +674,7 @@ func amiFamilyFromAlias(alias string) string {
 		AMIFamilyBottlerocket,
 		AMIFamilyWindows2019,
 		AMIFamilyWindows2022,
+		AMIFamilyWindows2025,
 	}, func(family string) bool {
 		return strings.ToLower(family) == components[0]
 	})

@@ -49,6 +49,7 @@ type CapacityPool struct {
 // pollute each other.
 type EC2Behavior struct {
 	DescribeCapacityReservationsOutput  AtomicPtr[ec2.DescribeCapacityReservationsOutput]
+	DescribePlacementGroupsOutput       AtomicPtr[ec2.DescribePlacementGroupsOutput]
 	DescribeImagesOutput                AtomicPtr[ec2.DescribeImagesOutput]
 	DescribeLaunchTemplatesOutput       AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
 	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
@@ -382,6 +383,19 @@ func filterInstances(instances []ec2types.Instance, filters []ec2types.Filter) [
 		}
 	}
 	return ret
+}
+
+func (e *EC2API) DescribePlacementGroups(_ context.Context, input *ec2.DescribePlacementGroupsInput, _ ...func(*ec2.Options)) (*ec2.DescribePlacementGroupsOutput, error) {
+	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
+		return nil, e.NextError.Get()
+	}
+	if !e.DescribePlacementGroupsOutput.IsNil() {
+		out := e.DescribePlacementGroupsOutput.Clone()
+		out.PlacementGroups = FilterDescribePlacementGroups(out.PlacementGroups, input.GroupIds, input.GroupNames, input.Filters)
+		return out, nil
+	}
+	return &ec2.DescribePlacementGroupsOutput{}, nil
 }
 
 func (e *EC2API) DescribeCapacityReservations(ctx context.Context, input *ec2.DescribeCapacityReservationsInput, _ ...func(*ec2.Options)) (*ec2.DescribeCapacityReservationsOutput, error) {

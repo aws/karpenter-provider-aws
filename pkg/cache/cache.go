@@ -24,6 +24,8 @@ const (
 	// AWS APIs, which can have a serious impact on performance and scalability.
 	// DO NOT CHANGE THIS VALUE WITHOUT DUE CONSIDERATION
 	DefaultTTL = time.Minute
+	// PlacementGroupAvailabilityTTL is the TTL for resolved placement group data.
+	PlacementGroupAvailabilityTTL = 24 * time.Hour
 	// UnavailableOfferingsTTL is the time before offerings that were marked as unavailable
 	// are removed from the cache and are available for launch again
 	UnavailableOfferingsTTL = 3 * time.Minute

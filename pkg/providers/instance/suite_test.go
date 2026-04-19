@@ -28,6 +28,7 @@ import (
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
@@ -69,7 +70,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.InstanceTypeStore)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore)
 })
 
 var _ = AfterSuite(func() {
@@ -297,6 +298,82 @@ var _ = Describe("InstanceProvider", func() {
 		// Ensure we marked the reservation as unavailable after encountering the error
 		Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(targetReservationID)).To(Equal(0))
 	})
+	It("should not mark capacity reservations unavailable for RequestLimitExceeded CreateFleet errors", func() {
+		const targetReservationID = "cr-m5.large-1a-1"
+
+		// Ensure Karpenter believes a reservation is available
+		awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(targetReservationID, 1)
+
+		// Make DescribeCapacityReservations show it as available too
+		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
+			CapacityReservations: []ec2types.CapacityReservation{
+				{
+					AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+					InstanceType:           lo.ToPtr("m5.large"),
+					OwnerId:                lo.ToPtr("012345678901"),
+					InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+					CapacityReservationId:  lo.ToPtr(targetReservationID),
+					AvailableInstanceCount: lo.ToPtr[int32](1),
+					State:                  ec2types.CapacityReservationStateActive,
+					ReservationType:        ec2types.CapacityReservationTypeDefault,
+				},
+			},
+		})
+
+		// Make the NodeClass believe it has a matching reservation
+		nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, v1.CapacityReservation{
+			ID:                    targetReservationID,
+			AvailabilityZone:      "test-zone-1a",
+			InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
+			InstanceType:          "m5.large",
+			OwnerID:               "012345678901",
+			State:                 v1.CapacityReservationStateActive,
+			ReservationType:       v1.CapacityReservationTypeDefault,
+		})
+
+		// Force reserved capacity launch
+		nodeClaim.Spec.Requirements = append(
+			nodeClaim.Spec.Requirements,
+			karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.CapacityTypeReserved},
+			},
+		)
+
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		// CreateFleet returns throttling errors and launches nothing
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			Instances: []ec2types.CreateFleetInstance{},
+			Errors: []ec2types.CreateFleetError{
+				{
+					ErrorCode:    lo.ToPtr("RequestLimitExceeded"),
+					ErrorMessage: lo.ToPtr("Request limit exceeded."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.large",
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+			},
+		})
+
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		// Keep it deterministic
+		instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool { return i.Name == "m5.large" })
+
+		created, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(HaveOccurred())
+		Expect(created).To(BeNil())
+
+		// Throttling should not mark the reservation unavailable
+		Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(targetReservationID)).To(Equal(1))
+	})
 	It("should treat instances which launched into open ODCRs as on-demand when the ReservedCapacity gate is disabled", func() {
 		id := fake.InstanceID()
 		awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
@@ -519,5 +596,73 @@ var _ = Describe("InstanceProvider", func() {
 		priotiztied := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 
 		Expect(priotiztied.SpotOptions.AllocationStrategy).To(Equal(ec2types.SpotAllocationStrategyPriceCapacityOptimized))
+	})
+	Context("EFA Count", func() {
+		DescribeTable("should set EFACount based on NodeClass NetworkInterfaces configuration",
+			func(networkInterfaces []*v1.NetworkInterface, numEFAs int) {
+				nodeClass.Spec.NetworkInterfaces = networkInterfaces
+				ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+				Expect(err).ToNot(HaveOccurred())
+
+				instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool {
+					return i.Name == "g4dn.8xlarge"
+				})
+
+				createdInstance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+				Expect(err).To(BeNil())
+				Expect(createdInstance).ToNot(BeNil())
+				Expect(createdInstance.EFACount).To(Equal(numEFAs))
+			},
+			Entry("with 1 EFA device", []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+			}, 1),
+			Entry("with no EFA device", []*v1.NetworkInterface{{
+				NetworkCardIndex: 0,
+				DeviceIndex:      0,
+				InterfaceType:    v1.InterfaceTypeInterface,
+			},
+			}, 0),
+		)
+		It("should set EFACount based on instance type capacity when NodeClaim requests EFA", func() {
+			// NodeClaim requests EFA resource
+			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
+				v1.ResourceEFA: resource.MustParse(fmt.Sprint(1)),
+			}
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool {
+				return i.Name == "g4dn.8xlarge"
+			})
+
+			createdInstance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+			Expect(createdInstance).ToNot(BeNil())
+			Expect(createdInstance.EFACount).To(Equal(1))
+		})
+		It("should set EFACount to 0 when no EFA is configured", func() {
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			createdInstance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+			Expect(createdInstance).ToNot(BeNil())
+			Expect(createdInstance.EFACount).To(Equal(0))
+		})
 	})
 })

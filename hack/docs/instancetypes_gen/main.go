@@ -143,6 +143,7 @@ below are the resources available with some assumptions and after the instance o
 				true,
 			),
 			nil,
+			nil,
 			awscache.NewUnavailableOfferings(),
 			instancetype.NewDefaultResolver(
 				region,

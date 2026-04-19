@@ -222,6 +222,7 @@ func (c *Client) backupInstances(ctx context.Context) error {
 			}
 		}
 		stored := cm.DeepCopy()
+		//nolint:gosec
 		cm.Data = map[string]string{"instances": string(removeNullFields(lo.Must(json.Marshal(lo.Slice(instances, i*500, (i+1)*500)))))}
 		if !equality.Semantic.DeepEqual(cm, stored) {
 			if err := c.kubeClient.Patch(ctx, cm, client.MergeFrom(stored)); err != nil {
@@ -896,6 +897,7 @@ func (c *Client) toNode(ctx context.Context, instance ec2types.Instance) *corev1
 		ctx,
 		instanceTypeInfo,
 		c.region,
+		nil,
 		nil,
 		nil,
 		nil,

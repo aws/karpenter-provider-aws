@@ -482,9 +482,15 @@ Review what [disruptions are](https://kubernetes.io/docs/concepts/workloads/pods
 
 #### `karpenter.sh/do-not-disrupt` Annotation
 
-If a pod exists with the annotation `karpenter.sh/do-not-disrupt: true` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. Nodes that have pods with a `do-not-disrupt` annotation are not considered for consolidation, though their unused capacity is considered for the purposes of running pods from other nodes which can be consolidated.
+If a pod exists with an active `karpenter.sh/do-not-disrupt` annotation on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. The annotation is considered "active" when:
+- Set to `"true"` (permanent protection)
+- Set to a valid duration (e.g., `"30m"`) and the pod has been running for less than that duration
 
-If you want to terminate a node with a `do-not-disrupt` pod, you can simply remove the annotation and the deprovisioning process will continue.
+Nodes that have pods with an active `do-not-disrupt` annotation are not considered for consolidation, though their unused capacity is considered for the purposes of running pods from other nodes which can be consolidated.
+
+If you want to terminate a node with a `do-not-disrupt` pod, you can either remove the annotation from the pod or wait for duration-based protection to expire naturally, and the deprovisioning process will continue.
+
+For more details on how this annotation works, see [Pod-Level Controls]({{<ref "./concepts/disruption#pod-level-controls" >}}) in the Disruption documentation.
 
 #### Scheduling Constraints (Consolidation Only)
 

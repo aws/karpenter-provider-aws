@@ -133,9 +133,7 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			},
 			NetworkInterfaces: networkInterfaces,
 			TagSpecifications: launchTemplateDataTags,
-			Placement: &ec2types.LaunchTemplatePlacementRequest{
-				Tenancy: ec2types.Tenancy(b.options.Tenancy),
-			},
+			Placement:         b.buildPlacement(),
 		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{
@@ -161,11 +159,31 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 				nil,
 			),
 		}
-		if b.options.CapacityReservationType == v1.CapacityReservationTypeCapacityBlock {
-			lt.LaunchTemplateData.InstanceMarketOptions = &ec2types.LaunchTemplateInstanceMarketOptionsRequest{
-				MarketType: ec2types.MarketTypeCapacityBlock,
-			}
-		}
+		lt.LaunchTemplateData.InstanceMarketOptions =
+			lo.If(
+				b.options.CapacityReservationType == v1.CapacityReservationTypeCapacityBlock,
+				&ec2types.LaunchTemplateInstanceMarketOptionsRequest{
+					MarketType: ec2types.MarketTypeCapacityBlock,
+				},
+			).ElseIf(
+				b.options.CapacityReservationInterruptible,
+				&ec2types.LaunchTemplateInstanceMarketOptionsRequest{
+					MarketType: ec2types.MarketTypeInterruptibleCapacityReservation,
+				},
+			).Else(nil)
 	}
 	return lt
+}
+
+func (b *CreateLaunchTemplateInputBuilder) buildPlacement() *ec2types.LaunchTemplatePlacementRequest {
+	placement := &ec2types.LaunchTemplatePlacementRequest{
+		Tenancy: ec2types.Tenancy(b.options.Tenancy),
+	}
+	if b.options.PlacementGroupID != "" {
+		placement.GroupId = lo.ToPtr(b.options.PlacementGroupID)
+	}
+	if b.options.PlacementGroupPartition != 0 {
+		placement.PartitionNumber = lo.ToPtr(b.options.PlacementGroupPartition)
+	}
+	return placement
 }

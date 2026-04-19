@@ -61,6 +61,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	ssmp "github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
@@ -93,6 +94,7 @@ type Operator struct {
 	InstanceProvider            instance.Provider
 	SSMProvider                 ssmp.Provider
 	CapacityReservationProvider capacityreservation.Provider
+	PlacementGroupProvider      placementgroup.Provider
 	EC2API                      *kwokec2.Client
 }
 
@@ -145,6 +147,11 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	lo.Must0(versionProvider.UpdateVersion(ctx))
 	ssmProvider := ssmp.NewDefaultProvider(ssm.NewFromConfig(cfg), ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	placementGroupProvider := placementgroup.NewProvider(
+		ec2api,
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.PlacementGroupAvailabilityTTL, awscache.DefaultCleanupInterval),
+	)
 	amiResolver := amifamily.NewDefaultResolver(cfg.Region)
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
@@ -154,6 +161,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
+		placementGroupProvider,
 		lo.Must(GetCABundle(ctx, operator.GetConfig())),
 		operator.Elected(),
 		kubeDNSIP,
@@ -173,6 +181,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		pricingProvider,
 		capacityReservationProvider,
+		placementGroupProvider,
 		unavailableOfferingsCache,
 		instancetype.NewDefaultResolver(cfg.Region),
 	)
@@ -189,6 +198,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 		capacityReservationProvider,
+		placementGroupProvider,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 	)
 
@@ -215,6 +225,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		InstanceProvider:            instanceProvider,
 		SSMProvider:                 ssmProvider,
 		CapacityReservationProvider: capacityReservationProvider,
+		PlacementGroupProvider:      placementGroupProvider,
 		EC2API:                      ec2api,
 	}
 }

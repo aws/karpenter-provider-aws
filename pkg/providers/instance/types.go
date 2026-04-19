@@ -35,28 +35,40 @@ import (
 // Instance is an internal data representation of either an ec2.Instance or an ec2.FleetInstance
 // It contains all the common data that is needed to inject into the Machine from either of these responses
 type Instance struct {
-	LaunchTime              time.Time
-	State                   ec2types.InstanceStateName
-	ID                      string
-	ImageID                 string
-	Type                    ec2types.InstanceType
-	Zone                    string
-	CapacityType            string
-	SecurityGroupIDs        []string
-	SubnetID                string
-	Tags                    map[string]string
-	EFAEnabled              bool
-	CapacityReservationID   *string
-	CapacityReservationType *v1.CapacityReservationType
-	Tenancy                 string
+	LaunchTime                 time.Time
+	State                      ec2types.InstanceStateName
+	ID                         string
+	ImageID                    string
+	Type                       ec2types.InstanceType
+	Zone                       string
+	CapacityType               string
+	SecurityGroupIDs           []string
+	SubnetID                   string
+	Tags                       map[string]string
+	EFACount                   int
+	CapacityReservationDetails *CapacityReservationDetails
+	Tenancy                    string
+	PartitionNumber            *int32
+}
+
+type CapacityReservationDetails struct {
+	ID            string
+	Type          v1.CapacityReservationType
+	Interruptible bool
 }
 
 func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
 	capacityType := capacityTypeFromInstance(ctx, instance)
-	var capacityReservationID *string
+	var capacityReservationID string
 	if capacityType == karpv1.CapacityTypeReserved {
-		capacityReservationID = lo.ToPtr(*instance.CapacityReservationId)
+		capacityReservationID = *instance.CapacityReservationId
 	}
+	capacityReservationDetails := lo.Ternary(capacityType != karpv1.CapacityTypeReserved, nil, &CapacityReservationDetails{
+		ID: capacityReservationID,
+		Type: lo.Ternary(instance.InstanceLifecycle == ec2types.InstanceLifecycleTypeCapacityBlock,
+			v1.CapacityReservationTypeCapacityBlock, v1.CapacityReservationTypeDefault),
+		Interruptible: instance.InstanceLifecycle == ec2types.InstanceLifecycleTypeInterruptibleCapacityReservation,
+	})
 	return &Instance{
 		LaunchTime: lo.FromPtr(instance.LaunchTime),
 		State:      instance.State.Name,
@@ -73,15 +85,21 @@ func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
 		}),
 		SubnetID: lo.FromPtr(instance.SubnetId),
 		Tags:     lo.SliceToMap(instance.Tags, func(t ec2types.Tag) (string, string) { return lo.FromPtr(t.Key), lo.FromPtr(t.Value) }),
-		EFAEnabled: lo.ContainsBy(instance.NetworkInterfaces, func(item ec2types.InstanceNetworkInterface) bool {
-			return item.InterfaceType != nil && *item.InterfaceType == string(ec2types.NetworkInterfaceTypeEfa)
+		EFACount: lo.CountBy(instance.NetworkInterfaces, func(item ec2types.InstanceNetworkInterface) bool {
+			return item.InterfaceType != nil && (*item.InterfaceType == string(ec2types.NetworkInterfaceTypeEfa) ||
+				*item.InterfaceType == string(ec2types.NetworkInterfaceTypeEfaOnly))
 		}),
-		CapacityReservationID: capacityReservationID,
-		CapacityReservationType: lo.If[*v1.CapacityReservationType](capacityType != karpv1.CapacityTypeReserved, nil).
-			ElseIf(instance.InstanceLifecycle == ec2types.InstanceLifecycleTypeCapacityBlock, lo.ToPtr(v1.CapacityReservationTypeCapacityBlock)).
-			Else(lo.ToPtr(v1.CapacityReservationTypeDefault)),
-		Tenancy: tenancyFromInstance(instance),
+		CapacityReservationDetails: capacityReservationDetails,
+		Tenancy:                    tenancyFromInstance(instance),
+		PartitionNumber:            partitionNumberFromInstance(instance),
 	}
+}
+
+func partitionNumberFromInstance(instance ec2types.Instance) *int32 {
+	if instance.Placement != nil && instance.Placement.PartitionNumber != nil && *instance.Placement.PartitionNumber != 0 {
+		return instance.Placement.PartitionNumber
+	}
+	return nil
 }
 
 func tenancyFromInstance(instance ec2types.Instance) string {
@@ -103,15 +121,14 @@ func capacityTypeFromInstance(ctx context.Context, instance ec2types.Instance) s
 
 type NewInstanceFromFleetOpts = option.Function[Instance]
 
-func WithCapacityReservationDetails(id string, crt v1.CapacityReservationType) NewInstanceFromFleetOpts {
+func WithCapacityReservationDetails(capacityReservationDetails *CapacityReservationDetails) NewInstanceFromFleetOpts {
 	return func(i *Instance) {
-		i.CapacityReservationID = lo.ToPtr(id)
-		i.CapacityReservationType = lo.ToPtr(crt)
+		i.CapacityReservationDetails = capacityReservationDetails
 	}
 }
 
-func WithEFAEnabled() NewInstanceFromFleetOpts {
-	return func(i *Instance) { i.EFAEnabled = true }
+func WithEFACount(efaCount int) NewInstanceFromFleetOpts {
+	return func(i *Instance) { i.EFACount = efaCount }
 }
 
 func NewInstanceFromFleet(
@@ -142,9 +159,10 @@ type CreateFleetInputBuilder struct {
 	tagSpecifications     []ec2types.TagSpecification
 	launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest
 
-	contextID               *string
-	capacityReservationType v1.CapacityReservationType
-	overlay                 bool
+	contextID                        *string
+	capacityReservationType          v1.CapacityReservationType
+	capacityReservationInterruptible bool
+	overlay                          bool
 }
 
 func NewCreateFleetInputBuilder(capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) *CreateFleetInputBuilder {
@@ -173,11 +191,12 @@ func (b *CreateFleetInputBuilder) WithOverlay() *CreateFleetInputBuilder {
 	return b
 }
 
-func (b *CreateFleetInputBuilder) WithCapacityReservationType(crt v1.CapacityReservationType) *CreateFleetInputBuilder {
+func (b *CreateFleetInputBuilder) WithCapacityReservationType(crt v1.CapacityReservationType, interruptible bool) *CreateFleetInputBuilder {
 	if b.capacityType != karpv1.CapacityTypeReserved {
 		panic("can not specify capacity reservation type when capacity type is not reserved")
 	}
 	b.capacityReservationType = crt
+	b.capacityReservationInterruptible = interruptible
 	return b
 }
 
@@ -186,6 +205,8 @@ func (b *CreateFleetInputBuilder) defaultTargetCapacityType() ec2types.DefaultTa
 	case karpv1.CapacityTypeReserved:
 		if b.capacityReservationType == v1.CapacityReservationTypeCapacityBlock {
 			return ec2types.DefaultTargetCapacityTypeCapacityBlock
+		} else if b.capacityReservationInterruptible {
+			return ec2types.DefaultTargetCapacityTypeReservedCapacity
 		} else {
 			return ec2types.DefaultTargetCapacityTypeOnDemand
 		}
@@ -209,6 +230,12 @@ func (b *CreateFleetInputBuilder) Build() *ec2.CreateFleetInput {
 	if b.capacityType == karpv1.CapacityTypeSpot {
 		input.SpotOptions = &ec2types.SpotOptionsRequest{
 			AllocationStrategy: lo.Ternary(b.overlay, ec2types.SpotAllocationStrategyCapacityOptimizedPrioritized, ec2types.SpotAllocationStrategyPriceCapacityOptimized),
+		}
+	} else if b.capacityReservationInterruptible {
+		input.ReservedCapacityOptions = &ec2types.ReservedCapacityOptionsRequest{
+			ReservationTypes: []ec2types.FleetReservationType{
+				ec2types.FleetReservationTypeInterruptibleCapacityReservation,
+			},
 		}
 	} else if b.capacityReservationType != v1.CapacityReservationTypeCapacityBlock {
 		input.OnDemandOptions = &ec2types.OnDemandOptionsRequest{

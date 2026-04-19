@@ -19,7 +19,8 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"strings"
+	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -28,7 +29,6 @@ import (
 	"github.com/awslabs/operatorpkg/serrors"
 	"go.uber.org/multierr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -40,11 +40,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -70,18 +72,19 @@ func WithLaunchModeProvider(provider LaunchModeProvider) DefaultProviderOpts {
 type DefaultProvider struct {
 	sync.Mutex
 	LaunchModeProvider
-	ec2api                sdk.EC2API
-	eksapi                sdk.EKSAPI
-	amiFamily             amifamily.Resolver
-	securityGroupProvider securitygroup.Provider
-	subnetProvider        subnet.Provider
-	cache                 *cache.Cache
-	cm                    *pretty.ChangeMonitor
-	KubeDNSIP             net.IP
-	CABundle              *string
-	ClusterEndpoint       string
-	ClusterCIDR           atomic.Pointer[string]
-	ClusterIPFamily       corev1.IPFamily
+	ec2api                 sdk.EC2API
+	eksapi                 sdk.EKSAPI
+	amiFamily              amifamily.Resolver
+	securityGroupProvider  securitygroup.Provider
+	subnetProvider         subnet.Provider
+	placementGroupProvider placementgroup.Provider
+	cache                  *cache.Cache
+	cm                     *pretty.ChangeMonitor
+	KubeDNSIP              net.IP
+	CABundle               *string
+	ClusterEndpoint        string
+	ClusterCIDR            atomic.Pointer[string]
+	ClusterIPFamily        corev1.IPFamily
 }
 
 func NewDefaultProvider(
@@ -92,6 +95,7 @@ func NewDefaultProvider(
 	amiFamily amifamily.Resolver,
 	securityGroupProvider securitygroup.Provider,
 	subnetProvider subnet.Provider,
+	placementGroupProvider placementgroup.Provider,
 	caBundle *string,
 	startAsync <-chan struct{},
 	kubeDNSIP net.IP,
@@ -103,18 +107,19 @@ func NewDefaultProvider(
 		resolvedOpts.launchModeProvider = defaultLaunchModeProvider{}
 	}
 	l := &DefaultProvider{
-		LaunchModeProvider:    resolvedOpts.launchModeProvider,
-		ec2api:                ec2api,
-		eksapi:                eksapi,
-		amiFamily:             amiFamily,
-		securityGroupProvider: securityGroupProvider,
-		subnetProvider:        subnetProvider,
-		cache:                 cache,
-		CABundle:              caBundle,
-		cm:                    pretty.NewChangeMonitor(),
-		KubeDNSIP:             kubeDNSIP,
-		ClusterEndpoint:       clusterEndpoint,
-		ClusterIPFamily:       lo.Ternary(kubeDNSIP != nil && kubeDNSIP.To4() == nil, corev1.IPv6Protocol, corev1.IPv4Protocol),
+		LaunchModeProvider:     resolvedOpts.launchModeProvider,
+		ec2api:                 ec2api,
+		eksapi:                 eksapi,
+		amiFamily:              amiFamily,
+		securityGroupProvider:  securityGroupProvider,
+		subnetProvider:         subnetProvider,
+		placementGroupProvider: placementGroupProvider,
+		cache:                  cache,
+		CABundle:               caBundle,
+		cm:                     pretty.NewChangeMonitor(),
+		KubeDNSIP:              kubeDNSIP,
+		ClusterEndpoint:        clusterEndpoint,
+		ClusterIPFamily:        lo.Ternary(kubeDNSIP != nil && kubeDNSIP.To4() == nil, corev1.IPv6Protocol, corev1.IPv4Protocol),
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -128,6 +133,7 @@ func NewDefaultProvider(
 	}()
 	return l
 }
+
 func (p *DefaultProvider) EnsureAll(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
@@ -142,13 +148,32 @@ func (p *DefaultProvider) EnsureAll(
 
 	opts, err := p.CreateAMIOptions(ctx, nodeClass, lo.Assign(
 		nodeClaim.Labels,
-		scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Labels(), // Inject single-value requirements into userData
 		map[string]string{karpv1.CapacityTypeLabelKey: capacityType},
 	), tags)
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, tenancyType, opts)
+
+	var pgID string
+	var pgPartition int32
+	if pg, _ := p.placementGroupProvider.Get(ctx, nodeClass); pg != nil {
+		pgID = pg.ID
+		if pg.Strategy == placementgroup.StrategyPartition {
+			reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+			// Pick the lowest partition deterministically. EC2 only accepts one partition number.
+			// If this partition ICEs, the offering is marked unavailable and the provisioner
+			// generates a new NodeClaim with the remaining partitions.
+			if partitionReq := reqs.Get(v1.LabelPlacementGroupPartition); partitionReq != nil {
+				if values := partitionReq.Values(); len(values) > 0 {
+					sort.Strings(values)
+					if parsed, err := strconv.ParseInt(values[0], 10, 32); err == nil {
+						pgPartition = int32(parsed)
+					}
+				}
+			}
+		}
+	}
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, tenancyType, opts, pgID, pgPartition)
 	if err != nil {
 		return nil, err
 	}
@@ -185,14 +210,6 @@ func LaunchTemplateName(options *amifamily.LaunchTemplate) string {
 }
 
 func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
-	// Remove any labels passed into userData that are prefixed with "node-restriction.kubernetes.io" or "kops.k8s.io" since the kubelet can't
-	// register the node with any labels from this domain: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#noderestriction
-	for k := range labels {
-		labelDomain := karpv1.GetLabelDomain(k)
-		if strings.HasSuffix(labelDomain, corev1.LabelNamespaceNodeRestriction) || strings.HasSuffix(labelDomain, "kops.k8s.io") {
-			delete(labels, k)
-		}
-	}
 	labels = InjectDoNotSyncTaintsLabel(nodeClass.AMIFamily(), labels)
 	// Relying on the status rather than an API call means that Karpenter is subject to a race
 	// condition where EC2NodeClass spec changes haven't propagated to the status once a node
@@ -272,6 +289,26 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 
 // generateNetworkInterfaces generates network interfaces for the launch template.
 func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamily corev1.IPFamily) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+	if len(options.NetworkInterfaces) > 0 {
+		return lo.Map(options.NetworkInterfaces, func(networkInterface *v1.NetworkInterface, _ int) ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+			// Assigning IPPrefixCounts or AssociatePublicIpAddress to EFA-only ENIs results in RunInstances failures w/ InvalidParameterValue
+			typeNotEFAOnly := networkInterface.InterfaceType != v1.InterfaceType(ec2types.NetworkInterfaceTypeEfaOnly)
+			return ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+				NetworkCardIndex: lo.ToPtr(networkInterface.NetworkCardIndex),
+				DeviceIndex:      lo.ToPtr(networkInterface.DeviceIndex),
+				InterfaceType:    lo.ToPtr(string(networkInterface.InterfaceType)),
+				Ipv4PrefixCount:  lo.Ternary(clusterIPFamily == corev1.IPv4Protocol && typeNotEFAOnly, options.IPPrefixCount, nil),
+				Ipv6PrefixCount:  lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, options.IPPrefixCount, nil),
+				Groups:           lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID }),
+				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
+				// with a single ENA network interface, and we should support those use cases. Launch failures with multiple enis as ENA should be considered user misconfiguration.
+				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
+				PrimaryIpv6:              lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, lo.ToPtr(true), nil),
+				Ipv6AddressCount:         lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, lo.ToPtr(int32(1)), nil),
+			}
+		})
+	}
+
 	if options.EFACount != 0 {
 		return lo.Times(options.EFACount, func(i int) ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 			return ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{

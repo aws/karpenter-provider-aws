@@ -44,7 +44,7 @@ var DefaultEBS = v1.BlockDevice{
 }
 
 type Resolver interface {
-	Resolve(*v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, string, *Options) ([]*LaunchTemplate, error)
+	Resolve(*v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, string, *Options, string, int32) ([]*LaunchTemplate, error)
 }
 
 // DefaultResolver is able to fill-in dynamic launch template parameters
@@ -75,18 +75,22 @@ type Options struct {
 // LaunchTemplate holds the dynamically generated launch template parameters
 type LaunchTemplate struct {
 	*Options
-	UserData                bootstrap.Bootstrapper
-	BlockDeviceMappings     []*v1.BlockDeviceMapping
-	MetadataOptions         *v1.MetadataOptions
-	AMIID                   string
-	InstanceTypes           []*cloudprovider.InstanceType `hash:"ignore"`
-	DetailedMonitoring      bool
-	EFACount                int
-	CapacityType            string
-	CapacityReservationID   string
-	CapacityReservationType v1.CapacityReservationType
-	ConnectionTracking      *v1.ConnectionTracking
-	Tenancy                 string
+	UserData                         bootstrap.Bootstrapper
+	BlockDeviceMappings              []*v1.BlockDeviceMapping
+	MetadataOptions                  *v1.MetadataOptions
+	AMIID                            string
+	InstanceTypes                    []*cloudprovider.InstanceType `hash:"ignore"`
+	DetailedMonitoring               bool
+	EFACount                         int
+	NetworkInterfaces                []*v1.NetworkInterface
+	CapacityType                     string
+	CapacityReservationID            string
+	CapacityReservationType          v1.CapacityReservationType
+	CapacityReservationInterruptible bool
+	Tenancy                          string
+	PlacementGroupID                 string
+	PlacementGroupPartition          int32
+	ConnectionTracking               *v1.ConnectionTracking
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -133,7 +137,9 @@ func NewDefaultResolver(region string) *DefaultResolver {
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options) ([]*LaunchTemplate, error) {
+//
+//nolint:gocyclo
+func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options, placementGroupID string, placementGroupPartition int32) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.AMIFamily(), options)
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
@@ -156,11 +162,13 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 			efaCount int
 			maxPods  int
 			// reservationIDs is encoded as a string rather than a slice to ensure this type is comparable for use by `lo.GroupBy`.
-			reservationIDs  string
-			reservationType v1.CapacityReservationType
+			reservationIDs           string
+			reservationType          v1.CapacityReservationType
+			reservationInterruptible bool
 		}
 		paramsToInstanceTypes := lo.GroupBy(instanceTypes, func(it *cloudprovider.InstanceType) launchTemplateParams {
 			var reservationType v1.CapacityReservationType
+			var reservationInterruptible bool
 			var reservationIDs []string
 			if capacityType == karpv1.CapacityTypeReserved {
 				for _, o := range it.Offerings {
@@ -171,6 +179,7 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 					// Offerings are prefiltered such that there is only a single reservation type
 					if reservationType == "" {
 						reservationType = v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any())
+						reservationInterruptible = o.Requirements.Get(v1.LabelCapacityReservationInterruptible).Any() == "true"
 					}
 				}
 			}
@@ -184,14 +193,15 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 				// If we're dealing with reserved instances, there's only going to be a single instance per group. This invariant
 				// is due to reservation IDs not being shared across instance types. Because of this, we don't need to worry about
 				// ordering in this string.
-				reservationIDs:  strings.Join(reservationIDs, ","),
-				reservationType: reservationType,
+				reservationIDs:           strings.Join(reservationIDs, ","),
+				reservationType:          reservationType,
+				reservationInterruptible: reservationInterruptible,
 			}
 		})
 
 		for params, instanceTypes := range paramsToInstanceTypes {
 			reservationIDs := strings.Split(params.reservationIDs, ",")
-			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, options, tenancyType)...)
+			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition)...)
 		}
 	}
 	return resolvedTemplates, nil
@@ -205,6 +215,8 @@ func GetAMIFamily(amiFamily string, options *Options) AMIFamily {
 		return &Windows{Options: options, Version: v1.Windows2019, Build: v1.Windows2019Build}
 	case v1.AMIFamilyWindows2022:
 		return &Windows{Options: options, Version: v1.Windows2022, Build: v1.Windows2022Build}
+	case v1.AMIFamilyWindows2025:
+		return &Windows{Options: options, Version: v1.Windows2025, Build: v1.Windows2025Build}
 	case v1.AMIFamilyCustom:
 		return &Custom{Options: options}
 	case v1.AMIFamilyAL2023:
@@ -240,6 +252,7 @@ func (r DefaultResolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.Kube
 	return newKubeletConfig
 }
 
+//nolint:gocyclo
 func (r DefaultResolver) resolveLaunchTemplates(
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
@@ -251,8 +264,11 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	efaCount int,
 	capacityReservationIDs []string,
 	capacityReservationType v1.CapacityReservationType,
+	capacityReservationInterruptible bool,
 	options *Options,
 	tenancyType string,
+	placementGroupID string,
+	placementGroupPartition int32,
 ) []*LaunchTemplate {
 	kubeletConfig := &v1.KubeletConfiguration{}
 	if nodeClass.Spec.Kubelet != nil {
@@ -295,23 +311,27 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			UserData: amiFamily.UserData(
 				r.defaultClusterDNS(options, kubeletConfig),
 				taints,
-				options.Labels,
+				RejectForbiddenLabels(options.Labels),
 				options.CABundle,
 				instanceTypes,
 				nodeClass.Spec.UserData,
 				options.InstanceStorePolicy,
 			),
-			BlockDeviceMappings:     nodeClass.Spec.BlockDeviceMappings,
-			MetadataOptions:         nodeClass.Spec.MetadataOptions,
-			DetailedMonitoring:      aws.ToBool(nodeClass.Spec.DetailedMonitoring),
-			AMIID:                   amiID,
-			InstanceTypes:           instanceTypes,
-			EFACount:                efaCount,
-			CapacityType:            capacityType,
-			CapacityReservationID:   id,
-			CapacityReservationType: capacityReservationType,
-			ConnectionTracking:      nodeClass.Spec.ConnectionTracking,
-			Tenancy:                 tenancyType,
+			BlockDeviceMappings:              nodeClass.Spec.BlockDeviceMappings,
+			MetadataOptions:                  nodeClass.Spec.MetadataOptions,
+			DetailedMonitoring:               aws.ToBool(nodeClass.Spec.DetailedMonitoring),
+			AMIID:                            amiID,
+			InstanceTypes:                    instanceTypes,
+			EFACount:                         efaCount,
+			NetworkInterfaces:                nodeClass.Spec.NetworkInterfaces,
+			CapacityType:                     capacityType,
+			CapacityReservationID:            id,
+			CapacityReservationType:          capacityReservationType,
+			CapacityReservationInterruptible: capacityReservationInterruptible,
+			Tenancy:                          tenancyType,
+			PlacementGroupID:                 placementGroupID,
+			PlacementGroupPartition:          placementGroupPartition,
+			ConnectionTracking:               nodeClass.Spec.ConnectionTracking,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
@@ -324,4 +344,31 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		}
 		return resolved
 	})
+}
+
+// RejectForbiddenLabels rejects any label from the provided set that would be blocked during node admission.
+// Ref: https://github.com/kubernetes/kubernetes/blob/8d450ef773127374148abad4daaf28dac6cb2625/plugin/pkg/admission/noderestriction/admission.go#L520-L525
+func RejectForbiddenLabels(labels map[string]string) map[string]string {
+	filteredLabels := make(map[string]string, len(labels))
+	for label, value := range labels {
+		if isRestrictedLabel(label) {
+			continue
+		}
+		filteredLabels[label] = value
+	}
+	return filteredLabels
+}
+
+func isRestrictedLabel(label string) bool {
+	domain := karpv1.GetLabelDomain(label)
+	for _, restrictedDomain := range []string{
+		corev1.LabelNamespaceNodeRestriction,
+		"kubernetes.io",
+		"k8s.io",
+	} {
+		if domain == restrictedDomain || strings.HasSuffix(domain, "."+restrictedDomain) {
+			return true
+		}
+	}
+	return false
 }

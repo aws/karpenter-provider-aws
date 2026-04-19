@@ -29,6 +29,8 @@ import (
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/scheduledchange"
@@ -104,6 +106,65 @@ var _ = Describe("Interruption", func() {
 
 		// We are expecting the node to be terminated before the termination is complete
 		By("waiting to receive the interruption and terminate the node")
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+			g.Expect(!node.DeletionTimestamp.IsZero()).To(BeTrue())
+		}).WithTimeout(time.Minute).Should(Succeed())
+		env.EventuallyExpectNotFound(node)
+		env.EventuallyExpectHealthyPodCount(selector, 1)
+	})
+	It("should terminate the interruptible reserved capacity instance and spin-up a new node on reserved capacity interruption warning", func() {
+		By("Creating an IODCR and configuring the nodeclass to select on it")
+		sourceReservationID, interruptibleReservationID := aws.ExpectInterruptibleCapacityReservationCreated(
+			env.Context,
+			env.EC2API,
+			ec2types.InstanceTypeM5Large,
+			env.ZoneInfo[0].Zone,
+			1,
+			1,
+			nil,
+		)
+		DeferCleanup(func() {
+			aws.ExpectInterruptibleAndSourceCapacityCanceled(env.Context, env.EC2API, sourceReservationID, interruptibleReservationID)
+		})
+		nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
+			{ID: sourceReservationID}, {ID: interruptibleReservationID},
+		}
+		nodePool = coretest.ReplaceRequirements(nodePool,
+			karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved},
+			},
+		)
+		env.ExpectCreated(nodeClass, nodePool)
+
+		By("Creating a node from IODCR")
+		numPods := 1
+		dep := coretest.Deployment(coretest.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: coretest.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "my-app"},
+				},
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(0)),
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+
+		env.ExpectCreated(dep)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+		node := env.Monitor.CreatedNodes()[0]
+
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "true"))
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, interruptibleReservationID))
+
+		By("Interrupting the reserved instance")
+		aws.ExpectModifyInterruptibleCapacity(env.Context, env.EC2API, sourceReservationID, 0)
+
+		// We are expecting the node to be terminated before the termination is complete
+		By("Waiting to receive the interruption and terminate the node")
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
 			g.Expect(!node.DeletionTimestamp.IsZero()).To(BeTrue())
