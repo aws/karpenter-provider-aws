@@ -350,7 +350,7 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 }
 
 func connectionTrackingSpec(ct *v1.ConnectionTracking) *ec2types.ConnectionTrackingSpecificationRequest {
-	if ct == nil {
+	if ct == nil || (ct.TCPEstablishedTimeout == nil && ct.UDPStreamTimeout == nil && ct.UDPTimeout == nil) {
 		return nil
 	}
 	secondsPtr := func(d *metav1.Duration) *int32 {

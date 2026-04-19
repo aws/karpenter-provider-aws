@@ -152,13 +152,8 @@ type EC2NodeClassSpec struct {
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
 
-	// ConnectionTracking configures idle connection tracking timeouts on ENIs
-	// provisioned by Karpenter in the launch template: the primary ENI and any
-	// EFA ENIs. Secondary ENIs created at runtime by the CNI (e.g. VPC-CNI,
-	// Cilium in ENI IPAM mode) are out of scope and must be configured through
-	// the CNI.
-	// Idle connections left too long can exhaust the security group's connection
-	// tracking table and lead to dropped packets.
+	// ConnectionTracking configures idle connection tracking timeouts for
+	// ENIs Karpenter provisions. See ConnectionTracking.
 	// +optional
 	ConnectionTracking *ConnectionTracking `json:"connectionTracking,omitempty"`
 
@@ -529,16 +524,19 @@ type ConnectionTracking struct {
 	// TCPEstablishedTimeout is the timeout for idle TCP connections in an established
 	// state.
 	// Value must be between 60 seconds and 432,000 seconds (5 days).
+	// If unset, EC2 applies its default of 432,000 seconds (5 days).
 	// +optional
 	TCPEstablishedTimeout *metav1.Duration `json:"tcpEstablishedTimeout,omitempty"`
 	// UDPStreamTimeout is the timeout for idle UDP "stream" flows that have
 	// seen more than one request-response transaction.
-	// Value must be between 60 and 180 seconds.
+	// Value must be between 60 seconds and 180 seconds.
+	// If unset, EC2 applies its default of 180 seconds.
 	// +optional
 	UDPStreamTimeout *metav1.Duration `json:"udpStreamTimeout,omitempty"`
 	// UDPTimeout is the timeout for idle UDP flows that have seen traffic only
 	// in a single direction or a single request-response transaction.
 	// Value must be between 30 seconds and 60 seconds.
+	// If unset, EC2 applies its default of 30 seconds.
 	// +optional
 	UDPTimeout *metav1.Duration `json:"udpTimeout,omitempty"`
 }

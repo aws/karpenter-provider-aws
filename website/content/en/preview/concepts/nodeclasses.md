@@ -138,7 +138,7 @@ spec:
     tcpEstablishedTimeout: 432000s # 5 days
     # Optional, configures timeout for idle UDP stream flows.
     udpStreamTimeout: 180s
-    # Optional, configures timeout for idle UDP stream flows.
+    # Optional, configures timeout for idle unidirectional or single-transaction UDP flows.
     udpTimeout: 30s
 
   # Optional, configures storage devices for the instance
@@ -1078,7 +1078,7 @@ Value must be between 60 and 432,000 seconds (5 days). AWS API defaults to 432,0
 Setting a lower timeout helps free up tracking slots sooner at the cost of tearing down longer-lived TCP flows.
 
 ### UDP Stream Timeout
-UDPStreamTimeout is the timeout for idle UDP "stream" flows that have seen more than one request-response transaction.
+Timeout for idle UDP "stream" flows that have seen more than one request-response transaction.
 Value must be between 60 and 180 seconds. AWS API defaults to 180 seconds.
 Use a lower timeout to reclaim slots for true streaming traffic that stalls frequently.
 

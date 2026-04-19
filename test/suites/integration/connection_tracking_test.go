@@ -49,12 +49,10 @@ var _ = Describe("ConnectionTracking", func() {
 		instance := env.GetInstance(pod.Spec.NodeName)
 		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
 
-		// Verify connection tracking settings on the instance's network interface
 		primaryNI := instance.NetworkInterfaces[0]
 		Expect(primaryNI.Attachment).ToNot(BeNil())
 		Expect(aws.ToInt32(primaryNI.Attachment.DeviceIndex)).To(Equal(int32(0)))
 
-		// Verify connection tracking via DescribeNetworkInterfaces
 		niOutput, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{
 			NetworkInterfaceIds: []string{aws.ToString(primaryNI.NetworkInterfaceId)},
 		})
@@ -122,8 +120,6 @@ var _ = Describe("ConnectionTracking", func() {
 	})
 
 	It("should not set connection tracking when not specified", func() {
-		// nodeClass.Spec.ConnectionTracking is nil by default
-
 		pod := test.Pod()
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
@@ -133,16 +129,11 @@ var _ = Describe("ConnectionTracking", func() {
 		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
 
 		primaryNI := instance.NetworkInterfaces[0]
-
-		// Verify connection tracking is not set via DescribeNetworkInterfaces
 		niOutput, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{
 			NetworkInterfaceIds: []string{aws.ToString(primaryNI.NetworkInterfaceId)},
 		})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(niOutput.NetworkInterfaces).To(HaveLen(1))
-
-		ni := niOutput.NetworkInterfaces[0]
-		// Connection tracking configuration should be nil when not specified
-		Expect(ni.ConnectionTrackingConfiguration).To(BeNil())
+		Expect(niOutput.NetworkInterfaces[0].ConnectionTrackingConfiguration).To(BeNil())
 	})
 })

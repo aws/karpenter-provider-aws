@@ -297,31 +297,29 @@ spec:
                       rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))'
                 connectionTracking:
                   description: |-
-                    ConnectionTracking configures idle connection tracking timeouts on ENIs
-                    provisioned by Karpenter in the launch template: the primary ENI and any
-                    EFA ENIs. Secondary ENIs created at runtime by the CNI (e.g. VPC-CNI,
-                    Cilium in ENI IPAM mode) are out of scope and must be configured through
-                    the CNI.
-                    Idle connections left too long can exhaust the security group's connection
-                    tracking table and lead to dropped packets.
+                    ConnectionTracking configures idle connection tracking timeouts for
+                    ENIs Karpenter provisions. See ConnectionTracking.
                   properties:
                     tcpEstablishedTimeout:
                       description: |-
                         TCPEstablishedTimeout is the timeout for idle TCP connections in an established
                         state.
                         Value must be between 60 seconds and 432,000 seconds (5 days).
+                        If unset, EC2 applies its default of 432,000 seconds (5 days).
                       type: string
                     udpStreamTimeout:
                       description: |-
                         UDPStreamTimeout is the timeout for idle UDP "stream" flows that have
                         seen more than one request-response transaction.
-                        Value must be between 60 and 180 seconds.
+                        Value must be between 60 seconds and 180 seconds.
+                        If unset, EC2 applies its default of 180 seconds.
                       type: string
                     udpTimeout:
                       description: |-
                         UDPTimeout is the timeout for idle UDP flows that have seen traffic only
                         in a single direction or a single request-response transaction.
                         Value must be between 30 seconds and 60 seconds.
+                        If unset, EC2 applies its default of 30 seconds.
                       type: string
                   type: object
                   x-kubernetes-validations:

@@ -26,8 +26,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/utils/ptr"
-
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -2520,9 +2518,9 @@ eviction-max-pod-grace-period = 10
 				Entry("ConnectionTracking is nil", nil, nil),
 				Entry("ConnectionTracking with AWS defaults",
 					&v1.ConnectionTracking{
-						TCPEstablishedTimeout: ptr.To(metav1.Duration{Duration: time.Hour * 24 * 5}),
-						UDPStreamTimeout:      ptr.To(metav1.Duration{Duration: time.Second * 180}),
-						UDPTimeout:            ptr.To(metav1.Duration{Duration: time.Second * 30}),
+						TCPEstablishedTimeout: lo.ToPtr(metav1.Duration{Duration: time.Hour * 24 * 5}),
+						UDPStreamTimeout:      lo.ToPtr(metav1.Duration{Duration: time.Second * 180}),
+						UDPTimeout:            lo.ToPtr(metav1.Duration{Duration: time.Second * 30}),
 					},
 					&ec2types.ConnectionTrackingSpecificationRequest{
 						TcpEstablishedTimeout: aws.Int32(432000),
@@ -2532,97 +2530,62 @@ eviction-max-pod-grace-period = 10
 				),
 				Entry("ConnectionTracking with non-default TCP timeout",
 					&v1.ConnectionTracking{
-						TCPEstablishedTimeout: ptr.To(metav1.Duration{Duration: time.Hour * 24}),
+						TCPEstablishedTimeout: lo.ToPtr(metav1.Duration{Duration: time.Hour * 24}),
 					},
 					&ec2types.ConnectionTrackingSpecificationRequest{
 						TcpEstablishedTimeout: aws.Int32(86400),
 					},
 				),
 			)
-		})
-	})
-	Context("Network Interfaces", func() {
-		DescribeTable("should configure network interfaces with same configuration as NodeClass",
-			func(pod *corev1.Pod) {
-				nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
-					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
-					{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
-					{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
-					{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeInterface},
-				}
-				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
-				input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
-
-				Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(4))
-				// NC=0,DI=0
-				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].NetworkCardIndex)).To(Equal(int32(0)))
-				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].DeviceIndex)).To(Equal(int32(0)))
-				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
-				// NC=0, DI=1
-				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].NetworkCardIndex)).To(Equal(int32(0)))
-				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].DeviceIndex)).To(Equal(int32(1)))
-				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
-				// NC=1, DI=0
-				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[2].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
-				// NC=1, DI=1
-				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[3].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
-			},
-			Entry("when pod does not request EFA", coretest.UnschedulablePod()),
-			Entry("when pod does request EFA", coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
-					Limits:   corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
-				},
-			})),
-		)
-		It("should not set prefix count on EFA-only interfaces", func() {
-			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
-				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
-				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
-				{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeInterface},
-			}
-			nodeClass.Spec.IPPrefixCount = lo.ToPtr(int32(2))
-			awsEnv.LaunchTemplateProvider.ClusterIPFamily = corev1.IPv4Protocol
-			pod := coretest.UnschedulablePod()
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-
-			input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
-			Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(3))
-			// should set prefix count on ENA interfaces
-			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
-			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv4PrefixCount)).To(Equal(int32(2)))
-			// should not set prefix count on EFA-only interfaces
-			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
-			Expect(input.LaunchTemplateData.NetworkInterfaces[1].Ipv4PrefixCount).To(BeNil())
-			// should set prefix count on ENA interfaces
-			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[2].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
-			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[2].Ipv4PrefixCount)).To(Equal(int32(2)))
-		})
-		It("should not set Ipv6 specs on EFA-only interfaces", func() {
-			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
-				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
-				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
-			}
-			awsEnv.LaunchTemplateProvider.ClusterIPFamily = corev1.IPv6Protocol
-			pod := coretest.UnschedulablePod()
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-
-			input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
-			Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(2))
-			// should set PrimaryIpv6 and Ipv6AddressCount on ENA interfaces
-			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
-			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].PrimaryIpv6)).To(Equal(true))
-			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6AddressCount)).To(Equal(int32(1)))
-			// should not set PrimaryIpv6 and Ipv6AddressCount on EFA-only interfaces
-			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
-			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].PrimaryIpv6)).To(Equal(false))
-			Expect(input.LaunchTemplateData.NetworkInterfaces[1].Ipv6AddressCount).To(BeNil())
+			Context("propagation across all ENIs", func() {
+				var expected *ec2types.ConnectionTrackingSpecificationRequest
+				BeforeEach(func() {
+					nodeClass.Spec.ConnectionTracking = &v1.ConnectionTracking{
+						TCPEstablishedTimeout: lo.ToPtr(metav1.Duration{Duration: time.Hour * 24}),
+						UDPStreamTimeout:      lo.ToPtr(metav1.Duration{Duration: time.Second * 120}),
+						UDPTimeout:            lo.ToPtr(metav1.Duration{Duration: time.Second * 45}),
+					}
+					expected = &ec2types.ConnectionTrackingSpecificationRequest{
+						TcpEstablishedTimeout: aws.Int32(86400),
+						UdpStreamTimeout:      aws.Int32(120),
+						UdpTimeout:            aws.Int32(45),
+					}
+				})
+				It("should apply ConnectionTracking to every EFA ENI in the launch template", func() {
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod(coretest.PodOptions{
+						ResourceRequirements: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+							Limits:   corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+						},
+					})
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(BeNumerically(">", 1))
+					for _, ni := range input.LaunchTemplateData.NetworkInterfaces {
+						Expect(lo.FromPtr(ni.InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
+						Expect(ni.ConnectionTrackingSpecification).To(Equal(expected))
+					}
+				})
+				It("should apply ConnectionTracking to every user-configured NetworkInterface in the launch template", func() {
+					nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+						{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+						{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+						{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeInterface},
+					}
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod()
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(4))
+					for _, ni := range input.LaunchTemplateData.NetworkInterfaces {
+						Expect(ni.ConnectionTrackingSpecification).To(Equal(expected))
+					}
+				})
+			})
 		})
 	})
 	Context("Network Interfaces", func() {
