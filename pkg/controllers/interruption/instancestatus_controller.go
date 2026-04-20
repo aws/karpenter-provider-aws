@@ -39,7 +39,7 @@ import (
 
 var (
 	// InstanceStatusInterval is the polling interval for the EC2 DescribeInstanceStatus API.
-	InstanceStatusInterval = 30 * time.Second
+	InstanceStatusInterval = 1 * time.Minute
 	// UnauthorizedRequeueInterval is a longer polling interval used when the controller
 	// receives an unauthorized error from the EC2 DescribeInstanceStatus API.
 	UnauthorizedRequeueInterval = 3 * time.Minute
