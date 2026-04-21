@@ -666,3 +666,5 @@ var _ = Describe("InstanceProvider", func() {
 		})
 	})
 })
+
+// try to add a test case here where an instance is lauched without a price and make sure we use the priority strat
