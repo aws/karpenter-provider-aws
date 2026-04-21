@@ -102,6 +102,7 @@ func main() {
 			op.CapacityReservationProvider,
 			op.PlacementGroupProvider,
 			op.AMIResolver,
+			op.InstanceStatusProvider,
 		)...).
 		Start(ctx)
 	wg.Wait()
