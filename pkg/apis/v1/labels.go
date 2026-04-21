@@ -74,7 +74,12 @@ func init() {
 }
 
 var (
-	TerminationFinalizer   = apis.Group + "/termination"
+	TerminationFinalizer      = apis.Group + "/termination"
+	RebalancingTaintKey       = apis.Group + "/rebalancing"
+	RebalancingNoExecuteTaint = corev1.Taint{
+		Key:    apis.Group + "/rebalancing",
+		Effect: corev1.TaintEffectNoExecute,
+	}
 	AWSToKubeArchitectures = map[string]string{
 		"x86_64":                 karpv1.ArchitectureAmd64,
 		karpv1.ArchitectureArm64: karpv1.ArchitectureArm64,
@@ -170,6 +175,7 @@ var (
 
 	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
 
+	AnnotationRebalanceGracePeriodEnd        = apis.Group + "/rebalance-grace-period-end"
 	AnnotationEC2NodeClassHash               = apis.Group + "/ec2nodeclass-hash"
 	AnnotationClusterNameTaggedCompatability = apis.CompatibilityGroup + "/cluster-name-tagged"
 	AnnotationEC2NodeClassHashVersion        = apis.Group + "/ec2nodeclass-hash-version"

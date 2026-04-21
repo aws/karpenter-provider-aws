@@ -16,7 +16,19 @@ package v1
 
 import (
 	"context"
+	"time"
+
+	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	DefaultRebalanceGracePeriod = 10 * time.Minute
 )
 
 // SetDefaults for the EC2NodeClass
-func (in *EC2NodeClass) SetDefaults(_ context.Context) {}
+func (in *EC2NodeClass) SetDefaults(_ context.Context) {
+	if lo.FromPtr(in.Spec.HandleRebalance) && in.Spec.RebalanceGracePeriod == nil {
+		in.Spec.RebalanceGracePeriod = &metav1.Duration{Duration: DefaultRebalanceGracePeriod}
+	}
+}

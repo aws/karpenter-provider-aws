@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/option"
@@ -137,6 +138,22 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, instanceType
 	}
 	log.FromContext(ctx).WithValues(logValues...).V(1).Info("removing offering from offerings")
 	u.offeringCache.SetDefault(u.key(instanceType, zone, capacityType, opts...), struct{}{})
+	u.offeringCacheSeqNumMu.Lock()
+	u.offeringCacheSeqNum[instanceType]++
+	u.offeringCacheSeqNumMu.Unlock()
+}
+
+// MarkUnavailableWithTTL is like MarkUnavailable but allows specifying a custom TTL.
+// This is useful for rebalance recommendations, where the TTL should match the grace period.
+func (u *UnavailableOfferings) MarkUnavailableWithTTL(ctx context.Context, unavailableReason string, instanceType ec2types.InstanceType, zone, capacityType string, ttl time.Duration) {
+	log.FromContext(ctx).WithValues(
+		"reason", unavailableReason,
+		"instance-type", instanceType,
+		"zone", zone,
+		"capacity-type", capacityType,
+		"ttl", ttl,
+	).V(1).Info("removing offering from offerings")
+	u.offeringCache.Set(u.key(instanceType, zone, capacityType), struct{}{}, ttl)
 	u.offeringCacheSeqNumMu.Lock()
 	u.offeringCacheSeqNum[instanceType]++
 	u.offeringCacheSeqNumMu.Unlock()
