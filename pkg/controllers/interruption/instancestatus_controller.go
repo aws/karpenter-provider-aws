@@ -40,9 +40,6 @@ import (
 var (
 	// InstanceStatusInterval is the polling interval for the EC2 DescribeInstanceStatus API.
 	InstanceStatusInterval = 1 * time.Minute
-	// UnauthorizedRequeueInterval is a longer polling interval used when the controller
-	// receives an unauthorized error from the EC2 DescribeInstanceStatus API.
-	UnauthorizedRequeueInterval = 3 * time.Minute
 )
 
 // InstanceStatusController polls EC2 DescribeInstanceStatus to detect unhealthy instances
@@ -77,8 +74,8 @@ func (c *InstanceStatusController) Reconcile(ctx context.Context) (reconciler.Re
 	instanceStatuses, err := c.instanceStatusProvider.List(ctx)
 	if err != nil {
 		if awserrors.IsUnauthorizedOperationError(err) {
-			log.FromContext(ctx).Error(err, "ec2:DescribeInstanceStatus permission is not allowed, instance status health checks will not be monitored")
-			return reconciler.Result{RequeueAfter: UnauthorizedRequeueInterval}, nil
+			log.FromContext(ctx).Error(err, "ec2:DescribeInstanceStatus permission is not allowed, update the IAM policy and restart the Karpenter deployment to enable instance status health checks")
+			return reconciler.Result{}, nil
 		}
 		return reconciler.Result{}, fmt.Errorf("getting instance statuses, %w", err)
 	}
