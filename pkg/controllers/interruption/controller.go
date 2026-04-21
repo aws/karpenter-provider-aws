@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	sqsapi "github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 
 	"github.com/awslabs/operatorpkg/reconciler"
@@ -34,7 +35,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
-	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
@@ -47,7 +47,7 @@ import (
 type Controller struct {
 	InterruptionHandler
 	sqsProvider sqs.Provider
-	sqsAPI      sdk.SQSAPI
+	sqsAPI      *sqsapi.Client
 	parser      *EventParser
 	cm          *pretty.ChangeMonitor
 }
@@ -57,7 +57,7 @@ func NewController(
 	cloudProvider cloudprovider.CloudProvider,
 	recorder events.Recorder,
 	sqsProvider sqs.Provider,
-	sqsAPI sdk.SQSAPI,
+	sqsAPI *sqsapi.Client,
 	unavailableOfferingsCache *cache.UnavailableOfferings,
 	capacityReservationProvider capacityreservation.Provider,
 ) *Controller {
