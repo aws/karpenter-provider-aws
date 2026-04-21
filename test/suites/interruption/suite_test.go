@@ -19,8 +19,6 @@ import (
 	"testing"
 	"time"
 
-	awssdk "github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -269,6 +267,21 @@ var _ = Describe("Interruption", func() {
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 	It("should terminate the node when receiving an instance status failure", func() {
+		By("Disabling the SQS interruption queue so only the instance status controller handles interruptions")
+		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "INTERRUPTION_QUEUE", Value: ""})
+		DeferCleanup(func() {
+			env.ExpectSettingsOverridden(corev1.EnvVar{Name: "INTERRUPTION_QUEUE", Value: env.InterruptionQueue})
+		})
+
+		// Pin to amd64 instances because the kernel panic approach used to trigger
+		// EC2 instance status check failures did not work reliably on arm64/Graviton instances.
+		nodePool = coretest.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      corev1.LabelArchStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"amd64"},
+		})
+
+		By("Creating a single healthy node with a healthy deployment")
 		numPods := 1
 		dep := coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -278,8 +291,7 @@ var _ = Describe("Interruption", func() {
 				},
 				TerminationGracePeriodSeconds: lo.ToPtr(int64(0)),
 				// Tolerate the unreachable taint so that Kubernetes does not evict the pod
-				// and trigger a cascading replacement loop of new nodes that also lose their
-				// network interface before the instance status controller can act.
+				// and trigger a cascading replacement loop of new nodes.
 				Tolerations: []corev1.Toleration{
 					{
 						Key:      "node.kubernetes.io/unreachable",
@@ -291,16 +303,15 @@ var _ = Describe("Interruption", func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		// Schedule the interface to go down after 90 seconds. This must be above a minute
-		// so that the instance status check initializes to healthy before the interface is
-		// brought down. EC2 instance status checks use ARP requests to verify instance
-		// reachability, so disabling the interface will cause the check to fail.
+		// Schedule a kernel panic after 180 seconds. The EC2 instance status checks
+		// take ~2-3 minutes to initialize from "initializing" to "passing", which must
+		// to happen before the failure.
 		nodeClass.Spec.UserData = lo.ToPtr(`#!/usr/bin/env bash
 (
-  sleep 90
-  IFACE=$(ip route show default | awk '{print $5}' | head -n1)
-  ip link set dev "$IFACE" down
-) >>/var/log/disable-net.log 2>&1 &`)
+  sleep 180
+  echo 0 > /proc/sys/kernel/panic
+  echo c > /proc/sysrq-trigger
+) >>/var/log/trigger-panic.log 2>&1 &`)
 
 		env.ExpectCreated(nodeClass, nodePool, dep)
 
@@ -308,91 +319,12 @@ var _ = Describe("Interruption", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 
 		node := env.Monitor.CreatedNodes()[0]
-		instanceID, err := utils.ParseInstanceID(node.Spec.ProviderID)
-		Expect(err).ToNot(HaveOccurred())
 
-		GinkgoWriter.Printf("[DEBUG] Node created: %s, InstanceID: %s, Time: %s\n", node.Name, instanceID, time.Now().UTC().Format(time.RFC3339))
-
-		// The instance status controller polls DescribeInstanceStatus every 30s.
-		// After the interface goes down (~90s), EC2 needs ~1-2 minutes to detect the failure,
-		// then the UnhealthyThreshold (120s) must elapse before the controller acts.
-		// Total expected time: ~90s + ~120s + ~120s + ~30s polling = ~6 minutes.
+		By("Waiting for the instance status controller to detect the failure and terminate the node")
 		Eventually(func(g Gomega) {
-			// Debug: call DescribeInstanceStatus directly to see what EC2 reports
-			// First call without IncludeAllInstances (what the controller sees)
-			statusOut, statusErr := env.EC2API.DescribeInstanceStatus(env.Context, &ec2.DescribeInstanceStatusInput{
-				InstanceIds: []string{instanceID},
-			})
-			if statusErr != nil {
-				GinkgoWriter.Printf("[DEBUG] [%s] DescribeInstanceStatus (filtered) error: %v\n", time.Now().UTC().Format(time.RFC3339), statusErr)
-			} else if len(statusOut.InstanceStatuses) == 0 {
-				GinkgoWriter.Printf("[DEBUG] [%s] DescribeInstanceStatus (filtered): no results (instance not impaired or not running)\n", time.Now().UTC().Format(time.RFC3339))
-			} else {
-				for _, s := range statusOut.InstanceStatuses {
-					GinkgoWriter.Printf("[DEBUG] [%s] DescribeInstanceStatus (filtered): instance=%s state=%s instanceStatus=%s systemStatus=%s",
-						time.Now().UTC().Format(time.RFC3339),
-						awssdk.ToString(s.InstanceId),
-						s.InstanceState.Name,
-						s.InstanceStatus.Status,
-						s.SystemStatus.Status,
-					)
-					if s.InstanceStatus != nil {
-						for _, d := range s.InstanceStatus.Details {
-							GinkgoWriter.Printf(" instanceDetail=[name=%s status=%s impairedSince=%v]", d.Name, d.Status, d.ImpairedSince)
-						}
-					}
-					if s.SystemStatus != nil {
-						for _, d := range s.SystemStatus.Details {
-							GinkgoWriter.Printf(" systemDetail=[name=%s status=%s impairedSince=%v]", d.Name, d.Status, d.ImpairedSince)
-						}
-					}
-					for _, e := range s.Events {
-						GinkgoWriter.Printf(" event=[code=%s notBefore=%v notAfter=%v]", e.Code, e.NotBefore, e.NotAfter)
-					}
-					GinkgoWriter.Println()
-				}
-			}
-
-			// Second call with IncludeAllInstances to see the full picture
-			allStatusOut, allStatusErr := env.EC2API.DescribeInstanceStatus(env.Context, &ec2.DescribeInstanceStatusInput{
-				InstanceIds:         []string{instanceID},
-				IncludeAllInstances: awssdk.Bool(true),
-			})
-			if allStatusErr != nil {
-				GinkgoWriter.Printf("[DEBUG] [%s] DescribeInstanceStatus (all): error: %v\n", time.Now().UTC().Format(time.RFC3339), allStatusErr)
-			} else {
-				for _, s := range allStatusOut.InstanceStatuses {
-					GinkgoWriter.Printf("[DEBUG] [%s] DescribeInstanceStatus (all): instance=%s state=%s instanceStatus=%s systemStatus=%s",
-						time.Now().UTC().Format(time.RFC3339),
-						awssdk.ToString(s.InstanceId),
-						s.InstanceState.Name,
-						s.InstanceStatus.Status,
-						s.SystemStatus.Status,
-					)
-					if s.InstanceStatus != nil {
-						for _, d := range s.InstanceStatus.Details {
-							GinkgoWriter.Printf(" instanceDetail=[name=%s status=%s impairedSince=%v]", d.Name, d.Status, d.ImpairedSince)
-						}
-					}
-					if s.SystemStatus != nil {
-						for _, d := range s.SystemStatus.Details {
-							GinkgoWriter.Printf(" systemDetail=[name=%s status=%s impairedSince=%v]", d.Name, d.Status, d.ImpairedSince)
-						}
-					}
-					GinkgoWriter.Println()
-				}
-			}
-
-			// Debug: check node status
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
-			GinkgoWriter.Printf("[DEBUG] [%s] Node %s: DeletionTimestamp=%v, Ready=%s\n",
-				time.Now().UTC().Format(time.RFC3339),
-				node.Name,
-				node.DeletionTimestamp,
-				getNodeReadyCondition(node),
-			)
 			g.Expect(!node.DeletionTimestamp.IsZero()).To(BeTrue())
-		}).WithTimeout(15 * time.Minute).WithPolling(30 * time.Second).Should(Succeed())
+		}).WithTimeout(30 * time.Minute).WithPolling(30 * time.Second).Should(Succeed())
 		env.EventuallyExpectNotFound(node)
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
@@ -423,13 +355,4 @@ func scheduledChangeMessage(region, accountID, involvedInstanceID string) schedu
 			},
 		},
 	}
-}
-
-func getNodeReadyCondition(node *corev1.Node) string {
-	for _, c := range node.Status.Conditions {
-		if c.Type == corev1.NodeReady {
-			return string(c.Status)
-		}
-	}
-	return "Unknown"
 }
