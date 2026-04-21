@@ -237,6 +237,9 @@ func ToReasonMessage(err error) (string, string) {
 		}
 		return "Unauthorized", "User is not authorized to perform this operation because no identity-based policy allows it"
 	}
+	if strings.Contains(err.Error(), "InvalidParameter") && strings.Contains(err.Error(), "belong to different networks") {
+		return "SecurityGroupSubnetVPCMismatch", "Security groups and subnets must be in the same VPC."
+	}
 	if strings.Contains(err.Error(), "iamInstanceProfile.name is invalid") {
 		return "InstanceProfileNameInvalid", "Instance profile name used from EC2NodeClass status does not exist"
 	}

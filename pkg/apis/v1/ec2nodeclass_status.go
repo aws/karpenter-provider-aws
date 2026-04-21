@@ -263,7 +263,7 @@ func CapacityReservationFromEC2(clk clock.Clock, cr *ec2types.CapacityReservatio
 		InstanceType:          *cr.InstanceType,
 		OwnerID:               *cr.OwnerId,
 		ReservationType:       reservationType,
-		Interruptible:         lo.Ternary(cr.Interruptible == nil, false, *cr.Interruptible),
+		Interruptible:         lo.FromPtrOr(cr.Interruptible, false),
 		State:                 state,
 	}, nil
 }
