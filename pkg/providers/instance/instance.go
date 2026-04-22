@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
@@ -235,6 +236,20 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 		out.Reservations = append(out.Reservations, page.Reservations...)
 	}
 	instances, err := instancesFromOutput(ctx, out)
+
+	// Filter out instances in impaired zones if IMPAIRED_ZONE is set
+	if impairedZone := os.Getenv("IMPAIRED_ZONE"); impairedZone != "" {
+		filteredInstances := make([]*Instance, 0, len(instances))
+		for _, inst := range instances {
+			if inst.Zone != impairedZone {
+				filteredInstances = append(filteredInstances, inst)
+			} else {
+				log.FromContext(ctx).Info("filtering out instance in impaired zone", "instance-id", inst.ID, "zone", inst.Zone)
+			}
+		}
+		instances = filteredInstances
+	}
+
 	for _, it := range instances {
 		p.instanceCache.SetDefault(it.ID, it)
 	}
