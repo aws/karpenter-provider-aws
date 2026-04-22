@@ -98,7 +98,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore)
 	controller = interruption.NewController(env.Client, cloudProvider, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, servicesqs.NewFromConfig(aws.Config{}), unavailableOfferingsCache, awsEnv.CapacityReservationProvider)
-	instanceStatusController = interruption.NewInstanceStatusController(env.Client, cloudProvider, fakeClock, events.NewRecorder(&record.FakeRecorder{}), awsEnv.InstanceStatusProvider)
+	instanceStatusController = interruption.NewInstanceStatusController(env.Client, cloudProvider, events.NewRecorder(&record.FakeRecorder{}), awsEnv.InstanceStatusProvider)
 })
 
 var _ = AfterSuite(func() {
