@@ -57,6 +57,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
@@ -84,6 +85,7 @@ func NewController(
 	instanceTypeProvider instancetype.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	capacityReservationProvider capacityreservation.Provider,
+	placementGroupProvider placementgroup.Provider,
 	ec2api sdk.EC2API,
 	validationCache *cache.Cache,
 	recreationCache *cache.Cache,
@@ -101,6 +103,7 @@ func NewController(
 		reconcilers: []reconcile.TypedReconciler[*v1.EC2NodeClass]{
 			NewAMIReconciler(amiProvider),
 			NewCapacityReservationReconciler(clk, capacityReservationProvider),
+			NewPlacementGroupReconciler(placementGroupProvider),
 			NewSubnetReconciler(subnetProvider),
 			NewSecurityGroupReconciler(securityGroupProvider),
 			NewInstanceProfileReconciler(instanceProfileProvider, region, recreationCache),

@@ -103,7 +103,7 @@ var _ = BeforeSuite(func() {
 	fakeClock = &clock.FakeClock{}
 	recorder = events.NewRecorder(&record.FakeRecorder{})
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.InstanceTypeStore)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock)
 })
@@ -1040,6 +1040,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nil,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
+				nil,
 				nodeClass.Spec.Kubelet.MaxPods,
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
@@ -1093,6 +1094,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nil,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
+				nil,
 				nodeClass.Spec.Kubelet.MaxPods,
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
@@ -1120,6 +1122,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nil,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
+				nil,
 				nodeClass.Spec.Kubelet.MaxPods,
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
@@ -2225,7 +2228,7 @@ eviction-max-pod-grace-period = 10
 				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 
-				controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
+				controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 
 				pod := coretest.UnschedulablePod()
@@ -2451,6 +2454,7 @@ eviction-max-pod-grace-period = 10
 						awsEnv.AMIResolver,
 						awsEnv.SecurityGroupProvider,
 						awsEnv.SubnetProvider,
+						awsEnv.PlacementGroupProvider,
 						awsEnv.LaunchTemplateProvider.CABundle,
 						make(chan struct{}),
 						net.ParseIP(lo.Ternary(ipFamily == corev1.IPv4Protocol, "10.0.100.10", "fd01:99f0:d47b::a")),
@@ -2500,6 +2504,90 @@ eviction-max-pod-grace-period = 10
 			)
 		})
 	})
+	Context("Network Interfaces", func() {
+		DescribeTable("should configure network interfaces with same configuration as NodeClass",
+			func(pod *corev1.Pod) {
+				nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+					{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+					{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeInterface},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+
+				Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(4))
+				// NC=0,DI=0
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].NetworkCardIndex)).To(Equal(int32(0)))
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].DeviceIndex)).To(Equal(int32(0)))
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
+				// NC=0, DI=1
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].NetworkCardIndex)).To(Equal(int32(0)))
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].DeviceIndex)).To(Equal(int32(1)))
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
+				// NC=1, DI=0
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[2].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
+				// NC=1, DI=1
+				Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[3].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
+			},
+			Entry("when pod does not request EFA", coretest.UnschedulablePod()),
+			Entry("when pod does request EFA", coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+					Limits:   corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+				},
+			})),
+		)
+		It("should not set prefix count on EFA-only interfaces", func() {
+			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+				{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeInterface},
+			}
+			nodeClass.Spec.IPPrefixCount = lo.ToPtr(int32(2))
+			awsEnv.LaunchTemplateProvider.ClusterIPFamily = corev1.IPv4Protocol
+			pod := coretest.UnschedulablePod()
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(3))
+			// should set prefix count on ENA interfaces
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv4PrefixCount)).To(Equal(int32(2)))
+			// should not set prefix count on EFA-only interfaces
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
+			Expect(input.LaunchTemplateData.NetworkInterfaces[1].Ipv4PrefixCount).To(BeNil())
+			// should set prefix count on ENA interfaces
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[2].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[2].Ipv4PrefixCount)).To(Equal(int32(2)))
+		})
+		It("should not set Ipv6 specs on EFA-only interfaces", func() {
+			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+			}
+			awsEnv.LaunchTemplateProvider.ClusterIPFamily = corev1.IPv6Protocol
+			pod := coretest.UnschedulablePod()
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(2))
+			// should set PrimaryIpv6 and Ipv6AddressCount on ENA interfaces
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeInterface)))
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].PrimaryIpv6)).To(Equal(true))
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6AddressCount)).To(Equal(int32(1)))
+			// should not set PrimaryIpv6 and Ipv6AddressCount on EFA-only interfaces
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfaOnly)))
+			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].PrimaryIpv6)).To(Equal(false))
+			Expect(input.LaunchTemplateData.NetworkInterfaces[1].Ipv6AddressCount).To(BeNil())
+		})
+	})
 	Context("Tenancy", func() {
 		DescribeTable("should set tenancy on launch template",
 			func(specTenancy *string, tenancy ec2types.Tenancy) {
@@ -2534,6 +2622,7 @@ eviction-max-pod-grace-period = 10
 				AvailableInstanceCount: lo.ToPtr[int32](10),
 				State:                  ec2types.CapacityReservationStateActive,
 				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(false),
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
@@ -2544,6 +2633,7 @@ eviction-max-pod-grace-period = 10
 				AvailableInstanceCount: lo.ToPtr[int32](15),
 				State:                  ec2types.CapacityReservationStateActive,
 				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(false),
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1b"),
@@ -2554,6 +2644,7 @@ eviction-max-pod-grace-period = 10
 				AvailableInstanceCount: lo.ToPtr[int32](10),
 				State:                  ec2types.CapacityReservationStateActive,
 				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(false),
 			},
 			{
 				AvailabilityZone:       lo.ToPtr("test-zone-1b"),
@@ -2564,6 +2655,7 @@ eviction-max-pod-grace-period = 10
 				AvailableInstanceCount: lo.ToPtr[int32](15),
 				State:                  ec2types.CapacityReservationStateActive,
 				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(false),
 			},
 		}
 		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
@@ -2589,7 +2681,7 @@ eviction-max-pod-grace-period = 10
 			lt := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
 			launchTemplates[*lt.LaunchTemplateName] = lt
 		}
-		// We should have created 3 launch templates, rather than 4 since we only create 1 launch template per capacity pool
+		// We should have created 3 launch templates, rather than 5 since we only create 1 launch template per capacity pool
 		Expect(launchTemplates).To(HaveLen(3))
 		reservationIDs := lo.Uniq(lo.Map(lo.Values(launchTemplates), func(input *ec2.CreateLaunchTemplateInput, _ int) string {
 			return *input.LaunchTemplateData.CapacityReservationSpecification.CapacityReservationTarget.CapacityReservationId
@@ -2622,6 +2714,60 @@ eviction-max-pod-grace-period = 10
 			Expect(ltc.Overrides[0].InstanceType).To(Equal(ec2types.InstanceType(*cr.InstanceType)))
 		}
 	})
+	DescribeTable(
+		"should correctly assign the market type for reserved capacity", func(cr ec2types.CapacityReservation, expectedMarketType ec2types.MarketType) {
+			awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
+				CapacityReservations: []ec2types.CapacityReservation{cr},
+			})
+			nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, lo.Must(v1.CapacityReservationFromEC2(fakeClock, &cr)))
+			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(*cr.CapacityReservationId, int(*cr.AvailableInstanceCount))
+
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.CapacityTypeReserved},
+			}}
+			pod := coretest.UnschedulablePod()
+			ExpectApplied(ctx, env.Client, pod, nodePool, nodeClass)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			launchTemplates := map[string]*ec2.CreateLaunchTemplateInput{}
+			for awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len() != 0 {
+				lt := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+				launchTemplates[*lt.LaunchTemplateName] = lt
+			}
+			Expect(lo.Values(launchTemplates)[0].LaunchTemplateData.InstanceMarketOptions.MarketType).To(Equal(expectedMarketType))
+		},
+		Entry(
+			"with default interruptible reservation type", ec2types.CapacityReservation{
+				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+				InstanceType:           lo.ToPtr("m5.large"),
+				OwnerId:                lo.ToPtr("012345678901"),
+				InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
+				AvailableInstanceCount: lo.ToPtr[int32](10),
+				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeDefault,
+				Interruptible:          lo.ToPtr(true),
+			},
+			ec2types.MarketTypeInterruptibleCapacityReservation,
+		),
+		Entry(
+			"with capacity block reservation type", ec2types.CapacityReservation{
+				AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+				InstanceType:           lo.ToPtr("m5.large"),
+				OwnerId:                lo.ToPtr("012345678901"),
+				InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
+				CapacityReservationId:  lo.ToPtr("cr-m5.large-1a-1"),
+				AvailableInstanceCount: lo.ToPtr[int32](10),
+				State:                  ec2types.CapacityReservationStateActive,
+				ReservationType:        ec2types.CapacityReservationTypeCapacityBlock,
+				Interruptible:          lo.ToPtr(false),
+			},
+			ec2types.MarketTypeCapacityBlock,
+		),
+	)
 	DescribeTable(
 		"should set the capacity reservation specification according to the capacity reservation feature flag",
 		func(enabled bool) {

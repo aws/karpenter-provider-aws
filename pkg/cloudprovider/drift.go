@@ -37,6 +37,7 @@ const (
 	SubnetDrift              cloudprovider.DriftReason = "SubnetDrift"
 	SecurityGroupDrift       cloudprovider.DriftReason = "SecurityGroupDrift"
 	CapacityReservationDrift cloudprovider.DriftReason = "CapacityReservationDrift"
+	PlacementGroupDrift      cloudprovider.DriftReason = "PlacementGroupDrift"
 	NodeClassDrift           cloudprovider.DriftReason = "NodeClassDrift"
 )
 
@@ -65,10 +66,12 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 		return "", fmt.Errorf("calculating subnet drift, %w", err)
 	}
 	capacityReservationsDrifted := c.isCapacityReservationDrifted(instance, nodeClass)
+	placementGroupDrifted := c.isPlacementGroupDrifted(ctx, nodeClaim, nodeClass)
 	drifted := lo.FindOrElse([]cloudprovider.DriftReason{
 		securitygroupDrifted,
 		subnetDrifted,
 		capacityReservationsDrifted,
+		placementGroupDrifted,
 	}, "", func(i cloudprovider.DriftReason) bool {
 		return string(i) != ""
 	})
@@ -140,8 +143,22 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 // would cancel it out.
 func (c *CloudProvider) isCapacityReservationDrifted(instance *instance.Instance, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {
 	capacityReservationIDs := sets.New(lo.Map(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation, _ int) string { return cr.ID })...)
-	if instance.CapacityReservationID != nil && !capacityReservationIDs.Has(*instance.CapacityReservationID) {
+	if instance.CapacityReservationDetails != nil && !capacityReservationIDs.Has(instance.CapacityReservationDetails.ID) {
 		return CapacityReservationDrift
+	}
+	return ""
+}
+
+// isPlacementGroupDrifted checks if the node's placement group ID label no longer matches the EC2NodeClass's
+// resolved placement group. This covers scenarios where placementGroupSelector was added, removed, or changed.
+func (c *CloudProvider) isPlacementGroupDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {
+	nodeClaimPGID := nodeClaim.Labels[v1.LabelPlacementGroupID]
+	var nodeClassPGID string
+	if pg, _ := c.placementGroupProvider.Get(ctx, nodeClass); pg != nil {
+		nodeClassPGID = pg.ID
+	}
+	if nodeClaimPGID != nodeClassPGID {
+		return PlacementGroupDrift
 	}
 	return ""
 }

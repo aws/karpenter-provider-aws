@@ -37,8 +37,10 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	ssmp "github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
@@ -87,15 +89,18 @@ type Environment struct {
 	DiscoveredCapacityCache              *cache.Cache
 	CapacityReservationCache             *cache.Cache
 	CapacityReservationAvailabilityCache *cache.Cache
+	PlacementGroupCache                  *cache.Cache
 	ValidationCache                      *cache.Cache
 	RecreationCache                      *cache.Cache
 	ProtectedProfilesCache               *cache.Cache
 
 	// Providers
 	CapacityReservationProvider *capacityreservation.DefaultProvider
+	PlacementGroupProvider      *placementgroup.DefaultProvider
 	InstanceTypesResolver       *instancetype.DefaultResolver
 	InstanceTypesProvider       *instancetype.DefaultProvider
 	InstanceProvider            *instance.DefaultProvider
+	InstanceStatusProvider      *instancestatus.DefaultProvider
 	SubnetProvider              *subnet.DefaultProvider
 	SecurityGroupProvider       *securitygroup.DefaultProvider
 	InstanceProfileProvider     *instanceprofile.DefaultProvider
@@ -137,6 +142,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	capacityReservationAvailabilityCache := cache.New(24*time.Hour, awscache.DefaultCleanupInterval)
+	placementGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	placementGroupAvailabilityCache := cache.New(awscache.PlacementGroupAvailabilityTTL, awscache.DefaultCleanupInterval)
 	validationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	recreationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
@@ -154,15 +161,17 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(iamapi, instanceProfileCache, roleCache, protectedProfilesCache, fake.DefaultRegion)
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, amiCache)
+	placementGroupProvider := placementgroup.NewProvider(ec2api, placementGroupCache, placementGroupAvailabilityCache)
 	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
 	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion)
 	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
-	zonalshiftProvider := arczonalshift.NewNoopProvider()
-	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, unavailableOfferingsCache, instanceTypesResolver, zonalshiftProvider)
+  zonalshiftProvider := arczonalshift.NewNoopProvider()
+	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, placementGroupProvider, unavailableOfferingsCache, instanceTypesResolver, zonalshiftProvider)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
 	lo.Must0(instanceTypesProvider.UpdateInstanceTypes(ctx))
 	lo.Must0(instanceTypesProvider.UpdateInstanceTypeOfferings(ctx))
+	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, clock)
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		launchTemplateCache,
@@ -171,6 +180,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
+		placementGroupProvider,
 		lo.ToPtr("ca-bundle"),
 		make(chan struct{}),
 		net.ParseIP("10.0.100.10"),
@@ -189,6 +199,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		subnetProvider,
 		launchTemplateProvider,
 		capacityReservationProvider,
+		placementGroupProvider,
 		instanceCache,
 	)
 
@@ -221,14 +232,17 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		DiscoveredCapacityCache:              discoveredCapacityCache,
 		CapacityReservationCache:             capacityReservationCache,
 		CapacityReservationAvailabilityCache: capacityReservationAvailabilityCache,
+		PlacementGroupCache:                  placementGroupCache,
 		ValidationCache:                      validationCache,
 		RecreationCache:                      recreationCache,
 		ProtectedProfilesCache:               protectedProfilesCache,
 
 		CapacityReservationProvider: capacityReservationProvider,
+		PlacementGroupProvider:      placementGroupProvider,
 		InstanceTypesResolver:       instanceTypesResolver,
 		InstanceTypesProvider:       instanceTypesProvider,
 		InstanceProvider:            instanceProvider,
+		InstanceStatusProvider:      instanceStatusProvider,
 		SubnetProvider:              subnetProvider,
 		SecurityGroupProvider:       securityGroupProvider,
 		LaunchTemplateProvider:      launchTemplateProvider,
@@ -265,6 +279,7 @@ func (env *Environment) Reset() {
 	env.SSMCache.Flush()
 	env.DiscoveredCapacityCache.Flush()
 	env.CapacityReservationCache.Flush()
+	env.PlacementGroupCache.Flush()
 	env.ValidationCache.Flush()
 	env.RecreationCache.Flush()
 	env.ProtectedProfilesCache.Flush()

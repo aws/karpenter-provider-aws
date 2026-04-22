@@ -19,6 +19,7 @@ import (
 	"log"
 	"strings"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/google/uuid"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
@@ -52,6 +53,11 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:MaxItems:=30
 	// +optional
 	CapacityReservationSelectorTerms []CapacityReservationSelectorTerm `json:"capacityReservationSelectorTerms" hash:"ignore"`
+	// PlacementGroupSelector defines the name or the id of the placement to resolve with the nodeclass.
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['name', 'id']",rule="has(self.name) || has(self.id)"
+	// +kubebuilder:validation:XValidation:message="'name' and 'id' are mutually exclusive",rule="!(has(self.name) && has(self.id))"
+	// +optional
+	PlacementGroupSelector *PlacementGroupSelector `json:"placementGroupSelector,omitempty"`
 	// AssociatePublicIPAddress controls if public IP addresses are assigned to instances that are launched with the nodeclass.
 	// +optional
 	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
@@ -119,6 +125,12 @@ type EC2NodeClassSpec struct {
 	// InstanceStorePolicy specifies how to handle instance-store disks.
 	// +optional
 	InstanceStorePolicy *InstanceStorePolicy `json:"instanceStorePolicy,omitempty"`
+	// NetworkInterfaces specifies the network interface configurations to be attached to provisioned instances.
+	// +kubebuilder:validation:XValidation:message="networkInterfaces must include a primary interface with interfaceType='interface'",rule="self.size() == 0 || self.exists(x, x.deviceIndex == 0 && x.networkCardIndex == 0 && x.interfaceType == 'interface')"
+	// +kubebuilder:validation:XValidation:message="networkInterfaces must not have duplicate networkCardIndex and deviceIndex pairs, and can have at most one efa device per network card",rule="self.all(x, self.filter(y, x.networkCardIndex == y.networkCardIndex && x.deviceIndex == y.deviceIndex).size() == 1 && (x.interfaceType != 'efa-only' || self.filter(y, x.networkCardIndex == y.networkCardIndex && y.interfaceType == 'efa-only').size() == 1))"
+	// +kubebuilder:validation:MaxItems:=150
+	// +optional
+	NetworkInterfaces []*NetworkInterface `json:"networkInterfaces,omitempty"`
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
 	// +optional
 	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
@@ -197,6 +209,17 @@ type CapacityReservationSelectorTerm struct {
 	// +kubebuilder:validation:Enum:={open,targeted}
 	// +optional
 	InstanceMatchCriteria string `json:"instanceMatchCriteria,omitempty"`
+}
+
+type PlacementGroupSelector struct {
+	// Name is the placement group name in EC2
+	// +kubebuilder:validation:MinLength:=1
+	// +optional
+	Name *string `json:"name,omitempty"`
+	// ID is the placement group id in EC2
+	// +kubebuilder:validation:Pattern:="^pg-[0-9a-z]+$"
+	// +optional
+	ID *string `json:"id,omitempty"`
 }
 
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.
@@ -458,6 +481,30 @@ const (
 	InstanceStorePolicyRAID0 InstanceStorePolicy = "RAID0"
 )
 
+// InterfaceType specifies the network interface type for a network interface.
+type InterfaceType string
+
+const (
+	// InterfaceTypeInterface indicates a standard Elastic Network Adapter (ENA) interface.
+	InterfaceTypeInterface InterfaceType = InterfaceType(ec2types.NetworkInterfaceTypeInterface)
+	// InterfaceTypeEFAOnly indicates an Elastic Fabric Adapter only (EFA-only) interface for high-performance networking.
+	InterfaceTypeEFAOnly InterfaceType = InterfaceType(ec2types.NetworkInterfaceTypeEfaOnly)
+)
+
+// NetworkInterface specifies the configuration for a network interface to be attached
+// to provisioned instances.
+type NetworkInterface struct {
+	// NetworkCardIndex is the index of the network card to attach the interface to.
+	// +kubebuilder:validation:Minimum:=0
+	NetworkCardIndex int32 `json:"networkCardIndex"`
+	// DeviceIndex is the device index for the network interface attachment.
+	// +kubebuilder:validation:Minimum:=0
+	DeviceIndex int32 `json:"deviceIndex"`
+	// InterfaceType is the type of network interface. Valid values are "interface" and "efa-only".
+	// +kubebuilder:validation:Enum:={interface,efa-only}
+	InterfaceType InterfaceType `json:"interfaceType"`
+}
+
 // EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
@@ -529,6 +576,14 @@ func (in *EC2NodeClass) BlockDeviceMappings() []*BlockDeviceMapping {
 
 func (in *EC2NodeClass) InstanceStorePolicy() *InstanceStorePolicy {
 	return in.Spec.InstanceStorePolicy
+}
+
+func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {
+	return in.Spec.NetworkInterfaces
+}
+
+func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {
+	return in.Spec.PlacementGroupSelector
 }
 
 func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {

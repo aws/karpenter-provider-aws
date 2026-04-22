@@ -183,6 +183,15 @@ func IsInsufficientFreeAddressesInSubnet(err ec2types.CreateFleetError) bool {
 	return *err.ErrorCode == InsufficientFreeAddressesInSubnetErrorCode
 }
 
+// IsSpreadPlacementGroupLimitError returns true if the fleet error indicates that
+// the 7-instance-per-AZ limit for a spread placement group has been reached.
+// EC2 returns this as an InsufficientInstanceCapacity error with the message:
+// "You've reached the limit of instances in this spread placement group. A spread
+// placement group can have up to seven instances per Availability Zone."
+func IsSpreadPlacementGroupLimitError(err ec2types.CreateFleetError) bool {
+	return err.ErrorMessage != nil && strings.Contains(*err.ErrorMessage, "limit of instances in this spread placement group")
+}
+
 // IsReservationCapacityExceeded returns true if the fleet error means there is no remaining capacity for the provided
 // capacity reservation.
 func IsReservationCapacityExceeded(err ec2types.CreateFleetError) bool {
@@ -227,6 +236,9 @@ func ToReasonMessage(err error) (string, string) {
 			return "AMIAuthorizationFailure", "User is not authorized for AMI used in instance launch"
 		}
 		return "Unauthorized", "User is not authorized to perform this operation because no identity-based policy allows it"
+	}
+	if strings.Contains(err.Error(), "InvalidParameter") && strings.Contains(err.Error(), "belong to different networks") {
+		return "SecurityGroupSubnetVPCMismatch", "Security groups and subnets must be in the same VPC."
 	}
 	if strings.Contains(err.Error(), "iamInstanceProfile.name is invalid") {
 		return "InstanceProfileNameInvalid", "Instance profile name used from EC2NodeClass status does not exist"

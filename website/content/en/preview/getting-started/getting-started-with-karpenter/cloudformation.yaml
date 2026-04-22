@@ -43,7 +43,8 @@ Resources:
                 "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
-                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*"
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:placement-group/*"
               ],
               "Action": [
                 "ec2:RunInstances",
@@ -315,6 +316,7 @@ Resources:
                 "ec2:DescribeInstanceTypeOfferings",
                 "ec2:DescribeInstanceTypes",
                 "ec2:DescribeLaunchTemplates",
+                "ec2:DescribePlacementGroups",
                 "ec2:DescribeSecurityGroups",
                 "ec2:DescribeSpotPriceHistory",
                 "ec2:DescribeSubnets"
@@ -348,6 +350,12 @@ Resources:
               "Effect": "Allow",
               "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
               "Action": "iam:GetInstanceProfile"
+            },
+            {
+              "Sid": "AllowUnscopedEC2DescribeInstanceStatus",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": "ec2:DescribeInstanceStatus"
             }
           ]
         }
@@ -421,6 +429,17 @@ Resources:
           - aws.ec2
         detail-type:
           - EC2 Instance State-change Notification
+      Targets:
+        - Id: KarpenterInterruptionQueueTarget
+          Arn: !GetAtt KarpenterInterruptionQueue.Arn
+  CapacityReservationInterruptionRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      EventPattern:
+        source:
+          - aws.ec2
+        detail-type:
+          - EC2 Capacity Reservation Instance Interruption Warning
       Targets:
         - Id: KarpenterInterruptionQueueTarget
           Arn: !GetAtt KarpenterInterruptionQueue.Arn

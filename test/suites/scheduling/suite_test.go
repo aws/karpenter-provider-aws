@@ -17,6 +17,7 @@ package scheduling_test
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -907,6 +908,339 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		})
 	})
 
+	Context("Interruptible Capacity Resverations", func() {
+		var sourceReservationID, interruptibleReservationID, xlargeReservationID string
+		BeforeAll(func() {
+			sourceReservationID, interruptibleReservationID = environmentaws.ExpectInterruptibleCapacityReservationCreated(
+				env.Context,
+				env.EC2API,
+				ec2types.InstanceTypeM5Large,
+				env.ZoneInfo[0].Zone,
+				2,
+				1,
+				nil,
+			)
+			xlargeReservationID = environmentaws.ExpectCapacityReservationCreated(
+				env.Context,
+				env.EC2API,
+				ec2types.InstanceTypeM5Xlarge,
+				env.ZoneInfo[0].Zone,
+				1,
+				nil,
+				nil,
+			)
+		})
+		AfterAll(func() {
+			environmentaws.ExpectInterruptibleAndSourceCapacityCanceled(env.Context, env.EC2API, sourceReservationID, interruptibleReservationID)
+			environmentaws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, xlargeReservationID)
+		})
+		BeforeEach(func() {
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
+				{ID: sourceReservationID}, {ID: interruptibleReservationID},
+			}
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					Key:      karpv1.CapacityTypeLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved},
+				},
+				{
+					Key:      corev1.LabelOSStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{string(corev1.Linux)},
+				},
+			}
+		})
+
+		DescribeTable("should schedule against a specific reservation interruptibiltiy", func(interruptible bool) {
+			selectors.Insert(v1.LabelCapacityReservationInterruptible)
+			pod := test.Pod(test.PodOptions{
+				NodeRequirements: []corev1.NodeSelectorRequirement{{
+					Key:      v1.LabelCapacityReservationInterruptible,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{strconv.FormatBool(interruptible)},
+				}},
+			})
+			env.ExpectCreated(nodePool, nodeClass, pod)
+
+			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
+			resReq, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
+				return req.Key == v1.LabelCapacityReservationID
+			})
+			Expect(ok).To(BeTrue())
+			iReq, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
+				return req.Key == v1.LabelCapacityReservationInterruptible
+			})
+			Expect(ok).To(BeTrue())
+			Expect(resReq.Values).To(ConsistOf(lo.Ternary(interruptible, interruptibleReservationID, sourceReservationID)))
+			Expect(iReq.Values).To(ConsistOf(strconv.FormatBool(interruptible)))
+
+			env.EventuallyExpectNodeClaimsReady(nc)
+			n := env.EventuallyExpectNodeCount("==", 1)[0]
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, strconv.FormatBool(interruptible)))
+		},
+			Entry("interruptible", true),
+			Entry("non-interruptible", false),
+		)
+		It("should prioritize ODCR over IODCR if price is equal", func() {
+			pod := test.Pod(test.PodOptions{
+				NodeRequirements: []corev1.NodeSelectorRequirement{{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{string(ec2types.InstanceTypeM5Large)},
+				}},
+			})
+			env.ExpectCreated(nodePool, nodeClass, pod)
+
+			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
+			req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
+				return req.Key == v1.LabelCapacityReservationID
+			})
+			Expect(ok).To(BeTrue())
+			// NodeClaim should have both reservations (but launch with ODCR)
+			Expect(req.Values).To(ConsistOf(sourceReservationID, interruptibleReservationID))
+
+			env.EventuallyExpectNodeClaimsReady(nc)
+			n := env.EventuallyExpectNodeCount("==", 1)[0]
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "false"))
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, sourceReservationID))
+		})
+		It("should prioritize reservation with lower price", func() {
+			env.ExpectCreated(nodeClass)
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
+				{ID: xlargeReservationID}, {ID: interruptibleReservationID},
+			}
+			env.ExpectUpdated(nodeClass)
+
+			pod := test.Pod(test.PodOptions{
+				NodeRequirements: []corev1.NodeSelectorRequirement{{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{string(ec2types.InstanceTypeM5Large), string(ec2types.InstanceTypeM5Xlarge)},
+				}},
+			})
+			env.ExpectCreated(nodePool, pod)
+
+			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
+			req, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
+				return req.Key == v1.LabelCapacityReservationID
+			})
+			Expect(ok).To(BeTrue())
+			// NodeClaim should have both reservations (but launch in IODCR as its cheaper)
+			Expect(req.Values).To(ConsistOf(xlargeReservationID, interruptibleReservationID))
+
+			env.EventuallyExpectNodeClaimsReady(nc)
+			n := env.EventuallyExpectNodeCount("==", 1)[0]
+			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Large)))
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "true"))
+		})
+	})
+	It("should provision EFAs according to NodeClass configuration", func() {
+		pod := test.Pod(test.PodOptions{
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+			},
+		})
+		nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+			{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+			{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+		}
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		instance := env.GetInstance(node.Name)
+		networkInterfaces := instance.NetworkInterfaces
+		Expect(networkInterfaces).To(HaveLen(2))
+
+		for _, deviceIndex := range []int32{0, 1} {
+			networkInterface, found := lo.Find(networkInterfaces, func(i ec2types.InstanceNetworkInterface) bool {
+				Expect(i.Attachment).ToNot(BeNil())
+				Expect(i.Attachment.DeviceIndex).ToNot(BeNil())
+				return deviceIndex == lo.FromPtr(i.Attachment.DeviceIndex)
+			})
+			Expect(found).To(Equal(true))
+
+			Expect(lo.FromPtr(networkInterface.InterfaceType)).To(Equal(
+				lo.Ternary(deviceIndex == 0, string(ec2types.NetworkInterfaceTypeInterface), string(ec2types.NetworkInterfaceTypeEfaOnly)),
+			))
+		}
+	})
+	It("should launch an instance into a partition placement group targeting a specific partition", func() {
+		selectors.Insert(v1.LabelPlacementGroupID, v1.LabelPlacementGroupPartition)
+		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategyPartition, 7)
+		DeferCleanup(func() {
+			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
+		})
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr(pgName)}
+		pod := test.Pod(test.PodOptions{
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+				{Key: v1.LabelPlacementGroupPartition, Operator: corev1.NodeSelectorOpIn, Values: []string{"5"}},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupID))
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelPlacementGroupPartition, "5"))
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.Placement).ToNot(BeNil())
+		Expect(lo.FromPtr(instance.Placement.GroupName)).To(Equal(pgName))
+		Expect(lo.FromPtr(instance.Placement.PartitionNumber)).To(Equal(int32(5)))
+	})
+	It("should launch an instance into a partition placement group with auto-assigned partition", func() {
+		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategyPartition, 7)
+		DeferCleanup(func() {
+			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
+		})
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr(pgName)}
+		pod := test.Pod(test.PodOptions{
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupID))
+		Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupPartition))
+		// EC2 auto-assigns a partition between 1 and 7
+		partitionStr := node.Labels[v1.LabelPlacementGroupPartition]
+		Expect(partitionStr).ToNot(BeEmpty())
+		partition, err := strconv.Atoi(partitionStr)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(partition).To(BeNumerically(">=", 1))
+		Expect(partition).To(BeNumerically("<=", 7))
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.Placement).ToNot(BeNil())
+		Expect(lo.FromPtr(instance.Placement.GroupName)).To(Equal(pgName))
+		Expect(lo.FromPtr(instance.Placement.PartitionNumber)).To(BeNumerically(">=", int32(1)))
+	})
+	It("should launch an instance into a cluster placement group", func() {
+		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategyCluster)
+		DeferCleanup(func() {
+			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
+		})
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr(pgName)}
+		pod := test.Pod(test.PodOptions{
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupID))
+		Expect(node.Labels).ToNot(HaveKey(v1.LabelPlacementGroupPartition))
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.Placement).ToNot(BeNil())
+		Expect(lo.FromPtr(instance.Placement.GroupName)).To(Equal(pgName))
+	})
+	It("should launch an instance into a spread placement group", func() {
+		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategySpread)
+		DeferCleanup(func() {
+			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
+		})
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr(pgName)}
+		pod := test.Pod(test.PodOptions{
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"m"}},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupID))
+		Expect(node.Labels).ToNot(HaveKey(v1.LabelPlacementGroupPartition))
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.Placement).ToNot(BeNil())
+		Expect(lo.FromPtr(instance.Placement.GroupName)).To(Equal(pgName))
+	})
+	It("should launch an instance into one of the specified partitions when multiple partitions are allowed", func() {
+		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategyPartition, 7)
+		DeferCleanup(func() {
+			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
+		})
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr(pgName)}
+		allowedPartitions := []string{"2", "3", "4", "5", "6", "7"}
+		pod := test.Pod(test.PodOptions{
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"c", "m", "r"}},
+				{Key: v1.LabelPlacementGroupPartition, Operator: corev1.NodeSelectorOpIn, Values: allowedPartitions},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupID))
+		// The scheduler picks one of the allowed partitions for the offering
+		partition := node.Labels[v1.LabelPlacementGroupPartition]
+		Expect(allowedPartitions).To(ContainElement(partition))
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.Placement).ToNot(BeNil())
+		Expect(lo.FromPtr(instance.Placement.GroupName)).To(Equal(pgName))
+		Expect(lo.FromPtr(instance.Placement.PartitionNumber)).To(BeNumerically(">=", int32(2)))
+		Expect(lo.FromPtr(instance.Placement.PartitionNumber)).To(BeNumerically("<=", int32(7)))
+	})
+	It("should spread pods across partitions using TopologySpreadConstraints", func() {
+		pgName := fmt.Sprintf("karpenter-integ-test-%s", test.RandomName())
+		environmentaws.ExpectPlacementGroupCreated(env.Context, env.EC2API, pgName, ec2types.PlacementStrategyPartition, 7)
+		DeferCleanup(func() {
+			environmentaws.ExpectPlacementGroupDeleted(env.Context, env.EC2API, pgName)
+		})
+		nodeClass.Spec.PlacementGroupSelector = &v1.PlacementGroupSelector{Name: lo.ToPtr(pgName)}
+		podLabels := map[string]string{"test": "partition-spread"}
+		deployment := test.Deployment(test.DeploymentOptions{
+			Replicas: 3,
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: podLabels,
+				},
+				NodeRequirements: []corev1.NodeSelectorRequirement{
+					{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"c", "m", "r"}},
+				},
+				TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+					{
+						MaxSkew:           1,
+						TopologyKey:       v1.LabelPlacementGroupPartition,
+						WhenUnsatisfiable: corev1.DoNotSchedule,
+						LabelSelector:     &metav1.LabelSelector{MatchLabels: podLabels},
+						MinDomains:        lo.ToPtr(int32(3)),
+					},
+				},
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, deployment)
+		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), 3)
+		env.EventuallyExpectNodeCount("==", 3)
+
+		// Verify all 3 nodes are in the placement group and have distinct partitions
+		nodes := env.EventuallyExpectInitializedNodeCount("==", 3)
+		partitions := sets.New[string]()
+		for _, node := range nodes {
+			Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupID))
+			Expect(node.Labels).To(HaveKey(v1.LabelPlacementGroupPartition))
+			partitions.Insert(node.Labels[v1.LabelPlacementGroupPartition])
+		}
+		// Each pod should be in a different partition
+		Expect(partitions.Len()).To(Equal(3))
+	})
 },
 	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
 	Entry("MinValuesPolicyStrict", options.MinValuesPolicyStrict),

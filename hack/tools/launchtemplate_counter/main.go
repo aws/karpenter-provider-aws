@@ -71,6 +71,7 @@ func main() {
 			true,
 		),
 		nil,
+		nil,
 		awscache.NewUnavailableOfferings(),
 		instancetype.NewDefaultResolver(
 			region,
@@ -142,7 +143,7 @@ func main() {
 	fmt.Printf("Got %d instance types after filtering\n", len(instanceTypes))
 
 	resolver := amifamily.NewDefaultResolver(region)
-	launchTemplates, err := resolver.Resolve(nodeClass, &karpv1.NodeClaim{}, lo.Slice(instanceTypes, 0, 60), karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)})
+	launchTemplates, err := resolver.Resolve(nodeClass, &karpv1.NodeClaim{}, lo.Slice(instanceTypes, 0, 60), karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}, "", 0)
 
 	if err != nil {
 		log.Fatalf("resolving launchTemplates, %s", err)
