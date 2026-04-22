@@ -165,7 +165,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
 	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion)
 	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
-  zonalshiftProvider := arczonalshift.NewNoopProvider()
+	zonalshiftProvider := arczonalshift.NewNoopProvider()
 	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, placementGroupProvider, unavailableOfferingsCache, instanceTypesResolver, zonalshiftProvider)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
