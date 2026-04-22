@@ -17,6 +17,7 @@ package sdk
 import (
 	"context"
 
+	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -73,6 +74,10 @@ type SQSAPI interface {
 	DeleteMessage(context.Context, *sqs.DeleteMessageInput, ...func(*sqs.Options)) (*sqs.DeleteMessageOutput, error)
 	SendMessage(context.Context, *sqs.SendMessageInput, ...func(*sqs.Options)) (*sqs.SendMessageOutput, error)
 	GetQueueUrl(context.Context, *sqs.GetQueueUrlInput, ...func(*sqs.Options)) (*sqs.GetQueueUrlOutput, error)
+}
+
+type ARCZonalShiftAPI interface {
+	GetManagedResource(context.Context, *arczonalshift.GetManagedResourceInput, ...func(*arczonalshift.Options)) (*arczonalshift.GetManagedResourceOutput, error)
 }
 
 type TimestreamWriteAPI interface {

@@ -25,6 +25,7 @@ import (
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -32,6 +33,8 @@ import (
 	"github.com/awslabs/operatorpkg/aws/middleware"
 	"github.com/awslabs/operatorpkg/option"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	zonalshiftprovider "github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 
 	"github.com/aws/smithy-go"
 	"github.com/patrickmn/go-cache"
@@ -98,6 +101,7 @@ type Operator struct {
 	CapacityReservationProvider capacityreservation.Provider
 	PlacementGroupProvider      placementgroup.Provider
 	EC2API                      *kwokec2.Client
+	ZonalShiftProvider          zonalshiftprovider.Provider
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
@@ -121,6 +125,18 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		log.FromContext(ctx).V(1).Info(fmt.Sprintf("unable to detect the IP of the kube-dns service, %s", err))
 	} else {
 		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
+	}
+	var zsProvider zonalshiftprovider.Provider
+	if options.FromContext(ctx).EnableZonalShift {
+		arczonalshiftAPI := arczonalshift.NewFromConfig(cfg)
+		clusterArn, err := ValidateZonalShiftEnablement(ctx, eksapi, arczonalshiftAPI)
+		if err != nil {
+			// Resource is not found/registered in Zonal Shift. Throw an error.
+			panic(fmt.Sprintf("Unable to find Cluster %v in Zonal Shift. Please check that the cluster is enabled for Zonal Shift and roles have appropriate permissions %v", clusterArn, err))
+		}
+		zsProvider = zonalshiftprovider.NewProvider(arczonalshiftAPI, operator.Clock, clusterArn)
+	} else {
+		zsProvider = zonalshiftprovider.NewNoopProvider()
 	}
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
@@ -186,6 +202,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		placementGroupProvider,
 		unavailableOfferingsCache,
 		instancetype.NewDefaultResolver(cfg.Region),
+		zsProvider,
 	)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
@@ -230,6 +247,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		CapacityReservationProvider: capacityReservationProvider,
 		PlacementGroupProvider:      placementGroupProvider,
 		EC2API:                      ec2api,
+		ZonalShiftProvider:          zsProvider,
 	}
 }
 
@@ -324,4 +342,18 @@ func SetupIndexers(ctx context.Context, mgr manager.Manager) {
 		}
 		return []string{id}
 	}), "failed to setup node instanceID indexer")
+}
+
+func ValidateZonalShiftEnablement(ctx context.Context, eksAPI sdk.EKSAPI, arczonalshiftAPI sdk.ARCZonalShiftAPI) (string, error) {
+	inputDC := eks.DescribeClusterInput{Name: &options.FromContext(ctx).ClusterName}
+	outputDC, _ := eksAPI.DescribeCluster(ctx, &inputDC)
+	clusterArn := outputDC.Cluster.Arn
+	inputGMR := arczonalshift.GetManagedResourceInput{ResourceIdentifier: clusterArn}
+	_, getManagedResourceErr := arczonalshiftAPI.GetManagedResource(ctx, &inputGMR)
+	if getManagedResourceErr != nil {
+		// Resource is not found/registered in Zonal Shift. Throw an error.
+		log.FromContext(ctx).WithValues("Cluster", clusterArn).V(1).Error(getManagedResourceErr, "Cluster not found in Zonal Shift")
+		return "", fmt.Errorf("cluster not registered to Zonal Shift %w", getManagedResourceErr)
+	}
+	return *clusterArn, nil
 }

@@ -22,6 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
+	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
+
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
@@ -107,6 +109,7 @@ func NewDefaultProvider(
 	placementGroupProvider placementgroup.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	instanceTypesResolver Resolver,
+	zonalshiftProvider arczonalshift.Provider,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api:                  ec2api,
@@ -124,6 +127,7 @@ func NewDefaultProvider(
 			placementGroupProvider,
 			unavailableOfferingsCache,
 			offeringCache,
+			zonalshiftProvider,
 		),
 	}
 }

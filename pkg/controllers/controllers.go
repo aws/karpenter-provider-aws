@@ -23,6 +23,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
+	arczonalshiftcontroller "github.com/aws/karpenter-provider-aws/pkg/controllers/arczonalshift"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 
@@ -56,6 +58,7 @@ import (
 	nodeclassgarbagecollection "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/garbagecollection"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
@@ -90,6 +93,7 @@ func NewControllers(
 	capacityReservationProvider capacityreservationprovider.Provider,
 	placementGroupProvider placementgroup.Provider,
 	amiResolver amifamily.Resolver,
+	zonalshiftProvider arczonalshift.Provider,
 	instanceStatusProvider instancestatus.Provider,
 	caBundle *string,
 ) []controller.Controller {
@@ -107,6 +111,7 @@ func NewControllers(
 		crcapacitytype.NewController(kubeClient, cloudProvider),
 		crexpiration.NewController(clk, kubeClient, cloudProvider, capacityReservationProvider),
 		metrics.NewController(kubeClient, cloudProvider),
+		arczonalshiftcontroller.NewController(zonalshiftProvider),
 		interruption.NewInstanceStatusController(kubeClient, cloudProvider, recorder, instanceStatusProvider),
 	}
 	// Instance profile garbage collection requires IAM API access. Skip registering the controller when running

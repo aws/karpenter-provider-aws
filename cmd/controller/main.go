@@ -90,6 +90,7 @@ func main() {
 			op.CapacityReservationProvider,
 			op.PlacementGroupProvider,
 			op.AMIResolver,
+			op.ZonalShiftProvider,
 			op.InstanceStatusProvider,
 			op.CABundle,
 		)...).
