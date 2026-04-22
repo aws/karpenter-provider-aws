@@ -70,6 +70,7 @@ type CloudProvider struct {
 	capacityReservationProvider capacityreservation.Provider
 	placementGroupProvider      placementgroup.Provider
 	instanceTypeStore           *nodeoverlay.InstanceTypeStore
+	caBundle                    *string
 }
 
 func New(
@@ -82,6 +83,7 @@ func New(
 	capacityReservationProvider capacityreservation.Provider,
 	placementGroupProvider placementgroup.Provider,
 	store *nodeoverlay.InstanceTypeStore,
+	caBundle *string,
 ) *CloudProvider {
 	return &CloudProvider{
 		instanceTypeProvider:        instanceTypeProvider,
@@ -93,6 +95,7 @@ func New(
 		placementGroupProvider:      placementGroupProvider,
 		recorder:                    recorder,
 		instanceTypeStore:           store,
+		caBundle:                    caBundle,
 	}
 }
 
@@ -152,7 +155,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	})
 	nc := c.instanceToNodeClaim(ctx, instance, instanceType, nodeClass, nodeClaim)
 	nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
-		v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
+		v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(c.caBundle),
 		v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
 		v1.AnnotationInstanceProfile:         nodeClass.Status.InstanceProfile,
 	})

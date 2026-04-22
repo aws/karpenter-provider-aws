@@ -23,7 +23,6 @@ import (
 	"github.com/awslabs/operatorpkg/singleton"
 	"go.uber.org/multierr"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/utils/clock"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -46,14 +45,12 @@ var (
 // and scheduled maintenance events, then cordons and drains affected nodes.
 type InstanceStatusController struct {
 	InterruptionHandler
-	clk                    clock.Clock
 	instanceStatusProvider instancestatus.Provider
 }
 
 func NewInstanceStatusController(
 	kubeClient client.Client,
 	cloudProvider cloudprovider.CloudProvider,
-	clk clock.Clock,
 	recorder events.Recorder,
 	instanceStatusProvider instancestatus.Provider,
 ) *InstanceStatusController {
@@ -63,7 +60,6 @@ func NewInstanceStatusController(
 			cloudProvider: cloudProvider,
 			recorder:      recorder,
 		},
-		clk:                    clk,
 		instanceStatusProvider: instanceStatusProvider,
 	}
 }

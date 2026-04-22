@@ -47,6 +47,7 @@ var ctx context.Context
 var env *coretest.Environment
 var awsEnv *test.Environment
 var hashController *hash.Controller
+var caBundle = lo.ToPtr("test-ca-bundle")
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -60,7 +61,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	hashController = hash.NewController(env.Client)
+	hashController = hash.NewController(env.Client, caBundle)
 })
 
 var _ = AfterSuite(func() {
@@ -119,7 +120,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, hashController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-		expectedHash := nodeClass.Hash()
+		expectedHash := nodeClass.Hash(caBundle)
 		Expect(nodeClass.ObjectMeta.Annotations[v1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 
 		Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride)).To(Succeed())
@@ -128,7 +129,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, hashController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-		expectedHashTwo := nodeClass.Hash()
+		expectedHashTwo := nodeClass.Hash(caBundle)
 		Expect(nodeClass.Annotations[v1.AnnotationEC2NodeClassHash]).To(Equal(expectedHashTwo))
 		Expect(expectedHash).ToNot(Equal(expectedHashTwo))
 
@@ -140,12 +141,31 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		Entry("MetadataOptions Drift", &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPEndpoint: aws.String("disabled")}}}),
 		Entry("Context Drift", &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
 	)
+	It("should update the drift hash when the CA bundle changes", func() {
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, hashController, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		originalHash := nodeClass.Annotations[v1.AnnotationEC2NodeClassHash]
+		Expect(originalHash).To(Equal(nodeClass.Hash(caBundle)))
+
+		// Simulate a CA bundle change by creating a new controller with a different CA bundle
+		newCABundle := lo.ToPtr("new-ca-bundle")
+		newHashController := hash.NewController(env.Client, newCABundle)
+
+		ExpectObjectReconciled(ctx, env.Client, newHashController, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		newHash := nodeClass.Annotations[v1.AnnotationEC2NodeClassHash]
+		Expect(newHash).To(Equal(nodeClass.Hash(newCABundle)))
+		Expect(newHash).ToNot(Equal(originalHash))
+	})
 	It("should not update the drift hash when dynamic field is updated", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, hashController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-		expectedHash := nodeClass.Hash()
+		expectedHash := nodeClass.Hash(caBundle)
 		Expect(nodeClass.Annotations[v1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 
 		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
@@ -179,7 +199,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, hashController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-		expectedHash := nodeClass.Hash()
+		expectedHash := nodeClass.Hash(caBundle)
 		// Expect ec2nodeclass-hash on the NodeClass to be updated
 		Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1.AnnotationEC2NodeClassHash, expectedHash))
 		Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1.AnnotationEC2NodeClassHashVersion, v1.EC2NodeClassHashVersion))
@@ -229,7 +249,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		nodeClaimOne = ExpectExists(ctx, env.Client, nodeClaimOne)
 		nodeClaimTwo = ExpectExists(ctx, env.Client, nodeClaimTwo)
 
-		expectedHash := nodeClass.Hash()
+		expectedHash := nodeClass.Hash(caBundle)
 		// Expect ec2nodeclass-hash on the NodeClaims to be updated
 		Expect(nodeClaimOne.Annotations).To(HaveKeyWithValue(v1.AnnotationEC2NodeClassHash, expectedHash))
 		Expect(nodeClaimOne.Annotations).To(HaveKeyWithValue(v1.AnnotationEC2NodeClassHashVersion, v1.EC2NodeClassHashVersion))
@@ -263,7 +283,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
 
-		expectedHash := nodeClass.Hash()
+		expectedHash := nodeClass.Hash(caBundle)
 
 		// Expect ec2nodeclass-hash on the NodeClass to be updated
 		Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1.AnnotationEC2NodeClassHash, expectedHash))
