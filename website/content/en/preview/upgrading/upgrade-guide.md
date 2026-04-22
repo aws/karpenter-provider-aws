@@ -93,7 +93,7 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 **Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
 {{% /alert %}}
 
-* This version adds support for [drift on CA bundle](https://github.com/aws/karpenter-provider-aws/pull/9083). The updated hashing logic will mark existing nodes as [drifted]({{<ref "../../concepts/disruption/#drift">}}).
+* This version adds support for [drift on CA bundle](https://github.com/aws/karpenter-provider-aws/pull/9083). The updated hashing logic will mark existing nodes as [drifted]({{<ref "../concepts/disruption/#drift">}}).
 
 Full Changelog:
 * https://github.com/aws/karpenter-provider-aws/releases/tag/v1.12.0
