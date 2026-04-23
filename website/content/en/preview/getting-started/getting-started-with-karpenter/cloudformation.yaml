@@ -294,6 +294,25 @@ Resources:
             }
           ]
         }
+  ZonalShiftPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "KarpenterControllerZonalShiftPolicy-${ClusterName}"
+      Path: /
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AllowZonalShiftActions",
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
+              "Action": [
+                "arczonalshift:GetManagedResource"
+              ]
+            }
+          ]
+        }
   ResourceDiscoveryPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:

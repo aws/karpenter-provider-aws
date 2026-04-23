@@ -41,6 +41,9 @@ iamIdentityMappings:
   # For more information, see https://github.com/aws/karpenter/issues/5099.
   # - eks:kube-proxy-windows
 
+zonalShiftConfig:
+  enabled: ${ENABLE_ZONAL_SHIFT}
+
 fargateProfiles:
 - name: karpenter
   selectors:
