@@ -61,7 +61,7 @@ If you open a new shell to run steps in this procedure, you need to set some or 
 To remind yourself of these values, type:
 
 ```bash
-echo "${KARPENTER_NAMESPACE}" "${KARPENTER_VERSION}" "${K8S_VERSION}" "${CLUSTER_NAME}" "${AWS_DEFAULT_REGION}" "${AWS_ACCOUNT_ID}" "${TEMPOUT}" "${ALIAS_VERSION}"
+echo "${KARPENTER_NAMESPACE}" "${KARPENTER_VERSION}" "${K8S_VERSION}" "${CLUSTER_NAME}" "${AWS_DEFAULT_REGION}" "${AWS_ACCOUNT_ID}" "${TEMPOUT}" "${ALIAS_VERSION}" ${ENABLE_ZONAL_SHIFT}
 ```
 
 {{% /alert %}}
@@ -196,6 +196,18 @@ The Grafana instance may be accessed using port forwarding.
 The new stack has only one user, `admin`, and the password is stored in a secret. The following command will retrieve the password.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step11-grafana-get-password.sh" language="bash"%}}
+
+## Zonal Shift Operations (optional)
+
+You can optionally enable the Zonal Shift integration with Karpenter which provides additional improvements to your application environment's fault tolerance and application recovery. 
+
+To do this, the EKS cluster must first be enabled for Zonal Shift. This can be done through the AWS Console, AWS CLI, or `eksctl` 
+
+```bash
+eksctl utils update-zonal-shift-config --cluster=zonal-shift-cluster --enabled
+```
+
+Once the cluster has been enabled for Zonal Shift, you can use Zonal Shift controls to shift traffic and scaling operations. For more details see the [guide on using Zonal Shift with EKS.](https://docs.aws.amazon.com/eks/latest/userguide/zone-shift.html) 
 
 ## Advanced Installation
 
