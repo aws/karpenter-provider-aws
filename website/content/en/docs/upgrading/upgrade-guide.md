@@ -86,6 +86,25 @@ If you get the error `invalid ownership metadata; label validation error:` while
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+### Upgrading to `1.12.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* This version adds support for [drift on CA bundle](https://github.com/aws/karpenter-provider-aws/pull/9083). The updated hashing logic will mark existing nodes as [drifted]({{<ref "../concepts/disruption/#drift">}}).
+* This version adds support for [AWS Application Recovery Controller Zonal Shift](https://github.com/aws/karpenter-provider-aws/pull/9042). When enabled and a zonal shift is active on the EKS cluster, Karpenter marks all offerings in the impaired availability zone as unavailable, preventing new node launches in that zone. This feature is opt-in and disabled by default. To use it:
+  - Enable Zonal Shift on your EKS cluster
+  - Add the new `arc-zonal-shift:GetManagedResource` IAM permission to the Karpenter controller role. If you are using the [getting started guide's cloudformation template]({{<ref "../../docs/reference/cloudformation/">}}), a new `KarpenterControllerZonalShiftPolicy` is included
+  - Set `settings.enableZonalShift=true` in your Helm values or the `ENABLE_ZONAL_SHIFT=true` environment variable
+* This version adds support for [EC2 DescribeInstanceStatus health checks in the interruption controller](https://github.com/aws/karpenter-provider-aws/pull/9064), improving detection of impaired instances.
+* Karpenter core now supports a [grace period for the `do-not-disrupt` annotation](https://github.com/kubernetes-sigs/karpenter/pull/2874), allowing temporary disruption protection to expire automatically.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.12.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.12.0
+
 ### Upgrading to `1.11.0`+
 
 {{% alert title="Warning" color="warning" %}}
