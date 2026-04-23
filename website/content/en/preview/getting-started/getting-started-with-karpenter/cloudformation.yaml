@@ -462,3 +462,4 @@ Resources:
       Targets:
         - Id: KarpenterInterruptionQueueTarget
           Arn: !GetAtt KarpenterInterruptionQueue.Arn
+
