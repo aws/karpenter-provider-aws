@@ -304,7 +304,7 @@ Resources:
           "Version": "2012-10-17",
           "Statement": [
             {
-              "Sid": "AllowZonalShiftActions",
+              "Sid": "AllowZonalShiftStatusReadOnly",
               "Effect": "Allow",
               "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
               "Action": [
