@@ -235,6 +235,10 @@ func (p *DefaultProvider) createOfferings(
 				// users to utilize the instances they're already paying for.
 				price = odPrice / 10_000_000.0
 			}
+			isZonalShifted := false
+			if zoneId, ok := subnetZonesToZoneIDs[reservation.AvailabilityZone]; ok {
+				isZonalShifted = p.zonalshiftProvider.IsZonalShifted(ctx, zoneId)
+			}
 			reservationCapacity := p.capacityReservationProvider.GetAvailableInstanceCount(reservation.ID)
 			offering := &cloudprovider.Offering{
 				Requirements: scheduling.NewRequirements(
@@ -245,7 +249,7 @@ func (p *DefaultProvider) createOfferings(
 					scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpIn, fmt.Sprintf("%t", reservation.Interruptible)),
 				),
 				Price:               price,
-				Available:           isCompatibleWithNodeClass && reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring,
+				Available:           isCompatibleWithNodeClass && reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring && !isZonalShifted,
 				ReservationCapacity: reservationCapacity,
 			}
 			if id, ok := subnetZonesToZoneIDs[reservation.AvailabilityZone]; ok {
