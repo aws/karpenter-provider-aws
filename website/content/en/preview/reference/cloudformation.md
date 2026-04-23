@@ -500,13 +500,13 @@ Karpenter supports AWS Application Recovery Controller Zonal Shift, that you can
 This section of the cloudformation.yaml template can give Karpenter permission to query the Zonal Shift service about the status of the cluster by specifying the cluster ARN. 
 For the cluster that will be created (`arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}`), the AllowZonalShiftActions Sid lets the Karpenter controller have permission to get the Zonal Shift status of the cluster ([GetManagedResource](https://docs.aws.amazon.com/arc-zonal-shift/latest/api/API_GetManagedResource.html)).
 
-```yaml
+```json
 {
   "Sid": "AllowZonalShiftStatusReadOnly",
   "Effect": "Allow",
   "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
   "Action": [
-    "arczonalshift:GetManagedResource"
+    "arc-zonal-shift:GetManagedResource"
   ]
 }
 ```

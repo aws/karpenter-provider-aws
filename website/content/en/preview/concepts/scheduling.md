@@ -410,8 +410,8 @@ NodePools do not attempt to balance or rebalance the availability zones for thei
 Zonal Shift is an AWS service that allows you to cordon nodes, stop node termination/pod eviction, and remove pod endpoints from EndpointSlices for nodes and pods in an impaired Availability Zone using a single API.
 For more information [see the documentation on Zonal Shift and Elastic Kubernetes Service](https://docs.aws.amazon.com/r53recovery/latest/dg/arc-zonal-shift.resource-types.eks.html)
 
-If Zonal Shift is enabled for the EKS cluster, Karpenter will watch for Zonal Shifts on the cluster. When a Zonal Shift is active, all AWS EC2 instance offerings in the Availability Zone will be marked as unavailable preventing Karpenter from making nodeclaims in the zone.
-Karpenter requires permissions to make `GetManagedResource` calls and EKS Cluster must be enabled for Zonal Shift.
+If Zonal Shift is enabled for the EKS cluster, Karpenter will watch for Zonal Shifts on the cluster. When a Zonal Shift is active, Karpenter will not launch nodes in the impaired zone.
+Karpenter requires permissions to make `arc-zonal-shift:GetManagedResource` calls and EKS Cluster must be enabled for Zonal Shift.
 
 To enable Zonal Shift handling, set the CLI argument `--enable-zonal-shift=true`. By default, this argument is set to `false`.
 
