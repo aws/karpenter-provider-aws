@@ -201,7 +201,8 @@ spec:
                               VolumeInitializationRate specifies the Amazon EBS Provisioned Rate for Volume Initialization,
                               in MiB/s, at which to download the snapshot blocks from Amazon S3 to the volume. This is also known as volume
                               initialization. Specifying a volume initialization rate ensures that the volume is initialized at a
-                              predictable and consistent rate after creation. Only allowed if SnapshotID is set.
+                              predictable and consistent rate after creation. If SnapshotID is not explicitly set,
+                              the AMI's root snapshot ID will be used automatically.
                               Valid Range: Minimum value of 100. Maximum value of 300.
                             format: int32
                             maximum: 300
@@ -240,8 +241,6 @@ spec:
                         x-kubernetes-validations:
                           - message: snapshotID or volumeSize must be defined
                             rule: has(self.snapshotID) || has(self.volumeSize)
-                          - message: snapshotID must be set when volumeInitializationRate is set
-                            rule: '!has(self.volumeInitializationRate) || (has(self.snapshotID) && self.snapshotID != '''')'
                       rootVolume:
                         description: |-
                           RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
@@ -708,6 +707,12 @@ spec:
                         type: string
                       name:
                         description: Name of the AMI
+                        type: string
+                      rootDeviceName:
+                        description: RootDeviceName is the device name of the root volume (e.g. /dev/xvda)
+                        type: string
+                      rootDeviceSnapshotID:
+                        description: RootDeviceSnapshotID is the snapshot ID of the AMI's root device
                         type: string
                       requirements:
                         description: Requirements of the AMI to be utilized on an instance type
