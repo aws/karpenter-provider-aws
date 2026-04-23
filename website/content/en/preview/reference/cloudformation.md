@@ -478,6 +478,38 @@ For the interruption queue you created (`${KarpenterInterruptionQueue.Arn}`), th
   ]
 }
 ```
+### KarpenterControllerZonalShiftPolicy
+
+The `ZonalShiftPolicy` manages access to Zonal Shift data for your cluster. Given a cluster name of `bob-karpenter-demo`, this policy would be named: ` KarpenterControllerZonalShiftPolicy-bob-karpenter-demo`
+
+```yaml
+ZonalShiftPolicy:
+  Type: AWS::IAM::ManagedPolicy
+  Properties:
+    ManagedPolicyName: !Sub "KarpenterControllerZonalShiftPolicy-${ClusterName}"
+    Path: /
+    PolicyDocument: !Sub |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+```
+
+### AllowZonalShiftActions
+
+Karpenter supports AWS Application Recovery Controller Zonal Shift, that you can utilize as described in the [Zonal Shift]({{< relref "../concepts/nodeclaims/#zonalshift">}}) section of the NodeClaims page.
+This section of the cloudformation.yaml template can give Karpenter permission to query the Zonal Shift service about the status of the cluster by specifying the cluster ARN. 
+For the cluster that will be created (`arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}`), the AllowZonalShiftActions Sid lets the Karpenter controller have permission to get the Zonal Shift status of the cluster ([GetManagedResource](https://docs.aws.amazon.com/arc-zonal-shift/latest/api/API_GetManagedResource.html)).
+
+```yaml
+{
+  "Sid": "AllowZonalShiftActions",
+  "Effect": "Allow",
+  "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
+  "Action": [
+    "arczonalshift:GetManagedResource"
+  ]
+}
+```
 
 ### KarpenterControllerResourceDiscoveryPolicy
 
