@@ -406,7 +406,7 @@ See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/worklo
 NodePools do not attempt to balance or rebalance the availability zones for their nodes. Availability zone balancing may be achieved by defining zonal Topology Spread Constraints for Pods that require multi-zone durability, and NodePools will respect these constraints while optimizing for compute costs.
 {{% /alert %}}
 
-### Zonal Shift
+#### Zonal Shift
 Zonal Shift is an AWS service that allows you to cordon nodes, stop node termination/pod eviction, and remove pod endpoints from EndpointSlices for nodes and pods in an impaired Availability Zone using a single API.
 For more information [see the documentation on Zonal Shift and Elastic Kubernetes Service](https://docs.aws.amazon.com/r53recovery/latest/dg/arc-zonal-shift.resource-types.eks.html)
 
