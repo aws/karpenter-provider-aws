@@ -574,6 +574,71 @@ var _ = Describe("InstanceProvider", func() {
 
 		Expect(priotiztied.SpotOptions.AllocationStrategy).To(Equal(ec2types.SpotAllocationStrategyCapacityOptimizedPrioritized))
 	})
+	It("should return an ICE error when a single-zone NodeClass has its only zone ICE'd for a single instance type", func() {
+		// Regression test for https://github.com/aws/karpenter-provider-aws/issues/8909
+		// Scenario: NodePool with single instance type + EC2NodeClass with subnets in only one AZ.
+		// After the zone gets ICE'd, subsequent launch attempts should return InsufficientCapacityError
+		// (not a generic CreateError from "no capacity offerings"), so the NodeClaim gets deleted and retried.
+
+		// Set up single-zone NodeClass (only test-zone-1a)
+		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
+		nodeClass.Status.Subnets = []v1.Subnet{
+			{ID: "subnet-test1", Zone: "test-zone-1a", ZoneID: "tstz1-1a"},
+		}
+
+		// Constrain to a single instance type and on-demand only
+		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			{Key: corev1.LabelInstanceTypeStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"m5.xlarge"}},
+			{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand}},
+		}
+
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		// Re-hydrate caches with the single-zone subnet data
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+		awsEnv.InstanceTypeCache.Flush()
+		awsEnv.OfferingCache.Flush()
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+		// First launch: ICE from AWS for m5.xlarge in test-zone-1a
+		awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{
+			{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
+		})
+
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool { return i.Name == "m5.xlarge" })
+		Expect(instanceTypes).To(HaveLen(1))
+
+		// The first Create triggers the ICE from CreateFleet and caches the unavailable offering
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(instance).To(BeNil())
+
+		// Verify the zone is now cached as unavailable
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeTrue())
+
+		// Second launch attempt: instance types are re-resolved with the updated unavailable cache.
+		// The offerings for m5.xlarge in test-zone-1a should now be marked unavailable.
+		// This MUST return InsufficientCapacityError (not a generic error) so the NodeClaim is deleted and retried.
+		instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool { return i.Name == "m5.xlarge" })
+		Expect(instanceTypes).To(HaveLen(1))
+
+		// Verify the offering is now marked unavailable on the instance type itself
+		availableOfferings := instanceTypes[0].Offerings.Available()
+		Expect(availableOfferings).To(HaveLen(0), "expected no available offerings after ICE in the only subnet zone")
+
+		instance, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(HaveOccurred())
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue(),
+			"expected InsufficientCapacityError on retry after ICE, but got: %v", err)
+		Expect(instance).To(BeNil())
+	})
 	It("should use price capacity optimized allocation stragaty by default for spot nodeclaims", func() {
 		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
