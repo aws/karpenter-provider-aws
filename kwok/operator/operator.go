@@ -218,6 +218,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		launchTemplateProvider,
 		capacityReservationProvider,
 		placementGroupProvider,
+		zsProvider,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 	)
 

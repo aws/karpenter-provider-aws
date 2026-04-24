@@ -228,6 +228,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		launchTemplateProvider,
 		capacityReservationProvider,
 		placementGroupProvider,
+		zsProvider,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 	)
 	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, operator.Clock)
