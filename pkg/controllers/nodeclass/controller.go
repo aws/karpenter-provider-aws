@@ -17,6 +17,7 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"time"
 
 	"go.uber.org/multierr"
@@ -71,6 +72,8 @@ type Controller struct {
 	validation              *Validation
 	reconcilers             []reconcile.TypedReconciler[*v1.EC2NodeClass]
 }
+
+var iamInstanceProfileNameRegex = regexp.MustCompile(`^[\w+=,.@-]+$`)
 
 func NewController(
 	clk clock.Clock,
@@ -204,8 +207,10 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		}
 		// Ensure to clean up instance profile that may have been created pre-upgrade
 		legacyProfileName := nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
-		if err := c.instanceProfileProvider.Delete(ctx, legacyProfileName); err != nil {
-			return reconcile.Result{}, serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", legacyProfileName)
+		if isValidIAMInstanceProfileName(legacyProfileName) {
+			if err := c.instanceProfileProvider.Delete(ctx, legacyProfileName); err != nil {
+				return reconcile.Result{}, serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", legacyProfileName)
+			}
 		}
 	}
 
@@ -227,6 +232,10 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	}
 	c.validation.clearCacheEntries(nodeClass)
 	return reconcile.Result{}, nil
+}
+
+func isValidIAMInstanceProfileName(name string) bool {
+	return len(name) > 0 && len(name) <= 128 && iamInstanceProfileNameRegex.MatchString(name)
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
