@@ -300,6 +300,19 @@ spec:
                     Context is a Reserved field in EC2 APIs
                     https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
                   type: string
+                cpuOptions:
+                  description: CPUOptions defines the CPU options for the instance.
+                  properties:
+                    nestedVirtualization:
+                      description: |-
+                        NestedVirtualization enables or disables nested virtualization on the instance.
+                        When enabled, Karpenter filters instance types to only those reporting
+                        "nested-virtualization" in ProcessorInfo.SupportedFeatures from DescribeInstanceTypes.
+                      enum:
+                        - enabled
+                        - disabled
+                      type: string
+                  type: object
                 detailedMonitoring:
                   description: DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
                   type: boolean
