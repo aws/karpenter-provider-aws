@@ -1,4 +1,4 @@
-defaultBaseImage: public.ecr.aws/eks-distro-build-tooling/eks-distro-minimal-base
+defaultBaseImage: public.ecr.aws/eks-distro-build-tooling/eks-distro-minimal-base:latest-al23
 defaultPlatforms:
   - linux/arm64
   - linux/amd64
