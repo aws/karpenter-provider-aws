@@ -94,6 +94,8 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 {{% /alert %}}
 
 * This version adds support for [drift on CA bundle](https://github.com/aws/karpenter-provider-aws/pull/9083). The updated hashing logic will mark existing nodes as [drifted]({{<ref "../concepts/disruption/#drift">}}).
+* This version adds support for [AWS Application Recovery Controller Zonal Shift]({{<ref "../concepts/scheduling/#zonal-shift">}}). This feature is opt-in, disabled by default, and requires a new `arc-zonal-shift:GetManagedResource` IAM permission. For instructions on enabling Zonal Shift on new or existing clusters, see the [Zonal Shift Onboarding]({{<ref "../getting-started/getting-started-with-karpenter/#zonal-shift-onboarding-optional">}}) section of the Getting Started Guide.
+* In the [getting started guide's cloudformation template]({{<ref "../../docs/reference/cloudformation/">}}), there is a new required `ec2:DescribeInstanceStatus` permission in the Karpenter controller role for [EC2 instance status health checks](https://github.com/aws/karpenter-provider-aws/pull/9064) in the interruption controller. You will need to update your Karpenter controller role with this permission.
 
 Full Changelog:
 * https://github.com/aws/karpenter-provider-aws/releases/tag/v1.12.0
