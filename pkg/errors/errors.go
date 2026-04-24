@@ -58,7 +58,6 @@ var (
 		"VcpuLimitExceeded",
 		"UnfulfillableCapacity",
 		"Unsupported",
-		"UnsupportedOperation",
 		"InsufficientFreeAddressesInSubnet",
 		"MaxFleetCountExceeded",
 		reservationCapacityExceededErrorCode,

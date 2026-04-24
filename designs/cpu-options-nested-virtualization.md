@@ -17,7 +17,6 @@ do not support the feature to avoid launch failures.
 - Pass `CpuOptions` through to the EC2 launch template.
 - Filter instance types to only those reporting `nested-virtualization` in
   `ProcessorInfo.SupportedFeatures` from `DescribeInstanceTypes`.
-- Cache `UnsupportedOperation` fleet errors as unfulfillable capacity.
 
 ## Non-Goals (Future Work)
 
@@ -54,18 +53,17 @@ for this feature. Label-based selection can be added in the future based on real
 use cases, consistent with the project's convention of introducing labels only when they
 drive instance configuration (e.g., `instance-tenancy`).
 
-Internally, an `instance-nested-virtualization` requirement is populated on instance types
-during resolution so the filter can distinguish capable types. This requirement is not
-registered as a WellKnownLabel and is not user-schedulable.
-
 ## Launch Behavior
 
-### Instance Type Filtering
+### Instance Type Compatibility
 
 When an `EC2NodeClass` sets `cpuOptions.nestedVirtualization: enabled`, a
-`NestedVirtualizationFilter` in the instance filter chain rejects any instance type
-without the internal nested-virtualization requirement. This runs after the
-`CompatibleAvailableFilter` and before capacity reservation filters.
+`nestedVirtualizationCheck` in the instance type compatibility chain rejects any
+instance type that does not report `nested-virtualization` in
+`ProcessorInfo.SupportedFeatures`. The check runs during instance type resolution,
+so the Karpenter scheduler never considers incompatible types and no NodeClaim is
+created for them. This prevents the create/delete churn that would occur if the
+check lived in the launch-path filter chain.
 
 ### Launch Template
 
@@ -73,16 +71,6 @@ The `cpuOptions()` converter maps the `CPUOptions` struct to
 `LaunchTemplateCpuOptionsRequest`. It returns `nil` when `NestedVirtualization` is nil
 (avoiding an empty `CpuOptions` block in the API call). The value is cast to
 `ec2types.NestedVirtualizationSpecification`.
-
-### Error Handling
-
-`UnsupportedOperation` is added to the `unfulfillableCapacityErrorCodes` set. This is
-defensive: the filter should catch all incompatible types before launch, but if a new
-instance type is added to a family that doesn't yet report `nested-virtualization` in
-`SupportedFeatures` (stale `DescribeInstanceTypes` cache), or if AWS extends the feature
-to a family with partial support, the launch would fail with `UnsupportedOperation`.
-Caching it as unfulfillable avoids retrying a doomed launch every scheduling cycle until
-the instance type cache refreshes.
 
 ## Instance Type Compatibility
 
