@@ -387,7 +387,6 @@ type CPUOptions struct {
 	// NestedVirtualization enables or disables nested virtualization on the instance.
 	// When enabled, Karpenter filters instance types to only those reporting
 	// "nested-virtualization" in ProcessorInfo.SupportedFeatures from DescribeInstanceTypes.
-	// Currently supported on c8i, m8i, r8i, and their flex variants.
 	// +kubebuilder:validation:Enum:={enabled,disabled}
 	// +optional
 	NestedVirtualization *string `json:"nestedVirtualization,omitempty"`
