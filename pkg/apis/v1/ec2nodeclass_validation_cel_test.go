@@ -1424,4 +1424,29 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Update(ctx, nc)).To(Succeed())
 		})
 	})
+
+	Context("CPUOptions", func() {
+		It("should succeed with nestedVirtualization enabled", func() {
+			nc.Spec.CPUOptions = &v1.CPUOptions{
+				NestedVirtualization: aws.String("enabled"),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with nestedVirtualization disabled", func() {
+			nc.Spec.CPUOptions = &v1.CPUOptions{
+				NestedVirtualization: aws.String("disabled"),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail with invalid nestedVirtualization value", func() {
+			nc.Spec.CPUOptions = &v1.CPUOptions{
+				NestedVirtualization: aws.String("invalid"),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should succeed with empty CPUOptions", func() {
+			nc.Spec.CPUOptions = &v1.CPUOptions{}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+	})
 })

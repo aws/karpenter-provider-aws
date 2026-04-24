@@ -46,3 +46,38 @@ var _ = Describe("Launch Template Deletion", func() {
 		}).WithPolling(5.0).Should(Succeed())
 	})
 })
+
+var _ = Describe("Launch Template CPU Options", func() {
+	It("should create launch template with nested virtualization enabled", func() {
+		nodeClass.Spec.CPUOptions = &v1.CPUOptions{
+			NestedVirtualization: aws.String("enabled"),
+		}
+
+		pod := coretest.Pod()
+		env.ExpectCreated(nodePool, nodeClass, pod)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		Eventually(func(g Gomega) {
+			output, err := env.EC2API.DescribeLaunchTemplates(env.Context, &ec2.DescribeLaunchTemplatesInput{
+				Filters: []ec2types.Filter{
+					{Name: aws.String(fmt.Sprintf("tag:%s", v1.LabelNodeClass)), Values: []string{nodeClass.Name}},
+				},
+			})
+			g.Expect(err).To(BeNil())
+			g.Expect(output.LaunchTemplates).To(HaveLen(1))
+
+			ltVersion := aws.ToString(output.LaunchTemplates[0].LatestVersionNumber)
+			ltOutput, err := env.EC2API.DescribeLaunchTemplateVersions(env.Context, &ec2.DescribeLaunchTemplateVersionsInput{
+				LaunchTemplateId: output.LaunchTemplates[0].LaunchTemplateId,
+				Versions:         []string{ltVersion},
+			})
+			g.Expect(err).To(BeNil())
+			g.Expect(ltOutput.LaunchTemplateVersions).To(HaveLen(1))
+
+			ltData := ltOutput.LaunchTemplateVersions[0].LaunchTemplateData
+			g.Expect(ltData.CpuOptions).ToNot(BeNil())
+			g.Expect(ltData.CpuOptions.NestedVirtualization).To(Equal(ec2types.NestedVirtualizationSpecificationEnabled))
+		}).WithPolling(5.0).Should(Succeed())
+	})
+})
