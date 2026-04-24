@@ -678,47 +678,6 @@ var _ = Describe("InstanceFiltersTest", func() {
 			}
 		})
 	})
-	Context("NestedVirtualizationFilter", func() {
-		It("should keep all types when disabled", func() {
-			types := []*cloudprovider.InstanceType{
-				makeInstanceType("m7g.xlarge"),
-			}
-			kept, rejected := filter.NestedVirtualizationFilter(false).FilterReject(types)
-			Expect(kept).To(HaveLen(1))
-			Expect(rejected).To(BeEmpty())
-		})
-		It("should keep types with nested-virt label", func() {
-			types := []*cloudprovider.InstanceType{
-				makeInstanceType("m8i.2xlarge",
-					withRequirements(scheduling.NewRequirement(v1.LabelInstanceNestedVirtualization, corev1.NodeSelectorOpIn, "true")),
-				),
-			}
-			kept, rejected := filter.NestedVirtualizationFilter(true).FilterReject(types)
-			Expect(kept).To(HaveLen(1))
-			Expect(rejected).To(BeEmpty())
-		})
-		It("should reject types without nested-virt label", func() {
-			types := []*cloudprovider.InstanceType{
-				makeInstanceType("m7g.xlarge"),
-			}
-			kept, rejected := filter.NestedVirtualizationFilter(true).FilterReject(types)
-			Expect(kept).To(BeEmpty())
-			Expect(rejected).To(HaveLen(1))
-		})
-		It("should filter a mixed pool to only supported types", func() {
-			types := []*cloudprovider.InstanceType{
-				makeInstanceType("m7g.xlarge"),
-				makeInstanceType("m8i.2xlarge",
-					withRequirements(scheduling.NewRequirement(v1.LabelInstanceNestedVirtualization, corev1.NodeSelectorOpIn, "true")),
-				),
-				makeInstanceType("m4.xlarge"),
-			}
-			kept, rejected := filter.NestedVirtualizationFilter(true).FilterReject(types)
-			Expect(kept).To(HaveLen(1))
-			Expect(kept[0].Name).To(Equal("m8i.2xlarge"))
-			Expect(rejected).To(HaveLen(2))
-		})
-	})
 })
 
 func expectInstanceTypes(instanceTypes []*cloudprovider.InstanceType, names ...string) {

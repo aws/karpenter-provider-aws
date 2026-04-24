@@ -52,6 +52,7 @@ type NodeClass interface {
 	NetworkInterfaces() []*v1.NetworkInterface
 	AMIFamily() string
 	PlacementGroupSelector() *v1.PlacementGroupSelector
+	CPUOptions() *v1.CPUOptions
 }
 
 type DefaultProvider struct {

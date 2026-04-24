@@ -163,7 +163,6 @@ var (
 	LabelInstanceAcceleratorName              = apis.Group + "/instance-accelerator-name"
 	LabelInstanceAcceleratorManufacturer      = apis.Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
-	LabelInstanceNestedVirtualization         = apis.Group + "/instance-nested-virtualization"
 	LabelNodeClass                            = apis.Group + "/ec2nodeclass"
 	LabelInstanceTenancy                      = apis.Group + "/instance-tenancy"
 	LabelPlacementGroupID                     = apis.Group + "/placement-group-id"
