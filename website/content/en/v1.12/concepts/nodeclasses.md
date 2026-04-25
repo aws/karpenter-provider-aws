@@ -115,6 +115,11 @@ spec:
     - id: cr-123
     - instanceMatchCriteria: open
 
+  # Optional, the terms are exclusive
+  placementGroupSelector:
+    name: my-pg
+    id: pg-123
+
   # Optional, propagates tags to underlying EC2 resources
   tags:
     team: team-a
@@ -140,6 +145,15 @@ spec:
         throughput: 125
         snapshotID: snap-0123456789
         volumeInitializationRate: 100
+
+  # Optional, configures the network interfaces for the instance
+  networkInterfaces:
+    - networkCardIndex: 0
+      deviceIndex: 0
+      interfaceType: "interface"
+    - networkCardIndex: 0
+      deviceIndex: 1
+      interfaceType: "interface"
 
   # Optional, use instance-store volumes for node ephemeral-storage
   instanceStorePolicy: RAID0
@@ -200,6 +214,7 @@ status:
       id: cr-01234567890123456
       instanceMatchCriteria: targeted
       instanceType: g6.48xlarge
+      interruptible: false
       ownerID: "012345678901"
       reservationType: capacity-block
       state: expiring
@@ -207,6 +222,7 @@ status:
       id: cr-12345678901234567
       instanceMatchCriteria: open
       instanceType: g6.48xlarge
+      interruptible: true
       ownerID: "98765432109"
       reservationType: default
       state: active
@@ -712,7 +728,7 @@ You can provision and assign a role to an IAM instance profile using [CloudForma
 
 {{% alert title="Note" color="primary" %}}
 
-For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html) that do not have access to the public internet, using `spec.instanceProfile` is required. `spec.role` cannot be used since Karpenter needs to access IAM endpoints to manage a generated instance profile. IAM [doesn't support private endpoints](https://docs.aws.amazon.com/vpc/latest/privatelink/aws-services-privatelink-support.html) to enable accessing the service without going to the public internet.
+For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html) without access to their AWS region's IAM API endpoint, using `spec.instanceProfile` is required. `spec.role` cannot be used since Karpenter needs to access IAM endpoints to manage a generated instance profile. IAM [doesn't support private endpoints](https://docs.aws.amazon.com/vpc/latest/privatelink/aws-services-privatelink-support.html) to enable accessing the service without going to the public internet.
 
 {{% /alert %}}
 
@@ -771,19 +787,19 @@ The following commands can be used to determine the versions availble for an ali
 {{< tabpane text=true right=false >}}
   {{% tab "AL2023" %}}
   ```bash
-  export K8S_VERSION="1.34"
+  export K8S_VERSION="1.35"
   aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2023/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $10}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
   ```
   {{% /tab %}}
   {{% tab "AL2" %}}
   ```bash
-  export K8S_VERSION="1.34"
+  export K8S_VERSION="1.35"
   aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $8}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
   ```
   {{% /tab %}}
   {{% tab "Bottlerocket" %}}
   ```bash
-  export K8S_VERSION="1.34"
+  export K8S_VERSION="1.35"
   aws ssm get-parameters-by-path --path "/aws/service/bottlerocket/aws-k8s-$K8S_VERSION" --recursive | jq -cr '.Parameters[].Name' | grep -v "latest" | awk -F '/' '{print $7}' | sort | uniq
   ```
   {{% /tab %}}
@@ -960,6 +976,39 @@ spec:
       key: foo
 ```
 
+## spec.placementGroupSelector
+
+Placement Group Selector allows you to select a [placement group](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html) for instances launched by this EC2NodeClass. Each EC2NodeClass maps to exactly one placement group — all instances launched from that EC2NodeClass are placed into the resolved placement group.
+
+Placement groups can be selected by either name or ID. Only one of `name` or `id` may be specified.
+
+Karpenter supports all three placement group strategies:
+- **Cluster** — instances are placed in a single AZ on the same network segment for low-latency, high-throughput networking (e.g., EFA workloads)
+- **Partition** — instances are distributed across isolated partitions (up to 7 per AZ) for hardware fault isolation. Applications can use `topologySpreadConstraints` with the `karpenter.k8s.aws/placement-group-partition` label to spread workloads across partitions.
+- **Spread** — each instance is placed on distinct hardware (up to 7 instances per AZ per group) for maximum fault isolation
+
+{{% alert title="Note" color="primary" %}}
+The IAM role Karpenter assumes must have permissions for the [ec2:DescribePlacementGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribePlacementGroups.html) action to discover placement groups and the [ec2:RunInstances](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-RunInstances) / [ec2:CreateFleet](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-CreateFleet) actions to launch instances into the placement group.
+{{% /alert %}}
+
+#### Examples
+
+Select the placement group with the given ID:
+
+```yaml
+spec:
+  placementGroupSelector:
+    id: pg-123
+```
+
+Select the placement group with the given name:
+
+```yaml
+spec:
+  placementGroupSelector:
+    name: my-pg-a
+```
+
 ## spec.tags
 
 Karpenter adds tags to all resources it creates, including EC2 Instances, EBS volumes, and Launch Templates. The default set of tags are listed below.
@@ -1079,6 +1128,28 @@ spec:
 ### Custom
 
 The `Custom` AMIFamily ships without any default `blockDeviceMappings`.
+
+## spec.networkInterfaces
+
+The `networkInterfaces` field allows you to configure network interface attachments for instances, including support for EFA (Elastic Fabric Adapter) devices for high-performance computing and machine learning workloads. For more information see the [AWS EFA docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html).
+
+Configure network interfaces by specifying the network card index, device index, and interface type:
+
+```yaml
+spec:
+  networkInterfaces:
+    - networkCardIndex: 0
+      deviceIndex: 0
+      interfaceType: "interface"
+    - networkCardIndex: 0
+      deviceIndex: 1
+      interfaceType: "efa-only"
+```
+
+### Interface Types
+
+- __interface__: Standard ENA (Elastic Network Adapter) interface providing IP connectivity
+- __efa-only__: EFA interface that provides only the EFA device for RDMA communication without consuming an IP address
 
 ## spec.instanceStorePolicy
 
@@ -1712,6 +1783,7 @@ status:
 | `ownerID`               | `459763720645`         | The account ID that owns the capacity reservation                                    |
 | `reservationType`       | `default`              | The type of the capacity reservation. Can be `default` or `capacity-block`.          |
 | `state`                 | `active`               | The state of the capacity reservation. Can be `active` or `expiring`.                |
+| `interruptible`         | `true` or `false`      | Whether the capacity reservation is interruptible.                                   |
 
 #### Examples
 
@@ -1722,6 +1794,7 @@ status:
     id: cr-01234567890123456
     instanceMatchCriteria: targeted
     instanceType: g6.48xlarge
+    interruptible: false
     ownerID: "012345678901"
     reservationType: capacity-block
     state: expiring
@@ -1729,6 +1802,7 @@ status:
     id: cr-12345678901234567
     instanceMatchCriteria: open
     instanceType: g6.48xlarge
+    interruptible: true
     ownerID: "98765432109"
     reservationType: default
     state: active
