@@ -78,6 +78,7 @@ type LaunchTemplate struct {
 	UserData                         bootstrap.Bootstrapper
 	BlockDeviceMappings              []*v1.BlockDeviceMapping
 	MetadataOptions                  *v1.MetadataOptions
+	NetworkPerformanceOptions        *v1.NetworkPerformanceOptions
 	AMIID                            string
 	InstanceTypes                    []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring               bool
@@ -318,6 +319,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			),
 			BlockDeviceMappings:              nodeClass.Spec.BlockDeviceMappings,
 			MetadataOptions:                  nodeClass.Spec.MetadataOptions,
+			NetworkPerformanceOptions:        nodeClass.Spec.NetworkPerformanceOptions,
 			DetailedMonitoring:               aws.ToBool(nodeClass.Spec.DetailedMonitoring),
 			AMIID:                            amiID,
 			InstanceTypes:                    instanceTypes,
