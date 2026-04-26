@@ -9,9 +9,11 @@ This document proposes supporting EC2 bandwidth weighting configuration in Karpe
   - [Non-Goals](#non-goals)
   - [EC2NodeClass API](#ec2nodeclass-api)
   - [Instance Type Discovery](#instance-type-discovery)
+  - [Validation](#validation)
   - [Scheduling and Launch Behavior](#scheduling-and-launch-behavior)
   - [Labels](#labels)
   - [Drift](#drift)
+  - [Release Notes and Compatibility](#release-notes-and-compatibility)
   - [Appendix](#appendix)
 
 ## Overview
@@ -82,8 +84,10 @@ spec:
 ```
 
 In this configuration:
-- R8gd nodes launch with `vpc-1` — increased networking bandwidth
-- R6gd nodes launch without `NetworkPerformanceOptions` — default bandwidth (parameter silently ignored for unsupported types)
+- R8gd nodes launch with `vpc-1` — increased networking bandwidth, and receive the `karpenter.k8s.aws/instance-bandwidth-weighting=vpc-1` label
+- R6gd nodes launch with `NetworkPerformanceOptions` omitted from the launch template (Karpenter detects the instance type does not support bandwidth weighting and excludes the field), so they boot with default bandwidth and receive **no** bandwidth-weighting label
+
+This means Karpenter — not EC2 — is responsible for ensuring unsupported instance types never receive `NetworkPerformanceOptions`. The launch template hash differs between supported and unsupported instance types in the same NodePool, producing distinct launch templates per group. See [Validation](#validation) for the safety net when discovery is wrong.
 
 ### EBS-Heavy Analytics (ebs-1)
 
@@ -139,6 +143,20 @@ type NetworkPerformanceOptions struct {
 }
 ```
 
+### Value Semantics
+
+The `bandwidthWeighting` field has three meaningful states, and Karpenter must distinguish all three to avoid silently changing behavior on existing fleets:
+
+| Spec state | Behavior on launch | Launch template `NetworkPerformanceOptions` |
+|---|---|---|
+| Field unset (or `networkPerformanceOptions: {}`) | Karpenter omits `NetworkPerformanceOptions` entirely | absent |
+| `bandwidthWeighting: default` | Karpenter sends `BandwidthWeighting=default` explicitly | present, value `default` |
+| `bandwidthWeighting: vpc-1` / `ebs-1` | Karpenter sends the requested value | present, value `vpc-1` / `ebs-1` |
+
+**Migration impact:** "Field unset" and `bandwidthWeighting: default` are *not* equivalent on the wire. Existing EC2NodeClasses upgraded to a Karpenter version that supports this feature will continue to hash to their current launch template (since the field is absent). Setting `bandwidthWeighting: default` explicitly is supported but produces a new launch template version and triggers drift-driven replacement (see [Drift](#drift)) — operators who only want to opt into observability without touching nodes should leave the field unset.
+
+This distinction is also why setting `bandwidthWeighting: default` is allowed in the enum (rather than forcing operators to "remove the field" to get default behavior): some operators want the explicit declaration in their NodeClass for auditability, and the explicit form gives EC2 a consistent value to validate.
+
 ## Instance Type Discovery
 
 Karpenter needs to know which instance types support bandwidth weighting to conditionally include `NetworkPerformanceOptions` in the launch template.
@@ -158,6 +176,62 @@ If the API does not expose bandwidth weighting capability, maintain a static lis
 ### Recommendation
 
 Option A is preferred for accuracy and forward-compatibility. Option B is a viable fallback if the API doesn't expose the capability.
+
+### Cache and Refresh
+
+Karpenter caches `DescribeInstanceTypes` results in the existing instance type provider. For bandwidth weighting:
+
+- **TTL**: bandwidth-weighting support reuses the same cache TTL as other `NetworkInfo`-derived fields (currently 24h via `instancetype.DefaultTTL`). No new cache layer is introduced.
+- **Cold start**: if the API is unreachable on controller startup, the static fallback list (Option B) is used until the next successful refresh. Discovery never blocks launches.
+- **Resolution rule**: support is true if **either** the API confirms it OR the static list confirms it. This is intentionally permissive on the static side (we'd rather try and let validation reject than drop capacity for a known-supported family during a transient API outage), but conservative on the API side (a fresh API response that says "not supported" overrides a stale static `true`).
+- **New families**: when AWS adds bandwidth weighting to a new family, the API picks it up on the next refresh (≤24h). The static list is updated by Karpenter releases, not at runtime.
+
+### Discovery Misclassifications
+
+Discovery can be wrong in two directions, and the design must handle both:
+
+| Misclassification | Symptom | Mitigation |
+|---|---|---|
+| **False negative** (supported, but Karpenter thinks not) | Launch template omits `NetworkPerformanceOptions`; node boots with default bandwidth, receives no label | Acceptable. Operator updates static list or waits for cache refresh. No launch failure. |
+| **False positive** (unsupported, but Karpenter thinks yes) | Launch template includes `NetworkPerformanceOptions`; EC2 may silently ignore (current behavior) or may reject in a future API change | See [Validation](#validation) for the runtime guard. |
+
+The design relies on EC2's documented behavior of silently accepting `NetworkPerformanceOptions` on instance types that don't support it. If AWS changes this to a hard validation error in the future, false-positive launches would fail with `InvalidParameterValue`. The mitigation is a defense-in-depth pre-launch check (see Validation) plus the [Release Notes](#release-notes-and-compatibility) section calling out the dependency.
+
+## Validation
+
+Validation happens at three layers, each catching a different failure mode:
+
+### 1. Admission (CRD schema)
+
+`+kubebuilder:validation:Enum:={"default","vpc-1","ebs-1"}` rejects unknown values at the apiserver. This is the first line of defense and catches typos.
+
+### 2. NodeClass reconciliation (runtime guard)
+
+Even with the CRD enum, future Karpenter releases may ship a CRD with new values (e.g., `ebs-2`) while running an older controller binary. The reconciler **must** validate `bandwidthWeighting` against a controller-local set of known values and reject unknown values with a clear status condition rather than passing the value through to `RunInstances`:
+
+```go
+var supportedBandwidthWeightings = sets.New(
+    string(ec2types.InstanceBandwidthWeightingDefault),
+    string(ec2types.InstanceBandwidthWeightingVpc1),
+    string(ec2types.InstanceBandwidthWeightingEbs1),
+)
+
+if npo := nodeClass.Spec.NetworkPerformanceOptions; npo != nil && npo.BandwidthWeighting != nil {
+    if !supportedBandwidthWeightings.Has(*npo.BandwidthWeighting) {
+        return reconcile.Result{}, fmt.Errorf(
+            "unsupported bandwidthWeighting %q (controller knows: %v)",
+            *npo.BandwidthWeighting, supportedBandwidthWeightings.UnsortedList())
+    }
+}
+```
+
+The set is sourced from the EC2 SDK enum at build time, so upgrading the controller's SDK is the explicit step that introduces support for a new value. This produces a `NodeClassReady=False` condition with reason `UnsupportedBandwidthWeighting` so operators see *why* their NodeClass isn't launching nodes.
+
+### 3. Pre-launch instance-type check
+
+Before calling `RunInstances`, the launch path validates that the resolved instance type's `NetworkInfo.BandwidthWeightings` includes the requested value. If not, Karpenter omits `NetworkPerformanceOptions` from that specific launch (same code path as the discovery-based skip) and emits a `BandwidthWeightingUnsupportedForInstanceType` event on the NodeClaim. This is the safety net for a false-positive discovery result and for any future EC2-side hardening of validation.
+
+The pre-launch check is structured so that label application (see [Labels](#labels)) is gated on the same predicate — a node only gets the `karpenter.k8s.aws/instance-bandwidth-weighting` label if the launched instance actually received the configured weighting.
 
 ## Scheduling and Launch Behavior
 
@@ -204,13 +278,23 @@ When Karpenter launches an instance with bandwidth weighting configured, it appl
 
 | Label | Values | Description |
 |-------|--------|-------------|
-| `karpenter.k8s.aws/instance-bandwidth-weighting` | `default`, `vpc-1`, `ebs-1` | The bandwidth weighting applied to the instance. Only set when the instance type supports bandwidth weighting and the EC2NodeClass specifies `networkPerformanceOptions`. |
+| `karpenter.k8s.aws/instance-bandwidth-weighting` | `default`, `vpc-1`, `ebs-1` | The bandwidth weighting **effective on the launched instance**. Set only after the launch path confirms (a) the resolved instance type's `NetworkInfo.BandwidthWeightings` includes the configured value, and (b) `NetworkPerformanceOptions` was included in `RunInstances`. |
+
+### Effective vs. Intended Configuration
+
+The label reflects what the instance actually has, not what the EC2NodeClass requested. This matters for the mixed-fleet case:
+
+- An R8gd in a `bandwidthWeighting: vpc-1` NodePool gets `instance-bandwidth-weighting=vpc-1`.
+- An R6gd in the **same** NodePool — where the launch template omitted `NetworkPerformanceOptions` because R6gd doesn't support it — gets **no label**, not `instance-bandwidth-weighting=default`.
+- If a future discovery misclassification or EC2 API change causes a launch to silently drop the parameter, the absent label correctly signals "this node does not have the requested weighting" rather than asserting it.
+
+This makes the label safe to use in both monitoring (count nodes with each weighting) and pod affinity (select only nodes that actually have the requested config) without operators having to cross-reference the EC2NodeClass spec.
 
 This label enables:
 
-1. **Observability** — operators can see which nodes have bandwidth weighting applied
+1. **Observability** — operators can see which nodes actually have bandwidth weighting applied (vs. just configured to)
 2. **Pod affinity** — workloads that benefit from boosted networking can express affinity for `vpc-1` nodes
-3. **Drift detection** — Karpenter can detect when a node's bandwidth weighting doesn't match the EC2NodeClass
+3. **Drift detection** — Karpenter can detect when a node's effective bandwidth weighting doesn't match the EC2NodeClass
 
 Example:
 
@@ -239,14 +323,40 @@ Note: This is a `preferred` affinity, not `required` — the pod can still sched
 
 ## Drift
 
-Nodes are marked as drifted when their bandwidth weighting label no longer matches the EC2NodeClass's `networkPerformanceOptions`:
+`bandwidthWeighting` is a launch-time-only EC2 field — `ModifyInstanceNetworkPerformanceOptions` requires the instance to be in `Stopped` state, and Karpenter does not stop/start nodes. **Drift on this field is always resolved by node replacement; the controller never attempts an in-place modify.** This is enforced in code: the drift handler for `BandwidthWeighting` returns a replacement directive without an in-place path.
+
+### Drift Scenarios
 
 | Scenario | Detection | Recovery |
 |----------|-----------|----------|
-| `networkPerformanceOptions` added to EC2NodeClass | Existing nodes lack bandwidth weighting label | Nodes drifted, replaced with bandwidth weighting |
-| `networkPerformanceOptions` removed | Existing nodes have bandwidth weighting label | Nodes drifted, replaced without bandwidth weighting |
-| `bandwidthWeighting` value changed (e.g., `vpc-1` → `ebs-1`) | Label value differs from spec | Nodes drifted, replaced with new weighting |
-| Instance type doesn't support bandwidth weighting | No label set, no drift | No action needed |
+| `networkPerformanceOptions` added to EC2NodeClass | Existing supported-type nodes lack the bandwidth-weighting label | Replace with the configured weighting |
+| `networkPerformanceOptions` removed | Existing nodes have the bandwidth-weighting label | Replace without `NetworkPerformanceOptions` |
+| `bandwidthWeighting` value changed (e.g., `vpc-1` → `ebs-1`) | Label value differs from spec | Replace with the new weighting |
+| Instance type does not support bandwidth weighting | No label set | No drift, no action |
+| Discovery flips a previously-unsupported type to supported | Existing node of that type lacks the label | Replace on next reconcile so the new node picks up the weighting |
+
+### Distinct Drift Reason
+
+Bandwidth weighting drift surfaces as its own reason in NodeClaim events and the `Drifted` status condition message:
+
+- Reason: `BandwidthWeightingDrift`
+- Event message: `BandwidthWeighting drift detected: node has %q, EC2NodeClass spec has %q`
+
+This is intentionally separate from existing `NodeClassDrift` / `RequirementsDrift` / `AMIDrift` reasons so operators investigating "why was my node replaced?" can grep for the specific cause. The same drift reason is also used when discovery flips support status for an instance type, with the message indicating that instead.
+
+### Interaction with the AWS API Constraint
+
+Per the [EC2 API](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_ModifyInstanceNetworkPerformanceOptions.html), `BandwidthWeighting` cannot be changed on a running instance. The Karpenter NodeClass controller does not call `ModifyInstanceNetworkPerformanceOptions` from any code path — replacement is the only mechanism. If a future enhancement wants to support stop/modify/start for cost reasons, that would be a separate proposal; this design intentionally leaves it out.
+
+## Release Notes and Compatibility
+
+The release introducing this feature must call out the following in the changelog:
+
+1. **No-op for existing EC2NodeClasses.** EC2NodeClasses that do not set `networkPerformanceOptions` continue to produce the same launch template hash and do not trigger drift. Operators can upgrade without node churn.
+2. **Opt-in is launch-time-only.** Setting `bandwidthWeighting` triggers replacement of existing nodes covered by that NodeClass — there is no in-place change. Operators staging this change in production should expect a rolling replacement, not a hot reconfigure.
+3. **Reliance on EC2 silent-ignore for unsupported types.** This design depends on EC2 silently accepting `NetworkPerformanceOptions` on instance types that don't support it as a defense-in-depth fallback (the primary mechanism is Karpenter's discovery-based omission). If AWS hardens this validation in a future API change, false-positive discovery results would surface as launch failures. The pre-launch validation step (see [Validation](#validation)) makes this unlikely in practice.
+4. **No new IAM permissions required.** `NetworkPerformanceOptions` is a parameter on existing `RunInstances` / `CreateLaunchTemplate` calls, both already permitted by the standard Karpenter IAM policy.
+5. **Static fallback list is release-pinned.** New 9th-gen+ families that support bandwidth weighting are picked up automatically via `DescribeInstanceTypes`. The static fallback list is updated by Karpenter releases for environments that can't reach `DescribeInstanceTypes` at startup.
 
 ## Appendix
 
