@@ -81,6 +81,7 @@ func main() {
 		op.CapacityReservationProvider,
 		op.PlacementGroupProvider,
 		op.InstanceTypeStore,
+		lo.ToPtr(""),
 	)
 	instanceTypes := lo.Must(cloudProvider.GetInstanceTypes(ctx, nil))
 
