@@ -48,8 +48,8 @@ After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
-export KARPENTER_VERSION="1.9.0"
-export K8S_VERSION="1.34"
+export KARPENTER_VERSION="1.12.0"
+export K8S_VERSION="1.35"
 ```
 
 Then set the following environment variable:
@@ -61,7 +61,7 @@ If you open a new shell to run steps in this procedure, you need to set some or 
 To remind yourself of these values, type:
 
 ```bash
-echo "${KARPENTER_NAMESPACE}" "${KARPENTER_VERSION}" "${K8S_VERSION}" "${CLUSTER_NAME}" "${AWS_DEFAULT_REGION}" "${AWS_ACCOUNT_ID}" "${TEMPOUT}" "${ALIAS_VERSION}"
+echo "${KARPENTER_NAMESPACE}" "${KARPENTER_VERSION}" "${K8S_VERSION}" "${CLUSTER_NAME}" "${AWS_DEFAULT_REGION}" "${AWS_ACCOUNT_ID}" "${TEMPOUT}" "${ALIAS_VERSION}" ${ENABLE_ZONAL_SHIFT}
 ```
 
 {{% /alert %}}
@@ -115,13 +115,13 @@ See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/
 As the OCI Helm chart is signed by [Cosign](https://github.com/sigstore/cosign) as part of the release process you can verify the chart before installing it by running the following command.
 
 ```bash
-cosign verify public.ecr.aws/karpenter/karpenter:1.9.0 \
+cosign verify public.ecr.aws/karpenter/karpenter:1.12.0 \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v1.9.0 \
-  --annotations version=1.9.0
+  --certificate-github-workflow-ref=refs/tags/v1.12.0 \
+  --annotations version=1.12.0
 ```
 
 {{% alert title="DNS Policy Notice" color="warning" %}}
@@ -196,6 +196,50 @@ The Grafana instance may be accessed using port forwarding.
 The new stack has only one user, `admin`, and the password is stored in a secret. The following command will retrieve the password.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step11-grafana-get-password.sh" language="bash"%}}
+
+## Zonal Shift Onboarding (optional)
+
+You can optionally enable the Zonal Shift integration with Karpenter which provides additional improvements to your application environment's fault tolerance and application recovery. For more details on how Zonal Shift works with EKS, see [Learn about ARC zonal shift in Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/zone-shift.html).
+
+To do this, the EKS cluster must first be enabled for Zonal Shift. This can be done through the AWS Console, AWS CLI, or `eksctl`. For step-by-step instructions, see [Enable EKS zonal shift](https://docs.aws.amazon.com/eks/latest/userguide/zone-shift-enable.html).
+
+```bash
+eksctl utils update-zonal-shift-config --cluster=${CLUSTER_NAME} --enabled
+```
+
+Once the cluster has been enabled for Zonal Shift, you can use Zonal Shift controls to shift traffic and scaling operations. For more details see the [guide on using Zonal Shift with EKS.](https://docs.aws.amazon.com/eks/latest/userguide/zone-shift.html) 
+
+If you are installing Karpenter for the first time, pass `--set "settings.enableZonalShift=true"` during the initial Helm install to enable the integration.
+
+### Onboarding an existing cluster to Zonal Shift
+
+If you are upgrading an existing Karpenter installation to v1.12.0+ and want to enable Zonal Shift, follow these steps:
+
+1. **Add the required IAM permission.** The Karpenter controller role needs the `arc-zonal-shift:GetManagedResource` permission. If you are using the [getting started guide's cloudformation template]({{<ref "../../reference/cloudformation/">}}), re-apply the template to pick up the new `KarpenterControllerZonalShiftPolicy`. If you manage IAM manually, add the following statement to your controller role policy:
+
+    ```json
+    {
+      "Sid": "AllowZonalShiftStatusReadOnly",
+      "Effect": "Allow",
+      "Resource": "arn:aws:eks:<region>:<account-id>:cluster/<cluster-name>",
+      "Action": "arc-zonal-shift:GetManagedResource"
+    }
+    ```
+
+2. **Enable Zonal Shift on the EKS cluster** if not already enabled:
+
+    ```bash
+    eksctl utils update-zonal-shift-config --cluster=${CLUSTER_NAME} --enabled
+    ```
+
+3. **Enable Zonal Shift in Karpenter** by upgrading the Helm release with the `settings.enableZonalShift` value:
+
+    ```bash
+    helm upgrade karpenter oci://public.ecr.aws/karpenter/karpenter --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --reuse-values \
+      --set "settings.enableZonalShift=true"
+    ```
+
+    Alternatively, set the `ENABLE_ZONAL_SHIFT=true` environment variable on the Karpenter controller deployment.
 
 ## Advanced Installation
 

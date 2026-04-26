@@ -162,6 +162,7 @@ Take care to ensure the label domains are correct. A well known label like `karp
 | karpenter.sh/nodepool                                          | default              | The name of the nodepool used to provision the node.                                                                                                                                                                                      |
 | karpenter.k8s.aws/capacity-reservation-id                      | cr-56fac701cc1951b03 | [AWS Specific] The capacity reservation ID. Only present on reserved nodes.                                                                                                                                                               |
 | karpenter.k8s.aws/capacity-reservation-type                    | default              | [AWS Specific] The capacity reservation type. Can be `default` or `capacity-block`. Only present on reserved nodes.                                                                                                                       |
+| karpenter.k8s.aws/capacity-reservation-interruptible           | true                 | [AWS Specific] Whether the capacity reservation is interruptible. Only present on reserved nodes.                                                                                                                                            |
 | karpenter.k8s.aws/ec2nodeclass                                 | default              | [AWS Specific] The name of the ec2 nodeclass used to provision the node                                                                                                                                                                   |
 | karpenter.k8s.aws/instance-hypervisor                          | nitro                | [AWS Specific] Instance types that use a specific hypervisor                                                                                                                                                                              |
 | karpenter.k8s.aws/instance-encryption-in-transit-supported     | true                 | [AWS Specific] Instance types that support (or not) in-transit encryption                                                                                                                                                                 |
@@ -182,8 +183,11 @@ Take care to ensure the label domains are correct. A well known label like `karp
 | karpenter.k8s.aws/instance-gpu-memory                          | 16384                | [AWS Specific] Number of mebibytes of memory on the GPU                                                                                                                                                                                   |
 | karpenter.k8s.aws/instance-local-nvme                          | 900                  | [AWS Specific] Number of gibibytes of local nvme storage on the instance                                                                                                                                                                  |
 | karpenter.k8s.aws/instance-capability-flex                     | true                 | [AWS Specific] Instance with capacity flex                                                                                                                                                                                                |
-| karpenter.k8s.aws/instance-tenancy                                      | default              | [AWS Specific] Tenancy types include `default`, and `dedicated`                                                                                                                                                                        |
+| karpenter.k8s.aws/instance-tenancy                             | default              | [AWS Specific] Tenancy types include `default`, and `dedicated`                                                                                                                                                                           |
+| karpenter.k8s.aws/placement-group-id                           | pg-0fa32af67ed0f8da0 | [AWS Specific] The placement group ID.
+| karpenter.k8s.aws/placement-group-partition                    | 7                    | [AWS Specific] The partition number of the partition placement group the instance is in.
 | topology.k8s.aws/zone-id                                       | use1-az1             | [AWS Specific] Globally consistent [zone id](https://docs.aws.amazon.com/global-infrastructure/latest/regions/az-ids.html)                                                                                                                |
+
 
 {{% alert title="Note" color="primary" %}}
 Karpenter translates the following deprecated labels to their stable equivalents: `failure-domain.beta.kubernetes.io/zone`, `failure-domain.beta.kubernetes.io/region`, `beta.kubernetes.io/arch`, `beta.kubernetes.io/os`, and `beta.kubernetes.io/instance-type`.
@@ -401,6 +405,15 @@ See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/worklo
 {{% alert title="Note" color="primary" %}}
 NodePools do not attempt to balance or rebalance the availability zones for their nodes. Availability zone balancing may be achieved by defining zonal Topology Spread Constraints for Pods that require multi-zone durability, and NodePools will respect these constraints while optimizing for compute costs.
 {{% /alert %}}
+
+#### Zonal Shift
+If you are using TopologySpreadConstraints to spread across zones, you may want to consider leveraging Zonal Shift to automatically handle availability zone impairments. Zonal Shift is an AWS service that allows you to cordon nodes, stop node termination/pod eviction, and remove pod endpoints from EndpointSlices for nodes and pods in an impaired Availability Zone using a single API.
+For more information [see the documentation on Zonal Shift and Elastic Kubernetes Service](https://docs.aws.amazon.com/r53recovery/latest/dg/arc-zonal-shift.resource-types.eks.html)
+
+If Zonal Shift is enabled for the EKS cluster, Karpenter will watch for Zonal Shifts on the cluster. When a Zonal Shift is active, Karpenter will not launch nodes in the impaired zone.
+Karpenter requires permissions to make `arc-zonal-shift:GetManagedResource` calls and EKS Cluster must be enabled for Zonal Shift.
+
+To enable Zonal Shift handling, see the [Zonal Shift Onboarding]({{<ref "../getting-started/getting-started-with-karpenter/#zonal-shift-onboarding-optional">}}) section of the Getting Started Guide.
 
 ### Pod affinity/anti-affinity
 

@@ -406,6 +406,15 @@ See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/worklo
 NodePools do not attempt to balance or rebalance the availability zones for their nodes. Availability zone balancing may be achieved by defining zonal Topology Spread Constraints for Pods that require multi-zone durability, and NodePools will respect these constraints while optimizing for compute costs.
 {{% /alert %}}
 
+#### Zonal Shift
+If you are using TopologySpreadConstraints to spread across zones, you may want to consider leveraging Zonal Shift to automatically handle availability zone impairments. Zonal Shift is an AWS service that allows you to cordon nodes, stop node termination/pod eviction, and remove pod endpoints from EndpointSlices for nodes and pods in an impaired Availability Zone using a single API.
+For more information [see the documentation on Zonal Shift and Elastic Kubernetes Service](https://docs.aws.amazon.com/r53recovery/latest/dg/arc-zonal-shift.resource-types.eks.html)
+
+If Zonal Shift is enabled for the EKS cluster, Karpenter will watch for Zonal Shifts on the cluster. When a Zonal Shift is active, Karpenter will not launch nodes in the impaired zone.
+Karpenter requires permissions to make `arc-zonal-shift:GetManagedResource` calls and EKS Cluster must be enabled for Zonal Shift.
+
+To enable Zonal Shift handling, see the [Zonal Shift Onboarding]({{<ref "../getting-started/getting-started-with-karpenter/#zonal-shift-onboarding-optional">}}) section of the Getting Started Guide.
+
 ### Pod affinity/anti-affinity
 
 By using the `podAffinity` and `podAntiAffinity` configuration on a pod spec, you can inform the Karpenter scheduler of your desire for pods to schedule together or apart with respect to different topology domains.
