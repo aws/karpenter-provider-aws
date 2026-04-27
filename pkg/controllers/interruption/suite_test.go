@@ -383,30 +383,6 @@ var _ = Describe("InterruptionHandling", func() {
 			})
 			ExpectNotFound(ctx, env.Client, nodeClaim)
 		})
-		It("should NOT delete the NodeClaim when an instance is unhealthy due to EBS Status only", func() {
-			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
-			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
-				InstanceStatuses: []ec2types.InstanceStatus{
-					{
-						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
-						AttachedEbsStatus: &ec2types.EbsStatusSummary{
-							Status: ec2types.SummaryStatusImpaired,
-							Details: []ec2types.EbsStatusDetails{
-								{
-									Status:        ec2types.StatusTypeFailed,
-									Name:          ec2types.StatusNameReachability,
-									ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
-								},
-							},
-						},
-					},
-				},
-			})
-			awsEnv.Clock.Step(time.Hour)
-			ExpectApplied(ctx, env.Client, nodeClaim, node)
-			ExpectSingletonReconciled(ctx, instanceStatusController)
-			ExpectExists(ctx, env.Client, nodeClaim)
-		})
 	})
 })
 

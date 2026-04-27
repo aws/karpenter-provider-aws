@@ -82,10 +82,14 @@ func (p DefaultProvider) List(ctx context.Context) ([]HealthStatus, error) {
 	// and scheduled maintenance events.
 	// EBS status check failures are ignored for now.
 	filterSets := [][]ec2types.Filter{
-		{{Name: lo.ToPtr("instance-status.reachability"), Values: []string{"failed"}}},
-		{{Name: lo.ToPtr("system-status.reachability"), Values: []string{"failed"}}},
+		{{Name: lo.ToPtr("instance-status.status"), Values: []string{string(ec2types.SummaryStatusImpaired)}}},
+		{{Name: lo.ToPtr("system-status.status"), Values: []string{string(ec2types.SummaryStatusImpaired)}}},
 		{{Name: lo.ToPtr("event.code"), Values: []string{
-			"instance-reboot", "system-reboot", "system-maintenance", "instance-retirement", "instance-stop",
+			string(ec2types.EventCodeInstanceReboot),
+			string(ec2types.EventCodeSystemReboot),
+			string(ec2types.EventCodeSystemMaintenance),
+			string(ec2types.EventCodeInstanceRetirement),
+			string(ec2types.EventCodeInstanceStop),
 		}}},
 	}
 
