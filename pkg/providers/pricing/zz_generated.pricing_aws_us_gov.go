@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2026-04-02T22:29:20Z for us-east-1
+// generated at 2026-04-27T13:45:47Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -152,6 +152,8 @@ var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 		"m8g.medium": 0.056540, "m8g.metal-24xl": 5.970620, "m8g.metal-48xl": 10.855680, "m8g.xlarge": 0.226160,
 		// p3dn family
 		"p3dn.24xlarge": 37.454000,
+		// p6-b300 family
+		"p6-b300.48xlarge": 170.900000,
 		// r5 family
 		"r5.12xlarge": 3.624000, "r5.16xlarge": 4.832000, "r5.24xlarge": 7.248000, "r5.2xlarge": 0.604000,
 		"r5.4xlarge": 1.208000, "r5.8xlarge": 2.416000, "r5.large": 0.151000, "r5.metal": 7.248000,
@@ -441,6 +443,15 @@ var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 		"m8g.12xlarge": 2.714880, "m8g.16xlarge": 3.619840, "m8g.24xlarge": 5.429760, "m8g.2xlarge": 0.452480,
 		"m8g.48xlarge": 10.859520, "m8g.4xlarge": 0.904960, "m8g.8xlarge": 1.809920, "m8g.large": 0.113120,
 		"m8g.medium": 0.056560, "m8g.metal-24xl": 5.972740, "m8g.metal-48xl": 10.859520, "m8g.xlarge": 0.226240,
+		// m8i-flex family
+		"m8i-flex.12xlarge": 3.041760, "m8i-flex.16xlarge": 4.055680, "m8i-flex.2xlarge": 0.506960,
+		"m8i-flex.4xlarge": 1.013920, "m8i-flex.8xlarge": 2.027840, "m8i-flex.large": 0.126740,
+		"m8i-flex.xlarge": 0.253480,
+		// m8i family
+		"m8i.12xlarge": 3.201600, "m8i.16xlarge": 4.268800, "m8i.24xlarge": 6.403200, "m8i.2xlarge": 0.533600,
+		"m8i.32xlarge": 8.537600, "m8i.48xlarge": 12.806400, "m8i.4xlarge": 1.067200, "m8i.8xlarge": 2.134400,
+		"m8i.96xlarge": 25.612800, "m8i.large": 0.133400, "m8i.metal-48xl": 12.806400, "m8i.metal-96xl": 25.612800,
+		"m8i.xlarge": 0.266800,
 		// p2 family
 		"p2.16xlarge": 17.280000, "p2.8xlarge": 8.640000, "p2.xlarge": 1.080000,
 		// p3 family
@@ -521,6 +532,15 @@ var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 		"r8g.12xlarge": 3.388440, "r8g.16xlarge": 4.517920, "r8g.24xlarge": 6.776880, "r8g.2xlarge": 0.564740,
 		"r8g.48xlarge": 13.553760, "r8g.4xlarge": 1.129480, "r8g.8xlarge": 2.258960, "r8g.large": 0.141190,
 		"r8g.medium": 0.070590, "r8g.metal-24xl": 7.454570, "r8g.metal-48xl": 13.553760, "r8g.xlarge": 0.282370,
+		// r8i-flex family
+		"r8i-flex.12xlarge": 3.795840, "r8i-flex.16xlarge": 5.061120, "r8i-flex.2xlarge": 0.632640,
+		"r8i-flex.4xlarge": 1.265280, "r8i-flex.8xlarge": 2.530560, "r8i-flex.large": 0.158160,
+		"r8i-flex.xlarge": 0.316320,
+		// r8i family
+		"r8i.12xlarge": 3.995520, "r8i.16xlarge": 5.327360, "r8i.24xlarge": 7.991040, "r8i.2xlarge": 0.665920,
+		"r8i.32xlarge": 10.654720, "r8i.48xlarge": 15.982080, "r8i.4xlarge": 1.331840, "r8i.8xlarge": 2.663680,
+		"r8i.96xlarge": 31.964160, "r8i.large": 0.166480, "r8i.metal-48xl": 17.580290, "r8i.metal-96xl": 31.964160,
+		"r8i.xlarge": 0.332960,
 		// t1 family
 		"t1.micro": 0.024000,
 		// t2 family
