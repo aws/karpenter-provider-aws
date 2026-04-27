@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -106,6 +107,7 @@ type DefaultProvider struct {
 	ec2Batcher                  *batcher.EC2API
 	capacityReservationProvider capacityreservation.Provider
 	placementGroupProvider      placementgroup.Provider
+	zonalshiftProvider          arczonalshift.Provider
 	instanceCache               *cache.Cache
 }
 
@@ -119,6 +121,7 @@ func NewDefaultProvider(
 	launchTemplateProvider launchtemplate.Provider,
 	capacityReservationProvider capacityreservation.Provider,
 	placementGroupProvider placementgroup.Provider,
+	zonalshiftProvider arczonalshift.Provider,
 	instanceCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
@@ -131,6 +134,7 @@ func NewDefaultProvider(
 		ec2Batcher:                  batcher.EC2(ctx, ec2api),
 		capacityReservationProvider: capacityReservationProvider,
 		placementGroupProvider:      placementGroupProvider,
+		zonalshiftProvider:          zonalshiftProvider,
 		instanceCache:               instanceCache,
 	}
 }
@@ -177,9 +181,15 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 
 func (p *DefaultProvider) Get(ctx context.Context, id string, opts ...Options) (*Instance, error) {
 	skipCache := option.Resolve(opts...).SkipCache
-	if !skipCache {
-		if i, ok := p.instanceCache.Get(id); ok {
-			return i.(*Instance), nil
+	if i, ok := p.instanceCache.Get(id); ok {
+		inst := i.(*Instance)
+		// During a zonal shift, return cached data for instances in the shifted zone to avoid
+		// DescribeInstances calls that could cause retry storms against the impaired AZ
+		if inst.ZoneID != "" && p.zonalshiftProvider.IsZonalShifted(ctx, inst.ZoneID) {
+			return inst, nil
+		}
+		if !skipCache {
+			return inst, nil
 		}
 	}
 	out, err := p.ec2Batcher.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
@@ -242,6 +252,14 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
+	// Check the instance cache for zonal shift status before making any API calls.
+	// During a zonal shift, both DescribeInstances and TerminateInstances calls to the impaired
+	// AZ can cause retry storms, so we skip them entirely and return an error to requeue.
+	if i, ok := p.instanceCache.Get(id); ok {
+		if inst := i.(*Instance); inst.ZoneID != "" && p.zonalshiftProvider.IsZonalShifted(ctx, inst.ZoneID) {
+			return fmt.Errorf("instance %s is in zonally shifted availability zone %s (%s), skipping termination", id, inst.Zone, inst.ZoneID)
+		}
+	}
 	out, err := p.Get(ctx, id, SkipCache)
 	if err != nil {
 		return err
@@ -262,6 +280,13 @@ func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 }
 
 func (p *DefaultProvider) CreateTags(ctx context.Context, id string, tags map[string]string) error {
+	// Check the instance cache for zonal shift status before making the API call.
+	// During a zonal shift, CreateTags calls to the impaired AZ can cause retry storms.
+	if i, ok := p.instanceCache.Get(id); ok {
+		if inst := i.(*Instance); inst.ZoneID != "" && p.zonalshiftProvider.IsZonalShifted(ctx, inst.ZoneID) {
+			return fmt.Errorf("instance %s is in zonally shifted availability zone %s (%s), skipping tag creation", id, inst.Zone, inst.ZoneID)
+		}
+	}
 	ec2Tags := lo.MapToSlice(tags, func(key, value string) ec2types.Tag {
 		return ec2types.Tag{Key: aws.String(key), Value: aws.String(value)}
 	})
