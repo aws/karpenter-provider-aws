@@ -47,6 +47,9 @@ managedNodeGroups:
   minSize: 1
   maxSize: 10
 
+zonalShiftConfig:
+  enabled: ${ENABLE_ZONAL_SHIFT}
+
 addons:
 - name: eks-pod-identity-agent
 EOF

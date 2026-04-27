@@ -21,6 +21,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay"
 	"sigs.k8s.io/karpenter/pkg/events"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
@@ -56,6 +58,7 @@ func New(
 			capacityReservationProvider,
 			placementGroupProvider,
 			instanceTypeStore,
+			lo.ToPtr(""),
 		),
 	}
 }

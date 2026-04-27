@@ -31,6 +31,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
+	arczonalshiftProvider "github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
@@ -55,6 +57,7 @@ type NodeClass interface {
 type DefaultProvider struct {
 	pricingProvider                pricing.Provider
 	capacityReservationProvider    capacityreservation.Provider
+	zonalshiftProvider             arczonalshiftProvider.Provider
 	placementGroupProvider         placementgroup.Provider
 	unavailableOfferings           *awscache.UnavailableOfferings
 	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
@@ -67,6 +70,7 @@ func NewDefaultProvider(
 	placementGroupProvider placementgroup.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	offeringCache *cache.Cache,
+	zonalshiftProvider arczonalshiftProvider.Provider,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		pricingProvider:             pricingProvider,
@@ -74,6 +78,7 @@ func NewDefaultProvider(
 		placementGroupProvider:      placementGroupProvider,
 		unavailableOfferings:        unavailableOfferingsCache,
 		cache:                       offeringCache,
+		zonalshiftProvider:          zonalshiftProvider,
 	}
 }
 
@@ -169,6 +174,10 @@ func (p *DefaultProvider) createOfferings(
 		}
 		var cachedOfferings []*cloudprovider.Offering
 		for zone := range allZones {
+			isZonalShifted := false
+			if zoneId, ok := subnetZonesToZoneIDs[zone]; ok {
+				isZonalShifted = p.zonalshiftProvider.IsZonalShifted(ctx, zoneId)
+			}
 			for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
 				// Reserved capacity types are constructed separately
 				if capacityType == karpv1.CapacityTypeReserved {
@@ -199,7 +208,7 @@ func (p *DefaultProvider) createOfferings(
 						scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpDoesNotExist),
 					),
 					Price:     price,
-					Available: isCompatibleWithNodeClass && !isUnavailable && hasPrice && itZones.Has(zone),
+					Available: isCompatibleWithNodeClass && !isUnavailable && hasPrice && itZones.Has(zone) && !isZonalShifted,
 				}
 				if id, ok := subnetZonesToZoneIDs[zone]; ok {
 					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
@@ -226,6 +235,10 @@ func (p *DefaultProvider) createOfferings(
 				// users to utilize the instances they're already paying for.
 				price = odPrice / 10_000_000.0
 			}
+			isZonalShifted := false
+			if zoneId, ok := subnetZonesToZoneIDs[reservation.AvailabilityZone]; ok {
+				isZonalShifted = p.zonalshiftProvider.IsZonalShifted(ctx, zoneId)
+			}
 			reservationCapacity := p.capacityReservationProvider.GetAvailableInstanceCount(reservation.ID)
 			offering := &cloudprovider.Offering{
 				Requirements: scheduling.NewRequirements(
@@ -236,7 +249,7 @@ func (p *DefaultProvider) createOfferings(
 					scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpIn, fmt.Sprintf("%t", reservation.Interruptible)),
 				),
 				Price:               price,
-				Available:           isCompatibleWithNodeClass && reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring,
+				Available:           isCompatibleWithNodeClass && reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring && !isZonalShifted,
 				ReservationCapacity: reservationCapacity,
 			}
 			if id, ok := subnetZonesToZoneIDs[reservation.AvailabilityZone]; ok {
