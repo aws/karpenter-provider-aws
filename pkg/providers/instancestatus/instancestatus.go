@@ -76,15 +76,37 @@ func NewDefaultProvider(ec2API sdk.EC2API, clk clock.Clock) *DefaultProvider {
 }
 
 func (p DefaultProvider) List(ctx context.Context) ([]HealthStatus, error) {
-	var statuses []ec2types.InstanceStatus
-	pager := ec2.NewDescribeInstanceStatusPaginator(p.ec2api, &ec2.DescribeInstanceStatusInput{})
+	// Use server-side filters to avoid paging through all running instances in the account.
+	// We make three separate calls because DescribeInstanceStatus ANDs filters across different
+	// filter names, and we need to OR across instance status failures, system status failures,
+	// and scheduled maintenance events.
+	// EBS status check failures are ignored for now.
+	filterSets := [][]ec2types.Filter{
+		{{Name: lo.ToPtr("instance-status.reachability"), Values: []string{"failed"}}},
+		{{Name: lo.ToPtr("system-status.reachability"), Values: []string{"failed"}}},
+		{{Name: lo.ToPtr("event.code"), Values: []string{
+			"instance-reboot", "system-reboot", "system-maintenance", "instance-retirement", "instance-stop",
+		}}},
+	}
 
-	for pager.HasMorePages() {
-		out, err := pager.NextPage(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed describing ec2 instance status checks, %w", err)
+	seen := map[string]struct{}{}
+	var statuses []ec2types.InstanceStatus
+	for _, filters := range filterSets {
+		pager := ec2.NewDescribeInstanceStatusPaginator(p.ec2api, &ec2.DescribeInstanceStatusInput{
+			Filters: filters,
+		})
+		for pager.HasMorePages() {
+			out, err := pager.NextPage(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("failed describing ec2 instance status checks, %w", err)
+			}
+			for _, s := range out.InstanceStatuses {
+				if _, ok := seen[*s.InstanceId]; !ok {
+					seen[*s.InstanceId] = struct{}{}
+					statuses = append(statuses, s)
+				}
+			}
 		}
-		statuses = append(statuses, out.InstanceStatuses...)
 	}
 
 	var healthStatuses []HealthStatus
@@ -93,10 +115,6 @@ func (p DefaultProvider) List(ctx context.Context) ([]HealthStatus, error) {
 		// Filter out statuses that we do not consider unhealthy or do not want to handle right now
 		healthStatus.Details = lo.Filter(healthStatus.Details, func(details Details, _ int) bool {
 			if details.Status != ec2types.StatusTypeFailed {
-				return false
-			}
-			// ignore EBS health checks for now
-			if details.Category == EBSStatus {
 				return false
 			}
 			// Do not evaluate against the unhealthy threshold when its a scheduled maintenance event.
