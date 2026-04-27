@@ -383,6 +383,37 @@ var _ = Describe("InterruptionHandling", func() {
 			})
 			ExpectNotFound(ctx, env.Client, nodeClaim)
 		})
+		It("should NOT delete the NodeClaim when dry run is enabled but should still emit the metric", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
+			interruption.InstanceStatusDryRun = true
+			DeferCleanup(func() {
+				interruption.InstanceStatusDryRun = false
+			})
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+						InstanceStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusImpaired,
+							Details: []ec2types.InstanceStatusDetails{
+								{
+									Status:        ec2types.StatusTypeFailed,
+									Name:          ec2types.StatusNameReachability,
+									ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
+								},
+							},
+						},
+					},
+				},
+			})
+			awsEnv.Clock.Step(time.Hour)
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, instanceStatusController)
+			ExpectMetricCounterValue(interruption.InstanceStatusUnhealthy, 1, map[string]string{
+				"category": "InstanceStatus",
+			})
+			ExpectExists(ctx, env.Client, nodeClaim)
+		})
 	})
 })
 
