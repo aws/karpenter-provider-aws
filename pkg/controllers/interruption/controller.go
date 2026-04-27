@@ -109,7 +109,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 			return
 		}
 		ReceivedMessages.Inc(map[string]string{messageTypeLabel: string(msg.Kind())})
-		if e = c.handleMessage(ctx, msg); e != nil {
+		if _, e = c.handleMessage(ctx, msg, false); e != nil {
 			errs[i] = fmt.Errorf("handling message, %w", e)
 			return
 		}
