@@ -39,6 +39,10 @@ import (
 var (
 	// InstanceStatusInterval is the polling interval for the EC2 DescribeInstanceStatus API.
 	InstanceStatusInterval = 1 * time.Minute
+	// InstanceStatusDryRun controls whether the instance status controller takes action on
+	// unhealthy instances. When true, the controller only emits metrics without cordoning
+	// and draining affected nodes. Default is false (full remediation enabled).
+	InstanceStatusDryRun = false
 )
 
 // InstanceStatusController polls EC2 DescribeInstanceStatus to detect unhealthy instances
@@ -84,6 +88,9 @@ func (c *InstanceStatusController) Reconcile(ctx context.Context) (reconciler.Re
 		}
 		for cat := range categories {
 			InstanceStatusUnhealthy.Inc(map[string]string{categoryLabel: cat})
+		}
+		if InstanceStatusDryRun {
+			return
 		}
 		if err := c.handleMessage(ctx, instancestatusfailure.Message(instanceStatuses[i])); err != nil {
 			errs[i] = fmt.Errorf("handling instance status check message, %w", err)

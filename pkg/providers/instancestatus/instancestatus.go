@@ -43,6 +43,23 @@ const (
 
 var (
 	UnhealthyThreshold = 120 * time.Second
+
+	// instanceStatusFilters are the server-side filters used to scope DescribeInstanceStatus calls.
+	// We use separate filter sets because DescribeInstanceStatus ANDs filters across different
+	// filter names, and we need to OR across instance status failures, system status failures,
+	// and scheduled maintenance events.
+	// EBS status check failures are ignored for now.
+	instanceStatusFilters = [][]ec2types.Filter{
+		{{Name: lo.ToPtr("instance-status.status"), Values: []string{string(ec2types.SummaryStatusImpaired)}}},
+		{{Name: lo.ToPtr("system-status.status"), Values: []string{string(ec2types.SummaryStatusImpaired)}}},
+		{{Name: lo.ToPtr("event.code"), Values: []string{
+			string(ec2types.EventCodeInstanceReboot),
+			string(ec2types.EventCodeSystemReboot),
+			string(ec2types.EventCodeSystemMaintenance),
+			string(ec2types.EventCodeInstanceRetirement),
+			string(ec2types.EventCodeInstanceStop),
+		}}},
+	}
 )
 
 type Provider interface {
@@ -76,26 +93,9 @@ func NewDefaultProvider(ec2API sdk.EC2API, clk clock.Clock) *DefaultProvider {
 }
 
 func (p DefaultProvider) List(ctx context.Context) ([]HealthStatus, error) {
-	// Use server-side filters to avoid paging through all running instances in the account.
-	// We make three separate calls because DescribeInstanceStatus ANDs filters across different
-	// filter names, and we need to OR across instance status failures, system status failures,
-	// and scheduled maintenance events.
-	// EBS status check failures are ignored for now.
-	filterSets := [][]ec2types.Filter{
-		{{Name: lo.ToPtr("instance-status.status"), Values: []string{string(ec2types.SummaryStatusImpaired)}}},
-		{{Name: lo.ToPtr("system-status.status"), Values: []string{string(ec2types.SummaryStatusImpaired)}}},
-		{{Name: lo.ToPtr("event.code"), Values: []string{
-			string(ec2types.EventCodeInstanceReboot),
-			string(ec2types.EventCodeSystemReboot),
-			string(ec2types.EventCodeSystemMaintenance),
-			string(ec2types.EventCodeInstanceRetirement),
-			string(ec2types.EventCodeInstanceStop),
-		}}},
-	}
-
 	seen := map[string]struct{}{}
 	var statuses []ec2types.InstanceStatus
-	for _, filters := range filterSets {
+	for _, filters := range instanceStatusFilters {
 		pager := ec2.NewDescribeInstanceStatusPaginator(p.ec2api, &ec2.DescribeInstanceStatusInput{
 			Filters: filters,
 		})
