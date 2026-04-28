@@ -53,12 +53,14 @@ type InterruptionHandler struct {
 	capacityReservationProvider capacityreservation.Provider
 }
 
-// handleMessage takes an action against every node involved in the message that is owned by a NodePool
-func (h *InterruptionHandler) handleMessage(ctx context.Context, msg messages.Message) (err error) {
+// handleMessage takes an action against every node involved in the message that is owned by a NodePool.
+// When dryRun is true, it resolves NodeClaims but skips the actual cordon/drain action.
+// Returns true if at least one matching NodeClaim was found in the cluster.
+func (h *InterruptionHandler) handleMessage(ctx context.Context, msg messages.Message, dryRun bool) (found bool, err error) {
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("messageKind", msg.Kind()))
 
 	if msg.Kind() == messages.NoOpKind {
-		return nil
+		return false, nil
 	}
 	for _, instanceID := range msg.EC2InstanceIDs() {
 		nodeClaimList := &karpv1.NodeClaimList{}
@@ -67,6 +69,10 @@ func (h *InterruptionHandler) handleMessage(ctx context.Context, msg messages.Me
 			continue
 		}
 		if len(nodeClaimList.Items) == 0 {
+			continue
+		}
+		found = true
+		if dryRun {
 			continue
 		}
 		for _, nodeClaim := range nodeClaimList.Items {
@@ -85,9 +91,9 @@ func (h *InterruptionHandler) handleMessage(ctx context.Context, msg messages.Me
 		}
 	}
 	if err != nil {
-		return fmt.Errorf("acting on NodeClaims, %w", err)
+		return found, fmt.Errorf("acting on NodeClaims, %w", err)
 	}
-	return nil
+	return found, nil
 }
 
 // handleNodeClaim retrieves the action for the message and then performs the appropriate action against the node

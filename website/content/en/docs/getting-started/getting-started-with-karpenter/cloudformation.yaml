@@ -332,6 +332,7 @@ Resources:
                 "ec2:DescribeCapacityReservations",
                 "ec2:DescribeImages",
                 "ec2:DescribeInstances",
+                "ec2:DescribeInstanceStatus",
                 "ec2:DescribeInstanceTypeOfferings",
                 "ec2:DescribeInstanceTypes",
                 "ec2:DescribeLaunchTemplates",
@@ -369,12 +370,6 @@ Resources:
               "Effect": "Allow",
               "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
               "Action": "iam:GetInstanceProfile"
-            },
-            {
-              "Sid": "AllowUnscopedEC2DescribeInstanceStatus",
-              "Effect": "Allow",
-              "Resource": "*",
-              "Action": "ec2:DescribeInstanceStatus"
             }
           ]
         }
