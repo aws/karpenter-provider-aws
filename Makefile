@@ -226,6 +226,15 @@ deploy-cfn: ## Deploys the cloudformation stack defined in the docs preview dire
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameter-overrides "ClusterName=${CLUSTER_NAME}"
 
+workspace: ## Creates a new workspace or updates the existing workspace with all modules
+	@if [ -z $$(go env GOWORK) ]; then \
+		go work init; \
+		printf "creating workspace: %s\n" $$(go env GOWORK); \
+	else \
+		printf "updating workspace: %s\n" $$(go env GOWORK); \
+	fi
+	$(foreach dir,$(MOD_DIRS),go work use $(dir) $(newline))
+
 
 .PHONY: help presubmit ci-test ci-non-test run test deflake e2etests e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
 
