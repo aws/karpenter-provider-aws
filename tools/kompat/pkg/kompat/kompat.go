@@ -30,6 +30,8 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/mitchellh/go-homedir"
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
+	"github.com/olekukonko/tablewriter/tw"
 	"github.com/samber/lo"
 	"gopkg.in/yaml.v3"
 )
@@ -188,7 +190,19 @@ func (k List) YAML() string {
 func (k Kompat) Markdown(_ ...Options) string {
 	// options := mergeOptions(opts...)
 	out := bytes.Buffer{}
-	table := tablewriter.NewWriter(&out)
+	table := tablewriter.NewTable(&out,
+		tablewriter.WithRenderer(renderer.NewBlueprint()),
+		tablewriter.WithHeaderAutoFormat(tw.Off),
+		tablewriter.WithRendition(tw.Rendition{
+			Borders: tw.Border{
+				Left:   tw.On,
+				Right:  tw.On,
+				Top:    tw.Off,
+				Bottom: tw.Off,
+			},
+			Symbols: tw.NewSymbols(tw.StyleMarkdown),
+		}),
+	)
 	headers := []string{"Kubernetes"}
 	data := []string{k.Name}
 	for _, c := range k.Compatibility {
@@ -199,10 +213,8 @@ func (k Kompat) Markdown(_ ...Options) string {
 		}
 		data = append(data, c.AppVersion)
 	}
-	table.SetHeader(headers)
-	table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
-	table.SetCenterSeparator("|")
-	table.AppendBulk([][]string{data})
+	table.Header(headers)
+	table.Bulk([][]string{data})
 	table.Render()
 	return out.String()
 }
@@ -213,7 +225,19 @@ func (k List) Markdown(opts ...Options) string {
 	// 	return k[0].Markdown()
 	// }
 	out := bytes.Buffer{}
-	table := tablewriter.NewWriter(&out)
+	table := tablewriter.NewTable(&out,
+		tablewriter.WithRenderer(renderer.NewBlueprint()),
+		tablewriter.WithHeaderAutoFormat(tw.Off),
+		tablewriter.WithRendition(tw.Rendition{
+			Borders: tw.Border{
+				Left:   tw.On,
+				Right:  tw.On,
+				Top:    tw.Off,
+				Bottom: tw.Off,
+			},
+			Symbols: tw.NewSymbols(tw.StyleMarkdown),
+		}),
+	)
 	headers := []string{"Kubernetes"}
 	var data [][]string
 	// Get all k8s versions for the first row
@@ -245,10 +269,8 @@ func (k List) Markdown(opts ...Options) string {
 			data[i] = append(data[i], semverRange(k8sVersionToAppVersions[k8sVersion], allAppVersions...))
 		}
 	}
-	table.SetHeader(headers)
-	table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
-	table.SetCenterSeparator("|")
-	table.AppendBulk(data)
+	table.Header(headers)
+	table.Bulk(data)
 	table.Render()
 	return out.String()
 }
