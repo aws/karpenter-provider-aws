@@ -45,10 +45,18 @@ var (
 	stableMetrics = []string{"controller_runtime", "aws_sdk_go", "client_go", "leader_election", "interruption", "cluster_state", "workqueue", "karpenter_build_info", "karpenter_nodepool_usage", "karpenter_nodepool_limit",
 		"karpenter_nodeclaims_terminated_total", "karpenter_nodeclaims_created_total", "karpenter_nodes_terminated_total", "karpenter_nodes_created_total", "karpenter_pods_startup_duration_seconds",
 		"karpenter_scheduler_scheduling_duration_seconds", "karpenter_provisioner_scheduling_duration_seconds", "karpenter_nodepool_allowed_disruptions", "karpenter_voluntary_disruption_decisions_total"}
-	betaMetrics = []string{"status_condition", "cloudprovider", "cloudprovider_batcher", "karpenter_nodeclaims_termination_duration_seconds", "karpenter_nodeclaims_instance_termination_duration_seconds",
+	betaMetrics = []string{"cloudprovider", "cloudprovider_batcher", "karpenter_nodeclaims_termination_duration_seconds", "karpenter_nodeclaims_instance_termination_duration_seconds",
 		"karpenter_nodes_total_pod_requests", "karpenter_nodes_total_pod_limits", "karpenter_nodes_total_daemon_requests", "karpenter_nodes_total_daemon_limits", "karpenter_nodes_termination_duration_seconds",
 		"karpenter_nodes_system_overhead", "karpenter_nodes_allocatable", "karpenter_pods_state", "karpenter_scheduler_queue_depth", "karpenter_voluntary_disruption_queue_failures_total",
-		"karpenter_voluntary_disruption_decision_evaluation_duration_seconds", "karpenter_voluntary_disruption_eligible_nodes", "karpenter_voluntary_disruption_consolidation_timeouts_total"}
+		"karpenter_voluntary_disruption_decision_evaluation_duration_seconds", "karpenter_voluntary_disruption_eligible_nodes", "karpenter_voluntary_disruption_consolidation_timeouts_total",
+		// Per-object status condition and termination metrics from operatorpkg
+		"nodeclaim_status_condition", "nodeclaim_termination",
+		"node_status_condition", "node_termination",
+		"nodepool_status_condition", "nodepool_termination",
+		"ec2nodeclass_status_condition", "ec2nodeclass_termination"}
+	// Deprecated generic status condition and termination metrics (without object name prefix).
+	// These are still emitted at runtime but are superseded by per-object variants.
+	deprecatedMetrics = []string{"status_condition", "termination"}
 )
 
 func (i metricInfo) qualifiedName() string {
@@ -68,6 +76,12 @@ func main() {
 		packages := getPackages(flag.Arg(i))
 		allMetrics = append(allMetrics, getMetricsFromPackages(packages...)...)
 	}
+
+	// The operatorpkg status and events controllers dynamically create per-object metrics
+	// at runtime based on the Go type parameter passed to status.NewController[T]().
+	// These cannot be extracted via AST parsing, so we generate them from a known list of
+	// object types that have status controllers registered.
+	allMetrics = append(allMetrics, perObjectStatusMetrics()...)
 
 	// Dedupe metrics
 	allMetrics = lo.UniqBy(allMetrics, func(m metricInfo) string {
@@ -132,6 +146,8 @@ description: >
 		fmt.Fprintf(f, "### `%s`\n", metric.qualifiedName())
 		fmt.Fprintf(f, "%s\n", metric.help)
 		switch {
+		case slices.Contains(deprecatedMetrics, metric.subsystem) || slices.Contains(deprecatedMetrics, metric.qualifiedName()):
+			fmt.Fprintf(f, "- Stability Level: %s\n", "DEPRECATED")
 		case slices.Contains(stableMetrics, metric.subsystem) || slices.Contains(stableMetrics, metric.qualifiedName()):
 			fmt.Fprintf(f, "- Stability Level: %s\n", "STABLE")
 		case slices.Contains(betaMetrics, metric.subsystem) || slices.Contains(betaMetrics, metric.qualifiedName()):
@@ -159,7 +175,7 @@ func getPackages(root string) []*ast.Package {
 		}
 		// parse the packagers that we find
 		pkgs, err := parser.ParseDir(fset, path, func(info fs.FileInfo) bool {
-			return true
+			return !strings.HasSuffix(info.Name(), "_test.go")
 		}, parser.AllErrors)
 		if err != nil {
 			log.Fatalf("error parsing, %s", err)
@@ -176,22 +192,19 @@ func getPackages(root string) []*ast.Package {
 }
 
 func getMetricsFromPackages(packages ...*ast.Package) []metricInfo {
-	// metrics are all package global variables
 	var allMetrics []metricInfo
 	for _, pkg := range packages {
 		for _, file := range pkg.Files {
-			for _, decl := range file.Decls {
-				switch v := decl.(type) {
-				case *ast.FuncDecl:
-				// ignore
-				case *ast.GenDecl:
-					if v.Tok == token.VAR {
-						allMetrics = append(allMetrics, handleVariableDeclaration(v)...)
-					}
-				default:
-
+			ast.Inspect(file, func(n ast.Node) bool {
+				ce, ok := n.(*ast.CallExpr)
+				if !ok {
+					return true
 				}
-			}
+				if m, ok := metricFromCallExpr(ce); ok {
+					allMetrics = append(allMetrics, m)
+				}
+				return true
+			})
 		}
 	}
 	return allMetrics
@@ -201,16 +214,25 @@ func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
 	// Higher ordering comes first. If a value isn't designated here then the subsystem will be given a default of 0.
 	// Metrics without a subsystem come first since there is no designation for the bucket they fall under
 	subSystemSortOrder := map[string]int{
-		"":                 100,
-		"nodepool":         10,
-		"nodeclaims":       9,
-		"nodes":            8,
-		"pods":             7,
-		"status_condition": -1,
-		"workqueue":        -1,
-		"client_go":        -1,
-		"aws_sdk_go":       -1,
-		"leader_election":  -2,
+		"":                              100,
+		"nodepool":                      10,
+		"nodeclaims":                    9,
+		"nodeclaim_status_condition":    8,
+		"nodeclaim_termination":         8,
+		"nodes":                         7,
+		"node_status_condition":         6,
+		"node_termination":              6,
+		"pods":                          5,
+		"nodepool_status_condition":     4,
+		"nodepool_termination":          4,
+		"ec2nodeclass_status_condition": 3,
+		"ec2nodeclass_termination":      3,
+		"status_condition":              -1,
+		"termination":                  -1,
+		"workqueue":                    -1,
+		"client_go":                     -1,
+		"aws_sdk_go":                    -1,
+		"leader_election":               -2,
 	}
 
 	return func(i, j int) bool {
@@ -223,71 +245,146 @@ func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
 	}
 }
 
-func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
-	var promMetrics []metricInfo
-	for _, spec := range v.Specs {
-		vs, ok := spec.(*ast.ValueSpec)
-		if !ok {
-			continue
-		}
-		for _, v := range vs.Values {
-			ce, ok := v.(*ast.CallExpr)
-			if !ok {
-				continue
-			}
-			funcPkg := getFuncPackage(ce.Fun)
-			if funcPkg != "prometheus" {
-				continue
-			}
-			if len(ce.Args) == 0 {
-				continue
-			}
-			arg := ce.Args[0].(*ast.CompositeLit)
-			keyValuePairs := map[string]string{}
-			for _, el := range arg.Elts {
-				kv := el.(*ast.KeyValueExpr)
-				key := fmt.Sprintf("%s", kv.Key)
-				switch key {
-				case "Namespace", "Subsystem", "Name", "Help":
-				default:
-					// skip any keys we don't care about
-					continue
-				}
-				value := ""
-				switch val := kv.Value.(type) {
-				case *ast.BasicLit:
-					value = val.Value
-				case *ast.SelectorExpr:
-					selector := fmt.Sprintf("%s.%s", val.X, val.Sel)
-					if v, err := getIdentMapping(selector); err != nil {
-						log.Fatalf("unsupported selector %s, %s", selector, err)
-					} else {
-						value = v
-					}
-				case *ast.Ident:
-					if v, err := getIdentMapping(val.String()); err != nil {
-						log.Fatal(err)
-					} else {
-						value = v
-					}
-				case *ast.BinaryExpr:
-					value = getBinaryExpr(val)
-				default:
-					log.Fatalf("unsupported value %T %v", kv.Value, kv.Value)
-				}
-				keyValuePairs[key] = strings.TrimFunc(value, func(r rune) bool {
-					return r == '"'
-				})
-			}
-			promMetrics = append(promMetrics, metricInfo{
-				namespace: keyValuePairs["Namespace"],
-				subsystem: keyValuePairs["Subsystem"],
-				name:      keyValuePairs["Name"],
-				help:      keyValuePairs["Help"],
+// perObjectStatusMetrics generates metrics for the operatorpkg status and events controllers.
+// These metrics are dynamically created at runtime based on the Go type parameter passed to
+// status.NewController[T]() and cannot be extracted via AST parsing. The object types are
+// determined by the status controller registrations in karpenter and karpenter-provider-aws.
+func perObjectStatusMetrics() []metricInfo {
+	// Object types that have status controllers registered via status.NewController[T]()
+	// in karpenter (nodeclaim, nodepool, node) and karpenter-provider-aws (ec2nodeclass).
+	objectNames := []string{"nodeclaim", "nodepool", "node", "ec2nodeclass"}
+
+	type metricTemplate struct {
+		subsystemSuffix string
+		name            string
+		help            string
+	}
+
+	templates := []metricTemplate{
+		{"status_condition", "transition_seconds", "The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes"},
+		{"status_condition", "count", "The number of a condition for a given object, type and status. e.g. Alarm := Available=False > 0"},
+		{"status_condition", "current_status_seconds", "The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes"},
+		{"status_condition", "transitions_total", "The count of transitions of a given object, type and status."},
+		{"termination", "current_time_seconds", "The current amount of time in seconds that an object has been in terminating state."},
+		{"termination", "duration_seconds", "The amount of time taken by an object to terminate completely."},
+	}
+
+	var metricsOut []metricInfo
+	for _, obj := range objectNames {
+		for _, t := range templates {
+			metricsOut = append(metricsOut, metricInfo{
+				namespace: "operator",
+				subsystem: fmt.Sprintf("%s_%s", obj, t.subsystemSuffix),
+				name:      t.name,
+				help:      t.help,
 			})
 		}
 	}
-	return promMetrics
+
+	// Deprecated generic metrics (without object name prefix) are still emitted at runtime
+	// when emitDeprecatedMetrics is enabled on the status controller. These use group/kind
+	// labels instead of baking the object name into the subsystem.
+	for _, t := range templates {
+		metricsOut = append(metricsOut, metricInfo{
+			namespace: "operator",
+			subsystem: t.subsystemSuffix,
+			name:      t.name,
+			help:      t.help,
+		})
+	}
+	return metricsOut
+}
+
+// metricFromCallExpr attempts to extract metric info from a call expression.
+// It recognizes prometheus.New*(), opmetrics.NewPrometheus*(), and pmetrics.NewPrometheus*() calls.
+func metricFromCallExpr(ce *ast.CallExpr) (metricInfo, bool) {
+	funcPkg := getFuncPackage(ce.Fun)
+	funcName := getFuncName(ce.Fun)
+	// Determine the index of the opts argument based on the package.
+	// prometheus.New*() calls pass opts as Args[0], while
+	// opmetrics/pmetrics.NewPrometheus*() calls from operatorpkg pass
+	// (registry, opts, labelNames), so opts is Args[1].
+	// Calls within the operatorpkg metrics package itself use unqualified
+	// function names like NewPrometheusCounter directly.
+	var optsIdx int
+	switch {
+	case funcPkg == "prometheus":
+		optsIdx = 0
+	case funcPkg == "opmetrics" || funcPkg == "pmetrics":
+		optsIdx = 1
+	case strings.HasPrefix(funcName, "NewPrometheus"):
+		// Unqualified call within the operatorpkg metrics package itself
+		optsIdx = 1
+	default:
+		return metricInfo{}, false
+	}
+	if len(ce.Args) <= optsIdx {
+		return metricInfo{}, false
+	}
+	arg, ok := ce.Args[optsIdx].(*ast.CompositeLit)
+	if !ok {
+		return metricInfo{}, false
+	}
+	keyValuePairs := map[string]string{}
+	for _, el := range arg.Elts {
+		kv, ok := el.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		key := fmt.Sprintf("%s", kv.Key)
+		switch key {
+		case "Namespace", "Subsystem", "Name", "Help":
+		default:
+			// skip any keys we don't care about
+			continue
+		}
+		value := ""
+		switch val := kv.Value.(type) {
+		case *ast.BasicLit:
+			value = val.Value
+		case *ast.SelectorExpr:
+			selector := fmt.Sprintf("%s.%s", val.X, val.Sel)
+			v, err := getIdentMapping(selector)
+			if err != nil {
+				// Unresolvable selector (e.g. local variable reference inside a helper function).
+				// Skip this metric rather than fataling since ast.Inspect walks all function bodies.
+				return metricInfo{}, false
+			}
+			value = v
+		case *ast.Ident:
+			v, err := getIdentMapping(val.String())
+			if err != nil {
+				// Unresolvable identifier (e.g. function parameter or local variable).
+				// Skip this metric.
+				return metricInfo{}, false
+			}
+			value = v
+		case *ast.BinaryExpr:
+			value = getBinaryExpr(val)
+		default:
+			// Unknown value expression type; skip this metric.
+			return metricInfo{}, false
+		}
+		keyValuePairs[key] = strings.TrimFunc(value, func(r rune) bool {
+			return r == '"'
+		})
+	}
+	return metricInfo{
+		namespace: keyValuePairs["Namespace"],
+		subsystem: keyValuePairs["Subsystem"],
+		name:      keyValuePairs["Name"],
+		help:      keyValuePairs["Help"],
+	}, true
+}
+
+func getFuncName(fun ast.Expr) string {
+	if sel, ok := fun.(*ast.SelectorExpr); ok {
+		return sel.Sel.Name
+	}
+	if ident, ok := fun.(*ast.Ident); ok {
+		return ident.Name
+	}
+	return ""
 }
 
 func getFuncPackage(fun ast.Expr) string {
@@ -309,7 +406,6 @@ func getFuncPackage(fun ast.Expr) string {
 	if _, ok := fun.(*ast.FuncLit); ok {
 		return ""
 	}
-	log.Fatalf("unsupported func expression %T, %v", fun, fun)
 	return ""
 }
 
@@ -340,6 +436,7 @@ func getIdentMapping(identName string) (string, error) {
 		"metrics.Namespace": metrics.Namespace,
 		"Namespace":         metrics.Namespace,
 
+		"pmetrics.Namespace":         "operator",
 		"MetricNamespace":            "operator",
 		"MetricSubsystem":            "status_condition",
 		"TerminationSubsystem":       "termination",
