@@ -17,7 +17,7 @@ These descriptions should allow you to understand:
 To download a particular version of `cloudformation.yaml`, set the version and use `curl` to pull the file to your local system:
 
 ```bash
-export KARPENTER_VERSION="1.11.1"
+export KARPENTER_VERSION="1.12.0"
 curl https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > cloudformation.yaml
 ```
 
@@ -81,15 +81,16 @@ If you were to use a node role from an existing cluster, you could skip this pro
 
 ## Controller Authorization
 
-This section sets the AWS permissions for the Karpenter Controller. When used in the Getting Started guide, `eksctl` uses these permissions to create a service account (karpenter) whose IAM role has all 5 controller policies attached.
+This section sets the AWS permissions for the Karpenter Controller. When used in the Getting Started guide, `eksctl` uses these permissions to create a service account (karpenter) whose IAM role has all 6 controller policies attached.
 
-The controller permissions are split across 5 managed IAM policies:
+The controller permissions are split across 6 managed IAM policies:
 
 * [KarpenterControllerNodeLifecyclePolicy]({{< relref "#karpentercontrollernodelifecyclepolicy" >}}) - EC2 instance and launch template lifecycle management
 * [KarpenterControllerIAMIntegrationPolicy]({{< relref "#karpentercontrolleriamintegrationpolicy" >}}) - IAM instance profile management
 * [KarpenterControllerEKSIntegrationPolicy]({{< relref "#karpentercontrollereksintegrationpolicy" >}}) - EKS cluster discovery
 * [KarpenterControllerInterruptionPolicy]({{< relref "#karpentercontrollerinterruptionpolicy" >}}) - SQS interruption queue access
 * [KarpenterControllerResourceDiscoveryPolicy]({{< relref "#karpentercontrollerresourcediscoverypolicy" >}}) - Read-only resource discovery
+* [KarpenterControllerZonalShiftPolicy]({{< relref "#karpentercontrollerzonalshiftpolicy" >}}) - Zonal Shift status access
 
 Someone wanting to add Karpenter to an existing cluster, instead of using `cloudformation.yaml`, would need to create these IAM policies directly and assign them to the role leveraged by the service account using IRSA or EKS Pod Identity.
 
@@ -475,6 +476,38 @@ For the interruption queue you created (`${KarpenterInterruptionQueue.Arn}`), th
     "sqs:DeleteMessage",
     "sqs:GetQueueUrl",
     "sqs:ReceiveMessage"
+  ]
+}
+```
+### KarpenterControllerZonalShiftPolicy
+
+The `ZonalShiftPolicy` manages access to Zonal Shift data for your cluster. Given a cluster name of `bob-karpenter-demo`, this policy would be named: `KarpenterControllerZonalShiftPolicy-bob-karpenter-demo`
+
+```yaml
+ZonalShiftPolicy:
+  Type: AWS::IAM::ManagedPolicy
+  Properties:
+    ManagedPolicyName: !Sub "KarpenterControllerZonalShiftPolicy-${ClusterName}"
+    Path: /
+    PolicyDocument: !Sub |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+```
+
+### AllowZonalShiftStatusReadOnly
+
+Karpenter supports AWS Application Recovery Controller Zonal Shift, that you can utilize as described in the [Zonal Shift]({{< relref "../concepts/scheduling/#zonal-shift">}}) section of the Scheduling page.
+This section of the cloudformation.yaml template can give Karpenter permission to query the Zonal Shift service about the status of the cluster by specifying the cluster ARN. 
+For the cluster that will be created (`arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}`), the AllowZonalShiftActions Sid lets the Karpenter controller have permission to get the Zonal Shift status of the cluster ([GetManagedResource](https://docs.aws.amazon.com/arc-zonal-shift/latest/api/API_GetManagedResource.html)).
+
+```json
+{
+  "Sid": "AllowZonalShiftStatusReadOnly",
+  "Effect": "Allow",
+  "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
+  "Action": [
+    "arc-zonal-shift:GetManagedResource"
   ]
 }
 ```
