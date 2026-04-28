@@ -99,6 +99,11 @@ func (p *DefaultProvider) InjectOfferings(
 	if nodeClass.PlacementGroupSelector() != nil {
 		pg, _ = p.placementGroupProvider.Get(ctx, nodeClass)
 	}
+
+	cacheKeyBuilder := newCacheKeyBuilder().
+		withNetworkInterfaces(nodeClass.NetworkInterfaces()).
+		withPlacementGroup(pg)
+
 	var its []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
 		info := instanceTypeInfo[ec2types.InstanceType(it.Name)]
@@ -110,6 +115,7 @@ func (p *DefaultProvider) InjectOfferings(
 			pg,
 			allZones,
 			subnetZonesToZoneIDs,
+			cacheKeyBuilder,
 		)
 		// For partition placement groups, expand each offering into N offerings (one per partition)
 		offerings = p.expandPartitionOfferings(offerings, pg)
@@ -151,6 +157,7 @@ func (p *DefaultProvider) createOfferings(
 	pg *placementgroup.PlacementGroup,
 	allZones sets.Set[string],
 	subnetZonesToZoneIDs map[string]string,
+	cacheKeyBuilder *cacheKeyBuilder,
 ) cloudprovider.Offerings {
 	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
@@ -165,7 +172,7 @@ func (p *DefaultProvider) createOfferings(
 		lastSeqNum = 0
 	}
 	seqNum := p.unavailableOfferings.SeqNum(ec2types.InstanceType(it.Name))
-	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it, nodeClass)); ok && lastSeqNum == seqNum {
+	if ofs, ok := p.cache.Get(cacheKeyBuilder.cacheKeyFromInstanceType(it)); ok && lastSeqNum == seqNum {
 		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
 	} else {
 		var pgOpts []awscache.UnavailableOfferingsOption
@@ -216,7 +223,7 @@ func (p *DefaultProvider) createOfferings(
 				cachedOfferings = append(cachedOfferings, offering)
 			}
 		}
-		p.cache.SetDefault(p.cacheKeyFromInstanceType(it, nodeClass), cachedOfferings)
+		p.cache.SetDefault(cacheKeyBuilder.cacheKeyFromInstanceType(it), cachedOfferings)
 		p.lastUnavailableOfferingsSeqNum.Store(ec2types.InstanceType(it.Name), seqNum)
 		offerings = append(offerings, cachedOfferings...)
 	}
@@ -287,7 +294,32 @@ func (p *DefaultProvider) expandPartitionOfferings(offerings cloudprovider.Offer
 	return expanded
 }
 
-func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceType, nodeClass NodeClass) string {
+// cacheKeyBuilder pre-computes non instance-type specific cache key components
+// to avoid redundant hashing and formatting across instance types.
+type cacheKeyBuilder struct {
+	baseSuffix string
+}
+
+func newCacheKeyBuilder() *cacheKeyBuilder {
+	return &cacheKeyBuilder{}
+}
+
+func (b *cacheKeyBuilder) withNetworkInterfaces(networkInterfaces []*v1.NetworkInterface) *cacheKeyBuilder {
+	h, _ := hashstructure.Hash(networkInterfaces, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	b.baseSuffix += fmt.Sprintf("-%016x", h)
+	return b
+}
+
+func (b *cacheKeyBuilder) withPlacementGroup(pg *placementgroup.PlacementGroup) *cacheKeyBuilder {
+	if pg == nil {
+		return b
+	}
+	h, _ := hashstructure.Hash(pg.ID, hashstructure.FormatV2, nil)
+	b.baseSuffix += fmt.Sprintf("-%016x", h)
+	return b
+}
+
+func (b *cacheKeyBuilder) cacheKeyFromInstanceType(it *cloudprovider.InstanceType) string {
 	zonesHash, _ := hashstructure.Hash(
 		it.Requirements.Get(corev1.LabelTopologyZone).Values(),
 		hashstructure.FormatV2,
@@ -298,18 +330,12 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		hashstructure.FormatV2,
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
-	networkInterfaceHash, _ := hashstructure.Hash(nodeClass.NetworkInterfaces(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	placementGroupPartitionsHash, _ := hashstructure.Hash(
-		it.Requirements.Get(v1.LabelPlacementGroupPartition).Values(),
-		hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true},
-	)
-	return fmt.Sprintf(
-		"%s-%016x-%016x-%016x-%016x",
+	key := fmt.Sprintf(
+		"%s-%016x-%016x-%s",
 		it.Name,
 		zonesHash,
 		capacityTypesHash,
-		networkInterfaceHash,
-		placementGroupPartitionsHash,
+		b.baseSuffix,
 	)
+	return key
 }
