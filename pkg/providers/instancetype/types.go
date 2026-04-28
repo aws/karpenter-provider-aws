@@ -162,10 +162,6 @@ func NewInstanceType(
 	it := &cloudprovider.InstanceType{
 		Name:         string(info.InstanceType),
 		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, capacityReservations),
-		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, networkInterfaces, maxPods, podsPerCore),
-		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved: kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead,
-				ENILimitedPods(ctx, info, 0, networkInterfaces), pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces)), kubeReserved),
 		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, networkInterfaces, maxPods, podsPerCore, cpuOptions),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved: kubeReservedResources(adjustedCPU(info, cpuOptions), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead,
@@ -352,7 +348,6 @@ func getArchitecture(info ec2types.InstanceTypeInfo) string {
 
 func computeCapacity(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 	blockDeviceMapping []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy,
-	networkInterfaces []*v1.NetworkInterface, maxPods *int32, podsPerCore *int32) corev1.ResourceList {
 	networkInterfaces []*v1.NetworkInterface, maxPods *int32, podsPerCore *int32, cpuOptions *v1.CPUOptions) corev1.ResourceList {
 
 	resourceList := corev1.ResourceList{
