@@ -108,11 +108,11 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType,
 	_, capacityTypeFound := u.capacityTypeCache.Get(capacityType)
 	// we should only mark the zone as unavaialble if all subnets are in the cache
 	// if there are no subnets in the list, it should not cause unavaialbility as we expect scheduling requirements to capture that
-	subnetFoundInAZ := lo.Reduce(subnetIDs, func(agg bool, subnetID string, _ int) bool {
-		_, subnetFound := u.subnetCache.Get(subnetID)
-		return agg && subnetFound
-	}, true)
-	return offeringFound || capacityTypeFound || (subnetFoundInAZ && len(subnetIDs) != 0)
+	allSubnetsUnavailable := lo.EveryBy(subnetIDs, func(subnetID string) bool {
+		_, found := u.subnetCache.Get(subnetID)
+		return found
+	})
+	return offeringFound || capacityTypeFound || (allSubnetsUnavailable && len(subnetIDs) != 0)
 }
 
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings.

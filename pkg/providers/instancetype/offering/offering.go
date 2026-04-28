@@ -173,7 +173,7 @@ func (p *DefaultProvider) createOfferings(
 				return i.Zone == zone
 			})
 			if zonefound {
-				subnetIDs = lo.Ternary(zonefound, zonalInfo.SubnetIDs, []string{})
+				subnetIDs = zonalInfo.SubnetIDs
 				isZonalShifted = p.zonalshiftProvider.IsZonalShifted(ctx, zonalInfo.ZoneID)
 			}
 			for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
