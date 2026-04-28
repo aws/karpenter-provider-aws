@@ -21,6 +21,7 @@ import (
 	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 )
 
 type NodeClass interface {
@@ -32,10 +33,11 @@ type CompatibleCheck interface {
 	compatibleCheck(info ec2types.InstanceTypeInfo) bool
 }
 
-func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass) bool {
+func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass, pg *placementgroup.PlacementGroup) bool {
 	for _, check := range []CompatibleCheck{
 		networkInterfaceCompatibility(nodeClass.NetworkInterfaces()),
 		amiFamilyCompatibility(nodeClass.AMIFamily()),
+		placementGroupCompatibility(pg),
 	} {
 		if !check.compatibleCheck(info) {
 			return false
@@ -113,4 +115,28 @@ func (c networkInterfaceCheck) compatibleCheck(info ec2types.InstanceTypeInfo) b
 		}
 	}
 	return true
+}
+
+type placementGroupCheck struct {
+	pg *placementgroup.PlacementGroup
+}
+
+func placementGroupCompatibility(pg *placementgroup.PlacementGroup) CompatibleCheck {
+	return &placementGroupCheck{
+		pg: pg,
+	}
+}
+
+func (c placementGroupCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	if c.pg == nil {
+		return true
+	}
+	return lo.Contains(info.PlacementGroupInfo.SupportedStrategies, PlacementGroupStrategyToEC2(c.pg.Strategy))
+}
+
+func PlacementGroupStrategyToEC2(strategy placementgroup.Strategy) ec2types.PlacementGroupStrategy {
+	resolvedType, _ := lo.Find(ec2types.PlacementGroupStrategy("").Values(), func(crt ec2types.PlacementGroupStrategy) bool {
+		return string(crt) == string(strategy)
+	})
+	return resolvedType
 }

@@ -48,6 +48,7 @@ type Instance struct {
 	EFACount                   int
 	CapacityReservationDetails *CapacityReservationDetails
 	Tenancy                    string
+	PartitionNumber            *int32
 }
 
 type CapacityReservationDetails struct {
@@ -90,7 +91,15 @@ func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
 		}),
 		CapacityReservationDetails: capacityReservationDetails,
 		Tenancy:                    tenancyFromInstance(instance),
+		PartitionNumber:            partitionNumberFromInstance(instance),
 	}
+}
+
+func partitionNumberFromInstance(instance ec2types.Instance) *int32 {
+	if instance.Placement != nil && instance.Placement.PartitionNumber != nil && *instance.Placement.PartitionNumber != 0 {
+		return instance.Placement.PartitionNumber
+	}
+	return nil
 }
 
 func tenancyFromInstance(instance ec2types.Instance) string {

@@ -551,6 +551,23 @@ spec:
                       rule: self.size() == 0 || self.exists(x, x.deviceIndex == 0 && x.networkCardIndex == 0 && x.interfaceType == 'interface')
                     - message: networkInterfaces must not have duplicate networkCardIndex and deviceIndex pairs, and can have at most one efa device per network card
                       rule: self.all(x, self.filter(y, x.networkCardIndex == y.networkCardIndex && x.deviceIndex == y.deviceIndex).size() == 1 && (x.interfaceType != 'efa-only' || self.filter(y, x.networkCardIndex == y.networkCardIndex && y.interfaceType == 'efa-only').size() == 1))
+                placementGroupSelector:
+                  description: PlacementGroupSelector defines the name or the id of the placement to resolve with the nodeclass.
+                  properties:
+                    id:
+                      description: ID is the placement group id in EC2
+                      pattern: ^pg-[0-9a-z]+$
+                      type: string
+                    name:
+                      description: Name is the placement group name in EC2
+                      minLength: 1
+                      type: string
+                  type: object
+                  x-kubernetes-validations:
+                    - message: expected at least one, got none, ['name', 'id']
+                      rule: has(self.name) || has(self.id)
+                    - message: '''name'' and ''id'' are mutually exclusive'
+                      rule: '!(has(self.name) && has(self.id))'
                 role:
                   description: |-
                     Role is the AWS identity that nodes use.

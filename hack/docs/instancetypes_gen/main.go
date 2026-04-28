@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -143,10 +144,12 @@ below are the resources available with some assumptions and after the instance o
 				true,
 			),
 			nil,
+			nil,
 			awscache.NewUnavailableOfferings(),
 			instancetype.NewDefaultResolver(
 				region,
 			),
+			arczonalshift.NewNoopProvider(),
 		)
 		if err = instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {
 			log.Fatalf("updating instance types, %s", err)

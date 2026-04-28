@@ -87,7 +87,7 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 	fakeClock = &clock.FakeClock{}
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.InstanceTypeStore)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster, fakeClock)
 })
@@ -266,6 +266,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
 			v1.LabelCapacityReservationInterruptible,
+			// Placement group labels are only present when a placement group is configured on the NodeClass
+			v1.LabelPlacementGroupID,
+			v1.LabelPlacementGroupPartition,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		var pods []*corev1.Pod
@@ -319,7 +322,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the accelerator, capacity reservation, and EFA count labels
+		// Ensure that we're exercising all well known labels except for the accelerator, capacity reservation, and EFA count, and placement group labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(
 			append(
 				karpv1.WellKnownLabels.Difference(sets.New(
@@ -329,6 +332,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 					v1.LabelInstanceAcceleratorCount,
 					v1.LabelInstanceAcceleratorName,
 					v1.LabelInstanceAcceleratorManufacturer,
+					v1.LabelPlacementGroupID,
+					v1.LabelPlacementGroupPartition,
 					corev1.LabelWindowsBuild,
 				)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
@@ -376,7 +381,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the gpu, nvme, and capacity reservation id
+		// Ensure that we're exercising all well known labels except for the gpu, nvme, capacity reservation, and placement group
 		expectedLabels := append(karpv1.WellKnownLabels.Difference(sets.New(
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
@@ -386,6 +391,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceGPUManufacturer,
 			v1.LabelInstanceGPUMemory,
 			v1.LabelInstanceLocalNVME,
+			v1.LabelPlacementGroupID,
+			v1.LabelPlacementGroupPartition,
 			corev1.LabelWindowsBuild,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))

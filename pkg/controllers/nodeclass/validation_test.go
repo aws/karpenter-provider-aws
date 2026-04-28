@@ -561,6 +561,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			awsEnv.InstanceTypesProvider,
 			awsEnv.LaunchTemplateProvider,
 			awsEnv.CapacityReservationProvider,
+			awsEnv.PlacementGroupProvider,
 			awsEnv.EC2API,
 			awsEnv.ValidationCache,
 			awsEnv.RecreationCache,

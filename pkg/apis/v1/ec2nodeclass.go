@@ -53,6 +53,11 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:MaxItems:=30
 	// +optional
 	CapacityReservationSelectorTerms []CapacityReservationSelectorTerm `json:"capacityReservationSelectorTerms" hash:"ignore"`
+	// PlacementGroupSelector defines the name or the id of the placement to resolve with the nodeclass.
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['name', 'id']",rule="has(self.name) || has(self.id)"
+	// +kubebuilder:validation:XValidation:message="'name' and 'id' are mutually exclusive",rule="!(has(self.name) && has(self.id))"
+	// +optional
+	PlacementGroupSelector *PlacementGroupSelector `json:"placementGroupSelector,omitempty"`
 	// AssociatePublicIPAddress controls if public IP addresses are assigned to instances that are launched with the nodeclass.
 	// +optional
 	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
@@ -204,6 +209,17 @@ type CapacityReservationSelectorTerm struct {
 	// +kubebuilder:validation:Enum:={open,targeted}
 	// +optional
 	InstanceMatchCriteria string `json:"instanceMatchCriteria,omitempty"`
+}
+
+type PlacementGroupSelector struct {
+	// Name is the placement group name in EC2
+	// +kubebuilder:validation:MinLength:=1
+	// +optional
+	Name *string `json:"name,omitempty"`
+	// ID is the placement group id in EC2
+	// +kubebuilder:validation:Pattern:="^pg-[0-9a-z]+$"
+	// +optional
+	ID *string `json:"id,omitempty"`
 }
 
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.
@@ -517,15 +533,16 @@ type EC2NodeClass struct {
 // 1. A field changes its default value for an existing field that is already hashed
 // 2. A field is added to the hash calculation with an already-set value
 // 3. A field is removed from the hash calculations
-const EC2NodeClassHashVersion = "v4"
+const EC2NodeClassHashVersion = "v5"
 
-func (in *EC2NodeClass) Hash() string {
+func (in *EC2NodeClass) Hash(caBundle *string) string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]any{
 		in.Spec,
 		// AMIFamily should be hashed using the dynamically resolved value rather than the literal value of the field.
 		// This ensures that scenarios such as changing the field from nil to AL2023 with the alias "al2023@latest"
 		// doesn't trigger drift.
 		in.AMIFamily(),
+		lo.FromPtr(caBundle),
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{
 		SlicesAsSets:    true,
 		IgnoreZeroValue: true,
@@ -564,6 +581,10 @@ func (in *EC2NodeClass) InstanceStorePolicy() *InstanceStorePolicy {
 
 func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {
 	return in.Spec.NetworkInterfaces
+}
+
+func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {
+	return in.Spec.PlacementGroupSelector
 }
 
 func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {

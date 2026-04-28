@@ -149,8 +149,7 @@ spec:
   limits:
     cpu: "1000"
     memory: 1000Gi
-    # For static NodePools, limits.nodes constrains maximum node count during scaling/drift
-    # Note : Supported only for static NodePools
+    # limits.nodes constrains maximum node count during scaling/drift
     nodes: 10
 
   # Priority given to the NodePool when the scheduler considers which NodePool
@@ -418,7 +417,7 @@ The NodePool spec includes a limits section (`spec.limits`), which constrains th
 
 If the `NodePool.spec.limits` section is unspecified, it means that there is no default limitation on resource allocation. In this case, the maximum resource consumption is governed by the quotas set by your cloud provider. If a limit has been exceeded, nodes provisioning is prevented until some nodes have been terminated.
 
-**For Static NodePools:** Only `limits.nodes` is supported. This field constrains the maximum number of nodes during scaling operations or drift replacement. Note that `limits.nodes` is support only on static NodePools.
+The `limits.nodes` field constrains the maximum number of nodes during scaling operations or drift replacement.
 
 ```yaml
 apiVersion: karpenter.sh/v1

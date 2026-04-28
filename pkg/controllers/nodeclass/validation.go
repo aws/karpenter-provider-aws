@@ -418,7 +418,7 @@ func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass 
 	if err != nil {
 		return nil, fmt.Errorf("listing instance types for nodeclass, %w", err)
 	}
-	instanceTypes = v.instanceTypeProvider.FilterForNodeClass(instanceTypes, nodeClass)
+	instanceTypes = v.instanceTypeProvider.FilterForNodeClass(ctx, instanceTypes, nodeClass)
 	compatibleInstanceTypes := getNodePoolCompatibleInstanceTypes(instanceTypes, nodePools)
 
 	// If there weren't any matching instance types, we should fallback to some defaults. There's an instance type included

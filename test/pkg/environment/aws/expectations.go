@@ -844,3 +844,25 @@ func (env *Environment) ExpectEFADevicePluginCreated() {
 		},
 	})
 }
+
+func ExpectPlacementGroupCreated(ctx context.Context, ec2api *ec2.Client, name string, strategy ec2types.PlacementStrategy, partitionCount ...int32) string {
+	GinkgoHelper()
+	input := &ec2.CreatePlacementGroupInput{
+		GroupName: lo.ToPtr(name),
+		Strategy:  strategy,
+	}
+	if len(partitionCount) > 0 {
+		input.PartitionCount = lo.ToPtr(partitionCount[0])
+	}
+	out, err := ec2api.CreatePlacementGroup(ctx, input)
+	Expect(err).ToNot(HaveOccurred())
+	return lo.FromPtr(out.PlacementGroup.GroupId)
+}
+
+func ExpectPlacementGroupDeleted(ctx context.Context, ec2api *ec2.Client, name string) {
+	GinkgoHelper()
+	_, err := ec2api.DeletePlacementGroup(ctx, &ec2.DeletePlacementGroupInput{
+		GroupName: lo.ToPtr(name),
+	})
+	Expect(err).ToNot(HaveOccurred())
+}

@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -70,10 +71,12 @@ func main() {
 			true,
 		),
 		nil,
+		nil,
 		awscache.NewUnavailableOfferings(),
 		instancetype.NewDefaultResolver(
 			region,
 		),
+		arczonalshift.NewNoopProvider(),
 	)
 	if err := instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {
 		log.Fatalf("updating instance types, %s", err)
@@ -140,7 +143,7 @@ func main() {
 	fmt.Printf("Got %d instance types after filtering\n", len(instanceTypes))
 
 	resolver := amifamily.NewDefaultResolver(region)
-	launchTemplates, err := resolver.Resolve(nodeClass, &karpv1.NodeClaim{}, lo.Slice(instanceTypes, 0, 60), karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)})
+	launchTemplates, err := resolver.Resolve(nodeClass, &karpv1.NodeClaim{}, lo.Slice(instanceTypes, 0, 60), karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}, "", 0)
 
 	if err != nil {
 		log.Fatalf("resolving launchTemplates, %s", err)

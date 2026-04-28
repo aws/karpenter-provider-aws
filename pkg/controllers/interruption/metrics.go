@@ -25,6 +25,7 @@ import (
 const (
 	interruptionSubsystem = "interruption"
 	messageTypeLabel      = "message_type"
+	categoryLabel         = "category"
 )
 
 var (
@@ -58,5 +59,15 @@ var (
 			Buckets:   metrics.DurationBuckets(),
 		},
 		[]string{},
+	)
+	InstanceStatusUnhealthy = opmetrics.NewPrometheusCounter(
+		crmetrics.Registry,
+		prometheus.CounterOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: interruptionSubsystem,
+			Name:      "instance_status_unhealthy_total",
+			Help:      "Count of unhealthy instance statuses detected from EC2 DescribeInstanceStatus. Broken down by status check category.",
+		},
+		[]string{categoryLabel},
 	)
 )
