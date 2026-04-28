@@ -51,6 +51,10 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 			nodeClass.StatusConditions().SetFalse(v1.ConditionTypeAMIsReady, "UnsupportedAlias", err.Error())
 			return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("getting amis, %w", err))
 		}
+		if amifamily.IsAMIsNotDiscoveredForAliasError(err) {
+			nodeClass.StatusConditions().SetFalse(v1.ConditionTypeAMIsReady, "AMIsNotFoundForAlias", err.Error())
+			return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("getting amis, %w", err))
+		}
 		return reconcile.Result{}, fmt.Errorf("getting amis, %w", err)
 	}
 	if len(amis) == 0 {
