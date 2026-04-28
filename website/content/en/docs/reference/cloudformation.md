@@ -25,7 +25,7 @@ Following some header information, the rest of the `cloudformation.yaml` file de
 The sections of that file can be grouped together under the following general headings:
 
 * [**Node Authorization**]({{< relref "#node-authorization" >}}): Creates a NodeInstanceProfile, attaches a NodeRole to it, and connects it to an IAM Identity Mapping used to authorize nodes to the cluster. This defines the permissions each node managed by Karpenter has to access EC2 and other AWS resources. This doesn't actually create the IAM Identity Mapping. That part is orchestrated by `eksctl` in the Getting Started guide.
-* [**Controller Authorization**]({{< relref "#controller-authorization" >}}):  Creates 5 Karpenter controller policies that are attached to the service account's IAM role.
+* [**Controller Authorization**]({{< relref "#controller-authorization" >}}):  Creates 6 Karpenter controller policies that are attached to the service account's IAM role.
 Again, the actual service account creation (`karpenter`), that is combined with these policies, is orchestrated by `eksctl` in the Getting Started guide.
 * [**Interruption Handling**]({{< relref "#interruption-handling" >}}): Allows the Karpenter controller to see and respond to interruptions that occur with the nodes that Karpenter is managing. See the [Interruption]({{< relref "../concepts/disruption#interruption" >}}) section of the Disruption page for details.
 
@@ -89,8 +89,8 @@ The controller permissions are split across 6 managed IAM policies:
 * [KarpenterControllerIAMIntegrationPolicy]({{< relref "#karpentercontrolleriamintegrationpolicy" >}}) - IAM instance profile management
 * [KarpenterControllerEKSIntegrationPolicy]({{< relref "#karpentercontrollereksintegrationpolicy" >}}) - EKS cluster discovery
 * [KarpenterControllerInterruptionPolicy]({{< relref "#karpentercontrollerinterruptionpolicy" >}}) - SQS interruption queue access
-* [KarpenterControllerResourceDiscoveryPolicy]({{< relref "#karpentercontrollerresourcediscoverypolicy" >}}) - Read-only resource discovery
 * [KarpenterControllerZonalShiftPolicy]({{< relref "#karpentercontrollerzonalshiftpolicy" >}}) - Zonal Shift status access
+* [KarpenterControllerResourceDiscoveryPolicy]({{< relref "#karpentercontrollerresourcediscoverypolicy" >}}) - Read-only resource discovery
 
 Someone wanting to add Karpenter to an existing cluster, instead of using `cloudformation.yaml`, would need to create these IAM policies directly and assign them to the role leveraged by the service account using IRSA or EKS Pod Identity.
 
@@ -126,7 +126,7 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read 
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*",
-    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:placement-group/*",
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:placement-group/*"
   ],
   "Action": [
     "ec2:RunInstances",
@@ -186,7 +186,7 @@ actions requested by the Karpenter controller to create all `fleet`, `instance`,
   ],
   "Condition": {
     "StringEquals": {
-      "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned"
+      "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
       "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
     },
     "StringLike": {
@@ -218,7 +218,7 @@ Conditions that must be met include that `aws:RequestTag/kubernetes.io/cluster/$
   "Condition": {
     "StringEquals": {
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
-      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
+      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}",
       "ec2:CreateAction": [
         "RunInstances",
         "CreateFleet",
@@ -608,6 +608,19 @@ The AllowInstanceProfileReadActions Sid gives the Karpenter controller permissio
   "Effect": "Allow",
   "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
   "Action": "iam:GetInstanceProfile"
+}
+```
+
+#### AllowUnscopedEC2DescribeInstanceStatus
+
+The AllowUnscopedEC2DescribeInstanceStatus Sid gives the Karpenter controller permission to perform [`ec2:DescribeInstanceStatus`](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceStatus.html) actions to detect EC2 instance status events for nodes managed by Karpenter, allowing the interruption controller to react to instance status failures.
+
+```json
+{
+  "Sid": "AllowUnscopedEC2DescribeInstanceStatus",
+  "Effect": "Allow",
+  "Resource": "*",
+  "Action": "ec2:DescribeInstanceStatus"
 }
 ```
 
