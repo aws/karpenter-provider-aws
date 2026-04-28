@@ -112,7 +112,7 @@ var _ = Describe("Cache", func() {
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1a", []string{}, karpv1.CapacityTypeSpot)).To(BeTrue())
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1b", []string{}, karpv1.CapacityTypeSpot)).To(BeTrue())
 		})
-		It("should mark offerings as unavailable when calling MarkAZUnavailable", func() {
+		It("should mark offerings as unavailable when calling MarkSubnetUnavailable", func() {
 			zoneInfo := []v1.ZoneInfo{
 				{
 					Zone:      "test-zone-1a",
@@ -133,24 +133,24 @@ var _ = Describe("Cache", func() {
 
 			// offerings should initially not be marked as unavailable
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Large, "test-zone-1a",
-				test.GetSubetsFromZone("test-zone-1a", zoneInfo), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+				test.GetSubnetsFromZone("test-zone-1a", zoneInfo), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1a",
-				test.GetSubetsFromZone("test-zone-1a", zoneInfo), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+				test.GetSubnetsFromZone("test-zone-1a", zoneInfo), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1a",
-				test.GetSubetsFromZone("test-zone-1a", zoneInfo), karpv1.CapacityTypeSpot)).To(BeFalse())
+				test.GetSubnetsFromZone("test-zone-1a", zoneInfo), karpv1.CapacityTypeSpot)).To(BeFalse())
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1b",
-				test.GetSubetsFromZone("test-zone-1b", zoneInfo), karpv1.CapacityTypeSpot)).To(BeFalse())
+				test.GetSubnetsFromZone("test-zone-1b", zoneInfo), karpv1.CapacityTypeSpot)).To(BeFalse())
 
 			// mark all test-zone-1a offerings as unavailable
 			unavailableOfferingCache.MarkSubnetUnavailable("subnet-test1")
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Large, "test-zone-1a",
-				test.GetSubetsFromZone("test-zone-1a", zoneInfo), karpv1.CapacityTypeOnDemand)).To(BeTrue())
+				test.GetSubnetsFromZone("test-zone-1a", zoneInfo), karpv1.CapacityTypeOnDemand)).To(BeTrue())
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1a",
-				test.GetSubetsFromZone("test-zone-1a", zoneInfo), karpv1.CapacityTypeOnDemand)).To(BeTrue())
+				test.GetSubnetsFromZone("test-zone-1a", zoneInfo), karpv1.CapacityTypeOnDemand)).To(BeTrue())
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1a",
-				test.GetSubetsFromZone("test-zone-1a", zoneInfo), karpv1.CapacityTypeSpot)).To(BeTrue())
+				test.GetSubnetsFromZone("test-zone-1a", zoneInfo), karpv1.CapacityTypeSpot)).To(BeTrue())
 			Expect(unavailableOfferingCache.IsUnavailable(ec2types.InstanceTypeM5Xlarge, "test-zone-1b",
-				test.GetSubetsFromZone("test-zone-1b", zoneInfo), karpv1.CapacityTypeSpot)).To(BeFalse())
+				test.GetSubnetsFromZone("test-zone-1b", zoneInfo), karpv1.CapacityTypeSpot)).To(BeFalse())
 		})
 		It("should increase sequence number when unavailability changes", func() {
 			// sequence numbers should initially be 0

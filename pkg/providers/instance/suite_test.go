@@ -142,13 +142,13 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(instance).To(BeNil())
 
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
-			test.GetSubetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
-			test.GetSubetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
-			test.GetSubetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
-			test.GetSubetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 
 		// Try creating again for on-demand
 		instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
@@ -162,13 +162,13 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(instance).To(BeNil())
 
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
-			test.GetSubetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
-			test.GetSubetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
-			test.GetSubetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeTrue())
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeTrue())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
-			test.GetSubetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeTrue())
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeTrue())
 	})
 	It("should return an ICE error when spot instances are used and SpotSLR can't be created", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
@@ -212,21 +212,21 @@ var _ = Describe("InstanceProvider", func() {
 
 		// Capacity should get ICEd when this error is received
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
-			test.GetSubetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
-			test.GetSubetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1a",
-			test.GetSubetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1b",
-			test.GetSubetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
-			test.GetSubetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
-			test.GetSubetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1a",
-			test.GetSubetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1b",
-			test.GetSubetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 
 		// Expect that an event is fired for Spot SLR not being created
 		awsEnv.EventRecorder.DetectedEvent(`Attempted to launch a spot instance but failed due to "AuthFailure.ServiceLinkedRoleCreationNotPermitted"`)
@@ -264,13 +264,13 @@ var _ = Describe("InstanceProvider", func() {
 
 		// Capacity should get ICEd when this error is received
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
-			test.GetSubetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
-			test.GetSubetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeFalse())
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeFalse())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
-			test.GetSubetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
-			test.GetSubetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 	})
 	It("should return an ICE error when all attempted instance types return a ReservedCapacityReservation error", func() {
 		const targetReservationID = "cr-m5.large-1a-1"
@@ -532,7 +532,7 @@ var _ = Describe("InstanceProvider", func() {
 					Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable(
 						ec2types.InstanceType(it.Name),
 						zone,
-						test.GetSubetsFromZone(zone, nodeClass.ZoneInfo()),
+						test.GetSubnetsFromZone(zone, nodeClass.ZoneInfo()),
 						"on-demand",
 					)).To(Equal(shouldBeUnavailable))
 				}

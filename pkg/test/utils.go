@@ -56,7 +56,7 @@ func DisableCapacityReservationIDValidation(crds []*apiextensionsv1.CustomResour
 	return crds
 }
 
-func GetSubetsFromZone(zone string, zoneInfo []v1.ZoneInfo) []string {
+func GetSubnetsFromZone(zone string, zoneInfo []v1.ZoneInfo) []string {
 	return lo.Flatten(lo.FilterMap(zoneInfo, func(i v1.ZoneInfo, _ int) ([]string, bool) {
 		return i.SubnetIDs, i.Zone == zone
 	}))

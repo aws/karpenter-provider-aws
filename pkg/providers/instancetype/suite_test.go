@@ -2397,7 +2397,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(zones.UnsortedList()).To(ConsistOf([]string{"test-zone-1a", "test-zone-1b", "test-zone-1c"}))
 
 			// Mark one of the zones as unavailable
-			for _, subnet := range test.GetSubetsFromZone("test-zone-1a", nodeClass.ZoneInfo()) {
+			for _, subnet := range test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()) {
 				awsEnv.UnavailableOfferingsCache.MarkSubnetUnavailable(subnet)
 			}
 
@@ -2861,7 +2861,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				}
 			}
 
-			for _, subnet := range test.GetSubetsFromZone("test-zone-1a", nodeClass.ZoneInfo()) {
+			for _, subnet := range test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()) {
 				awsEnv.UnavailableOfferingsCache.MarkSubnetUnavailable(subnet)
 			}
 			list3, err := cloudProvider.GetInstanceTypes(ctx, nodePool)

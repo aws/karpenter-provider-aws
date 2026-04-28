@@ -313,7 +313,7 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
 	return fmt.Sprintf(
-		"%s-%016x-%016x-%016x-%016x",
+		"%s-%016x-%016x-%016x-%016x-%016x",
 		it.Name,
 		zonesHash,
 		capacityTypesHash,
