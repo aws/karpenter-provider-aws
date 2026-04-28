@@ -169,7 +169,8 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 }
 
 func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
-	out, err := c.instanceProfileProvider.ListNodeClassProfiles(ctx, nodeClass)
+	pathPrefix := instanceprofile.FormatPath("karpenter", c.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))
+	out, err := c.instanceProfileProvider.ListProfiles(ctx, pathPrefix)
 
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)
