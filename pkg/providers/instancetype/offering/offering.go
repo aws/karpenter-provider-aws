@@ -17,6 +17,7 @@ package offering
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -118,7 +119,8 @@ func (p *DefaultProvider) InjectOfferings(
 			cacheKeyBuilder,
 		)
 		// For partition placement groups, expand each offering into N offerings (one per partition)
-		offerings = p.expandPartitionOfferings(offerings, pg)
+		// These expanded offerings are not cached, but the underlying offerings are.
+		offerings = p.expandPartitionOfferings(it, offerings, pg)
 		// NOTE: By making this copy one level deep, we can modify the offerings without mutating the results from previous
 		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and
 		// once in the instance provider (filterReservedInstanceTypes)
@@ -270,7 +272,7 @@ func (p *DefaultProvider) createOfferings(
 
 // expandPartitionOfferings expands each offering into N offerings (one per partition) for partition placement groups.
 // This enables the scheduler to use TopologySpreadConstraints with the partition topology key.
-func (p *DefaultProvider) expandPartitionOfferings(offerings cloudprovider.Offerings, pg *placementgroup.PlacementGroup) cloudprovider.Offerings {
+func (p *DefaultProvider) expandPartitionOfferings(it *cloudprovider.InstanceType, offerings cloudprovider.Offerings, pg *placementgroup.PlacementGroup) cloudprovider.Offerings {
 	if pg == nil || pg.Strategy != placementgroup.StrategyPartition {
 		return offerings
 	}
@@ -280,13 +282,27 @@ func (p *DefaultProvider) expandPartitionOfferings(offerings cloudprovider.Offer
 	}
 	var expanded []*cloudprovider.Offering
 	for _, offering := range offerings {
+		capacityType := offering.Requirements.Get(karpv1.CapacityTypeLabelKey).Values()
+		zone := offering.Requirements.Get(corev1.LabelTopologyZone).Values()
+		if len(capacityType) != 1 {
+			panic("Each offering should only have 1 capacity type")
+		}
+		if len(zone) != 1 {
+			panic("Each offering should only have 1 zone")
+		}
 		for partition := 1; partition <= partitionCount; partition++ {
+			isUnavailable := true
+			// if the underlying offering is not available, then the expanded offering won't be either
+			if !offering.Available {
+				pgOpts := []awscache.UnavailableOfferingsOption{awscache.WithPlacementGroupPartition(strconv.Itoa(partition))}
+				isUnavailable = p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone[0], capacityType[0], pgOpts...)
+			}
 			reqs := scheduling.NewRequirements(offering.Requirements.Values()...)
 			reqs.Add(scheduling.NewRequirement(v1.LabelPlacementGroupPartition, corev1.NodeSelectorOpIn, fmt.Sprintf("%d", partition)))
 			expanded = append(expanded, &cloudprovider.Offering{
 				Requirements:        reqs,
 				Price:               offering.Price,
-				Available:           offering.Available,
+				Available:           offering.Available && isUnavailable,
 				ReservationCapacity: offering.ReservationCapacity,
 			})
 		}
