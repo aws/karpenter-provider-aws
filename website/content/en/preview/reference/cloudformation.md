@@ -502,13 +502,18 @@ This section of the cloudformation.yaml template can give Karpenter permission t
 For the cluster that will be created (`arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}`), the AllowZonalShiftActions Sid lets the Karpenter controller have permission to get the Zonal Shift status of the cluster ([GetManagedResource](https://docs.aws.amazon.com/arc-zonal-shift/latest/api/API_GetManagedResource.html)).
 
 ```json
-{
+            {
   "Sid": "AllowZonalShiftStatusReadOnly",
   "Effect": "Allow",
-  "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
+  "Resource": "*",
   "Action": [
     "arc-zonal-shift:GetManagedResource"
-  ]
+  ],
+  "Condition": {
+    "StringEquals": {
+      "aws:ResourceIdentifier": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
+    }
+  }
 }
 ```
 

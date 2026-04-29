@@ -306,10 +306,15 @@ Resources:
             {
               "Sid": "AllowZonalShiftStatusReadOnly",
               "Effect": "Allow",
-              "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
+              "Resource": "*",
               "Action": [
                 "arc-zonal-shift:GetManagedResource"
-              ]
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "arc-zonal-shift:ResourceIdentifier": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
+                }
+              }
             }
           ]
         }
