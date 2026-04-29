@@ -631,8 +631,8 @@ var _ = Describe("InstanceProvider", func() {
 		// Verify that subnet-1a-2 is the chosen subnet as it has the most IPs
 		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 		cfCall := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-		Expect(len(cfCall.LaunchTemplateConfigs)).To(Equal(1))
-		Expect(len(cfCall.LaunchTemplateConfigs[0].Overrides)).To(Equal(1))
+		Expect(cfCall.LaunchTemplateConfigs).To(HaveLen(1))
+		Expect(cfCall.LaunchTemplateConfigs[0].Overrides).To(HaveLen(1))
 		Expect(lo.FromPtr(cfCall.LaunchTemplateConfigs[0].Overrides[0].SubnetId)).To(Equal("subnet-1a-2"))
 
 		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
@@ -642,7 +642,7 @@ var _ = Describe("InstanceProvider", func() {
 					InstanceType: "m5.xlarge",
 					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
 						Overrides: &ec2types.FleetLaunchTemplateOverrides{
-							SubnetId:         lo.ToPtr("subnet-1a-2"),
+							SubnetId:         lo.ToPtr("subnet-1a-1"),
 							AvailabilityZone: lo.ToPtr("test-zone-1a"),
 						},
 					},
@@ -656,8 +656,8 @@ var _ = Describe("InstanceProvider", func() {
 		// Verify that subnet-1a-1 is the chosen subnet as it now has the most IPs
 		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 		cfCall = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-		Expect(len(cfCall.LaunchTemplateConfigs)).To(Equal(1))
-		Expect(len(cfCall.LaunchTemplateConfigs[0].Overrides)).To(Equal(1))
+		Expect(cfCall.LaunchTemplateConfigs).To(HaveLen(1))
+		Expect(cfCall.LaunchTemplateConfigs[0].Overrides).To(HaveLen(1))
 		Expect(lo.FromPtr(cfCall.LaunchTemplateConfigs[0].Overrides[0].SubnetId)).To(Equal("subnet-1a-1"))
 	})
 	It("should use priotiztied allocation stragaty for an on-demand nodeclaim using nodeoverlay pricing", func() {
