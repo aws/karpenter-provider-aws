@@ -44,6 +44,7 @@ var (
 		"QueueDoesNotExist",
 		"NoSuchEntity",
 		"ParameterNotFound",
+		"ParameterVersionNotFound",
 	)
 	alreadyExistsErrorCodes = sets.New(
 		"EntityAlreadyExists",
