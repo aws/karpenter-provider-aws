@@ -22,7 +22,10 @@ import (
 	"github.com/imdario/mergo"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 )
 
@@ -57,6 +60,12 @@ func DisableCapacityReservationIDValidation(crds []*apiextensionsv1.CustomResour
 		crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["status"].Properties["capacityReservations"].Items.Schema.Properties["id"] = idProps
 	}
 	return crds
+}
+
+func GetSubnetsFromZone(zone string, zoneInfo []v1.ZoneInfo) []string {
+	return lo.Flatten(lo.FilterMap(zoneInfo, func(i v1.ZoneInfo, _ int) ([]string, bool) {
+		return i.SubnetIDs, i.Zone == zone
+	}))
 }
 
 // EC2Instance creates an ec2types.Instance with sensible defaults for testing.

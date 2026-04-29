@@ -143,10 +143,14 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
 
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeTrue())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeFalse())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeOnDemand)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 
 		// Try creating again for on-demand
 		instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
@@ -159,10 +163,14 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
 
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeTrue())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeTrue())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeOnDemand)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeTrue())
 	})
 	It("should return an ICE error when spot instances are used and SpotSLR can't be created", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
@@ -205,14 +213,22 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(instance).To(BeNil())
 
 		// Capacity should get ICEd when this error is received
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeTrue())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeTrue())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeFalse())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeOnDemand)).To(BeFalse())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeFalse())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1b", karpv1.CapacityTypeOnDemand)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1b",
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1b",
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 
 		// Expect that an event is fired for Spot SLR not being created
 		awsEnv.EventRecorder.DetectedEvent(`Attempted to launch a spot instance but failed due to "AuthFailure.ServiceLinkedRoleCreationNotPermitted"`)
@@ -249,10 +265,14 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(instance).To(BeNil())
 
 		// Capacity should get ICEd when this error is received
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeSpot)).To(BeFalse())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a", karpv1.CapacityTypeOnDemand)).To(BeFalse())
-		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b", karpv1.CapacityTypeOnDemand)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 	})
 	It("should return an ICE error when all attempted instance types return a ReservedCapacityReservation error", func() {
 		const targetReservationID = "cr-m5.large-1a-1"
@@ -468,9 +488,127 @@ var _ = Describe("InstanceProvider", func() {
 		retrievedIDs := sets.New(lo.Map(instances, func(i *instance.Instance, _ int) string { return i.ID })...)
 		Expect(ids.Equal(retrievedIDs)).To(BeTrue())
 	})
-	It("should mark subnets as unavailable when they run out of IPs", func() {
+	DescribeTable("should handle subnet IP exhaustion correctly",
+		func(zoneInfo []v1.ZoneInfo, subnetsToMarkUnavailable []string, expectedZoneAvailability map[string]bool) {
+			nodeClass.Status.Subnets = lo.Flatten(lo.Map(zoneInfo, func(zi v1.ZoneInfo, _ int) []v1.Subnet {
+				return lo.Map(zi.SubnetIDs, func(subnetID string, _ int) v1.Subnet {
+					return v1.Subnet{
+						ID:     subnetID,
+						Zone:   zi.Zone,
+						ZoneID: zi.ZoneID,
+					}
+				})
+			}))
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+			awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+				Errors: lo.Map(subnetsToMarkUnavailable, func(subnetID string, _ int) ec2types.CreateFleetError {
+					zone, _ := lo.Find(zoneInfo, func(zi v1.ZoneInfo) bool {
+						return lo.Contains(zi.SubnetIDs, subnetID)
+					})
+					return ec2types.CreateFleetError{
+						ErrorCode:    lo.ToPtr("InsufficientFreeAddressesInSubnet"),
+						ErrorMessage: lo.ToPtr("There are insufficient free addresses in that subnet to run instance"),
+						LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+							Overrides: &ec2types.FleetLaunchTemplateOverrides{
+								InstanceType:     "m5.xlarge",
+								AvailabilityZone: lo.ToPtr(zone.Zone),
+								SubnetId:         lo.ToPtr(subnetID),
+							},
+						},
+					}
+				}),
+			})
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			// We expect to treat that error as an ICE
+			instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+			Expect(instance).To(BeNil())
+
+			// Verify zone availability expectations
+			for zone, shouldBeUnavailable := range expectedZoneAvailability {
+				for _, it := range instanceTypes {
+					Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable(
+						ec2types.InstanceType(it.Name),
+						zone,
+						test.GetSubnetsFromZone(zone, nodeClass.ZoneInfo()),
+						"on-demand",
+					)).To(Equal(shouldBeUnavailable))
+				}
+			}
+		},
+		Entry("zone unavailable when 1 subnet gets ICEd with 1 subnet in zone",
+			[]v1.ZoneInfo{
+				{Zone: "test-zone-1a", ZoneID: "use1-az1", SubnetIDs: []string{"subnet-1a-1"}},
+				{Zone: "test-zone-1b", ZoneID: "use1-az2", SubnetIDs: []string{"subnet-1b-1"}},
+				{Zone: "test-zone-1c", ZoneID: "use1-az3", SubnetIDs: []string{"subnet-1c-1"}},
+			},
+			[]string{"subnet-1a-1"},
+			map[string]bool{
+				"test-zone-1a": true,
+				"test-zone-1b": false,
+				"test-zone-1c": false,
+			},
+		),
+		Entry("zone available when only 1 subnet gets ICEd with multiple subnets in zone",
+			[]v1.ZoneInfo{
+				{Zone: "test-zone-1a", ZoneID: "use1-az1", SubnetIDs: []string{"subnet-1a-1", "subnet-1a-2", "subnet-1a-3"}},
+				{Zone: "test-zone-1b", ZoneID: "use1-az2", SubnetIDs: []string{"subnet-1b-1"}},
+				{Zone: "test-zone-1c", ZoneID: "use1-az3", SubnetIDs: []string{"subnet-1c-1"}},
+			},
+			[]string{"subnet-1a-1"},
+			map[string]bool{
+				"test-zone-1a": false,
+				"test-zone-1b": false,
+				"test-zone-1c": false,
+			},
+		),
+		Entry("zone unavailable when all subnets in zone get ICEd",
+			[]v1.ZoneInfo{
+				{Zone: "test-zone-1a", ZoneID: "use1-az1", SubnetIDs: []string{"subnet-1a-1", "subnet-1a-2", "subnet-1a-3"}},
+				{Zone: "test-zone-1b", ZoneID: "use1-az2", SubnetIDs: []string{"subnet-1b-1"}},
+				{Zone: "test-zone-1c", ZoneID: "use1-az3", SubnetIDs: []string{"subnet-1c-1"}},
+			},
+			[]string{"subnet-1a-1", "subnet-1a-2", "subnet-1a-3"},
+			map[string]bool{
+				"test-zone-1a": true,
+				"test-zone-1b": false,
+				"test-zone-1c": false,
+			},
+		),
+	)
+	It("should deprioritize subnets on subsequent launches after subnet IP exhaustion", func() {
+		awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{
+			Subnets: []ec2types.Subnet{
+				{
+					SubnetId:                aws.String("subnet-1a-1"),
+					AvailabilityZone:        aws.String("test-zone-1a"),
+					AvailabilityZoneId:      aws.String("use1-az1"),
+					AvailableIpAddressCount: aws.Int32(50),
+					VpcId:                   aws.String("vpc-test1"),
+				},
+				{
+					SubnetId:                aws.String("subnet-1a-2"),
+					AvailabilityZone:        aws.String("test-zone-1a"),
+					AvailabilityZoneId:      aws.String("use1-az1"),
+					AvailableIpAddressCount: aws.Int32(200), // more IPs - should be preferred
+					VpcId:                   aws.String("vpc-test1"),
+				},
+			},
+		})
+		nodeClass.Status.Subnets = []v1.Subnet{
+			{ID: "subnet-1a-1", Zone: "test-zone-1a", ZoneID: "use1-az1"},
+			{ID: "subnet-1a-2", Zone: "test-zone-1a", ZoneID: "use1-az1"},
+		}
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+
+		// ICE subnet-1a-2 on first launch attempt
 		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
 			Errors: []ec2types.CreateFleetError{
 				{
@@ -480,6 +618,7 @@ var _ = Describe("InstanceProvider", func() {
 						Overrides: &ec2types.FleetLaunchTemplateOverrides{
 							InstanceType:     "m5.xlarge",
 							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+							SubnetId:         lo.ToPtr("subnet-1a-2"),
 						},
 					},
 				},
@@ -487,23 +626,41 @@ var _ = Describe("InstanceProvider", func() {
 		})
 		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 		Expect(err).ToNot(HaveOccurred())
-
-		// We expect to treat that error as an ICE
 		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
 
-		// We should have set the zone used in the request as unavailable for all instance types
-		for _, instance := range instanceTypes {
-			Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable(ec2types.InstanceType(instance.Name), "test-zone-1a", "on-demand")).To(BeTrue())
-		}
-		// But we should not have set the other zones as unavailable
-		zones := []string{"test-zone-1b", "test-zone-1c"}
-		for _, zone := range zones {
-			for _, instance := range instanceTypes {
-				Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable(ec2types.InstanceType(instance.Name), zone, "on-demand")).To(BeFalse())
-			}
-		}
+		// Verify that subnet-1a-2 is the chosen subnet as it has the most IPs
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+		cfCall := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		Expect(cfCall.LaunchTemplateConfigs).To(HaveLen(1))
+		Expect(cfCall.LaunchTemplateConfigs[0].Overrides).To(HaveLen(1))
+		Expect(lo.FromPtr(cfCall.LaunchTemplateConfigs[0].Overrides[0].SubnetId)).To(Equal("subnet-1a-2"))
+
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			Instances: []ec2types.CreateFleetInstance{
+				{
+					InstanceIds:  []string{fake.InstanceID()},
+					InstanceType: "m5.xlarge",
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							SubnetId:         lo.ToPtr("subnet-1a-1"),
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+			},
+		})
+		instance, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(BeNil())
+		Expect(instance).ToNot(BeNil())
+
+		// Verify that subnet-1a-1 is the chosen subnet as it now has the most IPs
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+		cfCall = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		Expect(cfCall.LaunchTemplateConfigs).To(HaveLen(1))
+		Expect(cfCall.LaunchTemplateConfigs[0].Overrides).To(HaveLen(1))
+		Expect(lo.FromPtr(cfCall.LaunchTemplateConfigs[0].Overrides[0].SubnetId)).To(Equal("subnet-1a-1"))
 	})
 	It("should use priotiztied allocation stragaty for an on-demand nodeclaim using nodeoverlay pricing", func() {
 		nodeClaim.Annotations = map[string]string{v1alpha1.PriceOverlayAppliedAnnotationKey: "true"}
