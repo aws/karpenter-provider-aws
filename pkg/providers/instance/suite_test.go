@@ -578,6 +578,88 @@ var _ = Describe("InstanceProvider", func() {
 			},
 		),
 	)
+	It("should deprioritize subnets on subsequent launches after subnet IP exhaustion", func() {
+		awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{
+			Subnets: []ec2types.Subnet{
+				{
+					SubnetId:                aws.String("subnet-1a-1"),
+					AvailabilityZone:        aws.String("test-zone-1a"),
+					AvailabilityZoneId:      aws.String("use1-az1"),
+					AvailableIpAddressCount: aws.Int32(50),
+					VpcId:                   aws.String("vpc-test1"),
+				},
+				{
+					SubnetId:                aws.String("subnet-1a-2"),
+					AvailabilityZone:        aws.String("test-zone-1a"),
+					AvailabilityZoneId:      aws.String("use1-az1"),
+					AvailableIpAddressCount: aws.Int32(200), // more IPs - should be preferred
+					VpcId:                   aws.String("vpc-test1"),
+				},
+			},
+		})
+		nodeClass.Status.Subnets = []v1.Subnet{
+			{ID: "subnet-1a-1", Zone: "test-zone-1a", ZoneID: "use1-az1"},
+			{ID: "subnet-1a-2", Zone: "test-zone-1a", ZoneID: "use1-az1"},
+		}
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+
+		// ICE subnet-1a-2 on first launch attempt
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			Errors: []ec2types.CreateFleetError{
+				{
+					ErrorCode:    lo.ToPtr("InsufficientFreeAddressesInSubnet"),
+					ErrorMessage: lo.ToPtr("There are insufficient free addresses in that subnet to run instance"),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.xlarge",
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+							SubnetId:         lo.ToPtr("subnet-1a-2"),
+						},
+					},
+				},
+			},
+		})
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(instance).To(BeNil())
+
+		// Verify that subnet-1a-2 is the chosen subnet as it has the most IPs
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+		cfCall := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		Expect(len(cfCall.LaunchTemplateConfigs)).To(Equal(1))
+		Expect(len(cfCall.LaunchTemplateConfigs[0].Overrides)).To(Equal(1))
+		Expect(lo.FromPtr(cfCall.LaunchTemplateConfigs[0].Overrides[0].SubnetId)).To(Equal("subnet-1a-2"))
+
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			Instances: []ec2types.CreateFleetInstance{
+				{
+					InstanceIds:  []string{fake.InstanceID()},
+					InstanceType: "m5.xlarge",
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							SubnetId:         lo.ToPtr("subnet-1a-2"),
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+			},
+		})
+		instance, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(BeNil())
+		Expect(instance).ToNot(BeNil())
+
+		// Verify that subnet-1a-1 is the chosen subnet as it now has the most IPs
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+		cfCall = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		Expect(len(cfCall.LaunchTemplateConfigs)).To(Equal(1))
+		Expect(len(cfCall.LaunchTemplateConfigs[0].Overrides)).To(Equal(1))
+		Expect(lo.FromPtr(cfCall.LaunchTemplateConfigs[0].Overrides[0].SubnetId)).To(Equal("subnet-1a-1"))
+	})
 	It("should use priotiztied allocation stragaty for an on-demand nodeclaim using nodeoverlay pricing", func() {
 		nodeClaim.Annotations = map[string]string{v1alpha1.PriceOverlayAppliedAnnotationKey: "true"}
 		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{

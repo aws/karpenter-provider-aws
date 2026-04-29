@@ -238,7 +238,8 @@ func (p *DefaultProvider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInp
 }
 
 func (p *DefaultProvider) UpdateICEdSubnet(subnetID string) {
-	p.availableIPAddressCache.SetDefault(subnetID, 0)
+	p.availableIPAddressCache.SetDefault(subnetID, int32(0))
+	delete(p.inflightIPs, subnetID) // remove any previously tracked IP addresses since we just refreshed from Fleet
 }
 
 func (p *DefaultProvider) LivenessProbe(_ *http.Request) error {

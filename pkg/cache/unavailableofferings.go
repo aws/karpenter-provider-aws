@@ -106,8 +106,8 @@ func (u *UnavailableOfferings) SeqNum(instanceType ec2types.InstanceType) uint64
 func (u *UnavailableOfferings) IsUnavailable(instanceType ec2types.InstanceType, zone string, subnetIDs []string, capacityType string, opts ...UnavailableOfferingsOption) bool {
 	_, offeringFound := u.offeringCache.Get(u.key(instanceType, zone, capacityType, opts...))
 	_, capacityTypeFound := u.capacityTypeCache.Get(capacityType)
-	// we should only mark the zone as unavaialble if all subnets are in the cache
-	// if there are no subnets in the list, it should not cause unavaialbility as we expect scheduling requirements to capture that
+	// we should only mark the zone as unavailable if all subnets are in the cache
+	// if there are no subnets in the list, it should not cause unavailability as we expect scheduling requirements to capture that
 	allSubnetsUnavailable := lo.EveryBy(subnetIDs, func(subnetID string) bool {
 		_, found := u.subnetCache.Get(subnetID)
 		return found
