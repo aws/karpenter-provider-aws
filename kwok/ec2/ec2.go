@@ -29,7 +29,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
-	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
@@ -44,6 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/kwok/apis/v1alpha1"
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/test"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -912,7 +912,8 @@ func (c *Client) toNode(ctx context.Context, instance ec2types.Instance) *corev1
 		"al2023",
 		nil,
 	)
-	nodeName := fmt.Sprintf("%s-%d", strings.ReplaceAll(namesgenerator.GetRandomName(0), "_", "-"), rand.Uint32()) //nolint:gosec
+	nodeName := fmt.Sprintf("kwok-%s-%d", test.RandomName(), rand.Uint32()) //nolint:gosec
+
 	return &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
