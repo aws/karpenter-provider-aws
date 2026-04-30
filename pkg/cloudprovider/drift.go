@@ -53,7 +53,7 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 	if amiDrifted != "" {
 		return amiDrifted, nil
 	}
-	instance, err := c.getInstance(ctx, nodeClaim.Status.ProviderID, false)
+	instance, err := c.getInstance(ctx, nodeClaim.Status.ProviderID)
 	if err != nil {
 		return "", err
 	}
@@ -144,20 +144,20 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 // NOTE: We handle drift dynamically for capacity reservations rather than relying on the offerings inducing drift since
 // a reserved instance may fall back to on-demand. Relying on offerings could result in drift occurring before fallback
 // would cancel it out.
-func (c *CloudProvider) isCapacityReservationDrifted(ctx context.Context, providerID string, instance *instance.Instance, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
-	if instance.CapacityReservationDetails == nil {
+func (c *CloudProvider) isCapacityReservationDrifted(ctx context.Context, providerID string, i *instance.Instance, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+	if i.CapacityReservationDetails == nil {
 		return "", nil
 	}
 	capacityReservationIDs := sets.New(lo.Map(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation, _ int) string { return cr.ID })...)
-	if capacityReservationIDs.Has(instance.CapacityReservationDetails.ID) {
+	if capacityReservationIDs.Has(i.CapacityReservationDetails.ID) {
 		return "", nil
 	}
 	// skip the instance type cache to get up-to-date instance info
-	instance, err := c.getInstance(ctx, providerID, true)
+	i, err := c.getInstance(ctx, providerID, instance.SkipCache)
 	if err != nil {
 		return "", err
 	}
-	if instance.CapacityReservationDetails != nil && !capacityReservationIDs.Has(instance.CapacityReservationDetails.ID) {
+	if i.CapacityReservationDetails != nil && !capacityReservationIDs.Has(i.CapacityReservationDetails.ID) {
 		return CapacityReservationDrift, nil
 	}
 	return "", nil
@@ -193,20 +193,15 @@ func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *karpv1.NodeClaim, node
 	return lo.Ternary(nodeClassHash != nodeClaimHash, NodeClassDrift, "")
 }
 
-func (c *CloudProvider) getInstance(ctx context.Context, providerID string, skipCache bool) (*instance.Instance, error) {
+func (c *CloudProvider) getInstance(ctx context.Context, providerID string, options ...instance.Options) (*instance.Instance, error) {
 	// Get InstanceID to fetch from EC2
 	instanceID, err := utils.ParseInstanceID(providerID)
 	if err != nil {
 		return nil, err
 	}
-	var i *instance.Instance
-	if skipCache {
-		i, err = c.instanceProvider.Get(ctx, instanceID, instance.SkipCache)
-	} else {
-		i, err = c.instanceProvider.Get(ctx, instanceID)
-	}
+	instance, err := c.instanceProvider.Get(ctx, instanceID, options...)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance, %w", err)
 	}
-	return i, nil
+	return instance, nil
 }
