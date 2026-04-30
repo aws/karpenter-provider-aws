@@ -48,8 +48,8 @@ type EC2NodeClassSpec struct {
 	SecurityGroupSelectorTerms []SecurityGroupSelectorTerm `json:"securityGroupSelectorTerms" hash:"ignore"`
 	// CapacityReservationSelectorTerms is a list of capacity reservation selector terms. Each term is ORed together to
 	// determine the set of eligible capacity reservations.
-	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'instanceMatchCriteria']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.instanceMatchCriteria))"
-	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))"
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'instanceMatchCriteria', 'availabilityZone']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.instanceMatchCriteria) || has(x.availabilityZone))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria) || has(x.availabilityZone)))"
 	// +kubebuilder:validation:MaxItems:=30
 	// +optional
 	CapacityReservationSelectorTerms []CapacityReservationSelectorTerm `json:"capacityReservationSelectorTerms" hash:"ignore"`
@@ -209,6 +209,9 @@ type CapacityReservationSelectorTerm struct {
 	// +kubebuilder:validation:Enum:={open,targeted}
 	// +optional
 	InstanceMatchCriteria string `json:"instanceMatchCriteria,omitempty"`
+	// AvailabilityZone is the availability zone to filter capacity reservations by.
+	// +optional
+	AvailabilityZone string `json:"availabilityZone,omitempty"`
 }
 
 type PlacementGroupSelector struct {
