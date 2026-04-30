@@ -88,13 +88,13 @@ type Provider interface {
 	CreateTags(context.Context, string, map[string]string) error
 }
 
-type Opts struct {
+type options struct {
 	SkipCache bool
 }
 
-type Options = option.Function[Opts]
+type Options = option.Function[options]
 
-var SkipCache = func(opts *Opts) {
+var SkipCache = func(opts *options) {
 	opts.SkipCache = true
 }
 
