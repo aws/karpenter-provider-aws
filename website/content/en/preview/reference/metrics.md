@@ -8,16 +8,15 @@ description: >
 ---
 <!-- this document is generated from hack/docs/metrics_gen/main.go -->
 Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.kube-system.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)
-
-### `karpenter_ignored_pod_count`
-Number of pods ignored during scheduling by Karpenter
-- Stability Level: ALPHA
-
 ### `karpenter_build_info`
 A metric with a constant '1' value labeled by version from which karpenter was built.
 - Stability Level: STABLE
 
 ## Nodeclaims Metrics
+
+### `karpenter_nodeclaims_unhealthy_disrupted_total`
+Number of unhealthy nodeclaims disrupted in total by Karpenter. Labeled by condition on the node was disrupted, the owning nodepool, and the image ID.
+- Stability Level: ALPHA
 
 ### `karpenter_nodeclaims_termination_duration_seconds`
 Duration of NodeClaim termination in seconds.
@@ -36,31 +35,35 @@ Number of nodeclaims disrupted in total by Karpenter. Labeled by reason the node
 - Stability Level: ALPHA
 
 ### `karpenter_nodeclaims_created_total`
-Number of nodeclaims created in total by Karpenter. Labeled by reason the nodeclaim was created and the owning nodepool.
+Number of nodeclaims created in total by Karpenter. Labeled by reason the nodeclaim was created, the owning nodepool, and if min values was relaxed for this nodeclaim.
 - Stability Level: STABLE
 
-### `operator_nodeclaim_status_condition_transitions_total`
-The count of transitions of a nodeclaim, type and status. Labeled by the type, reason, and status.
-- Stability Level: BETA
+## Nodeclaim Termination Metrics
 
-### `operator_nodeclaim_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning. Labeled by the name of the nodeclaim, and the namespace.
-- Stability Level: BETA
-
-### `operator_nodeclaim_status_condition_current_status_seconds`
-The current amount of time in seconds that a status condition has been in a specific state. Labeled by the name of the nodelcaim, namespace, type, status, and reason.
-- Stability Level: BETA
-
-### `operator_nodeclaim_status_condition_count`
-The number of a condition for a nodeclaim, type and status. Labeled by the name, namespace, type, status, and reason.
+### `operator_nodeclaim_termination_duration_seconds`
+The amount of time taken by an object to terminate completely.
 - Stability Level: BETA
 
 ### `operator_nodeclaim_termination_current_time_seconds`
-The current amount of time in seconds that a nodeclaim has been in terminating state. Labeled by name, and namespace.
+The current amount of time in seconds that an object has been in terminating state.
 - Stability Level: BETA
 
-### `operator_nodeclaim_termination_duration_seconds`
-The amount of time taken by a nodeclaim to terminate completely.
+## Nodeclaim Status Condition Metrics
+
+### `operator_nodeclaim_status_condition_transitions_total`
+The count of transitions of a given object, type and status.
+- Stability Level: BETA
+
+### `operator_nodeclaim_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes
+- Stability Level: BETA
+
+### `operator_nodeclaim_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes
+- Stability Level: BETA
+
+### `operator_nodeclaim_status_condition_count`
+The number of a condition for a given object, type and status. e.g. Alarm := Available=False > 0
 - Stability Level: BETA
 
 ## Nodes Metrics
@@ -97,10 +100,6 @@ Node system daemon overhead are the resources reserved for system overhead, the 
 The lifetime duration of the nodes since creation.
 - Stability Level: ALPHA
 
-### `karpenter_nodes_eviction_requests_total`
-The total number of eviction requests made by Karpenter
-- Stability Level: ALPHA
-
 ### `karpenter_nodes_drained_total`
 The total number of nodes drained by Karpenter
 - Stability Level: ALPHA
@@ -117,59 +116,153 @@ Number of nodes created in total by Karpenter. Labeled by owning nodepool.
 Node allocatable are the resources allocatable by nodes.
 - Stability Level: BETA
 
-### `operator_node_status_condition_transitions_total`
-The count of transitions of a node, type and status.
-- Stability Level: BETA
+## Node Termination Metrics
 
-### `operator_node_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning. Labeled by the name of the nodeclaim, and the namespace.
-- Stability Level: BETA
-
-### `operator_node_status_condition_current_status_seconds`
-The current amount of time in seconds that a status condition has been in a specific state. Labeled by the name of the nodelcaim, namespace, type, status, and reason.
-- Stability Level: BETA
-
-### `operator_node_status_condition_count`
-The number of a condition for a node, type and status. Labeled by the name, namespace, type, status, and reason.
+### `operator_node_termination_duration_seconds`
+The amount of time taken by an object to terminate completely.
 - Stability Level: BETA
 
 ### `operator_node_termination_current_time_seconds`
-The current amount of time in seconds that a node has been in terminating state. Labeled by name, and namespace.
+The current amount of time in seconds that an object has been in terminating state.
 - Stability Level: BETA
 
-### `operator_node_termination_duration_seconds`
-The amount of time taken by a node to terminate completely.
+## Node Status Condition Metrics
+
+### `operator_node_status_condition_transitions_total`
+The count of transitions of a given object, type and status.
 - Stability Level: BETA
 
-### `operator_node_event_count`
-The number of a events for a node.
+### `operator_node_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes
+- Stability Level: BETA
+
+### `operator_node_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes
+- Stability Level: BETA
+
+### `operator_node_status_condition_count`
+The number of a condition for a given object, type and status. e.g. Alarm := Available=False > 0
 - Stability Level: BETA
 
 ## Pods Metrics
 
+### `karpenter_pods_unstarted_time_seconds`
+The time from pod creation until the pod is running.
+- Stability Level: ALPHA
+
+### `karpenter_pods_unbound_time_seconds`
+The time from pod creation until the pod is bound.
+- Stability Level: ALPHA
+
 ### `karpenter_pods_state`
-Pod state is the current state of pods. This metric can be used several ways as it is labeled by the pod name, namespace, owner, node, nodepool name, zone, architecture, capacity type, instance type and pod phase.
+Pod state is the current state of pods. This metric can be used several ways as it is labeled by the pod name, namespace, owner, node, nodepool name, zone, architecture, capacity type, instance type, pod phase, and pod readiness.
 - Stability Level: BETA
 
 ### `karpenter_pods_startup_duration_seconds`
 The time from pod creation until the pod is running.
 - Stability Level: STABLE
 
-## Termination Metrics
+### `karpenter_pods_scheduling_decision_duration_seconds`
+The time it takes for Karpenter to first try to schedule a pod after it's been seen.
+- Stability Level: ALPHA
 
-### `operator_termination_duration_seconds`
+### `karpenter_pods_provisioning_unstarted_time_seconds`
+The time from when Karpenter first thinks the pod can schedule until the pod is running. Note: this calculated from a point in memory, not by the pod creation timestamp.
+- Stability Level: ALPHA
+
+### `karpenter_pods_provisioning_unbound_time_seconds`
+The time from when Karpenter first thinks the pod can schedule until it binds. Note: this calculated from a point in memory, not by the pod creation timestamp.
+- Stability Level: ALPHA
+
+### `karpenter_pods_provisioning_startup_duration_seconds`
+The time from when Karpenter first thinks the pod can schedule until the pod is running. Note: this calculated from a point in memory, not by the pod creation timestamp.
+- Stability Level: ALPHA
+
+### `karpenter_pods_provisioning_scheduling_undecided_time_seconds`
+The time from when Karpenter has seen a pod without making a scheduling decision for the pod. Note: this calculated from a point in memory, not by the pod creation timestamp.
+- Stability Level: ALPHA
+
+### `karpenter_pods_provisioning_bound_duration_seconds`
+The time from when Karpenter first thinks the pod can schedule until it binds. Note: this calculated from a point in memory, not by the pod creation timestamp.
+- Stability Level: ALPHA
+
+### `karpenter_pods_eviction_requests_total`
+The total number of pod eviction requests made by Karpenter, labeled by response code
+- Stability Level: ALPHA
+
+### `karpenter_pods_drained_total`
+The total number of pods drained during node termination by Karpenter, labeled by reason
+- Stability Level: ALPHA
+
+### `karpenter_pods_bound_duration_seconds`
+The time from pod creation until the pod is bound.
+- Stability Level: ALPHA
+
+## Nodepool Termination Metrics
+
+### `operator_nodepool_termination_duration_seconds`
 The amount of time taken by an object to terminate completely.
-- Stability Level: DEPRECATED
+- Stability Level: BETA
 
-### `operator_termination_current_time_seconds`
+### `operator_nodepool_termination_current_time_seconds`
 The current amount of time in seconds that an object has been in terminating state.
-- Stability Level: DEPRECATED
+- Stability Level: BETA
+
+## Nodepool Status Condition Metrics
+
+### `operator_nodepool_status_condition_transitions_total`
+The count of transitions of a given object, type and status.
+- Stability Level: BETA
+
+### `operator_nodepool_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes
+- Stability Level: BETA
+
+### `operator_nodepool_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes
+- Stability Level: BETA
+
+### `operator_nodepool_status_condition_count`
+The number of a condition for a given object, type and status. e.g. Alarm := Available=False > 0
+- Stability Level: BETA
+
+## Ec2nodeclass Termination Metrics
+
+### `operator_ec2nodeclass_termination_duration_seconds`
+The amount of time taken by an object to terminate completely.
+- Stability Level: BETA
+
+### `operator_ec2nodeclass_termination_current_time_seconds`
+The current amount of time in seconds that an object has been in terminating state.
+- Stability Level: BETA
+
+## Ec2nodeclass Status Condition Metrics
+
+### `operator_ec2nodeclass_status_condition_transitions_total`
+The count of transitions of a given object, type and status.
+- Stability Level: BETA
+
+### `operator_ec2nodeclass_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes
+- Stability Level: BETA
+
+### `operator_ec2nodeclass_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes
+- Stability Level: BETA
+
+### `operator_ec2nodeclass_status_condition_count`
+The number of a condition for a given object, type and status. e.g. Alarm := Available=False > 0
+- Stability Level: BETA
 
 ## Voluntary Disruption Metrics
 
 ### `karpenter_voluntary_disruption_queue_failures_total`
 The number of times that an enqueued disruption decision failed. Labeled by disruption method.
 - Stability Level: BETA
+
+### `karpenter_voluntary_disruption_failed_validations_total`
+Number of candidates that were selected for disruption but failed validation. Labeled by consolidation type.
+- Stability Level: ALPHA
 
 ### `karpenter_voluntary_disruption_eligible_nodes`
 Number of nodes eligible for disruption by Karpenter. Labeled by disruption reason.
@@ -178,6 +271,10 @@ Number of nodes eligible for disruption by Karpenter. Labeled by disruption reas
 ### `karpenter_voluntary_disruption_decisions_total`
 Number of disruption decisions performed. Labeled by disruption decision, reason, and consolidation type.
 - Stability Level: STABLE
+
+### `karpenter_voluntary_disruption_decisions_by_nodepool_total`
+Number of disruption decisions performed by nodepool. Labeled by nodepool name, disruption decision, reason, and consolidation type.
+- Stability Level: ALPHA
 
 ### `karpenter_voluntary_disruption_decision_evaluation_duration_seconds`
 Duration of the disruption decision evaluation process in seconds. Labeled by method and consolidation type.
@@ -189,6 +286,14 @@ Number of times the Consolidation algorithm has reached a timeout. Labeled by co
 
 ## Scheduler Metrics
 
+### `karpenter_scheduler_unschedulable_pods_count`
+The number of unschedulable Pods.
+- Stability Level: ALPHA
+
+### `karpenter_scheduler_unfinished_work_seconds`
+How many seconds of work has been done that is in progress and hasn't been observed by scheduling_duration_seconds.
+- Stability Level: ALPHA
+
 ### `karpenter_scheduler_scheduling_duration_seconds`
 Duration of scheduling simulations used for deprovisioning and provisioning in seconds.
 - Stability Level: STABLE
@@ -197,69 +302,35 @@ Duration of scheduling simulations used for deprovisioning and provisioning in s
 The number of pods currently waiting to be scheduled.
 - Stability Level: BETA
 
+### `karpenter_scheduler_ignored_pods_count`
+Number of pods ignored during scheduling by Karpenter
+- Stability Level: ALPHA
+
 ## Nodepools Metrics
 
 ### `karpenter_nodepools_usage`
 The amount of resources that have been provisioned for a nodepool. Labeled by nodepool name and resource type.
 - Stability Level: ALPHA
 
+### `karpenter_nodepools_nodes_consuming_budgets`
+The number of nodes consuming the budget of a nodepool at a point in time. Labeled by NodePool.
+- Stability Level: ALPHA
+
 ### `karpenter_nodepools_limit`
 Limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
+- Stability Level: ALPHA
+
+### `karpenter_nodepools_cost_tracker_errors_total`
+Number of errors encountered during cost tracking operations. Labeled by nodepool and nodeclaim.
+- Stability Level: ALPHA
+
+### `karpenter_nodepools_cost_total`
+Total cost of the nodepool from Karpenter's perspective. Units are determined by the cloud provider. Not an authoritative source for billing. Includes modifications due to NodeOverlays
 - Stability Level: ALPHA
 
 ### `karpenter_nodepools_allowed_disruptions`
 The number of nodes for a given NodePool that can be concurrently disrupting at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
 - Stability Level: ALPHA
-
-### `operator_nodepool_status_condition_transitions_total`
-The count of transitions of a nodepool, type and status. Labeled by the type, reason, and status.
-- Stability Level: BETA
-
-### `operator_nodepool_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning. Labeled by the name of the nodeclaim, and the namespace.
-- Stability Level: BETA
-
-### `operator_nodepool_status_condition_current_status_seconds`
-The current amount of time in seconds that a status condition has been in a specific state. Labeled by the name of the nodelcaim, namespace, type, status, and reason.
-- Stability Level: BETA
-
-### `operator_nodepool_status_condition_count`
-The number of an condition for a nodepool, type and status. Labeled by the name, namespace, type, status, and reason.
-- Stability Level: BETA
-
-### `operator_nodepool_termination_current_time_seconds`
-The current amount of time in seconds that a nodepool has been in terminating state. Labeled by name, and namespace.
-- Stability Level: BETA
-
-### `operator_nodepool_termination_duration_seconds`
-Duration of NodePool termination in seconds.
-- Stability Level: BETA
-
-## EC2NodeClass Metrics
-
-### `operator_ec2nodeclass_status_condition_transitions_total`
-The count of transitions of a ec2nodeclass, type and status. Labeled by the type, reason, and status.
-- Stability Level: BETA
-
-### `operator_ec2nodeclass_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning. Labeled by the name of the nodeclaim, and the namespace.
-- Stability Level: BETA
-
-### `operator_ec2nodeclass_status_condition_current_status_seconds`
-The current amount of time in seconds that a status condition has been in a specific state. Labeled by the name of the nodelcaim, namespace, type, status, and reason.
-- Stability Level: BETA
-
-### `operator_ec2nodeclass_status_condition_count`
-The number of an condition for an ec2nodeclass, type and status. Labeled by the name, namespace, type, status, and reason.
-- Stability Level: BETA
-
-### `operator_ec2nodeclass_termination_current_time_seconds`
-The current amount of time in seconds that an ec2nodeclass has been in terminating state. Labeled by name, and namespace.
-- Stability Level: BETA
-
-### `operator_ec2nodeclass_termination_duration_seconds`
-Duration of ec2nodeclass termination in seconds.
-- Stability Level: BETA
 
 ## Interruption Metrics
 
@@ -269,6 +340,10 @@ Count of messages received from the SQS queue. Broken down by message type and w
 
 ### `karpenter_interruption_message_queue_duration_seconds`
 Amount of time an interruption message is on the queue before it is processed by karpenter.
+- Stability Level: STABLE
+
+### `karpenter_interruption_instance_status_unhealthy_total`
+Count of unhealthy instance statuses detected from EC2 DescribeInstanceStatus. Broken down by status check category.
 - Stability Level: STABLE
 
 ### `karpenter_interruption_deleted_messages_total`
@@ -285,7 +360,7 @@ Utilization of allocatable resources by pod requests
 
 ### `karpenter_cluster_state_unsynced_time_seconds`
 The time for which cluster state is not synced
-- Stability Level: ALPHA
+- Stability Level: STABLE
 
 ### `karpenter_cluster_state_synced`
 Returns 1 if cluster state is synced and 0 otherwise. Synced checks that nodeclaims and nodes that are stored in the APIServer have the same representation as Karpenter's cluster state
@@ -395,6 +470,16 @@ Current depth of workqueue by workqueue and priority
 Total number of adds handled by workqueue
 - Stability Level: STABLE
 
+## Termination Metrics
+
+### `operator_termination_duration_seconds`
+The amount of time taken by an object to terminate completely.
+- Stability Level: DEPRECATED
+
+### `operator_termination_current_time_seconds`
+The current amount of time in seconds that an object has been in terminating state.
+- Stability Level: DEPRECATED
+
 ## Status Condition Metrics
 
 ### `operator_status_condition_transitions_total`
@@ -410,7 +495,7 @@ The current amount of time in seconds that a status condition has been in a spec
 - Stability Level: DEPRECATED
 
 ### `operator_status_condition_count`
-The number of an condition for a given object, type and status. e.g. Alarm := Available=False > 0
+The number of a condition for a given object, type and status. e.g. Alarm := Available=False > 0
 - Stability Level: DEPRECATED
 
 ## Client Go Metrics
