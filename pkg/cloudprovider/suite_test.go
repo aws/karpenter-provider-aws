@@ -944,6 +944,46 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.CapacityReservationDrift))
 		})
+		It("should not drift when capacity reservation falls back to on-demand", func() {
+			// Reflect capacity reservation and in the instance
+			nodeClass.Status.CapacityReservations = []v1.CapacityReservation{
+				{
+					AvailabilityZone:      "test-zone-1a",
+					ID:                    "cr-foo",
+					InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
+					InstanceType:          "m5.large",
+					OwnerID:               "012345678901",
+					State:                 v1.CapacityReservationStateActive,
+					ReservationType:       v1.CapacityReservationTypeDefault,
+				},
+			}
+			out := awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
+			out.Reservations[0].Instances[0].SpotInstanceRequestId = nil
+			out.Reservations[0].Instances[0].CapacityReservationId = lo.ToPtr("cr-foo")
+			out.Reservations[0].Instances[0].CapacityReservationSpecification = &ec2types.CapacityReservationSpecificationResponse{
+				CapacityReservationPreference: ec2types.CapacityReservationPreferenceCapacityReservationsOnly,
+			}
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(out)
+			ExpectApplied(ctx, env.Client, nodeClass)
+
+			// Populate instance cache
+			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(Equal(corecloudprovider.DriftReason("")))
+
+			// Remove capacity reservation from NodeClass status and in the instance
+			nodeClass.Status.CapacityReservations = []v1.CapacityReservation{}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			out = awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
+			out.Reservations[0].Instances[0].SpotInstanceRequestId = nil
+			out.Reservations[0].Instances[0].CapacityReservationId = nil
+			out.Reservations[0].Instances[0].CapacityReservationSpecification = nil
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(out)
+
+			isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(Equal(corecloudprovider.DriftReason("")))
+		})
 		It("should not return drifted if the security groups match", func() {
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())

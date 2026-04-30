@@ -65,7 +65,7 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 	if err != nil {
 		return "", fmt.Errorf("calculating subnet drift, %w", err)
 	}
-	capacityReservationsDrifted, err := c.isCapacityReservationDrifted(ctx, instance, nodeClass)
+	capacityReservationsDrifted, err := c.isCapacityReservationDrifted(ctx, nodeClaim.Status.ProviderID, instance, nodeClass)
 	if err != nil {
 		return "", fmt.Errorf("calculating capacity reservation drift, %w", err)
 	}
@@ -144,7 +144,7 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 // NOTE: We handle drift dynamically for capacity reservations rather than relying on the offerings inducing drift since
 // a reserved instance may fall back to on-demand. Relying on offerings could result in drift occurring before fallback
 // would cancel it out.
-func (c *CloudProvider) isCapacityReservationDrifted(ctx context.Context, instance *instance.Instance, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+func (c *CloudProvider) isCapacityReservationDrifted(ctx context.Context, providerID string, instance *instance.Instance, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
 	if instance.CapacityReservationDetails == nil {
 		return "", nil
 	}
@@ -153,7 +153,7 @@ func (c *CloudProvider) isCapacityReservationDrifted(ctx context.Context, instan
 		return "", nil
 	}
 	// skip the instance type cache to get up-to-date instance info
-	instance, err := c.getInstance(ctx, instance.ID, true)
+	instance, err := c.getInstance(ctx, providerID, true)
 	if err != nil {
 		return "", err
 	}
