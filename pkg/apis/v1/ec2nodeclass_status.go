@@ -198,15 +198,22 @@ func (in *EC2NodeClass) CapacityReservations() []CapacityReservation {
 }
 
 type ZoneInfo struct {
-	Zone   string
-	ZoneID string
+	Zone      string
+	ZoneID    string
+	SubnetIDs []string
 }
 
 func (in *EC2NodeClass) ZoneInfo() []ZoneInfo {
-	return lo.Map(in.Status.Subnets, func(_ Subnet, i int) ZoneInfo {
+	subnetGroups := lo.GroupBy(in.Status.Subnets, func(s Subnet) string {
+		return s.ZoneID
+	})
+	return lo.MapToSlice(subnetGroups, func(zoneID string, subnets []Subnet) ZoneInfo {
 		return ZoneInfo{
-			Zone:   in.Status.Subnets[i].Zone,
-			ZoneID: in.Status.Subnets[i].ZoneID,
+			Zone:   subnets[0].Zone,
+			ZoneID: zoneID,
+			SubnetIDs: lo.Map(subnets, func(s Subnet, _ int) string {
+				return s.ID
+			}),
 		}
 	})
 }
