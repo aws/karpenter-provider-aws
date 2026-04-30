@@ -96,7 +96,8 @@ type Operator struct {
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
 	cfg := prometheusv2.WithPrometheusMetrics(WithUserAgent(lo.Must(config.LoadDefaultConfig(ctx))), crmetrics.Registry)
-	cfg.APIOptions = append(cfg.APIOptions, middleware.StructuredErrorHandler)
+	cfg.APIOptions = append(cfg.APIOptions, middleware.StructuredErrorHandler, HTTPTraceMiddleware)
+	log.FromContext(ctx).Info("HTTP trace and SigV4 logging middleware enabled")
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
 		region, err := imds.NewFromConfig(cfg).GetRegion(ctx, nil)
