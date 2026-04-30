@@ -291,7 +291,7 @@ var _ = Describe("InterruptionHandling", func() {
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 
 			// Expect a t3.large in coretest-zone-1a to be added to the ICE cache
-			Expect(unavailableOfferingsCache.IsUnavailable("t3.large", "coretest-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
+			Expect(unavailableOfferingsCache.IsUnavailable("t3.large", "coretest-zone-1a", []string{}, karpv1.CapacityTypeSpot)).To(BeTrue())
 		})
 		It("should mark the capacity reservation as unavailable when getting an interruption warning", func() {
 			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount("cr-56fac701cc1951b03", 10)
@@ -383,15 +383,19 @@ var _ = Describe("InterruptionHandling", func() {
 			})
 			ExpectNotFound(ctx, env.Client, nodeClaim)
 		})
-		It("should NOT delete the NodeClaim when an instance is unhealthy due to EBS Status only", func() {
+		It("should NOT delete the NodeClaim when dry run is enabled but should still emit the metric", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
+			interruption.InstanceStatusDryRun = true
+			DeferCleanup(func() {
+				interruption.InstanceStatusDryRun = false
+			})
 			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
 				InstanceStatuses: []ec2types.InstanceStatus{
 					{
 						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
-						AttachedEbsStatus: &ec2types.EbsStatusSummary{
+						InstanceStatus: &ec2types.InstanceStatusSummary{
 							Status: ec2types.SummaryStatusImpaired,
-							Details: []ec2types.EbsStatusDetails{
+							Details: []ec2types.InstanceStatusDetails{
 								{
 									Status:        ec2types.StatusTypeFailed,
 									Name:          ec2types.StatusNameReachability,
@@ -405,6 +409,9 @@ var _ = Describe("InterruptionHandling", func() {
 			awsEnv.Clock.Step(time.Hour)
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
 			ExpectSingletonReconciled(ctx, instanceStatusController)
+			ExpectMetricCounterValue(interruption.InstanceStatusUnhealthy, 1, map[string]string{
+				"category": "InstanceStatus",
+			})
 			ExpectExists(ctx, env.Client, nodeClaim)
 		})
 	})
