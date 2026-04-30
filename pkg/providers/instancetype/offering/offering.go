@@ -90,11 +90,6 @@ func (p *DefaultProvider) InjectOfferings(
 	nodeClass NodeClass,
 	allZones sets.Set[string],
 ) []*cloudprovider.InstanceType {
-	// The argument instanceTypeInfo is a pointer to the instanceTypeInfo mapping owned by the instance type provider.
-	// Functions that call InjectOfferings must have a read lock on this map.
-	subnetZonesToZoneIDs := lo.SliceToMap(nodeClass.ZoneInfo(), func(info v1.ZoneInfo) (string, string) {
-		return info.Zone, info.ZoneID
-	})
 	// Resolve the placement group once and pass it through to avoid repeated type assertions and lookups
 	var pg *placementgroup.PlacementGroup
 	if nodeClass.PlacementGroupSelector() != nil {
@@ -110,7 +105,6 @@ func (p *DefaultProvider) InjectOfferings(
 			nodeClass,
 			pg,
 			allZones,
-			subnetZonesToZoneIDs,
 		)
 		// For partition placement groups, expand each offering into N offerings (one per partition)
 		offerings = p.expandPartitionOfferings(offerings, pg)
@@ -151,11 +145,10 @@ func (p *DefaultProvider) createOfferings(
 	nodeClass NodeClass,
 	pg *placementgroup.PlacementGroup,
 	allZones sets.Set[string],
-	subnetZonesToZoneIDs map[string]string,
 ) cloudprovider.Offerings {
 	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
-
+	zoneInfo := nodeClass.ZoneInfo()
 	// Not all instance types are compatible with the NodeClass.
 	// In the event it is not, we mark the offering as unavailable.
 	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(info, nodeClass, pg)
@@ -175,9 +168,14 @@ func (p *DefaultProvider) createOfferings(
 		}
 		var cachedOfferings []*cloudprovider.Offering
 		for zone := range allZones {
+			var subnetIDs []string
 			isZonalShifted := false
-			if zoneId, ok := subnetZonesToZoneIDs[zone]; ok {
-				isZonalShifted = p.zonalshiftProvider.IsZonalShifted(ctx, zoneId)
+			zonalInfo, zonefound := lo.Find(zoneInfo, func(i v1.ZoneInfo) bool {
+				return i.Zone == zone
+			})
+			if zonefound {
+				subnetIDs = zonalInfo.SubnetIDs
+				isZonalShifted = p.zonalshiftProvider.IsZonalShifted(ctx, zonalInfo.ZoneID)
 			}
 			for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
 				// Reserved capacity types are constructed separately
@@ -186,9 +184,9 @@ func (p *DefaultProvider) createOfferings(
 				}
 				// Check both the general ICE signal and the PG-scoped signal.
 				// An offering is unavailable if either the general key or the PG-specific key is in the cache.
-				isUnavailable := p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType)
+				isUnavailable := p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, subnetIDs, capacityType)
 				if !isUnavailable && len(pgOpts) > 0 {
-					isUnavailable = p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, capacityType, pgOpts...)
+					isUnavailable = p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, subnetIDs, capacityType, pgOpts...)
 				}
 				var price float64
 				var hasPrice bool
@@ -211,8 +209,8 @@ func (p *DefaultProvider) createOfferings(
 					Price:     price,
 					Available: isCompatibleWithNodeClass && !isUnavailable && hasPrice && itZones.Has(zone) && !isZonalShifted,
 				}
-				if id, ok := subnetZonesToZoneIDs[zone]; ok {
-					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
+				if zonefound {
+					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, zonalInfo.ZoneID))
 				}
 				cachedOfferings = append(cachedOfferings, offering)
 			}
@@ -237,8 +235,11 @@ func (p *DefaultProvider) createOfferings(
 				price = odPrice / 10_000_000.0
 			}
 			isZonalShifted := false
-			if zoneId, ok := subnetZonesToZoneIDs[reservation.AvailabilityZone]; ok {
-				isZonalShifted = p.zonalshiftProvider.IsZonalShifted(ctx, zoneId)
+			zonalInfo, zoneFound := lo.Find(zoneInfo, func(i v1.ZoneInfo) bool {
+				return i.Zone == reservation.AvailabilityZone
+			})
+			if zoneFound {
+				isZonalShifted = p.zonalshiftProvider.IsZonalShifted(ctx, zonalInfo.ZoneID)
 			}
 			reservationCapacity := p.capacityReservationProvider.GetAvailableInstanceCount(reservation.ID)
 			offering := &cloudprovider.Offering{
@@ -253,8 +254,8 @@ func (p *DefaultProvider) createOfferings(
 				Available:           isCompatibleWithNodeClass && reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring && !isZonalShifted,
 				ReservationCapacity: reservationCapacity,
 			}
-			if id, ok := subnetZonesToZoneIDs[reservation.AvailabilityZone]; ok {
-				offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, id))
+			if zoneFound {
+				offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, zonalInfo.ZoneID))
 			}
 			offerings = append(offerings, offering)
 		}
@@ -300,17 +301,25 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
 	networkInterfaceHash, _ := hashstructure.Hash(nodeClass.NetworkInterfaces(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	subnetsHash, _ := hashstructure.Hash(
+		lo.Reduce(nodeClass.ZoneInfo(), func(agg []string, i v1.ZoneInfo, _ int) []string {
+			return append(agg, i.SubnetIDs...)
+		}, []string{}),
+		hashstructure.FormatV2,
+		&hashstructure.HashOptions{SlicesAsSets: true},
+	)
 	placementGroupPartitionsHash, _ := hashstructure.Hash(
 		it.Requirements.Get(v1.LabelPlacementGroupPartition).Values(),
 		hashstructure.FormatV2,
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
 	return fmt.Sprintf(
-		"%s-%016x-%016x-%016x-%016x",
+		"%s-%016x-%016x-%016x-%016x-%016x",
 		it.Name,
 		zonesHash,
 		capacityTypesHash,
 		networkInterfaceHash,
+		subnetsHash,
 		placementGroupPartitionsHash,
 	)
 }

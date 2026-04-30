@@ -24,6 +24,8 @@ import (
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
+	"github.com/olekukonko/tablewriter/tw"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
@@ -139,20 +141,34 @@ func PrettyTable[T any](data []T, wide bool) string {
 		rows = append(rows, row)
 	}
 	out := bytes.Buffer{}
-	table := tablewriter.NewWriter(&out)
-	table.SetHeader(headers)
-	table.SetAutoWrapText(false)
-	table.SetAutoFormatHeaders(true)
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetRowSeparator("")
-	table.SetHeaderLine(false)
-	table.SetBorder(false)
-	table.SetTablePadding("\t") // pad with tabs
-	table.SetNoWhiteSpace(true)
-	table.AppendBulk(rows) // Add Bulk Data
+	table := tablewriter.NewTable(&out,
+		tablewriter.WithRenderer(renderer.NewBlueprint()),
+		tablewriter.WithRendition(tw.Rendition{
+			Borders: tw.BorderNone,
+			Symbols: tw.NewSymbols(tw.StyleNone),
+			Settings: tw.Settings{
+				Lines:      tw.LinesNone,
+				Separators: tw.SeparatorsNone,
+			},
+		}),
+		tablewriter.WithConfig(tablewriter.Config{
+			Header: tw.CellConfig{
+				Alignment:  tw.CellAlignment{Global: tw.AlignLeft},
+				Formatting: tw.CellFormatting{AutoFormat: tw.On},
+				Padding:    tw.CellPadding{Global: tw.Padding{Left: "\t", Right: "\t"}},
+			},
+			Row: tw.CellConfig{
+				Alignment:  tw.CellAlignment{Global: tw.AlignLeft},
+				Formatting: tw.CellFormatting{AutoWrap: tw.WrapNone},
+				Padding:    tw.CellPadding{Global: tw.Padding{Left: "\t", Right: "\t"}},
+			},
+			Behavior: tw.Behavior{
+				TrimSpace: tw.On,
+			},
+		}),
+	)
+	table.Header(headers)
+	table.Bulk(rows)
 	table.Render()
 	return out.String()
 }
