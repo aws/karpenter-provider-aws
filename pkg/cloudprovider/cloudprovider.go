@@ -37,7 +37,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	provideroptions "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"github.com/samber/lo"
@@ -124,7 +124,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if nodeClassReady != nil && nodeClassReady.ObservedGeneration != nodeClass.Generation {
 		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("nodeclass status has not been reconciled against the latest spec"))
 	}
-	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
+	tags, err := utils.GetTags(nodeClass, nodeClaim, provideroptions.FromContext(ctx).ClusterName)
 	if err != nil {
 		return nil, cloudprovider.NewNodeClassNotReadyError(err)
 	}
