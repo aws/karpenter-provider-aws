@@ -131,9 +131,10 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 				// See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-options.html#instance-metadata-options-order-of-precedence
 				InstanceMetadataTags: ec2types.LaunchTemplateInstanceMetadataTagsStateDisabled,
 			},
-			NetworkInterfaces: networkInterfaces,
-			TagSpecifications: launchTemplateDataTags,
-			Placement:         b.buildPlacement(),
+			NetworkInterfaces:         networkInterfaces,
+			NetworkPerformanceOptions: networkPerformanceOptions(b.options.NetworkPerformanceOptions),
+			TagSpecifications:         launchTemplateDataTags,
+			Placement:                 b.buildPlacement(),
 		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{
@@ -173,6 +174,15 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			).Else(nil)
 	}
 	return lt
+}
+
+func networkPerformanceOptions(npo *v1.NetworkPerformanceOptions) *ec2types.LaunchTemplateNetworkPerformanceOptionsRequest {
+	if npo == nil || npo.BandwidthWeighting == nil {
+		return nil
+	}
+	return &ec2types.LaunchTemplateNetworkPerformanceOptionsRequest{
+		BandwidthWeighting: ec2types.InstanceBandwidthWeighting(*npo.BandwidthWeighting),
+	}
 }
 
 func (b *CreateLaunchTemplateInputBuilder) buildPlacement() *ec2types.LaunchTemplatePlacementRequest {
