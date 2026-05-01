@@ -17,6 +17,7 @@ package offering
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -94,6 +95,13 @@ func (p *DefaultProvider) InjectOfferings(
 	if nodeClass.PlacementGroupSelector() != nil {
 		pg, _ = p.placementGroupProvider.Get(ctx, nodeClass)
 	}
+	ncZoneInfo := nodeClass.ZoneInfo()
+
+	cacheKeyBuilder := newCacheKeyBuilder().
+		withNodeClassSubnets(ncZoneInfo).
+		withNetworkInterfaces(nodeClass.NetworkInterfaces()).
+		withPlacementGroup(pg)
+
 	var its []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
 		info := instanceTypeInfo[ec2types.InstanceType(it.Name)]
@@ -104,9 +112,12 @@ func (p *DefaultProvider) InjectOfferings(
 			nodeClass,
 			pg,
 			allZones,
+			ncZoneInfo,
+			cacheKeyBuilder,
 		)
 		// For partition placement groups, expand each offering into N offerings (one per partition)
-		offerings = p.expandPartitionOfferings(offerings, pg)
+		// These expanded offerings are not cached, but the underlying offerings are.
+		offerings = p.expandPartitionOfferings(it, offerings, ncZoneInfo, pg)
 		// NOTE: By making this copy one level deep, we can modify the offerings without mutating the results from previous
 		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and
 		// once in the instance provider (filterReservedInstanceTypes)
@@ -144,10 +155,24 @@ func (p *DefaultProvider) createOfferings(
 	nodeClass NodeClass,
 	pg *placementgroup.PlacementGroup,
 	allZones sets.Set[string],
+	ncZoneInfo []v1.ZoneInfo,
+	cacheKeyBuilder *cacheKeyBuilder,
 ) cloudprovider.Offerings {
 	var offerings []*cloudprovider.Offering
-	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
-	zoneInfo := nodeClass.ZoneInfo()
+
+	// Build the capacity types key based on what's present
+	// This is computed once and passed to cacheKeyFromInstanceType to avoid redundant work
+	capacityTypes := it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values()
+	var ctKey capacityTypesKey
+	for _, ct := range capacityTypes {
+		switch ct {
+		case karpv1.CapacityTypeOnDemand:
+			ctKey.hasOnDemand = true
+		case karpv1.CapacityTypeSpot:
+			ctKey.hasSpot = true
+		}
+	}
+
 	// Not all instance types are compatible with the NodeClass.
 	// In the event it is not, we mark the offering as unavailable.
 	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(info, nodeClass, pg)
@@ -158,7 +183,7 @@ func (p *DefaultProvider) createOfferings(
 		lastSeqNum = 0
 	}
 	seqNum := p.unavailableOfferings.SeqNum(ec2types.InstanceType(it.Name))
-	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it, nodeClass)); ok && lastSeqNum == seqNum {
+	if ofs, ok := p.cache.Get(cacheKeyBuilder.cacheKeyFromInstanceType(it, ctKey)); ok && lastSeqNum == seqNum {
 		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
 	} else {
 		var pgOpts []awscache.UnavailableOfferingsOption
@@ -169,14 +194,14 @@ func (p *DefaultProvider) createOfferings(
 		for zone := range allZones {
 			var subnetIDs []string
 			isZonalShifted := false
-			zonalInfo, zonefound := lo.Find(zoneInfo, func(i v1.ZoneInfo) bool {
+			zonalInfo, zonefound := lo.Find(ncZoneInfo, func(i v1.ZoneInfo) bool {
 				return i.Zone == zone
 			})
 			if zonefound {
 				subnetIDs = zonalInfo.SubnetIDs
 				isZonalShifted = p.zonalshiftProvider.IsZonalShifted(ctx, zonalInfo.ZoneID)
 			}
-			for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
+			for _, capacityType := range capacityTypes {
 				// Reserved capacity types are constructed separately
 				if capacityType == karpv1.CapacityTypeReserved {
 					continue
@@ -206,7 +231,7 @@ func (p *DefaultProvider) createOfferings(
 						scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpDoesNotExist),
 					),
 					Price:     price,
-					Available: isCompatibleWithNodeClass && !isUnavailable && hasPrice && itZones.Has(zone) && !isZonalShifted,
+					Available: isCompatibleWithNodeClass && !isUnavailable && hasPrice && it.Requirements.Get(corev1.LabelTopologyZone).Has(zone) && !isZonalShifted,
 				}
 				if zonefound {
 					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, zonalInfo.ZoneID))
@@ -214,7 +239,7 @@ func (p *DefaultProvider) createOfferings(
 				cachedOfferings = append(cachedOfferings, offering)
 			}
 		}
-		p.cache.SetDefault(p.cacheKeyFromInstanceType(it, nodeClass), cachedOfferings)
+		p.cache.SetDefault(cacheKeyBuilder.cacheKeyFromInstanceType(it, ctKey), cachedOfferings)
 		p.lastUnavailableOfferingsSeqNum.Store(ec2types.InstanceType(it.Name), seqNum)
 		offerings = append(offerings, cachedOfferings...)
 	}
@@ -234,7 +259,7 @@ func (p *DefaultProvider) createOfferings(
 				price = odPrice / 10_000_000.0
 			}
 			isZonalShifted := false
-			zonalInfo, zoneFound := lo.Find(zoneInfo, func(i v1.ZoneInfo) bool {
+			zonalInfo, zoneFound := lo.Find(ncZoneInfo, func(i v1.ZoneInfo) bool {
 				return i.Zone == reservation.AvailabilityZone
 			})
 			if zoneFound {
@@ -250,7 +275,7 @@ func (p *DefaultProvider) createOfferings(
 					scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpIn, fmt.Sprintf("%t", reservation.Interruptible)),
 				),
 				Price:               price,
-				Available:           isCompatibleWithNodeClass && reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring && !isZonalShifted,
+				Available:           isCompatibleWithNodeClass && reservationCapacity != 0 && it.Requirements.Get(corev1.LabelTopologyZone).Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring && !isZonalShifted,
 				ReservationCapacity: reservationCapacity,
 			}
 			if zoneFound {
@@ -264,7 +289,7 @@ func (p *DefaultProvider) createOfferings(
 
 // expandPartitionOfferings expands each offering into N offerings (one per partition) for partition placement groups.
 // This enables the scheduler to use TopologySpreadConstraints with the partition topology key.
-func (p *DefaultProvider) expandPartitionOfferings(offerings cloudprovider.Offerings, pg *placementgroup.PlacementGroup) cloudprovider.Offerings {
+func (p *DefaultProvider) expandPartitionOfferings(it *cloudprovider.InstanceType, offerings cloudprovider.Offerings, zoneInfo []v1.ZoneInfo, pg *placementgroup.PlacementGroup) cloudprovider.Offerings {
 	if pg == nil || pg.Strategy != placementgroup.StrategyPartition {
 		return offerings
 	}
@@ -274,13 +299,30 @@ func (p *DefaultProvider) expandPartitionOfferings(offerings cloudprovider.Offer
 	}
 	var expanded []*cloudprovider.Offering
 	for _, offering := range offerings {
+		capacityType := offering.Requirements.Get(karpv1.CapacityTypeLabelKey).Values()
+		zone := offering.Requirements.Get(corev1.LabelTopologyZone).Values()
+		if len(capacityType) != 1 {
+			panic("Each offering should only have 1 capacity type")
+		}
+		if len(zone) != 1 {
+			panic("Each offering should only have 1 zone")
+		}
+		zonalInfo, zonefound := lo.Find(zoneInfo, func(i v1.ZoneInfo) bool {
+			return i.Zone == zone[0]
+		})
 		for partition := 1; partition <= partitionCount; partition++ {
+			isUnavailable := true
+			// if the underlying offering is not available, then the expanded offering won't be either
+			if !offering.Available && zonefound {
+				pgOpts := []awscache.UnavailableOfferingsOption{awscache.WithPlacementGroupPartition(strconv.Itoa(partition))}
+				isUnavailable = p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone[0], zonalInfo.SubnetIDs, capacityType[0], pgOpts...)
+			}
 			reqs := scheduling.NewRequirements(offering.Requirements.Values()...)
 			reqs.Add(scheduling.NewRequirement(v1.LabelPlacementGroupPartition, corev1.NodeSelectorOpIn, fmt.Sprintf("%d", partition)))
 			expanded = append(expanded, &cloudprovider.Offering{
 				Requirements:        reqs,
 				Price:               offering.Price,
-				Available:           offering.Available,
+				Available:           offering.Available && isUnavailable,
 				ReservationCapacity: offering.ReservationCapacity,
 			})
 		}
@@ -288,37 +330,93 @@ func (p *DefaultProvider) expandPartitionOfferings(offerings cloudprovider.Offer
 	return expanded
 }
 
-func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceType, nodeClass NodeClass) string {
-	zonesHash, _ := hashstructure.Hash(
-		it.Requirements.Get(corev1.LabelTopologyZone).Values(),
-		hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true},
-	)
-	capacityTypesHash, _ := hashstructure.Hash(
-		it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values(),
-		hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true},
-	)
-	networkInterfaceHash, _ := hashstructure.Hash(nodeClass.NetworkInterfaces(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+// capacityTypesKey is used as a map key for pre-computed capacity type hashes.
+type capacityTypesKey struct {
+	hasOnDemand bool
+	hasSpot     bool
+}
+
+// cacheKeyBuilder pre-computes some cache key components to avoid redundant hashing.
+type cacheKeyBuilder struct {
+	baseSuffix          string                      // non-instance-type specific hashes
+	capacityTypesHashes map[capacityTypesKey]uint64 // capacity requirements -> hash
+}
+
+func newCacheKeyBuilder() *cacheKeyBuilder {
+	b := &cacheKeyBuilder{
+		capacityTypesHashes: make(map[capacityTypesKey]uint64),
+	}
+	for _, hasOnDemand := range []bool{false, true} {
+		for _, hasSpot := range []bool{false, true} {
+			key := capacityTypesKey{hasOnDemand: hasOnDemand, hasSpot: hasSpot}
+			var capacityTypes []string
+			if hasOnDemand {
+				capacityTypes = append(capacityTypes, karpv1.CapacityTypeOnDemand)
+			}
+			if hasSpot {
+				capacityTypes = append(capacityTypes, karpv1.CapacityTypeSpot)
+			}
+			hash, _ := hashstructure.Hash(
+				capacityTypes,
+				hashstructure.FormatV2,
+				&hashstructure.HashOptions{SlicesAsSets: true},
+			)
+			b.capacityTypesHashes[key] = hash
+		}
+	}
+	return b
+}
+
+func (b *cacheKeyBuilder) withNodeClassSubnets(ncSubnets []v1.ZoneInfo) *cacheKeyBuilder {
 	subnetsHash, _ := hashstructure.Hash(
-		lo.Reduce(nodeClass.ZoneInfo(), func(agg []string, i v1.ZoneInfo, _ int) []string {
+		lo.Reduce(ncSubnets, func(agg []string, i v1.ZoneInfo, _ int) []string {
 			return append(agg, i.SubnetIDs...)
 		}, []string{}),
 		hashstructure.FormatV2,
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
-	placementGroupPartitionsHash, _ := hashstructure.Hash(
-		it.Requirements.Get(v1.LabelPlacementGroupPartition).Values(),
+	b.baseSuffix += strconv.FormatUint(subnetsHash, 16)
+	return b
+}
+
+func (b *cacheKeyBuilder) withNetworkInterfaces(networkInterfaces []*v1.NetworkInterface) *cacheKeyBuilder {
+	networkInterfacesHash, _ := hashstructure.Hash(networkInterfaces, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	b.baseSuffix += strconv.FormatUint(networkInterfacesHash, 16)
+	return b
+}
+
+func (b *cacheKeyBuilder) withPlacementGroup(pg *placementgroup.PlacementGroup) *cacheKeyBuilder {
+	if pg == nil {
+		return b
+	}
+	placementGroupHash, _ := hashstructure.Hash(pg.ID, hashstructure.FormatV2, nil)
+	b.baseSuffix += strconv.FormatUint(placementGroupHash, 16)
+	return b
+}
+
+func (b *cacheKeyBuilder) cacheKeyFromInstanceType(it *cloudprovider.InstanceType, ctKey capacityTypesKey) string {
+	zonesHash, _ := hashstructure.Hash(
+		it.Requirements.Get(corev1.LabelTopologyZone).Values(),
 		hashstructure.FormatV2,
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
-	return fmt.Sprintf(
-		"%s-%016x-%016x-%016x-%016x-%016x",
-		it.Name,
-		zonesHash,
-		capacityTypesHash,
-		networkInterfaceHash,
-		subnetsHash,
-		placementGroupPartitionsHash,
-	)
+
+	// Try to use pre-computed capacity types hash
+	capacityTypesHash, ok := b.capacityTypesHashes[ctKey]
+	if !ok {
+		// we try to use the pre-computed capacity types hash but fallback
+		// on unknown capacity type combinations
+		capacityTypes := it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values()
+		capacityTypesHash, _ = hashstructure.Hash(
+			capacityTypes,
+			hashstructure.FormatV2,
+			&hashstructure.HashOptions{SlicesAsSets: true},
+		)
+	}
+
+	key := it.Name + "-" +
+		strconv.FormatUint(zonesHash, 16) + "-" +
+		strconv.FormatUint(capacityTypesHash, 16) + "-" +
+		b.baseSuffix
+	return key
 }
