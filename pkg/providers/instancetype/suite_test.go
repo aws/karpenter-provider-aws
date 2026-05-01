@@ -3043,7 +3043,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 	It("should mark offerings as unavailable for zones shifted away from", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 
-		// before zonal shift, all offerings should be avaialble
+		// before zonal shift, all offerings should be available
 		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 		Expect(err).ToNot(HaveOccurred())
 		m5InstanceType, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
