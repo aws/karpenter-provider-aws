@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	arczonalshifttypes "github.com/aws/aws-sdk-go-v2/service/arczonalshift/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -31,6 +32,7 @@ import (
 type Provider interface {
 	IsZonalShifted(context.Context, string) bool
 	UpdateZonalShifts(context.Context) error
+	ShiftedZones() sets.Set[string]
 }
 
 type DefaultProvider struct {
@@ -103,4 +105,16 @@ func (p *DefaultProvider) IsZonalShifted(ctx context.Context, zoneId string) boo
 	}
 
 	return false
+}
+
+func (p *DefaultProvider) ShiftedZones() sets.Set[string] {
+	p.RLock()
+	defer p.RUnlock()
+	shifted := sets.New[string]()
+	for zoneID, status := range p.zonalShiftStatuses {
+		if status.shiftExpiry.After(p.clk.Now()) && status.applied {
+			shifted.Insert(zoneID)
+		}
+	}
+	return shifted
 }
