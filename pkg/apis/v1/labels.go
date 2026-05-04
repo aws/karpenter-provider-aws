@@ -8,7 +8,7 @@ You may obtain a copy of the License at
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+See the License for the specific language governng permissions and
 limitations under the License.
 */
 
@@ -45,7 +45,7 @@ func init() {
 		LabelInstanceCPU,
 		LabelInstanceCPUManufacturer,
 		LabelInstanceCPUSustainedClockSpeedMhz,
-		LabelInstanceBaselineCPUPerformance,
+		LabelInstanceCPUBurstable,
 		LabelInstanceMemory,
 		LabelInstanceEBSBandwidth,
 		LabelInstanceNetworkBandwidth,
@@ -154,7 +154,7 @@ var (
 	LabelInstanceCPU                          = apis.Group + "/instance-cpu"
 	LabelInstanceCPUManufacturer              = apis.Group + "/instance-cpu-manufacturer"
 	LabelInstanceCPUSustainedClockSpeedMhz    = apis.Group + "/instance-cpu-sustained-clock-speed-mhz"
-	LabelInstanceBaselineCPUPerformance       = apis.Group + "/instance-cpu-baseline-performance"
+	LabelInstanceCPUBurstable       = apis.Group + "/instance-cpu-burstable"
 	LabelInstanceMemory                       = apis.Group + "/instance-memory"
 	LabelInstanceEBSBandwidth                 = apis.Group + "/instance-ebs-bandwidth"
 	LabelInstanceNetworkBandwidth             = apis.Group + "/instance-network-bandwidth"
