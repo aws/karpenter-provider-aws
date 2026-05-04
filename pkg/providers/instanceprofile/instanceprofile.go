@@ -36,7 +36,7 @@ import (
 
 type Provider interface {
 	Get(context.Context, string) (*iamtypes.InstanceProfile, error)
-	Create(context.Context, string, string, map[string]string, string, bool) error
+	Create(context.Context, string, string, map[string]string, string, string) error
 	Delete(context.Context, string) error
 	ListClusterProfiles(context.Context) ([]*iamtypes.InstanceProfile, error)
 	ListNodeClassProfiles(context.Context, *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error)
@@ -72,6 +72,15 @@ func GetProfileCacheKey(profileName string) string {
 	return "instance-profile:" + profileName
 }
 
+// FormatPath builds an IAM path from segments, e.g. FormatPath("karpenter", region, clusterName, nodeClassUID)
+// returns "/karpenter/{region}/{clusterName}/{nodeClassUID}/".
+func FormatPath(segments ...string) string {
+	if len(segments) == 0 {
+		return "/"
+	}
+	return "/" + strings.Join(segments, "/") + "/"
+}
+
 func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
 	profileCacheKey := GetProfileCacheKey(instanceProfileName)
 	if instanceProfile, ok := p.instanceProfileCache.Get(profileCacheKey); ok {
@@ -93,7 +102,7 @@ func (p *DefaultProvider) Create(
 	roleName string,
 	tags map[string]string,
 	nodeClassUID string,
-	usePath bool,
+	path string,
 ) error {
 	// Don't attempt to create an instance profile if the role hasn't been found. This prevents runaway instance profile
 	// creation by the NodeClass controller when there's a missing role.
@@ -112,8 +121,8 @@ func (p *DefaultProvider) Create(
 			InstanceProfileName: lo.ToPtr(instanceProfileName),
 			Tags:                utils.IAMMergeTags(tags),
 		}
-		if usePath {
-			input.Path = lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, nodeClassUID))
+		if path != "" {
+			input.Path = lo.ToPtr(path)
 		}
 		o, err := p.iamapi.CreateInstanceProfile(ctx, input)
 		if err != nil {
