@@ -49,7 +49,8 @@ var _ = Describe("SecurityGroups", func() {
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
-		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(securityGroups[0].GroupIdentifier, securityGroups[1].GroupIdentifier)))
+		expectedSGs := lo.Map(securityGroups, func(sg aws.SecurityGroup, _ int) any { return sg.GroupIdentifier })
+		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("SecurityGroups", ConsistOf(expectedSGs...)))
 	})
 
 	It("should use the security group selector with multiple tag values", func() {
