@@ -18,8 +18,10 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -42,6 +44,22 @@ func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeCla
 	securityGroups, err := sg.securityGroupProvider.List(ctx, nodeClass)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting security groups, %w", err)
+	}
+	// Collect all explicitly requested security group IDs to detect non-existent ones.
+	requestedIDs := lo.FilterMap(nodeClass.Spec.SecurityGroupSelectorTerms, func(term v1.SecurityGroupSelectorTerm, _ int) (string, bool) {
+		return term.ID, term.ID != ""
+	})
+	foundIDs := lo.Map(securityGroups, func(sg ec2types.SecurityGroup, _ int) string {
+		return aws.ToString(sg.GroupId)
+	})
+	missingIDs := lo.Filter(requestedIDs, func(id string, _ int) bool {
+		return !lo.Contains(foundIDs, id)
+	})
+	if len(missingIDs) > 0 {
+		nodeClass.Status.SecurityGroups = nil
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeSecurityGroupsReady, "SecurityGroupsNotFound",
+			fmt.Sprintf("Security groups do not exist: [%s]", strings.Join(missingIDs, ", ")))
+		return reconcile.Result{RequeueAfter: time.Minute}, nil
 	}
 	if len(securityGroups) == 0 && len(nodeClass.Spec.SecurityGroupSelectorTerms) > 0 {
 		nodeClass.Status.SecurityGroups = nil
