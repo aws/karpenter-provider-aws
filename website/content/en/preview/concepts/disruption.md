@@ -36,6 +36,64 @@ When a Karpenter node is deleted, the Karpenter finalizer will block deletion an
 4. Terminate the NodeClaim in the Cloud Provider.
 5. Remove the finalizer from the node to allow the APIServer to delete the node, completing termination.
 
+## Candidacy
+
+Before disrupting a node, Karpenter must first identify it as a *candidate* for a given disruption reason.
+A candidate is a node-and-NodeClaim pair that Karpenter has determined is eligible to be disrupted at this moment by a specific method (for example, consolidation or drift).
+The number of candidates per reason is surfaced through the `karpenter_voluntary_disruption_eligible_nodes` [metric]({{<ref "../reference/metrics" >}}), which is useful for spotting when Karpenter is considering more (or fewer) nodes for disruption than expected.
+
+Candidacy is evaluated independently for each disruption reason. A node may be a candidate for one reason (for example, drift) while not being a candidate for another (for example, consolidation), depending on the conditions described below.
+
+### General Conditions
+
+For Karpenter to consider a node a candidate for any [graceful disruption method]({{<ref "#automated-graceful-methods" >}}), all of the following must be true:
+
+* The node is owned by Karpenter — it has an associated NodeClaim and the `karpenter.sh/nodepool` label.
+* The NodeClaim is initialized and is not already being deleted or terminating.
+* The node has not just been nominated to receive a pod from a recent provisioning pass.
+* The node does not carry the `karpenter.sh/do-not-disrupt: "true"` annotation (see [Node-Level Controls]({{<ref "#node-level-controls" >}})).
+* No pod on the node has an active `karpenter.sh/do-not-disrupt` annotation (see [Pod-Level Controls]({{<ref "#pod-level-controls" >}})).
+* No PodDisruptionBudget on a pod on the node is fully blocking eviction.
+* The node is not already in Karpenter's disruption orchestration queue from a prior decision.
+
+The candidate's NodePool [disruption budget]({{<ref "#nodepool-disruption-budgets" >}}) for the relevant reason controls how many candidates Karpenter actually disrupts in a given pass. A node that meets every condition above can still be deferred when the budget is exhausted; it remains a candidate and will be reconsidered the next time the budget allows.
+
+### Per-Disruption-Type Candidacy
+
+Each disruption method layers its own checks on top of the general conditions above.
+
+#### Consolidation
+
+A node is a candidate for [consolidation]({{<ref "#consolidation" >}}) when:
+
+* The owning NodePool has a non-nil `consolidateAfter` and a `consolidationPolicy` of `WhenEmptyOrUnderutilized` (or `WhenEmpty` for emptiness candidacy only).
+* The NodeClaim has the `Consolidatable=True` status condition. Karpenter sets this condition once `consolidateAfter` has elapsed since the last pod scheduling or removal event on the node.
+* The node has the labels required for price comparison (instance type, capacity type, and zone).
+
+Note that __consolidation candidacy does not require the node to be underutilized__. Under `WhenEmptyOrUnderutilized`, every node in a NodePool whose `Consolidatable` condition is true is considered a candidate, including fully packed nodes. The candidate set is the population from which Karpenter then evaluates concrete actions ([empty-node, multi-node, or single-node]({{<ref "#consolidation" >}})). A node that is a candidate may still end up unconsolidatable — for example, when its pods cannot be rescheduled onto a cheaper combination of existing or replacement nodes — in which case Karpenter emits an `Unconsolidatable` event explaining why. This is why the eligible-nodes metric can show a number much larger than the number of nodes actually being disrupted.
+
+#### Drift
+
+A node is a candidate for [drift]({{<ref "#drift" >}}) when its NodeClaim has the `Drifted=True` status condition. The fields that contribute to drift are listed under [Drift]({{<ref "#drift" >}}).
+
+Drift is an *eventual* disruption method: if the owning NodeClaim has a [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) configured, the pod-level `karpenter.sh/do-not-disrupt` annotation and blocking PodDisruptionBudgets are __not__ applied to drift candidacy. This ensures that crucial updates (for example, AMI updates addressing CVEs) cannot be blocked indefinitely by misconfigured workloads. The node-level `karpenter.sh/do-not-disrupt` annotation continues to exclude the node from drift candidacy regardless of `terminationGracePeriod`.
+
+#### Expiration
+
+[Expiration]({{<ref "#expiration" >}}) is a forceful disruption method. A NodeClaim becomes a candidate for expiration as soon as its lifetime exceeds its `spec.expireAfter`. Expiration does not consult the do-not-disrupt annotation, PodDisruptionBudgets, or NodePool disruption budgets when selecting candidates — it deletes the NodeClaim immediately, after which the [Termination Controller]({{<ref "#termination-controller" >}}) drains the node and respects PDBs during eviction. To bound how long blocking pods can delay termination after expiration begins, configure [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) alongside `expireAfter`.
+
+#### Interruption
+
+A node is a candidate for [interruption]({{<ref "#interruption" >}}) when Karpenter receives an SQS event or detects an unhealthy EC2 status check for the underlying instance. As with expiration, candidacy bypasses the do-not-disrupt annotation, PodDisruptionBudgets, and disruption budgets — the impending involuntary termination from AWS leaves no room for delay.
+
+#### Node Auto Repair
+
+A node is a candidate for [node auto repair]({{<ref "#node-auto-repair" >}}) when one of the supported unhealthy node conditions has been true for longer than its toleration duration, the `NodeRepair` feature gate is enabled, and fewer than 20% of nodes in the NodePool (or in the cluster, for standalone NodeClaims) are unhealthy. As a forceful method, repair bypasses the do-not-disrupt annotation, PodDisruptionBudgets, and disruption budgets.
+
+#### Manual
+
+A node selected for manual deletion (`kubectl delete node`/`kubectl delete nodeclaim`, or cascade deletion from a removed NodePool) is not subject to candidacy checks. The [Termination Controller]({{<ref "#termination-controller" >}}) still respects PodDisruptionBudgets and the `karpenter.sh/do-not-disrupt` annotation while draining the node; configure [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) to bound the wait when blocking pods may be present.
+
 ## Manual Methods
 * **Node Deletion**: You can use `kubectl` to manually remove a single Karpenter node or nodeclaim. Since each Karpenter node is owned by a NodeClaim, deleting either the node or the nodeclaim will cause cascade deletion of the other:
 
