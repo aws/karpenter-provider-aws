@@ -213,6 +213,13 @@ var _ = Describe("Drift", Ordered, func() {
 			g.Expect(testSecurityGroup).ToNot(BeNil())
 		}).Should(Succeed())
 
+		// Clean up the temporary security group we created for these tests
+		DeferCleanup(func() {
+			_, _ = env.EC2API.DeleteSecurityGroup(env.Context, &ec2.DeleteSecurityGroupInput{
+				GroupId: testSecurityGroup.GroupId,
+			})
+		})
+
 		By("creating a new provider with the new securitygroup")
 		awsIDs := lo.FilterMap(securitygroups, func(sg aws.SecurityGroup, _ int) (string, bool) {
 			if awssdk.ToString(sg.GroupId) != awssdk.ToString(testSecurityGroup.GroupId) {
