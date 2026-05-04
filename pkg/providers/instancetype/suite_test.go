@@ -28,6 +28,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
+	arczonalshifttypes "github.com/aws/aws-sdk-go-v2/service/arczonalshift/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/object"
@@ -3037,6 +3039,41 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Entry("when the capacity block is active", v1.CapacityReservationStateActive),
 			Entry("when the capacity block is expiring", v1.CapacityReservationStateExpiring),
 		)
+	})
+	It("should mark offerings as unavailable for zones shifted away from", func() {
+		ExpectApplied(ctx, env.Client, nodeClass)
+
+		// before zonal shift, all offerings should be available
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		m5InstanceType, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+			return it.Name == string(ec2types.InstanceTypeM5Large)
+		})
+		Expect(ok).To(BeTrue())
+		Expect(m5InstanceType.Offerings.Available()).To(HaveLen(6)) // 3 zones x 2 capacity types
+
+		awsEnv.ARCZonalShiftAPI.GetManagedResourceBehavior.Output.Set(&arczonalshift.GetManagedResourceOutput{
+			ZonalShifts: []arczonalshifttypes.ZonalShiftInResource{
+				{
+					AwayFrom:      aws.String("tstz1-1a"),
+					ExpiryTime:    aws.Time(time.Now().Add(time.Hour)),
+					AppliedStatus: arczonalshifttypes.AppliedStatusApplied,
+				},
+			},
+		})
+		Expect(awsEnv.ZonalShiftProvider.UpdateZonalShifts(ctx)).To(Succeed())
+
+		// after zonal shift, 2 offerings should be unavaialble
+		instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		m5InstanceType, ok = lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+			return it.Name == string(ec2types.InstanceTypeM5Large)
+		})
+		Expect(ok).To(BeTrue())
+		Expect(m5InstanceType.Offerings.Available()).To(HaveLen(4))
+		for _, offering := range m5InstanceType.Offerings.Available() {
+			Expect(offering.Zone()).ToNot(Equal("test-zone-1a"))
+		}
 	})
 	Context("Instance Type and NodeClass Compatibility", func() {
 		Context("AMI Compatibility", func() {
