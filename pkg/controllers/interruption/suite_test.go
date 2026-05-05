@@ -414,6 +414,42 @@ var _ = Describe("InterruptionHandling", func() {
 			})
 			ExpectExists(ctx, env.Client, nodeClaim)
 		})
+		It("should only emit the metric once across multiple reconciles for the same unhealthy instance", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
+			interruption.InstanceStatusDryRun = true
+			DeferCleanup(func() {
+				interruption.InstanceStatusDryRun = false
+			})
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+						InstanceStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusImpaired,
+							Details: []ec2types.InstanceStatusDetails{
+								{
+									Status:        ec2types.StatusTypeFailed,
+									Name:          ec2types.StatusNameReachability,
+									ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
+								},
+							},
+						},
+					},
+				},
+			})
+			awsEnv.Clock.Step(time.Hour)
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+
+			// Reconcile multiple times with the same unhealthy instance
+			ExpectSingletonReconciled(ctx, instanceStatusController)
+			ExpectSingletonReconciled(ctx, instanceStatusController)
+			ExpectSingletonReconciled(ctx, instanceStatusController)
+
+			// Metric should only have been incremented once despite three reconciles
+			ExpectMetricCounterValue(interruption.InstanceStatusUnhealthy, 1, map[string]string{
+				"category": "InstanceStatus",
+			})
+		})
 	})
 })
 

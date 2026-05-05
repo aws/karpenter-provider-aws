@@ -17,6 +17,7 @@ package interruption
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/awslabs/operatorpkg/reconciler"
@@ -36,6 +37,13 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 )
 
+// unhealthyKey uniquely identifies an unhealthy status check for deduplication.
+// The metric is only incremented the first time a given instance+category is observed.
+type unhealthyKey struct {
+	instanceID string
+	category   string
+}
+
 var (
 	// InstanceStatusInterval is the polling interval for the EC2 DescribeInstanceStatus API.
 	InstanceStatusInterval = 1 * time.Minute
@@ -50,6 +58,8 @@ var (
 type InstanceStatusController struct {
 	InterruptionHandler
 	instanceStatusProvider instancestatus.Provider
+	seen                   map[unhealthyKey]struct{}
+	mu                     sync.Mutex
 }
 
 func NewInstanceStatusController(
@@ -65,6 +75,7 @@ func NewInstanceStatusController(
 			recorder:      recorder,
 		},
 		instanceStatusProvider: instanceStatusProvider,
+		seen:                   map[unhealthyKey]struct{}{},
 	}
 }
 
@@ -80,6 +91,8 @@ func (c *InstanceStatusController) Reconcile(ctx context.Context) (reconciler.Re
 		return reconciler.Result{}, fmt.Errorf("getting instance statuses, %w", err)
 	}
 
+	// Build the set of keys observed in this poll cycle for pruning stale entries.
+	currentKeys := make(map[unhealthyKey]struct{})
 	errs := make([]error, len(instanceStatuses))
 	workqueue.ParallelizeUntil(ctx, 10, len(instanceStatuses), func(i int) {
 		msg := instancestatusfailure.Message(instanceStatuses[i])
@@ -90,14 +103,38 @@ func (c *InstanceStatusController) Reconcile(ctx context.Context) (reconciler.Re
 		if !found {
 			return
 		}
+
+		log.FromContext(ctx).Info("detected unhealthy instance owned by cluster",
+			"instance-id", instanceStatuses[i].InstanceID,
+			"details", len(instanceStatuses[i].Details))
+
 		categories := map[string]bool{}
 		for _, d := range instanceStatuses[i].Details {
 			categories[string(d.Category)] = true
 		}
 		for cat := range categories {
-			InstanceStatusUnhealthy.Inc(map[string]string{categoryLabel: cat})
+			key := unhealthyKey{instanceID: instanceStatuses[i].InstanceID, category: cat}
+			c.mu.Lock()
+			currentKeys[key] = struct{}{}
+			if _, already := c.seen[key]; !already {
+				c.seen[key] = struct{}{}
+				c.mu.Unlock()
+				InstanceStatusUnhealthy.Inc(map[string]string{categoryLabel: cat})
+			} else {
+				c.mu.Unlock()
+			}
 		}
 	})
+
+	// Prune entries for instances that are no longer reported as unhealthy
+	c.mu.Lock()
+	for key := range c.seen {
+		if _, ok := currentKeys[key]; !ok {
+			delete(c.seen, key)
+		}
+	}
+	c.mu.Unlock()
+
 	if err = multierr.Combine(errs...); err != nil {
 		return reconciler.Result{}, err
 	}
