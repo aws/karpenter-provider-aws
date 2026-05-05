@@ -65,11 +65,12 @@ type Environment struct {
 	InstanceTypeStore *nodeoverlay.InstanceTypeStore
 
 	// API
-	EC2API     *fake.EC2API
-	EKSAPI     *fake.EKSAPI
-	SSMAPI     *fake.SSMAPI
-	IAMAPI     *fake.IAMAPI
-	PricingAPI *fake.PricingAPI
+	EC2API           *fake.EC2API
+	EKSAPI           *fake.EKSAPI
+	SSMAPI           *fake.SSMAPI
+	IAMAPI           *fake.IAMAPI
+	PricingAPI       *fake.PricingAPI
+	ARCZonalShiftAPI *fake.ARCZonalShiftAPI
 
 	// Cache
 	AMICache                             *cache.Cache
@@ -110,6 +111,7 @@ type Environment struct {
 	VersionProvider             *version.DefaultProvider
 	LaunchTemplateProvider      *launchtemplate.DefaultProvider
 	SSMProvider                 *ssmp.DefaultProvider
+	ZonalShiftProvider          *arczonalshift.DefaultProvider
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
@@ -122,12 +124,14 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	eksapi := fake.NewEKSAPI()
 	ssmapi := fake.NewSSMAPI()
 	iamapi := fake.NewIAMAPI()
+	arczonalshiftapi := fake.NewARCZonalShiftAPI()
 
 	// cache
 	amiCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceTypeCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	instanceCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	// Instance cache entries never expire. See comment in pkg/operator/operator.go.
+	instanceCache := cache.New(cache.NoExpiration, cache.NoExpiration)
 	offeringCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	discoveredCapacityCache := cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval)
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
@@ -165,7 +169,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
 	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion)
 	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
-	zonalshiftProvider := arczonalshift.NewNoopProvider()
+	zonalshiftProvider := arczonalshift.NewProvider(arczonalshiftapi, clock, "")
 	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, placementGroupProvider, unavailableOfferingsCache, instanceTypesResolver, zonalshiftProvider)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
@@ -200,6 +204,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		launchTemplateProvider,
 		capacityReservationProvider,
 		placementGroupProvider,
+		zonalshiftProvider,
 		instanceCache,
 	)
 
@@ -208,11 +213,12 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		EventRecorder:     eventRecorder,
 		InstanceTypeStore: store,
 
-		EC2API:     ec2api,
-		EKSAPI:     eksapi,
-		SSMAPI:     ssmapi,
-		IAMAPI:     iamapi,
-		PricingAPI: fakePricingAPI,
+		EC2API:           ec2api,
+		EKSAPI:           eksapi,
+		SSMAPI:           ssmapi,
+		IAMAPI:           iamapi,
+		PricingAPI:       fakePricingAPI,
+		ARCZonalShiftAPI: arczonalshiftapi,
 
 		AMICache:          amiCache,
 		EC2Cache:          ec2Cache,
@@ -252,6 +258,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		AMIResolver:                 amiResolver,
 		VersionProvider:             versionProvider,
 		SSMProvider:                 ssmProvider,
+		ZonalShiftProvider:          zonalshiftProvider,
 	}
 }
 
@@ -262,6 +269,8 @@ func (env *Environment) Reset() {
 	env.SSMAPI.Reset()
 	env.IAMAPI.Reset()
 	env.PricingAPI.Reset()
+	env.ARCZonalShiftAPI.Reset()
+	env.ZonalShiftProvider.Reset()
 	env.PricingProvider.Reset()
 	env.InstanceTypesProvider.Reset()
 

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
+	arczonalshifttypes "github.com/aws/aws-sdk-go-v2/service/arczonalshift/types"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -70,7 +71,7 @@ func (p *DefaultProvider) UpdateZonalShifts(ctx context.Context) error {
 	for _, shift := range activeZonalShifts {
 		shiftStatuses[*shift.AwayFrom] = shiftStatus{
 			shiftExpiry: *shift.ExpiryTime,
-			applied:     shift.AppliedStatus == "APPLIED",
+			applied:     shift.AppliedStatus == arczonalshifttypes.AppliedStatusApplied,
 		}
 	}
 	if len(shiftStatuses) == 0 {
@@ -83,6 +84,12 @@ func (p *DefaultProvider) UpdateZonalShifts(ctx context.Context) error {
 	}
 	log.FromContext(ctx).V(1).Info(fmt.Sprintf("successfully updated zonal shifts %#v", shiftStatuses))
 	return nil
+}
+
+func (p *DefaultProvider) Reset() {
+	p.Lock()
+	defer p.Unlock()
+	p.zonalShiftStatuses = make(map[string]shiftStatus)
 }
 
 func (p *DefaultProvider) IsZonalShifted(ctx context.Context, zoneId string) bool {

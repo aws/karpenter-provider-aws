@@ -15,9 +15,15 @@ limitations under the License.
 package test
 
 import (
+	"fmt"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/imdario/mergo"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
 )
 
 func RemoveNodeClassTagValidation(crds []*apiextensionsv1.CustomResourceDefinition) []*apiextensionsv1.CustomResourceDefinition {
@@ -51,4 +57,23 @@ func DisableCapacityReservationIDValidation(crds []*apiextensionsv1.CustomResour
 		crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["status"].Properties["capacityReservations"].Items.Schema.Properties["id"] = idProps
 	}
 	return crds
+}
+
+// EC2Instance creates an ec2types.Instance with sensible defaults for testing.
+// Defaults: auto-generated instance ID, running state, m5.large, default region zone, and a private DNS name.
+// Pass overrides to customize any fields. Tags are not defaulted since their presence/absence is intentional in tests.
+func EC2Instance(overrides ...ec2types.Instance) ec2types.Instance {
+	instance := ec2types.Instance{
+		InstanceId:     aws.String(fake.InstanceID()),
+		State:          &ec2types.InstanceState{Name: ec2types.InstanceStateNameRunning},
+		InstanceType:   "m5.large",
+		Placement:      &ec2types.Placement{AvailabilityZone: aws.String(fake.DefaultRegion)},
+		PrivateDnsName: aws.String(fake.PrivateDNSName()),
+	}
+	for _, override := range overrides {
+		if err := mergo.Merge(&instance, override, mergo.WithOverride); err != nil {
+			panic(fmt.Sprintf("Failed to merge instance overrides: %s", err))
+		}
+	}
+	return instance
 }

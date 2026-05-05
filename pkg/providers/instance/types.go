@@ -41,6 +41,7 @@ type Instance struct {
 	ImageID                    string
 	Type                       ec2types.InstanceType
 	Zone                       string
+	ZoneID                     string
 	CapacityType               string
 	SecurityGroupIDs           []string
 	SubnetID                   string
@@ -76,6 +77,7 @@ func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
 		ImageID:    lo.FromPtr(instance.ImageId),
 		Type:       instance.InstanceType,
 		Zone:       lo.FromPtr(instance.Placement.AvailabilityZone),
+		ZoneID:     lo.FromPtr(instance.Placement.AvailabilityZoneId),
 		// NOTE: Only set the capacity type to reserved and assign a reservation ID if the feature gate is enabled. It's
 		// possible for these to be set if the instance launched into an open ODCR, but treating it as reserved would induce
 		// drift.

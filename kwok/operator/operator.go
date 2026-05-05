@@ -218,7 +218,16 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		launchTemplateProvider,
 		capacityReservationProvider,
 		placementGroupProvider,
-		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		zsProvider,
+		// Instance cache entries never expire. The cache is actively refreshed by the garbage
+		// collection controller's List() every 2 minutes, and entries are explicitly removed
+		// when Get() returns NotFound from EC2. NoExpiration ensures cached instances in zonally
+		// shifted AZs remain available for the zonal shift guards in Get(), Delete(), and
+		// CreateTags(), even if List() cannot return instances from the impaired AZ.
+		// TODO: Add a cache garbage collector that reconciles entries against EC2 and the API
+		// server, evicting entries for instances that no longer exist in either. Note: removing
+		// NodeClaim finalizers to bypass Karpenter's lifecycle management is not supported.
+		cache.New(cache.NoExpiration, cache.NoExpiration),
 	)
 
 	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, operator.Clock)

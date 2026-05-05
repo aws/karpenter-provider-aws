@@ -23,6 +23,8 @@ import (
 	testv1alpha1 "sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
+	arczonalshifttypes "github.com/aws/aws-sdk-go-v2/service/arczonalshift/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/object"
@@ -663,6 +665,92 @@ var _ = Describe("InstanceProvider", func() {
 			Expect(err).To(BeNil())
 			Expect(createdInstance).ToNot(BeNil())
 			Expect(createdInstance.EFACount).To(Equal(0))
+		})
+	})
+	Context("Zonal Shift", func() {
+		var instanceID string
+		BeforeEach(func() {
+			// Store an instance in the shifted zone and populate the cache
+			ec2Instance := test.EC2Instance(ec2types.Instance{
+				Placement: &ec2types.Placement{
+					AvailabilityZone:   aws.String("test-zone-1a"),
+					AvailabilityZoneId: aws.String("tstz1-1a"),
+				},
+			})
+			instanceID = aws.ToString(ec2Instance.InstanceId)
+			awsEnv.EC2API.Instances.Store(instanceID, ec2Instance)
+
+			_, err := awsEnv.InstanceProvider.Get(ctx, instanceID)
+			Expect(err).ToNot(HaveOccurred())
+			awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Reset()
+			awsEnv.EC2API.TerminateInstancesBehavior.CalledWithInput.Reset()
+			awsEnv.EC2API.CreateTagsBehavior.CalledWithInput.Reset()
+
+			// Activate a zonal shift for tstz1-1a
+			awsEnv.ARCZonalShiftAPI.GetManagedResourceBehavior.Output.Set(&arczonalshift.GetManagedResourceOutput{
+				ZonalShifts: []arczonalshifttypes.ZonalShiftInResource{
+					{
+						AwayFrom:      aws.String("tstz1-1a"),
+						ExpiryTime:    aws.Time(time.Now().Add(time.Hour)),
+						AppliedStatus: arczonalshifttypes.AppliedStatusApplied,
+					},
+				},
+			})
+			Expect(awsEnv.ZonalShiftProvider.UpdateZonalShifts(ctx)).To(Succeed())
+		})
+		It("should not call DescribeInstances for instances in a zonally shifted AZ", func() {
+			inst, err := awsEnv.InstanceProvider.Get(ctx, instanceID, instance.SkipCache)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(inst.ID).To(Equal(instanceID))
+			Expect(inst.ZoneID).To(Equal("tstz1-1a"))
+			Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
+		It("should not call TerminateInstances for instances in a zonally shifted AZ", func() {
+			err := awsEnv.InstanceProvider.Delete(ctx, instanceID)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("zonally shifted"))
+			Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+			Expect(awsEnv.EC2API.TerminateInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
+		It("should not call CreateTags for instances in a zonally shifted AZ", func() {
+			err := awsEnv.InstanceProvider.CreateTags(ctx, instanceID, map[string]string{"test-key": "test-value"})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("zonally shifted"))
+			Expect(awsEnv.EC2API.CreateTagsBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
+		Context("Cache Miss", func() {
+			// When the instance cache is cold, Get() calls DescribeInstances which populates
+			// the cache with zone information. Delete() benefits from this since it calls Get()
+			// first, so the zonal shift guard still applies. CreateTags() does not call Get(),
+			// so its guard depends on a warm cache.
+			var uncachedInstanceID string
+			BeforeEach(func() {
+				ec2Instance := test.EC2Instance(ec2types.Instance{
+					Placement: &ec2types.Placement{
+						AvailabilityZone:   aws.String("test-zone-1a"),
+						AvailabilityZoneId: aws.String("tstz1-1a"),
+					},
+				})
+				uncachedInstanceID = aws.ToString(ec2Instance.InstanceId)
+				// Store in EC2 but do NOT call Get() to populate the instance cache
+				awsEnv.EC2API.Instances.Store(uncachedInstanceID, ec2Instance)
+				awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Reset()
+				awsEnv.EC2API.TerminateInstancesBehavior.CalledWithInput.Reset()
+				awsEnv.EC2API.CreateTagsBehavior.CalledWithInput.Reset()
+			})
+			It("should not call TerminateInstances even with a cold cache since Delete calls Get first", func() {
+				err := awsEnv.InstanceProvider.Delete(ctx, uncachedInstanceID)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("zonally shifted"))
+				// DescribeInstances is called by Get() inside Delete() to fetch instance data
+				Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(1))
+				Expect(awsEnv.EC2API.TerminateInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+			})
+			It("should proceed with CreateTags when instance is not in the cache", func() {
+				err := awsEnv.InstanceProvider.CreateTags(ctx, uncachedInstanceID, map[string]string{"test-key": "test-value"})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(awsEnv.EC2API.CreateTagsBehavior.CalledWithInput.Len()).To(Equal(1))
+			})
 		})
 	})
 })
