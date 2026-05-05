@@ -505,10 +505,15 @@ For the cluster that will be created (`arn:${AWS::Partition}:eks:${AWS::Region}:
 {
   "Sid": "AllowZonalShiftStatusReadOnly",
   "Effect": "Allow",
-  "Resource": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
+  "Resource": "*",
   "Action": [
     "arc-zonal-shift:GetManagedResource"
-  ]
+  ],
+  "Condition": {
+    "StringEquals": {
+      "aws:ResourceIdentifier": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
+    }
+  }
 }
 ```
 

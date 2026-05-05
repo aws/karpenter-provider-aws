@@ -26,6 +26,7 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ env.PR_COMMIT }}
+          path: pr-content
       - uses: ./.github/actions/commit-status/start
         with:
           name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
@@ -50,6 +51,7 @@ jobs:
           s3-bucket: ${{ vars.AMPLIFY_S3_BUCKET_BETA }}
           s3-prefix: pr-${{ env.PR_NUMBER }}/
           hugo-base-url: ${{ env.PREVIEW_URL }}
+          content-path: pr-content
       - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           PREVIEW_URL: ${{ env.PREVIEW_URL }}

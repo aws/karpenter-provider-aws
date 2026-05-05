@@ -234,13 +234,14 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 	Context("Authorization Validation", func() {
 		DescribeTable(
 			"NodeClass validation failure conditions",
-			func(setupFn func(), reason string) {
+			func(setupFn func(), reason string, expectedMessage string) {
 				ExpectApplied(ctx, env.Client, nodeClass)
 				setupFn()
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(reason))
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Message).To(Equal(expectedMessage))
 				Expect(awsEnv.ValidationCache.Items()).To(HaveLen(1))
 
 				// Even though we would succeed on the subsequent call, we should fail here because we hit the cache
@@ -248,6 +249,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(reason))
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Message).To(Equal(expectedMessage))
 
 				// After flushing the cache, we should succeed
 				awsEnv.ValidationCache.Flush()
@@ -259,17 +261,34 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				awsEnv.EC2API.CreateFleetBehavior.Error.Set(&smithy.GenericAPIError{
 					Code: "UnauthorizedOperation",
 				}, fake.MaxCalls(1))
-			}, nodeclass.ConditionReasonCreateFleetAuthFailed),
+			}, nodeclass.ConditionReasonCreateFleetAuthFailed,
+				"Controller isn't authorized to call ec2:CreateFleet: User is not authorized to perform this operation because no identity-based policy allows it"),
 			Entry("should update status condition as NotReady when RunInstances unauthorized", func() {
 				awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
 					Code: "UnauthorizedOperation",
 				}, fake.MaxCalls(4))
-			}, nodeclass.ConditionReasonRunInstancesAuthFailed),
+			}, nodeclass.ConditionReasonRunInstancesAuthFailed,
+				"Controller isn't authorized to call ec2:RunInstances: User is not authorized to perform this operation because no identity-based policy allows it"),
 			Entry("should update status condition as NotReady when CreateLaunchTemplate unauthorized", func() {
 				awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
 					Code: "UnauthorizedOperation",
 				}, fake.MaxCalls(1))
-			}, nodeclass.ConditionReasonCreateLaunchTemplateAuthFailed),
+			}, nodeclass.ConditionReasonCreateLaunchTemplateAuthFailed,
+				"Controller isn't authorized to call ec2:CreateLaunchTemplate: User is not authorized to perform this operation because no identity-based policy allows it"),
+			Entry("should include permission boundary detail in condition message when denied by permission boundary", func() {
+				awsEnv.EC2API.CreateFleetBehavior.Error.Set(&smithy.GenericAPIError{
+					Code:    "UnauthorizedOperation",
+					Message: "You are not authorized to perform this operation with an explicit deny in a permissions boundary",
+				}, fake.MaxCalls(1))
+			}, nodeclass.ConditionReasonCreateFleetAuthFailed,
+				"Controller isn't authorized to call ec2:CreateFleet: User is not authorized to perform this operation due to a permission boundary"),
+			Entry("should include SCP detail in condition message when denied by service control policy", func() {
+				awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+					Code:    "UnauthorizedOperation",
+					Message: "You are not authorized to perform this operation with an explicit deny in a service control policy",
+				}, fake.MaxCalls(4))
+			}, nodeclass.ConditionReasonRunInstancesAuthFailed,
+				"Controller isn't authorized to call ec2:RunInstances: User is not authorized to perform this operation due to a service control policy"),
 		)
 		It("should succeed RunInstances validation when first subnet returns 500 but another subnet succeeds", func() {
 			// Fail the first RunInstances call (first subnet) with a server error,

@@ -221,8 +221,15 @@ If you are upgrading an existing Karpenter installation to v1.12.0+ and want to 
     {
       "Sid": "AllowZonalShiftStatusReadOnly",
       "Effect": "Allow",
-      "Resource": "arn:aws:eks:<region>:<account-id>:cluster/<cluster-name>",
-      "Action": "arc-zonal-shift:GetManagedResource"
+      "Resource": "*",
+      "Action": [
+        "arc-zonal-shift:GetManagedResource"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "arc-zonal-shift:ResourceIdentifier": "arn:aws:eks:<region>:<account-id>:cluster/<cluster-name>"
+        }
+      }
     }
     ```
 

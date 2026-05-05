@@ -220,7 +220,7 @@ var _ = Describe("AMI", func() {
 		DescribeTable(
 			"should provision a node using an alias",
 			func(alias string) {
-				if strings.Contains(alias, "al2") && env.K8sMinorVersion() > 32 {
+				if strings.HasPrefix(alias, "al2@") && env.K8sMinorVersion() > 32 {
 					Skip("AL2 is not supported on versions > 1.32")
 				}
 				pod := coretest.Pod()
