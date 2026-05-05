@@ -381,6 +381,15 @@ func volumeSize(quantity *resource.Quantity) *int32 {
 	return lo.ToPtr(int32(math.Ceil(quantity.AsApproximateFloat64() / math.Pow(2, 30))))
 }
 
+func cpuOptions(cpuOptions *v1.CPUOptions) *ec2types.LaunchTemplateCpuOptionsRequest {
+	if cpuOptions == nil || cpuOptions.NestedVirtualization == nil {
+		return nil
+	}
+	return &ec2types.LaunchTemplateCpuOptionsRequest{
+		NestedVirtualization: ec2types.NestedVirtualizationSpecification(*cpuOptions.NestedVirtualization),
+	}
+}
+
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
 // Any error during hydration will result in a panic
 func (p *DefaultProvider) hydrateCache(ctx context.Context) {
