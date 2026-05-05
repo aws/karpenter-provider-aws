@@ -134,6 +134,7 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			NetworkInterfaces: networkInterfaces,
 			TagSpecifications: launchTemplateDataTags,
 			Placement:         b.buildPlacement(),
+			CpuOptions: cpuOptions(b.options.CPUOptions),
 		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{
@@ -186,4 +187,23 @@ func (b *CreateLaunchTemplateInputBuilder) buildPlacement() *ec2types.LaunchTemp
 		placement.PartitionNumber = lo.ToPtr(b.options.PlacementGroupPartition)
 	}
 	return placement
+}
+
+// cpuOptions converts v1.CPUOptions to EC2 LaunchTemplateCpuOptionsRequest
+func cpuOptions(opts *v1.CPUOptions) *ec2types.LaunchTemplateCpuOptionsRequest {
+	if opts == nil {
+		return nil
+	}
+
+	cpuOpts := &ec2types.LaunchTemplateCpuOptionsRequest{}
+
+	if opts.CoreCount != nil {
+		cpuOpts.CoreCount = lo.ToPtr(int32(*opts.CoreCount))
+	}
+
+	if opts.ThreadsPerCore != nil {
+		cpuOpts.ThreadsPerCore = lo.ToPtr(int32(*opts.ThreadsPerCore))
+	}
+
+	return cpuOpts
 }

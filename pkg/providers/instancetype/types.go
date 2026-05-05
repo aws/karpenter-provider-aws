@@ -81,12 +81,20 @@ func (d *DefaultResolver) CacheKey(nodeClass NodeClass) string {
 	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.BlockDeviceMappings(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	capacityReservationHash, _ := hashstructure.Hash(nodeClass.CapacityReservations(), hashstructure.FormatV2, nil)
 	networkInterfaceHash, _ := hashstructure.Hash(nodeClass.NetworkInterfaces(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+
+	// Include cpuOptions in cache key since it affects capacity calculation
+	var cpuOptionsHash uint64
+	if ec2nc, ok := nodeClass.(*v1.EC2NodeClass); ok && ec2nc.Spec.CPUOptions != nil {
+		cpuOptionsHash, _ = hashstructure.Hash(ec2nc.Spec.CPUOptions, hashstructure.FormatV2, nil)
+	}
+
 	return fmt.Sprintf(
-		"%016x-%016x-%016x-%016x-%s-%s",
+		"%016x-%016x-%016x-%016x-%016x-%s-%s",
 		kcHash,
 		blockDeviceMappingsHash,
 		capacityReservationHash,
 		networkInterfaceHash,
+		cpuOptionsHash,
 		lo.FromPtr((*string)(nodeClass.InstanceStorePolicy())),
 		nodeClass.AMIFamily(),
 	)
@@ -101,6 +109,13 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 	if resolved := nodeClass.KubeletConfiguration(); resolved != nil {
 		kc = resolved
 	}
+
+	// Extract cpuOptions from EC2NodeClass if available
+	var cpuOptions *v1.CPUOptions
+	if ec2nc, ok := nodeClass.(*v1.EC2NodeClass); ok {
+		cpuOptions = ec2nc.Spec.CPUOptions
+	}
+
 	return NewInstanceType(
 		ctx,
 		info,
@@ -120,6 +135,7 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 		lo.Filter(nodeClass.CapacityReservations(), func(cr v1.CapacityReservation, _ int) bool {
 			return cr.InstanceType == string(info.InstanceType)
 		}),
+		cpuOptions,
 	)
 }
 
@@ -140,14 +156,15 @@ func NewInstanceType(
 	evictionSoft map[string]string,
 	amiFamilyType string,
 	capacityReservations []v1.CapacityReservation,
+	cpuOptions *v1.CPUOptions,
 ) *cloudprovider.InstanceType {
 	amiFamily := amifamily.GetAMIFamily(amiFamilyType, &amifamily.Options{})
 	it := &cloudprovider.InstanceType{
 		Name:         string(info.InstanceType),
 		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, capacityReservations),
-		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, networkInterfaces, maxPods, podsPerCore),
+		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, networkInterfaces, maxPods, podsPerCore, cpuOptions),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved: kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead,
+			KubeReserved: kubeReservedResources(adjustedCPU(info, cpuOptions), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead,
 				ENILimitedPods(ctx, info, 0, networkInterfaces), pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces)), kubeReserved),
 			SystemReserved:    systemReservedResources(systemReserved),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), evictionHard),
@@ -331,10 +348,10 @@ func getArchitecture(info ec2types.InstanceTypeInfo) string {
 
 func computeCapacity(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 	blockDeviceMapping []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy,
-	networkInterfaces []*v1.NetworkInterface, maxPods *int32, podsPerCore *int32) corev1.ResourceList {
+	networkInterfaces []*v1.NetworkInterface, maxPods *int32, podsPerCore *int32, cpuOptions *v1.CPUOptions) corev1.ResourceList {
 
 	resourceList := corev1.ResourceList{
-		corev1.ResourceCPU:              *cpu(info),
+		corev1.ResourceCPU:              *adjustedCPU(info, cpuOptions),
 		corev1.ResourceMemory:           *memory(ctx, info),
 		corev1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, blockDeviceMapping, instanceStorePolicy),
 		corev1.ResourcePods:             *pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces),
@@ -349,8 +366,49 @@ func computeCapacity(ctx context.Context, info ec2types.InstanceTypeInfo, amiFam
 	return resourceList
 }
 
+// adjustedCPU returns the CPU capacity for an instance type, adjusted based on cpuOptions if specified.
+// When cpuOptions.threadsPerCore is set to 1 (disabling hyperthreading), the capacity is halved.
+// When cpuOptions.coreCount is specified, the capacity is calculated based on the specified cores.
+func adjustedCPU(info ec2types.InstanceTypeInfo, cpuOptions *v1.CPUOptions) *resource.Quantity {
+	defaultVCPUs := lo.FromPtr(info.VCpuInfo.DefaultVCpus)
+
+	// No cpuOptions specified - return default vCPUs
+	if cpuOptions == nil {
+		return resources.Quantity(fmt.Sprint(defaultVCPUs))
+	}
+
+	defaultCores := int64(lo.FromPtr(info.VCpuInfo.DefaultCores))
+	defaultThreadsPerCore := int64(lo.FromPtr(info.VCpuInfo.DefaultThreadsPerCore))
+
+	// Case 1: Both coreCount and threadsPerCore specified
+	// Calculate: coreCount * threadsPerCore
+	if cpuOptions.CoreCount != nil && cpuOptions.ThreadsPerCore != nil {
+		adjustedVCPUs := *cpuOptions.CoreCount * *cpuOptions.ThreadsPerCore
+		return resources.Quantity(fmt.Sprint(adjustedVCPUs))
+	}
+
+	// Case 2: Only threadsPerCore specified (common for disabling hyperthreading)
+	// Calculate: defaultCores * threadsPerCore
+	if cpuOptions.ThreadsPerCore != nil {
+		adjustedVCPUs := defaultCores * *cpuOptions.ThreadsPerCore
+		return resources.Quantity(fmt.Sprint(adjustedVCPUs))
+	}
+
+	// Case 3: Only coreCount specified
+	// Calculate: coreCount * defaultThreadsPerCore
+	if cpuOptions.CoreCount != nil {
+		adjustedVCPUs := *cpuOptions.CoreCount * defaultThreadsPerCore
+		return resources.Quantity(fmt.Sprint(adjustedVCPUs))
+	}
+
+	// Default: no adjustment
+	return resources.Quantity(fmt.Sprint(defaultVCPUs))
+}
+
+// cpu returns the default CPU capacity without any adjustments
+// This is kept for backwards compatibility but adjustedCPU should be used instead
 func cpu(info ec2types.InstanceTypeInfo) *resource.Quantity {
-	return resources.Quantity(fmt.Sprint(*info.VCpuInfo.DefaultVCpus))
+	return adjustedCPU(info, nil)
 }
 
 func memory(ctx context.Context, info ec2types.InstanceTypeInfo) *resource.Quantity {
