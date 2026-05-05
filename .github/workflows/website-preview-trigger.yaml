@@ -2,6 +2,7 @@ name: WebsitePreviewTrigger
 on:
   pull_request:
     types: [ opened, synchronize, reopened ]
+    paths: [ website/** ]
 jobs:
   preview-trigger:
     runs-on: ubuntu-latest

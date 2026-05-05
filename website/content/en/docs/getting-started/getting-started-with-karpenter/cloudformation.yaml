@@ -294,6 +294,30 @@ Resources:
             }
           ]
         }
+  ZonalShiftPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "KarpenterControllerZonalShiftPolicy-${ClusterName}"
+      Path: /
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AllowZonalShiftStatusReadOnly",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "arc-zonal-shift:GetManagedResource"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "arc-zonal-shift:ResourceIdentifier": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
+                }
+              } 
+            }
+          ]
+        }
   ResourceDiscoveryPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -313,6 +337,7 @@ Resources:
                 "ec2:DescribeCapacityReservations",
                 "ec2:DescribeImages",
                 "ec2:DescribeInstances",
+                "ec2:DescribeInstanceStatus",
                 "ec2:DescribeInstanceTypeOfferings",
                 "ec2:DescribeInstanceTypes",
                 "ec2:DescribeLaunchTemplates",

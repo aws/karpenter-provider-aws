@@ -29,8 +29,10 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+var testCABundle = lo.ToPtr("test-ca-bundle")
+
 var _ = Describe("Hash", func() {
-	const staticHash = "4950366118253097694"
+	const staticHash = "2608468723537941485"
 	var nodeClass *v1.EC2NodeClass
 	BeforeEach(func() {
 		nodeClass = &v1.EC2NodeClass{
@@ -77,30 +79,30 @@ var _ = Describe("Hash", func() {
 		"should match static hash on field value change",
 		func(hash string, changes v1.EC2NodeClass) {
 			Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride, mergo.WithSliceDeepCopy)).To(Succeed())
-			Expect(nodeClass.Hash()).To(Equal(hash))
+			Expect(nodeClass.Hash(testCABundle)).To(Equal(hash))
 		},
 		Entry("Base EC2NodeClass", staticHash, v1.EC2NodeClass{}),
 		// Static fields, expect changed hash from base
 
-		Entry("UserData", "9034828637236670345", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
-		Entry("Tags", "6878220270322275255", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
-		Entry("Context", "13953931752662869657", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
-		Entry("DetailedMonitoring", "14187487647319890991", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
-		Entry("InstanceStorePolicy", "4160809219257698490", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}}),
-		Entry("AssociatePublicIPAddress", "4469320567057431454", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AssociatePublicIPAddress: lo.ToPtr(true)}}),
-		Entry("MetadataOptions HTTPEndpoint", "1277386558528601282", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPEndpoint: lo.ToPtr("enabled")}}}),
-		Entry("MetadataOptions HTTPProtocolIPv6", "14697047633165484196", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPProtocolIPv6: lo.ToPtr("enabled")}}}),
-		Entry("MetadataOptions HTTPPutResponseHopLimit", "2086799014304536137", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPPutResponseHopLimit: lo.ToPtr(int64(10))}}}),
-		Entry("MetadataOptions HTTPTokens", "14750841460622248593", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPTokens: lo.ToPtr("required")}}}),
-		Entry("BlockDeviceMapping DeviceName", "11716516558705174498", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{DeviceName: lo.ToPtr("map-device-test-3")}}}}),
-		Entry("BlockDeviceMapping RootVolume", "11900810786014401721", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{RootVolume: true}}}}),
-		Entry("BlockDeviceMapping DeleteOnTermination", "14586255897156659742", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{DeleteOnTermination: lo.ToPtr(true)}}}}}),
-		Entry("BlockDeviceMapping Encrypted", "10872029821841773628", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Encrypted: lo.ToPtr(true)}}}}}),
-		Entry("BlockDeviceMapping IOPS", "9202874311950700210", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{IOPS: lo.ToPtr(int64(10))}}}}}),
-		Entry("BlockDeviceMapping KMSKeyID", "14601456769467439478", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{KMSKeyID: lo.ToPtr("test")}}}}}),
-		Entry("BlockDeviceMapping SnapshotID", "8031059801598053215", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
-		Entry("BlockDeviceMapping Throughput", "14410045481146650034", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
-		Entry("BlockDeviceMapping VolumeType", "9480251663542054235", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
+		Entry("UserData", "2153344579995979450", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
+		Entry("Tags", "4608386791045313156", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
+		Entry("Context", "11612053647989098410", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
+		Entry("DetailedMonitoring", "11845605438531206428", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
+		Entry("InstanceStorePolicy", "6430637013089544585", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}}),
+		Entry("AssociatePublicIPAddress", "6811176403923819181", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AssociatePublicIPAddress: lo.ToPtr(true)}}),
+		Entry("MetadataOptions HTTPEndpoint", "8158886403801636337", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPEndpoint: lo.ToPtr("enabled")}}}),
+		Entry("MetadataOptions HTTPProtocolIPv6", "12355196004817691031", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPProtocolIPv6: lo.ToPtr("enabled")}}}),
+		Entry("MetadataOptions HTTPPutResponseHopLimit", "8968306366664488826", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPPutResponseHopLimit: lo.ToPtr(int64(10))}}}),
+		Entry("MetadataOptions HTTPTokens", "12408995450371615650", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPTokens: lo.ToPtr("required")}}}),
+		Entry("BlockDeviceMapping DeviceName", "13986335469721503441", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{DeviceName: lo.ToPtr("map-device-test-3")}}}}),
+		Entry("BlockDeviceMapping RootVolume", "14242690863945643402", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{RootVolume: true}}}}),
+		Entry("BlockDeviceMapping DeleteOnTermination", "12316454167870753581", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{DeleteOnTermination: lo.ToPtr(true)}}}}}),
+		Entry("BlockDeviceMapping Encrypted", "17753517657333560591", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Encrypted: lo.ToPtr(true)}}}}}),
+		Entry("BlockDeviceMapping IOPS", "2249322442135400321", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{IOPS: lo.ToPtr(int64(10))}}}}}),
+		Entry("BlockDeviceMapping KMSKeyID", "12259594419287406661", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{KMSKeyID: lo.ToPtr("test")}}}}}),
+		Entry("BlockDeviceMapping SnapshotID", "1149563513090550380", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
+		Entry("BlockDeviceMapping Throughput", "12068199760789564545", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
+		Entry("BlockDeviceMapping VolumeType", "16361719363399715944", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
 
 		// Behavior / Dynamic fields, expect same hash as base
 		Entry("Modified AMISelector", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Tags: map[string]string{"": "ami-test-value"}}}}}),
@@ -111,25 +113,25 @@ var _ = Describe("Hash", func() {
 	// doesn't work well with unexported fields, like the ones that are present in resource.Quantity
 	It("should match static hash when updating blockDeviceMapping volumeSize", func() {
 		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resource.NewScaledQuantity(10, resource.Giga)
-		Expect(nodeClass.Hash()).To(Equal("5906178522470964189"))
+		Expect(nodeClass.Hash(testCABundle)).To(Equal("3564293065344858862"))
 	})
 	It("should match static hash for instanceProfile", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-		Expect(nodeClass.Hash()).To(Equal("5855570904022890593"))
+		Expect(nodeClass.Hash(testCABundle)).To(Equal("3585768058063247698"))
 	})
 	It("should match static hash when reordering tags", func() {
 		nodeClass.Spec.Tags = map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}
-		Expect(nodeClass.Hash()).To(Equal(staticHash))
+		Expect(nodeClass.Hash(testCABundle)).To(Equal(staticHash))
 	})
 	It("should match static hash when reordering blockDeviceMappings", func() {
 		nodeClass.Spec.BlockDeviceMappings[0], nodeClass.Spec.BlockDeviceMappings[1] = nodeClass.Spec.BlockDeviceMappings[1], nodeClass.Spec.BlockDeviceMappings[0]
-		Expect(nodeClass.Hash()).To(Equal(staticHash))
+		Expect(nodeClass.Hash(testCABundle)).To(Equal(staticHash))
 	})
 	DescribeTable("should change hash when static fields are updated", func(changes v1.EC2NodeClass) {
-		hash := nodeClass.Hash()
+		hash := nodeClass.Hash(testCABundle)
 		Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride, mergo.WithSliceDeepCopy)).To(Succeed())
-		updatedHash := nodeClass.Hash()
+		updatedHash := nodeClass.Hash(testCABundle)
 		Expect(hash).ToNot(Equal(updatedHash))
 	},
 		Entry("UserData", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
@@ -155,33 +157,33 @@ var _ = Describe("Hash", func() {
 	// We create a separate test for updating blockDeviceMapping volumeSize, since resource.Quantity is a struct, and mergo.WithSliceDeepCopy
 	// doesn't work well with unexported fields, like the ones that are present in resource.Quantity
 	It("should change hash blockDeviceMapping volumeSize is updated", func() {
-		hash := nodeClass.Hash()
+		hash := nodeClass.Hash(testCABundle)
 		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resource.NewScaledQuantity(10, resource.Giga)
-		updatedHash := nodeClass.Hash()
+		updatedHash := nodeClass.Hash(testCABundle)
 		Expect(hash).ToNot(Equal(updatedHash))
 	})
 	It("should change hash when instanceProfile is updated", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-		hash := nodeClass.Hash()
+		hash := nodeClass.Hash(testCABundle)
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("other-instance-profile")
-		updatedHash := nodeClass.Hash()
+		updatedHash := nodeClass.Hash(testCABundle)
 		Expect(hash).ToNot(Equal(updatedHash))
 	})
 	It("should not change hash when tags are re-ordered", func() {
-		hash := nodeClass.Hash()
+		hash := nodeClass.Hash(testCABundle)
 		nodeClass.Spec.Tags = map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}
-		updatedHash := nodeClass.Hash()
+		updatedHash := nodeClass.Hash(testCABundle)
 		Expect(hash).To(Equal(updatedHash))
 	})
 	It("should not change hash when blockDeviceMappings are re-ordered", func() {
-		hash := nodeClass.Hash()
+		hash := nodeClass.Hash(testCABundle)
 		nodeClass.Spec.BlockDeviceMappings[0], nodeClass.Spec.BlockDeviceMappings[1] = nodeClass.Spec.BlockDeviceMappings[1], nodeClass.Spec.BlockDeviceMappings[0]
-		updatedHash := nodeClass.Hash()
+		updatedHash := nodeClass.Hash(testCABundle)
 		Expect(hash).To(Equal(updatedHash))
 	})
 	It("should not change hash when behavior/dynamic fields are updated", func() {
-		hash := nodeClass.Hash()
+		hash := nodeClass.Hash(testCABundle)
 
 		// Update a behavior/dynamic field
 		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{
@@ -196,13 +198,13 @@ var _ = Describe("Hash", func() {
 		nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
 			Tags: map[string]string{"cr-test-key": "cr-test-value"},
 		}}
-		updatedHash := nodeClass.Hash()
+		updatedHash := nodeClass.Hash(testCABundle)
 		Expect(hash).To(Equal(updatedHash))
 	})
 	It("should expect two EC2NodeClasses with the same spec to have the same hash", func() {
 		otherNodeClass := &v1.EC2NodeClass{
 			Spec: nodeClass.Spec,
 		}
-		Expect(nodeClass.Hash()).To(Equal(otherNodeClass.Hash()))
+		Expect(nodeClass.Hash(testCABundle)).To(Equal(otherNodeClass.Hash(testCABundle)))
 	})
 })

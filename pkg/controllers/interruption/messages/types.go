@@ -41,6 +41,7 @@ const (
 	InstanceStoppedKind                 Kind = "instance_stopped"
 	InstanceTerminatedKind              Kind = "instance_terminated"
 	CapacityReservationInterruptionKind Kind = "capacity_reservation_interrupted"
+	InstanceStatusFailure               Kind = "instance_status_failure"
 	NoOpKind                            Kind = "no_op"
 )
 

@@ -28,6 +28,8 @@ import (
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay"
 
+	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
@@ -35,6 +37,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
@@ -62,11 +65,12 @@ type Environment struct {
 	InstanceTypeStore *nodeoverlay.InstanceTypeStore
 
 	// API
-	EC2API     *fake.EC2API
-	EKSAPI     *fake.EKSAPI
-	SSMAPI     *fake.SSMAPI
-	IAMAPI     *fake.IAMAPI
-	PricingAPI *fake.PricingAPI
+	EC2API           *fake.EC2API
+	EKSAPI           *fake.EKSAPI
+	SSMAPI           *fake.SSMAPI
+	IAMAPI           *fake.IAMAPI
+	PricingAPI       *fake.PricingAPI
+	ARCZonalShiftAPI *fake.ARCZonalShiftAPI
 
 	// Cache
 	AMICache                             *cache.Cache
@@ -97,6 +101,7 @@ type Environment struct {
 	InstanceTypesResolver       *instancetype.DefaultResolver
 	InstanceTypesProvider       *instancetype.DefaultProvider
 	InstanceProvider            *instance.DefaultProvider
+	InstanceStatusProvider      *instancestatus.DefaultProvider
 	SubnetProvider              *subnet.DefaultProvider
 	SecurityGroupProvider       *securitygroup.DefaultProvider
 	InstanceProfileProvider     *instanceprofile.DefaultProvider
@@ -106,6 +111,7 @@ type Environment struct {
 	VersionProvider             *version.DefaultProvider
 	LaunchTemplateProvider      *launchtemplate.DefaultProvider
 	SSMProvider                 *ssmp.DefaultProvider
+	ZonalShiftProvider          *arczonalshift.DefaultProvider
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
@@ -118,12 +124,14 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	eksapi := fake.NewEKSAPI()
 	ssmapi := fake.NewSSMAPI()
 	iamapi := fake.NewIAMAPI()
+	arczonalshiftapi := fake.NewARCZonalShiftAPI()
 
 	// cache
 	amiCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceTypeCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	instanceCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	// Instance cache entries never expire. See comment in pkg/operator/operator.go.
+	instanceCache := cache.New(cache.NoExpiration, cache.NoExpiration)
 	offeringCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	discoveredCapacityCache := cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval)
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
@@ -161,11 +169,13 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
 	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion)
 	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
-	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, placementGroupProvider, unavailableOfferingsCache, instanceTypesResolver)
+	zonalshiftProvider := arczonalshift.NewProvider(arczonalshiftapi, clock, "")
+	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, placementGroupProvider, unavailableOfferingsCache, instanceTypesResolver, zonalshiftProvider)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
 	lo.Must0(instanceTypesProvider.UpdateInstanceTypes(ctx))
 	lo.Must0(instanceTypesProvider.UpdateInstanceTypeOfferings(ctx))
+	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, clock)
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		launchTemplateCache,
@@ -194,6 +204,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		launchTemplateProvider,
 		capacityReservationProvider,
 		placementGroupProvider,
+		zonalshiftProvider,
 		instanceCache,
 	)
 
@@ -202,11 +213,12 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		EventRecorder:     eventRecorder,
 		InstanceTypeStore: store,
 
-		EC2API:     ec2api,
-		EKSAPI:     eksapi,
-		SSMAPI:     ssmapi,
-		IAMAPI:     iamapi,
-		PricingAPI: fakePricingAPI,
+		EC2API:           ec2api,
+		EKSAPI:           eksapi,
+		SSMAPI:           ssmapi,
+		IAMAPI:           iamapi,
+		PricingAPI:       fakePricingAPI,
+		ARCZonalShiftAPI: arczonalshiftapi,
 
 		AMICache:          amiCache,
 		EC2Cache:          ec2Cache,
@@ -236,6 +248,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		InstanceTypesResolver:       instanceTypesResolver,
 		InstanceTypesProvider:       instanceTypesProvider,
 		InstanceProvider:            instanceProvider,
+		InstanceStatusProvider:      instanceStatusProvider,
 		SubnetProvider:              subnetProvider,
 		SecurityGroupProvider:       securityGroupProvider,
 		LaunchTemplateProvider:      launchTemplateProvider,
@@ -245,6 +258,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		AMIResolver:                 amiResolver,
 		VersionProvider:             versionProvider,
 		SSMProvider:                 ssmProvider,
+		ZonalShiftProvider:          zonalshiftProvider,
 	}
 }
 
@@ -255,6 +269,8 @@ func (env *Environment) Reset() {
 	env.SSMAPI.Reset()
 	env.IAMAPI.Reset()
 	env.PricingAPI.Reset()
+	env.ARCZonalShiftAPI.Reset()
+	env.ZonalShiftProvider.Reset()
 	env.PricingProvider.Reset()
 	env.InstanceTypesProvider.Reset()
 

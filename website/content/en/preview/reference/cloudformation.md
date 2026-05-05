@@ -25,7 +25,7 @@ Following some header information, the rest of the `cloudformation.yaml` file de
 The sections of that file can be grouped together under the following general headings:
 
 * [**Node Authorization**]({{< relref "#node-authorization" >}}): Creates a NodeInstanceProfile, attaches a NodeRole to it, and connects it to an IAM Identity Mapping used to authorize nodes to the cluster. This defines the permissions each node managed by Karpenter has to access EC2 and other AWS resources. This doesn't actually create the IAM Identity Mapping. That part is orchestrated by `eksctl` in the Getting Started guide.
-* [**Controller Authorization**]({{< relref "#controller-authorization" >}}):  Creates 5 Karpenter controller policies that are attached to the service account's IAM role.
+* [**Controller Authorization**]({{< relref "#controller-authorization" >}}):  Creates 6 Karpenter controller policies that are attached to the service account's IAM role.
 Again, the actual service account creation (`karpenter`), that is combined with these policies, is orchestrated by `eksctl` in the Getting Started guide.
 * [**Interruption Handling**]({{< relref "#interruption-handling" >}}): Allows the Karpenter controller to see and respond to interruptions that occur with the nodes that Karpenter is managing. See the [Interruption]({{< relref "../concepts/disruption#interruption" >}}) section of the Disruption page for details.
 
@@ -81,14 +81,15 @@ If you were to use a node role from an existing cluster, you could skip this pro
 
 ## Controller Authorization
 
-This section sets the AWS permissions for the Karpenter Controller. When used in the Getting Started guide, `eksctl` uses these permissions to create a service account (karpenter) whose IAM role has all 5 controller policies attached.
+This section sets the AWS permissions for the Karpenter Controller. When used in the Getting Started guide, `eksctl` uses these permissions to create a service account (karpenter) whose IAM role has all 6 controller policies attached.
 
-The controller permissions are split across 5 managed IAM policies:
+The controller permissions are split across 6 managed IAM policies:
 
 * [KarpenterControllerNodeLifecyclePolicy]({{< relref "#karpentercontrollernodelifecyclepolicy" >}}) - EC2 instance and launch template lifecycle management
 * [KarpenterControllerIAMIntegrationPolicy]({{< relref "#karpentercontrolleriamintegrationpolicy" >}}) - IAM instance profile management
 * [KarpenterControllerEKSIntegrationPolicy]({{< relref "#karpentercontrollereksintegrationpolicy" >}}) - EKS cluster discovery
 * [KarpenterControllerInterruptionPolicy]({{< relref "#karpentercontrollerinterruptionpolicy" >}}) - SQS interruption queue access
+* [KarpenterControllerZonalShiftPolicy]({{< relref "#karpentercontrollerzonalshiftpolicy" >}}) - Zonal Shift status access
 * [KarpenterControllerResourceDiscoveryPolicy]({{< relref "#karpentercontrollerresourcediscoverypolicy" >}}) - Read-only resource discovery
 
 Someone wanting to add Karpenter to an existing cluster, instead of using `cloudformation.yaml`, would need to create these IAM policies directly and assign them to the role leveraged by the service account using IRSA or EKS Pod Identity.
@@ -125,7 +126,7 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read 
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*",
-    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:placement-group/*",
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:placement-group/*"
   ],
   "Action": [
     "ec2:RunInstances",
@@ -185,7 +186,7 @@ actions requested by the Karpenter controller to create all `fleet`, `instance`,
   ],
   "Condition": {
     "StringEquals": {
-      "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned"
+      "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
       "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
     },
     "StringLike": {
@@ -217,7 +218,7 @@ Conditions that must be met include that `aws:RequestTag/kubernetes.io/cluster/$
   "Condition": {
     "StringEquals": {
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
-      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
+      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}",
       "ec2:CreateAction": [
         "RunInstances",
         "CreateFleet",
@@ -478,6 +479,43 @@ For the interruption queue you created (`${KarpenterInterruptionQueue.Arn}`), th
   ]
 }
 ```
+### KarpenterControllerZonalShiftPolicy
+
+The `ZonalShiftPolicy` manages access to Zonal Shift data for your cluster. Given a cluster name of `bob-karpenter-demo`, this policy would be named: `KarpenterControllerZonalShiftPolicy-bob-karpenter-demo`
+
+```yaml
+ZonalShiftPolicy:
+  Type: AWS::IAM::ManagedPolicy
+  Properties:
+    ManagedPolicyName: !Sub "KarpenterControllerZonalShiftPolicy-${ClusterName}"
+    Path: /
+    PolicyDocument: !Sub |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+```
+
+### AllowZonalShiftStatusReadOnly
+
+Karpenter supports AWS Application Recovery Controller Zonal Shift, that you can utilize as described in the [Zonal Shift]({{< relref "../concepts/scheduling/#zonal-shift">}}) section of the Scheduling page.
+This section of the cloudformation.yaml template can give Karpenter permission to query the Zonal Shift service about the status of the cluster by specifying the cluster ARN. 
+For the cluster that will be created (`arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}`), the AllowZonalShiftActions Sid lets the Karpenter controller have permission to get the Zonal Shift status of the cluster ([GetManagedResource](https://docs.aws.amazon.com/arc-zonal-shift/latest/api/API_GetManagedResource.html)).
+
+```json
+{
+  "Sid": "AllowZonalShiftStatusReadOnly",
+  "Effect": "Allow",
+  "Resource": "*",
+  "Action": [
+    "arc-zonal-shift:GetManagedResource"
+  ],
+  "Condition": {
+    "StringEquals": {
+      "aws:ResourceIdentifier": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
+    }
+  }
+}
+```
 
 ### KarpenterControllerResourceDiscoveryPolicy
 
@@ -497,7 +535,7 @@ ResourceDiscoveryPolicy:
 
 #### AllowRegionalReadActions
 
-The AllowRegionalReadActions Sid allows [DescribeCapacityReservations](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeCapacityReservations.html), [DescribeAvailabilityZones](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html), [DescribeImages](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeImages.html), [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html), [DescribeInstanceTypeOfferings](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypeOfferings.html), [DescribeInstanceTypes](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypes.html), [DescribeLaunchTemplates](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeLaunchTemplates.html), [DescribePlacementGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribePlacementGroups.html), [DescribeSecurityGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSecurityGroups.html), [DescribeSpotPriceHistory](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSpotPriceHistory.html), and [DescribeSubnets](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSubnets.html) actions for the current AWS region.
+The AllowRegionalReadActions Sid allows [DescribeCapacityReservations](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeCapacityReservations.html), [DescribeAvailabilityZones](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html), [DescribeImages](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeImages.html), [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html), [DescribeInstanceStatus](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceStatus.html), [DescribeInstanceTypeOfferings](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypeOfferings.html), [DescribeInstanceTypes](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypes.html), [DescribeLaunchTemplates](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeLaunchTemplates.html), [DescribePlacementGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribePlacementGroups.html), [DescribeSecurityGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSecurityGroups.html), [DescribeSpotPriceHistory](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSpotPriceHistory.html), and [DescribeSubnets](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSubnets.html) actions for the current AWS region.
 This allows the Karpenter controller to do any of those read-only actions across all related resources for that AWS region.
 
 ```json
@@ -509,6 +547,7 @@ This allows the Karpenter controller to do any of those read-only actions across
     "ec2:DescribeCapacityReservations",
     "ec2:DescribeImages",
     "ec2:DescribeInstances",
+    "ec2:DescribeInstanceStatus",
     "ec2:DescribeInstanceTypeOfferings",
     "ec2:DescribeInstanceTypes",
     "ec2:DescribeLaunchTemplates",
