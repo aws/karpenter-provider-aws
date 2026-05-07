@@ -103,30 +103,11 @@ func (c *InstanceStatusController) Reconcile(ctx context.Context) (reconciler.Re
 		if !found {
 			return
 		}
-
-		log.FromContext(ctx).Info("detected unhealthy instance owned by cluster",
-			"instance-id", instanceStatuses[i].InstanceID,
-			"details", len(instanceStatuses[i].Details))
-
-		categories := map[string]bool{}
-		for _, d := range instanceStatuses[i].Details {
-			categories[string(d.Category)] = true
-		}
-		for cat := range categories {
-			key := unhealthyKey{instanceID: instanceStatuses[i].InstanceID, category: cat}
-			c.mu.Lock()
-			currentKeys[key] = struct{}{}
-			if _, already := c.seen[key]; !already {
-				c.seen[key] = struct{}{}
-				c.mu.Unlock()
-				InstanceStatusUnhealthy.Inc(map[string]string{categoryLabel: cat})
-			} else {
-				c.mu.Unlock()
-			}
-		}
+		c.recordUnhealthyInstance(ctx, instanceStatuses[i], currentKeys)
 	})
 
-	// Prune entries for instances that are no longer reported as unhealthy
+	// Prune entries for instances that are no longer reported as unhealthy,
+	// so that if the same instance becomes unhealthy again later it gets counted again.
 	c.mu.Lock()
 	for key := range c.seen {
 		if _, ok := currentKeys[key]; !ok {
@@ -139,6 +120,29 @@ func (c *InstanceStatusController) Reconcile(ctx context.Context) (reconciler.Re
 		return reconciler.Result{}, err
 	}
 	return reconciler.Result{RequeueAfter: InstanceStatusInterval}, nil
+}
+
+func (c *InstanceStatusController) recordUnhealthyInstance(ctx context.Context, status instancestatus.HealthStatus, currentKeys map[unhealthyKey]struct{}) {
+	categories := map[string]bool{}
+	for _, d := range status.Details {
+		categories[string(d.Category)] = true
+	}
+	for cat := range categories {
+		key := unhealthyKey{instanceID: status.InstanceID, category: cat}
+		c.mu.Lock()
+		currentKeys[key] = struct{}{}
+		_, already := c.seen[key]
+		if !already {
+			c.seen[key] = struct{}{}
+		}
+		c.mu.Unlock()
+		if !already {
+			log.FromContext(ctx).Info("detected unhealthy instance owned by cluster",
+				"instance-id", status.InstanceID,
+				"category", cat)
+			InstanceStatusUnhealthy.Inc(map[string]string{categoryLabel: cat})
+		}
+	}
 }
 
 func (c *InstanceStatusController) Register(_ context.Context, m manager.Manager) error {
