@@ -81,6 +81,7 @@ type BottlerocketKubernetes struct {
 	MemoryManagerPolicy                *string                                   `toml:"memory-manager-policy,omitempty"`
 	TopologyManagerScope               *string                                   `toml:"topology-manager-scope,omitempty"`
 	TopologyManagerPolicy              *string                                   `toml:"topology-manager-policy,omitempty"`
+	TopologyManagerPolicyOptions       []string                                  `toml:"topology-manager-policy-options,omitempty"`
 	ImageGCHighThresholdPercent        *string                                   `toml:"image-gc-high-threshold-percent,omitempty"`
 	ImageGCLowThresholdPercent         *string                                   `toml:"image-gc-low-threshold-percent,omitempty"`
 	IdsPerPod                          *int                                      `toml:"ids-per-pod,omitempty"`
