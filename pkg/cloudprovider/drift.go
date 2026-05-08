@@ -140,7 +140,8 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 }
 
 // Checks if capacity reservations are drifted, by comparing the capacity reservations persisted to the NodeClass to
-// the instance's capacity reservation. We initially use stale instance information to reduce EC2 calls.
+// the instance's capacity reservation. When stale instance information isn't useful enough to determine drift, we
+// skip the cache and fallback to the EC2 API.
 // NOTE: We handle drift dynamically for capacity reservations rather than relying on the offerings inducing drift since
 // a reserved instance may fall back to on-demand. Relying on offerings could result in drift occurring before fallback
 // would cancel it out.
