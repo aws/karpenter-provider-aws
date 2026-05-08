@@ -64,6 +64,13 @@ var ValidationConditionMessages = map[string]string{
 	ConditionReasonRunInstancesAuthFailed:         "Controller isn't authorized to call ec2:RunInstances",
 }
 
+// validationCacheEntry stores a failed validation result with both the condition reason and the
+// enriched message derived from the AWS error, so cached results can reproduce the same condition.
+type validationCacheEntry struct {
+	reason  string
+	message string
+}
+
 type Validation struct {
 	kubeClient             client.Client
 	cloudProvider          cloudprovider.CloudProvider
@@ -155,13 +162,14 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 
 	if val, ok := v.cache.Get(v.cacheKey(nodeClass, tags)); ok {
 		// We still update the status condition even if it's cached since we may have had a conflict error previously
-		if val == "" {
+		entry := val.(validationCacheEntry)
+		if entry.reason == "" {
 			nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 		} else {
 			nodeClass.StatusConditions().SetFalse(
 				v1.ConditionTypeValidationSucceeded,
-				val.(string),
-				ValidationConditionMessages[val.(string)],
+				entry.reason,
+				entry.message,
 			)
 		}
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
@@ -169,7 +177,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 
 	if v.dryRunDisabled {
 		nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
-		v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
+		v.cache.SetDefault(v.cacheKey(nodeClass, tags), validationCacheEntry{})
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 
@@ -188,17 +196,21 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return result, err
 	}
 
-	v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
+	v.cache.SetDefault(v.cacheKey(nodeClass, tags), validationCacheEntry{})
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 	return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 }
 
-func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[string]string, failureReason string) {
-	v.cache.SetDefault(v.cacheKey(nodeClass, tags), failureReason)
+func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[string]string, failureReason string, reasonMessage string) {
+	message := fmt.Sprintf("%s: %s", ValidationConditionMessages[failureReason], reasonMessage)
+	v.cache.SetDefault(v.cacheKey(nodeClass, tags), validationCacheEntry{
+		reason:  failureReason,
+		message: message,
+	})
 	nodeClass.StatusConditions().SetFalse(
 		v1.ConditionTypeValidationSucceeded,
 		failureReason,
-		ValidationConditionMessages[failureReason],
+		message,
 	)
 }
 
@@ -229,7 +241,8 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 			return nil, reconcile.Result{}, fmt.Errorf("validating ec2:CreateLaunchTemplate authorization, %w", err)
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateLaunchTemplate")
-		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateLaunchTemplateAuthFailed)
+		_, reasonMessage := awserrors.ToReasonMessage(err)
+		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateLaunchTemplateAuthFailed, reasonMessage)
 		return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 	// this case should never occur as we ensure instance types are compatible with AMI
@@ -261,7 +274,8 @@ func (v *Validation) validateCreateFleetAuthorization(
 			return reconcile.Result{}, fmt.Errorf("validating ec2:CreateFleet authorization, %w", err)
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateFleet")
-		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateFleetAuthFailed)
+		_, reasonMessage := awserrors.ToReasonMessage(err)
+		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateFleetAuthFailed, reasonMessage)
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 	return reconcile.Result{}, nil
@@ -303,7 +317,8 @@ func (v *Validation) validateRunInstancesAuthorization(
 		return reconcile.Result{}, fmt.Errorf("validating ec2:RunInstances authorization, %w", firstSubnetErr)
 	}
 	log.FromContext(ctx).Error(firstSubnetErr, "unauthorized to call ec2:RunInstances")
-	v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesAuthFailed)
+	_, reasonMessage := awserrors.ToReasonMessage(firstSubnetErr)
+	v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesAuthFailed, reasonMessage)
 	return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 }
 
