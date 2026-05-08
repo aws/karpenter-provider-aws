@@ -219,6 +219,9 @@ settings:
   disableClusterStateObservability: false
   # -- Disable dry run validation for EC2NodeClasses.
   disableDryRun: false
+  # -- How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of
+  # DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m.
+  amiRefreshInterval: 1m
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features.
   featureGates:
