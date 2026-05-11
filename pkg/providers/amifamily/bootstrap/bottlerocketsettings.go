@@ -112,14 +112,8 @@ type BottlerocketCredentialProvider struct {
 	Environment   map[string]string `toml:"environment,omitempty"`
 }
 
-// BottlerocketTopologyManagerPolicyOptions maps to KubernetesTopologyManagerPolicyOptions in the
-// Bottlerocket settings SDK. It is a flat struct (not a map), serialized with kebab-case keys.
+// BottlerocketTopologyManagerPolicyOptions maps to KubernetesTopologyManagerPolicyOptions in the Bottlerocket settings SDK.
 // https://github.com/bottlerocket-os/bottlerocket-settings-sdk/blob/develop/bottlerocket-settings-models/modeled-types/src/kubernetes.rs
-// Usage in userData:
-//
-//	[settings.kubernetes.topology-manager-policy-options]
-//	prefer-closest-numa-nodes = true
-//	max-allowable-numa-nodes = 8
 type BottlerocketTopologyManagerPolicyOptions struct {
 	PreferClosestNumaNodes *bool `toml:"prefer-closest-numa-nodes,omitempty"`
 	MaxAllowableNumaNodes  *int  `toml:"max-allowable-numa-nodes,omitempty"`
