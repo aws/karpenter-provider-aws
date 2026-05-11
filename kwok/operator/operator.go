@@ -355,7 +355,10 @@ func SetupIndexers(ctx context.Context, mgr manager.Manager) {
 
 func ValidateZonalShiftEnablement(ctx context.Context, eksAPI sdk.EKSAPI, arczonalshiftAPI sdk.ARCZonalShiftAPI) (string, error) {
 	inputDC := eks.DescribeClusterInput{Name: &options.FromContext(ctx).ClusterName}
-	outputDC, _ := eksAPI.DescribeCluster(ctx, &inputDC)
+	outputDC, err := eksAPI.DescribeCluster(ctx, &inputDC)
+	if err != nil {
+		return "", fmt.Errorf("failed to describe cluster for zonal shift enablement, %w", err)
+	}
 	clusterArn := outputDC.Cluster.Arn
 	inputGMR := arczonalshift.GetManagedResourceInput{ResourceIdentifier: clusterArn}
 	_, getManagedResourceErr := arczonalshiftAPI.GetManagedResource(ctx, &inputGMR)
