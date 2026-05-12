@@ -81,6 +81,7 @@ type BottlerocketKubernetes struct {
 	MemoryManagerPolicy                *string                                   `toml:"memory-manager-policy,omitempty"`
 	TopologyManagerScope               *string                                   `toml:"topology-manager-scope,omitempty"`
 	TopologyManagerPolicy              *string                                   `toml:"topology-manager-policy,omitempty"`
+	TopologyManagerPolicyOptions       *BottlerocketTopologyManagerPolicyOptions `toml:"topology-manager-policy-options,omitempty"`
 	ImageGCHighThresholdPercent        *string                                   `toml:"image-gc-high-threshold-percent,omitempty"`
 	ImageGCLowThresholdPercent         *string                                   `toml:"image-gc-low-threshold-percent,omitempty"`
 	IdsPerPod                          *int                                      `toml:"ids-per-pod,omitempty"`
@@ -109,6 +110,13 @@ type BottlerocketCredentialProvider struct {
 	CacheDuration *string           `toml:"cache-duration,omitempty"`
 	ImagePatterns []string          `toml:"image-patterns"`
 	Environment   map[string]string `toml:"environment,omitempty"`
+}
+
+// BottlerocketTopologyManagerPolicyOptions maps to KubernetesTopologyManagerPolicyOptions in the Bottlerocket settings SDK.
+// https://github.com/bottlerocket-os/bottlerocket-settings-sdk/blob/develop/bottlerocket-settings-models/modeled-types/src/kubernetes.rs
+type BottlerocketTopologyManagerPolicyOptions struct {
+	PreferClosestNumaNodes *bool `toml:"prefer-closest-numa-nodes,omitempty"`
+	MaxAllowableNumaNodes  *int  `toml:"max-allowable-numa-nodes,omitempty"`
 }
 
 type BootstrapCommandMode string
