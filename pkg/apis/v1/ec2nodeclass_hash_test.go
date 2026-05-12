@@ -103,6 +103,9 @@ var _ = Describe("Hash", func() {
 		Entry("BlockDeviceMapping SnapshotID", "1149563513090550380", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
 		Entry("BlockDeviceMapping Throughput", "12068199760789564545", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
 		Entry("BlockDeviceMapping VolumeType", "16361719363399715944", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
+		Entry("ConnectionTracking TCPEstablishedTimeout", "12177489405137904098", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{TCPEstablishedTimeout: lo.ToPtr(int32(300))}}}),
+		Entry("ConnectionTracking UDPStreamTimeout", "17567831983996427", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPStreamTimeout: lo.ToPtr(int32(120))}}}),
+		Entry("ConnectionTracking UDPTimeout", "5078825826133662844", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPTimeout: lo.ToPtr(int32(45))}}}),
 
 		// Behavior / Dynamic fields, expect same hash as base
 		Entry("Modified AMISelector", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Tags: map[string]string{"": "ami-test-value"}}}}}),
@@ -153,6 +156,9 @@ var _ = Describe("Hash", func() {
 		Entry("BlockDeviceMapping SnapshotID", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
 		Entry("BlockDeviceMapping Throughput", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
 		Entry("BlockDeviceMapping VolumeType", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
+		Entry("ConnectionTracking TCPEstablishedTimeout", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{TCPEstablishedTimeout: lo.ToPtr(int32(300))}}}),
+		Entry("ConnectionTracking UDPStreamTimeout", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPStreamTimeout: lo.ToPtr(int32(120))}}}),
+		Entry("ConnectionTracking UDPTimeout", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPTimeout: lo.ToPtr(int32(45))}}}),
 	)
 	// We create a separate test for updating blockDeviceMapping volumeSize, since resource.Quantity is a struct, and mergo.WithSliceDeepCopy
 	// doesn't work well with unexported fields, like the ones that are present in resource.Quantity
