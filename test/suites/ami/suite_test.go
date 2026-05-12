@@ -230,9 +230,9 @@ var _ = Describe("AMI", func() {
 				env.ExpectCreatedNodeCount("==", 1)
 			},
 			Entry("AL2023 (latest)", "al2023@latest"),
-			Entry("AL2023 (pinned)", "al2023@v20250116"),
+			Entry("AL2023 (pinned)", "al2023@v20260505"),
 			Entry("AL2 (latest)", "al2@latest"),
-			Entry("AL2 (pinned)", "al2@v20250116"),
+			Entry("AL2 (pinned)", "al2@v20251209"),
 			Entry("Bottlerocket (latest)", "bottlerocket@latest"),
 			Entry("Bottlerocket (pinned with v prefix)", "bottlerocket@v1.53.0"),
 			Entry("Bottlerocket (pinned without v prefix)", "bottlerocket@1.53.0"),
