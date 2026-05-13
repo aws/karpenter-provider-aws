@@ -238,6 +238,7 @@ func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC
 		AssociatePublicIPAddress: nodeClass.Spec.AssociatePublicIPAddress,
 		IPPrefixCount:            nodeClass.Spec.IPPrefixCount,
 		NodeClassName:            nodeClass.Name,
+		OutpostArn:               lo.FromPtr(nodeClass.Spec.OutpostArn),
 	}, nil
 }
 

@@ -155,6 +155,12 @@ type EC2NodeClassSpec struct {
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
 	Context *string `json:"context,omitempty"`
+	// OutpostArn is the ARN of the AWS Outpost on which to launch instances.
+	// When specified, Karpenter will only discover instance types available on the Outpost,
+	// filter subnets to those on the Outpost, and restrict capacity to on-demand only.
+	// +kubebuilder:validation:Pattern=`^arn:aws[a-zA-Z-]*:outposts:[a-z0-9-]+:[0-9]{12}:outpost/op-[0-9a-f]{17}$`
+	// +optional
+	OutpostArn *string `json:"outpostArn,omitempty"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
@@ -585,6 +591,10 @@ func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {
 
 func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {
 	return in.Spec.PlacementGroupSelector
+}
+
+func (in *EC2NodeClass) OutpostArn() *string {
+	return in.Spec.OutpostArn
 }
 
 func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {

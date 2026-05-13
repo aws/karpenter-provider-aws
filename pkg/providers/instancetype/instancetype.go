@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -63,6 +64,7 @@ type NodeClass interface {
 	InstanceStorePolicy() *v1.InstanceStorePolicy
 	NetworkInterfaces() []*v1.NetworkInterface
 	KubeletConfiguration() *v1.KubeletConfiguration
+	OutpostArn() *string
 	PlacementGroupSelector() *v1.PlacementGroupSelector
 	ZoneInfo() []v1.ZoneInfo
 }
@@ -92,6 +94,7 @@ type DefaultProvider struct {
 
 	instanceTypesCache      *cache.Cache
 	discoveredCapacityCache *cache.Cache
+	outpostOfferingsCache   *cache.Cache
 	cm                      *pretty.ChangeMonitor
 
 	placementGroupProvider placementgroup.Provider
@@ -119,6 +122,7 @@ func NewDefaultProvider(
 		instanceTypesResolver:   instanceTypesResolver,
 		instanceTypesCache:      instanceTypesCache,
 		discoveredCapacityCache: discoveredCapacityCache,
+		outpostOfferingsCache:   cache.New(5*time.Minute, 10*time.Minute),
 		cm:                      pretty.NewChangeMonitor(),
 		placementGroupProvider:  placementGroupProvider,
 		offeringProvider: offering.NewDefaultProvider(
@@ -169,6 +173,21 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*clo
 	// date capacity information. Rather than incurring a cache miss each time an instance is launched into a reserved
 	// offering (or terminated), offerings are injected to the cached instance types on each call. Note that on-demand and
 	// spot offerings are still cached - only reserved offerings are generated each time.
+
+	// Filter to only instance types available on the Outpost when an OutpostArn is specified
+	if outpostArn := nodeClass.OutpostArn(); outpostArn != nil {
+		outpostTypes, err := p.getOutpostOfferings(ctx, *outpostArn)
+		if err != nil {
+			return nil, err
+		}
+		instanceTypes = lo.Filter(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
+			return outpostTypes.Has(it.Name)
+		})
+		if len(instanceTypes) == 0 {
+			return nil, fmt.Errorf("no instance types available on outpost %s", *outpostArn)
+		}
+	}
+
 	return p.offeringProvider.InjectOfferings(
 		ctx,
 		instanceTypes,
@@ -388,6 +407,37 @@ func (p *DefaultProvider) FilterForNodeClass(ctx context.Context, its []*cloudpr
 		}
 	}
 	return compatible
+}
+
+// getOutpostOfferings queries EC2 for instance types available on a specific Outpost
+// and returns the set of instance type names available there. Results are cached since
+// Outpost hardware changes extremely rarely.
+func (p *DefaultProvider) getOutpostOfferings(ctx context.Context, outpostArn string) (sets.Set[string], error) {
+	if cached, ok := p.outpostOfferingsCache.Get(outpostArn); ok {
+		return cached.(sets.Set[string]), nil
+	}
+	available := sets.New[string]()
+	paginator := ec2.NewDescribeInstanceTypeOfferingsPaginator(p.ec2api, &ec2.DescribeInstanceTypeOfferingsInput{
+		LocationType: ec2types.LocationType("outpost"),
+		Filters: []ec2types.Filter{
+			{
+				Name:   aws.String("location"),
+				Values: []string{outpostArn},
+			},
+		},
+		MaxResults: lo.ToPtr[int32](1000),
+	})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("describing instance type offerings for outpost %s, %w", outpostArn, err)
+		}
+		for _, offering := range page.InstanceTypeOfferings {
+			available.Insert(string(offering.InstanceType))
+		}
+	}
+	p.outpostOfferingsCache.SetDefault(outpostArn, available)
+	return available, nil
 }
 
 func (p *DefaultProvider) Reset() {

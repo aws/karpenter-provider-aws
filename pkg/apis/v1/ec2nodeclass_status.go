@@ -52,6 +52,9 @@ type Subnet struct {
 	// The associated availability zone ID
 	// +optional
 	ZoneID string `json:"zoneID,omitempty"`
+	// The associated Outpost ARN, if the subnet is on an Outpost
+	// +optional
+	OutpostArn string `json:"outpostArn,omitempty"`
 }
 
 // SecurityGroup contains resolved SecurityGroup selector values utilized for node launch

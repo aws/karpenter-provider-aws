@@ -1424,4 +1424,14 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Update(ctx, nc)).To(Succeed())
 		})
 	})
+	Context("OutpostArn", func() {
+		It("should succeed with a valid outpostArn", func() {
+			nc.Spec.OutpostArn = lo.ToPtr("arn:aws:outposts:us-west-2:123456789012:outpost/op-01234567890abcdef")
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail with an invalid outpostArn", func() {
+			nc.Spec.OutpostArn = lo.ToPtr("arn:aws:outposts:us-west-2:123456789012:outpost/invalid")
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+	})
 })

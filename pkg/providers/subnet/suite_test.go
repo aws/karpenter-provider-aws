@@ -454,6 +454,60 @@ var _ = Describe("SubnetProvider", func() {
 			))
 		})
 	})
+	Context("Outpost Filtering", func() {
+		It("should filter subnets by OutpostArn when specified", func() {
+			outpostArn := "arn:aws:outposts:us-west-2:123456789012:outpost/op-1234567890abcdef0"
+			nodeClass.Spec.OutpostArn = &outpostArn
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
+				{
+					SubnetId:                aws.String("subnet-outpost-1"),
+					AvailabilityZone:        aws.String("test-zone-1a"),
+					AvailabilityZoneId:      aws.String("tstz1-1a"),
+					AvailableIpAddressCount: aws.Int32(100),
+					OutpostArn:              aws.String(outpostArn),
+				},
+				{
+					SubnetId:                aws.String("subnet-region-1"),
+					AvailabilityZone:        aws.String("test-zone-1b"),
+					AvailabilityZoneId:      aws.String("tstz1-1b"),
+					AvailableIpAddressCount: aws.Int32(100),
+				},
+				{
+					SubnetId:                aws.String("subnet-outpost-2"),
+					AvailabilityZone:        aws.String("test-zone-1a"),
+					AvailabilityZoneId:      aws.String("tstz1-1a"),
+					AvailableIpAddressCount: aws.Int32(50),
+					OutpostArn:              aws.String(outpostArn),
+				},
+			}})
+			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			Expect(subnets).To(HaveLen(2))
+			Expect(lo.Map(subnets, func(s ec2types.Subnet, _ int) string { return lo.FromPtr(s.SubnetId) })).
+				To(ConsistOf("subnet-outpost-1", "subnet-outpost-2"))
+		})
+		It("should return all subnets when OutpostArn is not specified", func() {
+			outpostArn := "arn:aws:outposts:us-west-2:123456789012:outpost/op-1234567890abcdef0"
+			awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
+				{
+					SubnetId:                aws.String("subnet-outpost-1"),
+					AvailabilityZone:        aws.String("test-zone-1a"),
+					AvailabilityZoneId:      aws.String("tstz1-1a"),
+					AvailableIpAddressCount: aws.Int32(100),
+					OutpostArn:              aws.String(outpostArn),
+				},
+				{
+					SubnetId:                aws.String("subnet-region-1"),
+					AvailabilityZone:        aws.String("test-zone-1b"),
+					AvailabilityZoneId:      aws.String("tstz1-1b"),
+					AvailableIpAddressCount: aws.Int32(100),
+				},
+			}})
+			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			Expect(subnets).To(HaveLen(2))
+		})
+	})
 	It("should not cause data races when calling List() simultaneously", func() {
 		wg := sync.WaitGroup{}
 		for range 10000 {

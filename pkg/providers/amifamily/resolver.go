@@ -70,6 +70,7 @@ type Options struct {
 	AssociatePublicIPAddress  *bool
 	IPPrefixCount             *int32
 	NodeClassName             string
+	OutpostArn                string
 	ResolvedNetworkInterfaces []*ResolvedNetworkInterface `hash:"ignore"`
 }
 
@@ -336,6 +337,15 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
+		}
+		// On first-gen Outposts, gp3 is not supported. Default to gp2 when
+		// the user hasn't specified explicit block device mappings.
+		if options.OutpostArn != "" && len(nodeClass.Spec.BlockDeviceMappings) == 0 {
+			for _, bdm := range resolved.BlockDeviceMappings {
+				if bdm.EBS != nil && lo.FromPtr(bdm.EBS.VolumeType) == string(ec2types.VolumeTypeGp3) {
+					bdm.EBS.VolumeType = aws.String(string(ec2types.VolumeTypeGp2))
+				}
+			}
 		}
 		if resolved.MetadataOptions == nil {
 			resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()

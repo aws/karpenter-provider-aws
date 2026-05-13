@@ -300,6 +300,13 @@ spec:
                 detailedMonitoring:
                   description: DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
                   type: boolean
+                outpostArn:
+                  description: |-
+                    OutpostArn is the ARN of the AWS Outpost on which to launch instances.
+                    When specified, Karpenter will only discover instance types available on the Outpost,
+                    filter subnets to those on the Outpost, and restrict capacity to on-demand only.
+                  pattern: ^arn:aws[a-zA-Z-]*:outposts:[a-z0-9-]+:[0-9]{12}:outpost/op-[0-9a-f]{17}$
+                  type: string
                 instanceProfile:
                   description: |-
                     InstanceProfile is the AWS entity that instances use.

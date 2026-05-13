@@ -64,6 +64,7 @@ type Subnet struct {
 	Zone                    string
 	ZoneID                  string
 	AvailableIPAddressCount int32
+	OutpostArn              string
 }
 
 func NewDefaultProvider(ec2api sdk.EC2API, cache *cache.Cache, availableIPAddressCache *cache.Cache, associatePublicIPAddressCache *cache.Cache) *DefaultProvider {
@@ -115,14 +116,26 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			}
 		}
 	}
+	// Filter subnets by OutpostArn if specified in the nodeClass spec
+	if nodeClass.Spec.OutpostArn != nil {
+		for id, subnet := range subnets {
+			if lo.FromPtr(subnet.OutpostArn) != *nodeClass.Spec.OutpostArn {
+				delete(subnets, id)
+			}
+		}
+		if len(subnets) == 0 {
+			return nil, fmt.Errorf("no subnets matched outpost %s with selector %v", *nodeClass.Spec.OutpostArn, nodeClass.Spec.SubnetSelectorTerms)
+		}
+	}
 	p.cache.SetDefault(hash, lo.Values(subnets))
 	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), lo.Keys(subnets)) {
 		log.FromContext(ctx).
 			WithValues("subnets", lo.Map(lo.Values(subnets), func(s ec2types.Subnet, _ int) v1.Subnet {
 				return v1.Subnet{
-					ID:     lo.FromPtr(s.SubnetId),
-					Zone:   lo.FromPtr(s.AvailabilityZone),
-					ZoneID: lo.FromPtr(s.AvailabilityZoneId),
+					ID:         lo.FromPtr(s.SubnetId),
+					Zone:       lo.FromPtr(s.AvailabilityZone),
+					ZoneID:     lo.FromPtr(s.AvailabilityZoneId),
+					OutpostArn: lo.FromPtr(s.OutpostArn),
 				}
 			})).V(1).Info("discovered subnets")
 	}
@@ -161,7 +174,7 @@ func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *
 				continue
 			}
 		}
-		zonalSubnets[subnet.Zone] = &Subnet{ID: subnet.ID, Zone: subnet.Zone, ZoneID: subnet.ZoneID, AvailableIPAddressCount: availableIPAddressCount[subnet.ID]}
+		zonalSubnets[subnet.Zone] = &Subnet{ID: subnet.ID, Zone: subnet.Zone, ZoneID: subnet.ZoneID, AvailableIPAddressCount: availableIPAddressCount[subnet.ID], OutpostArn: subnet.OutpostArn}
 	}
 
 	for _, subnet := range zonalSubnets {

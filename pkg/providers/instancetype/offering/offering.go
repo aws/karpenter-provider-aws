@@ -51,6 +51,7 @@ type NodeClass interface {
 	ZoneInfo() []v1.ZoneInfo
 	NetworkInterfaces() []*v1.NetworkInterface
 	AMIFamily() string
+	OutpostArn() *string
 	PlacementGroupSelector() *v1.PlacementGroupSelector
 }
 
@@ -183,6 +184,10 @@ func (p *DefaultProvider) createOfferings(
 			for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
 				// Reserved capacity types are constructed separately
 				if capacityType == karpv1.CapacityTypeReserved {
+					continue
+				}
+				// Spot is not available on Outposts
+				if capacityType == karpv1.CapacityTypeSpot && nodeClass.OutpostArn() != nil {
 					continue
 				}
 				// Check both the general ICE signal and the PG-scoped signal.

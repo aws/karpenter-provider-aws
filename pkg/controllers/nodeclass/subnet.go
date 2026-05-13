@@ -58,9 +58,10 @@ func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (rec
 	})
 	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet ec2types.Subnet, _ int) v1.Subnet {
 		return v1.Subnet{
-			ID:     *ec2subnet.SubnetId,
-			Zone:   *ec2subnet.AvailabilityZone,
-			ZoneID: *ec2subnet.AvailabilityZoneId,
+			ID:         *ec2subnet.SubnetId,
+			Zone:       *ec2subnet.AvailabilityZone,
+			ZoneID:     *ec2subnet.AvailabilityZoneId,
+			OutpostArn: lo.FromPtr(ec2subnet.OutpostArn),
 		}
 	})
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeSubnetsReady)
