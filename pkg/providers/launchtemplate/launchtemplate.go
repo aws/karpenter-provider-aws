@@ -300,7 +300,7 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 			}
 
 			groups := lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID })
-			if ni.SecondaryENISecurityGroups != nil && len(ni.SecondaryENISecurityGroups) > 0 && !(ni.NetworkCardIndex == 0 && ni.DeviceIndex == 0) {
+			if len(ni.SecondaryENISecurityGroups) > 0 && !(ni.NetworkCardIndex == 0 && ni.DeviceIndex == 0) {
 				groups = lo.Map(ni.SecondaryENISecurityGroups, func(s v1.SecurityGroup, _ int) string { return s.ID })
 			}
 			return ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
