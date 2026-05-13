@@ -105,7 +105,7 @@ func (c networkInterfaceCheck) compatibleCheck(info ec2types.InstanceTypeInfo) b
 		}
 		// (4) the configured secondary IP count exceeds instance type capacity
 		totalSecondaryIPsConfigured := lo.FromPtrOr(networkInterface.SecondaryIPPrefixCount, int32(0)) + lo.FromPtrOr(networkInterface.SecondaryIPCount, int32(0))
-		if totalSecondaryIPsConfigured >= lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface) {
+		if totalSecondaryIPsConfigured > 0 && totalSecondaryIPsConfigured >= lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface) {
 			return false
 		}
 	}

@@ -91,6 +91,8 @@ type LaunchTemplate struct {
 	Tenancy                          string
 	PlacementGroupID                 string
 	PlacementGroupPartition          int32
+	// Zone constrains fleet overrides to a single AZ when set.
+	Zone string `hash:"ignore"`
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters

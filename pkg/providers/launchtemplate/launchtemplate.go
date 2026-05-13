@@ -189,6 +189,7 @@ func (p *DefaultProvider) EnsureAll(
 			InstanceTypes:         resolvedLaunchTemplate.InstanceTypes,
 			ImageID:               resolvedLaunchTemplate.AMIID,
 			CapacityReservationID: resolvedLaunchTemplate.CapacityReservationID,
+			Zone:                  resolvedLaunchTemplate.Zone,
 		})
 	}
 	return launchTemplates, nil

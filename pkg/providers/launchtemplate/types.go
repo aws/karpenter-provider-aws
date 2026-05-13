@@ -44,6 +44,8 @@ type LaunchTemplate struct {
 	InstanceTypes         []*cloudprovider.InstanceType
 	ImageID               string
 	CapacityReservationID string
+	// Optional to constrains fleet overrides to a single AZ.
+	Zone string
 }
 
 type LaunchMode int
