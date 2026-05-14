@@ -65,7 +65,8 @@ var _ = Describe("Options", func() {
 			"--interruption-queue", "env-cluster",
 			"--reserved-enis", "10",
 			"--disable-dry-run",
-			"--ami-refresh-interval", "15m")
+			"--ami-refresh-interval", "15m",
+			"--subnet-refresh-interval", "15m")
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
 			ClusterCABundle:         lo.ToPtr("env-bundle"),
@@ -77,6 +78,7 @@ var _ = Describe("Options", func() {
 			ReservedENIs:            lo.ToPtr(10),
 			DisableDryRun:           lo.ToPtr(true),
 			AMIRefreshInterval:      lo.ToPtr(15 * time.Minute),
+			SubnetRefreshInterval:   lo.ToPtr(15 * time.Minute),
 		}))
 	})
 	It("should correctly fallback to env vars when CLI flags aren't set", func() {
@@ -89,6 +91,7 @@ var _ = Describe("Options", func() {
 		os.Setenv("RESERVED_ENIS", "10")
 		os.Setenv("DISABLE_DRY_RUN", "false")
 		os.Setenv("AMI_REFRESH_INTERVAL", "30m")
+		os.Setenv("SUBNET_REFRESH_INTERVAL", "15m")
 
 		// Add flags after we set the environment variables so that the parsing logic correctly refers
 		// to the new environment variable values
@@ -105,6 +108,7 @@ var _ = Describe("Options", func() {
 			ReservedENIs:            lo.ToPtr(10),
 			DisableDryRun:           lo.ToPtr(false),
 			AMIRefreshInterval:      lo.ToPtr(30 * time.Minute),
+			SubnetRefreshInterval:   lo.ToPtr(15 * time.Minute),
 		}))
 	})
 
@@ -113,6 +117,13 @@ var _ = Describe("Options", func() {
 		err := opts.Parse(fs, "--cluster-name", "test-cluster")
 		Expect(err).ToNot(HaveOccurred())
 		Expect(opts.AMIRefreshInterval).To(Equal(time.Minute))
+	})
+
+	It("should correctly use default subnet-refresh-interval when not specified", func() {
+		opts.AddFlags(fs)
+		err := opts.Parse(fs, "--cluster-name", "test-cluster")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(opts.SubnetRefreshInterval).To(Equal(time.Minute))
 	})
 
 	Context("Validation", func() {
@@ -139,6 +150,10 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--ami-refresh-interval", "30s")
 			Expect(err).To(HaveOccurred())
 		})
+		It("should fail when subnet-refresh-interval is less than 1m", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--subnet-refresh-interval", "30s")
+			Expect(err).To(HaveOccurred())
+		})
 	})
 })
 
@@ -153,4 +168,5 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.ReservedENIs).To(Equal(optsB.ReservedENIs))
 	Expect(optsA.DisableDryRun).To(Equal(optsB.DisableDryRun))
 	Expect(optsA.AMIRefreshInterval).To(Equal(optsB.AMIRefreshInterval))
+	Expect(optsA.SubnetRefreshInterval).To(Equal(optsB.SubnetRefreshInterval))
 }
