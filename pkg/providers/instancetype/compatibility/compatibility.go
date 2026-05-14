@@ -28,6 +28,7 @@ import (
 type NodeClass interface {
 	NetworkInterfaces() []*v1.NetworkInterface
 	AMIFamily() string
+	ConnectionTracking() *v1.ConnectionTracking
 }
 
 type CompatibleCheck interface {
@@ -40,6 +41,7 @@ func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeCla
 		networkInterfaceCompatibility(networkInterfaces),
 		amiFamilyCompatibility(nodeClass.AMIFamily()),
 		placementGroupCompatibility(pg),
+		connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
 	} {
 		if !check.compatibleCheck(info) {
 			return false
@@ -146,4 +148,21 @@ func PlacementGroupStrategyToEC2(strategy placementgroup.Strategy) ec2types.Plac
 		return string(crt) == string(strategy)
 	})
 	return resolvedType
+}
+
+type connectionTrackingCheck struct {
+	hasConnectionTracking bool
+}
+
+func connectionTrackingCompatibility(ct *v1.ConnectionTracking) CompatibleCheck {
+	return &connectionTrackingCheck{
+		hasConnectionTracking: ct != nil,
+	}
+}
+
+func (c connectionTrackingCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	if !c.hasConnectionTracking {
+		return true
+	}
+	return info.Hypervisor == "nitro"
 }

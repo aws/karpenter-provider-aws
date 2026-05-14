@@ -130,6 +130,31 @@ var _ = Describe("ConnectionTracking", func() {
 		}
 	})
 
+	It("should apply partial connection tracking settings", func() {
+		nodeClass.Spec.ConnectionTracking = &v1.ConnectionTracking{
+			TCPEstablishedTimeout: lo.ToPtr(int32(86400)),
+		}
+
+		pod := test.Pod()
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		instance := env.GetInstance(pod.Spec.NodeName)
+		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
+
+		primaryNI := instance.NetworkInterfaces[0]
+		niOutput, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{
+			NetworkInterfaceIds: []string{aws.ToString(primaryNI.NetworkInterfaceId)},
+		})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(niOutput.NetworkInterfaces).To(HaveLen(1))
+
+		ni := niOutput.NetworkInterfaces[0]
+		Expect(ni.ConnectionTrackingConfiguration).ToNot(BeNil())
+		Expect(aws.ToInt32(ni.ConnectionTrackingConfiguration.TcpEstablishedTimeout)).To(Equal(int32(86400)))
+	})
+
 	It("should not set connection tracking when not specified", func() {
 		pod := test.Pod()
 		env.ExpectCreated(pod, nodeClass, nodePool)

@@ -391,6 +391,8 @@ type MetadataOptions struct {
 // ENIs, and user-configured "interface" type network interfaces. EFA-only
 // interfaces are excluded. Secondary ENIs created at runtime by the CNI are
 // out of scope and must be configured through the CNI.
+// Connection tracking timeout configuration requires instances built on the
+// Nitro System (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances).
 // Idle connections left too long can exhaust the security group's connection
 // tracking table and lead to dropped packets.
 // +kubebuilder:validation:XValidation:message="at least one of tcpEstablishedTimeout, udpStreamTimeout, or udpTimeout must be set",rule="has(self.tcpEstablishedTimeout) || has(self.udpStreamTimeout) || has(self.udpTimeout)"
@@ -625,6 +627,10 @@ func (in *EC2NodeClass) InstanceStorePolicy() *InstanceStorePolicy {
 
 func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {
 	return in.Spec.NetworkInterfaces
+}
+
+func (in *EC2NodeClass) ConnectionTracking() *ConnectionTracking {
+	return in.Spec.ConnectionTracking
 }
 
 func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {

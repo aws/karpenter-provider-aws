@@ -1068,8 +1068,12 @@ Configure [Connection Tracking Timeouts](https://docs.aws.amazon.com/AWSEC2/late
 on the ENIs Karpenter provisions in the launch template: the primary ENI, any EFA ENIs, and user-configured `interface`
 type network interfaces. EFA-only (`efa-only`) interfaces do not receive connection tracking settings. Secondary ENIs
 created at runtime by your CNI (e.g. VPC-CNI, Cilium in ENI IPAM mode) are out of scope and must be configured through
-the CNI. For VPC-CNI, see [aws/amazon-vpc-cni-k8s#3618](https://github.com/aws/amazon-vpc-cni-k8s/pull/3618) for
-in-flight support.
+the CNI. For VPC-CNI, see [aws/amazon-vpc-cni-k8s#3666](https://github.com/aws/amazon-vpc-cni-k8s/pull/3666) for
+support replicating connection tracking settings to secondary ENIs.
+
+{{% alert title="Note" color="primary" %}}
+Connection tracking timeout configuration requires instances built on the [Nitro System](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances). When this field is set, Karpenter automatically excludes non-Nitro instance types from consideration.
+{{% /alert %}}
 
 Idle connections left too long can exhaust the security group's connection tracking table and lead to dropped packets.
 

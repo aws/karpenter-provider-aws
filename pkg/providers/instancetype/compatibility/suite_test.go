@@ -146,6 +146,26 @@ var _ = Describe("CompatibilityTest", func() {
 				&placementgroup.PlacementGroup{Strategy: placementgroup.StrategySpread}, false),
 		)
 	})
+	Context("ConnectionTrackingCompatibility", func() {
+		DescribeTable("should filter non-Nitro instances when ConnectionTracking is set",
+			func(hypervisor ec2types.InstanceTypeHypervisor, connTrack *v1.ConnectionTracking, expected bool) {
+				info := makeInstanceTypeInfo("", nil)
+				info.Hypervisor = hypervisor
+				nc := newMockNodeClass(v1.AMIFamilyAL2023, nil)
+				nc.connectionTracking = connTrack
+				result := compatibility.IsCompatibleWithNodeClass(info, nc, nil)
+				Expect(result).To(Equal(expected))
+			},
+			Entry("nitro instance with connection tracking", ec2types.InstanceTypeHypervisor("nitro"),
+				&v1.ConnectionTracking{TCPEstablishedTimeout: lo.ToPtr(int32(300))}, true),
+			Entry("non-nitro instance with connection tracking", ec2types.InstanceTypeHypervisor("xen"),
+				&v1.ConnectionTracking{TCPEstablishedTimeout: lo.ToPtr(int32(300))}, false),
+			Entry("non-nitro instance without connection tracking", ec2types.InstanceTypeHypervisor("xen"),
+				nil, true),
+			Entry("nitro instance without connection tracking", ec2types.InstanceTypeHypervisor("nitro"),
+				nil, true),
+		)
+	})
 })
 
 func newMockNodeClass(amiFamily string, networkInterfaces []*v1.NetworkInterface) *mockNodeClass {
@@ -156,8 +176,9 @@ func newMockNodeClass(amiFamily string, networkInterfaces []*v1.NetworkInterface
 }
 
 type mockNodeClass struct {
-	amiFamily         string
-	networkInterfaces []*v1.NetworkInterface
+	amiFamily          string
+	networkInterfaces  []*v1.NetworkInterface
+	connectionTracking *v1.ConnectionTracking
 }
 
 func (m mockNodeClass) AMIFamily() string {
@@ -166,6 +187,10 @@ func (m mockNodeClass) AMIFamily() string {
 
 func (m *mockNodeClass) NetworkInterfaces() []*v1.NetworkInterface {
 	return m.networkInterfaces
+}
+
+func (m *mockNodeClass) ConnectionTracking() *v1.ConnectionTracking {
+	return m.connectionTracking
 }
 
 func makeInstanceTypeInfo(instanceType string, networkInfo *ec2types.NetworkInfo) ec2types.InstanceTypeInfo {
