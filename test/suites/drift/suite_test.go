@@ -215,9 +215,7 @@ var _ = Describe("Drift", Ordered, func() {
 
 		// Clean up the temporary security group we created for these tests
 		DeferCleanup(func() {
-			_, _ = env.EC2API.DeleteSecurityGroup(env.Context, &ec2.DeleteSecurityGroupInput{
-				GroupId: testSecurityGroup.GroupId,
-			})
+			env.ExpectSecurityGroupDeleted(testSecurityGroup.GroupId)
 		})
 
 		By("creating a new provider with the new securitygroup")
