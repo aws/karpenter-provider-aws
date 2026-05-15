@@ -3063,7 +3063,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		Expect(awsEnv.ZonalShiftProvider.UpdateZonalShifts(ctx)).To(Succeed())
 
-		// after zonal shift, 2 offerings should be unavaialble
+		// after zonal shift, 2 offerings should be available
 		instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
 		Expect(err).ToNot(HaveOccurred())
 		m5InstanceType, ok = lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
