@@ -2289,6 +2289,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(instanceTypeNames.Has("m5.xlarge"))
 		})
 		It("should not return an offering when marking an offering as unavailable in the Insufficient Capacity Error Cache", func() {
+			// Allow spot — this test exercises spot ICE caching.
+			nodePool.Spec.Template.Spec.Requirements[0].Values = []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeSpot}
 			ExpectApplied(ctx, env.Client, nodeClass)
 
 			// Initial list of GetInstanceTypes
@@ -2350,6 +2352,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}))[0].Available).To(BeFalse())
 		})
 		It("should not return a capacity type when marking a capacity type as unavailable in the Insufficient Capacity Error Cache", func() {
+			// Allow spot — this test exercises spot ICE caching.
+			nodePool.Spec.Template.Spec.Requirements[0].Values = []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeSpot}
 			ExpectApplied(ctx, env.Client, nodeClass)
 
 			// Initial list of GetInstanceTypes
@@ -2813,6 +2817,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			ExpectUniqueInstanceTypeLists(list2, list3)
 		})
 		It("returning an ICE error only results in a cache miss for that instance type", func() {
+			// Allow spot — this test exercises spot ICE caching.
+			nodePool.Spec.Template.Spec.Requirements[0].Values = []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeSpot}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			// Initial list of GetInstanceTypes
 			list1, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
