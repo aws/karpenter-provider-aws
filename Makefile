@@ -70,6 +70,7 @@ test: ## Run tests
 	go test ./pkg/... \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./... \
 		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.skip="${SKIP}" \
 		--ginkgo.randomize-all \
 		--ginkgo.vv
 
@@ -77,6 +78,7 @@ deflake: ## Run randomized, racing tests until the test fails to catch flakes
 	ginkgo \
 		--race \
 		--focus="${FOCUS}" \
+		--skip="${SKIP}" \
 		--randomize-all \
 		--until-it-fails \
 		-v \
@@ -89,10 +91,11 @@ e2etests: ## Run the e2e suite against your local cluster
 		go test \
 		-p 1 \
 		-count 1 \
-		-timeout 3.5h \
+		-timeout 12h \
 		-v \
 		./suites/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... \
 		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.skip="${SKIP}" \
 		--ginkgo.timeout=3h20m \
 		--ginkgo.grace-period=3m \
 		--ginkgo.vv
@@ -101,10 +104,11 @@ upstream-e2etests: tidy download
 	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/default_ec2nodeclass.yaml > ${TMPFILE}
 	cd $(KARPENTER_CORE_DIR) && go test \
 		-count 1 \
-		-timeout 3.25h \
+		-timeout 12h \
 		-v \
 		./test/suites/regression/... \
 		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.skip="${SKIP}" \
 		--ginkgo.timeout=3h \
 		--ginkgo.grace-period=5m \
 		--ginkgo.vv \
@@ -114,6 +118,7 @@ upstream-e2etests: tidy download
 e2etests-deflake: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
 		--focus="${FOCUS}" \
+		--skip="${SKIP}" \
 		--timeout=3h \
 		--grace-period=3m \
 		--until-it-fails \
