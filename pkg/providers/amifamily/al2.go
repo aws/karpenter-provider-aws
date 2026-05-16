@@ -31,6 +31,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
+	"github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
@@ -42,6 +43,8 @@ type AL2 struct {
 
 func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
 	ids := map[string][]Variant{}
+	allNotFound := true
+	var lastErr error
 	for path, variants := range map[string][]Variant{
 		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/%s/image_id", k8sVersion, lo.Ternary(
 			amiVersion == v1.AliasVersionLatest,
@@ -64,15 +67,27 @@ func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k
 			IsMutable: amiVersion == v1.AliasVersionLatest,
 		})
 		if err != nil {
+			if !errors.IsNotFound(err) {
+				allNotFound = false
+				lastErr = err
+			}
 			continue
 		}
 		ids[imageID] = variants
 	}
-	// Failed to discover any AMIs, we should short circuit AMI discovery
+	// Failed to discover any AMIs. If every error was NotFound, the alias truly has no
+	// matching AMI and we short-circuit with a terminal AMIsNotDiscoveredForAliasError.
+	// If any error was transient (throttling, 5xx, timeout), return a non-typed error so
+	// the controller requeues without flipping AMIsReady to False.
 	if len(ids) == 0 {
-		return DescribeImageQuery{}, serrors.Wrap(&AMIsNotDiscoveredForAliasError{
-			error: fmt.Errorf("failed to discover any AMIs for alias"),
-		}, "alias", fmt.Sprintf("al2@%s", amiVersion))
+		if allNotFound {
+			return DescribeImageQuery{}, serrors.Wrap(&AMIsNotDiscoveredForAliasError{
+				error: fmt.Errorf("failed to discover any AMIs for alias"),
+			}, "alias", fmt.Sprintf("al2@%s", amiVersion))
+		}
+		return DescribeImageQuery{}, serrors.Wrap(
+			fmt.Errorf("resolving ssm parameters for alias: %w", lastErr),
+			"alias", fmt.Sprintf("al2@%s", amiVersion))
 	}
 
 	return DescribeImageQuery{
