@@ -1643,8 +1643,47 @@ requires that the field is only set to true when configuring an instance with a 
 
 This value is a integer field that controls how many ip prefixes will be assigned to `NodeClaim`. See the [EC2 Launch Template Network Interface Spec](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ec2-launchtemplate-networkinterface.html) for more information. Sets ipv4PrefixCount if you are using an IPv4 Cluster, or ipv6PrefixCount if you are using IPv6.
 
+## spec.outpostArn
+
+This optional field specifies the ARN of an [AWS Outpost](https://docs.aws.amazon.com/outposts/latest/userguide/what-is-outposts.html) to target for node provisioning. When set, Karpenter adjusts its behavior to operate within the constraints of Outpost hardware:
+
+- **Subnet filtering**: Only subnets associated with the specified Outpost are considered for node placement.
+- **Instance type discovery**: Karpenter calls `DescribeInstanceTypeOfferings` with `LocationType=outpost` to discover which instance types are available on the Outpost. Only those types are used for scheduling decisions.
+- **Capacity type**: Spot instances are not available on Outposts. Karpenter automatically restricts provisioning to on-demand capacity when `outpostArn` is set.
+- **EBS volume defaults**: First-generation Outposts support only `gp2` EBS volumes, while second-generation Outposts support `gp3`. When no explicit `spec.blockDeviceMappings` are configured, Karpenter overrides the default `gp3` volume type to `gp2` for root volumes on first-generation Outposts.
+
+When `outpostArn` is not set, all behavior remains unchanged.
+
+{{% alert title="Note" color="primary" %}}
+Outpost instance type offerings are cached with a 5-minute TTL. If you add new instance types to your Outpost, Karpenter will discover them within 5 minutes.
+{{% /alert %}}
+
+{{% alert title="Important" color="warning" %}}
+The subnets selected by `spec.subnetSelectorTerms` must include at least one subnet on the specified Outpost. No additional IAM permissions are required beyond the existing `ec2:DescribeInstanceTypeOfferings` permission that Karpenter already uses for regional instance type discovery.
+{{% /alert %}}
+
+#### Examples
+
+Target a specific Outpost for all nodes provisioned by this EC2NodeClass:
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: outpost
+spec:
+  outpostArn: arn:aws:outposts:us-west-2:123456789012:outpost/op-1234567890abcdef0
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  role: "KarpenterNodeRole-${CLUSTER_NAME}"
+```
+
 ## status.subnets
-[`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
+[`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order. When [`spec.outpostArn`]({{< ref "#specoutpostarn" >}}) is set, each subnet entry also includes an `outpostArn` field indicating which Outpost the subnet is associated with.
 
 #### Examples
 
