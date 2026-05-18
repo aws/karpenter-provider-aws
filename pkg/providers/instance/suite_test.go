@@ -140,6 +140,7 @@ var _ = Describe("InstanceProvider", func() {
 		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
 		Expect(err).To(HaveOccurred())
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(err.Error()).To(ContainSubstring("truncating instance types"))
 		Expect(instance).To(BeNil())
 	})
 	It("should return an ICE error when all attempted instance types return an ICE error", func() {
