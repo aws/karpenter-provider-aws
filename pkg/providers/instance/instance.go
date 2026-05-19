@@ -325,7 +325,7 @@ func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes
 	}
 	instanceTypes, err := cloudprovider.InstanceTypes(instanceTypes).Truncate(ctx, reqs, maxInstanceTypes)
 	if err != nil {
-		return nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeFilteringFailed", "Error truncating instance types based on the passed-in requirements")
+		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("truncating instance types based on the passed-in requirements, %w", err))
 	}
 	return instanceTypes, nil
 }
@@ -455,8 +455,18 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(
 	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	requirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType)
 	for _, launchTemplate := range launchTemplates {
+		// When a LT is zone-scoped, restrict overrides to only that zone so
+		// fleet doesn't attempt a cross-AZ launch.
+		effectiveSubnets := zonalSubnets
+		if launchTemplate.Zone != "" {
+			if s, ok := zonalSubnets[launchTemplate.Zone]; ok {
+				effectiveSubnets = map[string]*subnet.Subnet{launchTemplate.Zone: s}
+			} else {
+				continue
+			}
+		}
 		launchTemplateConfig := ec2types.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID),
+			Overrides: p.getOverrides(launchTemplate.InstanceTypes, effectiveSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID),
 			LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplate.Name),
 				Version:            aws.String("$Latest"),

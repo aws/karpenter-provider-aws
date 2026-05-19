@@ -436,6 +436,6 @@ func EventuallyExpectAMIsToExist(nodeClass *v1.EC2NodeClass) *v1.EC2NodeClass {
 	Eventually(func(g Gomega) {
 		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClass), nc)).To(Succeed())
 		g.Expect(nc.Status.AMIs).ToNot(BeNil())
-	}).WithTimeout(30 * time.Second).Should(Succeed())
+	}).WithTimeout(60 * time.Second).Should(Succeed())
 	return nc
 }

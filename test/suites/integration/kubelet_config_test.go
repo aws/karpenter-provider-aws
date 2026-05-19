@@ -86,7 +86,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		})
 		DescribeTable("Linux AMIFamilies",
 			func(alias string) {
-				if strings.Contains(alias, "al2") && env.K8sMinorVersion() > 32 {
+				if strings.HasPrefix(alias, "al2@") && env.K8sMinorVersion() > 32 {
 					Skip("AL2 is not supported on versions > 1.32")
 				}
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}

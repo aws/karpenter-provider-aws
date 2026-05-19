@@ -292,7 +292,7 @@ func (v *Validation) validateRunInstancesAuthorization(
 	// failures on individual subnets are already handled by the early-exit-on-success pattern.
 	var firstSubnetErr error
 	for i, subnet := range nodeClass.Status.Subnets {
-		runInstancesInput := getRunInstancesInput(tags, launchTemplate, nodeClass.NetworkInterfaces(), &subnet)
+		runInstancesInput := getRunInstancesInput(tags, launchTemplate, amifamily.ResolveNetworkInterfaces(nodeClass.Spec.NetworkInterfaces), &subnet)
 		if _, err = v.ec2api.RunInstances(ctx, runInstancesInput, func(o *ec2.Options) {
 			// Adding NopRetryer to avoid aggressive retry when rate limited
 			o.Retryer = aws.NopRetryer{}
@@ -365,7 +365,7 @@ func (v *Validation) clearCacheEntries(nodeClass *v1.EC2NodeClass) {
 func getRunInstancesInput(
 	tags map[string]string,
 	launchTemplate *launchtemplate.LaunchTemplate,
-	networkInterfaces []*v1.NetworkInterface,
+	networkInterfaces []*amifamily.ResolvedNetworkInterface,
 	subnet *v1.Subnet,
 ) *ec2.RunInstancesInput {
 	return &ec2.RunInstancesInput{
@@ -536,7 +536,7 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 	return selectedInstanceTypes
 }
 
-func getNetworkInterfacesInput(ncNetworkInterfaces []*v1.NetworkInterface, subnet *v1.Subnet) []ec2types.InstanceNetworkInterfaceSpecification {
+func getNetworkInterfacesInput(ncNetworkInterfaces []*amifamily.ResolvedNetworkInterface, subnet *v1.Subnet) []ec2types.InstanceNetworkInterfaceSpecification {
 	defaultInterface := []ec2types.InstanceNetworkInterfaceSpecification{
 		{
 			DeviceIndex: lo.ToPtr[int32](0),
@@ -545,7 +545,7 @@ func getNetworkInterfacesInput(ncNetworkInterfaces []*v1.NetworkInterface, subne
 	}
 	networkInterfaces := lo.Ternary(ncNetworkInterfaces == nil,
 		defaultInterface,
-		lo.Map(ncNetworkInterfaces, func(networkInterface *v1.NetworkInterface, _ int) ec2types.InstanceNetworkInterfaceSpecification {
+		lo.Map(ncNetworkInterfaces, func(networkInterface *amifamily.ResolvedNetworkInterface, _ int) ec2types.InstanceNetworkInterfaceSpecification {
 			return ec2types.InstanceNetworkInterfaceSpecification{
 				NetworkCardIndex: lo.ToPtr(networkInterface.NetworkCardIndex),
 				DeviceIndex:      lo.ToPtr(networkInterface.DeviceIndex),
