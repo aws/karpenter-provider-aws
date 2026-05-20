@@ -511,7 +511,7 @@ For the cluster that will be created (`arn:${AWS::Partition}:eks:${AWS::Region}:
   ],
   "Condition": {
     "StringEquals": {
-      "aws:ResourceIdentifier": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
+      "arc-zonal-shift:ResourceIdentifier": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
     }
   }
 }
