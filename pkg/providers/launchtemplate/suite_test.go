@@ -2587,6 +2587,175 @@ eviction-max-pod-grace-period = 10
 			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].PrimaryIpv6)).To(Equal(false))
 			Expect(input.LaunchTemplateData.NetworkInterfaces[1].Ipv6AddressCount).To(BeNil())
 		})
+		DescribeTable("ResolvedNetworkInterface fields",
+			func(setup func(*amifamily.LaunchTemplate), ipFamily corev1.IPFamily, assertFn func(*ec2.CreateLaunchTemplateInput)) {
+				opts := &amifamily.LaunchTemplate{
+					Options: &amifamily.Options{
+						SecurityGroups: []v1.SecurityGroup{{ID: "sg-default1"}, {ID: "sg-default2"}},
+						IPPrefixCount:  lo.ToPtr(int32(1)),
+					},
+					MetadataOptions: &v1.MetadataOptions{
+						HTTPEndpoint:            lo.ToPtr("enabled"),
+						HTTPProtocolIPv6:        lo.ToPtr("disabled"),
+						HTTPPutResponseHopLimit: lo.ToPtr(int64(2)),
+						HTTPTokens:              lo.ToPtr("required"),
+					},
+				}
+				setup(opts)
+				input := launchtemplate.NewCreateLaunchTemplateInputBuilder(opts, ipFamily, "").Build(ctx)
+				assertFn(input)
+			},
+			Entry("should use SecondaryIPPrefixCount over IPPrefixCount for IPv4",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SecondaryIPPrefixCount: lo.ToPtr(int32(5))},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv4PrefixCount)).To(Equal(int32(5)))
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6PrefixCount).To(BeNil())
+				},
+			),
+			Entry("should fall back to IPPrefixCount when SecondaryIPPrefixCount is nil for IPv4",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv4PrefixCount)).To(Equal(int32(1)))
+				},
+			),
+			Entry("should use SecondaryIPPrefixCount over IPPrefixCount for IPv6",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SecondaryIPPrefixCount: lo.ToPtr(int32(4))},
+					}
+				},
+				corev1.IPv6Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6PrefixCount)).To(Equal(int32(4)))
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].Ipv4PrefixCount).To(BeNil())
+				},
+			),
+			Entry("should set SecondaryPrivateIpAddressCount from SecondaryIPCount for IPv4",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SecondaryIPCount: lo.ToPtr(int32(10))},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].SecondaryPrivateIpAddressCount)).To(Equal(int32(10)))
+				},
+			),
+			Entry("should set Ipv6AddressCount from SecondaryIPCount for IPv6",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SecondaryIPCount: lo.ToPtr(int32(7))},
+					}
+				},
+				corev1.IPv6Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6AddressCount)).To(Equal(int32(7)))
+				},
+			),
+			Entry("should default Ipv6AddressCount to 1 when SecondaryIPCount is nil for IPv6",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					}
+				},
+				corev1.IPv6Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6AddressCount)).To(Equal(int32(1)))
+				},
+			),
+			Entry("should use SecondaryENISecurityGroups on non-primary interface",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+						{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SecondaryENISecurityGroups: []v1.SecurityGroup{{ID: "sg-sec1"}}},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].Groups).To(Equal([]string{"sg-default1", "sg-default2"}))
+					Expect(input.LaunchTemplateData.NetworkInterfaces[1].Groups).To(Equal([]string{"sg-sec1"}))
+				},
+			),
+			Entry("should ignore SecondaryENISecurityGroups on primary interface",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SecondaryENISecurityGroups: []v1.SecurityGroup{{ID: "sg-should-ignore"}}},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].Groups).To(Equal([]string{"sg-default1", "sg-default2"}))
+				},
+			),
+			Entry("should use SecondaryENISecurityGroups on non-primary by device index",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeInterface, SecondaryENISecurityGroups: []v1.SecurityGroup{{ID: "sg-sec1"}}},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].Groups).To(Equal([]string{"sg-sec1"}))
+				},
+			),
+			Entry("should set SubnetId when SubnetID is configured",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SubnetID: "subnet-custom"},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].SubnetId)).To(Equal("subnet-custom"))
+				},
+			),
+			Entry("should leave SubnetId nil when SubnetID is empty",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].SubnetId).To(BeNil())
+				},
+			),
+			Entry("should not set IP counts on EFA-only interfaces",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly, SecondaryIPPrefixCount: lo.ToPtr(int32(5)), SecondaryIPCount: lo.ToPtr(int32(3))},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].Ipv4PrefixCount).To(BeNil())
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6PrefixCount).To(BeNil())
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].SecondaryPrivateIpAddressCount).To(BeNil())
+				},
+			),
+			Entry("should not set AssociatePublicIpAddress on EFA-only interfaces",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.AssociatePublicIPAddress = lo.ToPtr(true)
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeNil())
+				},
+			),
+		)
 	})
 	Context("Tenancy", func() {
 		DescribeTable("should set tenancy on launch template",
