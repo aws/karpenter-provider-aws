@@ -233,6 +233,8 @@ If you are upgrading an existing Karpenter installation to v1.12.0+ and want to 
     }
     ```
 
+    Karpenter also requires permission for `eks:DescribeCluster` when Zonal Shift is enabled. The standard onboarding's `KarpenterControllerEKSIntegrationPolicy` already grants this; if you manage IAM manually, make sure the controller role has `eks:DescribeCluster` on the cluster resource.
+
 2. **Enable Zonal Shift on the EKS cluster** if not already enabled:
 
     ```bash
