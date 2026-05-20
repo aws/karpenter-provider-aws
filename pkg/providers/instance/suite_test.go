@@ -123,6 +123,26 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
+	It("should return an ICE error when instance type truncation fails minValues validation", func() {
+		// Set minValues on topology zone higher than available zones (3) so Truncate fails
+		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			{
+				Key:       corev1.LabelTopologyZone,
+				Operator:  corev1.NodeSelectorOpExists,
+				MinValues: lo.ToPtr(50),
+			},
+		}
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(HaveOccurred())
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(err.Error()).To(ContainSubstring("truncating instance types"))
+		Expect(instance).To(BeNil())
+	})
 	It("should return an ICE error when all attempted instance types return an ICE error", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)

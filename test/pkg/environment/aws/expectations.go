@@ -768,6 +768,15 @@ func (env *Environment) ExpectNodeRoleDeleted(roleName string) {
 	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
 }
 
+func (env *Environment) ExpectSecurityGroupDeleted(groupID *string) {
+	GinkgoHelper()
+	By("deleting security group created for test")
+	_, err := env.EC2API.DeleteSecurityGroup(env.Context, &ec2.DeleteSecurityGroupInput{
+		GroupId: groupID,
+	})
+	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
+}
+
 func (env *Environment) ExpectEFADevicePluginCreated() {
 	GinkgoHelper()
 	env.ExpectCreated(&appsv1.DaemonSet{
