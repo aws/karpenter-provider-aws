@@ -514,12 +514,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				{DetailedMonitoring: true},
 				{EFACount: 12},
 				{CapacityType: "spot"},
+				{NetworkPerformanceOptions: &v1.NetworkPerformanceOptions{BandwidthWeighting: lo.ToPtr("vpc-1")}},
 			}
 			launchtemplateResult := []string{}
 			for _, lt := range launchtemplates {
 				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
 			}
-			Expect(len(launchtemplateResult)).To(BeNumerically("==", 6))
+			Expect(len(launchtemplateResult)).To(BeNumerically("==", 7))
 			Expect(lo.Uniq(launchtemplateResult)).To(Equal(launchtemplateResult))
 		})
 		It("should not generate different launch template names based on instance types", func() {
@@ -2413,6 +2414,43 @@ eviction-max-pod-grace-period = 10
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(aws.ToBool(ltInput.LaunchTemplateData.Monitoring.Enabled)).To(BeTrue())
+			})
+		})
+	})
+	Context("Network Performance Options", func() {
+		It("should not set network performance options by default", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.NetworkPerformanceOptions).To(BeNil())
+			})
+		})
+		It("should set bandwidth weighting to vpc-1 when specified", func() {
+			nodeClass.Spec.NetworkPerformanceOptions = &v1.NetworkPerformanceOptions{
+				BandwidthWeighting: lo.ToPtr("vpc-1"),
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.NetworkPerformanceOptions).ToNot(BeNil())
+				Expect(ltInput.LaunchTemplateData.NetworkPerformanceOptions.BandwidthWeighting).To(Equal(ec2types.InstanceBandwidthWeighting("vpc-1")))
+			})
+		})
+		It("should set bandwidth weighting to ebs-1 when specified", func() {
+			nodeClass.Spec.NetworkPerformanceOptions = &v1.NetworkPerformanceOptions{
+				BandwidthWeighting: lo.ToPtr("ebs-1"),
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.NetworkPerformanceOptions).ToNot(BeNil())
+				Expect(ltInput.LaunchTemplateData.NetworkPerformanceOptions.BandwidthWeighting).To(Equal(ec2types.InstanceBandwidthWeighting("ebs-1")))
 			})
 		})
 	})

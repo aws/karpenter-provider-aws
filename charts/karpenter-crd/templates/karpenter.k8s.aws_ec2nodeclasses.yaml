@@ -551,6 +551,23 @@ spec:
                       rule: self.size() == 0 || self.exists(x, x.deviceIndex == 0 && x.networkCardIndex == 0 && x.interfaceType == 'interface')
                     - message: networkInterfaces must not have duplicate networkCardIndex and deviceIndex pairs, and can have at most one efa device per network card
                       rule: self.all(x, self.filter(y, x.networkCardIndex == y.networkCardIndex && x.deviceIndex == y.deviceIndex).size() == 1 && (x.interfaceType != 'efa-only' || self.filter(y, x.networkCardIndex == y.networkCardIndex && y.interfaceType == 'efa-only').size() == 1))
+                networkPerformanceOptions:
+                  description: |-
+                    NetworkPerformanceOptions configures the network performance options for instances
+                    launched with this EC2NodeClass. Allows configuring bandwidth weighting between
+                    networking and EBS for supported 8th-gen instance types (M8, C8, R8, X8 families).
+                  properties:
+                    bandwidthWeighting:
+                      description: |-
+                        BandwidthWeighting configures bandwidth weighting for the instance.
+                        vpc-1 increases networking baseline bandwidth and decreases EBS baseline bandwidth.
+                        ebs-1 increases EBS baseline bandwidth and decreases networking baseline bandwidth.
+                      enum:
+                        - default
+                        - vpc-1
+                        - ebs-1
+                      type: string
+                  type: object
                 placementGroupSelector:
                   description: PlacementGroupSelector defines the name or the id of the placement to resolve with the nodeclass.
                   properties:

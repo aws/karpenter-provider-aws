@@ -151,6 +151,11 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":1,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
+	// NetworkPerformanceOptions configures the network performance options for instances
+	// launched with this EC2NodeClass. Allows configuring bandwidth weighting between
+	// networking and EBS for supported 8th-gen instance types (M8, C8, R8, X8 families).
+	// +optional
+	NetworkPerformanceOptions *NetworkPerformanceOptions `json:"networkPerformanceOptions,omitempty"`
 	// Context is a Reserved field in EC2 APIs
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
@@ -377,6 +382,17 @@ type MetadataOptions struct {
 	// +kubebuilder:validation:Enum:={required,optional}
 	// +optional
 	HTTPTokens *string `json:"httpTokens,omitempty"`
+}
+
+// NetworkPerformanceOptions contains the network performance options for the launch template.
+// Supported on 8th-gen instance types (M8, C8, R8, X8 families).
+type NetworkPerformanceOptions struct {
+	// BandwidthWeighting configures bandwidth weighting for the instance.
+	// vpc-1 increases networking baseline bandwidth and decreases EBS baseline bandwidth.
+	// ebs-1 increases EBS baseline bandwidth and decreases networking baseline bandwidth.
+	// +kubebuilder:validation:Enum:={"default","vpc-1","ebs-1"}
+	// +optional
+	BandwidthWeighting *string `json:"bandwidthWeighting,omitempty"`
 }
 
 type BlockDeviceMapping struct {
