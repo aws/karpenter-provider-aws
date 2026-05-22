@@ -223,6 +223,18 @@ var _ = Describe("AMI", func() {
 				if strings.HasPrefix(alias, "al2@") && env.K8sMinorVersion() > 32 {
 					Skip("AL2 is not supported on versions > 1.32")
 				}
+				amiParts := strings.SplitN(alias, "@", 2)
+				amiFamily := amiParts[0]
+				amiVersion := amiParts[1]
+				if amiVersion == "pinned-with-v" || amiVersion == "pinned-without-v" {
+					amiAlias := env.GetPinnedAMIVersion(amiFamily)
+					if amiVersion == "pinned-without-v" {
+						amiAlias = strings.TrimPrefix(amiAlias, "v")
+					} else if amiVersion == "pinned-with-v" && !strings.HasPrefix(amiAlias, "v") {
+						amiAlias = "v" + amiAlias
+					}
+					alias = fmt.Sprintf("%s@%s", amiFamily, amiAlias)
+				}
 				pod := coretest.Pod()
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
 				env.ExpectCreated(nodeClass, nodePool, pod)
@@ -230,12 +242,12 @@ var _ = Describe("AMI", func() {
 				env.ExpectCreatedNodeCount("==", 1)
 			},
 			Entry("AL2023 (latest)", "al2023@latest"),
-			Entry("AL2023 (pinned)", "al2023@v20250116"),
+			Entry("AL2023 (pinned)", "al2023@pinned-with-v"),
 			Entry("AL2 (latest)", "al2@latest"),
-			Entry("AL2 (pinned)", "al2@v20250116"),
+			Entry("AL2 (pinned)", "al2@pinned-with-v"),
 			Entry("Bottlerocket (latest)", "bottlerocket@latest"),
-			Entry("Bottlerocket (pinned with v prefix)", "bottlerocket@v1.53.0"),
-			Entry("Bottlerocket (pinned without v prefix)", "bottlerocket@1.53.0"),
+			Entry("Bottlerocket (pinned with v prefix)", "bottlerocket@pinned-with-v"),
+			Entry("Bottlerocket (pinned without v prefix)", "bottlerocket@pinned-without-v"),
 		)
 		It("should support Custom AMIFamily with AMI Selectors", func() {
 			al2023AMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
