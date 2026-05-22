@@ -325,7 +325,7 @@ func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes
 	}
 	instanceTypes, err := cloudprovider.InstanceTypes(instanceTypes).Truncate(ctx, reqs, maxInstanceTypes)
 	if err != nil {
-		return nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeFilteringFailed", "Error truncating instance types based on the passed-in requirements")
+		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("truncating instance types based on the passed-in requirements, %w", err))
 	}
 	return instanceTypes, nil
 }
