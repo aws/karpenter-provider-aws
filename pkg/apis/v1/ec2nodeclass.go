@@ -151,6 +151,13 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":1,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
+
+	// ConnectionTracking configures idle connection tracking timeouts for
+	// ENIs Karpenter provisions in the launch template. EFA-only interfaces
+	// are excluded. See ConnectionTracking.
+	// +optional
+	ConnectionTracking *ConnectionTracking `json:"connectionTracking,omitempty"`
+
 	// Context is a Reserved field in EC2 APIs
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
@@ -379,6 +386,45 @@ type MetadataOptions struct {
 	HTTPTokens *string `json:"httpTokens,omitempty"`
 }
 
+// ConnectionTracking configures idle connection tracking timeouts on ENIs
+// provisioned by Karpenter in the launch template: the primary ENI, any EFA
+// ENIs, and user-configured "interface" type network interfaces. EFA-only
+// interfaces are excluded. Secondary ENIs created at runtime by the CNI are
+// out of scope and must be configured through the CNI.
+// Connection tracking timeout configuration requires instances built on the
+// Nitro System (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances).
+// Idle connections left too long can exhaust the security group's connection
+// tracking table and lead to dropped packets.
+// +kubebuilder:validation:XValidation:message="at least one of tcpEstablishedTimeout, udpStreamTimeout, or udpTimeout must be set",rule="has(self.tcpEstablishedTimeout) || has(self.udpStreamTimeout) || has(self.udpTimeout)"
+type ConnectionTracking struct {
+	// TCPEstablishedTimeout is the timeout (in seconds) for idle TCP connections
+	// in an established state.
+	// Value must be between 60 and 432,000 (5 days).
+	// If unset, EC2 applies its default which is 350 seconds for Nitro v6
+	// instance types (excluding P6e-GB200) and 432,000 seconds for other
+	// instance types.
+	// +kubebuilder:validation:Minimum:=60
+	// +kubebuilder:validation:Maximum:=432000
+	// +optional
+	TCPEstablishedTimeout *int32 `json:"tcpEstablishedTimeout,omitempty"`
+	// UDPStreamTimeout is the timeout (in seconds) for idle UDP "stream" flows
+	// that have seen more than one request-response transaction.
+	// Value must be between 60 and 180.
+	// If unset, EC2 applies its default of 180 seconds.
+	// +kubebuilder:validation:Minimum:=60
+	// +kubebuilder:validation:Maximum:=180
+	// +optional
+	UDPStreamTimeout *int32 `json:"udpStreamTimeout,omitempty"`
+	// UDPTimeout is the timeout (in seconds) for idle UDP flows that have seen
+	// traffic only in a single direction or a single request-response transaction.
+	// Value must be between 30 and 60.
+	// If unset, EC2 applies its default of 30 seconds.
+	// +kubebuilder:validation:Minimum:=30
+	// +kubebuilder:validation:Maximum:=60
+	// +optional
+	UDPTimeout *int32 `json:"udpTimeout,omitempty"`
+}
+
 type BlockDeviceMapping struct {
 	// The device name (for example, /dev/sdh or xvdh).
 	// +optional
@@ -581,6 +627,10 @@ func (in *EC2NodeClass) InstanceStorePolicy() *InstanceStorePolicy {
 
 func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {
 	return in.Spec.NetworkInterfaces
+}
+
+func (in *EC2NodeClass) ConnectionTracking() *ConnectionTracking {
+	return in.Spec.ConnectionTracking
 }
 
 func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {

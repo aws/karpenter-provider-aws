@@ -52,6 +52,7 @@ type NodeClass interface {
 	NetworkInterfaces() []*v1.NetworkInterface
 	AMIFamily() string
 	PlacementGroupSelector() *v1.PlacementGroupSelector
+	ConnectionTracking() *v1.ConnectionTracking
 }
 
 type DefaultProvider struct {
@@ -321,8 +322,11 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		hashstructure.FormatV2,
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
+
+	connectionTrackingHash, _ := hashstructure.Hash(nodeClass.ConnectionTracking() != nil, hashstructure.FormatV2, nil)
+
 	return fmt.Sprintf(
-		"%s-%016x-%016x-%016x-%016x-%016x-%016x",
+		"%s-%016x-%016x-%016x-%016x-%016x-%016x-%016x",
 		it.Name,
 		zonesHash,
 		capacityTypesHash,
@@ -330,5 +334,6 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		subnetsHash,
 		placementGroupPartitionsHash,
 		shiftedZonesHash,
+		connectionTrackingHash,
 	)
 }
