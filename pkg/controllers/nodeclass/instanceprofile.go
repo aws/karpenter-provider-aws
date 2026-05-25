@@ -17,6 +17,7 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/patrickmn/go-cache"
@@ -59,6 +60,7 @@ func (ip *InstanceProfile) protectProfile(profile string) {
 func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if nodeClass.Spec.Role != "" {
 		var currentRole string
+		var currentProfileIsManaged bool
 		oldProfileName := nodeClass.Status.InstanceProfile
 		// Use a short-lived cache to prevent instance profile recreation for the same role in the same EC2NodeClass
 		// in case of a status patch error in the EC2NodeClass controller
@@ -73,13 +75,19 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 				if !awserrors.IsNotFound(err) {
 					return reconcile.Result{}, fmt.Errorf("getting instance profile %s, %w", nodeClass.Status.InstanceProfile, err)
 				}
-			} else if len(profile.Roles) > 0 {
-				currentRole = lo.FromPtr(profile.Roles[0].RoleName)
+			} else {
+				managedPathPrefix := instanceprofile.FormatPath("karpenter", ip.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))
+				currentProfileIsManaged = strings.HasPrefix(lo.FromPtr(profile.Path), managedPathPrefix) ||
+					nodeClass.Status.InstanceProfile == nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
+				if currentProfileIsManaged && len(profile.Roles) > 0 {
+					currentRole = lo.FromPtr(profile.Roles[0].RoleName)
+				}
 			}
 		}
 
-		// If role has changed, create new profile
-		if currentRole != nodeClass.Spec.Role {
+		// Create a new managed profile if status references a user-managed profile or the
+		// role on the current managed profile differs from spec.role.
+		if !currentProfileIsManaged || currentRole != nodeClass.Spec.Role {
 			// Generate new profile name
 			newProfileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
 
