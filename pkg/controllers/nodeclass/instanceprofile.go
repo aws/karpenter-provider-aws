@@ -17,6 +17,7 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -55,6 +56,11 @@ func (ip *InstanceProfile) protectProfile(profile string) {
 func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if nodeClass.Spec.Role != "" {
 		var currentRole string
+		// managed is true when status.InstanceProfile points to a profile karpenter owns
+		// (identified by the karpenter IAM path prefix). When migrating from spec.instanceProfile
+		// to spec.role, status.InstanceProfile still holds the user's static profile name, which
+		// is not managed and must be replaced. See #9028.
+		var managed bool
 		oldProfileName := nodeClass.Status.InstanceProfile
 		// Use a short-lived cache to prevent instance profile recreation for the same role in the same EC2NodeClass
 		// in case of a status patch error in the EC2NodeClass controller
@@ -69,13 +75,18 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 				if !awserrors.IsNotFound(err) {
 					return reconcile.Result{}, fmt.Errorf("getting instance profile %s, %w", nodeClass.Status.InstanceProfile, err)
 				}
-			} else if len(profile.Roles) > 0 {
-				currentRole = lo.FromPtr(profile.Roles[0].RoleName)
+			} else {
+				managedPrefix := instanceprofile.FormatPath("karpenter", ip.region, options.FromContext(ctx).ClusterName)
+				managed = strings.HasPrefix(lo.FromPtr(profile.Path), managedPrefix)
+				if managed && len(profile.Roles) > 0 {
+					currentRole = lo.FromPtr(profile.Roles[0].RoleName)
+				}
 			}
 		}
 
-		// If role has changed, create new profile
-		if currentRole != nodeClass.Spec.Role {
+		// Create a new managed profile if we don't already own one, or if the role on the
+		// owned profile differs from the requested spec.role.
+		if !managed || currentRole != nodeClass.Spec.Role {
 			// Generate new profile name
 			newProfileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
 
