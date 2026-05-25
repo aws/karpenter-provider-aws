@@ -228,7 +228,7 @@ See [nodeSelector](https://kubernetes.io/docs/concepts/scheduling-eviction/assig
 
 Karpenter is aware of preferences (node affinity, pod affinity, pod anti-affinity, and pod topology) and treats them as requirements in most circumstances. Karpenter uses these preferences when determining if a pod can schedule on a node (absent topology requirements), or when determining if a pod can be shifted to a new node.
 
-Karpenter starts by treating preferred affinities as required affinities when constructing requirements for a pod. When these requirements cannot be met, the pod's preferences are relaxed one-at-a-time by ascending weight (lowest weight is relaxed first), and the remaining requirements are tried again.
+Karpenter starts by treating preferred affinities as required affinities when constructing requirements for a pod. When these requirements cannot be met, the pod's preferences are relaxed one-at-a-time by descending weight (highest weight is relaxed first), and the remaining requirements are tried again.
 
 {{% alert title="Warning" color="warning" %}}
 Karpenter does not interpret preferred affinities as required when constructing topology requirements for scheduling to a node. If these preferences are necessary, required affinities should be used [as documented in Node Affinity](#node-affinity).
