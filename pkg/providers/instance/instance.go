@@ -466,7 +466,7 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(
 			}
 		}
 		launchTemplateConfig := ec2types.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(launchTemplate.InstanceTypes, effectiveSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID),
+			Overrides: p.getOverrides(launchTemplate.InstanceTypes, effectiveSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID, launchTemplate.Zone != ""),
 			LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplate.Name),
 				Version:            aws.String("$Latest"),
@@ -489,6 +489,7 @@ func (p *DefaultProvider) getOverrides(
 	zonalSubnets map[string]*subnet.Subnet,
 	reqs scheduling.Requirements,
 	image, capacityReservationID string,
+	skipSubnetInOverrides bool,
 ) []ec2types.FleetLaunchTemplateOverridesRequest {
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
@@ -536,7 +537,7 @@ func (p *DefaultProvider) getOverrides(
 		}
 		overrides = append(overrides, ec2types.FleetLaunchTemplateOverridesRequest{
 			InstanceType: offering.parentInstanceTypeName,
-			SubnetId:     lo.ToPtr(subnet.ID),
+			SubnetId:     lo.Ternary(!skipSubnetInOverrides, lo.ToPtr(subnet.ID), nil),
 			ImageId:      lo.ToPtr(image),
 			// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
 			// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
