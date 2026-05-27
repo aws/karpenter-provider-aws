@@ -92,7 +92,8 @@ type LaunchTemplate struct {
 	PlacementGroupID                 string
 	PlacementGroupPartition          int32
 	// Zone constrains fleet overrides to a single AZ when set.
-	Zone string `hash:"ignore"`
+	Zone               string `hash:"ignore"`
+	ConnectionTracking *v1.ConnectionTracking
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -333,6 +334,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			Tenancy:                          tenancyType,
 			PlacementGroupID:                 placementGroupID,
 			PlacementGroupPartition:          placementGroupPartition,
+			ConnectionTracking:               nodeClass.Spec.ConnectionTracking,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
