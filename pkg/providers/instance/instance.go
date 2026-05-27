@@ -456,8 +456,8 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(
 	requirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType)
 	for _, launchTemplate := range launchTemplates {
 		// When a LT is zone-scoped, restrict overrides to only that zone so
-		// fleet doesn't attempt a cross-AZ launch. The override for subnets,
-		// is also removed, the ENIs in thelaunch template must declar this field.
+		// fleet doesn't attempt a cross-AZ launch. The override for subnets is
+		// also removed as the ENIs in the launch template must declare this field.
 		effectiveSubnets := zonalSubnets
 		if launchTemplate.Zone != "" {
 			if s, ok := zonalSubnets[launchTemplate.Zone]; ok {
