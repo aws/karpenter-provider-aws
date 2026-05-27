@@ -153,6 +153,11 @@ controller:
   #  limits:
   #    cpu: 1
   #    memory: 1Gi
+  # -- Override the MEMORY_LIMIT env var (in bytes). GOMEMLIMIT is set to 90% of this value.
+  # Set to "" (default) to use the container's limits.memory automatically.
+  # Set to "-1" to disable GOMEMLIMIT entirely.
+  memoryLimit: ""
+
   # -- Additional volumeMounts for the controller container.
   extraVolumeMounts: []
   # - name: aws-iam-token
