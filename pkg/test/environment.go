@@ -115,7 +115,7 @@ type Environment struct {
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
 	// Mock
-	clock := &clock.FakeClock{}
+	clock := clock.NewFakeClock(time.Now())
 	store := nodeoverlay.NewInstanceTypeStore()
 
 	// API
@@ -260,7 +260,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 }
 
 func (env *Environment) Reset() {
-	env.Clock.SetTime(time.Time{})
+	env.Clock.SetTime(time.Now())
 	env.EC2API.Reset()
 	env.EKSAPI.Reset()
 	env.SSMAPI.Reset()

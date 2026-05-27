@@ -20,9 +20,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -79,10 +81,12 @@ type Validation struct {
 	instanceTypeProvider   instancetype.Provider
 	launchTemplateProvider launchtemplate.Provider
 	cache                  *cache.Cache
+	clk                    clock.Clock
 	dryRunDisabled         bool
 }
 
 func NewValidationReconciler(
+	clk clock.Clock,
 	kubeClient client.Client,
 	cloudProvider cloudprovider.CloudProvider,
 	ec2api sdk.EC2API,
@@ -100,6 +104,7 @@ func NewValidationReconciler(
 		instanceTypeProvider:   instanceTypeProvider,
 		launchTemplateProvider: launchTemplateProvider,
 		cache:                  cache,
+		clk:                    clk,
 		dryRunDisabled:         dryRunDisabled,
 	}
 }
@@ -114,7 +119,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			if awserrors.IsServerError(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
-			nodeClass.StatusConditions().SetFalse(
+			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 				v1.ConditionTypeValidationSucceeded,
 				"ClusterCIDRResolutionFailed",
 				"Failed to detect the cluster CIDR",
@@ -124,10 +129,10 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	}
 
 	if _, ok := lo.Find(v.requiredConditions(), func(cond string) bool {
-		return nodeClass.StatusConditions().Get(cond).IsFalse()
+		return nodeClass.StatusConditions(status.WithClock(v.clk)).Get(cond).IsFalse()
 	}); ok {
 		// If any of the required status conditions are false, we know validation will fail regardless of the other values.
-		nodeClass.StatusConditions().SetFalse(
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 			v1.ConditionTypeValidationSucceeded,
 			ConditionReasonDependenciesNotReady,
 			"Awaiting AMI, Instance Profile, Security Group, and Subnet resolution",
@@ -135,11 +140,11 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 	if _, ok := lo.Find(v.requiredConditions(), func(cond string) bool {
-		return nodeClass.StatusConditions().Get(cond).IsUnknown()
+		return nodeClass.StatusConditions(status.WithClock(v.clk)).Get(cond).IsUnknown()
 	}); ok {
 		// If none of the status conditions are false, but at least one is unknown, we should also consider the validation
 		// state to be unknown. Once all required conditions collapse to a true or false state, we can test validation.
-		nodeClass.StatusConditions().SetUnknownWithReason(
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetUnknownWithReason(
 			v1.ConditionTypeValidationSucceeded,
 			ConditionReasonDependenciesNotReady,
 			"Awaiting AMI, Instance Profile, Security Group, and Subnet resolution",
@@ -156,7 +161,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	}
 	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
 	if err != nil {
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeValidationSucceeded, ConditionReasonTagValidationFailed, err.Error())
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(v1.ConditionTypeValidationSucceeded, ConditionReasonTagValidationFailed, err.Error())
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating tags, %w", err))
 	}
 
@@ -164,9 +169,9 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		// We still update the status condition even if it's cached since we may have had a conflict error previously
 		entry := val.(validationCacheEntry)
 		if entry.reason == "" {
-			nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
+			nodeClass.StatusConditions(status.WithClock(v.clk)).SetTrue(v1.ConditionTypeValidationSucceeded)
 		} else {
-			nodeClass.StatusConditions().SetFalse(
+			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 				v1.ConditionTypeValidationSucceeded,
 				entry.reason,
 				entry.message,
@@ -176,7 +181,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	}
 
 	if v.dryRunDisabled {
-		nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetTrue(v1.ConditionTypeValidationSucceeded)
 		v.cache.SetDefault(v.cacheKey(nodeClass, tags), validationCacheEntry{})
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
@@ -197,7 +202,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	}
 
 	v.cache.SetDefault(v.cacheKey(nodeClass, tags), validationCacheEntry{})
-	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
+	nodeClass.StatusConditions(status.WithClock(v.clk)).SetTrue(v1.ConditionTypeValidationSucceeded)
 	return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 }
 
@@ -207,7 +212,7 @@ func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[s
 		reason:  failureReason,
 		message: message,
 	})
-	nodeClass.StatusConditions().SetFalse(
+	nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 		v1.ConditionTypeValidationSucceeded,
 		failureReason,
 		message,
