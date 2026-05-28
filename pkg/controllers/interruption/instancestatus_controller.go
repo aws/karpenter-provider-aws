@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/operatorpkg/singleton"
 	"go.uber.org/multierr"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/utils/clock"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -32,7 +33,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
-	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/instancestatusfailure"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
+	instancestatusmsg "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/instancestatus"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 )
@@ -51,6 +53,12 @@ var (
 	// unhealthy instances. When true, the controller only emits metrics without cordoning
 	// and draining affected nodes. Default is false (full remediation enabled).
 	InstanceStatusDryRun = false
+	// categoryToKind maps EC2 DescribeInstanceStatus categories to message kinds.
+	categoryToKind = map[instancestatus.Category]messages.Kind{
+		instancestatus.InstanceStatus: messages.InstanceStatusKind,
+		instancestatus.SystemStatus:   messages.SystemStatusKind,
+		instancestatus.EventStatus:    messages.EventStatusKind,
+	}
 )
 
 // InstanceStatusController polls EC2 DescribeInstanceStatus to detect unhealthy instances
@@ -64,6 +72,7 @@ type InstanceStatusController struct {
 
 func NewInstanceStatusController(
 	kubeClient client.Client,
+	clk clock.Clock,
 	cloudProvider cloudprovider.CloudProvider,
 	recorder events.Recorder,
 	instanceStatusProvider instancestatus.Provider,
@@ -71,6 +80,7 @@ func NewInstanceStatusController(
 	return &InstanceStatusController{
 		InterruptionHandler: InterruptionHandler{
 			kubeClient:    kubeClient,
+			clk:           clk,
 			cloudProvider: cloudProvider,
 			recorder:      recorder,
 		},
@@ -95,15 +105,7 @@ func (c *InstanceStatusController) Reconcile(ctx context.Context) (reconciler.Re
 	currentKeys := make(map[unhealthyKey]struct{})
 	errs := make([]error, len(instanceStatuses))
 	workqueue.ParallelizeUntil(ctx, 10, len(instanceStatuses), func(i int) {
-		msg := instancestatusfailure.Message(instanceStatuses[i])
-		found, err := c.handleMessage(ctx, msg, InstanceStatusDryRun)
-		if err != nil {
-			errs[i] = fmt.Errorf("handling instance status check message, %w", err)
-		}
-		if !found {
-			return
-		}
-		c.recordUnhealthyInstance(ctx, instanceStatuses[i], currentKeys)
+		errs[i] = c.handleHealthStatus(ctx, instanceStatuses[i], currentKeys)
 	})
 
 	// Prune entries for instances that are no longer reported as unhealthy,
@@ -122,26 +124,42 @@ func (c *InstanceStatusController) Reconcile(ctx context.Context) (reconciler.Re
 	return reconciler.Result{RequeueAfter: InstanceStatusInterval}, nil
 }
 
-func (c *InstanceStatusController) recordUnhealthyInstance(ctx context.Context, status instancestatus.HealthStatus, currentKeys map[unhealthyKey]struct{}) {
-	categories := map[string]bool{}
-	for _, d := range status.Details {
-		categories[string(d.Category)] = true
+// handleHealthStatus dispatches a message per EC2 status category and records metrics.
+func (c *InstanceStatusController) handleHealthStatus(ctx context.Context, hs instancestatus.HealthStatus, currentKeys map[unhealthyKey]struct{}) error {
+	categories := make(map[instancestatus.Category]struct{})
+	for _, d := range hs.Details {
+		categories[d.Category] = struct{}{}
 	}
-	for cat := range categories {
-		key := unhealthyKey{instanceID: status.InstanceID, category: cat}
-		c.mu.Lock()
-		currentKeys[key] = struct{}{}
-		_, already := c.seen[key]
-		if !already {
-			c.seen[key] = struct{}{}
+	for category := range categories {
+		kind, ok := categoryToKind[category]
+		if !ok {
+			continue
 		}
-		c.mu.Unlock()
-		if !already {
-			log.FromContext(ctx).Info("detected unhealthy instance owned by cluster",
-				"instance-id", status.InstanceID,
-				"category", cat)
-			InstanceStatusUnhealthy.Inc(map[string]string{categoryLabel: cat})
+		f, err := c.handleMessage(ctx, instancestatusmsg.New(hs.InstanceID, kind, hs.ImpairedSince), InstanceStatusDryRun)
+		if err != nil {
+			return fmt.Errorf("handling instance status check message, %w", err)
 		}
+		if f {
+			c.recordUnhealthyInstance(ctx, hs.InstanceID, category, currentKeys)
+		}
+	}
+	return nil
+}
+
+func (c *InstanceStatusController) recordUnhealthyInstance(ctx context.Context, instanceID string, category instancestatus.Category, currentKeys map[unhealthyKey]struct{}) {
+	key := unhealthyKey{instanceID: instanceID, category: string(category)}
+	c.mu.Lock()
+	currentKeys[key] = struct{}{}
+	_, already := c.seen[key]
+	if !already {
+		c.seen[key] = struct{}{}
+	}
+	c.mu.Unlock()
+	if !already {
+		log.FromContext(ctx).Info("detected unhealthy instance owned by cluster",
+			"instanceID", instanceID,
+			"category", string(category))
+		InstanceStatusUnhealthy.Inc(map[string]string{categoryLabel: string(category)})
 	}
 }
 
