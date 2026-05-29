@@ -16,7 +16,6 @@ package integration_test
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -68,10 +67,9 @@ var _ = Describe("Launch Template CPU Options", func() {
 			g.Expect(err).To(BeNil())
 			g.Expect(output.LaunchTemplates).To(HaveLen(1))
 
-			ltVersion := strconv.FormatInt(aws.ToInt64(output.LaunchTemplates[0].LatestVersionNumber), 10)
 			ltOutput, err := env.EC2API.DescribeLaunchTemplateVersions(env.Context, &ec2.DescribeLaunchTemplateVersionsInput{
 				LaunchTemplateId: output.LaunchTemplates[0].LaunchTemplateId,
-				Versions:         []string{ltVersion},
+				Versions:         []string{"$Latest"},
 			})
 			g.Expect(err).To(BeNil())
 			g.Expect(ltOutput.LaunchTemplateVersions).To(HaveLen(1))
