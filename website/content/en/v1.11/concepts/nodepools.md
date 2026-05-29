@@ -472,11 +472,14 @@ For more information on weighting NodePools, see the [Weighted NodePools section
 
 NodePools have the following status conditions:
 
-| Condition Type      | Description                                                                                                                                       |
-|---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
-| NodeClassReady      | Underlying nodeClass is ready                                                                                                                     |
-| ValidationSucceeded | NodePool CRD validation succeeded                                                                                                                 |
-| Ready               | Top level condition that indicates if the nodePool is ready. This condition will not be true until all the other conditions on nodePool are true. |
+| Condition Type            | Description                                                                                                                                       |
+|---------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| NodeClassReady            | Underlying nodeClass is ready                                                                                                                     |
+| ValidationSucceeded       | NodePool CRD validation succeeded                                                                                                                 |
+| NodeRegistrationHealthy   | Indicates if a misconfiguration is preventing successful node launch or registration that requires manual investigation.                        |
+| Ready                     | Top level condition that indicates if the nodePool is ready. This condition will not be true until all the other conditions on nodePool are true. |
+
+NodeRegistrationHealthy is not required for the NodePool Ready condition.
 
 If a NodePool is not ready, it will not be considered for scheduling.
 
