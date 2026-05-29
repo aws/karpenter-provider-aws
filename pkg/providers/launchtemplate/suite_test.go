@@ -2720,7 +2720,7 @@ eviction-max-pod-grace-period = 10
 			),
 			Entry("should set Ipv6AddressCount to 1 when no prefix counts are configured",
 				func(opts *amifamily.LaunchTemplate) {
-					opts.Options.IPPrefixCount = nil
+					opts.IPPrefixCount = nil
 					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
 						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
 					}
