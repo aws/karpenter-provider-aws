@@ -456,7 +456,8 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(
 	requirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType)
 	for _, launchTemplate := range launchTemplates {
 		// When a LT is zone-scoped, restrict overrides to only that zone so
-		// fleet doesn't attempt a cross-AZ launch.
+		// fleet doesn't attempt a cross-AZ launch. The override for subnets is
+		// also removed as the ENIs in the launch template must declare this field.
 		effectiveSubnets := zonalSubnets
 		if launchTemplate.Zone != "" {
 			if s, ok := zonalSubnets[launchTemplate.Zone]; ok {
@@ -466,7 +467,7 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(
 			}
 		}
 		launchTemplateConfig := ec2types.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(launchTemplate.InstanceTypes, effectiveSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID),
+			Overrides: p.getOverrides(launchTemplate.InstanceTypes, effectiveSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID, launchTemplate.Zone != ""),
 			LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplate.Name),
 				Version:            aws.String("$Latest"),
@@ -489,6 +490,7 @@ func (p *DefaultProvider) getOverrides(
 	zonalSubnets map[string]*subnet.Subnet,
 	reqs scheduling.Requirements,
 	image, capacityReservationID string,
+	skipSubnetInOverrides bool,
 ) []ec2types.FleetLaunchTemplateOverridesRequest {
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
@@ -536,7 +538,7 @@ func (p *DefaultProvider) getOverrides(
 		}
 		overrides = append(overrides, ec2types.FleetLaunchTemplateOverridesRequest{
 			InstanceType: offering.parentInstanceTypeName,
-			SubnetId:     lo.ToPtr(subnet.ID),
+			SubnetId:     lo.Ternary(!skipSubnetInOverrides, lo.ToPtr(subnet.ID), nil),
 			ImageId:      lo.ToPtr(image),
 			// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
 			// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
