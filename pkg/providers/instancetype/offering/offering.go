@@ -155,7 +155,7 @@ func (p *DefaultProvider) createOfferings(
 	zoneInfo := nodeClass.ZoneInfo()
 	// Not all instance types are compatible with the NodeClass.
 	// In the event it is not, we mark the offering as unavailable.
-	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(info, nodeClass, pg)
+	isCompatibleWithNodeClass := compatibility.IsCompatibleWithOfferingNodeClass(info, nodeClass, pg)
 
 	// If the sequence number has changed for the unavailable offerings, we know that we can't use the previously cached value
 	lastSeqNum, ok := p.lastUnavailableOfferingsSeqNum.Load(ec2types.InstanceType(it.Name))

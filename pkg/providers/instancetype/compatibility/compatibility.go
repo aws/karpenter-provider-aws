@@ -31,18 +31,38 @@ type NodeClass interface {
 	ConnectionTracking() *v1.ConnectionTracking
 }
 
+type CPUOptionsNodeClass interface {
+	NodeClass
+	CPUOptions() *v1.CPUOptions
+}
+
 type CompatibleCheck interface {
 	compatibleCheck(info ec2types.InstanceTypeInfo) bool
 }
 
-func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass, pg *placementgroup.PlacementGroup) bool {
+func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass CPUOptionsNodeClass, pg *placementgroup.PlacementGroup) bool {
 	networkInterfaces := amifamily.ResolveNetworkInterfaces(nodeClass.NetworkInterfaces())
-	for _, check := range []CompatibleCheck{
+	return isCompatible(info,
+		networkInterfaceCompatibility(networkInterfaces),
+		amiFamilyCompatibility(nodeClass.AMIFamily()),
+		nestedVirtualizationCompatibility(nodeClass.CPUOptions()),
+		placementGroupCompatibility(pg),
+		connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
+	)
+}
+
+func IsCompatibleWithOfferingNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass, pg *placementgroup.PlacementGroup) bool {
+	networkInterfaces := amifamily.ResolveNetworkInterfaces(nodeClass.NetworkInterfaces())
+	return isCompatible(info,
 		networkInterfaceCompatibility(networkInterfaces),
 		amiFamilyCompatibility(nodeClass.AMIFamily()),
 		placementGroupCompatibility(pg),
 		connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
-	} {
+	)
+}
+
+func isCompatible(info ec2types.InstanceTypeInfo, checks ...CompatibleCheck) bool {
+	for _, check := range checks {
 		if !check.compatibleCheck(info) {
 			return false
 		}
@@ -132,6 +152,26 @@ func (c networkInterfaceCheck) compatibleCheck(info ec2types.InstanceTypeInfo) b
 		}
 	}
 	return true
+}
+
+type nestedVirtualizationCheck struct {
+	cpuOptions *v1.CPUOptions
+}
+
+func nestedVirtualizationCompatibility(cpuOptions *v1.CPUOptions) CompatibleCheck {
+	return &nestedVirtualizationCheck{
+		cpuOptions: cpuOptions,
+	}
+}
+
+func (c nestedVirtualizationCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	if c.cpuOptions == nil || c.cpuOptions.NestedVirtualization == nil || *c.cpuOptions.NestedVirtualization != "enabled" {
+		return true
+	}
+	if info.ProcessorInfo == nil {
+		return false
+	}
+	return lo.Contains(info.ProcessorInfo.SupportedFeatures, ec2types.SupportedAdditionalProcessorFeatureNestedVirtualization)
 }
 
 type placementGroupCheck struct {
