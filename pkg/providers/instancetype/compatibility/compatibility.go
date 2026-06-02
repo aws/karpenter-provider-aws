@@ -29,10 +29,6 @@ type NodeClass interface {
 	NetworkInterfaces() []*v1.NetworkInterface
 	AMIFamily() string
 	ConnectionTracking() *v1.ConnectionTracking
-}
-
-type CPUOptionsNodeClass interface {
-	NodeClass
 	CPUOptions() *v1.CPUOptions
 }
 
@@ -40,29 +36,15 @@ type CompatibleCheck interface {
 	compatibleCheck(info ec2types.InstanceTypeInfo) bool
 }
 
-func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass CPUOptionsNodeClass, pg *placementgroup.PlacementGroup) bool {
+func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass, pg *placementgroup.PlacementGroup) bool {
 	networkInterfaces := amifamily.ResolveNetworkInterfaces(nodeClass.NetworkInterfaces())
-	return isCompatible(info,
+	for _, check := range []CompatibleCheck{
 		networkInterfaceCompatibility(networkInterfaces),
 		amiFamilyCompatibility(nodeClass.AMIFamily()),
 		nestedVirtualizationCompatibility(nodeClass.CPUOptions()),
 		placementGroupCompatibility(pg),
 		connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
-	)
-}
-
-func IsCompatibleWithOfferingNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass, pg *placementgroup.PlacementGroup) bool {
-	networkInterfaces := amifamily.ResolveNetworkInterfaces(nodeClass.NetworkInterfaces())
-	return isCompatible(info,
-		networkInterfaceCompatibility(networkInterfaces),
-		amiFamilyCompatibility(nodeClass.AMIFamily()),
-		placementGroupCompatibility(pg),
-		connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
-	)
-}
-
-func isCompatible(info ec2types.InstanceTypeInfo, checks ...CompatibleCheck) bool {
-	for _, check := range checks {
+	} {
 		if !check.compatibleCheck(info) {
 			return false
 		}
