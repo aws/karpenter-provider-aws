@@ -218,7 +218,7 @@ var _ = Describe("AMI", func() {
 
 	Context("AMIFamily", func() {
 		DescribeTable(
-			"should provision a node using an alias",
+			"should provision a node using the latest alias",
 			func(alias string) {
 				if strings.HasPrefix(alias, "al2@") && env.K8sMinorVersion() > 32 {
 					Skip("AL2 is not supported on versions > 1.32")
@@ -230,12 +230,32 @@ var _ = Describe("AMI", func() {
 				env.ExpectCreatedNodeCount("==", 1)
 			},
 			Entry("AL2023 (latest)", "al2023@latest"),
-			Entry("AL2023 (pinned)", "al2023@v20250116"),
 			Entry("AL2 (latest)", "al2@latest"),
-			Entry("AL2 (pinned)", "al2@v20250116"),
 			Entry("Bottlerocket (latest)", "bottlerocket@latest"),
-			Entry("Bottlerocket (pinned with v prefix)", "bottlerocket@v1.53.0"),
-			Entry("Bottlerocket (pinned without v prefix)", "bottlerocket@1.53.0"),
+		)
+		DescribeTable(
+			"should provision a node using a pinned alias",
+			func(amiFamily string, withV bool) {
+				if amiFamily == "al2" && env.K8sMinorVersion() > 32 {
+					Skip("AL2 is not supported on versions > 1.32")
+				}
+				amiVersion := env.GetPinnedAMIVersion(amiFamily)
+				if !withV {
+					amiVersion = strings.TrimPrefix(amiVersion, "v")
+				} else if withV && !strings.HasPrefix(amiVersion, "v") {
+					amiVersion = "v" + amiVersion
+				}
+				alias := fmt.Sprintf("%s@%s", amiFamily, amiVersion)
+				pod := coretest.Pod()
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+				env.ExpectCreated(nodeClass, nodePool, pod)
+				env.EventuallyExpectHealthy(pod)
+				env.ExpectCreatedNodeCount("==", 1)
+			},
+			Entry("AL2023 (pinned)", "al2023", true),
+			Entry("AL2 (pinned)", "al2", true),
+			Entry("Bottlerocket (pinned with v prefix)", "bottlerocket", true),
+			Entry("Bottlerocket (pinned without v prefix)", "bottlerocket", false),
 		)
 		It("should support Custom AMIFamily with AMI Selectors", func() {
 			al2023AMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
