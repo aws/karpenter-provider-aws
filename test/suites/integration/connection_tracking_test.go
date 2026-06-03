@@ -47,9 +47,10 @@ var _ = Describe("ConnectionTracking", func() {
 		instance := env.GetInstance(pod.Spec.NodeName)
 		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
 
-		primaryNI := instance.NetworkInterfaces[0]
-		Expect(primaryNI.Attachment).ToNot(BeNil())
-		Expect(aws.ToInt32(primaryNI.Attachment.DeviceIndex)).To(Equal(int32(0)))
+		primaryNI, found := lo.Find(instance.NetworkInterfaces, func(ni ec2types.InstanceNetworkInterface) bool {
+			return ni.Attachment != nil && ni.Attachment.DeviceIndex != nil && aws.ToInt32(ni.Attachment.DeviceIndex) == 0
+		})
+		Expect(found).To(BeTrue())
 
 		niOutput, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{
 			NetworkInterfaceIds: []string{aws.ToString(primaryNI.NetworkInterfaceId)},
@@ -143,7 +144,10 @@ var _ = Describe("ConnectionTracking", func() {
 		instance := env.GetInstance(pod.Spec.NodeName)
 		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
 
-		primaryNI := instance.NetworkInterfaces[0]
+		primaryNI, found := lo.Find(instance.NetworkInterfaces, func(ni ec2types.InstanceNetworkInterface) bool {
+			return ni.Attachment != nil && ni.Attachment.DeviceIndex != nil && aws.ToInt32(ni.Attachment.DeviceIndex) == 0
+		})
+		Expect(found).To(BeTrue())
 		niOutput, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{
 			NetworkInterfaceIds: []string{aws.ToString(primaryNI.NetworkInterfaceId)},
 		})
@@ -164,7 +168,10 @@ var _ = Describe("ConnectionTracking", func() {
 		instance := env.GetInstance(pod.Spec.NodeName)
 		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
 
-		primaryNI := instance.NetworkInterfaces[0]
+		primaryNI, found := lo.Find(instance.NetworkInterfaces, func(ni ec2types.InstanceNetworkInterface) bool {
+			return ni.Attachment != nil && ni.Attachment.DeviceIndex != nil && aws.ToInt32(ni.Attachment.DeviceIndex) == 0
+		})
+		Expect(found).To(BeTrue())
 		niOutput, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{
 			NetworkInterfaceIds: []string{aws.ToString(primaryNI.NetworkInterfaceId)},
 		})

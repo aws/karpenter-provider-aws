@@ -1052,16 +1052,17 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 
 		instance := env.GetInstance(node.Name)
 		networkInterfaces := instance.NetworkInterfaces
-		Expect(networkInterfaces).To(HaveLen(2))
+		// VPC CNI may attach additional interfaces beyond what we configured, so we check for at least our expected count
+		Expect(len(networkInterfaces)).To(BeNumerically(">=", 2))
 
 		for _, deviceIndex := range []int32{0, 1} {
 			networkInterface, found := lo.Find(networkInterfaces, func(i ec2types.InstanceNetworkInterface) bool {
-				Expect(i.Attachment).ToNot(BeNil())
-				Expect(i.Attachment.DeviceIndex).ToNot(BeNil())
+				if i.Attachment == nil || i.Attachment.DeviceIndex == nil {
+					return false
+				}
 				return deviceIndex == lo.FromPtr(i.Attachment.DeviceIndex)
 			})
-			Expect(found).To(Equal(true))
-
+			Expect(found).To(BeTrue())
 			Expect(lo.FromPtr(networkInterface.InterfaceType)).To(Equal(
 				lo.Ternary(deviceIndex == 0, string(ec2types.NetworkInterfaceTypeInterface), string(ec2types.NetworkInterfaceTypeEfaOnly)),
 			))
