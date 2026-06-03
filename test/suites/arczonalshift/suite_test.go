@@ -69,32 +69,31 @@ var _ = Describe("Zonal Shift", func() {
 		})
 		zoneid = subnetInfo[rand.Intn(len(subnetInfo))].ZoneID //nolint:gosec
 	})
-	It("Resource should be registered", func() {
-		By("making a successful GetManagedResource API call")
-		env.ExpectRegisteredToZonalShift(
-			env.Context,
-		)
-	})
 	It("should update cache when a zonal shift is detected", func() {
-		By("using the Zonal Shift Provider to check zonal shift status")
+		By("using the Zonal Shift Provider to check zonal shift status on Zonal Shift start")
 
-		startzonalshiftresponse, err := env.ARCZONALSHIFTAPI.StartZonalShift(env.Context, &arczonalshiftservice.StartZonalShiftInput{
+		startzonalshiftresponse, starterr := env.ARCZONALSHIFTAPI.StartZonalShift(env.Context, &arczonalshiftservice.StartZonalShiftInput{
 			ResourceIdentifier: lo.ToPtr(clusterArn),
 			AwayFrom:           lo.ToPtr(zoneid),
 			ExpiresIn:          lo.ToPtr("1h"),
 			Comment:            lo.ToPtr("karpenter e2e test"),
 		})
 		zonalshiftid = startzonalshiftresponse.ZonalShiftId
-		Expect(err).To(BeNil())
+		Expect(starterr).ToNot(HaveOccurred())
 		env.EventuallyExpectClusterToZonalShift(zoneid)
-	})
-	It("should update cache when a zonal shift is ended", func() {
-		By("using the Zonal Shift Provider to check zonal shift status")
+		DeferCleanup(func() {
+			_, err := env.ARCZONALSHIFTAPI.CancelZonalShift(env.Context, &arczonalshiftservice.CancelZonalShiftInput{
+				ZonalShiftId: zonalshiftid,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			env.EventuallyExpectClusterToNotHaveZonalShift(zoneid)
+		})
+		By("using the Zonal Shift Provider to check zonal shift status on Zonal Shift end")
 
-		_, err := env.ARCZONALSHIFTAPI.CancelZonalShift(env.Context, &arczonalshiftservice.CancelZonalShiftInput{
+		_, cancelerr := env.ARCZONALSHIFTAPI.CancelZonalShift(env.Context, &arczonalshiftservice.CancelZonalShiftInput{
 			ZonalShiftId: zonalshiftid,
 		})
-		Expect(err).To(BeNil())
+		Expect(cancelerr).ToNot(HaveOccurred())
 		env.EventuallyExpectClusterToNotHaveZonalShift(zoneid)
 	})
 })

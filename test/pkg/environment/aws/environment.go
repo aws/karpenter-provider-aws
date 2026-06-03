@@ -124,7 +124,7 @@ func NewEnvironment(t *testing.T) *Environment {
 		out := lo.Must(sqsapi.GetQueueUrl(env.Context, &servicesqs.GetQueueUrlInput{QueueName: aws.String(v)}))
 		awsEnv.SQSProvider = lo.Must(sqs.NewDefaultProvider(sqsapi, lo.FromPtr(out.QueueUrl)))
 	}
-	// Initialize the Zonal Shift Provier only if the ENABLE_ZONAL_SHIFT environment variable is true
+	// Initialize the Zonal Shift Provider only if the ENABLE_ZONAL_SHIFT environment variable is true
 	// This is where all the AWS set up happens. Will need to make an ARC Client in the test using the env
 	if v, ok := os.LookupEnv("ENABLE_ZONAL_SHIFT"); ok && v == "true" {
 		inputDC := eks.DescribeClusterInput{Name: &awsEnv.ClusterName}
