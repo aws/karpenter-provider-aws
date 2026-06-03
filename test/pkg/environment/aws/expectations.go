@@ -28,6 +28,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 
+	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	"github.com/aws/aws-sdk-go-v2/service/fis"
 	fistypes "github.com/aws/aws-sdk-go-v2/service/fis/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -930,4 +931,32 @@ func ExpectPlacementGroupDeleted(ctx context.Context, ec2api *ec2.Client, name s
 		GroupName: lo.ToPtr(name),
 	})
 	Expect(err).ToNot(HaveOccurred())
+}
+
+func (env *Environment) ExpectRegisteredToZonalShift(ctx context.Context) {
+	GinkgoHelper()
+	clusterArn := fmt.Sprintf("arn:aws:eks:%s:%s:cluster/%s", env.Region, env.ExpectAccountID(), env.ClusterName)
+	_, err := env.ARCZONALSHIFTAPI.GetManagedResource(ctx, &arczonalshift.GetManagedResourceInput{
+		ResourceIdentifier: lo.ToPtr(clusterArn),
+	})
+	Expect(err).ToNot(HaveOccurred())
+
+}
+
+func (env *Environment) EventuallyExpectClusterToZonalShift(zoneId string) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting zonal shift on cluster %s away from %s", env.ClusterName, zoneId))
+	Eventually(func(g Gomega) {
+		shifted := env.ZonalShiftProvider.IsZonalShifted(env.Context, zoneId)
+		g.Expect(shifted).To(BeTrue())
+	}).WithTimeout(60 * time.Second).WithPolling(10 * time.Second).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectClusterToNotHaveZonalShift(zoneId string) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting no zonal shift on cluster %s away from %s", env.ClusterName, zoneId))
+	Eventually(func(g Gomega) {
+		shifted := env.ZonalShiftProvider.IsZonalShifted(env.Context, zoneId)
+		g.Expect(shifted).To(BeFalse())
+	}).WithTimeout(60 * time.Second).WithPolling(10 * time.Second).Should(Succeed())
 }

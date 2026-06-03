@@ -16,11 +16,13 @@ package scheduling_test
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
 	"testing"
 	"time"
 
+	arczonalshiftservice "github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/awslabs/operatorpkg/object"
@@ -476,6 +478,62 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			// Karpenter will launch three nodes, however if all three nodes don't get register with the cluster at the same time, two pods will be placed on one node.
 			// This can result in a case where all 3 pods are healthy, while there are only two created nodes.
 			// In that case, we still expect to eventually have three nodes.
+			env.EventuallyExpectNodeCount("==", 3)
+		})
+		It("should provision two nodes for a zonal topology spread when a Zonal Shift is active", func() {
+			clusterArn := fmt.Sprintf("arn:aws:eks:%s:%s:cluster/%s", env.Region, env.ExpectAccountID(), env.ClusterName)
+			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s environmentaws.SubnetInfo) string {
+				return s.Zone
+			})
+			zoneid := subnetInfo[rand.Intn(len(subnetInfo))].ZoneID //nolint:gosec
+			startzonalshiftresponse, err := env.ARCZONALSHIFTAPI.StartZonalShift(env.Context, &arczonalshiftservice.StartZonalShiftInput{
+				ResourceIdentifier: lo.ToPtr(clusterArn),
+				AwayFrom:           lo.ToPtr(zoneid),
+				ExpiresIn:          lo.ToPtr("1h"),
+				Comment:            lo.ToPtr("karpenter e2e test"),
+			})
+			zonalshiftid := startzonalshiftresponse.ZonalShiftId
+			Expect(err).To(BeNil())
+			env.EventuallyExpectClusterToZonalShift(zoneid)
+
+		  DeferCleanup(func() {
+		  	_, err := env.ARCZONALSHIFTAPI.CancelZonalShift(env.Context, &arczonalshiftservice.CancelZonalShiftInput{
+		  		ZonalShiftId: zonalshiftid,
+		  	})
+		  	Expect(err).ToNot(HaveOccurred())
+		  	env.EventuallyExpectClusterToNotHaveZonalShift(zoneid)
+		  })
+			// one pod per zone
+			podLabels := map[string]string{"test": "zonal-spread-with-shift"}
+			deployment := test.Deployment(test.DeploymentOptions{
+				Replicas: 3,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: podLabels,
+					},
+					TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       corev1.LabelTopologyZone,
+							WhenUnsatisfiable: corev1.DoNotSchedule,
+							LabelSelector:     &metav1.LabelSelector{MatchLabels: podLabels},
+							MinDomains:        lo.ToPtr(int32(3)),
+						},
+					},
+				},
+			})
+
+			env.ExpectCreated(nodeClass, nodePool, deployment)
+			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), 2)
+			// Expecting only 2 healthy nodes because we shifted a zone away
+			env.EventuallyExpectNodeCount("==", 2)
+			_, err = env.ARCZONALSHIFTAPI.CancelZonalShift(env.Context, &arczonalshiftservice.CancelZonalShiftInput{
+				ZonalShiftId: zonalshiftid,
+			})
+			Expect(err).To(BeNil())
+			env.EventuallyExpectClusterToNotHaveZonalShift(zoneid)
+			// Expecting 3 healthy nodes and pods now that the shift has been canceled
+			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), 3)
 			env.EventuallyExpectNodeCount("==", 3)
 		})
 		It("should provision a node using a NodePool with higher priority", func() {
