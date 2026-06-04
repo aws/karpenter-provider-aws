@@ -60,6 +60,7 @@ type NodeClass interface {
 	AMIs() []v1.AMI
 	BlockDeviceMappings() []*v1.BlockDeviceMapping
 	CapacityReservations() []v1.CapacityReservation
+	CPUOptions() *v1.CPUOptions
 	InstanceStorePolicy() *v1.InstanceStorePolicy
 	NetworkInterfaces() []*v1.NetworkInterface
 	KubeletConfiguration() *v1.KubeletConfiguration

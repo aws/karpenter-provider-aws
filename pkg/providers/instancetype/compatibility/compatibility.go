@@ -29,6 +29,7 @@ type NodeClass interface {
 	NetworkInterfaces() []*v1.NetworkInterface
 	AMIFamily() string
 	ConnectionTracking() *v1.ConnectionTracking
+	CPUOptions() *v1.CPUOptions
 }
 
 type CompatibleCheck interface {
@@ -40,6 +41,7 @@ func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeCla
 	for _, check := range []CompatibleCheck{
 		networkInterfaceCompatibility(networkInterfaces),
 		amiFamilyCompatibility(nodeClass.AMIFamily()),
+		nestedVirtualizationCompatibility(nodeClass.CPUOptions()),
 		placementGroupCompatibility(pg),
 		connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
 	} {
@@ -132,6 +134,26 @@ func (c networkInterfaceCheck) compatibleCheck(info ec2types.InstanceTypeInfo) b
 		}
 	}
 	return true
+}
+
+type nestedVirtualizationCheck struct {
+	cpuOptions *v1.CPUOptions
+}
+
+func nestedVirtualizationCompatibility(cpuOptions *v1.CPUOptions) CompatibleCheck {
+	return &nestedVirtualizationCheck{
+		cpuOptions: cpuOptions,
+	}
+}
+
+func (c nestedVirtualizationCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	if c.cpuOptions == nil || c.cpuOptions.NestedVirtualization == nil || *c.cpuOptions.NestedVirtualization != "enabled" {
+		return true
+	}
+	if info.ProcessorInfo == nil {
+		return false
+	}
+	return lo.Contains(info.ProcessorInfo.SupportedFeatures, ec2types.SupportedAdditionalProcessorFeatureNestedVirtualization)
 }
 
 type placementGroupCheck struct {

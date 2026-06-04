@@ -53,6 +53,7 @@ type NodeClass interface {
 	AMIFamily() string
 	PlacementGroupSelector() *v1.PlacementGroupSelector
 	ConnectionTracking() *v1.ConnectionTracking
+	CPUOptions() *v1.CPUOptions
 }
 
 type DefaultProvider struct {
