@@ -347,6 +347,23 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(*ltInput.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("overridden-profile"))
 		})
 	})
+	It("should set IamInstanceProfile.Arn when spec.InstanceProfile is an ARN", func() {
+
+		nodeClass.Spec.Role = ""
+		nodeClass.Spec.InstanceProfile = aws.String("arn:aws:iam::123456789012:instance-profile/overridden-profile")
+		nodeClass.Status.InstanceProfile = "arn:aws:iam::123456789012:instance-profile/overridden-profile"
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod()
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
+		Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+		awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+			Expect(*ltInput.LaunchTemplateData.IamInstanceProfile.Arn).To(Equal("arn:aws:iam::123456789012:instance-profile/overridden-profile"))
+		})
+
+	})
 	Context("Cache", func() {
 		It("should use same launch template for equivalent constraints", func() {
 			t1 := corev1.Toleration{
