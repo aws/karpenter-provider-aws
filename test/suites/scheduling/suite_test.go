@@ -480,11 +480,12 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			// In that case, we still expect to eventually have three nodes.
 			env.EventuallyExpectNodeCount("==", 3)
 		})
-		It("should provision two nodes for a zonal topology spread when a Zonal Shift is active", func() {
+		It("should provision nodes for a zonal topology spread when a Zonal Shift is active", func() {
 			clusterArn := fmt.Sprintf("arn:aws:eks:%s:%s:cluster/%s", env.Region, env.ExpectAccountID(), env.ClusterName)
 			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s environmentaws.SubnetInfo) string {
 				return s.Zone
 			})
+			numzones := len(subnetInfo)
 			zoneid := subnetInfo[rand.Intn(len(subnetInfo))].ZoneID //nolint:gosec
 			startzonalshiftresponse, err := env.ARCZONALSHIFTAPI.StartZonalShift(env.Context, &arczonalshiftservice.StartZonalShiftInput{
 				ResourceIdentifier: lo.ToPtr(clusterArn),
@@ -506,7 +507,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			// one pod per zone
 			podLabels := map[string]string{"test": "zonal-spread-with-shift"}
 			deployment := test.Deployment(test.DeploymentOptions{
-				Replicas: 3,
+				Replicas: int32(numzones),
 				PodOptions: test.PodOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: podLabels,
@@ -524,17 +525,17 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			})
 
 			env.ExpectCreated(nodeClass, nodePool, deployment)
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), 2)
-			// Expecting only 2 healthy nodes because we shifted a zone away
-			env.EventuallyExpectNodeCount("==", 2)
+			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), numzones-1)
+			// Expecting numzones-1 healthy nodes because we shifted a zone away
+			env.EventuallyExpectNodeCount("==", numzones-1)
 			_, err = env.ARCZONALSHIFTAPI.CancelZonalShift(env.Context, &arczonalshiftservice.CancelZonalShiftInput{
 				ZonalShiftId: zonalshiftid,
 			})
 			Expect(err).To(BeNil())
 			env.EventuallyExpectClusterToNotHaveZonalShift(zoneid)
-			// Expecting 3 healthy nodes and pods now that the shift has been canceled
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), 3)
-			env.EventuallyExpectNodeCount("==", 3)
+			// Expecting numzones healthy nodes and pods now that the shift has been canceled
+			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), numzones)
+			env.EventuallyExpectNodeCount("==", numzones)
 		})
 		It("should provision a node using a NodePool with higher priority", func() {
 			nodePoolLowPri := test.NodePool(karpv1.NodePool{
