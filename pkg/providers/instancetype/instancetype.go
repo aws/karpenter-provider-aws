@@ -22,10 +22,14 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
+	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
+
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/offering"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 
 	"github.com/mitchellh/hashstructure/v2"
@@ -56,14 +60,19 @@ type NodeClass interface {
 	AMIs() []v1.AMI
 	BlockDeviceMappings() []*v1.BlockDeviceMapping
 	CapacityReservations() []v1.CapacityReservation
+	CPUOptions() *v1.CPUOptions
 	InstanceStorePolicy() *v1.InstanceStorePolicy
+	NetworkInterfaces() []*v1.NetworkInterface
 	KubeletConfiguration() *v1.KubeletConfiguration
+	PlacementGroupSelector() *v1.PlacementGroupSelector
 	ZoneInfo() []v1.ZoneInfo
+	ConnectionTracking() *v1.ConnectionTracking
 }
 
 type Provider interface {
 	Get(context.Context, NodeClass, ec2types.InstanceType) (*cloudprovider.InstanceType, error)
 	List(context.Context, NodeClass) ([]*cloudprovider.InstanceType, error)
+	FilterForNodeClass(context.Context, []*cloudprovider.InstanceType, NodeClass) []*cloudprovider.InstanceType
 }
 
 type DefaultProvider struct {
@@ -87,7 +96,8 @@ type DefaultProvider struct {
 	discoveredCapacityCache *cache.Cache
 	cm                      *pretty.ChangeMonitor
 
-	offeringProvider *offering.DefaultProvider
+	placementGroupProvider placementgroup.Provider
+	offeringProvider       *offering.DefaultProvider
 }
 
 func NewDefaultProvider(
@@ -98,8 +108,10 @@ func NewDefaultProvider(
 	subnetProvider subnet.Provider,
 	pricingProvider pricing.Provider,
 	capacityReservationProvider capacityreservation.Provider,
+	placementGroupProvider placementgroup.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	instanceTypesResolver Resolver,
+	zonalshiftProvider arczonalshift.Provider,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api:                  ec2api,
@@ -110,11 +122,14 @@ func NewDefaultProvider(
 		instanceTypesCache:      instanceTypesCache,
 		discoveredCapacityCache: discoveredCapacityCache,
 		cm:                      pretty.NewChangeMonitor(),
+		placementGroupProvider:  placementGroupProvider,
 		offeringProvider: offering.NewDefaultProvider(
 			pricingProvider,
 			capacityReservationProvider,
+			placementGroupProvider,
 			unavailableOfferingsCache,
 			offeringCache,
+			zonalshiftProvider,
 		),
 	}
 }
@@ -159,6 +174,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*clo
 	return p.offeringProvider.InjectOfferings(
 		ctx,
 		instanceTypes,
+		p.instanceTypesInfo,
 		nodeClass,
 		p.allZones,
 	), nil
@@ -192,7 +208,7 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass, name ec2
 			return nil, err
 		}
 	}
-	return p.offeringProvider.InjectOfferings(ctx, []*cloudprovider.InstanceType{instanceType}, nodeClass, p.allZones)[0], nil
+	return p.offeringProvider.InjectOfferings(ctx, []*cloudprovider.InstanceType{instanceType}, p.instanceTypesInfo, nodeClass, p.allZones)[0], nil
 }
 
 func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2types.InstanceType) (*cloudprovider.InstanceType, error) {
@@ -217,8 +233,16 @@ func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2
 }
 
 func (p *DefaultProvider) cacheKey(nodeClass NodeClass) string {
-	// Compute fully initialized instance types hash key
-	subnetZonesHash, _ := hashstructure.Hash(nodeClass.ZoneInfo(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	type zonePair struct {
+		Zone   string
+		ZoneID string
+	}
+	subnetZonesHash, _ := hashstructure.Hash(
+		lo.UniqBy(nodeClass.ZoneInfo(), func(i v1.ZoneInfo) zonePair {
+			return zonePair{Zone: i.Zone, ZoneID: i.ZoneID}
+		}),
+		hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true},
+	)
 	// Compute hash key against node class AMIs (used to force cache rebuild when AMIs change)
 	amiHash, _ := hashstructure.Hash(nodeClass.AMIs(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	return fmt.Sprintf("%016x-%016x-%s",
@@ -348,6 +372,24 @@ func (p *DefaultProvider) UpdateInstanceTypeCapacityFromNode(ctx context.Context
 		}
 	}
 	return nil
+}
+
+func (p *DefaultProvider) FilterForNodeClass(ctx context.Context, its []*cloudprovider.InstanceType, nodeClass NodeClass) []*cloudprovider.InstanceType {
+	p.muInstanceTypesInfo.RLock()
+	defer p.muInstanceTypesInfo.RUnlock()
+	// Resolve the placement group for compatibility checking
+	var pg *placementgroup.PlacementGroup
+	if nodeClass.PlacementGroupSelector() != nil {
+		pg, _ = p.placementGroupProvider.Get(ctx, nodeClass)
+	}
+	compatible := []*cloudprovider.InstanceType{}
+	for _, it := range its {
+		info, found := p.instanceTypesInfo[ec2types.InstanceType(it.Name)]
+		if found && compatibility.IsCompatibleWithNodeClass(info, nodeClass, pg) {
+			compatible = append(compatible, it)
+		}
+	}
+	return compatible
 }
 
 func (p *DefaultProvider) Reset() {

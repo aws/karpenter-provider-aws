@@ -83,7 +83,7 @@ var _ = Describe("Operator", func() {
 			options.FromContext(ctx).EKSControlPlane = true
 			ExpectSingletonReconciled(ctx, versionController)
 			version := awsEnv.VersionProvider.Get(ctx)
-			Expect(version).To(Equal("1.29"))
+			Expect(version).To(Equal("1.30"))
 		})
 	})
 

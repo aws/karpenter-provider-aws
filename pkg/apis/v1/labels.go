@@ -33,6 +33,7 @@ func init() {
 	karpv1.WellKnownLabels = karpv1.WellKnownLabels.Insert(
 		LabelCapacityReservationID,
 		LabelCapacityReservationType,
+		LabelCapacityReservationInterruptible,
 		LabelInstanceHypervisor,
 		LabelInstanceEncryptionInTransitSupported,
 		LabelInstanceCategory,
@@ -57,6 +58,8 @@ func init() {
 		LabelTopologyZoneID,
 		LabelInstanceTenancy,
 		corev1.LabelWindowsBuild,
+		LabelPlacementGroupID,
+		LabelPlacementGroupPartition,
 	)
 
 	karpv1.WellKnownValuesForRequirements[LabelInstanceTenancy] = sets.New(string(ec2types.TenancyDedicated), string(ec2types.TenancyDefault))
@@ -138,6 +141,7 @@ var (
 
 	LabelCapacityReservationID                = apis.Group + "/capacity-reservation-id"
 	LabelCapacityReservationType              = apis.Group + "/capacity-reservation-type"
+	LabelCapacityReservationInterruptible     = apis.Group + "/capacity-reservation-interruptible"
 	LabelInstanceHypervisor                   = apis.Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = apis.Group + "/instance-encryption-in-transit-supported"
 	LabelInstanceCategory                     = apis.Group + "/instance-category"
@@ -161,6 +165,8 @@ var (
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
 	LabelNodeClass                            = apis.Group + "/ec2nodeclass"
 	LabelInstanceTenancy                      = apis.Group + "/instance-tenancy"
+	LabelPlacementGroupID                     = apis.Group + "/placement-group-id"
+	LabelPlacementGroupPartition              = apis.Group + "/placement-group-partition"
 
 	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
 

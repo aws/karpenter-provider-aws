@@ -43,7 +43,8 @@ Resources:
                 "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
-                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*"
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:placement-group/*"
               ],
               "Action": [
                 "ec2:RunInstances",
@@ -293,6 +294,30 @@ Resources:
             }
           ]
         }
+  ZonalShiftPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "KarpenterControllerZonalShiftPolicy-${ClusterName}"
+      Path: /
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AllowZonalShiftStatusReadOnly",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "arc-zonal-shift:GetManagedResource"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "arc-zonal-shift:ResourceIdentifier": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
+                }
+              } 
+            }
+          ]
+        }
   ResourceDiscoveryPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -312,9 +337,11 @@ Resources:
                 "ec2:DescribeCapacityReservations",
                 "ec2:DescribeImages",
                 "ec2:DescribeInstances",
+                "ec2:DescribeInstanceStatus",
                 "ec2:DescribeInstanceTypeOfferings",
                 "ec2:DescribeInstanceTypes",
                 "ec2:DescribeLaunchTemplates",
+                "ec2:DescribePlacementGroups",
                 "ec2:DescribeSecurityGroups",
                 "ec2:DescribeSpotPriceHistory",
                 "ec2:DescribeSubnets"
@@ -421,6 +448,17 @@ Resources:
           - aws.ec2
         detail-type:
           - EC2 Instance State-change Notification
+      Targets:
+        - Id: KarpenterInterruptionQueueTarget
+          Arn: !GetAtt KarpenterInterruptionQueue.Arn
+  CapacityReservationInterruptionRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      EventPattern:
+        source:
+          - aws.ec2
+        detail-type:
+          - EC2 Capacity Reservation Instance Interruption Warning
       Targets:
         - Id: KarpenterInterruptionQueueTarget
           Arn: !GetAtt KarpenterInterruptionQueue.Arn

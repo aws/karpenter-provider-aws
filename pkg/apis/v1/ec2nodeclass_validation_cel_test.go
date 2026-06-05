@@ -1257,6 +1257,210 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
 	})
+	Context("NetworkInterfaces", func() {
+		It("should succeed with valid multiple network interfaces", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed when network interfaces is empty", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail with an invalid interface type", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    "efa",
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with a negative NetworkCardIndex", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: -1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with a negative DeviceIndex", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: -1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      -1,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with duplicate Network Interface and Device Index fields", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with no primary network interface", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when primary network interface is not ENA", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when multiple EFA devices on one network card", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+	})
+	Context("ConnectionTracking", func() {
+		It("should fail when connectionTracking is specified with no fields set", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should succeed with valid tcpEstablishedTimeout", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				TCPEstablishedTimeout: lo.ToPtr(int32(60)),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with valid udpStreamTimeout", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPStreamTimeout: lo.ToPtr(int32(120)),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with valid udpTimeout", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPTimeout: lo.ToPtr(int32(45)),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with all valid connection tracking settings", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				TCPEstablishedTimeout: lo.ToPtr(int32(432000)), // 5 days
+				UDPStreamTimeout:      lo.ToPtr(int32(180)),
+				UDPTimeout:            lo.ToPtr(int32(60)),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail when tcpEstablishedTimeout is below minimum (60s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				TCPEstablishedTimeout: lo.ToPtr(int32(59)),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when tcpEstablishedTimeout is above maximum (432000s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				TCPEstablishedTimeout: lo.ToPtr(int32(432001)),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when udpStreamTimeout is below minimum (60s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPStreamTimeout: lo.ToPtr(int32(59)),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when udpStreamTimeout is above maximum (180s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPStreamTimeout: lo.ToPtr(int32(181)),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when udpTimeout is below minimum (30s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPTimeout: lo.ToPtr(int32(29)),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when udpTimeout is above maximum (60s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPTimeout: lo.ToPtr(int32(61)),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+	})
 	Context("Role Immutability", func() {
 		It("should fail if role is not defined", func() {
 			nc.Spec.Role = ""
@@ -1286,6 +1490,31 @@ var _ = Describe("CEL/Validation", func() {
 			nc.Spec.Role = ""
 			nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 			Expect(env.Client.Update(ctx, nc)).To(Succeed())
+		})
+	})
+
+	Context("CPUOptions", func() {
+		It("should succeed with nestedVirtualization enabled", func() {
+			nc.Spec.CPUOptions = &v1.CPUOptions{
+				NestedVirtualization: aws.String("enabled"),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with nestedVirtualization disabled", func() {
+			nc.Spec.CPUOptions = &v1.CPUOptions{
+				NestedVirtualization: aws.String("disabled"),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail with invalid nestedVirtualization value", func() {
+			nc.Spec.CPUOptions = &v1.CPUOptions{
+				NestedVirtualization: aws.String("invalid"),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should succeed with empty CPUOptions", func() {
+			nc.Spec.CPUOptions = &v1.CPUOptions{}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 		})
 	})
 })

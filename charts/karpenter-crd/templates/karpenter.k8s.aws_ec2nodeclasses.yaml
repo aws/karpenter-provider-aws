@@ -6,7 +6,7 @@ metadata:
     {{- with .Values.additionalAnnotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-    controller-gen.kubebuilder.io/version: v0.20.0
+    controller-gen.kubebuilder.io/version: v0.21.0
   name: ec2nodeclasses.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws
@@ -295,11 +295,66 @@ spec:
                       rule: self.all(x, has(x.tags) || has(x.id) || has(x.instanceMatchCriteria))
                     - message: '''id'' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term'
                       rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))'
+                connectionTracking:
+                  description: |-
+                    ConnectionTracking configures idle connection tracking timeouts for
+                    ENIs Karpenter provisions in the launch template. EFA-only interfaces
+                    are excluded. See ConnectionTracking.
+                  properties:
+                    tcpEstablishedTimeout:
+                      description: |-
+                        TCPEstablishedTimeout is the timeout (in seconds) for idle TCP connections
+                        in an established state.
+                        Value must be between 60 and 432,000 (5 days).
+                        If unset, EC2 applies its default which is 350 seconds for Nitro v6
+                        instance types (excluding P6e-GB200) and 432,000 seconds for other
+                        instance types.
+                      format: int32
+                      maximum: 432000
+                      minimum: 60
+                      type: integer
+                    udpStreamTimeout:
+                      description: |-
+                        UDPStreamTimeout is the timeout (in seconds) for idle UDP "stream" flows
+                        that have seen more than one request-response transaction.
+                        Value must be between 60 and 180.
+                        If unset, EC2 applies its default of 180 seconds.
+                      format: int32
+                      maximum: 180
+                      minimum: 60
+                      type: integer
+                    udpTimeout:
+                      description: |-
+                        UDPTimeout is the timeout (in seconds) for idle UDP flows that have seen
+                        traffic only in a single direction or a single request-response transaction.
+                        Value must be between 30 and 60.
+                        If unset, EC2 applies its default of 30 seconds.
+                      format: int32
+                      maximum: 60
+                      minimum: 30
+                      type: integer
+                  type: object
+                  x-kubernetes-validations:
+                    - message: at least one of tcpEstablishedTimeout, udpStreamTimeout, or udpTimeout must be set
+                      rule: has(self.tcpEstablishedTimeout) || has(self.udpStreamTimeout) || has(self.udpTimeout)
                 context:
                   description: |-
                     Context is a Reserved field in EC2 APIs
                     https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
                   type: string
+                cpuOptions:
+                  description: CPUOptions defines the CPU options for the instance.
+                  properties:
+                    nestedVirtualization:
+                      description: |-
+                        NestedVirtualization enables or disables nested virtualization on the instance.
+                        When enabled, Karpenter filters instance types to only those reporting
+                        "nested-virtualization" in ProcessorInfo.SupportedFeatures from DescribeInstanceTypes.
+                      enum:
+                        - enabled
+                        - disabled
+                      type: string
+                  type: object
                 detailedMonitoring:
                   description: DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
                   type: boolean
@@ -516,6 +571,58 @@ spec:
                         - optional
                       type: string
                   type: object
+                networkInterfaces:
+                  description: NetworkInterfaces specifies the network interface configurations to be attached to provisioned instances.
+                  items:
+                    description: |-
+                      NetworkInterface specifies the configuration for a network interface to be attached
+                      to provisioned instances.
+                    properties:
+                      deviceIndex:
+                        description: DeviceIndex is the device index for the network interface attachment.
+                        format: int32
+                        minimum: 0
+                        type: integer
+                      interfaceType:
+                        description: InterfaceType is the type of network interface. Valid values are "interface" and "efa-only".
+                        enum:
+                          - interface
+                          - efa-only
+                        type: string
+                      networkCardIndex:
+                        description: NetworkCardIndex is the index of the network card to attach the interface to.
+                        format: int32
+                        minimum: 0
+                        type: integer
+                    required:
+                      - deviceIndex
+                      - interfaceType
+                      - networkCardIndex
+                    type: object
+                  maxItems: 150
+                  type: array
+                  x-kubernetes-validations:
+                    - message: networkInterfaces must include a primary interface with interfaceType='interface'
+                      rule: self.size() == 0 || self.exists(x, x.deviceIndex == 0 && x.networkCardIndex == 0 && x.interfaceType == 'interface')
+                    - message: networkInterfaces must not have duplicate networkCardIndex and deviceIndex pairs, and can have at most one efa device per network card
+                      rule: self.all(x, self.filter(y, x.networkCardIndex == y.networkCardIndex && x.deviceIndex == y.deviceIndex).size() == 1 && (x.interfaceType != 'efa-only' || self.filter(y, x.networkCardIndex == y.networkCardIndex && y.interfaceType == 'efa-only').size() == 1))
+                placementGroupSelector:
+                  description: PlacementGroupSelector defines the name or the id of the placement to resolve with the nodeclass.
+                  properties:
+                    id:
+                      description: ID is the placement group id in EC2
+                      pattern: ^pg-[0-9a-z]+$
+                      type: string
+                    name:
+                      description: Name is the placement group name in EC2
+                      minLength: 1
+                      type: string
+                  type: object
+                  x-kubernetes-validations:
+                    - message: expected at least one, got none, ['name', 'id']
+                      rule: has(self.name) || has(self.id)
+                    - message: '''name'' and ''id'' are mutually exclusive'
+                      rule: '!(has(self.name) && has(self.id))'
                 role:
                   description: |-
                     Role is the AWS identity that nodes use.
@@ -724,6 +831,9 @@ spec:
                       instanceType:
                         description: The instance type for the capacity reservation.
                         type: string
+                      interruptible:
+                        description: Indicates whether this capacity reservation is interruptible
+                        type: boolean
                       ownerID:
                         description: The ID of the AWS account that owns the capacity reservation.
                         pattern: ^[0-9]{12}$

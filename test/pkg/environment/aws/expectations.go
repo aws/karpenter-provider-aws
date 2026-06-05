@@ -37,6 +37,8 @@ import (
 
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -403,6 +405,62 @@ func (env *Environment) GetAMIBySSMPath(ssmPath string) string {
 	return *parameter.Parameter.Value
 }
 
+// getPinnedAMIPath returns any one valid pinned AMI path which is a child of the SSM path supplied
+func (env *Environment) getPinnedAMIPath(ssmPath string) string {
+	GinkgoHelper()
+
+	paginator := ssm.NewGetParametersByPathPaginator(env.SSMAPI, &ssm.GetParametersByPathInput{
+		Path:      aws.String(ssmPath),
+		Recursive: aws.Bool(true),
+	})
+	var amiPath string
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(env.Context)
+		Expect(err).ToNot(HaveOccurred())
+		for _, param := range page.Parameters {
+			name := aws.ToString(param.Name)
+			// Get only the image_id path so we know what suffix to trim later
+			if !strings.Contains(name, "recommended") && !strings.Contains(name, "latest") && strings.HasSuffix(name, "/image_id") {
+				amiPath = name
+				break
+			}
+		}
+		if amiPath != "" {
+			break
+		}
+	}
+	Expect(amiPath).ToNot(BeEmpty(), "no pinned AMI version found under SSM path: %s", ssmPath)
+	amiPath = strings.TrimSuffix(amiPath, "/image_id")
+	return amiPath
+}
+
+// GetPinnedAMIVersion returns any one valid pinned AMI version for the AMI family supplied
+func (env *Environment) GetPinnedAMIVersion(amiFamily string) string {
+	GinkgoHelper()
+
+	k8sVersion := env.K8sVersion()
+	var ssmPath string
+	switch amiFamily {
+	case "al2023":
+		ssmPath = fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard", k8sVersion)
+	case "al2":
+		ssmPath = fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2", k8sVersion)
+	case "bottlerocket":
+		ssmPath = fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64", k8sVersion)
+	}
+	amiPath := env.getPinnedAMIPath(ssmPath)
+	pathParts := strings.Split(amiPath, "/")
+	var amiVersion string
+	if strings.Contains(ssmPath, "bottlerocket") {
+		amiVersion = pathParts[len(pathParts)-1]
+	} else {
+		lastPathPart := pathParts[len(pathParts)-1]
+		parts := strings.Split(lastPathPart, "-")
+		amiVersion = parts[len(parts)-1]
+	}
+	return amiVersion
+}
+
 func (env *Environment) GetDeprecatedAMI(amiID string, amifamily string) string {
 	out, err := env.EC2API.DescribeImages(env.Context, &ec2.DescribeImagesInput{
 		Filters: []ec2types.Filter{
@@ -532,6 +590,94 @@ func ignoreAlreadyContainsRole(err error) error {
 		}
 	}
 	return err
+}
+
+func ExpectInterruptibleCapacityReservationCreated(
+	ctx context.Context,
+	ec2api *ec2.Client,
+	instanceType ec2types.InstanceType,
+	zone string,
+	totalCapacity int32,
+	interruptibleCapacity int32,
+	tags map[string]string,
+) (string, string) {
+	GinkgoHelper()
+	odcrID := ExpectCapacityReservationCreated(ctx, ec2api, instanceType, zone, totalCapacity, nil, tags)
+
+	_, err := ec2api.CreateInterruptibleCapacityReservationAllocation(ctx, &ec2.CreateInterruptibleCapacityReservationAllocationInput{
+		CapacityReservationId: &odcrID,
+		InstanceCount:         lo.ToPtr(interruptibleCapacity),
+		TagSpecifications: lo.Ternary(len(tags) != 0, []ec2types.TagSpecification{{
+			ResourceType: ec2types.ResourceTypeCapacityReservation,
+			Tags:         utils.EC2MergeTags(tags),
+		}}, nil),
+	})
+	Expect(err).ToNot(HaveOccurred())
+
+	// the create IODCR API doesn't return the IODCR ID, so we have to describe the source reservation
+	var out *ec2.DescribeCapacityReservationsOutput
+	Eventually(func(g Gomega) {
+		out, err = ec2api.DescribeCapacityReservations(ctx, &ec2.DescribeCapacityReservationsInput{
+			CapacityReservationIds: []string{odcrID},
+		})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(out).To(Not(BeNil()))
+		Expect(len(out.CapacityReservations)).To(Equal(1))
+		Expect(out.CapacityReservations[0].InterruptibleCapacityAllocation).To(Not(BeNil()))
+	}).WithTimeout(15 * time.Second).WithPolling(2 * time.Second).Should(Succeed())
+
+	return odcrID, *out.CapacityReservations[0].InterruptibleCapacityAllocation.InterruptibleCapacityReservationId
+}
+
+func ExpectModifyInterruptibleCapacity(
+	ctx context.Context,
+	ec2api *ec2.Client,
+	sourceReservationId string,
+	targetInterruptibleCapacity int32,
+) {
+	GinkgoHelper()
+	_, err := ec2api.UpdateInterruptibleCapacityReservationAllocation(ctx, &ec2.UpdateInterruptibleCapacityReservationAllocationInput{
+		CapacityReservationId: lo.ToPtr(sourceReservationId),
+		TargetInstanceCount:   lo.ToPtr(targetInterruptibleCapacity),
+	})
+	Expect(err).ToNot(HaveOccurred())
+}
+
+func ExpectInterruptibleAndSourceCapacityCanceled(
+	ctx context.Context,
+	ec2api *ec2.Client,
+	sourceReservationId string,
+	interrutibleReservationID string,
+) {
+	GinkgoHelper()
+	_, err := ec2api.UpdateInterruptibleCapacityReservationAllocation(ctx, &ec2.UpdateInterruptibleCapacityReservationAllocationInput{
+		CapacityReservationId: lo.ToPtr(sourceReservationId),
+		TargetInstanceCount:   aws.Int32(0),
+	})
+	Expect(err).To(Or(
+		BeNil(),
+		MatchError(ContainSubstring("doesn't have an active interruptible capacity allocation")),
+	))
+
+	// instances in IODCRs take 2 minutes to terminate and reclaim
+	Eventually(func(g Gomega) {
+		out, err := ec2api.DescribeCapacityReservations(ctx, &ec2.DescribeCapacityReservationsInput{
+			CapacityReservationIds: []string{interrutibleReservationID},
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(out).To(Not(BeNil()))
+		g.Expect(len(out.CapacityReservations)).To(Equal(1))
+		g.Expect(out.CapacityReservations[0].State).To(Equal(ec2types.CapacityReservationStateCancelled))
+	}).WithTimeout(4 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+
+	// there can be transient delays in when IODCR capacity is fully reclaimed and when the source ODCR can be canceled
+	// if we directly try to cancel the source reservation we'll see error "has an active interruptible capacity allocation"
+	Eventually(func(g Gomega) {
+		_, err := ec2api.CancelCapacityReservation(ctx, &ec2.CancelCapacityReservationInput{
+			CapacityReservationId: &sourceReservationId,
+		})
+		Expect(err).ToNot(HaveOccurred())
+	}).WithTimeout(4 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 }
 
 func ExpectCapacityReservationCreated(
@@ -676,4 +822,112 @@ func (env *Environment) ExpectNodeRoleDeleted(roleName string) {
 		RoleName: aws.String(roleName),
 	})
 	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
+}
+
+func (env *Environment) ExpectSecurityGroupDeleted(groupID *string) {
+	GinkgoHelper()
+	By("deleting security group created for test")
+	_, err := env.EC2API.DeleteSecurityGroup(env.Context, &ec2.DeleteSecurityGroupInput{
+		GroupId: groupID,
+	})
+	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
+}
+
+func (env *Environment) ExpectEFADevicePluginCreated() {
+	GinkgoHelper()
+	env.ExpectCreated(&appsv1.DaemonSet{
+		ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{
+			Name:      "aws-efa-k8s-device-plugin-daemonset",
+			Namespace: "kube-system",
+		}),
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"name": "aws-efa-k8s-device-plugin",
+				},
+			},
+			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
+				Type: appsv1.RollingUpdateDaemonSetStrategyType,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"scheduler.alpha.kubernetes.io/critical-pod": "",
+					},
+					Labels: map[string]string{
+						"name": "aws-efa-k8s-device-plugin",
+					},
+				}),
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"aws.amazon.com/efa": "true",
+					},
+					Tolerations: []corev1.Toleration{
+						{
+							Key:      "CriticalAddonsOnly",
+							Operator: corev1.TolerationOpExists,
+						},
+						{
+							Key:      "aws.amazon.com/efa",
+							Operator: corev1.TolerationOpExists,
+							Effect:   corev1.TaintEffectNoSchedule,
+						},
+					},
+					PriorityClassName: "system-node-critical",
+					HostNetwork:       true,
+					Containers: []corev1.Container{
+						{
+							Name:  "aws-efea-k8s-device-plugin",
+							Image: "602401143452.dkr.ecr.us-west-2.amazonaws.com/eks/aws-efa-k8s-device-plugin:v0.3.3",
+							SecurityContext: &corev1.SecurityContext{
+								AllowPrivilegeEscalation: lo.ToPtr(false),
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
+								},
+								RunAsNonRoot: lo.ToPtr(false),
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "device-plugin",
+									MountPath: "/var/lib/kubelet/device-plugins",
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "device-plugin",
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: "/var/lib/kubelet/device-plugins",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
+func ExpectPlacementGroupCreated(ctx context.Context, ec2api *ec2.Client, name string, strategy ec2types.PlacementStrategy, partitionCount ...int32) string {
+	GinkgoHelper()
+	input := &ec2.CreatePlacementGroupInput{
+		GroupName: lo.ToPtr(name),
+		Strategy:  strategy,
+	}
+	if len(partitionCount) > 0 {
+		input.PartitionCount = lo.ToPtr(partitionCount[0])
+	}
+	out, err := ec2api.CreatePlacementGroup(ctx, input)
+	Expect(err).ToNot(HaveOccurred())
+	return lo.FromPtr(out.PlacementGroup.GroupId)
+}
+
+func ExpectPlacementGroupDeleted(ctx context.Context, ec2api *ec2.Client, name string) {
+	GinkgoHelper()
+	_, err := ec2api.DeletePlacementGroup(ctx, &ec2.DeletePlacementGroupInput{
+		GroupName: lo.ToPtr(name),
+	})
+	Expect(err).ToNot(HaveOccurred())
 }

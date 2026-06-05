@@ -1,0 +1,198 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package compatibility
+
+import (
+	"strings"
+
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/samber/lo"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
+)
+
+type NodeClass interface {
+	NetworkInterfaces() []*v1.NetworkInterface
+	AMIFamily() string
+	ConnectionTracking() *v1.ConnectionTracking
+	CPUOptions() *v1.CPUOptions
+}
+
+type CompatibleCheck interface {
+	compatibleCheck(info ec2types.InstanceTypeInfo) bool
+}
+
+func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass, pg *placementgroup.PlacementGroup) bool {
+	networkInterfaces := amifamily.ResolveNetworkInterfaces(nodeClass.NetworkInterfaces())
+	for _, check := range []CompatibleCheck{
+		networkInterfaceCompatibility(networkInterfaces),
+		amiFamilyCompatibility(nodeClass.AMIFamily()),
+		nestedVirtualizationCompatibility(nodeClass.CPUOptions()),
+		placementGroupCompatibility(pg),
+		connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
+	} {
+		if !check.compatibleCheck(info) {
+			return false
+		}
+	}
+	return true
+}
+
+type amiFamilyCheck struct {
+	amiFamily string
+}
+
+func amiFamilyCompatibility(amiFamily string) CompatibleCheck {
+	return &amiFamilyCheck{
+		amiFamily: amiFamily,
+	}
+}
+
+func (c amiFamilyCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	// a1 instance types are not supported with al2023s (https://docs.aws.amazon.com/linux/al2023/ug/system-requirements.html)
+	if c.amiFamily == v1.AMIFamilyAL2023 && strings.HasPrefix(string(info.InstanceType), "a1.") {
+		return false
+	}
+	return true
+}
+
+type networkInterfaceCheck struct {
+	networkInterfaces []*amifamily.ResolvedNetworkInterface
+}
+
+func networkInterfaceCompatibility(networkInterfaces []*amifamily.ResolvedNetworkInterface) CompatibleCheck {
+	return &networkInterfaceCheck{
+		networkInterfaces: networkInterfaces,
+	}
+}
+
+//nolint:gocyclo
+func (c networkInterfaceCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	if c.networkInterfaces == nil {
+		return true
+	}
+	// Not all instance types are compatible with network interfaces defined on the Node Class.
+	// We check for 4 cases here. Note that that this is not intended to catch every configuration.
+	if info.NetworkInfo == nil || len(info.NetworkInfo.NetworkCards) == 0 {
+		return false
+	}
+	// (1) the instance type supports ENA interfaces
+	if info.NetworkInfo.EnaSupport == ec2types.EnaSupportUnsupported {
+		return false
+	}
+	for _, networkInterface := range c.networkInterfaces {
+		// (2) the configured number of network cards is greater than what the instance type offers
+		nci := networkInterface.NetworkCardIndex
+		if len(info.NetworkInfo.NetworkCards) <= int(nci) {
+			return false
+		}
+		// (3) the configured number of device indices for a network card is greater than what the instance offers
+		networkCard, found := lo.Find(info.NetworkInfo.NetworkCards, func(card ec2types.NetworkCardInfo) bool {
+			return lo.FromPtr(card.NetworkCardIndex) == nci
+		})
+		if !found || lo.FromPtr(networkCard.MaximumNetworkInterfaces) <= networkInterface.DeviceIndex {
+			return false
+		}
+		// (4) the configured secondary IP count exceeds instance type capacity.
+		// Only one of SecondaryIPPrefixCount and SecondaryIPCount can be configured.
+		secondaryIPsConfigured := max(lo.FromPtrOr(networkInterface.SecondaryIPPrefixCount, int32(0)), lo.FromPtrOr(networkInterface.SecondaryIPCount, int32(0)))
+		if secondaryIPsConfigured > 0 {
+			totalAddressesConsumed := secondaryIPsConfigured
+			// For the primary ENI, account for the node IP which consumes one address slot
+			if networkInterface.NetworkCardIndex == 0 && networkInterface.DeviceIndex == 0 {
+				totalAddressesConsumed++
+			}
+			if totalAddressesConsumed > lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface) {
+				return false
+			}
+		}
+	}
+	// (5) the configured number of EFA-only interfaces is greater than what the instance type offers
+	numEfas := lo.CountBy(c.networkInterfaces, func(nic *amifamily.ResolvedNetworkInterface) bool {
+		return nic.InterfaceType == v1.InterfaceTypeEFAOnly
+	})
+	if numEfas > 0 {
+		if info.NetworkInfo.EfaInfo == nil || info.NetworkInfo.EfaInfo.MaximumEfaInterfaces == nil {
+			return false
+		}
+		if numEfas > int(lo.FromPtr(info.NetworkInfo.EfaInfo.MaximumEfaInterfaces)) {
+			return false
+		}
+	}
+	return true
+}
+
+type nestedVirtualizationCheck struct {
+	cpuOptions *v1.CPUOptions
+}
+
+func nestedVirtualizationCompatibility(cpuOptions *v1.CPUOptions) CompatibleCheck {
+	return &nestedVirtualizationCheck{
+		cpuOptions: cpuOptions,
+	}
+}
+
+func (c nestedVirtualizationCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	if c.cpuOptions == nil || c.cpuOptions.NestedVirtualization == nil || *c.cpuOptions.NestedVirtualization != "enabled" {
+		return true
+	}
+	if info.ProcessorInfo == nil {
+		return false
+	}
+	return lo.Contains(info.ProcessorInfo.SupportedFeatures, ec2types.SupportedAdditionalProcessorFeatureNestedVirtualization)
+}
+
+type placementGroupCheck struct {
+	pg *placementgroup.PlacementGroup
+}
+
+func placementGroupCompatibility(pg *placementgroup.PlacementGroup) CompatibleCheck {
+	return &placementGroupCheck{
+		pg: pg,
+	}
+}
+
+func (c placementGroupCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	if c.pg == nil {
+		return true
+	}
+	return lo.Contains(info.PlacementGroupInfo.SupportedStrategies, PlacementGroupStrategyToEC2(c.pg.Strategy))
+}
+
+func PlacementGroupStrategyToEC2(strategy placementgroup.Strategy) ec2types.PlacementGroupStrategy {
+	resolvedType, _ := lo.Find(ec2types.PlacementGroupStrategy("").Values(), func(crt ec2types.PlacementGroupStrategy) bool {
+		return string(crt) == string(strategy)
+	})
+	return resolvedType
+}
+
+type connectionTrackingCheck struct {
+	hasConnectionTracking bool
+}
+
+func connectionTrackingCompatibility(ct *v1.ConnectionTracking) CompatibleCheck {
+	return &connectionTrackingCheck{
+		hasConnectionTracking: ct != nil,
+	}
+}
+
+func (c connectionTrackingCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	if !c.hasConnectionTracking {
+		return true
+	}
+	return info.Hypervisor == "nitro"
+}

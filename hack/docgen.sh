@@ -8,6 +8,12 @@ compatibilitymatrix() {
     go run hack/docs/compatibilitymatrix_gen/main.go website/content/en/preview/upgrading/compatibility.md hack/docs/compatibilitymatrix_gen/compatibility.yaml $versionCount
 }
 
+# Ensure modules are downloaded so that go list -m -f '{{ .Dir }}' can resolve paths.
+go mod download
+
+if [[ -z "${KARPENTER_CORE_DIR:-}" ]]; then
+    KARPENTER_CORE_DIR=$(go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)
+fi
 CONTROLLER_RUNTIME_DIR=$(go list -m -f '{{ .Dir }}' sigs.k8s.io/controller-runtime)
 AWS_SDK_GO_PROMETHEUS_DIR=$(go list -m -f '{{ .Dir }}' github.com/jonathan-innis/aws-sdk-go-prometheus)
 OPERATORPKG_DIR=$(go list -m -f '{{ .Dir }}' github.com/awslabs/operatorpkg)

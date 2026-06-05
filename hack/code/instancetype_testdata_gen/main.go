@@ -127,7 +127,7 @@ func getDescribeInstanceTypeOfferingsOutput() string {
 		"m5.2xlarge":     {"test-zone-1a"},
 		"m5.4xlarge":     {"test-zone-1a"},
 		"m5.8xlarge":     {"test-zone-1a"},
-		"p3.8xlarge":     {"test-zone-1a", "test-zone-1b"},
+		"g5.12xlarge":    {"test-zone-1a", "test-zone-1b"},
 		"dl1.24xlarge":   {"test-zone-1a", "test-zone-1b"},
 		"g4dn.8xlarge":   {"test-zone-1a", "test-zone-1b"},
 		"g4ad.16xlarge":  {"test-zone-1a", "test-zone-1b"},
@@ -237,6 +237,11 @@ func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 	}
 	fmt.Fprintf(src, "},\n")
 	fmt.Fprintf(src, "},\n")
+	if info.PlacementGroupInfo != nil {
+		fmt.Fprintf(src, "PlacementGroupInfo: &ec2types.PlacementGroupInfo{\n")
+		fmt.Fprintf(src, "SupportedStrategies: []ec2types.PlacementGroupStrategy{%s},\n", getStringSliceData(info.PlacementGroupInfo.SupportedStrategies))
+		fmt.Fprintf(src, "},\n")
+	}
 	return src.String()
 }
 
@@ -279,6 +284,6 @@ func getGPUDeviceInfo(info ec2types.GpuDeviceInfo) string {
 	return src.String()
 }
 
-func getStringSliceData[T ec2types.UsageClassType | ec2types.VirtualizationType | ec2types.ArchitectureType](slice []T) string {
+func getStringSliceData[T ec2types.UsageClassType | ec2types.VirtualizationType | ec2types.ArchitectureType | ec2types.PlacementGroupStrategy](slice []T) string {
 	return strings.Join(lo.Map(slice, func(s T, _ int) string { return fmt.Sprintf(`"%s"`, s) }), ",")
 }

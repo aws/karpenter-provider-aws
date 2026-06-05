@@ -169,6 +169,10 @@ spec:
             - name: INTERRUPTION_QUEUE
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.enableZonalShift }}
+            - name: ENABLE_ZONAL_SHIFT
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.settings.reservedENIs }}
             - name: RESERVED_ENIS
               value: "{{ tpl (toString .) $ }}"
@@ -183,6 +187,14 @@ spec:
           {{- end }}
           {{- with .Values.settings.disableDryRun }}
             - name: DISABLE_DRY_RUN
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- with .Values.settings.amiRefreshInterval }}
+            - name: AMI_REFRESH_INTERVAL
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- with .Values.settings.subnetRefreshInterval }}
+            - name: SUBNET_REFRESH_INTERVAL
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.controller.env }}

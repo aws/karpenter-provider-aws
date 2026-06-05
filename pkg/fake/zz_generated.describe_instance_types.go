@@ -73,6 +73,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "dl1.24xlarge",
@@ -148,6 +151,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "g4ad.16xlarge",
@@ -207,6 +213,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(8),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
 			},
 		},
 		{
@@ -271,6 +280,75 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
+		},
+		{
+			InstanceType:                  "g5.12xlarge",
+			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
+			BurstablePerformanceSupported: aws.Bool(false),
+			BareMetal:                     aws.Bool(false),
+			Hypervisor:                    "nitro",
+			ProcessorInfo: &ec2types.ProcessorInfo{
+				Manufacturer:             aws.String("AMD"),
+				SupportedArchitectures:   []ec2types.ArchitectureType{"x86_64"},
+				SustainedClockSpeedInGhz: aws.Float64(3.300000),
+			},
+			VCpuInfo: &ec2types.VCpuInfo{
+				DefaultCores: aws.Int32(24),
+				DefaultVCpus: aws.Int32(48),
+			},
+			MemoryInfo: &ec2types.MemoryInfo{
+				SizeInMiB: aws.Int64(196608),
+			},
+			EbsInfo: &ec2types.EbsInfo{
+				EbsOptimizedInfo: &ec2types.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int32(16000),
+					BaselineIops:             aws.Int32(65000),
+					BaselineThroughputInMBps: aws.Float64(2000.00),
+					MaximumBandwidthInMbps:   aws.Int32(16000),
+					MaximumIops:              aws.Int32(65000),
+					MaximumThroughputInMBps:  aws.Float64(2000.00),
+				},
+				EbsOptimizedSupport: "default",
+				EncryptionSupport:   "supported",
+				NvmeSupport:         "required",
+			},
+			GpuInfo: &ec2types.GpuInfo{
+				Gpus: []ec2types.GpuDeviceInfo{
+					{
+						Name:         aws.String("A10G"),
+						Manufacturer: aws.String("NVIDIA"),
+						Count:        aws.Int32(4),
+						MemoryInfo: &ec2types.GpuDeviceMemoryInfo{
+							SizeInMiB: aws.Int32(22888),
+						},
+					},
+				},
+			},
+			InstanceStorageInfo: &ec2types.InstanceStorageInfo{NvmeSupport: "required",
+				TotalSizeInGB: aws.Int64(3800),
+			},
+			NetworkInfo: &ec2types.NetworkInfo{
+				EfaInfo: &ec2types.EfaInfo{
+					MaximumEfaInterfaces: aws.Int32(1),
+				},
+				MaximumNetworkInterfaces:     aws.Int32(15),
+				Ipv4AddressesPerInterface:    aws.Int32(50),
+				EncryptionInTransitSupported: aws.Bool(true),
+				DefaultNetworkCardIndex:      aws.Int32(0),
+				NetworkCards: []ec2types.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int32(0),
+						MaximumNetworkInterfaces: aws.Int32(15),
+					},
+				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "inf2.24xlarge",
@@ -330,6 +408,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(15),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
 			},
 		},
 		{
@@ -391,6 +472,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "m5.large",
@@ -435,6 +519,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(3),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
 			},
 		},
 		{
@@ -481,6 +568,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "m5.xlarge",
@@ -525,6 +615,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(4),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
 			},
 		},
 		{
@@ -581,6 +674,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "m7i-flex.large",
@@ -626,62 +722,8 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
-		},
-		{
-			InstanceType:                  "p3.8xlarge",
-			SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
-			SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
-			BurstablePerformanceSupported: aws.Bool(false),
-			BareMetal:                     aws.Bool(false),
-			Hypervisor:                    "xen",
-			ProcessorInfo: &ec2types.ProcessorInfo{
-				Manufacturer:             aws.String("Intel"),
-				SupportedArchitectures:   []ec2types.ArchitectureType{"x86_64"},
-				SustainedClockSpeedInGhz: aws.Float64(2.700000),
-			},
-			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(16),
-				DefaultVCpus: aws.Int32(32),
-			},
-			MemoryInfo: &ec2types.MemoryInfo{
-				SizeInMiB: aws.Int64(249856),
-			},
-			EbsInfo: &ec2types.EbsInfo{
-				EbsOptimizedInfo: &ec2types.EbsOptimizedInfo{
-					BaselineBandwidthInMbps:  aws.Int32(7000),
-					BaselineIops:             aws.Int32(40000),
-					BaselineThroughputInMBps: aws.Float64(875.00),
-					MaximumBandwidthInMbps:   aws.Int32(7000),
-					MaximumIops:              aws.Int32(40000),
-					MaximumThroughputInMBps:  aws.Float64(875.00),
-				},
-				EbsOptimizedSupport: "default",
-				EncryptionSupport:   "supported",
-				NvmeSupport:         "unsupported",
-			},
-			GpuInfo: &ec2types.GpuInfo{
-				Gpus: []ec2types.GpuDeviceInfo{
-					{
-						Name:         aws.String("V100"),
-						Manufacturer: aws.String("NVIDIA"),
-						Count:        aws.Int32(4),
-						MemoryInfo: &ec2types.GpuDeviceMemoryInfo{
-							SizeInMiB: aws.Int32(16384),
-						},
-					},
-				},
-			},
-			NetworkInfo: &ec2types.NetworkInfo{
-				MaximumNetworkInterfaces:     aws.Int32(8),
-				Ipv4AddressesPerInterface:    aws.Int32(30),
-				EncryptionInTransitSupported: aws.Bool(false),
-				DefaultNetworkCardIndex:      aws.Int32(0),
-				NetworkCards: []ec2types.NetworkCardInfo{
-					{
-						NetworkCardIndex:         aws.Int32(0),
-						MaximumNetworkInterfaces: aws.Int32(8),
-					},
-				},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"partition", "spread"},
 			},
 		},
 		{
@@ -728,6 +770,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "t4g.medium",
@@ -772,6 +817,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(3),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"partition", "spread"},
 			},
 		},
 		{
@@ -818,6 +866,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"partition", "spread"},
+			},
 		},
 		{
 			InstanceType:                  "t4g.xlarge",
@@ -862,6 +913,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 						MaximumNetworkInterfaces: aws.Int32(4),
 					},
 				},
+			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"partition", "spread"},
 			},
 		},
 		{
@@ -926,6 +980,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 					},
 				},
 			},
+			PlacementGroupInfo: &ec2types.PlacementGroupInfo{
+				SupportedStrategies: []ec2types.PlacementGroupStrategy{"cluster", "partition", "spread"},
+			},
 		},
 	},
 }
@@ -958,6 +1015,14 @@ var defaultDescribeInstanceTypeOfferingsOutput = &ec2.DescribeInstanceTypeOfferi
 		},
 		{
 			InstanceType: "g4dn.8xlarge",
+			Location:     lo.ToPtr("test-zone-1b"),
+		},
+		{
+			InstanceType: "g5.12xlarge",
+			Location:     lo.ToPtr("test-zone-1a"),
+		},
+		{
+			InstanceType: "g5.12xlarge",
 			Location:     lo.ToPtr("test-zone-1b"),
 		},
 		{
@@ -1027,14 +1092,6 @@ var defaultDescribeInstanceTypeOfferingsOutput = &ec2.DescribeInstanceTypeOfferi
 		{
 			InstanceType: "m7i-flex.large",
 			Location:     lo.ToPtr("test-zone-1a"),
-		},
-		{
-			InstanceType: "p3.8xlarge",
-			Location:     lo.ToPtr("test-zone-1a"),
-		},
-		{
-			InstanceType: "p3.8xlarge",
-			Location:     lo.ToPtr("test-zone-1b"),
 		},
 		{
 			InstanceType: "t3.large",

@@ -28,6 +28,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
+	arczonalshifttypes "github.com/aws/aws-sdk-go-v2/service/arczonalshift/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/object"
@@ -87,7 +89,7 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 	fakeClock = &clock.FakeClock{}
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.InstanceTypeStore)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster, fakeClock)
 })
@@ -265,6 +267,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// TODO: add back to test with a preconfigured reserved instance type
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
+			v1.LabelCapacityReservationInterruptible,
+			// Placement group labels are only present when a placement group is configured on the NodeClass
+			v1.LabelPlacementGroupID,
+			v1.LabelPlacementGroupPartition,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		var pods []*corev1.Pod
@@ -318,15 +324,18 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the accelerator and capacity reservation labels
+		// Ensure that we're exercising all well known labels except for the accelerator, capacity reservation, and EFA count, and placement group labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(
 			append(
 				karpv1.WellKnownLabels.Difference(sets.New(
 					v1.LabelCapacityReservationID,
 					v1.LabelCapacityReservationType,
+					v1.LabelCapacityReservationInterruptible,
 					v1.LabelInstanceAcceleratorCount,
 					v1.LabelInstanceAcceleratorName,
 					v1.LabelInstanceAcceleratorManufacturer,
+					v1.LabelPlacementGroupID,
+					v1.LabelPlacementGroupPartition,
 					corev1.LabelWindowsBuild,
 				)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
@@ -374,15 +383,18 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the gpu, nvme and capacity reservation id labels
+		// Ensure that we're exercising all well known labels except for the gpu, nvme, capacity reservation, and placement group
 		expectedLabels := append(karpv1.WellKnownLabels.Difference(sets.New(
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
+			v1.LabelCapacityReservationInterruptible,
 			v1.LabelInstanceGPUCount,
 			v1.LabelInstanceGPUName,
 			v1.LabelInstanceGPUManufacturer,
 			v1.LabelInstanceGPUMemory,
 			v1.LabelInstanceLocalNVME,
+			v1.LabelPlacementGroupID,
+			v1.LabelPlacementGroupPartition,
 			corev1.LabelWindowsBuild,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))
@@ -767,7 +779,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
 		for _, pod := range pods {
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "p3.8xlarge"))
+			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "g5.12xlarge"))
 			nodeNames.Insert(node.Name)
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
@@ -989,6 +1001,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nil,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
+				nil,
 				nodeClass.Spec.Kubelet.MaxPods,
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
@@ -1013,6 +1026,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nil,
 				windowsNodeClass.Spec.BlockDeviceMappings,
 				windowsNodeClass.Spec.InstanceStorePolicy,
+				nil,
 				nodeClass.Spec.Kubelet.MaxPods,
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
@@ -1098,6 +1112,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1126,6 +1141,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1150,6 +1166,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1183,6 +1200,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1223,6 +1241,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nil,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
+						nil,
 						nodeClass.Spec.Kubelet.MaxPods,
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
@@ -1253,6 +1272,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nil,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
+						nil,
 						nodeClass.Spec.Kubelet.MaxPods,
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
@@ -1283,6 +1303,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nil,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
+						nil,
 						nodeClass.Spec.Kubelet.MaxPods,
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
@@ -1313,6 +1334,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nil,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
+						nil,
 						nodeClass.Spec.Kubelet.MaxPods,
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
@@ -1345,6 +1367,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nil,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
+						nil,
 						nodeClass.Spec.Kubelet.MaxPods,
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
@@ -1378,6 +1401,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nil,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
+						nil,
 						nodeClass.Spec.Kubelet.MaxPods,
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
@@ -1408,6 +1432,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nil,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
+						nil,
 						nodeClass.Spec.Kubelet.MaxPods,
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
@@ -1442,6 +1467,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nil,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
+						nil,
 						nodeClass.Spec.Kubelet.MaxPods,
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
@@ -1463,6 +1489,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1498,6 +1525,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1532,6 +1560,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1566,6 +1595,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1592,6 +1622,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nil,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
+						nil,
 						nodeClass.Spec.Kubelet.MaxPods,
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
@@ -1611,6 +1642,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nil,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
+						nil,
 						nodeClass.Spec.Kubelet.MaxPods,
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
@@ -1638,6 +1670,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1672,6 +1705,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1711,6 +1745,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1747,6 +1782,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1791,6 +1827,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nil,
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
+				nil,
 				nodeClass.Spec.Kubelet.MaxPods,
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
@@ -1823,6 +1860,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1850,6 +1888,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1877,6 +1916,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nil,
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
+					nil,
 					nodeClass.Spec.Kubelet.MaxPods,
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
@@ -1886,7 +1926,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
-				limitedPods := instancetype.ENILimitedPods(ctx, info, 0)
+				limitedPods := instancetype.ENILimitedPods(ctx, info, 0, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})
@@ -1905,6 +1945,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nil,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
+						nil,
 						nodeClass.Spec.Kubelet.MaxPods,
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
@@ -1924,6 +1965,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nil,
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
+						nil,
 						nodeClass.Spec.Kubelet.MaxPods,
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
@@ -2060,9 +2102,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(nodeNames.Len()).To(Equal(2))
 		})
 		It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
-			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "p3.8xlarge", Zone: "test-zone-1a"}})
+			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "g5.12xlarge", Zone: "test-zone-1a"}})
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
-				NodeSelector: map[string]string{corev1.LabelInstanceTypeStable: "p3.8xlarge"},
+				NodeSelector: map[string]string{corev1.LabelInstanceTypeStable: "g5.12xlarge"},
 				ResourceRequirements: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
 					Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
@@ -2077,13 +2119,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			// it should've tried to pack them in test-zone-1a on a p3.8xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
+			// it should've tried to pack them in test-zone-1a on a g5.12xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
 			ExpectNotScheduled(ctx, env.Client, pod)
 
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(SatisfyAll(
-				HaveKeyWithValue(corev1.LabelInstanceTypeStable, "p3.8xlarge"),
+				HaveKeyWithValue(corev1.LabelInstanceTypeStable, "g5.12xlarge"),
 				HaveKeyWithValue(corev1.LabelTopologyZone, "test-zone-1b")))
 		})
 		It("should launch smaller instances than optimal if larger instance launch results in Insufficient Capacity Error", func() {
@@ -2357,7 +2399,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(zones.UnsortedList()).To(ConsistOf([]string{"test-zone-1a", "test-zone-1b", "test-zone-1c"}))
 
 			// Mark one of the zones as unavailable
-			awsEnv.UnavailableOfferingsCache.MarkAZUnavailable("test-zone-1a")
+			for _, subnet := range test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()) {
+				awsEnv.UnavailableOfferingsCache.MarkSubnetUnavailable(subnet)
+			}
 
 			// Initial list of GetInstanceTypes
 			instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
@@ -2819,7 +2863,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 				}
 			}
 
-			awsEnv.UnavailableOfferingsCache.MarkAZUnavailable("test-zone-1a")
+			for _, subnet := range test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()) {
+				awsEnv.UnavailableOfferingsCache.MarkSubnetUnavailable(subnet)
+			}
 			list3, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -2993,6 +3039,226 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Entry("when the capacity block is active", v1.CapacityReservationStateActive),
 			Entry("when the capacity block is expiring", v1.CapacityReservationStateExpiring),
 		)
+	})
+	It("should mark offerings as unavailable for zones shifted away from", func() {
+		ExpectApplied(ctx, env.Client, nodeClass)
+
+		// before zonal shift, all offerings should be available
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		m5InstanceType, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+			return it.Name == string(ec2types.InstanceTypeM5Large)
+		})
+		Expect(ok).To(BeTrue())
+		Expect(m5InstanceType.Offerings.Available()).To(HaveLen(6)) // 3 zones x 2 capacity types
+
+		awsEnv.ARCZonalShiftAPI.GetManagedResourceBehavior.Output.Set(&arczonalshift.GetManagedResourceOutput{
+			ZonalShifts: []arczonalshifttypes.ZonalShiftInResource{
+				{
+					AwayFrom:      aws.String("tstz1-1a"),
+					ExpiryTime:    aws.Time(time.Now().Add(time.Hour)),
+					AppliedStatus: arczonalshifttypes.AppliedStatusApplied,
+				},
+			},
+		})
+		Expect(awsEnv.ZonalShiftProvider.UpdateZonalShifts(ctx)).To(Succeed())
+
+		// after zonal shift, 2 offerings should be available
+		instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		m5InstanceType, ok = lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+			return it.Name == string(ec2types.InstanceTypeM5Large)
+		})
+		Expect(ok).To(BeTrue())
+		Expect(m5InstanceType.Offerings.Available()).To(HaveLen(4))
+		for _, offering := range m5InstanceType.Offerings.Available() {
+			Expect(offering.Zone()).ToNot(Equal("test-zone-1a"))
+		}
+
+		// shift back into the zone, all offerings should be available again
+		awsEnv.ARCZonalShiftAPI.GetManagedResourceBehavior.Output.Set(&arczonalshift.GetManagedResourceOutput{
+			ZonalShifts: []arczonalshifttypes.ZonalShiftInResource{},
+		})
+		Expect(awsEnv.ZonalShiftProvider.UpdateZonalShifts(ctx)).To(Succeed())
+		instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		m5InstanceType, ok = lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+			return it.Name == string(ec2types.InstanceTypeM5Large)
+		})
+		Expect(ok).To(BeTrue())
+		Expect(m5InstanceType.Offerings.Available()).To(HaveLen(6))
+	})
+	Context("Instance Type and NodeClass Compatibility", func() {
+		Context("AMI Compatibility", func() {
+			BeforeEach(func() {
+				awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+					InstanceTypes: []ec2types.InstanceTypeInfo{
+						{
+							InstanceType: "a1.medium",
+							ProcessorInfo: &ec2types.ProcessorInfo{
+								SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeArm64},
+							},
+							VCpuInfo: &ec2types.VCpuInfo{
+								DefaultCores: aws.Int32(1),
+								DefaultVCpus: aws.Int32(1),
+							},
+							MemoryInfo: &ec2types.MemoryInfo{
+								SizeInMiB: aws.Int64(2048),
+							},
+							NetworkInfo: &ec2types.NetworkInfo{
+								Ipv4AddressesPerInterface: aws.Int32(4),
+								DefaultNetworkCardIndex:   aws.Int32(0),
+								NetworkCards: []ec2types.NetworkCardInfo{{
+									NetworkCardIndex:         lo.ToPtr(int32(0)),
+									MaximumNetworkInterfaces: aws.Int32(2),
+								}},
+							},
+							SupportedUsageClasses: []ec2types.UsageClassType{
+								ec2types.UsageClassTypeOnDemand,
+								ec2types.UsageClassTypeSpot,
+							},
+						},
+					},
+				})
+				awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+					InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
+						{
+							InstanceType: "a1.medium",
+							Location:     aws.String("test-zone-1a"),
+							LocationType: ec2types.LocationTypeAvailabilityZone,
+						},
+						{
+							InstanceType: "a1.medium",
+							Location:     aws.String("test-zone-1b"),
+							LocationType: ec2types.LocationTypeAvailabilityZone,
+						},
+					},
+				})
+				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+			})
+			DescribeTable("should mark availability of a1 instance type offerings based on AMI",
+				func(AMIFamily string, alias string, expectedAvailability bool) {
+					nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+					nodeClass.Spec.AMIFamily = lo.ToPtr(AMIFamily)
+					ExpectApplied(ctx, env.Client, nodeClass)
+
+					instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+					Expect(err).ToNot(HaveOccurred())
+
+					a1InstanceType, found := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+						return it.Name == "a1.medium"
+					})
+					Expect(found).To(BeTrue(), "a1.medium instance type should exist in the list")
+
+					// All offerings for a1.medium should be marked as unavailable with AL2023
+					// All offerings for a1.medium should be marked as available with Bottlerocket
+					if expectedAvailability {
+						Expect(len(a1InstanceType.Offerings.Available())).To(BeNumerically(">", 0), "a1.medium should have available offerings")
+					} else {
+						Expect(a1InstanceType.Offerings.Available()).To(HaveLen(0), "a1.medium should not have available offerings")
+					}
+					// Verify offerings exist but are marked as unavailable
+					Expect(a1InstanceType.Offerings).To(Not(BeEmpty()), "a1.medium should have offerings (even if unavailable)")
+
+					for _, offering := range a1InstanceType.Offerings {
+						Expect(offering.Available).To(Equal(expectedAvailability),
+							fmt.Sprintf("offering for a1.medium in zone %s should be available as %t", offering.Zone(), expectedAvailability))
+					}
+				},
+				Entry("when AMI is AL2023", v1.AMIFamilyAL2023, "al2023@latest", false),
+				Entry("when AMI is BottleRocket", v1.AMIFamilyBottlerocket, "bottlerocket@latest", true),
+			)
+		})
+		Context("Network Interfaces", func() {
+			It("should mark instance type offering as available when it supports network interface configuration", func() {
+				// get offerings before network interface configurations
+				ExpectApplied(ctx, env.Client, nodeClass)
+				instanceTypesBefore, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).To(BeNil())
+				dl1InstanceBefore, ok := lo.Find(instanceTypesBefore, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "dl1.24xlarge"
+				})
+				Expect(ok).To(BeTrue())
+				availableOfferingsBefore := len(dl1InstanceBefore.Offerings.Available())
+
+				nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+				}
+				ExpectApplied(ctx, env.Client, nodeClass)
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).To(BeNil())
+				dl1Instance, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "dl1.24xlarge"
+				})
+				Expect(ok).To(BeTrue())
+				availableOfferingsAfter := len(dl1Instance.Offerings.Available())
+
+				Expect(availableOfferingsAfter).To(Equal(availableOfferingsBefore))
+			})
+			It("should mark instance type offering as unavailable when it does not support network interface configuration", func() {
+				nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+					{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+					{NetworkCardIndex: 2, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+					{NetworkCardIndex: 3, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+					{NetworkCardIndex: 4, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+				}
+				ExpectApplied(ctx, env.Client, nodeClass)
+
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).To(BeNil())
+				// dl1.24xlarge only suppports 4 EFAs
+				dl1Instance, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "dl1.24xlarge"
+				})
+				Expect(ok).To(BeTrue())
+
+				for _, offering := range dl1Instance.Offerings {
+					Expect(offering.Available).To(Equal(false))
+				}
+			})
+		})
+	})
+	Context("Network Interfaces", func() {
+		It("should calculate max pods according when no EFA-only interfaces used on NC 0", func() {
+			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			// m6idn.32xlarge supports 8 ENIs on NC 0 and 50 IP address for an ENI
+			m6idn, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m6idn.32xlarge"
+			})
+			Expect(ok).To(BeTrue())
+			// max pods = max number of ENIs * (IPv4 Addresses per ENI -1) + 2 = 8 * 49 + 2 = 394
+			Expect(m6idn.Capacity.Pods().Value()).To(Equal(int64(394)))
+		})
+		It("should calculate max pods according to EFA-only interfaces used", func() {
+			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+
+			// m6idn.32xlarge supports 8 ENIs on NC 0 and 50 IP address for an ENI
+			m6idn, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m6idn.32xlarge"
+			})
+			Expect(ok).To(BeTrue())
+			// max pods = max number of ENIs * (IPv4 Addresses per ENI -1) + 2 = (8-1) * 49 + 2 = 345
+			Expect(m6idn.Capacity.Pods().Value()).To(Equal(int64(345)))
+		})
 	})
 })
 

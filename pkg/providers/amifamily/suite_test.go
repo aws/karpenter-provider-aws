@@ -1224,7 +1224,7 @@ var _ = Describe("AMIResolver", func() {
 		"should set launch template metadata options correctly per region",
 		func(region string, expect *string) {
 			amiResolver := amifamily.NewDefaultResolver(region)
-			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"})
+			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(launchTemplates).To(HaveLen(1))
 			lo.ForEach(launchTemplates, func(launchTemplate *amifamily.LaunchTemplate, _ int) {

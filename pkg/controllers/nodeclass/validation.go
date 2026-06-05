@@ -64,6 +64,13 @@ var ValidationConditionMessages = map[string]string{
 	ConditionReasonRunInstancesAuthFailed:         "Controller isn't authorized to call ec2:RunInstances",
 }
 
+// validationCacheEntry stores a failed validation result with both the condition reason and the
+// enriched message derived from the AWS error, so cached results can reproduce the same condition.
+type validationCacheEntry struct {
+	reason  string
+	message string
+}
+
 type Validation struct {
 	kubeClient             client.Client
 	cloudProvider          cloudprovider.CloudProvider
@@ -155,13 +162,14 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 
 	if val, ok := v.cache.Get(v.cacheKey(nodeClass, tags)); ok {
 		// We still update the status condition even if it's cached since we may have had a conflict error previously
-		if val == "" {
+		entry := val.(validationCacheEntry)
+		if entry.reason == "" {
 			nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 		} else {
 			nodeClass.StatusConditions().SetFalse(
 				v1.ConditionTypeValidationSucceeded,
-				val.(string),
-				ValidationConditionMessages[val.(string)],
+				entry.reason,
+				entry.message,
 			)
 		}
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
@@ -169,7 +177,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 
 	if v.dryRunDisabled {
 		nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
-		v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
+		v.cache.SetDefault(v.cacheKey(nodeClass, tags), validationCacheEntry{})
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 
@@ -188,17 +196,21 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return result, err
 	}
 
-	v.cache.SetDefault(v.cacheKey(nodeClass, tags), "")
+	v.cache.SetDefault(v.cacheKey(nodeClass, tags), validationCacheEntry{})
 	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeValidationSucceeded)
 	return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 }
 
-func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[string]string, failureReason string) {
-	v.cache.SetDefault(v.cacheKey(nodeClass, tags), failureReason)
+func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[string]string, failureReason string, reasonMessage string) {
+	message := fmt.Sprintf("%s: %s", ValidationConditionMessages[failureReason], reasonMessage)
+	v.cache.SetDefault(v.cacheKey(nodeClass, tags), validationCacheEntry{
+		reason:  failureReason,
+		message: message,
+	})
 	nodeClass.StatusConditions().SetFalse(
 		v1.ConditionTypeValidationSucceeded,
 		failureReason,
-		ValidationConditionMessages[failureReason],
+		message,
 	)
 }
 
@@ -208,15 +220,17 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	nodeClaim *karpv1.NodeClaim,
 	tags map[string]string,
 ) (launchTemplate *launchtemplate.LaunchTemplate, result reconcile.Result, err error) {
-	instanceTypes, err := v.getPrioritizedInstanceTypes(ctx, nodeClass)
+	nodePools, err := nodepoolutils.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepoolutils.ForNodeClass(nodeClass))
+	if err != nil {
+		return nil, reconcile.Result{}, fmt.Errorf("listing nodepools for nodeclass, %w", err)
+	}
+	instanceTypes, err := v.getPrioritizedInstanceTypes(ctx, nodeClass, nodePools)
 	if err != nil {
 		return nil, reconcile.Result{}, fmt.Errorf("generating options, %w", err)
 	}
 	// pass 1 instance type in EnsureAll to only create 1 launch template
-	tenancyType, err := v.getTenancyType(ctx, nodeClass)
-	if err != nil {
-		return nil, reconcile.Result{}, fmt.Errorf("determining instance tenancy, %w", err)
-	}
+	tenancyType := getTenancyType(nodePools)
+
 	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes[:1], karpv1.CapacityTypeOnDemand, tags, string(tenancyType))
 	if err != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
@@ -227,7 +241,8 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 			return nil, reconcile.Result{}, fmt.Errorf("validating ec2:CreateLaunchTemplate authorization, %w", err)
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateLaunchTemplate")
-		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateLaunchTemplateAuthFailed)
+		_, reasonMessage := awserrors.ToReasonMessage(err)
+		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateLaunchTemplateAuthFailed, reasonMessage)
 		return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 	// this case should never occur as we ensure instance types are compatible with AMI
@@ -259,7 +274,8 @@ func (v *Validation) validateCreateFleetAuthorization(
 			return reconcile.Result{}, fmt.Errorf("validating ec2:CreateFleet authorization, %w", err)
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateFleet")
-		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateFleetAuthFailed)
+		_, reasonMessage := awserrors.ToReasonMessage(err)
+		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateFleetAuthFailed, reasonMessage)
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 	return reconcile.Result{}, nil
@@ -271,26 +287,39 @@ func (v *Validation) validateRunInstancesAuthorization(
 	tags map[string]string,
 	launchTemplate *launchtemplate.LaunchTemplate,
 ) (result reconcile.Result, err error) {
-	runInstancesInput := getRunInstancesInput(nodeClass, tags, launchTemplate)
-	// Adding NopRetryer to avoid aggressive retry when rate limited
-	if _, err = v.ec2api.RunInstances(ctx, runInstancesInput, func(o *ec2.Options) {
-		o.Retryer = aws.NopRetryer{}
-	}); awserrors.IgnoreDryRunError(err) != nil {
-		// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
-		// this means there is most likely an eventual consistency issue and we just need to requeue
-		if awserrors.IsInstanceProfileNotFound(err) || awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
-			return reconcile.Result{Requeue: true}, nil
+	// We use the first subnet's error to determine the outcome. Mixed-error scenarios across subnets
+	// are unlikely in practice since authorization policies are not subnet-specific, and transient
+	// failures on individual subnets are already handled by the early-exit-on-success pattern.
+	var firstSubnetErr error
+	for i, subnet := range nodeClass.Status.Subnets {
+		runInstancesInput := getRunInstancesInput(tags, launchTemplate, amifamily.ResolveNetworkInterfaces(nodeClass.Spec.NetworkInterfaces), &subnet)
+		if _, err = v.ec2api.RunInstances(ctx, runInstancesInput, func(o *ec2.Options) {
+			// Adding NopRetryer to avoid aggressive retry when rate limited
+			o.Retryer = aws.NopRetryer{}
+		}); awserrors.IgnoreDryRunError(err) != nil {
+			if i == 0 {
+				firstSubnetErr = err
+			}
+		} else {
+			// if any of them succeed, we can exit early
+			return reconcile.Result{}, nil
 		}
-		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
-			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
-			// it would be an unexpected state
-			return reconcile.Result{}, fmt.Errorf("validating ec2:RunInstances authorization, %w", err)
-		}
-		log.FromContext(ctx).Error(err, "unauthorized to call ec2:RunInstances")
-		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesAuthFailed)
-		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
-	return reconcile.Result{}, nil
+
+	// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
+	// this means there is most likely an eventual consistency issue and we just need to requeue
+	if awserrors.IsInstanceProfileNotFound(firstSubnetErr) || awserrors.IsRateLimitedError(firstSubnetErr) || awserrors.IsServerError(firstSubnetErr) {
+		return reconcile.Result{Requeue: true}, nil
+	}
+	if awserrors.IgnoreUnauthorizedOperationError(firstSubnetErr) != nil {
+		// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
+		// it would be an unexpected state
+		return reconcile.Result{}, fmt.Errorf("validating ec2:RunInstances authorization, %w", firstSubnetErr)
+	}
+	log.FromContext(ctx).Error(firstSubnetErr, "unauthorized to call ec2:RunInstances")
+	_, reasonMessage := awserrors.ToReasonMessage(firstSubnetErr)
+	v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesAuthFailed, reasonMessage)
+	return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 }
 
 func (*Validation) requiredConditions() []string {
@@ -334,9 +363,10 @@ func (v *Validation) clearCacheEntries(nodeClass *v1.EC2NodeClass) {
 }
 
 func getRunInstancesInput(
-	nodeClass *v1.EC2NodeClass,
 	tags map[string]string,
 	launchTemplate *launchtemplate.LaunchTemplate,
+	networkInterfaces []*amifamily.ResolvedNetworkInterface,
+	subnet *v1.Subnet,
 ) *ec2.RunInstancesInput {
 	return &ec2.RunInstancesInput{
 		DryRun:   lo.ToPtr(true),
@@ -346,13 +376,8 @@ func getRunInstancesInput(
 			LaunchTemplateName: lo.ToPtr(launchTemplate.Name),
 			Version:            lo.ToPtr("$Latest"),
 		},
-		InstanceType: ec2types.InstanceType(launchTemplate.InstanceTypes[0].Name),
-		NetworkInterfaces: []ec2types.InstanceNetworkInterfaceSpecification{
-			{
-				DeviceIndex: lo.ToPtr[int32](0),
-				SubnetId:    lo.ToPtr(nodeClass.Status.Subnets[0].ID),
-			},
-		},
+		InstanceType:      ec2types.InstanceType(launchTemplate.InstanceTypes[0].Name),
+		NetworkInterfaces: getNetworkInterfacesInput(networkInterfaces, subnet),
 		TagSpecifications: []ec2types.TagSpecification{
 			{
 				ResourceType: ec2types.ResourceTypeInstance,
@@ -396,16 +421,20 @@ func getFleetLaunchTemplateConfig(
 	}
 }
 
-func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	// Select an instance type to use for validation. If NodePools exist for this NodeClass, we'll use an instance type
-	// selected by one of those NodePools. We should also prioritize an InstanceType which will launch with a non-GPU
-	// (VariantStandard) AMI, since GPU AMIs may have a larger snapshot size than that supported by the NodeClass'
-	// blockDeviceMappings.
+// getPrioritizedInstanceTypes returns the set of instances which could be launched using this NodeClass based on the
+// requirements of linked NodePools. If no NodePools exist for the given NodeClass, this function returns two default
+// instance types (one x86_64 and one arm64). If the 2 default instance types are not compatible with the NodeClass,
+// this function we'll use an instance type that could be selected with an open NodePool.
+func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass *v1.EC2NodeClass, nodePools []*karpv1.NodePool) ([]*cloudprovider.InstanceType, error) {
+	// We should prioritize an InstanceType which will launch with a non-GPU (VariantStandard) AMI, since GPU
+	// AMIs may have a larger snapshot size than that supported by the NodeClass' blockDeviceMappings.
 	// Historical Issue: https://github.com/aws/karpenter-provider-aws/issues/7928
-	instanceTypes, err := v.getInstanceTypesForNodeClass(ctx, nodeClass)
+	instanceTypes, err := v.instanceTypeProvider.List(ctx, nodeClass)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("listing instance types for nodeclass, %w", err)
 	}
+	instanceTypes = v.instanceTypeProvider.FilterForNodeClass(ctx, instanceTypes, nodeClass)
+	compatibleInstanceTypes := getNodePoolCompatibleInstanceTypes(instanceTypes, nodePools)
 
 	// If there weren't any matching instance types, we should fallback to some defaults. There's an instance type included
 	// for both x86_64 and arm64 architectures, ensuring that there will be a matching AMI. We also fallback to the default
@@ -414,51 +443,58 @@ func (v *Validation) getPrioritizedInstanceTypes(ctx context.Context, nodeClass 
 	// wouldn't be chosen due to cost in practice. This ensures the behavior matches that on Karpenter v1.3, preventing a
 	// potential regression for Windows users.
 	// Tracking issue: https://github.com/aws/karpenter-provider-aws/issues/7985
-	if len(instanceTypes) == 0 || lo.ContainsBy([]string{
+	if len(compatibleInstanceTypes) == 0 || lo.ContainsBy([]string{
 		v1.AMIFamilyWindows2019,
 		v1.AMIFamilyWindows2022,
 		v1.AMIFamilyWindows2025,
 	}, func(family string) bool {
 		return family == nodeClass.AMIFamily()
 	}) {
-		instanceTypes = []*cloudprovider.InstanceType{
-			{
-				Name: string(ec2types.InstanceTypeM5Large),
-				Requirements: scheduling.NewRequirements(append(
-					lo.Values(amifamily.VariantStandard.Requirements()),
-					scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
-					scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpExists),
-					scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
-				)...),
-			},
-			{
-				Name: string(ec2types.InstanceTypeM6gLarge),
-				Requirements: scheduling.NewRequirements(append(
-					lo.Values(amifamily.VariantStandard.Requirements()),
-					scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureArm64),
-					scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpExists),
-					scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
-				)...),
-			},
-		}
-		instanceTypes = getAMICompatibleInstanceTypes(instanceTypes, nodeClass)
+		compatibleInstanceTypes = v.getFallbackInstanceTypes(instanceTypes)
 	}
-
-	return instanceTypes, nil
+	return getAMICompatibleInstanceTypes(compatibleInstanceTypes, nodeClass), nil
 }
 
-// getInstanceTypesForNodeClass returns the set of instances which could be launched using this NodeClass based on the
-// requirements of linked NodePools. If no NodePools exist for the given NodeClass, this function returns two default
-// instance types (one x86_64 and one arm64).
-func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	instanceTypes, err := v.instanceTypeProvider.List(ctx, nodeClass)
-	if err != nil {
-		return nil, fmt.Errorf("listing instance types for nodeclass, %w", err)
+func (v *Validation) getFallbackInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
+	fallbackInstanceTypes := []*cloudprovider.InstanceType{
+		{
+			Name: string(ec2types.InstanceTypeM5Large),
+			Requirements: scheduling.NewRequirements(append(
+				lo.Values(amifamily.VariantStandard.Requirements()),
+				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
+				scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpExists),
+				scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
+			)...),
+		},
+		{
+			Name: string(ec2types.InstanceTypeM6gLarge),
+			Requirements: scheduling.NewRequirements(append(
+				lo.Values(amifamily.VariantStandard.Requirements()),
+				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureArm64),
+				scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpExists),
+				scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
+			)...),
+		},
 	}
-	nodePools, err := nodepoolutils.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepoolutils.ForNodeClass(nodeClass))
-	if err != nil {
-		return nil, fmt.Errorf("listing nodepools for nodeclass, %w", err)
+	fallbackInstanceTypes = lo.Filter(fallbackInstanceTypes, func(itFallback *cloudprovider.InstanceType, _ int) bool {
+		return lo.ContainsBy(instanceTypes, func(it *cloudprovider.InstanceType) bool {
+			return it.Name == itFallback.Name
+		})
+	})
+	return lo.Ternary(len(fallbackInstanceTypes) == 0, instanceTypes, fallbackInstanceTypes)
+}
+
+func getTenancyType(nodePools []*karpv1.NodePool) ec2types.Tenancy {
+	for _, np := range nodePools {
+		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
+		if reqs.Has(v1.LabelInstanceTenancy) && reqs.Get(v1.LabelInstanceTenancy).Has(string(ec2types.TenancyDedicated)) {
+			return ec2types.TenancyDedicated
+		}
 	}
+	return ec2types.TenancyDefault
+}
+
+func getNodePoolCompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, nodePools []*karpv1.NodePool) []*cloudprovider.InstanceType {
 	var compatibleInstanceTypes []*cloudprovider.InstanceType
 	names := sets.New[string]()
 	for _, np := range nodePools {
@@ -477,22 +513,7 @@ func (v *Validation) getInstanceTypesForNodeClass(ctx context.Context, nodeClass
 			compatibleInstanceTypes = append(compatibleInstanceTypes, it)
 		}
 	}
-	return getAMICompatibleInstanceTypes(compatibleInstanceTypes, nodeClass), nil
-}
-
-func (v *Validation) getTenancyType(ctx context.Context, nodeClass *v1.EC2NodeClass) (ec2types.Tenancy, error) {
-	nodePools, err := nodepoolutils.ListManaged(ctx, v.kubeClient, v.cloudProvider, nodepoolutils.ForNodeClass(nodeClass))
-	if err != nil {
-		return "", fmt.Errorf("listing nodepools for nodeclass, %w", err)
-	}
-
-	for _, np := range nodePools {
-		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(np.Spec.Template.Spec.Requirements...)
-		if reqs.Has(v1.LabelInstanceTenancy) && reqs.Get(v1.LabelInstanceTenancy).Has(string(ec2types.TenancyDedicated)) {
-			return ec2types.TenancyDedicated, nil
-		}
-	}
-	return ec2types.TenancyDefault, nil
+	return compatibleInstanceTypes
 }
 
 func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass) []*cloudprovider.InstanceType {
@@ -513,4 +534,24 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 	}
 
 	return selectedInstanceTypes
+}
+
+func getNetworkInterfacesInput(ncNetworkInterfaces []*amifamily.ResolvedNetworkInterface, subnet *v1.Subnet) []ec2types.InstanceNetworkInterfaceSpecification {
+	defaultInterface := []ec2types.InstanceNetworkInterfaceSpecification{
+		{
+			DeviceIndex: lo.ToPtr[int32](0),
+			SubnetId:    lo.ToPtr(subnet.ID),
+		},
+	}
+	networkInterfaces := lo.Ternary(ncNetworkInterfaces == nil,
+		defaultInterface,
+		lo.Map(ncNetworkInterfaces, func(networkInterface *amifamily.ResolvedNetworkInterface, _ int) ec2types.InstanceNetworkInterfaceSpecification {
+			return ec2types.InstanceNetworkInterfaceSpecification{
+				NetworkCardIndex: lo.ToPtr(networkInterface.NetworkCardIndex),
+				DeviceIndex:      lo.ToPtr(networkInterface.DeviceIndex),
+				InterfaceType:    lo.ToPtr(string(networkInterface.InterfaceType)),
+				SubnetId:         lo.ToPtr(subnet.ID),
+			}
+		}))
+	return networkInterfaces
 }

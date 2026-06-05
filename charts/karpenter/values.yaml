@@ -126,9 +126,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.9.0
+    tag: 1.12.1
     # -- SHA256 digest of the controller image.
-    digest: sha256:30a506c64fbb1d8026cbfd9a1d662be3ab6e33a7999290a104085d78b49a69d7
+    digest: sha256:8128bc8cdd0cc8ca2d2cf68ec61033eceb8cfb24834a08ab278784924013cfd0
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -207,6 +207,9 @@ settings:
   # Interruption handling is disabled if not specified. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs.
   interruptionQueue: ""
+  # -- Marking this true signals Karpenter to respect zonal shifts when making node claims.
+  # More information about Zonal Shift here: https://docs.aws.amazon.com/eks/latest/userguide/zone-shift-enable.html#zone-shift-enable-steps
+  enableZonalShift: false
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved.
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.
   reservedENIs: "0"
@@ -216,6 +219,12 @@ settings:
   disableClusterStateObservability: false
   # -- Disable dry run validation for EC2NodeClasses.
   disableDryRun: false
+  # -- How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of
+  # DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m.
+  amiRefreshInterval: 1m
+  # -- How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of
+  # DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.
+  subnetRefreshInterval: 1m
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features.
   featureGates:

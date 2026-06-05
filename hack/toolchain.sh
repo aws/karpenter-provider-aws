@@ -16,18 +16,18 @@ tools() {
     # fix - https://github.com/golangci/golangci-lint/issues/6017
     # change to latest once golangci releases new version with the fix
     go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@main
-    go install github.com/google/ko@latest
-    go install github.com/mikefarah/yq/v4@latest
+    go install github.com/google/ko@v0.18.1
+    go install github.com/mikefarah/yq/v4@v4.52.5
     go install github.com/norwoodj/helm-docs/cmd/helm-docs@latest
     go install sigs.k8s.io/controller-runtime/tools/setup-envtest@b9bccfd419149d26d14130887a5e5819e4a3b2be
     go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
-    go install github.com/sigstore/cosign/v2/cmd/cosign@latest
+    go install github.com/sigstore/cosign/v2/cmd/cosign@v2.6.2
     go install -tags extended github.com/gohugoio/hugo@v0.110.0
     go install golang.org/x/vuln/cmd/govulncheck@latest
     go install github.com/onsi/ginkgo/v2/ginkgo@latest
     go install github.com/rhysd/actionlint/cmd/actionlint@latest
     go install github.com/mattn/goveralls@latest
-    go install github.com/google/go-containerregistry/cmd/crane@latest
+    go install github.com/google/go-containerregistry/cmd/crane@v0.21.3
     go install oras.land/oras/cmd/oras@v1.2.3 # Pin to this version since the latest version requires go 1.25
 
     if ! echo "$PATH" | grep -q "${GOPATH:-undefined}/bin\|$HOME/go/bin"; then
