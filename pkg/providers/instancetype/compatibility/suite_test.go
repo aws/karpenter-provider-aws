@@ -146,6 +146,25 @@ var _ = Describe("CompatibilityTest", func() {
 				&placementgroup.PlacementGroup{Strategy: placementgroup.StrategySpread}, false),
 		)
 	})
+	Context("NestedVirtualizationCompatibility", func() {
+		DescribeTable("should gate instance types on ProcessorInfo.SupportedFeatures when nestedVirtualization is enabled",
+			func(nestedVirt *string, supportedFeatures []ec2types.SupportedAdditionalProcessorFeature, expected bool) {
+				info := makeInstanceTypeInfo("", nil)
+				info.ProcessorInfo.SupportedFeatures = supportedFeatures
+				nc := newMockNodeClass(v1.AMIFamilyAL2023, nil)
+				if nestedVirt != nil {
+					nc.cpuOptions = &v1.CPUOptions{NestedVirtualization: nestedVirt}
+				}
+				result := compatibility.IsCompatibleWithNodeClass(info, nc, nil)
+				Expect(result).To(Equal(expected))
+			},
+			Entry("nil CPUOptions passes regardless of features", nil, nil, true),
+			Entry("nestedVirtualization=enabled + feature present", lo.ToPtr("enabled"), []ec2types.SupportedAdditionalProcessorFeature{ec2types.SupportedAdditionalProcessorFeatureNestedVirtualization}, true),
+			Entry("nestedVirtualization=enabled + feature absent", lo.ToPtr("enabled"), nil, false),
+			Entry("nestedVirtualization=disabled passes regardless", lo.ToPtr("disabled"), nil, true),
+		)
+	})
+
 	Context("ConnectionTrackingCompatibility", func() {
 		DescribeTable("should filter non-Nitro instances when ConnectionTracking is set",
 			func(hypervisor ec2types.InstanceTypeHypervisor, connTrack *v1.ConnectionTracking, expected bool) {
@@ -178,6 +197,7 @@ func newMockNodeClass(amiFamily string, networkInterfaces []*v1.NetworkInterface
 type mockNodeClass struct {
 	amiFamily          string
 	networkInterfaces  []*v1.NetworkInterface
+	cpuOptions         *v1.CPUOptions
 	connectionTracking *v1.ConnectionTracking
 }
 
@@ -187,6 +207,10 @@ func (m mockNodeClass) AMIFamily() string {
 
 func (m *mockNodeClass) NetworkInterfaces() []*v1.NetworkInterface {
 	return m.networkInterfaces
+}
+
+func (m *mockNodeClass) CPUOptions() *v1.CPUOptions {
+	return m.cpuOptions
 }
 
 func (m *mockNodeClass) ConnectionTracking() *v1.ConnectionTracking {
