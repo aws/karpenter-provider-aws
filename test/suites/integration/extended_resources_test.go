@@ -144,7 +144,7 @@ var _ = Describe("Extended Resources", func() {
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 			Key:      v1.LabelInstanceGeneration,
 			Operator: corev1.NodeSelectorOpIn,
-			Values:   []string{"1", "2"},
+			Values:   []string{"2"},
 		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -180,7 +180,7 @@ var _ = Describe("Extended Resources", func() {
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 			Key:      v1.LabelInstanceGeneration,
 			Operator: corev1.NodeSelectorOpIn,
-			Values:   []string{"1", "2"},
+			Values:   []string{"2"},
 		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
