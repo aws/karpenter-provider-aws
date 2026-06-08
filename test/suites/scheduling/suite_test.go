@@ -1251,7 +1251,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		env.ExpectCreated(nodePool, nodeClass, pod)
 		env.EventuallyExpectHealthy(pod)
 		node := env.ExpectCreatedNodeCount("==", 1)[0]
-		
+
 		instance := env.GetInstance(node.Name)
 		Expect(instance.CpuOptions).ToNot(BeNil())
 		Expect(instance.CpuOptions.NestedVirtualization).To(Equal(ec2types.NestedVirtualizationSpecificationEnabled))
