@@ -35,6 +35,32 @@ blackfriday:
   hrefTargetBlank: true
   angledQuotes: false
   latexDashes: true
+outputFormats:
+  md:
+    mediaType: text/markdown
+    baseName: index
+    isPlainText: true
+    isHTML: false
+    permalinkable: true
+  llms:
+    mediaType: text/plain
+    baseName: llms
+    isPlainText: true
+    isHTML: false
+    rel: alternate
+    root: true
+outputs:
+  home:
+    - HTML
+    - RSS
+    - llms
+  page:
+    - HTML
+    - md
+  section:
+    - HTML
+    - RSS
+    - md
 markup:
   goldmark:
     renderer:
