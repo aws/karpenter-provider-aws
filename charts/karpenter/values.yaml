@@ -243,3 +243,7 @@ settings:
     # -- staticCapacity is ALPHA and is disabled by default.
     # Setting this to true will enable static capacity provisioning.
     staticCapacity: false
+    # -- rolloutRestartDrainStrategy is ALPHA and is disabled by default.
+    # When enabled, draining a node that hosts a pod owned by a singleton (spec.replicas == 1) Deployment or StatefulSet
+    # triggers a `kubectl rollout restart`-style annotation patch on the owner instead of evicting the pod.
+    rolloutRestartDrainStrategy: false
