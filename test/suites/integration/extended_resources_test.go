@@ -144,7 +144,7 @@ var _ = Describe("Extended Resources", func() {
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 			Key:      v1.LabelInstanceGeneration,
 			Operator: corev1.NodeSelectorOpIn,
-			Values:   []string{"1", "2"},
+			Values:   []string{"2"},
 		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -180,7 +180,7 @@ var _ = Describe("Extended Resources", func() {
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 			Key:      v1.LabelInstanceGeneration,
 			Operator: corev1.NodeSelectorOpIn,
-			Values:   []string{"1", "2"},
+			Values:   []string{"2"},
 		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -889,7 +889,7 @@ leaderElection:
 							Name:    neuronSchedulerExtension,
 							Args:    []string{fmt.Sprintf("--config=/etc/kubernetes/%[1]v/%[1]v-config.yaml", neuronSchedulerExtension), "--leader-elect=true", "--v=2"},
 							Command: []string{"/usr/local/bin/kube-scheduler"},
-							Image:   fmt.Sprintf("public.ecr.aws/eks-distro/kubernetes/kube-scheduler:v1.%[1]v.0-eks-1-%[1]v-latest", env.K8sMinorVersion()),
+							Image:   fmt.Sprintf("public.ecr.aws/eks-distro/kubernetes/kube-scheduler:v1.%v.0-eks-1-%v-", env.K8sMinorVersion(), env.K8sMinorVersion()) + lo.Ternary(env.K8sMinorVersion() >= 35, "2", "latest"),
 							LivenessProbe: &corev1.Probe{
 								InitialDelaySeconds: 15,
 								ProbeHandler: corev1.ProbeHandler{
