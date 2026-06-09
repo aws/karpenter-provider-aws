@@ -246,8 +246,20 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 		out.Reservations = append(out.Reservations, page.Reservations...)
 	}
 	instances, err := instancesFromOutput(ctx, out)
+	liveIDs := sets.New(lo.Map(instances, func(i *Instance, _ int) string { return i.ID })...)
 	for _, it := range instances {
 		p.instanceCache.SetDefault(it.ID, it)
+	}
+	// Evict cached entries for instances no longer returned by EC2, unless they are in a
+	// zonally-shifted AZ where DescribeInstances may not return them.
+	for id, item := range p.instanceCache.Items() {
+		if liveIDs.Has(id) {
+			continue
+		}
+		if inst, ok := item.Object.(*Instance); ok && inst.ZoneID != "" && p.zonalshiftProvider.IsZonalShifted(ctx, inst.ZoneID) {
+			continue
+		}
+		p.instanceCache.Delete(id)
 	}
 	return instances, cloudprovider.IgnoreNodeClaimNotFoundError(err)
 }
