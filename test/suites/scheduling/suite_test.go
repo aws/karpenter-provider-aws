@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/awslabs/operatorpkg/object"
@@ -1240,6 +1241,20 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		}
 		// Each pod should be in a different partition
 		Expect(partitions.Len()).To(Equal(3))
+	})
+	It("should launch an instance with nested virtualization enabled", func() {
+		nodeClass.Spec.CPUOptions = &v1.CPUOptions{
+			NestedVirtualization: aws.String("enabled"),
+		}
+
+		pod := test.Pod()
+		env.ExpectCreated(nodePool, nodeClass, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.CpuOptions).ToNot(BeNil())
+		Expect(instance.CpuOptions.NestedVirtualization).To(Equal(ec2types.NestedVirtualizationSpecificationEnabled))
 	})
 },
 	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),
