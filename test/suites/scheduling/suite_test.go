@@ -497,13 +497,6 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 			Expect(err).To(BeNil())
 			env.EventuallyExpectClusterToZonalShift(zoneid)
 
-			DeferCleanup(func() {
-				_, err := env.ARCZONALSHIFTAPI.CancelZonalShift(env.Context, &arczonalshiftservice.CancelZonalShiftInput{
-					ZonalShiftId: zonalshiftid,
-				})
-				Expect(err).ToNot(HaveOccurred())
-				env.EventuallyExpectClusterToNotHaveZonalShift(zoneid)
-			})
 			// one pod per zone
 			podLabels := map[string]string{"test": "zonal-spread-with-shift"}
 			deployment := test.Deployment(test.DeploymentOptions{
