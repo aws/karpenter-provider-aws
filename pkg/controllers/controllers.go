@@ -106,7 +106,7 @@ func NewControllers(
 		controllersinstancetype.NewController(instanceTypeProvider),
 		controllersinstancetypecapacity.NewController(kubeClient, cloudProvider, instanceTypeProvider),
 		ssminvalidation.NewController(ssmCache, amiProvider),
-		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter"), status.EmitDeprecatedMetrics),
+		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter"), status.EmitDeprecatedMetrics), //nolint:staticcheck // SA1019: will be replaced by mgr.GetEventRecorder once operatorpkg is updated
 		controllersversion.NewController(versionProvider, versionProvider.UpdateVersionWithValidation),
 		crcapacitytype.NewController(kubeClient, cloudProvider),
 		crexpiration.NewController(clk, kubeClient, cloudProvider, capacityReservationProvider),
