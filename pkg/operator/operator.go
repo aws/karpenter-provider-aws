@@ -135,6 +135,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	} else {
 		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
 	}
+	options.FromContext(ctx).ClusterIPFamily = lo.Ternary(kubeDNSIP != nil && kubeDNSIP.To4() == nil, corev1.IPv6Protocol, corev1.IPv4Protocol)
 	var zsProvider zonalshiftprovider.Provider
 	if options.FromContext(ctx).EnableZonalShift {
 		arczonalshiftAPI := arczonalshift.NewFromConfig(cfg)

@@ -751,6 +751,14 @@ var _ = Describe("InstanceTypeProvider", func() {
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectNotScheduled(ctx, env.Client, pod)
 	})
+	It("should not report vpc.amazonaws.com/PrivateIPv4Address capacity for IPv6 clusters", func() {
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{ClusterIPFamily: lo.ToPtr(corev1.IPv6Protocol)}))
+		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		for _, it := range instanceTypes {
+			Expect(it.Capacity).ToNot(HaveKey(v1.ResourcePrivateIPv4Address))
+		}
+	})
 	It("should launch instances for nvidia.com/gpu resource requests", func() {
 		nodeNames := sets.NewString()
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1034,6 +1042,31 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodeClass.Spec.Kubelet.EvictionHard,
 				nodeClass.Spec.Kubelet.EvictionSoft,
 				windowsNodeClass.AMIFamily(),
+				nil,
+			)
+			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
+		}
+	})
+	It("should set pods to 110 for IPv6 clusters regardless of ENI limits", func() {
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{ClusterIPFamily: lo.ToPtr(corev1.IPv6Protocol)}))
+		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
+		Expect(err).To(BeNil())
+		for _, info := range instanceInfo.InstanceTypes {
+			it := instancetype.NewInstanceType(ctx,
+				info,
+				fake.DefaultRegion,
+				nil,
+				nil,
+				nodeClass.Spec.BlockDeviceMappings,
+				nodeClass.Spec.InstanceStorePolicy,
+				nil,
+				nil,
+				nil,
+				nil,
+				nil,
+				nil,
+				nil,
+				nodeClass.AMIFamily(),
 				nil,
 			)
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))

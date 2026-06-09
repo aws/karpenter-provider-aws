@@ -153,8 +153,10 @@ func NewInstanceType(
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), evictionHard),
 		},
 	}
-	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)))) == nil {
-		it.Capacity[v1.ResourcePrivateIPv4Address] = *privateIPv4Address(string(info.InstanceType))
+	if options.FromContext(ctx).ClusterIPFamily != corev1.IPv6Protocol {
+		if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)))) == nil {
+			it.Capacity[v1.ResourcePrivateIPv4Address] = *privateIPv4Address(string(info.InstanceType))
+		}
 	}
 	return it
 }
@@ -578,6 +580,8 @@ func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifami
 	switch {
 	case maxPods != nil:
 		count = int64(lo.FromPtr(maxPods))
+	case options.FromContext(ctx).ClusterIPFamily == corev1.IPv6Protocol:
+		count = 110
 	case amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
 		count = ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs, ncNetworkInterfaces).Value()
 	default:
