@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
-	arczonalshiftservice "github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	"github.com/aws/aws-sdk-go-v2/aws"
+	arczonalshiftservice "github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/awslabs/operatorpkg/object"
