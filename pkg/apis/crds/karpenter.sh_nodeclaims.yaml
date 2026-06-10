@@ -175,6 +175,7 @@ spec:
                     type: object
                   maxItems: 100
                   type: array
+                  x-kubernetes-list-type: atomic
                   x-kubernetes-validations:
                     - message: requirements with operator 'In' must have a value defined
                       rule: 'self.all(x, x.operator == ''In'' ? x.values.size() != 0 : true)'
@@ -197,7 +198,7 @@ spec:
                   type: object
                 startupTaints:
                   description: |-
-                    StartupTaints are taints that are applied to nodes upon startup which are expected to be removed automatically
+                    startupTaints are taints that are applied to nodes upon startup which are expected to be removed automatically
                     within a short period of time, typically by a DaemonSet that tolerates the taint. These are commonly used by
                     daemonsets to allow initialization and enforce startup ordering.  StartupTaints are ignored for provisioning
                     purposes in that pods are not required to tolerate a StartupTaint in order to have nodes provisioned for them.
@@ -234,8 +235,9 @@ spec:
                       - key
                     type: object
                   type: array
+                  x-kubernetes-list-type: atomic
                 taints:
-                  description: Taints will be applied to the NodeClaim's node.
+                  description: taints will be applied to the NodeClaim's node.
                   items:
                     description: |-
                       The node this Taint is attached to has the "effect" on
@@ -269,6 +271,7 @@ spec:
                       - key
                     type: object
                   type: array
+                  x-kubernetes-list-type: atomic
                 terminationGracePeriod:
                   description: |-
                     TerminationGracePeriod is the maximum duration the controller will wait before forcefully deleting the pods on a node, measured from when deletion is first initiated.
@@ -367,6 +370,9 @@ spec:
                       - type
                     type: object
                   type: array
+                  x-kubernetes-list-map-keys:
+                    - type
+                  x-kubernetes-list-type: map
                 imageID:
                   description: ImageID is an identifier for the image that runs on the node
                   type: string
