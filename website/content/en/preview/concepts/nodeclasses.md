@@ -687,14 +687,14 @@ spec:
         MyTag: '*'
 ```
 
-Select by name and tag (all criteria must match):
+Select by group name:
 ```yaml
 spec:
   securityGroupSelectorTerms:
     - name: my-security-group
-      tags:
-        MyTag: '*' # matches all resources with the tag
 ```
+
+When `name` is specified, the selector resolves by security group name. Tags in the same term are not used for filtering; use `tags` without `name` to match tag conditions.
 
 Select using multiple tag terms:
 ```yaml
