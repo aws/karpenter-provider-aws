@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -47,9 +48,7 @@ var _ = Describe("ConnectionTracking", func() {
 		instance := env.GetInstance(pod.Spec.NodeName)
 		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
 
-		primaryNI, found := lo.Find(instance.NetworkInterfaces, func(ni ec2types.InstanceNetworkInterface) bool {
-			return ni.Attachment != nil && ni.Attachment.DeviceIndex != nil && aws.ToInt32(ni.Attachment.DeviceIndex) == 0
-		})
+		primaryNI, found := environmentaws.FindNetworkInterface(instance.NetworkInterfaces, 0, 0)
 		Expect(found).To(BeTrue())
 
 		niOutput, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{
@@ -144,9 +143,7 @@ var _ = Describe("ConnectionTracking", func() {
 		instance := env.GetInstance(pod.Spec.NodeName)
 		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
 
-		primaryNI, found := lo.Find(instance.NetworkInterfaces, func(ni ec2types.InstanceNetworkInterface) bool {
-			return ni.Attachment != nil && ni.Attachment.DeviceIndex != nil && aws.ToInt32(ni.Attachment.DeviceIndex) == 0
-		})
+		primaryNI, found := environmentaws.FindNetworkInterface(instance.NetworkInterfaces, 0, 0)
 		Expect(found).To(BeTrue())
 		niOutput, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{
 			NetworkInterfaceIds: []string{aws.ToString(primaryNI.NetworkInterfaceId)},
@@ -168,9 +165,7 @@ var _ = Describe("ConnectionTracking", func() {
 		instance := env.GetInstance(pod.Spec.NodeName)
 		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
 
-		primaryNI, found := lo.Find(instance.NetworkInterfaces, func(ni ec2types.InstanceNetworkInterface) bool {
-			return ni.Attachment != nil && ni.Attachment.DeviceIndex != nil && aws.ToInt32(ni.Attachment.DeviceIndex) == 0
-		})
+		primaryNI, found := environmentaws.FindNetworkInterface(instance.NetworkInterfaces, 0, 0)
 		Expect(found).To(BeTrue())
 		niOutput, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{
 			NetworkInterfaceIds: []string{aws.ToString(primaryNI.NetworkInterfaceId)},
