@@ -250,6 +250,22 @@ If you are upgrading an existing Karpenter installation to v1.12.0+ and want to 
 
     Alternatively, set the `ENABLE_ZONAL_SHIFT=true` environment variable on the Karpenter controller deployment.
 
+### Next Steps: Validate with a Zonal Shift
+
+After enabling the integration, test that Karpenter correctly avoids launching nodes in a shifted zone by starting a zonal shift on your cluster. You can do this in one of two ways:
+
+- **Manual zonal shift**: [Start a zonal shift](https://docs.aws.amazon.com/r53recovery/latest/dg/arc-zonal-shift.start-cancel.html) from the ARC console or CLI to temporarily shift traffic away from one AZ.
+- **FIS experiment**: Create an [AWS FIS experiment](https://docs.aws.amazon.com/fis/latest/userguide/fis-actions-reference.html#recovery) using the `aws:arc:start-zonal-autoshift` action to simulate a zonal autoshift.
+
+While the shift is active, scale up a workload to trigger new node provisioning and verify that Karpenter only launches nodes in non-shifted zones:
+
+```bash
+kubectl scale deployment/inflate --replicas=5
+kubectl get nodeclaims -o wide
+```
+
+For more details on designing your cluster for AZ resilience, see [Learn about ARC zonal shift in Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/zone-shift.html).
+
 ## Advanced Installation
 
 The section below covers advanced installation techniques for installing Karpenter. This includes things such as running Karpenter on a cluster without public internet access or ensuring that Karpenter avoids getting throttled by other components in your cluster.
