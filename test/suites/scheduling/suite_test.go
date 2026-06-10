@@ -1055,12 +1055,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		Expect(len(networkInterfaces)).To(BeNumerically(">=", 2))
 
 		for _, deviceIndex := range []int32{0, 1} {
-			networkInterface, found := lo.Find(networkInterfaces, func(i ec2types.InstanceNetworkInterface) bool {
-				if i.Attachment == nil || i.Attachment.DeviceIndex == nil {
-					return false
-				}
-				return deviceIndex == lo.FromPtr(i.Attachment.DeviceIndex)
-			})
+			networkInterface, found := environmentaws.FindNetworkInterface(networkInterfaces, 0, deviceIndex)
 			Expect(found).To(BeTrue())
 			Expect(lo.FromPtr(networkInterface.InterfaceType)).To(Equal(
 				lo.Ternary(deviceIndex == 0, string(ec2types.NetworkInterfaceTypeInterface), string(ec2types.NetworkInterfaceTypeEfaOnly)),
