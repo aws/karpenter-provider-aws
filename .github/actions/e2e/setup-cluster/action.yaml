@@ -184,6 +184,8 @@ runs:
             roleOnly: true
         $KARPENTER_IAM
         withOIDC: true
+      zonalShiftConfig:
+        enabled: true
       addons:
       - name: vpc-cni
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
