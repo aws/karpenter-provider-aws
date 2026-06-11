@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/errors"
 
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -53,6 +54,11 @@ func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provide
 		IsMutable: true,
 	})
 	if err != nil {
+		if errors.IsNotFound(err) {
+			return DescribeImageQuery{}, &AMINotFoundForAliasError{
+				error: serrors.Wrap(fmt.Errorf("failed to discover any AMIs for alias"), "alias", fmt.Sprintf("windows%s@%s", w.Version, amiVersion)),
+			}
+		}
 		return DescribeImageQuery{}, serrors.Wrap(fmt.Errorf("failed to discover any AMIs for alias"), "alias", fmt.Sprintf("windows%s@%s", w.Version, amiVersion))
 	}
 	return DescribeImageQuery{

@@ -618,6 +618,36 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeFalse())
 	})
+	DescribeTable("should set UnsupportedAlias condition when no AMIs are found for alias", func(alias string) {
+		awsEnv.SSMAPI.Parameters = map[string]string{"not-real": "not-real"}
+
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+		ExpectApplied(ctx, env.Client, nodeClass)
+		_ = ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).Reason).To(Equal("UnsupportedAlias"))
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).Message).To(ContainSubstring("failed to discover any AMIs for alias"))
+	},
+		Entry("AL2023 with invalid version", "al2023@v20240101"),
+		Entry("Bottlerocket with invalid version", "bottlerocket@v20240101"),
+		Entry("Windows with invalid version", "windows2022@latest"),
+	)
+	DescribeTable("should retry when SSM returns transient errors", func(alias string) {
+		awsEnv.SSMAPI.WantErr = fmt.Errorf("RequestLimitExceeded: Rate exceeded")
+
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+		ExpectApplied(ctx, env.Client, nodeClass)
+		_ = ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).Reason).ToNot(Equal("UnsupportedAlias"))
+	},
+		Entry("AL2023 with invalid version", "al2023@v20240101"),
+		Entry("Bottlerocket with invalid version", "bottlerocket@v20240101"),
+		Entry("Windows with invalid version", "windows2022@latest"),
+	)
 	Context("NodeClass AMI Status", func() {
 		BeforeEach(func() {
 			// Set time using the injectable/fake clock to now
