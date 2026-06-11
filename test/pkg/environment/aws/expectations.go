@@ -218,6 +218,14 @@ func (env *Environment) GetNetworkInterfaces(ids ...string) []ec2types.NetworkIn
 	return dnio.NetworkInterfaces
 }
 
+func FindNetworkInterface(interfaces []ec2types.InstanceNetworkInterface, networkCardIndex, deviceIndex int32) (ec2types.InstanceNetworkInterface, bool) {
+	return lo.Find(interfaces, func(ni ec2types.InstanceNetworkInterface) bool {
+		return ni.Attachment != nil &&
+			ni.Attachment.NetworkCardIndex != nil && aws.ToInt32(ni.Attachment.NetworkCardIndex) == networkCardIndex &&
+			ni.Attachment.DeviceIndex != nil && aws.ToInt32(ni.Attachment.DeviceIndex) == deviceIndex
+	})
+}
+
 func (env *Environment) GetSpotInstance(id string) ec2types.SpotInstanceRequest {
 	GinkgoHelper()
 	siro, err := env.EC2API.DescribeSpotInstanceRequests(env.Context, &ec2.DescribeSpotInstanceRequestsInput{

@@ -149,8 +149,7 @@ spec:
   limits:
     cpu: "1000"
     memory: 1000Gi
-    # For static NodePools, limits.nodes constrains maximum node count during scaling/drift
-    # Note : Supported only for static NodePools
+    # limits.nodes constrains maximum node count during scaling/drift
     nodes: 10
 
   # Priority given to the NodePool when the scheduler considers which NodePool
@@ -300,7 +299,7 @@ There is currently a limit of 100 on the total number of requirements on both th
 Along with the combination of [key,operator,values] in the requirements, Karpenter also supports `minValues` in the NodePool requirements block, allowing the scheduler to be aware of user-specified flexibility minimums while scheduling pods to a cluster. Depending on the policy configured via the flag `--min-values-policy` or environment variable `MIN_VALUES_POLICY`, if Karpenter cannot meet this minimum flexibility for each key when scheduling a pod, it will either fail the scheduling loop for that NodePool, either falling back to another NodePool which meets the pod requirements or failing scheduling the pod altogether (when policy is set to `Strict`) or relax `minValues` until they can be met (when policy is set to `BestEffort`).
 
 For spot instances, you should specify `karpenter.sh/capacity-type: spot` in your requirements. For example, the below spec will use spot instance type for all provisioned instances and enforces `minValues` to various keys where it is defined
-i.e at least 2 unique instance families from [c,m,r], 5 unique instance families [eg: "m5","m5d","r4","c5","c5d","c4" etc], 10 unique instance types [eg: "c5.2xlarge","c4.xlarge" etc] is required for scheduling the pods.
+i.e at least 2 unique instance categories from [c,m,r], 5 unique instance families [eg: "m5","m5d","r4","c5","c5d","c4" etc], 10 unique instance types [eg: "c5.2xlarge","c4.xlarge" etc] are required for scheduling the pods.
 
 ```yaml
 spec:
@@ -418,7 +417,7 @@ The NodePool spec includes a limits section (`spec.limits`), which constrains th
 
 If the `NodePool.spec.limits` section is unspecified, it means that there is no default limitation on resource allocation. In this case, the maximum resource consumption is governed by the quotas set by your cloud provider. If a limit has been exceeded, nodes provisioning is prevented until some nodes have been terminated.
 
-**For Static NodePools:** Only `limits.nodes` is supported. This field constrains the maximum number of nodes during scaling operations or drift replacement. Note that `limits.nodes` is support only on static NodePools.
+The `limits.nodes` field constrains the maximum number of nodes during scaling operations or drift replacement.
 
 ```yaml
 apiVersion: karpenter.sh/v1
