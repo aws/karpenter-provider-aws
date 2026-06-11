@@ -109,6 +109,7 @@ runs:
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerEKSIntegrationPolicy-${{ inputs.cluster_name }}"
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerInterruptionPolicy-${{ inputs.cluster_name }}"
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerResourceDiscoveryPolicy-${{ inputs.cluster_name }}"
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerZonalShiftPolicy-${{ inputs.cluster_name }}"
             permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
             roleName: karpenter-irsa-${{ inputs.cluster_name }}
             roleOnly: true"""
@@ -123,7 +124,8 @@ runs:
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerIAMIntegrationPolicy-${{ inputs.cluster_name }}"
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerEKSIntegrationPolicy-${{ inputs.cluster_name }}"
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerInterruptionPolicy-${{ inputs.cluster_name }}"
-              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerResourceDiscoveryPolicy-${{ inputs.cluster_name }}""""
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerResourceDiscoveryPolicy-${{ inputs.cluster_name }}"
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerZonalShiftPolicy-${{ inputs.cluster_name }}""""
         POD_IDENTITY="""- name: eks-pod-identity-agent
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
         configurationValues: |
