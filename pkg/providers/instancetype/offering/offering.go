@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
@@ -27,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -64,6 +66,11 @@ type DefaultProvider struct {
 	unavailableOfferings           *awscache.UnavailableOfferings
 	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
 	cache                          *cache.Cache
+	nodeOverlayClient              client.Client
+
+	overlayPricedTypesMu      sync.RWMutex
+	overlayPricedTypes        sets.Set[string]
+	overlayPricedTypesExpiry  time.Time
 }
 
 func NewDefaultProvider(
@@ -73,6 +80,7 @@ func NewDefaultProvider(
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	offeringCache *cache.Cache,
 	zonalshiftProvider arczonalshiftProvider.Provider,
+	nodeOverlayClient client.Client,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		pricingProvider:             pricingProvider,
@@ -81,6 +89,7 @@ func NewDefaultProvider(
 		unavailableOfferings:        unavailableOfferingsCache,
 		cache:                       offeringCache,
 		zonalshiftProvider:          zonalshiftProvider,
+		nodeOverlayClient:           nodeOverlayClient,
 	}
 }
 
@@ -91,6 +100,10 @@ func (p *DefaultProvider) InjectOfferings(
 	nodeClass NodeClass,
 	allZones sets.Set[string],
 ) []*cloudprovider.InstanceType {
+	var overlayPricedTypes sets.Set[string]
+	if options.FromContext(ctx).FeatureGates.NodeOverlay && p.nodeOverlayClient != nil {
+		overlayPricedTypes = p.getOverlayPricedInstanceTypes(ctx)
+	}
 	// Resolve the placement group once and pass it through to avoid repeated type assertions and lookups
 	var pg *placementgroup.PlacementGroup
 	if nodeClass.PlacementGroupSelector() != nil {
@@ -109,6 +122,7 @@ func (p *DefaultProvider) InjectOfferings(
 			pg,
 			allZones,
 			shiftedZones,
+			overlayPricedTypes,
 		)
 		// For partition placement groups, expand each offering into N offerings (one per partition)
 		offerings = p.expandPartitionOfferings(offerings, pg)
@@ -150,6 +164,7 @@ func (p *DefaultProvider) createOfferings(
 	pg *placementgroup.PlacementGroup,
 	allZones sets.Set[string],
 	shiftedZones sets.Set[string],
+	overlayPricedTypes sets.Set[string],
 ) cloudprovider.Offerings {
 	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
@@ -202,6 +217,9 @@ func (p *DefaultProvider) createOfferings(
 					price, hasPrice = p.pricingProvider.SpotPrice(ec2types.InstanceType(it.Name), zone)
 				default:
 					panic(fmt.Sprintf("invalid capacity type %q in requirements for instance type %q", capacityType, it.Name))
+				}
+				if !hasPrice && overlayPricedTypes.Has(it.Name) {
+					hasPrice = true
 				}
 				offering := &cloudprovider.Offering{
 					Requirements: scheduling.NewRequirements(
@@ -337,4 +355,44 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		shiftedZonesHash,
 		connectionTrackingHash,
 	)
+}
+
+const overlayPricedTypesTTL = 5 * time.Minute
+
+// getOverlayPricedInstanceTypes returns the cached set of instance type names that have a price
+// overlay defined. The cache is refreshed from the API when expired.
+func (p *DefaultProvider) getOverlayPricedInstanceTypes(ctx context.Context) sets.Set[string] {
+	p.overlayPricedTypesMu.RLock()
+	if time.Now().Before(p.overlayPricedTypesExpiry) {
+		defer p.overlayPricedTypesMu.RUnlock()
+		return p.overlayPricedTypes
+	}
+	p.overlayPricedTypesMu.RUnlock()
+
+	p.overlayPricedTypesMu.Lock()
+	defer p.overlayPricedTypesMu.Unlock()
+	// Double-check after acquiring write lock
+	if time.Now().Before(p.overlayPricedTypesExpiry) {
+		return p.overlayPricedTypes
+	}
+
+	overlayList := &v1alpha1.NodeOverlayList{}
+	if err := p.nodeOverlayClient.List(ctx, overlayList); err != nil {
+		return p.overlayPricedTypes
+	}
+	priced := sets.New[string]()
+	for i := range overlayList.Items {
+		overlay := &overlayList.Items[i]
+		if overlay.Spec.Price == nil && overlay.Spec.PriceAdjustment == nil {
+			continue
+		}
+		for _, req := range overlay.Spec.Requirements {
+			if req.Key == corev1.LabelInstanceTypeStable && req.Operator == corev1.NodeSelectorOpIn {
+				priced.Insert(req.Values...)
+			}
+		}
+	}
+	p.overlayPricedTypes = priced
+	p.overlayPricedTypesExpiry = time.Now().Add(overlayPricedTypesTTL)
+	return priced
 }

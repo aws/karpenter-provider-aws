@@ -46,6 +46,7 @@ import (
 	clock "k8s.io/utils/clock/testing"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1alpha1 "sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
@@ -3258,6 +3259,172 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(ok).To(BeTrue())
 			// max pods = max number of ENIs * (IPv4 Addresses per ENI -1) + 2 = (8-1) * 49 + 2 = 345
 			Expect(m6idn.Capacity.Pods().Value()).To(Equal(int64(345)))
+		})
+	})
+	Context("NodeOverlay Preview Instance Pricing", func() {
+		// Simulate a preview instance type that is discoverable via EC2 APIs (allowlisted account)
+		// but has no pricing data in the AWS Pricing API or static pricing fallback.
+		var previewInstanceType ec2types.InstanceTypeInfo
+		BeforeEach(func() {
+			// Define a preview instance type that won't exist in any pricing data
+			previewInstanceType = ec2types.InstanceTypeInfo{
+				InstanceType:                  "p5e.48xlarge",
+				SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+				SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    "nitro",
+				ProcessorInfo: &ec2types.ProcessorInfo{
+					Manufacturer:           aws.String("Intel"),
+					SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
+				},
+				VCpuInfo: &ec2types.VCpuInfo{
+					DefaultCores: aws.Int32(192),
+					DefaultVCpus: aws.Int32(192),
+				},
+				MemoryInfo: &ec2types.MemoryInfo{
+					SizeInMiB: aws.Int64(2048000),
+				},
+				EbsInfo: &ec2types.EbsInfo{
+					EbsOptimizedSupport: "default",
+					EbsOptimizedInfo: &ec2types.EbsOptimizedInfo{
+						BaselineBandwidthInMbps:  aws.Int32(80000),
+						BaselineIops:             aws.Int32(260000),
+						BaselineThroughputInMBps: aws.Float64(10000),
+						MaximumBandwidthInMbps:   aws.Int32(80000),
+						MaximumIops:              aws.Int32(260000),
+						MaximumThroughputInMBps:  aws.Float64(10000),
+					},
+				},
+				NetworkInfo: &ec2types.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int32(15),
+					Ipv4AddressesPerInterface: aws.Int32(50),
+					DefaultNetworkCardIndex:   aws.Int32(0),
+					NetworkCards: []ec2types.NetworkCardInfo{{
+						NetworkCardIndex:         aws.Int32(0),
+						MaximumNetworkInterfaces: aws.Int32(15),
+					}},
+				},
+			}
+			// Override the EC2 API to return only our preview instance type
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+				InstanceTypes: []ec2types.InstanceTypeInfo{previewInstanceType},
+			})
+			// Make it available in test zones
+			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+				InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
+					{InstanceType: "p5e.48xlarge", Location: aws.String("test-zone-1a"), LocationType: "availability-zone"},
+					{InstanceType: "p5e.48xlarge", Location: aws.String("test-zone-1b"), LocationType: "availability-zone"},
+				},
+			})
+			// Re-hydrate the instance type provider with the preview instance type
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx))
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx))
+		})
+		It("should mark offerings as available when a NodeOverlay defines a price for an unpriced instance type", func() {
+			// Enable the NodeOverlay feature gate so the overlay price lookup is active
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{
+				FeatureGates: coretest.FeatureGates{
+					NodeOverlay:      lo.ToPtr(true),
+					ReservedCapacity: lo.ToPtr(true),
+				},
+			}))
+
+			// Create a NodeOverlay that assigns a price to the preview instance type
+			overlay := &karpv1alpha1.NodeOverlay{
+				ObjectMeta: metav1.ObjectMeta{Name: "preview-price"},
+				Spec: karpv1alpha1.NodeOverlaySpec{
+					Price: lo.ToPtr("98.32"),
+					Requirements: []karpv1alpha1.NodeSelectorRequirement{{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"p5e.48xlarge"},
+					}},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, overlay)
+
+			// Reset caches to force re-evaluation of offerings
+			awsEnv.InstanceTypesProvider.Reset()
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx))
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx))
+
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			// The preview instance type should now have available offerings because
+			// the NodeOverlay provides a price, satisfying the hasPrice condition
+			previewIT, found := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "p5e.48xlarge"
+			})
+			Expect(found).To(BeTrue())
+			Expect(previewIT.Offerings.Available()).ToNot(HaveLen(0))
+		})
+		It("should not mark offerings as available for unpriced instance types without a NodeOverlay", func() {
+			// Enable the NodeOverlay feature gate but don't create any overlay
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{
+				FeatureGates: coretest.FeatureGates{
+					NodeOverlay:      lo.ToPtr(true),
+					ReservedCapacity: lo.ToPtr(true),
+				},
+			}))
+
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			// Reset caches to force re-evaluation of offerings
+			awsEnv.InstanceTypesProvider.Reset()
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx))
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx))
+
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Without a NodeOverlay providing a price, the preview instance type
+			// should have no available offerings
+			previewIT, found := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "p5e.48xlarge"
+			})
+			Expect(found).To(BeTrue())
+			Expect(previewIT.Offerings.Available()).To(HaveLen(0))
+		})
+		It("should not mark offerings as available when NodeOverlay feature gate is disabled", func() {
+			// Disable the NodeOverlay feature gate — overlay should have no effect
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{
+				FeatureGates: coretest.FeatureGates{
+					NodeOverlay:      lo.ToPtr(false),
+					ReservedCapacity: lo.ToPtr(true),
+				},
+			}))
+
+			// Create a NodeOverlay with a price, but the feature gate is off
+			overlay := &karpv1alpha1.NodeOverlay{
+				ObjectMeta: metav1.ObjectMeta{Name: "preview-price-disabled"},
+				Spec: karpv1alpha1.NodeOverlaySpec{
+					Price: lo.ToPtr("98.32"),
+					Requirements: []karpv1alpha1.NodeSelectorRequirement{{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"p5e.48xlarge"},
+					}},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, overlay)
+
+			// Reset caches to force re-evaluation of offerings
+			awsEnv.InstanceTypesProvider.Reset()
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx))
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx))
+
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Even with a NodeOverlay present, the feature gate being disabled means
+			// the overlay price lookup is skipped — offerings remain unavailable
+			previewIT, found := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "p5e.48xlarge"
+			})
+			Expect(found).To(BeTrue())
+			Expect(previewIT.Offerings.Available()).To(HaveLen(0))
 		})
 	})
 })

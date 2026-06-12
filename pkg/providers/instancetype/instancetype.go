@@ -112,6 +112,7 @@ func NewDefaultProvider(
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	instanceTypesResolver Resolver,
 	zonalshiftProvider arczonalshift.Provider,
+	nodeOverlayClient client.Client,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api:                  ec2api,
@@ -130,6 +131,7 @@ func NewDefaultProvider(
 			unavailableOfferingsCache,
 			offeringCache,
 			zonalshiftProvider,
+			nodeOverlayClient,
 		),
 	}
 }
