@@ -18,8 +18,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -31,13 +33,15 @@ import (
 type InstanceProfile struct {
 	instanceProfileProvider instanceprofile.Provider
 	region                  string
+	clk                     clock.Clock
 	recreationCache         *cache.Cache
 }
 
-func NewInstanceProfileReconciler(instanceProfileProvider instanceprofile.Provider, region string, cache *cache.Cache) *InstanceProfile {
+func NewInstanceProfileReconciler(clk clock.Clock, instanceProfileProvider instanceprofile.Provider, region string, cache *cache.Cache) *InstanceProfile {
 	return &InstanceProfile{
 		instanceProfileProvider: instanceProfileProvider,
 		region:                  region,
+		clk:                     clk,
 		recreationCache:         cache,
 	}
 }
@@ -114,6 +118,6 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 		ip.protectProfile(nodeClass.Status.InstanceProfile)
 		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}
-	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
+	nodeClass.StatusConditions(status.WithClock(ip.clk)).SetTrue(v1.ConditionTypeInstanceProfileReady)
 	return reconcile.Result{}, nil
 }
