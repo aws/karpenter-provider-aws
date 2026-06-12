@@ -1,0 +1,22 @@
+{{- /*
+  llms.txt — an index of the site's documentation for LLMs, following the
+  spec at https://llmstxt.org. Scoped to the current "docs" section so the
+  file stays focused and avoids duplicating every archived version. Each link
+  points at the page's plain-markdown twin (index.md).
+*/ -}}
+# {{ site.Title }}
+
+> {{ site.Params.description }}
+
+{{ with site.GetPage "/docs" -}}
+## Documentation
+{{ range .Sections.ByWeight }}
+### {{ .Title }}
+{{ range .RegularPages.ByWeight }}
+- [{{ .Title }}]({{ .Permalink | replaceRE `/$` "/index.md" }}){{ with .Description }}: {{ . | plainify | chomp }}{{ end }}
+{{- end }}
+{{- range .Sections.ByWeight }}
+- [{{ .Title }}]({{ .Permalink | replaceRE `/$` "/index.md" }}){{ with .Description }}: {{ . | plainify | chomp }}{{ end }}
+{{- end }}
+{{ end }}
+{{- end }}
