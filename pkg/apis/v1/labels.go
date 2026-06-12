@@ -45,6 +45,7 @@ func init() {
 		LabelInstanceCPU,
 		LabelInstanceCPUManufacturer,
 		LabelInstanceCPUSustainedClockSpeedMhz,
+		LabelInstanceCPUBurstable,
 		LabelInstanceMemory,
 		LabelInstanceEBSBandwidth,
 		LabelInstanceNetworkBandwidth,
@@ -153,6 +154,7 @@ var (
 	LabelInstanceCPU                          = apis.Group + "/instance-cpu"
 	LabelInstanceCPUManufacturer              = apis.Group + "/instance-cpu-manufacturer"
 	LabelInstanceCPUSustainedClockSpeedMhz    = apis.Group + "/instance-cpu-sustained-clock-speed-mhz"
+	LabelInstanceCPUBurstable       = apis.Group + "/instance-cpu-burstable"
 	LabelInstanceMemory                       = apis.Group + "/instance-memory"
 	LabelInstanceEBSBandwidth                 = apis.Group + "/instance-ebs-bandwidth"
 	LabelInstanceNetworkBandwidth             = apis.Group + "/instance-network-bandwidth"
