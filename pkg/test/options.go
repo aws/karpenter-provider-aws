@@ -20,6 +20,7 @@ import (
 
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 )
@@ -36,6 +37,7 @@ type OptionsFields struct {
 	DisableDryRun           *bool
 	AMIRefreshInterval      *time.Duration
 	SubnetRefreshInterval   *time.Duration
+	ClusterIPFamily         *corev1.IPFamily
 }
 
 func Options(overrides ...OptionsFields) *options.Options {
@@ -57,5 +59,6 @@ func Options(overrides ...OptionsFields) *options.Options {
 		DisableDryRun:           lo.FromPtrOr(opts.DisableDryRun, false),
 		AMIRefreshInterval:      lo.FromPtrOr(opts.AMIRefreshInterval, time.Minute),
 		SubnetRefreshInterval:   lo.FromPtrOr(opts.SubnetRefreshInterval, time.Minute),
+		ClusterIPFamily:         lo.FromPtrOr(opts.ClusterIPFamily, corev1.IPv4Protocol),
 	}
 }

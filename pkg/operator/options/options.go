@@ -22,6 +22,7 @@ import (
 	"os"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/utils/env"
 
@@ -47,6 +48,7 @@ type Options struct {
 	EnableZonalShift        bool
 	AMIRefreshInterval      time.Duration
 	SubnetRefreshInterval   time.Duration
+	ClusterIPFamily         corev1.IPFamily
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
