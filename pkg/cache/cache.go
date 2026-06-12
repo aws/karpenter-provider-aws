@@ -51,6 +51,8 @@ const (
 	RecreationTTL = 1 * time.Minute
 	// ProtectedProfilesTTL is the duration to keep profiles as protected before nodeclass garbagecollector considers deletion
 	ProtectedProfilesTTL = 1 * time.Hour
+	// OverlayPricedTypesTTL is the duration for checking overlays 
+	OverlayPricedTypesTTL = 5 * time.Minute
 )
 
 const (

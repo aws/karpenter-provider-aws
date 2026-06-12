@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
@@ -67,10 +66,7 @@ type DefaultProvider struct {
 	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
 	cache                          *cache.Cache
 	nodeOverlayClient              client.Client
-
-	overlayPricedTypesMu      sync.RWMutex
-	overlayPricedTypes        sets.Set[string]
-	overlayPricedTypesExpiry  time.Time
+	overlayPricedTypesCache        *cache.Cache
 }
 
 func NewDefaultProvider(
@@ -81,6 +77,7 @@ func NewDefaultProvider(
 	offeringCache *cache.Cache,
 	zonalshiftProvider arczonalshiftProvider.Provider,
 	nodeOverlayClient client.Client,
+	overlayPricedTypesCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		pricingProvider:             pricingProvider,
@@ -90,6 +87,7 @@ func NewDefaultProvider(
 		cache:                       offeringCache,
 		zonalshiftProvider:          zonalshiftProvider,
 		nodeOverlayClient:           nodeOverlayClient,
+		overlayPricedTypesCache:     overlayPricedTypesCache,
 	}
 }
 
@@ -100,10 +98,6 @@ func (p *DefaultProvider) InjectOfferings(
 	nodeClass NodeClass,
 	allZones sets.Set[string],
 ) []*cloudprovider.InstanceType {
-	var overlayPricedTypes sets.Set[string]
-	if options.FromContext(ctx).FeatureGates.NodeOverlay && p.nodeOverlayClient != nil {
-		overlayPricedTypes = p.getOverlayPricedInstanceTypes(ctx)
-	}
 	// Resolve the placement group once and pass it through to avoid repeated type assertions and lookups
 	var pg *placementgroup.PlacementGroup
 	if nodeClass.PlacementGroupSelector() != nil {
@@ -122,7 +116,6 @@ func (p *DefaultProvider) InjectOfferings(
 			pg,
 			allZones,
 			shiftedZones,
-			overlayPricedTypes,
 		)
 		// For partition placement groups, expand each offering into N offerings (one per partition)
 		offerings = p.expandPartitionOfferings(offerings, pg)
@@ -164,7 +157,6 @@ func (p *DefaultProvider) createOfferings(
 	pg *placementgroup.PlacementGroup,
 	allZones sets.Set[string],
 	shiftedZones sets.Set[string],
-	overlayPricedTypes sets.Set[string],
 ) cloudprovider.Offerings {
 	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
@@ -218,7 +210,7 @@ func (p *DefaultProvider) createOfferings(
 				default:
 					panic(fmt.Sprintf("invalid capacity type %q in requirements for instance type %q", capacityType, it.Name))
 				}
-				if !hasPrice && overlayPricedTypes.Has(it.Name) {
+				if !hasPrice && p.HasOverlayPrice(ctx, it.Name) {
 					hasPrice = true
 				}
 				offering := &cloudprovider.Offering{
@@ -357,28 +349,20 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 	)
 }
 
-const overlayPricedTypesTTL = 5 * time.Minute
-
-// getOverlayPricedInstanceTypes returns the cached set of instance type names that have a price
-// overlay defined. The cache is refreshed from the API when expired.
-func (p *DefaultProvider) getOverlayPricedInstanceTypes(ctx context.Context) sets.Set[string] {
-	p.overlayPricedTypesMu.RLock()
-	if time.Now().Before(p.overlayPricedTypesExpiry) {
-		defer p.overlayPricedTypesMu.RUnlock()
-		return p.overlayPricedTypes
+// HasOverlayPrice checks whether the given instance type has a price overlay defined.
+// It uses the cache to avoid repeated API calls and falls back to listing NodeOverlays
+// from the API server when the cache is expired.
+func (p *DefaultProvider) HasOverlayPrice(ctx context.Context, instanceTypeName string) bool {
+	if !options.FromContext(ctx).FeatureGates.NodeOverlay || p.nodeOverlayClient == nil {
+		return false
 	}
-	p.overlayPricedTypesMu.RUnlock()
-
-	p.overlayPricedTypesMu.Lock()
-	defer p.overlayPricedTypesMu.Unlock()
-	// Double-check after acquiring write lock
-	if time.Now().Before(p.overlayPricedTypesExpiry) {
-		return p.overlayPricedTypes
+	if cached, ok := p.overlayPricedTypesCache.Get("overlayPricedTypes"); ok {
+		return cached.(sets.Set[string]).Has(instanceTypeName)
 	}
 
 	overlayList := &v1alpha1.NodeOverlayList{}
 	if err := p.nodeOverlayClient.List(ctx, overlayList); err != nil {
-		return p.overlayPricedTypes
+		return false
 	}
 	priced := sets.New[string]()
 	for i := range overlayList.Items {
@@ -392,7 +376,6 @@ func (p *DefaultProvider) getOverlayPricedInstanceTypes(ctx context.Context) set
 			}
 		}
 	}
-	p.overlayPricedTypes = priced
-	p.overlayPricedTypesExpiry = time.Now().Add(overlayPricedTypesTTL)
-	return priced
+	p.overlayPricedTypesCache.SetDefault("overlayPricedTypes", priced)
+	return priced.Has(instanceTypeName)
 }
