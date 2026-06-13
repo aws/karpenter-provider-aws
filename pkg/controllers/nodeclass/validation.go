@@ -159,7 +159,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			},
 		},
 	}
-	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
+	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName, options.FromContext(ctx).ClusterNameTagKey)
 	if err != nil {
 		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(v1.ConditionTypeValidationSucceeded, ConditionReasonTagValidationFailed, err.Error())
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating tags, %w", err))

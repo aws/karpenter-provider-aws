@@ -18,6 +18,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | CLUSTER_CA_BUNDLE | \-\-cluster-ca-bundle | Cluster CA bundle for nodes to use for TLS connections with the API server. If not set, this is taken from the controller's TLS configuration.|
 | CLUSTER_ENDPOINT | \-\-cluster-endpoint | The external kubernetes cluster endpoint for new nodes to connect with. If not specified, will discover the cluster endpoint using DescribeCluster API.|
 | CLUSTER_NAME | \-\-cluster-name | [REQUIRED] The kubernetes cluster name for resource discovery.|
+| CLUSTER_NAME_TAG_KEY | \-\-cluster-name-tag-key | The tag key used to identify the cluster name on Karpenter-managed AWS resources. Defaults to 'eks:eks-cluster-name'. Do NOT change this if you are running on EKS, as it would break resource discovery and the IAM permissions provided by the getting-started CloudFormation template. (default = eks:eks-cluster-name)|
 | CPU_REQUESTS | \-\-cpu-requests | CPU requests in millicores on the container running the controller. (default = 1000)|
 | DISABLE_CLUSTER_STATE_OBSERVABILITY | \-\-disable-cluster-state-observability | Disable cluster state metrics and events|
 | DISABLE_CONTROLLER_WARMUP | \-\-disable-controller-warmup | Disable controller warmup which starts controller sources before leader election is won. Controller warmup pre-populates caches and improves leader failover time.|
