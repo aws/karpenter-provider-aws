@@ -124,7 +124,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if nodeClassReady != nil && nodeClassReady.ObservedGeneration != nodeClass.Generation {
 		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("nodeclass status has not been reconciled against the latest spec"))
 	}
-	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
+	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName, options.FromContext(ctx).ClusterNameTagKey)
 	if err != nil {
 		return nil, cloudprovider.NewNodeClassNotReadyError(err)
 	}

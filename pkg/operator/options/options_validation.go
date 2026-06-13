@@ -29,6 +29,7 @@ func (o *Options) Validate() error {
 		o.validateVMMemoryOverheadPercent(),
 		o.validateReservedENIs(),
 		o.validateRequiredFields(),
+		o.validateClusterNameTagKey(),
 		o.validateAMIRefreshInterval(),
 		o.validateSubnetRefreshInterval(),
 	)
@@ -78,6 +79,17 @@ func (o *Options) validateReservedENIs() error {
 func (o *Options) validateRequiredFields() error {
 	if o.ClusterName == "" {
 		return fmt.Errorf("missing field, cluster-name")
+	}
+	return nil
+}
+
+func (o *Options) validateClusterNameTagKey() error {
+	// AWS tag keys are limited to 128 characters and may not be empty.
+	if o.ClusterNameTagKey == "" {
+		return fmt.Errorf("cluster-name-tag-key cannot be empty")
+	}
+	if len(o.ClusterNameTagKey) > 128 {
+		return fmt.Errorf("cluster-name-tag-key cannot be longer than 128 characters")
 	}
 	return nil
 }
