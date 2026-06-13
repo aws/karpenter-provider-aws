@@ -941,7 +941,7 @@ var _ = Describe("CEL/Validation", func() {
 				}
 				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 			})
-			It("should fail when imageGCLowThresholdPercent is greather than imageGCHighThresheldPercent", func() {
+			It("should fail when imageGCLowThresholdPercent is greater than imageGCHighThresholdPercent", func() {
 				nc.Spec.Kubelet = &v1.KubeletConfiguration{
 					ImageGCHighThresholdPercent: lo.ToPtr(int32(50)),
 					ImageGCLowThresholdPercent:  lo.ToPtr(int32(60)),
