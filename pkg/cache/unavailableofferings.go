@@ -90,7 +90,7 @@ func NewUnavailableOfferings() *UnavailableOfferings {
 	return uo
 }
 
-// SeqNum returns a sequence number for an instance type to capture whether the offering cache has changed for the intance type
+// SeqNum returns a sequence number for an instance type to capture whether the offering cache has changed for the instance type
 func (u *UnavailableOfferings) SeqNum(instanceType ec2types.InstanceType) uint64 {
 	u.offeringCacheSeqNumMu.RLock()
 	defer u.offeringCacheSeqNumMu.RUnlock()
