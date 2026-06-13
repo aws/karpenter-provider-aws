@@ -211,8 +211,8 @@ func (p *DefaultProvider) Get(ctx context.Context, id string, opts ...Options) (
 	if len(instances) != 1 {
 		return nil, fmt.Errorf("expected a single instance, %w", err)
 	}
-	p.instanceCache.SetDefault(id, instances[0])
-	return instances[0], nil
+	p.instanceCache.SetDefault(id, instances[id])
+	return instances[id], nil
 }
 
 func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
@@ -246,10 +246,21 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 		out.Reservations = append(out.Reservations, page.Reservations...)
 	}
 	instances, err := instancesFromOutput(ctx, out)
-	for _, it := range instances {
-		p.instanceCache.SetDefault(it.ID, it)
+	for id, it := range instances {
+		p.instanceCache.SetDefault(id, it)
 	}
-	return instances, cloudprovider.IgnoreNodeClaimNotFoundError(err)
+	// Evict cached entries for instances no longer returned by EC2, unless they are in a
+	// zonally-shifted AZ where DescribeInstances may not return them.
+	for id, item := range p.instanceCache.Items() {
+		if _, live := instances[id]; live {
+			continue
+		}
+		if inst, ok := item.Object.(*Instance); ok && inst.ZoneID != "" && p.zonalshiftProvider.IsZonalShifted(ctx, inst.ZoneID) {
+			continue
+		}
+		p.instanceCache.Delete(id)
+	}
+	return lo.Values(instances), cloudprovider.IgnoreNodeClaimNotFoundError(err)
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
@@ -748,7 +759,7 @@ func getCapacityReservationInterruptible(instanceTypes []*cloudprovider.Instance
 	return false
 }
 
-func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) ([]*Instance, error) {
+func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) (map[string]*Instance, error) {
 	if len(out.Reservations) == 0 {
 		return nil, cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance not found"))
 	}
@@ -758,11 +769,10 @@ func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) 
 	if len(instances) == 0 {
 		return nil, cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance not found"))
 	}
-	// Get a consistent ordering for instances
-	sort.Slice(instances, func(i, j int) bool {
-		return aws.ToString(instances[i].InstanceId) < aws.ToString(instances[j].InstanceId)
-	})
-	return lo.Map(instances, func(i ec2types.Instance, _ int) *Instance { return NewInstance(ctx, i) }), nil
+	return lo.SliceToMap(instances, func(i ec2types.Instance) (string, *Instance) {
+		inst := NewInstance(ctx, i)
+		return inst.ID, inst
+	}), nil
 }
 
 func combineFleetErrors(fleetErrs []ec2types.CreateFleetError) (errs error) {
