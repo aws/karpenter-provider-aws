@@ -130,7 +130,7 @@ type TestNodeClass struct {
 	v1.EC2NodeClass
 }
 
-func (t *TestNodeClass) InstanceProfileTags(clusterName string) map[string]string {
+func (t *TestNodeClass) InstanceProfileTags(clusterName, clusterNameTagKey string) map[string]string {
 	return nil
 }
 

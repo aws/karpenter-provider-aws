@@ -97,9 +97,15 @@ func WithDefaultFloat64(key string, def float64) float64 {
 	return f
 }
 
-func GetTags(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, clusterName string) (map[string]string, error) {
+func GetTags(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, clusterName, clusterNameTagKey string) (map[string]string, error) {
 	var invalidTags []string
 	for key := range nodeClass.Spec.Tags {
+		// The configured cluster-name tag key is reserved for Karpenter even when it has been
+		// overridden away from the default (which is already covered by RestrictedTagPatterns).
+		if key == clusterNameTagKey {
+			invalidTags = append(invalidTags, key)
+			continue
+		}
 		for _, exp := range v1.RestrictedTagPatterns {
 			if exp.MatchString(key) {
 				invalidTags = append(invalidTags, key)
@@ -116,7 +122,7 @@ func GetTags(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, clusterNam
 	staticTags := map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", clusterName): "owned",
 		karpv1.NodePoolLabelKey:                              nodeClaim.Labels[karpv1.NodePoolLabelKey],
-		v1.EKSClusterNameTagKey:                              clusterName,
+		clusterNameTagKey:                                    clusterName,
 		v1.LabelNodeClass:                                    nodeClass.Name,
 	}
 	return lo.Assign(nodeClass.Spec.Tags, staticTags), nil
