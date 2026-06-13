@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -64,6 +65,8 @@ type DefaultProvider struct {
 	unavailableOfferings           *awscache.UnavailableOfferings
 	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
 	cache                          *cache.Cache
+	nodeOverlayClient              client.Client
+	overlayPricedTypesCache        *cache.Cache
 }
 
 func NewDefaultProvider(
@@ -73,6 +76,8 @@ func NewDefaultProvider(
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	offeringCache *cache.Cache,
 	zonalshiftProvider arczonalshiftProvider.Provider,
+	nodeOverlayClient client.Client,
+	overlayPricedTypesCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		pricingProvider:             pricingProvider,
@@ -81,6 +86,8 @@ func NewDefaultProvider(
 		unavailableOfferings:        unavailableOfferingsCache,
 		cache:                       offeringCache,
 		zonalshiftProvider:          zonalshiftProvider,
+		nodeOverlayClient:           nodeOverlayClient,
+		overlayPricedTypesCache:     overlayPricedTypesCache,
 	}
 }
 
@@ -202,6 +209,9 @@ func (p *DefaultProvider) createOfferings(
 					price, hasPrice = p.pricingProvider.SpotPrice(ec2types.InstanceType(it.Name), zone)
 				default:
 					panic(fmt.Sprintf("invalid capacity type %q in requirements for instance type %q", capacityType, it.Name))
+				}
+				if !hasPrice && p.HasOverlayPrice(ctx, it.Name) {
+					hasPrice = true
 				}
 				offering := &cloudprovider.Offering{
 					Requirements: scheduling.NewRequirements(
@@ -337,4 +347,35 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		shiftedZonesHash,
 		connectionTrackingHash,
 	)
+}
+
+// HasOverlayPrice checks whether the given instance type has a price overlay defined.
+// It uses the cache to avoid repeated API calls and falls back to listing NodeOverlays
+// from the API server when the cache is expired.
+func (p *DefaultProvider) HasOverlayPrice(ctx context.Context, instanceTypeName string) bool {
+	if !options.FromContext(ctx).FeatureGates.NodeOverlay || p.nodeOverlayClient == nil {
+		return false
+	}
+	if cached, ok := p.overlayPricedTypesCache.Get("overlayPricedTypes"); ok {
+		return cached.(sets.Set[string]).Has(instanceTypeName)
+	}
+
+	overlayList := &v1alpha1.NodeOverlayList{}
+	if err := p.nodeOverlayClient.List(ctx, overlayList); err != nil {
+		return false
+	}
+	priced := sets.New[string]()
+	for i := range overlayList.Items {
+		overlay := &overlayList.Items[i]
+		if overlay.Spec.Price == nil && overlay.Spec.PriceAdjustment == nil {
+			continue
+		}
+		for _, req := range overlay.Spec.Requirements {
+			if req.Key == corev1.LabelInstanceTypeStable && req.Operator == corev1.NodeSelectorOpIn {
+				priced.Insert(req.Values...)
+			}
+		}
+	}
+	p.overlayPricedTypesCache.SetDefault("overlayPricedTypes", priced)
+	return priced.Has(instanceTypeName)
 }

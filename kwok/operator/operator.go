@@ -205,6 +205,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		unavailableOfferingsCache,
 		instancetype.NewDefaultResolver(cfg.Region),
 		zsProvider,
+		nil,
+		cache.New(awscache.OverlayPricedTypesTTL, awscache.DefaultCleanupInterval),
 	)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
