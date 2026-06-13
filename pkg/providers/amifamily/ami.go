@@ -198,7 +198,7 @@ func (p *DefaultProvider) amis(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 				// and GPU instances. In that case, we'll have a set of requirements for each, and will create one "image" for each.
 				for _, reqs := range query.RequirementsForImageWithArchitecture(lo.FromPtr(image.ImageId), arch) {
 					// Checks and store for AMIs
-					// Following checks are needed in order to always priortize non deprecated AMIs
+					// Following checks are needed in order to always prioritize non deprecated AMIs
 					// If we already have an image with the same set of requirements, but this image (candidate) is newer, replace the previous (existing) image.
 					// If we already have an image with the same set of requirements which is deprecated, but this image (candidate) is newer or non deprecated, replace the previous (existing) image
 					reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
