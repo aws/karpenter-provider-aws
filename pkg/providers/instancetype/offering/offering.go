@@ -17,6 +17,7 @@ package offering
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -210,8 +211,11 @@ func (p *DefaultProvider) createOfferings(
 				default:
 					panic(fmt.Sprintf("invalid capacity type %q in requirements for instance type %q", capacityType, it.Name))
 				}
-				if !hasPrice && p.HasOverlayPrice(ctx, it.Name) {
-					hasPrice = true
+				if !hasPrice {
+					if overlayPrice, ok := p.GetOverlayPrice(ctx, it.Name); ok {
+						price = overlayPrice
+						hasPrice = true
+					}
 				}
 				offering := &cloudprovider.Offering{
 					Requirements: scheduling.NewRequirements(
@@ -349,33 +353,47 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 	)
 }
 
-// HasOverlayPrice checks whether the given instance type has a price overlay defined.
+// GetOverlayPrice returns the overlay price for the given instance type if one is defined.
 // It uses the cache to avoid repeated API calls and falls back to listing NodeOverlays
 // from the API server when the cache is expired.
-func (p *DefaultProvider) HasOverlayPrice(ctx context.Context, instanceTypeName string) bool {
+//
+//nolint:gocyclo
+func (p *DefaultProvider) GetOverlayPrice(ctx context.Context, instanceTypeName string) (float64, bool) {
 	if !options.FromContext(ctx).FeatureGates.NodeOverlay || p.nodeOverlayClient == nil {
-		return false
+		return 0, false
 	}
-	if cached, ok := p.overlayPricedTypesCache.Get("overlayPricedTypes"); ok {
-		return cached.(sets.Set[string]).Has(instanceTypeName)
+	if cached, ok := p.overlayPricedTypesCache.Get(instanceTypeName); ok {
+		return cached.(float64), true
+	}
+	// Sentinel indicates we already listed overlays and this instance type had no match
+	if _, ok := p.overlayPricedTypesCache.Get("_listed"); ok {
+		return 0, false
 	}
 
 	overlayList := &v1alpha1.NodeOverlayList{}
 	if err := p.nodeOverlayClient.List(ctx, overlayList); err != nil {
-		return false
+		return 0, false
 	}
-	priced := sets.New[string]()
 	for i := range overlayList.Items {
 		overlay := &overlayList.Items[i]
-		if overlay.Spec.Price == nil && overlay.Spec.PriceAdjustment == nil {
+		if overlay.Spec.Price == nil {
+			continue
+		}
+		overlayPrice, err := strconv.ParseFloat(*overlay.Spec.Price, 64)
+		if err != nil {
 			continue
 		}
 		for _, req := range overlay.Spec.Requirements {
 			if req.Key == corev1.LabelInstanceTypeStable && req.Operator == corev1.NodeSelectorOpIn {
-				priced.Insert(req.Values...)
+				for _, val := range req.Values {
+					p.overlayPricedTypesCache.SetDefault(val, overlayPrice)
+				}
 			}
 		}
 	}
-	p.overlayPricedTypesCache.SetDefault("overlayPricedTypes", priced)
-	return priced.Has(instanceTypeName)
+	p.overlayPricedTypesCache.SetDefault("_listed", true)
+	if cached, ok := p.overlayPricedTypesCache.Get(instanceTypeName); ok {
+		return cached.(float64), true
+	}
+	return 0, false
 }
