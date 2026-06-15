@@ -11,9 +11,10 @@ done < <(aws iam list-policies \
   --query "Policies[?starts_with(PolicyName, 'KarpenterController') && ends_with(PolicyName, '${CLUSTER_NAME}')].Arn" \
   --output text | tr '\t' '\n')
 
-# Sanity check: the CloudFormation template creates 6 controller policies.
-# If you see fewer here, Step 3's stack didn't create them all.
-echo "Discovered ${#CONTROLLER_POLICIES[@]} controller policies (expect 6):"
+# Sanity check: the CloudFormation path creates 6 controller policies;
+# the no-interruption-queue path creates 4. If you see anything else,
+# Step 3 didn't complete cleanly.
+echo "Discovered ${#CONTROLLER_POLICIES[@]} controller policies (expect 6 with interruption queue, 4 without):"
 printf '  %s\n' "${CONTROLLER_POLICIES[@]}"
 
 # Build the --attach-policy-arn flag pairs explicitly.
