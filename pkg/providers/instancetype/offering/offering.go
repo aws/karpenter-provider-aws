@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -372,6 +373,7 @@ func (p *DefaultProvider) GetOverlayPrice(ctx context.Context, instanceTypeName 
 
 	overlayList := &v1alpha1.NodeOverlayList{}
 	if err := p.nodeOverlayClient.List(ctx, overlayList); err != nil {
+		log.FromContext(ctx).Error(err, "failed to list NodeOverlays for overlay pricing")
 		return 0, false
 	}
 	for i := range overlayList.Items {
