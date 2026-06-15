@@ -162,14 +162,52 @@ the alias `al2023@latest` will drift every node when a new AMI ships.
 
 ## 3. Provision Karpenter's AWS resources
 
-Karpenter ships an upstream
+Karpenter needs an IAM role for the nodes it launches plus a set of
+managed policies for the controller itself. The choice you make here is
+**whether to provision an interruption queue** alongside those IAM
+resources, because that single decision determines how much
+infrastructure the install creates and how Karpenter handles spot and
+maintenance events.
+
+The interruption queue is an SQS queue plus four EventBridge rules that
+forward EC2 lifecycle events into the queue:
+
+- [Spot Instance Interruption Warning](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-interruptions.html) —
+  the 2-minute notice EC2 sends before reclaiming a spot instance.
+  Karpenter reads this from the queue, taints the node, drains pods, and
+  pre-emptively launches a replacement so workloads continue running.
+- [Rebalance recommendations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html) —
+  early warnings for spot instances at elevated risk of interruption.
+- Scheduled maintenance events from AWS Health.
+- Instance state-change notifications.
+
+Without the queue, Karpenter still launches and consolidates nodes
+correctly, but pods on disrupted instances are killed abruptly with no
+graceful drain when EC2 reclaims them.
+
+Pick a path:
+
+- **With interruption queue (recommended)** — full Karpenter
+  functionality. Best for any cluster running spot. Provisions an SQS
+  queue + 4 EventBridge rules + 6 controller IAM policies + the node
+  IAM role via the upstream CloudFormation template.
+- **Without interruption queue** — minimal install. Suitable only for
+  on-demand-only workloads, dev/test clusters, or cases where you have
+  no IAM permission to create SQS queues or EventBridge rules.
+  Provisions only the node IAM role + 4 controller IAM policies via
+  raw `aws iam` calls. No SQS, no EventBridge, no CloudFormation.
+
+{{< tabpane text=true right=false >}}
+  {{% tab header="**Provision Karpenter's AWS resources**:" disabled=true /%}}
+  {{% tab header="With interruption queue (recommended)" %}}
+Deploy the upstream
 [CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html)
-template that creates the IAM role for Karpenter-launched nodes and the
+template as a single stack. It creates the IAM role for
+Karpenter-launched nodes plus the
 [SQS queue](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html)
-+ [EventBridge](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html)
-rules Karpenter uses for
-[spot-interruption](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-interruptions.html)
-and scheduled-maintenance handling. Deploy it as a single stack:
+and [EventBridge](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html)
+rules Karpenter uses for spot-interruption and scheduled-maintenance
+handling.
 
 {{% script file="./content/en/{VERSION}/getting-started/adding-karpenter-to-existing-eks/scripts/step09-deploy-cloudformation.sh" language="bash" %}}
 
@@ -183,18 +221,49 @@ Verify the stack landed in the correct region:
 
 {{% script file="./content/en/{VERSION}/getting-started/adding-karpenter-to-existing-eks/scripts/step11-verify-stack.sh" language="bash" %}}
 
-Both should return the cluster's region in the URL/ARN. If not, you ran the
-deploy with a stale `AWS_DEFAULT_REGION` — delete the misplaced stack and
-redeploy.
+Both should return the cluster's region in the URL/ARN. If not, you ran
+the deploy with a stale `AWS_DEFAULT_REGION` — delete the misplaced
+stack and redeploy.
 
 {{% alert title="Note" color="primary" %}}
-The template is parameterized only on `ClusterName`. To change region or
-partition, set those via the AWS CLI environment, not as template parameters.
-The full list of resources the stack creates (node role, SQS queue,
-EventBridge rules, controller permissions) is in the
+The template is parameterized only on `ClusterName`. To change region
+or partition, set those via the AWS CLI environment, not as template
+parameters. The full list of resources the stack creates (node role,
+SQS queue, EventBridge rules, controller permissions) is in the
 [CloudFormation template](https://github.com/aws/karpenter-provider-aws/blob/v{{< param "latest_release_version" >}}/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml)
 itself.
 {{% /alert %}}
+  {{% /tab %}}
+  {{% tab header="Without interruption queue" %}}
+Create the node IAM role and four controller managed policies directly
+via `aws iam` calls. The four policies are identical to the
+CloudFormation template's `NodeLifecyclePolicy`, `IAMIntegrationPolicy`,
+`EKSIntegrationPolicy`, and `ResourceDiscoveryPolicy`; their JSON
+bodies are committed under
+[`policies/`](https://github.com/aws/karpenter-provider-aws/tree/v{{< param "latest_release_version" >}}/website/content/en/preview/getting-started/adding-karpenter-to-existing-eks/policies)
+in this guide's directory and downloaded by the script below.
+
+{{% script file="./content/en/{VERSION}/getting-started/adding-karpenter-to-existing-eks/scripts/step09b-static-node-role.sh" language="bash" %}}
+
+{{% script file="./content/en/{VERSION}/getting-started/adding-karpenter-to-existing-eks/scripts/step09c-static-controller-policies.sh" language="bash" %}}
+
+If you also intend to launch spot instances (without graceful drain on
+interruption), create the
+[EC2 spot service-linked role](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-requests.html#service-linked-roles-spot-instance-requests).
+Skip this step for on-demand-only installs.
+
+{{% script file="./content/en/{VERSION}/getting-started/adding-karpenter-to-existing-eks/scripts/step10-spot-slr.sh" language="bash" %}}
+
+{{% alert title="Note" color="primary" %}}
+You can switch on interruption handling later without reinstalling.
+Provision the SQS queue + EventBridge rules +
+`KarpenterControllerInterruptionPolicy` (run the CloudFormation
+template against the same `ClusterName` to do it in one shot), attach
+the new policy to your controller role, then run
+`helm upgrade --reuse-values --set "settings.interruptionQueue=${CLUSTER_NAME}"`.
+{{% /alert %}}
+  {{% /tab %}}
+{{< /tabpane >}}
 
 ## 4. Create the controller IRSA role
 
@@ -376,9 +445,18 @@ dot-free keys for the controller's `nodeSelector`.
 {{% /alert %}}
 
 Then install, substituting `<your-system-label-key>` and
-`<your-system-label-value>` for the label you just confirmed:
+`<your-system-label-value>` for the label you just confirmed. Pick the
+tab matching the path you took in Step 3:
 
+{{< tabpane text=true right=false >}}
+  {{% tab header="**Helm install command**:" disabled=true /%}}
+  {{% tab header="With interruption queue (recommended)" %}}
 {{% script file="./content/en/{VERSION}/getting-started/adding-karpenter-to-existing-eks/scripts/step23-helm-install.sh" language="bash" %}}
+  {{% /tab %}}
+  {{% tab header="Without interruption queue" %}}
+{{% script file="./content/en/{VERSION}/getting-started/adding-karpenter-to-existing-eks/scripts/step23b-helm-install-no-queue.sh" language="bash" %}}
+  {{% /tab %}}
+{{< /tabpane >}}
 
 {{% alert title="Warning" color="warning" %}}
 The chart installs **two replicas with a zonal topology-spread constraint**.
@@ -672,9 +750,18 @@ survive a new shell):
 
 {{% script file="./content/en/{VERSION}/getting-started/adding-karpenter-to-existing-eks/scripts/step37-cleanup-rederive-vars.sh" language="bash" %}}
 
-Then tear down in this order:
+Then tear down in this order. Pick the tab that matches the path you
+took in Step 3:
 
+{{< tabpane text=true right=false >}}
+  {{% tab header="**Cleanup**:" disabled=true /%}}
+  {{% tab header="With interruption queue" %}}
 {{% script file="./content/en/{VERSION}/getting-started/adding-karpenter-to-existing-eks/scripts/step38-cleanup-teardown.sh" language="bash" %}}
+  {{% /tab %}}
+  {{% tab header="Without interruption queue" %}}
+{{% script file="./content/en/{VERSION}/getting-started/adding-karpenter-to-existing-eks/scripts/step38b-cleanup-teardown-no-queue.sh" language="bash" %}}
+  {{% /tab %}}
+{{< /tabpane >}}
 
 The cluster is back to its pre-Karpenter state and a follow-up reinstall
 of Steps 1–9 will succeed.
