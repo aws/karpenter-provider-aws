@@ -234,6 +234,32 @@ Karpenter starts by treating preferred affinities as required affinities when co
 Karpenter does not interpret preferred affinities as required when constructing topology requirements for scheduling to a node. If these preferences are necessary, required affinities should be used [as documented in Node Affinity](#node-affinity).
 {{% /alert %}}
 
+### Interaction with kube-scheduler
+
+Karpenter and the upstream `kube-scheduler` perform two distinct jobs, and it helps to keep them separate when reasoning about where pods land.
+
+Karpenter watches for pods that do not fit on existing capacity and runs its own internal scheduling simulation. That simulation models your pods against your `NodePools` and the available instance types to decide what new capacity, if any, to launch. The result of the simulation is a decision about which nodes to create; it is not a binding of pods to nodes.
+
+`kube-scheduler` is what actually binds pods to nodes. Once Karpenter launches a node and that node becomes `Ready` and registers with the cluster, `kube-scheduler` evaluates the pending pods and binds them to a node using its own filtering and scoring. Karpenter provisions capacity, but it does not bind pods itself.
+
+Because two independent components are involved, Karpenter's simulation and the scheduler's final placement can diverge. Some situations where this happens:
+
+* **Preferred (soft) constraints are treated differently.** As described under [Preferences](#preferences), Karpenter starts by treating preferred affinities as required when it decides what to launch, relaxing them one-at-a-time only when they cannot be met. `kube-scheduler` instead folds preferences into its scoring and may place a pod somewhere that does not satisfy a preference if nothing better is available. A pod can therefore end up on a different node than the one Karpenter provisioned for it, and provisioning to satisfy a preference can result in more nodes than expected (see the note under [Node affinity](#node-affinity)).
+* **A pod may become schedulable on existing capacity before the new node joins.** Karpenter decides to launch a node based on a snapshot of pending pods, but the new node takes time to boot and register. In that window other capacity can free up, and `kube-scheduler` may bind the pending pod to existing capacity instead of the newly launched node. The new node can then come up lightly used or empty; Karpenter's [consolidation]({{<ref "./disruption" >}}) typically reclaims it later.
+* **Batching and bin-packing.** Karpenter batches pending pods and bin-packs them to choose cost-effective instance types, so the node it launches is sized for a group of pods rather than one specific pod. `kube-scheduler` then binds each pod individually, and the node a given pod lands on is not guaranteed to be the one Karpenter sized for it.
+
+{{% alert title="Note" color="primary" %}}
+This is expected behavior, not a bug. Karpenter is responsible for provisioning the right capacity, and `kube-scheduler` is responsible for binding pods to nodes. The two converge in the steady state.
+{{% /alert %}}
+
+For predictable placement:
+
+* If pods must land in a specific way, express it with required constraints (`requiredDuringSchedulingIgnoredDuringExecution` under `spec.affinity.nodeAffinity`, or `whenUnsatisfiable: DoNotSchedule` for topology spread) rather than preferred ones. Karpenter and `kube-scheduler` agree far more closely on hard requirements than on soft ones.
+* Treat preferred affinities and `ScheduleAnyway` topology spread as best-effort, and be aware they can cause Karpenter to launch additional nodes (see [Node affinity](#node-affinity) and [Topology Spread](#topology-spread)).
+* If a pod stays pending even though Karpenter launched a node for it, check that the node's labels, taints, and zone actually satisfy the pod's required constraints, since those are what `kube-scheduler` enforces at bind time.
+
+The [FAQ]({{<ref "../faq" >}}) Scheduling section has worked examples of preferred constraints causing extra nodes to be launched and then consolidated away.
+
 ### Node affinity
 
 Examples below illustrate how to use Node affinity to include (`In`) and exclude (`NotIn`) objects.
