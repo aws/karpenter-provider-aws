@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
@@ -68,7 +69,9 @@ type DefaultProvider struct {
 	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
 	cache                          *cache.Cache
 	kubeClient                     client.Client
-	overlayPricedTypesCache        *cache.Cache
+	overlayPrices                  map[string]float64
+	overlayPricesMu                sync.RWMutex
+	overlayPricesExpiry            time.Time
 }
 
 func NewDefaultProvider(
@@ -79,7 +82,6 @@ func NewDefaultProvider(
 	offeringCache *cache.Cache,
 	zonalshiftProvider arczonalshiftProvider.Provider,
 	kubeClient client.Client,
-	overlayPricedTypesCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		pricingProvider:             pricingProvider,
@@ -89,7 +91,6 @@ func NewDefaultProvider(
 		cache:                       offeringCache,
 		zonalshiftProvider:          zonalshiftProvider,
 		kubeClient:                  kubeClient,
-		overlayPricedTypesCache:     overlayPricedTypesCache,
 	}
 }
 
@@ -355,17 +356,24 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 }
 
 // GetOverlayPrice returns the overlay price for the given instance type if one is defined.
-// It uses the cache to avoid repeated API calls and falls back to listing NodeOverlays
-// from the API server when the cache is expired.
 //
 //nolint:gocyclo
 func (p *DefaultProvider) GetOverlayPrice(ctx context.Context, instanceTypeName string) (float64, bool) {
 	if !options.FromContext(ctx).FeatureGates.NodeOverlay || p.kubeClient == nil {
 		return 0, false
 	}
-	if cached, ok := p.overlayPricedTypesCache.Get("overlayPrices"); ok {
-		prices := cached.(map[string]float64)
-		price, found := prices[instanceTypeName]
+	p.overlayPricesMu.RLock()
+	if time.Now().Before(p.overlayPricesExpiry) {
+		defer p.overlayPricesMu.RUnlock()
+		price, found := p.overlayPrices[instanceTypeName]
+		return price, found
+	}
+	p.overlayPricesMu.RUnlock()
+
+	p.overlayPricesMu.Lock()
+	defer p.overlayPricesMu.Unlock()
+	if time.Now().Before(p.overlayPricesExpiry) {
+		price, found := p.overlayPrices[instanceTypeName]
 		return price, found
 	}
 
@@ -383,7 +391,7 @@ func (p *DefaultProvider) GetOverlayPrice(ctx context.Context, instanceTypeName 
 		if overlay.Spec.Price == nil {
 			continue
 		}
-		// Only use overlays whose sole requirement is an instance type selector
+		// make sure overlays with only an Instance Type and price are considered
 		if len(overlay.Spec.Requirements) != 1 || overlay.Spec.Requirements[0].Key != corev1.LabelInstanceTypeStable || overlay.Spec.Requirements[0].Operator != corev1.NodeSelectorOpIn {
 			continue
 		}
@@ -395,7 +403,15 @@ func (p *DefaultProvider) GetOverlayPrice(ctx context.Context, instanceTypeName 
 			prices[val] = overlayPrice
 		}
 	}
-	p.overlayPricedTypesCache.SetDefault("overlayPrices", prices)
+	p.overlayPrices = prices
+	p.overlayPricesExpiry = time.Now().Add(awscache.OverlayPricedTypesTTL)
 	price, found := prices[instanceTypeName]
 	return price, found
+}
+
+func (p *DefaultProvider) ResetOverlayPrices() {
+	p.overlayPricesMu.Lock()
+	defer p.overlayPricesMu.Unlock()
+	p.overlayPrices = nil
+	p.overlayPricesExpiry = time.Time{}
 }

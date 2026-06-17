@@ -78,7 +78,6 @@ func main() {
 		),
 		arczonalshift.NewNoopProvider(),
 		nil,
-		cache.New(awscache.OverlayPricedTypesTTL, awscache.DefaultCleanupInterval),
 	)
 	if err := instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {
 		log.Fatalf("updating instance types, %s", err)

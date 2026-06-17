@@ -113,7 +113,6 @@ func NewDefaultProvider(
 	instanceTypesResolver Resolver,
 	zonalshiftProvider arczonalshift.Provider,
 	kubeClient client.Client,
-	overlayPricedTypesCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api:                  ec2api,
@@ -133,7 +132,6 @@ func NewDefaultProvider(
 			offeringCache,
 			zonalshiftProvider,
 			kubeClient,
-			overlayPricedTypesCache,
 		),
 	}
 }
@@ -401,6 +399,7 @@ func (p *DefaultProvider) Reset() {
 	p.instanceTypesOfferings = map[ec2types.InstanceType]sets.Set[string]{}
 	p.instanceTypesCache.Flush()
 	p.discoveredCapacityCache.Flush()
+	p.offeringProvider.ResetOverlayPrices()
 }
 
 func discoveredCapacityCacheKey(instanceType string, nodeClass NodeClass) string {
