@@ -3342,6 +3342,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					}},
 				},
 			}
+			overlay.StatusConditions().SetTrue(karpv1alpha1.ConditionTypeValidationSucceeded)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, overlay)
 
 			// Reset caches to force re-evaluation of offerings

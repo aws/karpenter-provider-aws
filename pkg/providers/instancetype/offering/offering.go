@@ -67,7 +67,7 @@ type DefaultProvider struct {
 	unavailableOfferings           *awscache.UnavailableOfferings
 	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
 	cache                          *cache.Cache
-	nodeOverlayClient              client.Client
+	kubeClient                     client.Client
 	overlayPricedTypesCache        *cache.Cache
 }
 
@@ -78,7 +78,7 @@ func NewDefaultProvider(
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	offeringCache *cache.Cache,
 	zonalshiftProvider arczonalshiftProvider.Provider,
-	nodeOverlayClient client.Client,
+	kubeClient client.Client,
 	overlayPricedTypesCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
@@ -88,7 +88,7 @@ func NewDefaultProvider(
 		unavailableOfferings:        unavailableOfferingsCache,
 		cache:                       offeringCache,
 		zonalshiftProvider:          zonalshiftProvider,
-		nodeOverlayClient:           nodeOverlayClient,
+		kubeClient:                  kubeClient,
 		overlayPricedTypesCache:     overlayPricedTypesCache,
 	}
 }
@@ -360,42 +360,42 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 //
 //nolint:gocyclo
 func (p *DefaultProvider) GetOverlayPrice(ctx context.Context, instanceTypeName string) (float64, bool) {
-	if !options.FromContext(ctx).FeatureGates.NodeOverlay || p.nodeOverlayClient == nil {
+	if !options.FromContext(ctx).FeatureGates.NodeOverlay || p.kubeClient == nil {
 		return 0, false
 	}
-	if cached, ok := p.overlayPricedTypesCache.Get(instanceTypeName); ok {
-		return cached.(float64), true
-	}
-	// Sentinel indicates we already listed overlays and this instance type had no match
-	if _, ok := p.overlayPricedTypesCache.Get("_listed"); ok {
-		return 0, false
+	if cached, ok := p.overlayPricedTypesCache.Get("overlayPrices"); ok {
+		prices := cached.(map[string]float64)
+		price, found := prices[instanceTypeName]
+		return price, found
 	}
 
 	overlayList := &v1alpha1.NodeOverlayList{}
-	if err := p.nodeOverlayClient.List(ctx, overlayList); err != nil {
+	if err := p.kubeClient.List(ctx, overlayList); err != nil {
 		log.FromContext(ctx).Error(err, "failed to list NodeOverlays for overlay pricing")
 		return 0, false
 	}
+	prices := map[string]float64{}
 	for i := range overlayList.Items {
 		overlay := &overlayList.Items[i]
+		if !overlay.StatusConditions().IsTrue(v1alpha1.ConditionTypeValidationSucceeded) {
+			continue
+		}
 		if overlay.Spec.Price == nil {
+			continue
+		}
+		// Only use overlays whose sole requirement is an instance type selector
+		if len(overlay.Spec.Requirements) != 1 || overlay.Spec.Requirements[0].Key != corev1.LabelInstanceTypeStable || overlay.Spec.Requirements[0].Operator != corev1.NodeSelectorOpIn {
 			continue
 		}
 		overlayPrice, err := strconv.ParseFloat(*overlay.Spec.Price, 64)
 		if err != nil {
 			continue
 		}
-		for _, req := range overlay.Spec.Requirements {
-			if req.Key == corev1.LabelInstanceTypeStable && req.Operator == corev1.NodeSelectorOpIn {
-				for _, val := range req.Values {
-					p.overlayPricedTypesCache.SetDefault(val, overlayPrice)
-				}
-			}
+		for _, val := range overlay.Spec.Requirements[0].Values {
+			prices[val] = overlayPrice
 		}
 	}
-	p.overlayPricedTypesCache.SetDefault("_listed", true)
-	if cached, ok := p.overlayPricedTypesCache.Get(instanceTypeName); ok {
-		return cached.(float64), true
-	}
-	return 0, false
+	p.overlayPricedTypesCache.SetDefault("overlayPrices", prices)
+	price, found := prices[instanceTypeName]
+	return price, found
 }

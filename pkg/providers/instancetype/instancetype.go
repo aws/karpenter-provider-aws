@@ -112,7 +112,7 @@ func NewDefaultProvider(
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	instanceTypesResolver Resolver,
 	zonalshiftProvider arczonalshift.Provider,
-	nodeOverlayClient client.Client,
+	kubeClient client.Client,
 	overlayPricedTypesCache *cache.Cache,
 ) *DefaultProvider {
 	return &DefaultProvider{
@@ -132,7 +132,7 @@ func NewDefaultProvider(
 			unavailableOfferingsCache,
 			offeringCache,
 			zonalshiftProvider,
-			nodeOverlayClient,
+			kubeClient,
 			overlayPricedTypesCache,
 		),
 	}
