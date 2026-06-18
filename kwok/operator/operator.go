@@ -28,6 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/awslabs/operatorpkg/aws/middleware"
@@ -126,7 +127,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	} else {
 		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
 	}
-	options.FromContext(ctx).ClusterIPFamily = lo.Ternary(kubeDNSIP != nil && kubeDNSIP.To4() == nil, corev1.IPv6Protocol, corev1.IPv4Protocol)
+	options.FromContext(ctx).ClusterIPFamily = ResolveClusterIPFamily(ctx, eksapi)
 	var zsProvider zonalshiftprovider.Provider
 	if options.FromContext(ctx).EnableZonalShift {
 		arczonalshiftAPI := arczonalshift.NewFromConfig(cfg)
@@ -291,13 +292,29 @@ func ResolveClusterEndpoint(ctx context.Context, eksAPI sdk.EKSAPI) (string, err
 	if clusterEndpointFromOptions != "" {
 		return clusterEndpointFromOptions, nil // cluster endpoint is explicitly set
 	}
-	out, err := eksAPI.DescribeCluster(ctx, &eks.DescribeClusterInput{
-		Name: aws.String(options.FromContext(ctx).ClusterName),
-	})
+	out, err := describeCluster(ctx, eksAPI)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve cluster endpoint, %w", err)
 	}
 	return *out.Cluster.Endpoint, nil
+}
+
+func ResolveClusterIPFamily(ctx context.Context, eksAPI sdk.EKSAPI) corev1.IPFamily {
+	out, err := describeCluster(ctx, eksAPI)
+	if err != nil {
+		log.FromContext(ctx).V(1).Info(fmt.Sprintf("unable to resolve cluster IP family from EKS API, defaulting to IPv4: %s", err))
+		return corev1.IPv4Protocol
+	}
+	if out.Cluster.KubernetesNetworkConfig != nil && out.Cluster.KubernetesNetworkConfig.IpFamily == ekstypes.IpFamilyIpv6 {
+		return corev1.IPv6Protocol
+	}
+	return corev1.IPv4Protocol
+}
+
+func describeCluster(ctx context.Context, eksAPI sdk.EKSAPI) (*eks.DescribeClusterOutput, error) {
+	return eksAPI.DescribeCluster(ctx, &eks.DescribeClusterInput{
+		Name: aws.String(options.FromContext(ctx).ClusterName),
+	})
 }
 
 func GetCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) {
@@ -358,8 +375,7 @@ func SetupIndexers(ctx context.Context, mgr manager.Manager) {
 }
 
 func ValidateZonalShiftEnablement(ctx context.Context, eksAPI sdk.EKSAPI, arczonalshiftAPI sdk.ARCZonalShiftAPI) (string, error) {
-	inputDC := eks.DescribeClusterInput{Name: &options.FromContext(ctx).ClusterName}
-	outputDC, _ := eksAPI.DescribeCluster(ctx, &inputDC)
+	outputDC, _ := describeCluster(ctx, eksAPI)
 	clusterArn := outputDC.Cluster.Arn
 	inputGMR := arczonalshift.GetManagedResourceInput{ResourceIdentifier: clusterArn}
 	_, getManagedResourceErr := arczonalshiftAPI.GetManagedResource(ctx, &inputGMR)

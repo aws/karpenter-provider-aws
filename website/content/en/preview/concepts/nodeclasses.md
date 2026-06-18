@@ -342,6 +342,10 @@ For small instances that require an increased pod density or large instances tha
 When using small instance types, it may be necessary to enable [prefix assignment mode](https://aws.amazon.com/blogs/containers/amazon-vpc-cni-increases-pods-per-node-limits/) in the AWS VPC CNI plugin to support a higher pod density per node.  Prefix assignment mode was introduced in AWS VPC CNI v1.9 and allows ENIs to manage a broader set of IP addresses.  Much higher pod densities are supported as a result.
 {{% /alert %}}
 
+{{% alert title="IPv6 Clusters" color="primary" %}}
+For IPv6 clusters, Karpenter uses a default `maxPods` value of 110 instead of the ENI-based calculation. In IPv6 mode, the VPC CNI uses prefix delegation where the number of IP addresses per ENI is not a constraint on pod density. This behavior aligns with the [EKS-optimized AMI](https://github.com/awslabs/amazon-eks-ami/blob/main/nodeadm/internal/kubelet/eni_max_pods.go) (nodeadm), which also defaults to 110 for IPv6 clusters.
+{{% /alert %}}
+
 {{% alert title="Windows Support Notice" color="warning" %}}
 Presently, Windows worker nodes do not support using more than one ENI.
 As a consequence, the number of IP addresses, and subsequently, the number of pods that a Windows worker node can support is limited by the number of IPv4 addresses available on the primary ENI.

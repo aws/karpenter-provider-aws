@@ -43,6 +43,9 @@ import (
 const (
 	MemoryAvailable = "memory.available"
 	NodeFSAvailable = "nodefs.available"
+	// defaultMaxPods is the Kubernetes default max pods per node.
+	// https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration
+	defaultMaxPods = 110
 )
 
 var (
@@ -581,12 +584,11 @@ func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifami
 	case maxPods != nil:
 		count = int64(lo.FromPtr(maxPods))
 	case options.FromContext(ctx).ClusterIPFamily == corev1.IPv6Protocol:
-		count = 110
+		count = defaultMaxPods
 	case amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
 		count = ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs, ncNetworkInterfaces).Value()
 	default:
-		count = 110
-
+		count = defaultMaxPods
 	}
 	if lo.FromPtr(podsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
 		count = lo.Min([]int64{int64(lo.FromPtr(podsPerCore)) * int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)), count})
