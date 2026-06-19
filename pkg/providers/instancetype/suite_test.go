@@ -1047,7 +1047,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
 		}
 	})
-	It("should set pods to 110 for IPv6 clusters regardless of ENI limits", func() {
+	It("should set pods to at least 110 for IPv6 clusters using max(ENILimitedPods, 110)", func() {
 		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{ClusterIPFamily: lo.ToPtr(corev1.IPv6Protocol)}))
 		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 		Expect(err).To(BeNil())
@@ -1069,8 +1069,52 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodeClass.AMIFamily(),
 				nil,
 			)
-			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
+			Expect(it.Capacity.Pods().Value()).To(BeNumerically(">=", 110))
 		}
+	})
+	It("should use ENI-limited pods for IPv6 clusters when it exceeds 110", func() {
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{ClusterIPFamily: lo.ToPtr(corev1.IPv6Protocol)}))
+		info := ec2types.InstanceTypeInfo{
+			InstanceType: "m5.24xlarge",
+			ProcessorInfo: &ec2types.ProcessorInfo{
+				SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+			},
+			VCpuInfo: &ec2types.VCpuInfo{
+				DefaultCores: aws.Int32(48),
+				DefaultVCpus: aws.Int32(96),
+			},
+			MemoryInfo: &ec2types.MemoryInfo{
+				SizeInMiB: aws.Int64(393216),
+			},
+			NetworkInfo: &ec2types.NetworkInfo{
+				Ipv4AddressesPerInterface: aws.Int32(50),
+				DefaultNetworkCardIndex:   aws.Int32(0),
+				NetworkCards: []ec2types.NetworkCardInfo{{
+					NetworkCardIndex:         lo.ToPtr(int32(0)),
+					MaximumNetworkInterfaces: aws.Int32(15),
+				}},
+			},
+			SupportedUsageClasses: fake.DefaultSupportedUsageClasses,
+		}
+		it := instancetype.NewInstanceType(ctx,
+			info,
+			fake.DefaultRegion,
+			nil,
+			nil,
+			nodeClass.Spec.BlockDeviceMappings,
+			nodeClass.Spec.InstanceStorePolicy,
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+			nodeClass.AMIFamily(),
+			nil,
+		)
+		// ENI-limited pods = 15 * (50 - 1) + 2 = 737, which is > 110
+		Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 737))
 	})
 	Context("Metrics", func() {
 		It("should expose vcpu metrics for instance types", func() {

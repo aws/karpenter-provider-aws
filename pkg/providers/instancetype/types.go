@@ -584,7 +584,7 @@ func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifami
 	case maxPods != nil:
 		count = int64(lo.FromPtr(maxPods))
 	case options.FromContext(ctx).ClusterIPFamily == corev1.IPv6Protocol:
-		count = defaultMaxPods
+		count = lo.Max([]int64{ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs, ncNetworkInterfaces).Value(), defaultMaxPods})
 	case amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
 		count = ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs, ncNetworkInterfaces).Value()
 	default:
