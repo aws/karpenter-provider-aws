@@ -166,7 +166,7 @@ type EC2NodeClassStatus struct {
 	Conditions []status.Condition `json:"conditions,omitempty"`
 }
 
-func (in *EC2NodeClass) StatusConditions() status.ConditionSet {
+func (in *EC2NodeClass) StatusConditions(opts ...status.ForOption) status.ConditionSet {
 	conds := []string{
 		ConditionTypeAMIsReady,
 		ConditionTypeSubnetsReady,
@@ -178,7 +178,7 @@ func (in *EC2NodeClass) StatusConditions() status.ConditionSet {
 	if CapacityReservationsEnabled {
 		conds = append(conds, ConditionTypeCapacityReservationsReady)
 	}
-	return status.NewReadyConditions(conds...).For(in)
+	return status.NewReadyConditions(conds...).For(in, opts...)
 }
 
 func (in *EC2NodeClass) GetConditions() []status.Condition {

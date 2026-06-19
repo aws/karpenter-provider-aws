@@ -80,10 +80,10 @@ var _ = Describe("Version", func() {
 		options.FromContext(ctx).EKSControlPlane = true
 		awsEnv.EKSAPI.DescribeClusterBehavior.Output.Set(&eks.DescribeClusterOutput{
 			Cluster: &ekstypes.Cluster{
-				Version: lo.ToPtr("1.29"),
+				Version: lo.ToPtr("1.30"),
 			},
 		})
 		ExpectSingletonReconciled(ctx, controller)
-		Expect(awsEnv.VersionProvider.Get(ctx)).To(Equal("1.29"))
+		Expect(awsEnv.VersionProvider.Get(ctx)).To(Equal("1.30"))
 	})
 })

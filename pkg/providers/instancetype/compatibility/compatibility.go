@@ -29,6 +29,7 @@ type NodeClass interface {
 	NetworkInterfaces() []*v1.NetworkInterface
 	AMIFamily() string
 	ConnectionTracking() *v1.ConnectionTracking
+	CPUOptions() *v1.CPUOptions
 }
 
 type CompatibleCheck interface {
@@ -40,6 +41,7 @@ func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeCla
 	for _, check := range []CompatibleCheck{
 		networkInterfaceCompatibility(networkInterfaces),
 		amiFamilyCompatibility(nodeClass.AMIFamily()),
+		nestedVirtualizationCompatibility(nodeClass.CPUOptions()),
 		placementGroupCompatibility(pg),
 		connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
 	} {
@@ -105,10 +107,18 @@ func (c networkInterfaceCheck) compatibleCheck(info ec2types.InstanceTypeInfo) b
 		if !found || lo.FromPtr(networkCard.MaximumNetworkInterfaces) <= networkInterface.DeviceIndex {
 			return false
 		}
-		// (4) the configured secondary IP count exceeds instance type capacity
-		totalSecondaryIPsConfigured := lo.FromPtrOr(networkInterface.SecondaryIPPrefixCount, int32(0)) + lo.FromPtrOr(networkInterface.SecondaryIPCount, int32(0))
-		if totalSecondaryIPsConfigured > 0 && totalSecondaryIPsConfigured >= lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface) {
-			return false
+		// (4) the configured secondary IP count exceeds instance type capacity.
+		// Only one of SecondaryIPPrefixCount and SecondaryIPCount can be configured.
+		secondaryIPsConfigured := max(lo.FromPtrOr(networkInterface.SecondaryIPPrefixCount, int32(0)), lo.FromPtrOr(networkInterface.SecondaryIPCount, int32(0)))
+		if secondaryIPsConfigured > 0 {
+			totalAddressesConsumed := secondaryIPsConfigured
+			// For the primary ENI, account for the node IP which consumes one address slot
+			if networkInterface.NetworkCardIndex == 0 && networkInterface.DeviceIndex == 0 {
+				totalAddressesConsumed++
+			}
+			if totalAddressesConsumed > lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface) {
+				return false
+			}
 		}
 	}
 	// (5) the configured number of EFA-only interfaces is greater than what the instance type offers
@@ -124,6 +134,26 @@ func (c networkInterfaceCheck) compatibleCheck(info ec2types.InstanceTypeInfo) b
 		}
 	}
 	return true
+}
+
+type nestedVirtualizationCheck struct {
+	cpuOptions *v1.CPUOptions
+}
+
+func nestedVirtualizationCompatibility(cpuOptions *v1.CPUOptions) CompatibleCheck {
+	return &nestedVirtualizationCheck{
+		cpuOptions: cpuOptions,
+	}
+}
+
+func (c nestedVirtualizationCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	if c.cpuOptions == nil || c.cpuOptions.NestedVirtualization == nil || *c.cpuOptions.NestedVirtualization != "enabled" {
+		return true
+	}
+	if info.ProcessorInfo == nil {
+		return false
+	}
+	return lo.Contains(info.ProcessorInfo.SupportedFeatures, ec2types.SupportedAdditionalProcessorFeatureNestedVirtualization)
 }
 
 type placementGroupCheck struct {

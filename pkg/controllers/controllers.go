@@ -106,13 +106,13 @@ func NewControllers(
 		controllersinstancetype.NewController(instanceTypeProvider),
 		controllersinstancetypecapacity.NewController(kubeClient, cloudProvider, instanceTypeProvider),
 		ssminvalidation.NewController(ssmCache, amiProvider),
-		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter"), status.EmitDeprecatedMetrics),
+		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter"), status.EmitDeprecatedMetrics), //nolint:staticcheck // SA1019: will be replaced by mgr.GetEventRecorder once operatorpkg is updated
 		controllersversion.NewController(versionProvider, versionProvider.UpdateVersionWithValidation),
 		crcapacitytype.NewController(kubeClient, cloudProvider),
 		crexpiration.NewController(clk, kubeClient, cloudProvider, capacityReservationProvider),
 		metrics.NewController(kubeClient, cloudProvider),
 		arczonalshiftcontroller.NewController(zonalshiftProvider),
-		interruption.NewInstanceStatusController(kubeClient, cloudProvider, recorder, instanceStatusProvider),
+		interruption.NewInstanceStatusController(kubeClient, clk, cloudProvider, recorder, instanceStatusProvider),
 	}
 	// Instance profile garbage collection requires IAM API access. Skip registering the controller when running
 	// in isolated VPC mode to avoid initiating calls to public AWS endpoints that won’t be reachable.
@@ -122,7 +122,7 @@ func NewControllers(
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsAPI := servicesqs.NewFromConfig(cfg)
 		prov, _ := sqs.NewSQSProvider(ctx, sqsAPI)
-		controllers = append(controllers, interruption.NewController(kubeClient, cloudProvider, recorder, prov, sqsAPI, unavailableOfferings, capacityReservationProvider))
+		controllers = append(controllers, interruption.NewController(kubeClient, clk, cloudProvider, recorder, prov, sqsAPI, unavailableOfferings, capacityReservationProvider))
 	}
 	return controllers
 }

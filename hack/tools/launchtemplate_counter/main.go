@@ -57,7 +57,7 @@ func main() {
 	region := "us-west-2"
 	cfg := lo.Must(config.LoadDefaultConfig(ctx, config.WithRegion(region)))
 	ec2api := ec2.NewFromConfig(cfg)
-	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
+	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval))
 	instanceTypeProvider := instancetype.NewDefaultProvider(
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
@@ -77,6 +77,7 @@ func main() {
 			region,
 		),
 		arczonalshift.NewNoopProvider(),
+		nil,
 	)
 	if err := instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {
 		log.Fatalf("updating instance types, %s", err)

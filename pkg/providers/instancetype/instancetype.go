@@ -60,6 +60,7 @@ type NodeClass interface {
 	AMIs() []v1.AMI
 	BlockDeviceMappings() []*v1.BlockDeviceMapping
 	CapacityReservations() []v1.CapacityReservation
+	CPUOptions() *v1.CPUOptions
 	InstanceStorePolicy() *v1.InstanceStorePolicy
 	NetworkInterfaces() []*v1.NetworkInterface
 	KubeletConfiguration() *v1.KubeletConfiguration
@@ -111,6 +112,7 @@ func NewDefaultProvider(
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	instanceTypesResolver Resolver,
 	zonalshiftProvider arczonalshift.Provider,
+	kubeClient client.Client,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api:                  ec2api,
@@ -129,6 +131,7 @@ func NewDefaultProvider(
 			unavailableOfferingsCache,
 			offeringCache,
 			zonalshiftProvider,
+			kubeClient,
 		),
 	}
 }
@@ -396,6 +399,7 @@ func (p *DefaultProvider) Reset() {
 	p.instanceTypesOfferings = map[ec2types.InstanceType]sets.Set[string]{}
 	p.instanceTypesCache.Flush()
 	p.discoveredCapacityCache.Flush()
+	p.offeringProvider.ResetOverlayPrices()
 }
 
 func discoveredCapacityCacheKey(instanceType string, nodeClass NodeClass) string {

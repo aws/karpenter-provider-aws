@@ -101,9 +101,11 @@ var _ = Describe("IPv6", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		node := env.GetNode(pod.Spec.NodeName)
 		instance := env.GetInstanceByID(env.ExpectParsedProviderID(node.Spec.ProviderID))
-		Expect(instance.NetworkInterfaces).To(HaveLen(1))
-		Expect(instance.NetworkInterfaces[0].Ipv6Addresses).To(HaveLen(1))
-		_, hasIPv6Primary := lo.Find(instance.NetworkInterfaces[0].Ipv6Addresses, func(ip types.InstanceIpv6Address) bool {
+		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
+		primaryNI, found := aws.FindNetworkInterface(instance.NetworkInterfaces, 0, 0)
+		Expect(found).To(BeTrue())
+		Expect(primaryNI.Ipv6Addresses).To(HaveLen(1))
+		_, hasIPv6Primary := lo.Find(primaryNI.Ipv6Addresses, func(ip types.InstanceIpv6Address) bool {
 			return lo.FromPtr(ip.IsPrimaryIpv6)
 		})
 		Expect(hasIPv6Primary).To(BeTrue())

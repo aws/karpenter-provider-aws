@@ -17,7 +17,9 @@ package offering
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
+	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
@@ -26,7 +28,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -53,6 +57,7 @@ type NodeClass interface {
 	AMIFamily() string
 	PlacementGroupSelector() *v1.PlacementGroupSelector
 	ConnectionTracking() *v1.ConnectionTracking
+	CPUOptions() *v1.CPUOptions
 }
 
 type DefaultProvider struct {
@@ -63,6 +68,10 @@ type DefaultProvider struct {
 	unavailableOfferings           *awscache.UnavailableOfferings
 	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
 	cache                          *cache.Cache
+	kubeClient                     client.Client
+	overlayPrices                  map[string]float64
+	overlayPricesMu                sync.RWMutex
+	overlayPricesExpiry            time.Time
 }
 
 func NewDefaultProvider(
@@ -72,6 +81,7 @@ func NewDefaultProvider(
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	offeringCache *cache.Cache,
 	zonalshiftProvider arczonalshiftProvider.Provider,
+	kubeClient client.Client,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		pricingProvider:             pricingProvider,
@@ -80,6 +90,7 @@ func NewDefaultProvider(
 		unavailableOfferings:        unavailableOfferingsCache,
 		cache:                       offeringCache,
 		zonalshiftProvider:          zonalshiftProvider,
+		kubeClient:                  kubeClient,
 	}
 }
 
@@ -201,6 +212,12 @@ func (p *DefaultProvider) createOfferings(
 					price, hasPrice = p.pricingProvider.SpotPrice(ec2types.InstanceType(it.Name), zone)
 				default:
 					panic(fmt.Sprintf("invalid capacity type %q in requirements for instance type %q", capacityType, it.Name))
+				}
+				if !hasPrice {
+					if overlayPrice, ok := p.GetOverlayPrice(ctx, it.Name); ok {
+						price = overlayPrice
+						hasPrice = true
+					}
 				}
 				offering := &cloudprovider.Offering{
 					Requirements: scheduling.NewRequirements(
@@ -336,4 +353,65 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		shiftedZonesHash,
 		connectionTrackingHash,
 	)
+}
+
+// GetOverlayPrice returns the overlay price for the given instance type if one is defined.
+//
+//nolint:gocyclo
+func (p *DefaultProvider) GetOverlayPrice(ctx context.Context, instanceTypeName string) (float64, bool) {
+	if !options.FromContext(ctx).FeatureGates.NodeOverlay || p.kubeClient == nil {
+		return 0, false
+	}
+	p.overlayPricesMu.RLock()
+	if time.Now().Before(p.overlayPricesExpiry) {
+		defer p.overlayPricesMu.RUnlock()
+		price, found := p.overlayPrices[instanceTypeName]
+		return price, found
+	}
+	p.overlayPricesMu.RUnlock()
+
+	p.overlayPricesMu.Lock()
+	defer p.overlayPricesMu.Unlock()
+	if time.Now().Before(p.overlayPricesExpiry) {
+		price, found := p.overlayPrices[instanceTypeName]
+		return price, found
+	}
+
+	overlayList := &v1alpha1.NodeOverlayList{}
+	if err := p.kubeClient.List(ctx, overlayList); err != nil {
+		log.FromContext(ctx).Error(err, "failed to list NodeOverlays for overlay pricing")
+		return 0, false
+	}
+	prices := map[string]float64{}
+	for i := range overlayList.Items {
+		overlay := &overlayList.Items[i]
+		if !overlay.StatusConditions().IsTrue(v1alpha1.ConditionTypeValidationSucceeded) {
+			continue
+		}
+		if overlay.Spec.Price == nil {
+			continue
+		}
+		// make sure overlays with only an Instance Type and price are considered
+		if len(overlay.Spec.Requirements) != 1 || overlay.Spec.Requirements[0].Key != corev1.LabelInstanceTypeStable || overlay.Spec.Requirements[0].Operator != corev1.NodeSelectorOpIn {
+			continue
+		}
+		overlayPrice, err := strconv.ParseFloat(*overlay.Spec.Price, 64)
+		if err != nil {
+			continue
+		}
+		for _, val := range overlay.Spec.Requirements[0].Values {
+			prices[val] = overlayPrice
+		}
+	}
+	p.overlayPrices = prices
+	p.overlayPricesExpiry = time.Now().Add(awscache.OverlayPricedTypesTTL)
+	price, found := prices[instanceTypeName]
+	return price, found
+}
+
+func (p *DefaultProvider) ResetOverlayPrices() {
+	p.overlayPricesMu.Lock()
+	defer p.overlayPricesMu.Unlock()
+	p.overlayPrices = nil
+	p.overlayPricesExpiry = time.Time{}
 }

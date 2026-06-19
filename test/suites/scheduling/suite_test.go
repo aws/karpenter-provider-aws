@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/awslabs/operatorpkg/object"
@@ -1051,16 +1052,12 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 
 		instance := env.GetInstance(node.Name)
 		networkInterfaces := instance.NetworkInterfaces
-		Expect(networkInterfaces).To(HaveLen(2))
+		// VPC CNI may attach additional interfaces beyond what we configured, so we check for at least our expected count
+		Expect(len(networkInterfaces)).To(BeNumerically(">=", 2))
 
 		for _, deviceIndex := range []int32{0, 1} {
-			networkInterface, found := lo.Find(networkInterfaces, func(i ec2types.InstanceNetworkInterface) bool {
-				Expect(i.Attachment).ToNot(BeNil())
-				Expect(i.Attachment.DeviceIndex).ToNot(BeNil())
-				return deviceIndex == lo.FromPtr(i.Attachment.DeviceIndex)
-			})
-			Expect(found).To(Equal(true))
-
+			networkInterface, found := environmentaws.FindNetworkInterface(networkInterfaces, 0, deviceIndex)
+			Expect(found).To(BeTrue())
 			Expect(lo.FromPtr(networkInterface.InterfaceType)).To(Equal(
 				lo.Ternary(deviceIndex == 0, string(ec2types.NetworkInterfaceTypeInterface), string(ec2types.NetworkInterfaceTypeEfaOnly)),
 			))
@@ -1240,6 +1237,20 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 		}
 		// Each pod should be in a different partition
 		Expect(partitions.Len()).To(Equal(3))
+	})
+	It("should launch an instance with nested virtualization enabled", func() {
+		nodeClass.Spec.CPUOptions = &v1.CPUOptions{
+			NestedVirtualization: aws.String("enabled"),
+		}
+
+		pod := test.Pod()
+		env.ExpectCreated(nodePool, nodeClass, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.CpuOptions).ToNot(BeNil())
+		Expect(instance.CpuOptions.NestedVirtualization).To(Equal(ec2types.NestedVirtualizationSpecificationEnabled))
 	})
 },
 	Entry("MinValuesPolicyBestEffort", options.MinValuesPolicyBestEffort),

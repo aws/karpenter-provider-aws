@@ -218,6 +218,14 @@ func (env *Environment) GetNetworkInterfaces(ids ...string) []ec2types.NetworkIn
 	return dnio.NetworkInterfaces
 }
 
+func FindNetworkInterface(interfaces []ec2types.InstanceNetworkInterface, networkCardIndex, deviceIndex int32) (ec2types.InstanceNetworkInterface, bool) {
+	return lo.Find(interfaces, func(ni ec2types.InstanceNetworkInterface) bool {
+		return ni.Attachment != nil &&
+			ni.Attachment.NetworkCardIndex != nil && aws.ToInt32(ni.Attachment.NetworkCardIndex) == networkCardIndex &&
+			ni.Attachment.DeviceIndex != nil && aws.ToInt32(ni.Attachment.DeviceIndex) == deviceIndex
+	})
+}
+
 func (env *Environment) GetSpotInstance(id string) ec2types.SpotInstanceRequest {
 	GinkgoHelper()
 	siro, err := env.EC2API.DescribeSpotInstanceRequests(env.Context, &ec2.DescribeSpotInstanceRequestsInput{
@@ -403,6 +411,62 @@ func (env *Environment) GetAMIBySSMPath(ssmPath string) string {
 	})
 	Expect(err).To(BeNil())
 	return *parameter.Parameter.Value
+}
+
+// getPinnedAMIPath returns any one valid pinned AMI path which is a child of the SSM path supplied
+func (env *Environment) getPinnedAMIPath(ssmPath string) string {
+	GinkgoHelper()
+
+	paginator := ssm.NewGetParametersByPathPaginator(env.SSMAPI, &ssm.GetParametersByPathInput{
+		Path:      aws.String(ssmPath),
+		Recursive: aws.Bool(true),
+	})
+	var amiPath string
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(env.Context)
+		Expect(err).ToNot(HaveOccurred())
+		for _, param := range page.Parameters {
+			name := aws.ToString(param.Name)
+			// Get only the image_id path so we know what suffix to trim later
+			if !strings.Contains(name, "recommended") && !strings.Contains(name, "latest") && strings.HasSuffix(name, "/image_id") {
+				amiPath = name
+				break
+			}
+		}
+		if amiPath != "" {
+			break
+		}
+	}
+	Expect(amiPath).ToNot(BeEmpty(), "no pinned AMI version found under SSM path: %s", ssmPath)
+	amiPath = strings.TrimSuffix(amiPath, "/image_id")
+	return amiPath
+}
+
+// GetPinnedAMIVersion returns any one valid pinned AMI version for the AMI family supplied
+func (env *Environment) GetPinnedAMIVersion(amiFamily string) string {
+	GinkgoHelper()
+
+	k8sVersion := env.K8sVersion()
+	var ssmPath string
+	switch amiFamily {
+	case "al2023":
+		ssmPath = fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard", k8sVersion)
+	case "al2":
+		ssmPath = fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2", k8sVersion)
+	case "bottlerocket":
+		ssmPath = fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64", k8sVersion)
+	}
+	amiPath := env.getPinnedAMIPath(ssmPath)
+	pathParts := strings.Split(amiPath, "/")
+	var amiVersion string
+	if strings.Contains(ssmPath, "bottlerocket") {
+		amiVersion = pathParts[len(pathParts)-1]
+	} else {
+		lastPathPart := pathParts[len(pathParts)-1]
+		parts := strings.Split(lastPathPart, "-")
+		amiVersion = parts[len(parts)-1]
+	}
+	return amiVersion
 }
 
 func (env *Environment) GetDeprecatedAMI(amiID string, amifamily string) string {
