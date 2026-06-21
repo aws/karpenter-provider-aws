@@ -40,7 +40,14 @@ rules:
     verbs: ["get", "watch", "list"]
   - apiGroups: ["apps"]
     resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
-    verbs: ["list", "watch"]
+    verbs: ["get", "list", "watch"]
+  # Required by the RolloutRestartDrainStrategy feature gate: when draining a node that hosts
+  # a singleton (spec.replicas == 1) Deployment/StatefulSet pod, the eviction queue patches
+  # 'spec.template.metadata.annotations.kubectl.kubernetes.io/restartedAt' on the owner instead
+  # of evicting. Scoped to Deployments and StatefulSets only — daemonsets/replicasets are read-only.
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["patch"]
   - apiGroups: ["policy"]
     resources: ["poddisruptionbudgets"]
     verbs: ["get", "list", "watch"]
