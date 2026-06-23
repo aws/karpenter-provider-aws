@@ -38,6 +38,7 @@ func init() {
 		LabelInstanceEncryptionInTransitSupported,
 		LabelInstanceCategory,
 		LabelInstanceCapabilityFlex,
+		LabelInstanceCapabilityNestedVirtualization,
 		LabelInstanceFamily,
 		LabelInstanceGeneration,
 		LabelInstanceSize,
@@ -145,7 +146,8 @@ var (
 	LabelInstanceHypervisor                   = apis.Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = apis.Group + "/instance-encryption-in-transit-supported"
 	LabelInstanceCategory                     = apis.Group + "/instance-category"
-	LabelInstanceCapabilityFlex               = apis.Group + "/instance-capability-flex"
+	LabelInstanceCapabilityFlex                   = apis.Group + "/instance-capability-flex"
+	LabelInstanceCapabilityNestedVirtualization   = apis.Group + "/instance-capability-nested-virtualization"
 	LabelInstanceFamily                       = apis.Group + "/instance-family"
 	LabelInstanceGeneration                   = apis.Group + "/instance-generation"
 	LabelInstanceLocalNVME                    = apis.Group + "/instance-local-nvme"

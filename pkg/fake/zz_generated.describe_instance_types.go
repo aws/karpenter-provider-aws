@@ -689,6 +689,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				Manufacturer:             aws.String("Intel"),
 				SupportedArchitectures:   []ec2types.ArchitectureType{"x86_64"},
 				SustainedClockSpeedInGhz: aws.Float64(3.200000),
+				SupportedFeatures:        []ec2types.SupportedAdditionalProcessorFeature{ec2types.SupportedAdditionalProcessorFeatureNestedVirtualization},
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
 				DefaultCores: aws.Int32(1),
