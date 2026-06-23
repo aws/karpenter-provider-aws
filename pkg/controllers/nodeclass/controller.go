@@ -92,7 +92,7 @@ func NewController(
 	amiResolver amifamily.Resolver,
 	disableDryRun bool,
 ) *Controller {
-	validation := NewValidationReconciler(kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache, disableDryRun)
+	validation := NewValidationReconciler(clk, kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache, disableDryRun)
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
@@ -101,12 +101,12 @@ func NewController(
 		instanceProfileProvider: instanceProfileProvider,
 		validation:              validation,
 		reconcilers: []reconcile.TypedReconciler[*v1.EC2NodeClass]{
-			NewAMIReconciler(amiProvider),
+			NewAMIReconciler(clk, amiProvider),
 			NewCapacityReservationReconciler(clk, capacityReservationProvider),
-			NewPlacementGroupReconciler(placementGroupProvider),
-			NewSubnetReconciler(subnetProvider),
-			NewSecurityGroupReconciler(securityGroupProvider),
-			NewInstanceProfileReconciler(instanceProfileProvider, region, recreationCache),
+			NewPlacementGroupReconciler(clk, placementGroupProvider),
+			NewSubnetReconciler(clk, subnetProvider),
+			NewSecurityGroupReconciler(clk, securityGroupProvider),
+			NewInstanceProfileReconciler(clk, instanceProfileProvider, region, recreationCache),
 			validation,
 		},
 	}
@@ -169,7 +169,8 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 }
 
 func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
-	out, err := c.instanceProfileProvider.ListNodeClassProfiles(ctx, nodeClass)
+	pathPrefix := instanceprofile.FormatPath("karpenter", c.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))
+	out, err := c.instanceProfileProvider.ListProfiles(ctx, pathPrefix)
 
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)

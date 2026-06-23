@@ -39,8 +39,6 @@ const (
 	InstanceProfileTTL = 15 * time.Minute
 	// AvailableIPAddressTTL is time to drop AvailableIPAddress data if it is not updated within the TTL
 	AvailableIPAddressTTL = 5 * time.Minute
-	// AvailableIPAddressTTL is time to drop AssociatePublicIPAddressTTL data if it is not updated within the TTL
-	AssociatePublicIPAddressTTL = 5 * time.Minute
 	// SSMGetParametersByPathTTL is the time to drop SSM Parameters by path data. This only queries EKS Optimized AMI
 	// releases, so we should expect this to be updated relatively infrequently.
 	SSMCacheTTL = 24 * time.Hour
@@ -53,6 +51,8 @@ const (
 	RecreationTTL = 1 * time.Minute
 	// ProtectedProfilesTTL is the duration to keep profiles as protected before nodeclass garbagecollector considers deletion
 	ProtectedProfilesTTL = 1 * time.Hour
+	// OverlayPricedTypesTTL is the duration for checking overlays
+	OverlayPricedTypesTTL = 5 * time.Minute
 )
 
 const (

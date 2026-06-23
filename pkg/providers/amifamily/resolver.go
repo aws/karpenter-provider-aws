@@ -63,13 +63,14 @@ type Options struct {
 	AMISelectorTerms    []v1.AMISelectorTerm `hash:"ignore"` // For Bottlerocket version resolution
 	AMIs                []v1.AMI             `hash:"ignore"` // Resolved AMIs for version extraction
 	// Level-triggered fields that may change out of sync.
-	SecurityGroups           []v1.SecurityGroup
-	Tags                     map[string]string
-	Labels                   map[string]string `hash:"ignore"`
-	KubeDNSIP                net.IP
-	AssociatePublicIPAddress *bool
-	IPPrefixCount            *int32
-	NodeClassName            string
+	SecurityGroups            []v1.SecurityGroup
+	Tags                      map[string]string
+	Labels                    map[string]string `hash:"ignore"`
+	KubeDNSIP                 net.IP
+	AssociatePublicIPAddress  *bool
+	IPPrefixCount             *int32
+	NodeClassName             string
+	ResolvedNetworkInterfaces []*ResolvedNetworkInterface `hash:"ignore"`
 }
 
 // LaunchTemplate holds the dynamically generated launch template parameters
@@ -78,11 +79,12 @@ type LaunchTemplate struct {
 	UserData                         bootstrap.Bootstrapper
 	BlockDeviceMappings              []*v1.BlockDeviceMapping
 	MetadataOptions                  *v1.MetadataOptions
+	CPUOptions                       *v1.CPUOptions
 	AMIID                            string
 	InstanceTypes                    []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring               bool
 	EFACount                         int
-	NetworkInterfaces                []*v1.NetworkInterface
+	NetworkInterfaces                []*ResolvedNetworkInterface
 	CapacityType                     string
 	CapacityReservationID            string
 	CapacityReservationType          v1.CapacityReservationType
@@ -90,6 +92,9 @@ type LaunchTemplate struct {
 	Tenancy                          string
 	PlacementGroupID                 string
 	PlacementGroupPartition          int32
+	// Zone constrains fleet overrides to a single AZ when set.
+	Zone               string `hash:"ignore"`
+	ConnectionTracking *v1.ConnectionTracking
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -318,11 +323,12 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			),
 			BlockDeviceMappings:              nodeClass.Spec.BlockDeviceMappings,
 			MetadataOptions:                  nodeClass.Spec.MetadataOptions,
+			CPUOptions:                       nodeClass.Spec.CPUOptions,
 			DetailedMonitoring:               aws.ToBool(nodeClass.Spec.DetailedMonitoring),
 			AMIID:                            amiID,
 			InstanceTypes:                    instanceTypes,
 			EFACount:                         efaCount,
-			NetworkInterfaces:                nodeClass.Spec.NetworkInterfaces,
+			NetworkInterfaces:                ResolveNetworkInterfaces(nodeClass.Spec.NetworkInterfaces),
 			CapacityType:                     capacityType,
 			CapacityReservationID:            id,
 			CapacityReservationType:          capacityReservationType,
@@ -330,6 +336,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			Tenancy:                          tenancyType,
 			PlacementGroupID:                 placementGroupID,
 			PlacementGroupPartition:          placementGroupPartition,
+			ConnectionTracking:               nodeClass.Spec.ConnectionTracking,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()

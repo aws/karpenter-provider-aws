@@ -28,6 +28,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
+	arczonalshifttypes "github.com/aws/aws-sdk-go-v2/service/arczonalshift/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/object"
@@ -44,6 +46,7 @@ import (
 	clock "k8s.io/utils/clock/testing"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1alpha1 "sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
@@ -777,7 +780,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
 		for _, pod := range pods {
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "p3.8xlarge"))
+			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "g5.12xlarge"))
 			nodeNames.Insert(node.Name)
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
@@ -2100,9 +2103,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(nodeNames.Len()).To(Equal(2))
 		})
 		It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
-			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "p3.8xlarge", Zone: "test-zone-1a"}})
+			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "g5.12xlarge", Zone: "test-zone-1a"}})
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
-				NodeSelector: map[string]string{corev1.LabelInstanceTypeStable: "p3.8xlarge"},
+				NodeSelector: map[string]string{corev1.LabelInstanceTypeStable: "g5.12xlarge"},
 				ResourceRequirements: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
 					Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
@@ -2117,13 +2120,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			// it should've tried to pack them in test-zone-1a on a p3.8xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
+			// it should've tried to pack them in test-zone-1a on a g5.12xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
 			ExpectNotScheduled(ctx, env.Client, pod)
 
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(SatisfyAll(
-				HaveKeyWithValue(corev1.LabelInstanceTypeStable, "p3.8xlarge"),
+				HaveKeyWithValue(corev1.LabelInstanceTypeStable, "g5.12xlarge"),
 				HaveKeyWithValue(corev1.LabelTopologyZone, "test-zone-1b")))
 		})
 		It("should launch smaller instances than optimal if larger instance launch results in Insufficient Capacity Error", func() {
@@ -3038,6 +3041,54 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Entry("when the capacity block is expiring", v1.CapacityReservationStateExpiring),
 		)
 	})
+	It("should mark offerings as unavailable for zones shifted away from", func() {
+		ExpectApplied(ctx, env.Client, nodeClass)
+
+		// before zonal shift, all offerings should be available
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		m5InstanceType, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+			return it.Name == string(ec2types.InstanceTypeM5Large)
+		})
+		Expect(ok).To(BeTrue())
+		Expect(m5InstanceType.Offerings.Available()).To(HaveLen(6)) // 3 zones x 2 capacity types
+
+		awsEnv.ARCZonalShiftAPI.GetManagedResourceBehavior.Output.Set(&arczonalshift.GetManagedResourceOutput{
+			ZonalShifts: []arczonalshifttypes.ZonalShiftInResource{
+				{
+					AwayFrom:      aws.String("tstz1-1a"),
+					ExpiryTime:    aws.Time(time.Now().Add(time.Hour)),
+					AppliedStatus: arczonalshifttypes.AppliedStatusApplied,
+				},
+			},
+		})
+		Expect(awsEnv.ZonalShiftProvider.UpdateZonalShifts(ctx)).To(Succeed())
+
+		// after zonal shift, 2 offerings should be available
+		instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		m5InstanceType, ok = lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+			return it.Name == string(ec2types.InstanceTypeM5Large)
+		})
+		Expect(ok).To(BeTrue())
+		Expect(m5InstanceType.Offerings.Available()).To(HaveLen(4))
+		for _, offering := range m5InstanceType.Offerings.Available() {
+			Expect(offering.Zone()).ToNot(Equal("test-zone-1a"))
+		}
+
+		// shift back into the zone, all offerings should be available again
+		awsEnv.ARCZonalShiftAPI.GetManagedResourceBehavior.Output.Set(&arczonalshift.GetManagedResourceOutput{
+			ZonalShifts: []arczonalshifttypes.ZonalShiftInResource{},
+		})
+		Expect(awsEnv.ZonalShiftProvider.UpdateZonalShifts(ctx)).To(Succeed())
+		instanceTypes, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		m5InstanceType, ok = lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+			return it.Name == string(ec2types.InstanceTypeM5Large)
+		})
+		Expect(ok).To(BeTrue())
+		Expect(m5InstanceType.Offerings.Available()).To(HaveLen(6))
+	})
 	Context("Instance Type and NodeClass Compatibility", func() {
 		Context("AMI Compatibility", func() {
 			BeforeEach(func() {
@@ -3208,6 +3259,173 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(ok).To(BeTrue())
 			// max pods = max number of ENIs * (IPv4 Addresses per ENI -1) + 2 = (8-1) * 49 + 2 = 345
 			Expect(m6idn.Capacity.Pods().Value()).To(Equal(int64(345)))
+		})
+	})
+	Context("NodeOverlay Preview Instance Pricing", func() {
+		// Simulate a preview instance type that is discoverable via EC2 APIs (allowlisted account)
+		// but has no pricing data in the AWS Pricing API or static pricing fallback.
+		var previewInstanceType ec2types.InstanceTypeInfo
+		BeforeEach(func() {
+			// Define a preview instance type that won't exist in any pricing data
+			previewInstanceType = ec2types.InstanceTypeInfo{
+				InstanceType:                  "p5e.48xlarge",
+				SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+				SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    "nitro",
+				ProcessorInfo: &ec2types.ProcessorInfo{
+					Manufacturer:           aws.String("Intel"),
+					SupportedArchitectures: []ec2types.ArchitectureType{"x86_64"},
+				},
+				VCpuInfo: &ec2types.VCpuInfo{
+					DefaultCores: aws.Int32(192),
+					DefaultVCpus: aws.Int32(192),
+				},
+				MemoryInfo: &ec2types.MemoryInfo{
+					SizeInMiB: aws.Int64(2048000),
+				},
+				EbsInfo: &ec2types.EbsInfo{
+					EbsOptimizedSupport: "default",
+					EbsOptimizedInfo: &ec2types.EbsOptimizedInfo{
+						BaselineBandwidthInMbps:  aws.Int32(80000),
+						BaselineIops:             aws.Int32(260000),
+						BaselineThroughputInMBps: aws.Float64(10000),
+						MaximumBandwidthInMbps:   aws.Int32(80000),
+						MaximumIops:              aws.Int32(260000),
+						MaximumThroughputInMBps:  aws.Float64(10000),
+					},
+				},
+				NetworkInfo: &ec2types.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int32(15),
+					Ipv4AddressesPerInterface: aws.Int32(50),
+					DefaultNetworkCardIndex:   aws.Int32(0),
+					NetworkCards: []ec2types.NetworkCardInfo{{
+						NetworkCardIndex:         aws.Int32(0),
+						MaximumNetworkInterfaces: aws.Int32(15),
+					}},
+				},
+			}
+			// Override the EC2 API to return only our preview instance type
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+				InstanceTypes: []ec2types.InstanceTypeInfo{previewInstanceType},
+			})
+			// Make it available in test zones
+			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+				InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
+					{InstanceType: "p5e.48xlarge", Location: aws.String("test-zone-1a"), LocationType: "availability-zone"},
+					{InstanceType: "p5e.48xlarge", Location: aws.String("test-zone-1b"), LocationType: "availability-zone"},
+				},
+			})
+			// Re-hydrate the instance type provider with the preview instance type
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx))
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx))
+		})
+		It("should mark offerings as available when a NodeOverlay defines a price for an unpriced instance type", func() {
+			// Enable the NodeOverlay feature gate so the overlay price lookup is active
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{
+				FeatureGates: coretest.FeatureGates{
+					NodeOverlay:      lo.ToPtr(true),
+					ReservedCapacity: lo.ToPtr(true),
+				},
+			}))
+
+			// Create a NodeOverlay that assigns a price to the preview instance type
+			overlay := &karpv1alpha1.NodeOverlay{
+				ObjectMeta: metav1.ObjectMeta{Name: "preview-price"},
+				Spec: karpv1alpha1.NodeOverlaySpec{
+					Price: lo.ToPtr("98.32"),
+					Requirements: []karpv1alpha1.NodeSelectorRequirement{{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"p5e.48xlarge"},
+					}},
+				},
+			}
+			overlay.StatusConditions().SetTrue(karpv1alpha1.ConditionTypeValidationSucceeded)
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, overlay)
+
+			// Reset caches to force re-evaluation of offerings
+			awsEnv.InstanceTypesProvider.Reset()
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx))
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx))
+
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			// The preview instance type should now have available offerings because
+			// the NodeOverlay provides a price, satisfying the hasPrice condition
+			previewIT, found := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "p5e.48xlarge"
+			})
+			Expect(found).To(BeTrue())
+			Expect(previewIT.Offerings.Available()).ToNot(HaveLen(0))
+		})
+		It("should not mark offerings as available for unpriced instance types without a NodeOverlay", func() {
+			// Enable the NodeOverlay feature gate but don't create any overlay
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{
+				FeatureGates: coretest.FeatureGates{
+					NodeOverlay:      lo.ToPtr(true),
+					ReservedCapacity: lo.ToPtr(true),
+				},
+			}))
+
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			// Reset caches to force re-evaluation of offerings
+			awsEnv.InstanceTypesProvider.Reset()
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx))
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx))
+
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Without a NodeOverlay providing a price, the preview instance type
+			// should have no available offerings
+			previewIT, found := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "p5e.48xlarge"
+			})
+			Expect(found).To(BeTrue())
+			Expect(previewIT.Offerings.Available()).To(HaveLen(0))
+		})
+		It("should not mark offerings as available when NodeOverlay feature gate is disabled", func() {
+			// Disable the NodeOverlay feature gate — overlay should have no effect
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{
+				FeatureGates: coretest.FeatureGates{
+					NodeOverlay:      lo.ToPtr(false),
+					ReservedCapacity: lo.ToPtr(true),
+				},
+			}))
+
+			// Create a NodeOverlay with a price, but the feature gate is off
+			overlay := &karpv1alpha1.NodeOverlay{
+				ObjectMeta: metav1.ObjectMeta{Name: "preview-price-disabled"},
+				Spec: karpv1alpha1.NodeOverlaySpec{
+					Price: lo.ToPtr("98.32"),
+					Requirements: []karpv1alpha1.NodeSelectorRequirement{{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"p5e.48xlarge"},
+					}},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, overlay)
+
+			// Reset caches to force re-evaluation of offerings
+			awsEnv.InstanceTypesProvider.Reset()
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx))
+			lo.Must0(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx))
+
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Even with a NodeOverlay present, the feature gate being disabled means
+			// the overlay price lookup is skipped — offerings remain unavailable
+			previewIT, found := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "p5e.48xlarge"
+			})
+			Expect(found).To(BeTrue())
+			Expect(previewIT.Offerings.Available()).To(HaveLen(0))
 		})
 	})
 })

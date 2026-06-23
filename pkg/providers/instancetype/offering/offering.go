@@ -17,7 +17,9 @@ package offering
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
+	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
@@ -26,7 +28,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -52,6 +56,8 @@ type NodeClass interface {
 	NetworkInterfaces() []*v1.NetworkInterface
 	AMIFamily() string
 	PlacementGroupSelector() *v1.PlacementGroupSelector
+	ConnectionTracking() *v1.ConnectionTracking
+	CPUOptions() *v1.CPUOptions
 }
 
 type DefaultProvider struct {
@@ -62,6 +68,10 @@ type DefaultProvider struct {
 	unavailableOfferings           *awscache.UnavailableOfferings
 	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
 	cache                          *cache.Cache
+	kubeClient                     client.Client
+	overlayPrices                  map[string]float64
+	overlayPricesMu                sync.RWMutex
+	overlayPricesExpiry            time.Time
 }
 
 func NewDefaultProvider(
@@ -71,6 +81,7 @@ func NewDefaultProvider(
 	unavailableOfferingsCache *awscache.UnavailableOfferings,
 	offeringCache *cache.Cache,
 	zonalshiftProvider arczonalshiftProvider.Provider,
+	kubeClient client.Client,
 ) *DefaultProvider {
 	return &DefaultProvider{
 		pricingProvider:             pricingProvider,
@@ -79,6 +90,7 @@ func NewDefaultProvider(
 		unavailableOfferings:        unavailableOfferingsCache,
 		cache:                       offeringCache,
 		zonalshiftProvider:          zonalshiftProvider,
+		kubeClient:                  kubeClient,
 	}
 }
 
@@ -95,6 +107,8 @@ func (p *DefaultProvider) InjectOfferings(
 		pg, _ = p.placementGroupProvider.Get(ctx, nodeClass)
 	}
 	var its []*cloudprovider.InstanceType
+	shiftedZones := p.zonalshiftProvider.ShiftedZones()
+
 	for _, it := range instanceTypes {
 		info := instanceTypeInfo[ec2types.InstanceType(it.Name)]
 		offerings := p.createOfferings(
@@ -104,6 +118,7 @@ func (p *DefaultProvider) InjectOfferings(
 			nodeClass,
 			pg,
 			allZones,
+			shiftedZones,
 		)
 		// For partition placement groups, expand each offering into N offerings (one per partition)
 		offerings = p.expandPartitionOfferings(offerings, pg)
@@ -144,6 +159,7 @@ func (p *DefaultProvider) createOfferings(
 	nodeClass NodeClass,
 	pg *placementgroup.PlacementGroup,
 	allZones sets.Set[string],
+	shiftedZones sets.Set[string],
 ) cloudprovider.Offerings {
 	var offerings []*cloudprovider.Offering
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
@@ -158,7 +174,7 @@ func (p *DefaultProvider) createOfferings(
 		lastSeqNum = 0
 	}
 	seqNum := p.unavailableOfferings.SeqNum(ec2types.InstanceType(it.Name))
-	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it, nodeClass)); ok && lastSeqNum == seqNum {
+	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it, nodeClass, shiftedZones)); ok && lastSeqNum == seqNum {
 		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
 	} else {
 		var pgOpts []awscache.UnavailableOfferingsOption
@@ -197,6 +213,12 @@ func (p *DefaultProvider) createOfferings(
 				default:
 					panic(fmt.Sprintf("invalid capacity type %q in requirements for instance type %q", capacityType, it.Name))
 				}
+				if !hasPrice {
+					if overlayPrice, ok := p.GetOverlayPrice(ctx, it.Name); ok {
+						price = overlayPrice
+						hasPrice = true
+					}
+				}
 				offering := &cloudprovider.Offering{
 					Requirements: scheduling.NewRequirements(
 						scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType),
@@ -214,7 +236,7 @@ func (p *DefaultProvider) createOfferings(
 				cachedOfferings = append(cachedOfferings, offering)
 			}
 		}
-		p.cache.SetDefault(p.cacheKeyFromInstanceType(it, nodeClass), cachedOfferings)
+		p.cache.SetDefault(p.cacheKeyFromInstanceType(it, nodeClass, shiftedZones), cachedOfferings)
 		p.lastUnavailableOfferingsSeqNum.Store(ec2types.InstanceType(it.Name), seqNum)
 		offerings = append(offerings, cachedOfferings...)
 	}
@@ -288,7 +310,7 @@ func (p *DefaultProvider) expandPartitionOfferings(offerings cloudprovider.Offer
 	return expanded
 }
 
-func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceType, nodeClass NodeClass) string {
+func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceType, nodeClass NodeClass, shiftedZones sets.Set[string]) string {
 	zonesHash, _ := hashstructure.Hash(
 		it.Requirements.Get(corev1.LabelTopologyZone).Values(),
 		hashstructure.FormatV2,
@@ -312,13 +334,84 @@ func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceTyp
 		hashstructure.FormatV2,
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
+	shiftedZonesHash, _ := hashstructure.Hash(
+		shiftedZones,
+		hashstructure.FormatV2,
+		&hashstructure.HashOptions{SlicesAsSets: true},
+	)
+
+	connectionTrackingHash, _ := hashstructure.Hash(nodeClass.ConnectionTracking() != nil, hashstructure.FormatV2, nil)
+
 	return fmt.Sprintf(
-		"%s-%016x-%016x-%016x-%016x-%016x",
+		"%s-%016x-%016x-%016x-%016x-%016x-%016x-%016x",
 		it.Name,
 		zonesHash,
 		capacityTypesHash,
 		networkInterfaceHash,
 		subnetsHash,
 		placementGroupPartitionsHash,
+		shiftedZonesHash,
+		connectionTrackingHash,
 	)
+}
+
+// GetOverlayPrice returns the overlay price for the given instance type if one is defined.
+//
+//nolint:gocyclo
+func (p *DefaultProvider) GetOverlayPrice(ctx context.Context, instanceTypeName string) (float64, bool) {
+	if !options.FromContext(ctx).FeatureGates.NodeOverlay || p.kubeClient == nil {
+		return 0, false
+	}
+	p.overlayPricesMu.RLock()
+	if time.Now().Before(p.overlayPricesExpiry) {
+		defer p.overlayPricesMu.RUnlock()
+		price, found := p.overlayPrices[instanceTypeName]
+		return price, found
+	}
+	p.overlayPricesMu.RUnlock()
+
+	p.overlayPricesMu.Lock()
+	defer p.overlayPricesMu.Unlock()
+	if time.Now().Before(p.overlayPricesExpiry) {
+		price, found := p.overlayPrices[instanceTypeName]
+		return price, found
+	}
+
+	overlayList := &v1alpha1.NodeOverlayList{}
+	if err := p.kubeClient.List(ctx, overlayList); err != nil {
+		log.FromContext(ctx).Error(err, "failed to list NodeOverlays for overlay pricing")
+		return 0, false
+	}
+	prices := map[string]float64{}
+	for i := range overlayList.Items {
+		overlay := &overlayList.Items[i]
+		if !overlay.StatusConditions().IsTrue(v1alpha1.ConditionTypeValidationSucceeded) {
+			continue
+		}
+		if overlay.Spec.Price == nil {
+			continue
+		}
+		// make sure overlays with only an Instance Type and price are considered
+		if len(overlay.Spec.Requirements) != 1 || overlay.Spec.Requirements[0].Key != corev1.LabelInstanceTypeStable || overlay.Spec.Requirements[0].Operator != corev1.NodeSelectorOpIn {
+			continue
+		}
+		overlayPrice, err := strconv.ParseFloat(*overlay.Spec.Price, 64)
+		if err != nil {
+			continue
+		}
+		for _, val := range overlay.Spec.Requirements[0].Values {
+			prices[val] = overlayPrice
+		}
+	}
+	p.overlayPrices = prices
+	p.overlayPricesExpiry = time.Now().Add(awscache.OverlayPricedTypesTTL)
+	price, found := prices[instanceTypeName]
+	return price, found
+}
+
+func (p *DefaultProvider) ResetOverlayPrices() {
+	p.overlayPricesMu.Lock()
+	defer p.overlayPricesMu.Unlock()
+	p.overlayPrices = nil
+	p.overlayPricesExpiry = time.Time{}
 }

@@ -2,7 +2,7 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 1.12.0](https://img.shields.io/badge/Version-1.12.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.12.0](https://img.shields.io/badge/AppVersion-1.12.0-informational?style=flat-square)
+![Version: 1.13.0](https://img.shields.io/badge/Version-1.13.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.13.0](https://img.shields.io/badge/AppVersion-1.13.0-informational?style=flat-square)
 
 ## Documentation
 
@@ -15,7 +15,7 @@ You can follow the detailed installation instruction in the [documentation](http
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version 1.12.0 \
+  --version 1.13.0 \
   --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}" \
   --set settings.clusterName=${CLUSTER_NAME} \
   --set settings.interruptionQueue=${CLUSTER_NAME} \
@@ -27,13 +27,13 @@ helm upgrade --install --namespace karpenter --create-namespace \
 As the OCI Helm chart is signed by [Cosign](https://github.com/sigstore/cosign) as part of the release process you can verify the chart before installing it by running the following command.
 
 ```shell
-cosign verify public.ecr.aws/karpenter/karpenter:1.12.0 \
+cosign verify public.ecr.aws/karpenter/karpenter:1.13.0 \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v1.12.0 \
-  --annotations version=1.12.0
+  --certificate-github-workflow-ref=refs/tags/v1.13.0 \
+  --annotations version=1.13.0
 ```
 
 ## Values
@@ -49,9 +49,9 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.12.0 \
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller container. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.digest | string | `"sha256:8128bc8cdd0cc8ca2d2cf68ec61033eceb8cfb24834a08ab278784924013cfd0"` | SHA256 digest of the controller image. |
+| controller.image.digest | string | `"sha256:ea731b0cd813add8b2947a76bfe861c38069d85922b01d0c1647d1466279b7fe"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
-| controller.image.tag | string | `"1.12.0"` | Tag of the controller image. |
+| controller.image.tag | string | `"1.13.0"` | Tag of the controller image. |
 | controller.metrics.port | int | `8080` | The container port to use for metrics. |
 | controller.resources | object | `{}` | Resources for the controller container. |
 | controller.securityContext.appArmorProfile | object | `{}` | AppArmor profile for the controller container. |
@@ -91,7 +91,8 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.12.0 \
 | serviceMonitor.metricRelabelings | list | `[]` | Metric relabelings for the `http-metrics` endpoint on the ServiceMonitor. For more details on metric relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#metric_relabel_configs |
 | serviceMonitor.relabelings | list | `[]` | Relabelings for the `http-metrics` endpoint on the ServiceMonitor. For more details on relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config |
 | serviceMonitor.sampleLimit | string | `nil` | Specifies the sampleLimit for prometheus scrapes. Per-scrape limit on the number of scraped samples that will be accepted. If more than this number of samples are present after metric relabeling the entire scrape will be treated as failed. 0 means no limit. |
-| settings | object | `{"batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","disableClusterStateObservability":false,"disableDryRun":false,"eksControlPlane":false,"enableZonalShift":false,"featureGates":{"nodeOverlay":false,"nodeRepair":false,"reservedCapacity":true,"spotToSpotConsolidation":false,"staticCapacity":false},"ignoreDRARequests":true,"interruptionQueue":"","isolatedVPC":false,"minValuesPolicy":"Strict","preferencePolicy":"Respect","reservedENIs":"0","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
+| settings | object | `{"amiRefreshInterval":"1m","batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","disableClusterStateObservability":false,"disableDryRun":false,"eksControlPlane":false,"enableZonalShift":false,"featureGates":{"nodeOverlay":false,"nodeRepair":false,"reservedCapacity":true,"spotToSpotConsolidation":false,"staticCapacity":false},"ignoreDRARequests":true,"interruptionQueue":"","isolatedVPC":false,"minValuesPolicy":"Strict","preferencePolicy":"Respect","reservedENIs":"0","subnetRefreshInterval":"1m","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
+| settings.amiRefreshInterval | string | `"1m"` | How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m. |
 | settings.batchIdleDuration | string | `"1s"` | The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. |
 | settings.batchMaxDuration | string | `"10s"` | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. |
 | settings.clusterCABundle | string | `""` | Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server. |
@@ -113,6 +114,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.12.0 \
 | settings.minValuesPolicy | string | `"Strict"` | How the Karpenter scheduler treats min values. Options include 'Strict' (fails scheduling when min values can't be met) and 'BestEffort' (relaxes min values when they can't be met). |
 | settings.preferencePolicy | string | `"Respect"` | How the Karpenter scheduler should treat preferences. Preferences include preferredDuringSchedulingIgnoreDuringExecution node and pod affinities/anti-affinities and ScheduleAnyways topologySpreadConstraints. Can be one of 'Ignore' and 'Respect' |
 | settings.reservedENIs | string | `"0"` | Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html. |
+| settings.subnetRefreshInterval | string | `"1m"` | How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m. |
 | settings.vmMemoryOverheadPercent | float | `0.075` | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types. The value of `0.075` equals to 7.5%. |
 | strategy | object | `{"rollingUpdate":{"maxUnavailable":1}}` | Strategy for updating the pod. |
 | terminationGracePeriodSeconds | string | `nil` | Override the default termination grace period for the pod. |

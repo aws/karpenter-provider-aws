@@ -16,11 +16,14 @@ package arczonalshift
 
 import (
 	"context"
+
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 type NoopProvider interface {
 	IsZonalShifted(context.Context, string) bool
 	UpdateZonalShifts(context.Context) error
+	ShiftedZones() sets.Set[string]
 }
 
 type DefaultNoopProvider struct {
@@ -36,4 +39,8 @@ func (p *DefaultNoopProvider) UpdateZonalShifts(ctx context.Context) error {
 
 func (p *DefaultNoopProvider) IsZonalShifted(ctx context.Context, zoneId string) bool {
 	return false
+}
+
+func (p *DefaultNoopProvider) ShiftedZones() sets.Set[string] {
+	return sets.New[string]()
 }
