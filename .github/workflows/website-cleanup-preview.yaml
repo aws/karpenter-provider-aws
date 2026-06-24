@@ -15,7 +15,7 @@ jobs:
           pr_number="${{ github.event.number }}"
           echo PR_NUMBER="$pr_number" >> "$GITHUB_ENV"
           echo BRANCH_NAME="pr-$pr_number" >> "$GITHUB_ENV"
-      - uses: aws-actions/configure-aws-credentials@99214aa6889fcddfa57764031d71add364327e59 # v6.1.3
+      - uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b # v6.2.0
         with:
           role-to-assume: arn:aws:iam::${{ vars.RELEASE_PREVIEW_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
           aws-region: ${{ vars.AMPLIFY_REGION }}
