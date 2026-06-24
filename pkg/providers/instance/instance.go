@@ -229,7 +229,7 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 				Values: []string{v1.NodeClassTagKey},
 			},
 			{
-				Name:   aws.String(fmt.Sprintf("tag:%s", v1.EKSClusterNameTagKey)),
+				Name:   aws.String(fmt.Sprintf("tag:%s", karpopts.FromContext(ctx).ClusterNameTagKey)),
 				Values: []string{karpopts.FromContext(ctx).ClusterName},
 			},
 			instanceStateFilter,

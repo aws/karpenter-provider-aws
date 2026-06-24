@@ -25,6 +25,7 @@ import (
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/utils/env"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
@@ -37,6 +38,7 @@ type optionsKey struct{}
 type Options struct {
 	ClusterCABundle         string
 	ClusterName             string
+	ClusterNameTagKey       string
 	ClusterEndpoint         string
 	IsolatedVPC             bool
 	EKSControlPlane         bool
@@ -52,6 +54,7 @@ type Options struct {
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.StringVar(&o.ClusterCABundle, "cluster-ca-bundle", env.WithDefaultString("CLUSTER_CA_BUNDLE", ""), "Cluster CA bundle for nodes to use for TLS connections with the API server. If not set, this is taken from the controller's TLS configuration.")
 	fs.StringVar(&o.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "[REQUIRED] The kubernetes cluster name for resource discovery.")
+	fs.StringVar(&o.ClusterNameTagKey, "cluster-name-tag-key", env.WithDefaultString("CLUSTER_NAME_TAG_KEY", v1.EKSClusterNameTagKey), "The tag key used to identify the cluster name on Karpenter-managed AWS resources. Defaults to 'eks:eks-cluster-name'. Do NOT change this if you are running on EKS, as it would break resource discovery and the IAM permissions provided by the getting-started CloudFormation template.")
 	fs.StringVar(&o.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external kubernetes cluster endpoint for new nodes to connect with. If not specified, will discover the cluster endpoint using DescribeCluster API.")
 	fs.BoolVarWithEnv(&o.IsolatedVPC, "isolated-vpc", "ISOLATED_VPC", false, "If true, then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS on-demand pricing endpoint.")
 	fs.BoolVarWithEnv(&o.EKSControlPlane, "eks-control-plane", "EKS_CONTROL_PLANE", false, "Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API ")
