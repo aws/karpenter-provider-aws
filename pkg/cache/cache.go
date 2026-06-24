@@ -31,7 +31,7 @@ const (
 	UnavailableOfferingsTTL = 3 * time.Minute
 	// CapacityReservationAvailabilityTTL is the time we will persist cached capacity availability. Nominally, this is
 	// updated every minute, but we want to persist the data longer in the event of an EC2 API outage. 24 hours was the
-	// compormise made for API outage reseliency and gargage collecting entries for orphaned reservations.
+	// compromise made for API outage resiliency and garbage collecting entries for orphaned reservations.
 	CapacityReservationAvailabilityTTL = 24 * time.Hour
 	// InstanceTypesZonesAndOfferingsTTL is the time before we refresh instance types, zones, and offerings at EC2
 	InstanceTypesZonesAndOfferingsTTL = 5 * time.Minute

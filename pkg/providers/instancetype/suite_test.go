@@ -3211,7 +3211,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
-				// dl1.24xlarge only suppports 4 EFAs
+				// dl1.24xlarge only supports 4 EFAs
 				dl1Instance, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
 					return it.Name == "dl1.24xlarge"
 				})
