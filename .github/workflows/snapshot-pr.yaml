@@ -6,13 +6,15 @@ on:
     types:
       - completed
 jobs:
-  snapshot:
+  resolve:
     permissions:
-      id-token: write
-      pull-requests: write
-      statuses: write
+      contents: read
+      pull-requests: read
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    outputs:
+      PR_COMMIT: ${{ steps.verify.outputs.PR_COMMIT }}
+      PR_NUMBER: ${{ steps.metadata.outputs.PR_NUMBER }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/download-artifact
@@ -20,15 +22,54 @@ jobs:
         run: |
           pr_number="$(head -n 2 /tmp/artifacts/metadata.txt | tail -n 1)"
           pr_commit="$(tail -n 1 /tmp/artifacts/metadata.txt)"
-          echo PR_COMMIT="$pr_commit" >> "$GITHUB_ENV"
-          echo PR_NUMBER="$pr_number" >> "$GITHUB_ENV"
+          echo "PR_COMMIT=${pr_commit}" >> "$GITHUB_OUTPUT"
+          echo "PR_NUMBER=${pr_number}" >> "$GITHUB_OUTPUT"
+      - id: verify
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ steps.metadata.outputs.PR_NUMBER }}
+          PR_COMMIT: ${{ steps.metadata.outputs.PR_COMMIT }}
+        with:
+          script: |
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            const prCommit = process.env.PR_COMMIT;
+
+            const reviews = await github.paginate(
+              github.rest.pulls.listReviews,
+              { owner: context.repo.owner, repo: context.repo.repo, pull_number: prNumber }
+            );
+
+            const validReview = reviews.find(r =>
+              r.author_association === 'MEMBER' &&
+              r.commit_id === prCommit
+            );
+
+            if (!validReview) {
+              core.setFailed(
+                `No MEMBER review found for commit ${prCommit} on PR #${prNumber}. ` +
+                `The snapshot commit must match a commit reviewed by a repository member.`
+              );
+              return;
+            }
+
+            core.info(`Verified: ${validReview.user.login} reviewed commit ${prCommit}`);
+            core.setOutput('PR_COMMIT', prCommit);
+
+  snapshot:
+    needs: [resolve]
+    permissions:
+      id-token: write
+      pull-requests: write
+      statuses: write
+    runs-on: ubuntu-latest
+    steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ env.PR_COMMIT }}
+          ref: ${{ needs.resolve.outputs.PR_COMMIT }}
       - uses: ./.github/actions/commit-status/start
         with:
           name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
-          git_ref: ${{ env.PR_COMMIT }}
+          git_ref: ${{ needs.resolve.outputs.PR_COMMIT }}
       - uses: ./.github/actions/install-deps
       - uses: aws-actions/configure-aws-credentials@99214aa6889fcddfa57764031d71add364327e59 # v6.1.3
         with:
@@ -37,19 +78,21 @@ jobs:
       - run: make snapshot
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          PR_NUMBER: ${{ needs.resolve.outputs.PR_NUMBER }}
+          PR_COMMIT: ${{ needs.resolve.outputs.PR_COMMIT }}
           SNAPSHOT_ACCOUNT_ID: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
           SNAPSHOT_REGION: ${{ vars.SNAPSHOT_REGION }}
         with:
           script: |
             github.rest.issues.createComment({
-              issue_number: process.env.PR_NUMBER,
+              issue_number: parseInt(process.env.PR_NUMBER, 10),
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: `Snapshot successfully published to \`oci://${process.env.SNAPSHOT_ACCOUNT_ID}.dkr.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com/karpenter/snapshot/karpenter:0-${process.env.PR_COMMIT}\`.
             To install you must login to the ECR repo with an AWS account:
             ~~~
             aws ecr get-login-password --region ${process.env.SNAPSHOT_REGION} | docker login --username AWS --password-stdin ${process.env.SNAPSHOT_ACCOUNT_ID}.dkr.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com
-            
+
             helm upgrade --install karpenter oci://${process.env.SNAPSHOT_ACCOUNT_ID}.dkr.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com/karpenter/snapshot/karpenter --version "0-${process.env.PR_COMMIT}" --namespace "kube-system" --create-namespace \\
               --set "settings.clusterName=\${CLUSTER_NAME}" \\
               --set "settings.interruptionQueue=\${CLUSTER_NAME}" \\
@@ -65,4 +108,4 @@ jobs:
         uses: ./.github/actions/commit-status/end
         with:
           name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
-          git_ref: ${{ env.PR_COMMIT }}
+          git_ref: ${{ needs.resolve.outputs.PR_COMMIT }}
