@@ -95,6 +95,7 @@ func NewDefaultProvider(
 	offeringCache *cache.Cache,
 	zonalshiftProvider arczonalshiftProvider.Provider,
 	kubeClient client.Client,
+	additionalResolvers ...OfferingResolver,
 ) *DefaultProvider {
 	p := &DefaultProvider{
 		pricingProvider:             pricingProvider,
@@ -122,6 +123,7 @@ func NewDefaultProvider(
 		},
 		&PlacementGroupResolver{},
 	}
+	p.resolvers = append(p.resolvers, additionalResolvers...)
 	return p
 }
 

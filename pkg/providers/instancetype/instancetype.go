@@ -133,10 +133,8 @@ func NewDefaultProvider(
 			offeringCache,
 			zonalshiftProvider,
 			kubeClient,
+			additionalResolvers...,
 		),
-	}
-	for _, r := range additionalResolvers {
-		p.offeringProvider.RegisterResolver(r)
 	}
 	return p
 }
