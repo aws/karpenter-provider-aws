@@ -113,8 +113,9 @@ func NewDefaultProvider(
 	instanceTypesResolver Resolver,
 	zonalshiftProvider arczonalshift.Provider,
 	kubeClient client.Client,
+	additionalResolvers ...offering.OfferingResolver,
 ) *DefaultProvider {
-	return &DefaultProvider{
+	p := &DefaultProvider{
 		ec2api:                  ec2api,
 		subnetProvider:          subnetProvider,
 		instanceTypesInfo:       map[ec2types.InstanceType]ec2types.InstanceTypeInfo{},
@@ -134,6 +135,10 @@ func NewDefaultProvider(
 			kubeClient,
 		),
 	}
+	for _, r := range additionalResolvers {
+		p.offeringProvider.RegisterResolver(r)
+	}
+	return p
 }
 
 //nolint:gocyclo

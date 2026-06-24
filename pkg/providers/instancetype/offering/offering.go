@@ -22,14 +22,11 @@ import (
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
-	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/options"
@@ -40,13 +37,28 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 )
 
 type Provider interface {
 	InjectOfferings(context.Context, []*cloudprovider.InstanceType, *v1.EC2NodeClass, []string) []*cloudprovider.InstanceType
+}
+
+// OfferingResolverContext contains per-call data passed to each resolver in the pipeline.
+type OfferingResolverContext struct {
+	InstanceTypeInfo ec2types.InstanceTypeInfo
+	NodeClass        NodeClass
+	AllZones         sets.Set[string]
+	ShiftedZones     sets.Set[string]
+	PlacementGroup   *placementgroup.PlacementGroup
+}
+
+// OfferingResolver is called during InjectOfferings to append additional offerings
+// to each instance type. Resolvers are called in registration order, each receiving
+// the offerings produced by the previous step.
+type OfferingResolver interface {
+	ResolveOfferings(ctx context.Context, it *cloudprovider.InstanceType, offerings cloudprovider.Offerings, resolverCtx *OfferingResolverContext) cloudprovider.Offerings
 }
 
 type NodeClass interface {
@@ -72,6 +84,7 @@ type DefaultProvider struct {
 	overlayPrices                  map[string]float64
 	overlayPricesMu                sync.RWMutex
 	overlayPricesExpiry            time.Time
+	resolvers                      []OfferingResolver
 }
 
 func NewDefaultProvider(
@@ -83,7 +96,7 @@ func NewDefaultProvider(
 	zonalshiftProvider arczonalshiftProvider.Provider,
 	kubeClient client.Client,
 ) *DefaultProvider {
-	return &DefaultProvider{
+	p := &DefaultProvider{
 		pricingProvider:             pricingProvider,
 		capacityReservationProvider: capacityReservationProvider,
 		placementGroupProvider:      placementGroupProvider,
@@ -92,6 +105,30 @@ func NewDefaultProvider(
 		zonalshiftProvider:          zonalshiftProvider,
 		kubeClient:                  kubeClient,
 	}
+	// Register built-in resolvers
+	p.resolvers = []OfferingResolver{
+		&BaseResolver{
+			PricingProvider:                pricingProvider,
+			UnavailableOfferings:           unavailableOfferingsCache,
+			LastUnavailableOfferingsSeqNum: &p.lastUnavailableOfferingsSeqNum,
+			Cache:                          offeringCache,
+			ZonalshiftProvider:             zonalshiftProvider,
+			GetOverlayPrice:                p.GetOverlayPrice,
+		},
+		&ReservedCapacityResolver{
+			PricingProvider:             pricingProvider,
+			CapacityReservationProvider: capacityReservationProvider,
+			ZonalshiftProvider:          zonalshiftProvider,
+		},
+		&PlacementGroupResolver{},
+	}
+	return p
+}
+
+// RegisterResolver adds an OfferingResolver to the provider's pipeline.
+// Resolvers are called in registration order during InjectOfferings.
+func (p *DefaultProvider) RegisterResolver(r OfferingResolver) {
+	p.resolvers = append(p.resolvers, r)
 }
 
 func (p *DefaultProvider) InjectOfferings(
@@ -111,17 +148,18 @@ func (p *DefaultProvider) InjectOfferings(
 
 	for _, it := range instanceTypes {
 		info := instanceTypeInfo[ec2types.InstanceType(it.Name)]
-		offerings := p.createOfferings(
-			ctx,
-			it,
-			info,
-			nodeClass,
-			pg,
-			allZones,
-			shiftedZones,
-		)
-		// For partition placement groups, expand each offering into N offerings (one per partition)
-		offerings = p.expandPartitionOfferings(offerings, pg)
+		// Run offering resolvers in order (base → reserved → PG → extensions)
+		var offerings cloudprovider.Offerings
+		resolverCtx := &OfferingResolverContext{
+			InstanceTypeInfo: info,
+			NodeClass:        nodeClass,
+			AllZones:         allZones,
+			ShiftedZones:     shiftedZones,
+			PlacementGroup:   pg,
+		}
+		for _, resolver := range p.resolvers {
+			offerings = resolver.ResolveOfferings(ctx, it, offerings, resolverCtx)
+		}
 		// NOTE: By making this copy one level deep, we can modify the offerings without mutating the results from previous
 		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and
 		// once in the instance provider (filterReservedInstanceTypes)
@@ -149,210 +187,6 @@ func (p *DefaultProvider) InjectOfferings(
 		})
 	}
 	return its
-}
-
-//nolint:gocyclo
-func (p *DefaultProvider) createOfferings(
-	ctx context.Context,
-	it *cloudprovider.InstanceType,
-	info ec2types.InstanceTypeInfo,
-	nodeClass NodeClass,
-	pg *placementgroup.PlacementGroup,
-	allZones sets.Set[string],
-	shiftedZones sets.Set[string],
-) cloudprovider.Offerings {
-	var offerings []*cloudprovider.Offering
-	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
-	zoneInfo := nodeClass.ZoneInfo()
-	// Not all instance types are compatible with the NodeClass.
-	// In the event it is not, we mark the offering as unavailable.
-	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(info, nodeClass, pg)
-
-	// If the sequence number has changed for the unavailable offerings, we know that we can't use the previously cached value
-	lastSeqNum, ok := p.lastUnavailableOfferingsSeqNum.Load(ec2types.InstanceType(it.Name))
-	if !ok {
-		lastSeqNum = 0
-	}
-	seqNum := p.unavailableOfferings.SeqNum(ec2types.InstanceType(it.Name))
-	if ofs, ok := p.cache.Get(p.cacheKeyFromInstanceType(it, nodeClass, shiftedZones)); ok && lastSeqNum == seqNum {
-		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
-	} else {
-		var pgOpts []awscache.UnavailableOfferingsOption
-		if pg != nil {
-			pgOpts = append(pgOpts, awscache.WithPlacementGroup(pg.ID))
-		}
-		var cachedOfferings []*cloudprovider.Offering
-		for zone := range allZones {
-			var subnetIDs []string
-			isZonalShifted := false
-			zonalInfo, zonefound := lo.Find(zoneInfo, func(i v1.ZoneInfo) bool {
-				return i.Zone == zone
-			})
-			if zonefound {
-				subnetIDs = zonalInfo.SubnetIDs
-				isZonalShifted = p.zonalshiftProvider.IsZonalShifted(ctx, zonalInfo.ZoneID)
-			}
-			for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
-				// Reserved capacity types are constructed separately
-				if capacityType == karpv1.CapacityTypeReserved {
-					continue
-				}
-				// Check both the general ICE signal and the PG-scoped signal.
-				// An offering is unavailable if either the general key or the PG-specific key is in the cache.
-				isUnavailable := p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, subnetIDs, capacityType)
-				if !isUnavailable && len(pgOpts) > 0 {
-					isUnavailable = p.unavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, subnetIDs, capacityType, pgOpts...)
-				}
-				var price float64
-				var hasPrice bool
-				switch capacityType {
-				case karpv1.CapacityTypeOnDemand:
-					price, hasPrice = p.pricingProvider.OnDemandPrice(ec2types.InstanceType(it.Name))
-				case karpv1.CapacityTypeSpot:
-					price, hasPrice = p.pricingProvider.SpotPrice(ec2types.InstanceType(it.Name), zone)
-				default:
-					panic(fmt.Sprintf("invalid capacity type %q in requirements for instance type %q", capacityType, it.Name))
-				}
-				if !hasPrice {
-					if overlayPrice, ok := p.GetOverlayPrice(ctx, it.Name); ok {
-						price = overlayPrice
-						hasPrice = true
-					}
-				}
-				offering := &cloudprovider.Offering{
-					Requirements: scheduling.NewRequirements(
-						scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType),
-						scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, zone),
-						scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpDoesNotExist),
-						scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpDoesNotExist),
-						scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpDoesNotExist),
-					),
-					Price:     price,
-					Available: isCompatibleWithNodeClass && !isUnavailable && hasPrice && itZones.Has(zone) && !isZonalShifted,
-				}
-				if zonefound {
-					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, zonalInfo.ZoneID))
-				}
-				cachedOfferings = append(cachedOfferings, offering)
-			}
-		}
-		p.cache.SetDefault(p.cacheKeyFromInstanceType(it, nodeClass, shiftedZones), cachedOfferings)
-		p.lastUnavailableOfferingsSeqNum.Store(ec2types.InstanceType(it.Name), seqNum)
-		offerings = append(offerings, cachedOfferings...)
-	}
-	if options.FromContext(ctx).FeatureGates.ReservedCapacity {
-		capacityReservations := nodeClass.CapacityReservations()
-		for i := range capacityReservations {
-			if capacityReservations[i].InstanceType != it.Name {
-				continue
-			}
-			reservation := &capacityReservations[i]
-			price := 0.0
-			if odPrice, ok := p.pricingProvider.OnDemandPrice(ec2types.InstanceType(it.Name)); ok {
-				// Divide the on-demand price by a sufficiently large constant. This allows us to treat the reservation as "free",
-				// while maintaining relative ordering for consolidation. If the pricing details are unavailable for whatever reason,
-				// still succeed to create the offering and leave the price at zero. This will break consolidation, but will allow
-				// users to utilize the instances they're already paying for.
-				price = odPrice / 10_000_000.0
-			}
-			isZonalShifted := false
-			zonalInfo, zoneFound := lo.Find(zoneInfo, func(i v1.ZoneInfo) bool {
-				return i.Zone == reservation.AvailabilityZone
-			})
-			if zoneFound {
-				isZonalShifted = p.zonalshiftProvider.IsZonalShifted(ctx, zonalInfo.ZoneID)
-			}
-			reservationCapacity := p.capacityReservationProvider.GetAvailableInstanceCount(reservation.ID)
-			offering := &cloudprovider.Offering{
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, karpv1.CapacityTypeReserved),
-					scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, reservation.AvailabilityZone),
-					scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpIn, reservation.ID),
-					scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpIn, string(reservation.ReservationType)),
-					scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpIn, fmt.Sprintf("%t", reservation.Interruptible)),
-				),
-				Price:               price,
-				Available:           isCompatibleWithNodeClass && reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring && !isZonalShifted,
-				ReservationCapacity: reservationCapacity,
-			}
-			if zoneFound {
-				offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, zonalInfo.ZoneID))
-			}
-			offerings = append(offerings, offering)
-		}
-	}
-	return offerings
-}
-
-// expandPartitionOfferings expands each offering into N offerings (one per partition) for partition placement groups.
-// This enables the scheduler to use TopologySpreadConstraints with the partition topology key.
-func (p *DefaultProvider) expandPartitionOfferings(offerings cloudprovider.Offerings, pg *placementgroup.PlacementGroup) cloudprovider.Offerings {
-	if pg == nil || pg.Strategy != placementgroup.StrategyPartition {
-		return offerings
-	}
-	partitionCount := int(pg.PartitionCount)
-	if partitionCount <= 0 {
-		return offerings
-	}
-	var expanded []*cloudprovider.Offering
-	for _, offering := range offerings {
-		for partition := 1; partition <= partitionCount; partition++ {
-			reqs := scheduling.NewRequirements(offering.Requirements.Values()...)
-			reqs.Add(scheduling.NewRequirement(v1.LabelPlacementGroupPartition, corev1.NodeSelectorOpIn, fmt.Sprintf("%d", partition)))
-			expanded = append(expanded, &cloudprovider.Offering{
-				Requirements:        reqs,
-				Price:               offering.Price,
-				Available:           offering.Available,
-				ReservationCapacity: offering.ReservationCapacity,
-			})
-		}
-	}
-	return expanded
-}
-
-func (p *DefaultProvider) cacheKeyFromInstanceType(it *cloudprovider.InstanceType, nodeClass NodeClass, shiftedZones sets.Set[string]) string {
-	zonesHash, _ := hashstructure.Hash(
-		it.Requirements.Get(corev1.LabelTopologyZone).Values(),
-		hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true},
-	)
-	capacityTypesHash, _ := hashstructure.Hash(
-		it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values(),
-		hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true},
-	)
-	networkInterfaceHash, _ := hashstructure.Hash(nodeClass.NetworkInterfaces(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	subnetsHash, _ := hashstructure.Hash(
-		lo.Reduce(nodeClass.ZoneInfo(), func(agg []string, i v1.ZoneInfo, _ int) []string {
-			return append(agg, i.SubnetIDs...)
-		}, []string{}),
-		hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true},
-	)
-	placementGroupPartitionsHash, _ := hashstructure.Hash(
-		it.Requirements.Get(v1.LabelPlacementGroupPartition).Values(),
-		hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true},
-	)
-	shiftedZonesHash, _ := hashstructure.Hash(
-		shiftedZones,
-		hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true},
-	)
-
-	connectionTrackingHash, _ := hashstructure.Hash(nodeClass.ConnectionTracking() != nil, hashstructure.FormatV2, nil)
-
-	return fmt.Sprintf(
-		"%s-%016x-%016x-%016x-%016x-%016x-%016x-%016x",
-		it.Name,
-		zonesHash,
-		capacityTypesHash,
-		networkInterfaceHash,
-		subnetsHash,
-		placementGroupPartitionsHash,
-		shiftedZonesHash,
-		connectionTrackingHash,
-	)
 }
 
 // GetOverlayPrice returns the overlay price for the given instance type if one is defined.
