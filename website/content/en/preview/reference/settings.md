@@ -26,7 +26,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | EKS_CONTROL_PLANE | \-\-eks-control-plane | Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API |
 | ENABLE_PROFILING | \-\-enable-profiling | Enable the profiling on the metric endpoint|
 | ENABLE_ZONAL_SHIFT | \-\-enable-zonal-shift | If true, then enable zonal shifting feature.|
-| FEATURE_GATES | \-\-feature-gates | Optional features can be enabled / disabled using feature gates. Current options are: NodeRepair, ReservedCapacity, SpotToSpotConsolidation, NodeOverlay, and StaticCapacity. (default = NodeRepair=false,ReservedCapacity=true,SpotToSpotConsolidation=false,NodeOverlay=false,StaticCapacity=false)|
+| FEATURE_GATES | \-\-feature-gates | Optional features can be enabled / disabled using feature gates. Current options are: NodeRepair, ReservedCapacity, SpotToSpotConsolidation, NodeOverlay, StaticCapacity, and CapacityBuffer. (default = NodeRepair=false,ReservedCapacity=true,SpotToSpotConsolidation=false,NodeOverlay=false,StaticCapacity=false,CapacityBuffer=false)|
 | HEALTH_PROBE_PORT | \-\-health-probe-port | The port the health probe endpoint binds to for reporting controller health (default = 8081)|
 | IGNORE_DRA_REQUESTS | \-\-ignore-dra-requests | When set, Karpenter will ignore pods' DRA requests during scheduling simulations. NOTE: This flag will be removed once formal DRA support is GA in Karpenter.|
 | INTERRUPTION_QUEUE | \-\-interruption-queue | Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.|
@@ -63,6 +63,7 @@ Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line
 | ReservedCapacity        | true    | Beta   | v1.6.x  |         |
 | NodeOverlay             | false   | Alpha  | v1.7.x  |         |
 | StaticCapacity          | false   | Alpha  | v1.8.x  |         |
+| CapacityBuffer          | false   | Alpha  | v1.13.x |         |
 
 {{% alert title="Note" color="primary" %}}
 In v1, drift has been promoted to stable and the feature gate removed. Users can continue to control drift by using disruption budgets by reason.
