@@ -57,11 +57,14 @@ var _ = Describe("CapacityBuffer", func() {
 	})
 
 	It("should provision buffer capacity with podTemplateRef", func() {
-		// Create nodeClass and nodePool — verify no nodes before buffer
+		// Create nodeClass and nodePool — no nodes yet
 		env.ExpectCreated(nodeClass, nodePool)
-		env.EventuallyExpectCreatedNodeClaimCount("==", 0)
 
-		// Apply buffer — should drive node provisioning
+		// Record baseline (0 nodes)
+		nodeClaimsBefore := env.EventuallyExpectCreatedNodeClaimCount("==", 0)
+		countBefore := len(nodeClaimsBefore)
+
+		// Apply buffer — should drive node provisioning from zero
 		buffer := test.CapacityBuffer(autoscalingv1alpha1.CapacityBuffer{
 			Spec: autoscalingv1alpha1.CapacityBufferSpec{
 				PodTemplateRef: &autoscalingv1alpha1.LocalObjectRef{Name: "buffer-template"},
@@ -71,8 +74,10 @@ var _ = Describe("CapacityBuffer", func() {
 		env.ExpectCreated(bufferTemplate, buffer)
 
 		env.EventuallyExpectCapacityBufferReplicas(buffer, 3)
-		env.EventuallyExpectCreatedNodeClaimCount(">=", 1)
-		env.EventuallyExpectInitializedNodeCount(">=", 1)
+
+		// Buffer must create at least 1 new node from the zero baseline
+		env.EventuallyExpectCreatedNodeClaimCount(">=", countBefore+1)
+		env.EventuallyExpectInitializedNodeCount(">=", countBefore+1)
 		env.EventuallyExpectCapacityBufferProvisioned(buffer)
 	})
 
