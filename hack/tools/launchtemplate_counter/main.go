@@ -77,6 +77,7 @@ func main() {
 			region,
 		),
 		arczonalshift.NewNoopProvider(),
+		nil,
 	)
 	if err := instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {
 		log.Fatalf("updating instance types, %s", err)

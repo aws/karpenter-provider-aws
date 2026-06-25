@@ -4,9 +4,26 @@ on:
     types: [submitted]
 jobs:
   approval-comment:
-    if: startsWith(github.event.review.body, '/karpenter snapshot') || startsWith(github.event.review.body, '/karpenter scale') || startsWith(github.event.review.body, '/karpenter versionCompatibility')
+    if: |
+      startsWith(github.event.review.body, '/karpenter snapshot') ||
+      startsWith(github.event.review.body, '/karpenter scale') ||
+      startsWith(github.event.review.body, '/karpenter versionCompatibility')
     runs-on: ubuntu-latest
     steps:
+      - name: Check reviewer is org member
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await github.rest.orgs.checkMembershipForUser({
+              org: context.repo.owner,
+              username: context.payload.review.user.login
+            }).catch(error => {
+              if (error.status === 404) {
+                core.setFailed('Reviewer is not an org member');
+                return;
+              }
+              throw error;
+            });
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0

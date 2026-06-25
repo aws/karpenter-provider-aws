@@ -112,7 +112,7 @@ spec:
                             type: string
                           reasons:
                             description: |-
-                              Reasons is a list of disruption methods that this budget applies to. If Reasons is not set, this budget applies to all methods.
+                              reasons is a list of disruption methods that this budget applies to. If Reasons is not set, this budget applies to all methods.
                               Otherwise, this will apply to each reason defined.
                               allowed reasons are Underutilized, Empty, and Drifted.
                             items:
@@ -124,6 +124,7 @@ spec:
                               type: string
                             maxItems: 50
                             type: array
+                            x-kubernetes-list-type: set
                           schedule:
                             description: |-
                               Schedule specifies when a budget begins being active, following
@@ -137,6 +138,7 @@ spec:
                         type: object
                       maxItems: 50
                       type: array
+                      x-kubernetes-list-type: atomic
                       x-kubernetes-validations:
                         - message: '''schedule'' must be set with ''duration'''
                           rule: self.all(x, has(x.schedule) == has(x.duration))
@@ -197,22 +199,24 @@ spec:
                           additionalProperties:
                             type: string
                           description: |-
-                            Annotations is an unstructured key value map stored with a resource that may be
+                            annotations is an unstructured key value map stored with a resource that may be
                             set by external tools to store and retrieve arbitrary metadata. They are not
                             queryable and should be preserved when modifying objects.
                             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations
                           type: object
+                          x-kubernetes-map-type: granular
                         labels:
                           additionalProperties:
                             type: string
                             maxLength: 63
                             pattern: ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$
                           description: |-
-                            Map of string keys and values that can be used to organize and categorize
+                            labels is a map of string keys and values that can be used to organize and categorize
                             (scope and select) objects. May match selectors of replication controllers
                             and services.
                             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels
                           type: object
+                          x-kubernetes-map-type: atomic
                           maxProperties: 100
                           x-kubernetes-validations:
                             - message: label domain "karpenter.sh" is restricted
@@ -332,6 +336,7 @@ spec:
                             type: object
                           maxItems: 100
                           type: array
+                          x-kubernetes-list-type: atomic
                           x-kubernetes-validations:
                             - message: requirements with operator 'In' must have a value defined
                               rule: 'self.all(x, x.operator == ''In'' ? x.values.size() != 0 : true)'
@@ -341,7 +346,7 @@ spec:
                               rule: 'self.all(x, (x.operator == ''In'' && has(x.minValues)) ? x.values.size() >= x.minValues : true)'
                         startupTaints:
                           description: |-
-                            StartupTaints are taints that are applied to nodes upon startup which are expected to be removed automatically
+                            startupTaints are taints that are applied to nodes upon startup which are expected to be removed automatically
                             within a short period of time, typically by a DaemonSet that tolerates the taint. These are commonly used by
                             daemonsets to allow initialization and enforce startup ordering.  StartupTaints are ignored for provisioning
                             purposes in that pods are not required to tolerate a StartupTaint in order to have nodes provisioned for them.
@@ -378,8 +383,9 @@ spec:
                               - key
                             type: object
                           type: array
+                          x-kubernetes-list-type: atomic
                         taints:
-                          description: Taints will be applied to the NodeClaim's node.
+                          description: taints will be applied to the NodeClaim's node.
                           items:
                             description: |-
                               The node this Taint is attached to has the "effect" on
@@ -413,6 +419,7 @@ spec:
                               - key
                             type: object
                           type: array
+                          x-kubernetes-list-type: atomic
                         terminationGracePeriod:
                           description: |-
                             TerminationGracePeriod is the maximum duration the controller will wait before forcefully deleting the pods on a node, measured from when deletion is first initiated.
@@ -517,6 +524,9 @@ spec:
                       - type
                     type: object
                   type: array
+                  x-kubernetes-list-map-keys:
+                    - type
+                  x-kubernetes-list-type: map
                 nodeClassObservedGeneration:
                   description: |-
                     NodeClassObservedGeneration represents the observed nodeClass generation for referenced nodeClass. If this does not match
