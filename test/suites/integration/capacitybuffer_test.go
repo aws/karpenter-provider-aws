@@ -57,16 +57,20 @@ var _ = Describe("CapacityBuffer", func() {
 	})
 
 	It("should provision buffer capacity with podTemplateRef", func() {
+		// Create nodeClass and nodePool — verify no nodes before buffer
+		env.ExpectCreated(nodeClass, nodePool)
+		env.EventuallyExpectCreatedNodeClaimCount("==", 0)
+
+		// Apply buffer — should drive node provisioning
 		buffer := test.CapacityBuffer(autoscalingv1alpha1.CapacityBuffer{
 			Spec: autoscalingv1alpha1.CapacityBufferSpec{
 				PodTemplateRef: &autoscalingv1alpha1.LocalObjectRef{Name: "buffer-template"},
-				Replicas:       lo.ToPtr(int32(2)),
+				Replicas:       lo.ToPtr(int32(3)),
 			},
 		})
+		env.ExpectCreated(bufferTemplate, buffer)
 
-		env.ExpectCreated(nodeClass, nodePool, bufferTemplate, buffer)
-
-		env.EventuallyExpectCapacityBufferReplicas(buffer, 2)
+		env.EventuallyExpectCapacityBufferReplicas(buffer, 3)
 		env.EventuallyExpectCreatedNodeClaimCount(">=", 1)
 		env.EventuallyExpectInitializedNodeCount(">=", 1)
 		env.EventuallyExpectCapacityBufferProvisioned(buffer)
@@ -161,6 +165,16 @@ var _ = Describe("CapacityBuffer", func() {
 			},
 		})
 
+		// Create Deployment first, wait for pods to schedule
+		env.ExpectCreated(nodeClass, nodePool, dep)
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		env.EventuallyExpectHealthyPodCountWithTimeout(5*time.Minute, selector, 5)
+
+		// Record node count before buffer
+		nodeClaimsBefore := env.EventuallyExpectCreatedNodeClaimCount(">=", 1)
+		countBefore := len(nodeClaimsBefore)
+
+		// Apply buffer — should resolve and provision additional capacity
 		buffer := test.CapacityBuffer(autoscalingv1alpha1.CapacityBuffer{
 			Spec: autoscalingv1alpha1.CapacityBufferSpec{
 				ScalableRef: &autoscalingv1alpha1.ScalableRef{
@@ -168,18 +182,16 @@ var _ = Describe("CapacityBuffer", func() {
 					Kind:     "Deployment",
 					Name:     dep.Name,
 				},
-				Percentage: lo.ToPtr(int32(20)),
+				Percentage: lo.ToPtr(int32(40)),
 			},
 		})
+		env.ExpectCreated(buffer)
 
-		env.ExpectCreated(nodeClass, nodePool, dep, buffer)
+		// Buffer should resolve: 40% of 5 = 2
+		env.EventuallyExpectCapacityBufferReplicas(buffer, 2)
 
-		// Wait for Deployment pods to schedule
-		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		env.EventuallyExpectHealthyPodCountWithTimeout(5*time.Minute, selector, 5)
-
-		// Buffer should resolve: 20% of 5 = 1
-		env.EventuallyExpectCapacityBufferReplicas(buffer, 1)
+		// Buffer should grow capacity beyond what Deployment alone needed
+		env.EventuallyExpectCreatedNodeClaimCount(">=", countBefore+1)
 		env.EventuallyExpectCapacityBufferProvisioned(buffer)
 	})
 })
