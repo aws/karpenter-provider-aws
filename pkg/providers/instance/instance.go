@@ -42,6 +42,7 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
+	karpentermetrics "sigs.k8s.io/karpenter/pkg/metrics"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/batcher"
@@ -271,6 +272,11 @@ func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 		if _, err := p.ec2Batcher.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
 			InstanceIds: []string{id},
 		}); err != nil {
+			// Intentional zonal-shift skips return earlier and are deliberately not counted here.
+			InstanceTerminationFailuresTotal.Inc(map[string]string{
+				zoneLabel:   out.Zone,
+				zoneIDLabel: out.ZoneID,
+			})
 			return err
 		}
 	}
@@ -402,7 +408,7 @@ func (p *DefaultProvider) launchInstance(
 			}
 		}
 	}
-	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, nodeClaim, instanceTypes, aws.ToString(createFleetOutput.FleetId), pgID, pgOpts)
+	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, nodeClaim, instanceTypes, zonalSubnets, aws.ToString(createFleetOutput.FleetId), pgID, pgOpts)
 	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
 		requestID, _ := awsmiddleware.GetRequestIDMetadata(createFleetOutput.ResultMetadata)
 		return ec2types.CreateFleetInstance{}, serrors.Wrap(
@@ -560,14 +566,29 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	capacityType string,
 	nodeClaim *karpv1.NodeClaim,
 	instanceTypes []*cloudprovider.InstanceType,
+	zonalSubnets map[string]*subnet.Subnet,
 	fleetID string,
 	pgID string,
 	pgOpts []awscache.UnavailableOfferingsOption,
 ) {
 
 	for _, err := range errs {
-		subnet := lo.FromPtr(err.LaunchTemplateAndOverrides.Overrides.SubnetId)
-		if awserrors.IsInsufficientFreeAddressesInSubnet(err) && subnet != "" {
+		// CreateFleet errors carry the zone name but not the zone ID, so resolve it from
+		// the subnets the launch was built from.
+		zone := aws.ToString(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+		var zoneID string
+		if s, ok := zonalSubnets[zone]; ok {
+			zoneID = s.ZoneID
+		}
+		reason, _ := awserrors.ToReasonMessage(fmt.Errorf("%s: %s", aws.ToString(err.ErrorCode), aws.ToString(err.ErrorMessage)))
+		InstanceLaunchFailuresTotal.Inc(map[string]string{
+			zoneLabel:                          zone,
+			zoneIDLabel:                        zoneID,
+			karpentermetrics.CapacityTypeLabel: capacityType,
+			karpentermetrics.ReasonLabel:       reason,
+		})
+
+		if subnet := lo.FromPtr(err.LaunchTemplateAndOverrides.Overrides.SubnetId); awserrors.IsInsufficientFreeAddressesInSubnet(err) && subnet != "" {
 			p.unavailableOfferings.MarkSubnetUnavailable(subnet)
 			// When a Subnet is ICEd we update the subnet provider's availableIPAddressCache to ensure
 			// this subnet is sorted last for future launches

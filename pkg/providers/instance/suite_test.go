@@ -85,6 +85,17 @@ var _ = BeforeEach(func() {
 	awsEnv.Reset()
 })
 
+// counterValue returns the current value of a counter series, or 0 if the series
+// doesn't exist yet. Used to assert deltas around an action, since the prometheus
+// registry is process-global and accumulates across specs.
+func counterValue(name string, labels map[string]string) float64 {
+	metric, ok := FindMetricWithLabelValues(name, labels)
+	if !ok {
+		return 0
+	}
+	return metric.GetCounter().GetValue()
+}
+
 var _ = Describe("InstanceProvider", func() {
 	var nodeClass *v1.EC2NodeClass
 	var nodePool *karpv1.NodePool
@@ -415,6 +426,105 @@ var _ = Describe("InstanceProvider", func() {
 
 		// Throttling should not mark the reservation unavailable
 		Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(targetReservationID)).To(Equal(1))
+	})
+	It("should emit a zone-dimensioned launch failure metric for each CreateFleet offering error", func() {
+		// Pin to on-demand so the emitted capacity_type dimension is deterministic.
+		nodeClaim.Spec.Requirements = append(nodeClaim.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      karpv1.CapacityTypeLabelKey,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{karpv1.CapacityTypeOnDemand},
+		})
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			Instances: []ec2types.CreateFleetInstance{},
+			Errors: []ec2types.CreateFleetError{
+				{
+					ErrorCode:    lo.ToPtr("RequestLimitExceeded"),
+					ErrorMessage: lo.ToPtr("Request limit exceeded."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.large",
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+				{
+					ErrorCode:    lo.ToPtr("RequestLimitExceeded"),
+					ErrorMessage: lo.ToPtr("Request limit exceeded."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.2xlarge",
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+			},
+		})
+
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		// reason is the canonical classification from awserrors.ToReasonMessage.
+		labels := map[string]string{
+			"zone":          "test-zone-1a",
+			"zone_id":       "tstz1-1a",
+			"capacity_type": karpv1.CapacityTypeOnDemand,
+			"reason":        "RequestLimitExceeded",
+		}
+		before := counterValue("karpenter_cloudprovider_instance_launch_failures_total", labels)
+
+		_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(HaveOccurred())
+
+		// zone_id is resolved from the NodeClass subnets, since CreateFleet errors don't echo it.
+		after := counterValue("karpenter_cloudprovider_instance_launch_failures_total", labels)
+		Expect(after - before).To(Equal(float64(2)))
+	})
+	It("should record the generic launch failure reason and an empty zone_id for an unrecognized error in an unknown zone", func() {
+		nodeClaim.Spec.Requirements = append(nodeClaim.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      karpv1.CapacityTypeLabelKey,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{karpv1.CapacityTypeOnDemand},
+		})
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			Instances: []ec2types.CreateFleetInstance{},
+			Errors: []ec2types.CreateFleetError{
+				{
+					ErrorCode:    lo.ToPtr("SomeBrandNewEC2ErrorCode"),
+					ErrorMessage: lo.ToPtr("unexpected."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.large",
+							AvailabilityZone: lo.ToPtr("unknown-zone-9z"),
+						},
+					},
+				},
+			},
+		})
+
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		// An unrecognized code falls through to the generic "LaunchFailed" reason, and the
+		// zone is unresolvable (no matching NodeClass subnet) so zone_id is empty.
+		labels := map[string]string{
+			"zone":          "unknown-zone-9z",
+			"zone_id":       "",
+			"capacity_type": karpv1.CapacityTypeOnDemand,
+			"reason":        "LaunchFailed",
+		}
+		before := counterValue("karpenter_cloudprovider_instance_launch_failures_total", labels)
+
+		_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(HaveOccurred())
+
+		after := counterValue("karpenter_cloudprovider_instance_launch_failures_total", labels)
+		Expect(after - before).To(Equal(float64(1)))
 	})
 	It("should treat instances which launched into open ODCRs as on-demand when the ReservedCapacity gate is disabled", func() {
 		id := fake.InstanceID()
@@ -883,17 +993,56 @@ var _ = Describe("InstanceProvider", func() {
 			Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
 		})
 		It("should not call TerminateInstances for instances in a zonally shifted AZ", func() {
+			// Assert a delta around the action: the intentional zonal-shift skip must NOT be
+			// counted as a termination failure, regardless of any series other specs created.
+			labels := map[string]string{"zone": "test-zone-1a", "zone_id": "tstz1-1a"}
+			before := counterValue("karpenter_cloudprovider_instance_termination_failures_total", labels)
+
 			err := awsEnv.InstanceProvider.Delete(ctx, instanceID)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("zonally shifted"))
 			Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
 			Expect(awsEnv.EC2API.TerminateInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+
+			after := counterValue("karpenter_cloudprovider_instance_termination_failures_total", labels)
+			Expect(after - before).To(Equal(float64(0)))
 		})
 		It("should not call CreateTags for instances in a zonally shifted AZ", func() {
 			err := awsEnv.InstanceProvider.CreateTags(ctx, instanceID, map[string]string{"test-key": "test-value"})
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("zonally shifted"))
 			Expect(awsEnv.EC2API.CreateTagsBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
+		It("should emit a zone-dimensioned termination failure metric when TerminateInstances errors", func() {
+			// Store an instance in a non-shifted zone so Delete proceeds to TerminateInstances.
+			ec2Instance := test.EC2Instance(ec2types.Instance{
+				Placement: &ec2types.Placement{
+					AvailabilityZone:   aws.String("test-zone-1b"),
+					AvailabilityZoneId: aws.String("tstz1-1b"),
+				},
+			})
+			id := aws.ToString(ec2Instance.InstanceId)
+			awsEnv.EC2API.Instances.Store(id, ec2Instance)
+			_, err := awsEnv.InstanceProvider.Get(ctx, id)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Make TerminateInstances fail on every call. The batcher issues an aggregate
+			// call followed by a per-instance retry, so the error must persist across calls.
+			awsEnv.EC2API.TerminateInstancesBehavior.Error.Set(fmt.Errorf("RequestLimitExceeded"), fake.MaxCalls(0))
+
+			labels := map[string]string{
+				"zone":    "test-zone-1b",
+				"zone_id": "tstz1-1b",
+			}
+			before := counterValue("karpenter_cloudprovider_instance_termination_failures_total", labels)
+
+			err = awsEnv.InstanceProvider.Delete(ctx, id)
+			Expect(err).To(HaveOccurred())
+
+			// Exactly 1, not more: the batcher's internal aggregate+retry is invisible to Delete,
+			// which increments the counter once.
+			after := counterValue("karpenter_cloudprovider_instance_termination_failures_total", labels)
+			Expect(after - before).To(Equal(float64(1)))
 		})
 		Context("Cache Miss", func() {
 			// When the instance cache is cold, Get() calls DescribeInstances which populates
