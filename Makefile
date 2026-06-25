@@ -88,7 +88,7 @@ e2etests: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
-		ENABLE_ZONAL_SHIFT=true
+		ENABLE_ZONAL_SHIFT=true \
 		go test \
 		-p 1 \
 		-count 1 \
