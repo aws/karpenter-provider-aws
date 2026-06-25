@@ -195,6 +195,9 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		// g7e family
 		"g7e.12xlarge": 8.286080, "g7e.24xlarge": 16.572160, "g7e.2xlarge": 3.363120, "g7e.48xlarge": 33.144320,
 		"g7e.4xlarge": 3.998160, "g7e.8xlarge": 5.268240,
+		// g7 family
+		"g7.12xlarge": 7.128320, "g7.24xlarge": 14.256640, "g7.2xlarge": 2.520000, "g7.48xlarge": 28.513280,
+		"g7.4xlarge": 3.042080, "g7.8xlarge": 4.086240,
 		// gr6 family
 		"gr6.4xlarge": 1.539200, "gr6.8xlarge": 2.446400,
 		// gr6f family
