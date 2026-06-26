@@ -111,7 +111,7 @@ func NewControllers(
 		crcapacitytype.NewController(kubeClient, cloudProvider),
 		crexpiration.NewController(clk, kubeClient, cloudProvider, capacityReservationProvider),
 		metrics.NewController(kubeClient, cloudProvider),
-		arczonalshiftcontroller.NewController(zonalshiftProvider),
+		arczonalshiftcontroller.NewController(kubeClient, recorder, zonalshiftProvider),
 		interruption.NewInstanceStatusController(kubeClient, clk, cloudProvider, recorder, instanceStatusProvider),
 	}
 	// Instance profile garbage collection requires IAM API access. Skip registering the controller when running
