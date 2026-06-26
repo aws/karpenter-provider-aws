@@ -8,11 +8,11 @@ description: >
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Alpha]({{<ref "../reference/settings#feature-gates" >}})
 
-Karpenter uses CapacityBuffers to pre-provision spare node capacity so that workloads can schedule instantly without waiting for new nodes to launch.
+You can use CapacityBuffers to pre-provision spare node capacity so that your workloads can schedule instantly without waiting for new nodes to launch.
 CapacityBuffers implement the Kubernetes SIG Autoscaling [CapacityBuffer API](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler/apis/capacitybuffer) (`autoscaling.x-k8s.io/v1alpha1`), providing compatibility with Cluster Autoscaler's buffer semantics.
 
 A CapacityBuffer defines virtual placeholder pods that exist only in Karpenter's scheduling simulation — they are never created as real Kubernetes pods.
-These virtual pods drive Karpenter to provision nodes with spare capacity, participate in every scheduling cycle to maintain the buffer, and automatically refill when real workloads consume the pre-provisioned capacity.
+These virtual pods drive node provisioning with spare capacity, participate in every scheduling cycle to maintain the buffer, and automatically refill when real workloads consume the pre-provisioned capacity.
 
 ## CapacityBuffer Configuration
 
@@ -69,7 +69,7 @@ PVC-backed and ephemeral volumes in the PodTemplate are automatically stripped f
 
 ## spec.scalableRef
 
-Reference to a workload with a scale subresource. Mutually exclusive with `podTemplateRef`. The buffer uses the workload's pod template spec directly and can scale proportionally using `percentage`.
+Reference to a workload with a scale subresource. Mutually exclusive with `podTemplateRef`. When set, the buffer uses the workload's pod template spec directly and can scale proportionally using `percentage`.
 
 Supported kinds:
 - `apps/v1/Deployment`
@@ -91,7 +91,7 @@ The buffer reads the workload's `spec.template.spec` directly — no running pod
 
 ## spec.replicas
 
-Fixed number of buffer chunks to provision. When used with `percentage`, the minimum of the two is taken. When used with `limits`, the minimum of all constraints is taken.
+Fixed number of buffer chunks to provision. When used with `percentage` or `limits`, the minimum is taken.
 
 ## spec.percentage
 
@@ -101,7 +101,7 @@ For example, if a Deployment has 10 replicas and `percentage` is 20, the buffer 
 
 ## spec.limits
 
-Resource constraints that cap the number of buffer chunks based on total resource requests. If no other constraints are set (`replicas` and `percentage` are both absent), limits determines how many chunks are created. When combined with other constraints, the minimum across all is used.
+Resource constraints that cap the number of buffer chunks based on total resource requests. If no other constraints are set (`replicas` and `percentage` are both absent), limits alone determines how many chunks are created. When combined with other constraints, the minimum across all is used.
 
 ```yaml
 spec:
@@ -116,7 +116,7 @@ If each pod requests 2 CPU and 4Gi memory, this produces min(20/2, 40/4) = 10 bu
 
 ## Replica Calculation
 
-When multiple constraints are specified, Karpenter uses the minimum:
+When multiple constraints are specified, the minimum across all of them is used:
 
 | Configuration | Result |
 |---|---|
@@ -128,13 +128,10 @@ When multiple constraints are specified, Karpenter uses the minimum:
 
 ## Integration with Disruption
 
-CapacityBuffers integrate with Karpenter's disruption system to ensure buffer capacity is preserved:
+CapacityBuffers integrate with Karpenter's disruption system to ensure your buffer capacity is preserved:
 
-* **Empty consolidation** is blocked for nodes hosting buffer capacity. Even though these nodes have no real pods, the virtual buffer pods prevent them from being treated as empty.
-* **Underutilized consolidation** is allowed. The replacement node must still fit both real pods and virtual buffer pods, ensuring the buffer is maintained after consolidation.
-* **Drift** is allowed. When a NodePool's requirements change and nodes are drifted, Karpenter replaces them and the buffer automatically refills on the new capacity.
-* **Expiry** is allowed. After expired nodes are terminated, the buffer controller triggers a new provisioning pass to restore capacity.
-* **Buffer deletion** removes all protection. Nodes that previously hosted buffer capacity become truly empty and are consolidated normally.
+* **Empty consolidation** is blocked for nodes hosting buffer capacity. Even though these nodes have no real pods, the virtual buffer pods prevent them from being treated as empty. The node is marked unconsolidatable with the reason `"Node has buffer pods"`.
+* All other disruption methods (underutilized consolidation, drift, expiry) are allowed — replacement nodes must still fit virtual buffer pods, so the buffer is automatically maintained.
 
 ## Status and Observability
 
@@ -169,7 +166,7 @@ status:
 
 ### Monitoring
 
-The buffer controller reconciles every 30 seconds. Status conditions are updated on each reconcile, providing visibility into:
+The buffer controller reconciles every 30 seconds. Status conditions are updated on each reconcile, giving you visibility into:
 - Whether the referenced PodTemplate or workload exists and is valid
 - Whether capacity is currently satisfied or new nodes are being provisioned
 - The current target replica count
@@ -178,5 +175,5 @@ The buffer controller reconciles every 30 seconds. Status conditions are updated
 
 * **Volume stripping**: PVC-backed and ephemeral volumes are stripped from virtual pods since no real PVC exists for topology resolution
 * **Polling for scalableRef changes**: The buffer controller requeues every 30 seconds — changes to a referenced Deployment's replica count take up to 30s to reflect in buffer status
-* **NodePool limits**: Buffer virtual pods are subject to NodePool resource limits. If the NodePool's CPU or memory limit is exhausted, buffer capacity cannot be fulfilled
+* **NodePool limits**: Buffer virtual pods are subject to NodePool resource limits. If the NodePool's CPU or memory limit is exhausted, your buffer capacity cannot be fulfilled
 * **Alpha status**: CapacityBuffers are currently in alpha (`autoscaling.x-k8s.io/v1alpha1`) and the API may change in future versions
