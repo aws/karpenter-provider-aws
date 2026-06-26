@@ -19,7 +19,9 @@ import (
 	"fmt"
 
 	"github.com/awslabs/operatorpkg/serrors"
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
@@ -30,12 +32,14 @@ import (
 
 type PlacementGroupReconciler struct {
 	provider placementgroup.Provider
+	clk      clock.Clock
 	cm       *pretty.ChangeMonitor
 }
 
-func NewPlacementGroupReconciler(provider placementgroup.Provider) *PlacementGroupReconciler {
+func NewPlacementGroupReconciler(clk clock.Clock, provider placementgroup.Provider) *PlacementGroupReconciler {
 	return &PlacementGroupReconciler{
 		provider: provider,
+		clk:      clk,
 		cm:       pretty.NewChangeMonitor(),
 	}
 }
@@ -49,14 +53,14 @@ func (p *PlacementGroupReconciler) Reconcile(ctx context.Context, nc *v1.EC2Node
 		selector = lo.FromPtr(lo.CoalesceOrEmpty(term.Name, term.ID))
 	}
 	if err != nil {
-		nc.StatusConditions().SetFalse(v1.ConditionTypePlacementGroupReady, "PlacementGroupResolutionFailed", "Failed to resolve placement group")
+		nc.StatusConditions(status.WithClock(p.clk)).SetFalse(v1.ConditionTypePlacementGroupReady, "PlacementGroupResolutionFailed", "Failed to resolve placement group")
 		return reconcile.Result{}, serrors.Wrap(fmt.Errorf("resolving placement group, %w", err), "placement-group", selector)
 	}
 	if pg == nil {
 		if nc.Spec.PlacementGroupSelector != nil {
-			nc.StatusConditions().SetFalse(v1.ConditionTypePlacementGroupReady, "PlacementGroupNotFound", fmt.Sprintf("Placement group %q not found", selector))
+			nc.StatusConditions(status.WithClock(p.clk)).SetFalse(v1.ConditionTypePlacementGroupReady, "PlacementGroupNotFound", fmt.Sprintf("Placement group %q not found", selector))
 		} else {
-			nc.StatusConditions().SetTrue(v1.ConditionTypePlacementGroupReady)
+			nc.StatusConditions(status.WithClock(p.clk)).SetTrue(v1.ConditionTypePlacementGroupReady)
 		}
 		return reconcile.Result{}, nil
 	}
@@ -65,6 +69,6 @@ func (p *PlacementGroupReconciler) Reconcile(ctx context.Context, nc *v1.EC2Node
 		log.FromContext(ctx).V(1).WithValues("id", pg.ID, "name", pg.Name, "strategy", pg.Strategy).Info("discovered placement group")
 	}
 
-	nc.StatusConditions().SetTrue(v1.ConditionTypePlacementGroupReady)
+	nc.StatusConditions(status.WithClock(p.clk)).SetTrue(v1.ConditionTypePlacementGroupReady)
 	return reconcile.Result{}, nil
 }

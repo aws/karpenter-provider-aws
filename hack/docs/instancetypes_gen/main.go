@@ -150,6 +150,7 @@ below are the resources available with some assumptions and after the instance o
 				region,
 			),
 			arczonalshift.NewNoopProvider(),
+			nil,
 		)
 		if err = instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {
 			log.Fatalf("updating instance types, %s", err)
