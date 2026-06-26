@@ -29,6 +29,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/version"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -1236,6 +1237,42 @@ var _ = Describe("AMIResolver", func() {
 		Entry("should be nil for isob", "us-isob-east-1", nil),
 		Entry("should be nil for isof", "us-isof-south-1", nil),
 	)
+	Context("EnclaveEnabled", func() {
+		It("should set EnclaveEnabled to false by default when no resources are requested", func() {
+			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
+			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(launchTemplates).ToNot(BeEmpty())
+			lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {
+				Expect(lt.EnclaveEnabled).To(BeFalse())
+			})
+		})
+		It("should set EnclaveEnabled to true when ResourceNIPSlots is in the NodeClaim's resource requests", func() {
+			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
+				v1.ResourceNIPSlots: resource.MustParse("1"),
+			}
+			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
+			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(launchTemplates).ToNot(BeEmpty())
+			lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {
+				Expect(lt.EnclaveEnabled).To(BeTrue())
+			})
+		})
+		It("should set EnclaveEnabled to false when only other resources are requested (not ResourceNIPSlots)", func() {
+			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceMemory: resource.MustParse("4Gi"),
+			}
+			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
+			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(launchTemplates).ToNot(BeEmpty())
+			lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {
+				Expect(lt.EnclaveEnabled).To(BeFalse())
+			})
+		})
+	})
 })
 
 func ExpectConsistsOfAMIQueries(expected, actual []amifamily.DescribeImageQuery) {

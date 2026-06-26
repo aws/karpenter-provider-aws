@@ -84,6 +84,7 @@ type LaunchTemplate struct {
 	InstanceTypes                    []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring               bool
 	EFACount                         int
+	EnclaveEnabled                   bool
 	NetworkInterfaces                []*ResolvedNetworkInterface
 	CapacityType                     string
 	CapacityReservationID            string
@@ -336,6 +337,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			Tenancy:                          tenancyType,
 			PlacementGroupID:                 placementGroupID,
 			PlacementGroupPartition:          placementGroupPartition,
+			EnclaveEnabled:                   lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceNIPSlots),
 			ConnectionTracking:               nodeClass.Spec.ConnectionTracking,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {

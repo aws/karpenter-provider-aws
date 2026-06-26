@@ -514,12 +514,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				{DetailedMonitoring: true},
 				{EFACount: 12},
 				{CapacityType: "spot"},
+				{EnclaveEnabled: true},
 			}
 			launchtemplateResult := []string{}
 			for _, lt := range launchtemplates {
 				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
 			}
-			Expect(len(launchtemplateResult)).To(BeNumerically("==", 6))
+			Expect(len(launchtemplateResult)).To(BeNumerically("==", 7))
 			Expect(lo.Uniq(launchtemplateResult)).To(Equal(launchtemplateResult))
 		})
 		It("should not generate different launch template names based on instance types", func() {
@@ -2413,6 +2414,50 @@ eviction-max-pod-grace-period = 10
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(aws.ToBool(ltInput.LaunchTemplateData.Monitoring.Enabled)).To(BeTrue())
+			})
+		})
+	})
+	Context("Enclave Options", func() {
+		It("should default enclave options to disabled", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeFalse())
+			})
+		})
+		It("should enable enclave options when nip-slots is in the nodeclaim's resource requests", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			// Build a NodeClaim with nip-slots already in Spec.Resources.Requests,
+			// simulating what the scheduler sets when pods request that resource
+			nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+				Spec: karpv1.NodeClaimSpec{
+					Resources: karpv1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							v1.ResourceNIPSlots: resource.MustParse("1"),
+						},
+					},
+					NodeClassRef: &karpv1.NodeClassReference{
+						Group: "karpenter.k8s.aws",
+						Kind:  "EC2NodeClass",
+						Name:  nodeClass.Name,
+					},
+				},
+			})
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+
+			_, err = awsEnv.LaunchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, nodeClass.Spec.Tags, "default")
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
 			})
 		})
 	})
