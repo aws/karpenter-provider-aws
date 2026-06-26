@@ -28,6 +28,7 @@ import (
 	autoscalingv1alpha1 "sigs.k8s.io/karpenter/pkg/apis/autoscaling/v1alpha1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
+	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
 var _ = Describe("CapacityBuffer", func() {
@@ -73,12 +74,12 @@ var _ = Describe("CapacityBuffer", func() {
 		})
 		env.ExpectCreated(bufferTemplate, buffer)
 
-		env.EventuallyExpectCapacityBufferReplicas(buffer, 3)
+		EventuallyExpectCapacityBufferReplicas(env, env.Client, buffer, 3)
 
 		// Buffer must create at least 1 new node from the zero baseline
 		env.EventuallyExpectCreatedNodeClaimCount(">=", countBefore+1)
 		env.EventuallyExpectInitializedNodeCount(">=", countBefore+1)
-		env.EventuallyExpectCapacityBufferProvisioned(buffer)
+		EventuallyExpectCapacityBufferProvisioned(env, env.Client, buffer)
 	})
 
 	It("should allow consumer pods to schedule on buffer capacity", func() {
@@ -92,7 +93,7 @@ var _ = Describe("CapacityBuffer", func() {
 		env.ExpectCreated(nodeClass, nodePool, bufferTemplate, buffer)
 
 		env.EventuallyExpectInitializedNodeCount(">=", 1)
-		env.EventuallyExpectCapacityBufferProvisioned(buffer)
+		EventuallyExpectCapacityBufferProvisioned(env, env.Client, buffer)
 
 		// Deploy consumer pods that match buffer shape
 		dep := test.Deployment(test.DeploymentOptions{
@@ -128,7 +129,7 @@ var _ = Describe("CapacityBuffer", func() {
 		env.ExpectCreated(nodeClass, nodePool, bufferTemplate, buffer)
 
 		nodes := env.EventuallyExpectInitializedNodeCount(">=", 1)
-		env.EventuallyExpectCapacityBufferProvisioned(buffer)
+		EventuallyExpectCapacityBufferProvisioned(env, env.Client, buffer)
 
 		// Buffer node should NOT be consolidated as empty
 		env.ConsistentlyExpectNoDisruptions(len(nodes), 60*time.Second)
@@ -149,7 +150,7 @@ var _ = Describe("CapacityBuffer", func() {
 
 		nodeClaims := env.EventuallyExpectCreatedNodeClaimCount(">=", 1)
 		env.EventuallyExpectInitializedNodeCount(">=", 1)
-		env.EventuallyExpectCapacityBufferProvisioned(buffer)
+		EventuallyExpectCapacityBufferProvisioned(env, env.Client, buffer)
 
 		// Delete buffer — nodes should be cleaned up
 		env.ExpectDeleted(buffer)
@@ -193,10 +194,10 @@ var _ = Describe("CapacityBuffer", func() {
 		env.ExpectCreated(buffer)
 
 		// Buffer resolves correctly: 20% of 10 = 2
-		env.EventuallyExpectCapacityBufferReplicas(buffer, 2)
+		EventuallyExpectCapacityBufferReplicas(env, env.Client, buffer, 2)
 
 		// Buffer reaches Provisioning=True (virtual pods fit on existing or new capacity)
-		env.EventuallyExpectCapacityBufferProvisioned(buffer)
+		EventuallyExpectCapacityBufferProvisioned(env, env.Client, buffer)
 
 		// At minimum, node count must not have decreased
 		env.EventuallyExpectCreatedNodeClaimCount(">=", countBefore)
