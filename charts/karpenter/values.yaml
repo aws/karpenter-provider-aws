@@ -243,3 +243,6 @@ settings:
     # -- staticCapacity is ALPHA and is disabled by default.
     # Setting this to true will enable static capacity provisioning.
     staticCapacity: false
+    # -- capacityBuffer is ALPHA and is disabled by default.
+    # Setting this to true will enable CapacityBuffer support for pre-provisioning spare capacity.
+    capacityBuffer: false
