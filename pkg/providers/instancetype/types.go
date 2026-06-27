@@ -202,6 +202,7 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceNetworkBandwidth, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceCategory, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceCapabilityFlex, corev1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1.LabelInstanceCapabilityNestedVirtualization, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceFamily, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceGeneration, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceLocalNVME, corev1.NodeSelectorOpDoesNotExist),
@@ -261,6 +262,11 @@ func computeRequirements(
 		requirements[v1.LabelInstanceCapabilityFlex].Insert("true")
 	} else {
 		requirements[v1.LabelInstanceCapabilityFlex].Insert("false")
+	}
+	if info.ProcessorInfo != nil && lo.Contains(info.ProcessorInfo.SupportedFeatures, ec2types.SupportedAdditionalProcessorFeatureNestedVirtualization) {
+		requirements[v1.LabelInstanceCapabilityNestedVirtualization].Insert("true")
+	} else {
+		requirements[v1.LabelInstanceCapabilityNestedVirtualization].Insert("false")
 	}
 
 	// Network bandwidth
