@@ -13,11 +13,16 @@ Before you begin upgrading Karpenter, consider Karpenter compatibility issues re
 
 ## Compatibility Matrix
 
+The matrix shows the minimum Karpenter patch version needed for each Kubernetes
+version. Patch releases within a Karpenter minor version can expand the
+supported Kubernetes version range, so upgrade to at least the listed Karpenter
+version before upgrading Kubernetes.
+
 [comment]: <> (the content below is generated from hack/docs/compatibilitymatrix_gen/main.go)
 
-| Kubernetes |   1.30   |   1.31    |  1.32   |  1.33   |  1.34   |  1.35   |  1.36  |
-|------------|----------|-----------|---------|---------|---------|---------|--------|
-| karpenter  | \>= 0.37 | \>= 1.0.5 | \>= 1.2 | \>= 1.5 | \>= 1.6 | \>= 1.9 | 1.13.x |
+| Kubernetes |   1.30   |   1.31    |  1.32   |  1.33   |   1.34    |  1.35   |  1.36  |
+|------------|----------|-----------|---------|---------|-----------|---------|--------|
+| karpenter  | \>= 0.37 | \>= 1.0.5 | \>= 1.2 | \>= 1.5 | \>= 1.6.6 | \>= 1.9 | 1.13.x |
 
 [comment]: <> (end docs generated content from hack/docs/compatibilitymatrix_gen/main.go)
 
