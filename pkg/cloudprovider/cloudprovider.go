@@ -203,7 +203,12 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*karpv1.Nod
 	return c.instanceToNodeClaim(ctx, instance, instanceType, nc, nil), nil
 }
 
-// GetInstanceTypes returns all available InstanceTypes
+// GetInstanceTypes returns the InstanceTypes and Offerings the NodePool can launch.
+// instanceTypeProvider.List filters by NodeClass only; NodePool requirements are
+// applied here so all consumers (scheduler, consolidation, metrics) see the same
+// launchable surface. Offerings with Available: false are kept so downstream
+// observers can still distinguish "unreachable" from "filtered". Cached
+// InstanceTypes are shallow-copied to avoid mutation.
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.NodePool) ([]*cloudprovider.InstanceType, error) {
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
@@ -214,12 +219,38 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 		}
 		return nil, fmt.Errorf("resolving nodeclass, %w", err)
 	}
-	// TODO, break this coupling
 	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, err
 	}
-	return instanceTypes, nil
+	nodePoolReqs := scheduling.NewNodeSelectorRequirementsWithMinValues(
+		nodePool.Spec.Template.Spec.Requirements...,
+	)
+	filtered := make([]*cloudprovider.InstanceType, 0, len(instanceTypes))
+	for _, it := range instanceTypes {
+		// Intersects (not Compatible) so custom NodePool labels absent from the
+		// InstanceType don't cause false rejections.
+		if err := it.Requirements.Intersects(nodePoolReqs); err != nil {
+			continue
+		}
+		offerings := make(cloudprovider.Offerings, 0, len(it.Offerings))
+		for _, o := range it.Offerings {
+			// Filters offerings by capacity-type/zone/reservation when the
+			// NodePool constrains them (e.g., drops spot under on-demand-only).
+			if err := o.Requirements.Intersects(nodePoolReqs); err != nil {
+				continue
+			}
+			offerings = append(offerings, o)
+		}
+		if len(offerings) == 0 {
+			continue
+		}
+		// Shallow-copy to avoid mutating the cached InstanceType.
+		itCopy := *it
+		itCopy.Offerings = offerings
+		filtered = append(filtered, &itCopy)
+	}
+	return filtered, nil
 }
 
 // getInstanceType returns a specific instance type to avoid re-constructing all InstanceTypes
