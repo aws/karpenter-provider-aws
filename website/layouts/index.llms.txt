@@ -1,0 +1,19 @@
+{{- /*
+  llms.txt — an index of the site's documentation for LLMs, following the
+  spec at https://llmstxt.org. Scoped to the current "docs" section so the
+  file stays focused and avoids duplicating every archived version. Each link
+  points at the page's plain-markdown twin (index.md). Top-level docs
+  subsections become headings; deeper nesting is walked recursively by the
+  llms-pages.txt partial (kept as .txt so plain-text output isn't HTML-escaped).
+*/ -}}
+# {{ site.Title }}
+
+> {{ site.Params.description }}
+
+{{ with site.GetPage "/docs" -}}
+## Documentation
+{{ range .Sections.ByWeight }}
+### {{ .Title }}
+{{- partial "llms-pages.txt" (dict "section" . "depth" 0) }}
+{{ end }}
+{{- end }}
