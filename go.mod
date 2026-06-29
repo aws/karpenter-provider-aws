@@ -46,7 +46,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20251222233032-718f0e51e6d2
 	sigs.k8s.io/controller-runtime v0.23.1
-	sigs.k8s.io/karpenter v1.13.1-0.20260626183827-1922ddc33587
+	sigs.k8s.io/karpenter v1.13.1-0.20260626233224-82608e757952
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -141,6 +141,3 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.2-0.20260122202528-d9cc6641c482 // indirect
 )
-
-// TODO: Revert this replace once https://github.com/kubernetes-sigs/karpenter/pull/3109 is merged
-replace sigs.k8s.io/karpenter => github.com/jigisha620/karpenter v0.0.0-20260623223924-86ce205c5662

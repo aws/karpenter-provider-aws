@@ -32,6 +32,8 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
+
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 )
 
@@ -47,17 +49,21 @@ func (r *ReservedCapacityResolver) ResolveOfferings(
 	ctx context.Context,
 	it *cloudprovider.InstanceType,
 	offerings cloudprovider.Offerings,
-	resolverCtx *OfferingResolverContext,
+	instanceTypeInfo ec2types.InstanceTypeInfo,
+	nodeClass NodeClass,
+	allZones sets.Set[string],
+	shiftedZones sets.Set[string],
+	pg *placementgroup.PlacementGroup,
 ) cloudprovider.Offerings {
 	if !options.FromContext(ctx).FeatureGates.ReservedCapacity {
 		return offerings
 	}
 
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
-	zoneInfo := resolverCtx.NodeClass.ZoneInfo()
-	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(resolverCtx.InstanceTypeInfo, resolverCtx.NodeClass, resolverCtx.PlacementGroup)
+	zoneInfo := nodeClass.ZoneInfo()
+	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(instanceTypeInfo, nodeClass, pg)
 
-	capacityReservations := resolverCtx.NodeClass.CapacityReservations()
+	capacityReservations := nodeClass.CapacityReservations()
 	for i := range capacityReservations {
 		if capacityReservations[i].InstanceType != it.Name {
 			continue

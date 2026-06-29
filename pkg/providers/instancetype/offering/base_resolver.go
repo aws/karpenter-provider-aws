@@ -34,6 +34,8 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
+
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 )
 
@@ -53,13 +55,17 @@ func (r *BaseResolver) ResolveOfferings(
 	ctx context.Context,
 	it *cloudprovider.InstanceType,
 	offerings cloudprovider.Offerings,
-	resolverCtx *OfferingResolverContext,
+	instanceTypeInfo ec2types.InstanceTypeInfo,
+	nodeClass NodeClass,
+	allZones sets.Set[string],
+	shiftedZones sets.Set[string],
+	pg *placementgroup.PlacementGroup,
 ) cloudprovider.Offerings {
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
-	zoneInfo := resolverCtx.NodeClass.ZoneInfo()
+	zoneInfo := nodeClass.ZoneInfo()
 	// Not all instance types are compatible with the NodeClass.
 	// In the event it is not, we mark the offering as unavailable.
-	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(resolverCtx.InstanceTypeInfo, resolverCtx.NodeClass, resolverCtx.PlacementGroup)
+	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(instanceTypeInfo, nodeClass, pg)
 
 	// If the sequence number has changed for the unavailable offerings, we know that we can't use the previously cached value
 	lastSeqNum, ok := r.LastUnavailableOfferingsSeqNum.Load(ec2types.InstanceType(it.Name))
@@ -67,15 +73,15 @@ func (r *BaseResolver) ResolveOfferings(
 		lastSeqNum = 0
 	}
 	seqNum := r.UnavailableOfferings.SeqNum(ec2types.InstanceType(it.Name))
-	if ofs, ok := r.Cache.Get(cacheKeyFromInstanceType(it, resolverCtx.NodeClass, resolverCtx.ShiftedZones)); ok && lastSeqNum == seqNum {
+	if ofs, ok := r.Cache.Get(cacheKeyFromInstanceType(it, nodeClass, shiftedZones)); ok && lastSeqNum == seqNum {
 		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
 	} else {
 		var pgOpts []awscache.UnavailableOfferingsOption
-		if resolverCtx.PlacementGroup != nil {
-			pgOpts = append(pgOpts, awscache.WithPlacementGroup(resolverCtx.PlacementGroup.ID))
+		if pg != nil {
+			pgOpts = append(pgOpts, awscache.WithPlacementGroup(pg.ID))
 		}
 		var cachedOfferings []*cloudprovider.Offering
-		for zone := range resolverCtx.AllZones {
+		for zone := range allZones {
 			var subnetIDs []string
 			isZonalShifted := false
 			zonalInfo, zonefound := lo.Find(zoneInfo, func(i v1.ZoneInfo) bool {
@@ -129,7 +135,7 @@ func (r *BaseResolver) ResolveOfferings(
 				cachedOfferings = append(cachedOfferings, offering)
 			}
 		}
-		r.Cache.SetDefault(cacheKeyFromInstanceType(it, resolverCtx.NodeClass, resolverCtx.ShiftedZones), cachedOfferings)
+		r.Cache.SetDefault(cacheKeyFromInstanceType(it, nodeClass, shiftedZones), cachedOfferings)
 		r.LastUnavailableOfferingsSeqNum.Store(ec2types.InstanceType(it.Name), seqNum)
 		offerings = append(offerings, cachedOfferings...)
 	}

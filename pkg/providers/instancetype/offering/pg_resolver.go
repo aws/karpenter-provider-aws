@@ -18,7 +18,9 @@ import (
 	"context"
 	"fmt"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
@@ -34,12 +36,16 @@ func (r *PlacementGroupResolver) ResolveOfferings(
 	_ context.Context,
 	_ *cloudprovider.InstanceType,
 	offerings cloudprovider.Offerings,
-	resolverCtx *OfferingResolverContext,
+	_ ec2types.InstanceTypeInfo,
+	_ NodeClass,
+	_ sets.Set[string],
+	_ sets.Set[string],
+	pg *placementgroup.PlacementGroup,
 ) cloudprovider.Offerings {
-	if resolverCtx.PlacementGroup == nil || resolverCtx.PlacementGroup.Strategy != placementgroup.StrategyPartition {
+	if pg == nil || pg.Strategy != placementgroup.StrategyPartition {
 		return offerings
 	}
-	partitionCount := int(resolverCtx.PlacementGroup.PartitionCount)
+	partitionCount := int(pg.PartitionCount)
 	if partitionCount <= 0 {
 		return offerings
 	}

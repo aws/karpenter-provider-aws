@@ -45,20 +45,11 @@ type Provider interface {
 	InjectOfferings(context.Context, []*cloudprovider.InstanceType, *v1.EC2NodeClass, []string) []*cloudprovider.InstanceType
 }
 
-// OfferingResolverContext contains per-call data passed to each resolver in the pipeline.
-type OfferingResolverContext struct {
-	InstanceTypeInfo ec2types.InstanceTypeInfo
-	NodeClass        NodeClass
-	AllZones         sets.Set[string]
-	ShiftedZones     sets.Set[string]
-	PlacementGroup   *placementgroup.PlacementGroup
-}
-
 // OfferingResolver is called during InjectOfferings to append additional offerings
 // to each instance type. Resolvers are called in registration order, each receiving
 // the offerings produced by the previous step.
 type OfferingResolver interface {
-	ResolveOfferings(ctx context.Context, it *cloudprovider.InstanceType, offerings cloudprovider.Offerings, resolverCtx *OfferingResolverContext) cloudprovider.Offerings
+	ResolveOfferings(ctx context.Context, it *cloudprovider.InstanceType, offerings cloudprovider.Offerings, instanceTypeInfo ec2types.InstanceTypeInfo, nodeClass NodeClass, allZones sets.Set[string], shiftedZones sets.Set[string], pg *placementgroup.PlacementGroup) cloudprovider.Offerings
 }
 
 type NodeClass interface {
@@ -152,15 +143,8 @@ func (p *DefaultProvider) InjectOfferings(
 		info := instanceTypeInfo[ec2types.InstanceType(it.Name)]
 		// Run offering resolvers in order (base → reserved → PG → extensions)
 		var offerings cloudprovider.Offerings
-		resolverCtx := &OfferingResolverContext{
-			InstanceTypeInfo: info,
-			NodeClass:        nodeClass,
-			AllZones:         allZones,
-			ShiftedZones:     shiftedZones,
-			PlacementGroup:   pg,
-		}
 		for _, resolver := range p.resolvers {
-			offerings = resolver.ResolveOfferings(ctx, it, offerings, resolverCtx)
+			offerings = resolver.ResolveOfferings(ctx, it, offerings, info, nodeClass, allZones, shiftedZones, pg)
 		}
 		// NOTE: By making this copy one level deep, we can modify the offerings without mutating the results from previous
 		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and

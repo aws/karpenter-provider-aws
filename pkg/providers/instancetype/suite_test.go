@@ -67,6 +67,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/offering"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
 
@@ -3575,7 +3576,11 @@ func (r *fakeOfferingResolver) ResolveOfferings(
 	_ context.Context,
 	_ *corecloudprovider.InstanceType,
 	offerings corecloudprovider.Offerings,
-	_ *offering.OfferingResolverContext,
+	_ ec2types.InstanceTypeInfo,
+	_ offering.NodeClass,
+	_ sets.Set[string],
+	_ sets.Set[string],
+	_ *placementgroup.PlacementGroup,
 ) corecloudprovider.Offerings {
 	r.called = true
 	baseOfferings := make([]*corecloudprovider.Offering, len(offerings))
