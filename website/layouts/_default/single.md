@@ -4,10 +4,9 @@
   body. RenderShortcodes resolves Hugo shortcodes (e.g. script, ref) in place
   while leaving the surrounding markdown intact.
 */ -}}
+
 # {{ .Title }}
 {{ with .Description }}
 > {{ . }}
-{{ end }}
-Source: {{ .Permalink | replaceRE `index\.md$` "" }}
-
+> {{ end }}
 {{- with .File }}{{ $.RenderShortcodes }}{{ end }}
