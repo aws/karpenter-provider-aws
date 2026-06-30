@@ -66,6 +66,8 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/offering"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
 
@@ -3428,6 +3430,49 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(previewIT.Offerings.Available()).To(HaveLen(0))
 		})
 	})
+	Context("Offering Resolvers", func() {
+		It("should call additional resolvers registered via variadic param", func() {
+			resolver := &fakeOfferingResolver{
+				resourceName: corev1.ResourceName("test.com/extended-slots"),
+				slotCount:    4,
+			}
+			// Create a new provider with the additional resolver
+			provider := instancetype.NewDefaultProvider(
+				awsEnv.InstanceTypeCache,
+				awsEnv.OfferingCache,
+				awsEnv.DiscoveredCapacityCache,
+				awsEnv.EC2API,
+				awsEnv.SubnetProvider,
+				awsEnv.PricingProvider,
+				awsEnv.CapacityReservationProvider,
+				awsEnv.PlacementGroupProvider,
+				awsEnv.UnavailableOfferingsCache,
+				awsEnv.InstanceTypesResolver,
+				awsEnv.ZonalShiftProvider,
+				env.Client,
+				resolver,
+			)
+			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			nodeClass := &v1.EC2NodeClass{Status: v1.EC2NodeClassStatus{Subnets: []v1.Subnet{{ID: "subnet-test", Zone: "us-east-1a", ZoneID: "use1-az1"}}}}
+			nodeClass.StatusConditions().SetTrue(status.ConditionReady)
+			instanceTypes, err := provider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+			Expect(resolver.called).To(BeTrue(), "additional resolver should be called during List")
+
+			// Verify at least one instance type has offerings with the extended resource override
+			extendedResource := corev1.ResourceName("test.com/extended-slots")
+			Expect(lo.SomeBy(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return lo.SomeBy(it.Offerings, func(o *corecloudprovider.Offering) bool {
+					qty, exists := o.CapacityOverride[extendedResource]
+					return exists && qty.Value() == 4
+				})
+			})).To(BeTrue(), "expected at least one offering with CapacityOverride from the registered resolver")
+		})
+	})
+
 })
 
 func ExpectSameInstanceTypeLists(instanceTypesLists ...[]*corecloudprovider.InstanceType) {
@@ -3518,4 +3563,38 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *karpv1.NodeP
 		}
 	}
 	return rsp
+}
+
+// fakeOfferingResolver is a test resolver that appends offerings with a CapacityOverride.
+type fakeOfferingResolver struct {
+	called       bool
+	resourceName corev1.ResourceName
+	slotCount    int
+}
+
+func (r *fakeOfferingResolver) ResolveOfferings(
+	_ context.Context,
+	_ *corecloudprovider.InstanceType,
+	offerings corecloudprovider.Offerings,
+	_ ec2types.InstanceTypeInfo,
+	_ offering.NodeClass,
+	_ sets.Set[string],
+	_ sets.Set[string],
+	_ *placementgroup.PlacementGroup,
+) corecloudprovider.Offerings {
+	r.called = true
+	baseOfferings := make([]*corecloudprovider.Offering, len(offerings))
+	copy(baseOfferings, offerings)
+	for _, o := range baseOfferings {
+		if len(o.CapacityOverride) > 0 || o.OverheadOverride != nil {
+			continue
+		}
+		offerings = append(offerings, &corecloudprovider.Offering{
+			Requirements:     o.Requirements,
+			Price:            o.Price,
+			Available:        o.Available,
+			CapacityOverride: corev1.ResourceList{r.resourceName: *resource.NewQuantity(int64(r.slotCount), resource.DecimalSI)},
+		})
+	}
+	return offerings
 }
