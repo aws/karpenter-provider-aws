@@ -82,13 +82,14 @@ func (d *DefaultResolver) CacheKey(nodeClass NodeClass) string {
 	capacityReservationHash, _ := hashstructure.Hash(nodeClass.CapacityReservations(), hashstructure.FormatV2, nil)
 	networkInterfaceHash, _ := hashstructure.Hash(nodeClass.NetworkInterfaces(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	return fmt.Sprintf(
-		"%016x-%016x-%016x-%016x-%s-%s",
+		"%016x-%016x-%016x-%016x-%s-%s-%t",
 		kcHash,
 		blockDeviceMappingsHash,
 		capacityReservationHash,
 		networkInterfaceHash,
 		lo.FromPtr((*string)(nodeClass.InstanceStorePolicy())),
 		nodeClass.AMIFamily(),
+		lo.FromPtr(nodeClass.EnablePrefixDelegation()),
 	)
 }
 
@@ -120,6 +121,7 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 		lo.Filter(nodeClass.CapacityReservations(), func(cr v1.CapacityReservation, _ int) bool {
 			return cr.InstanceType == string(info.InstanceType)
 		}),
+		lo.FromPtr(nodeClass.EnablePrefixDelegation()),
 	)
 }
 
@@ -140,15 +142,16 @@ func NewInstanceType(
 	evictionSoft map[string]string,
 	amiFamilyType string,
 	capacityReservations []v1.CapacityReservation,
+	enablePrefixDelegation bool,
 ) *cloudprovider.InstanceType {
 	amiFamily := amifamily.GetAMIFamily(amiFamilyType, &amifamily.Options{})
 	it := &cloudprovider.InstanceType{
 		Name:         string(info.InstanceType),
 		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, capacityReservations),
-		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, networkInterfaces, maxPods, podsPerCore),
+		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, networkInterfaces, maxPods, podsPerCore, enablePrefixDelegation),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved: kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead,
-				ENILimitedPods(ctx, info, 0, networkInterfaces), pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces)), kubeReserved),
+				ENILimitedPods(ctx, info, 0, networkInterfaces, enablePrefixDelegation), pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces, enablePrefixDelegation)), kubeReserved),
 			SystemReserved:    systemReservedResources(systemReserved),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), evictionHard),
 		},
@@ -331,13 +334,13 @@ func getArchitecture(info ec2types.InstanceTypeInfo) string {
 
 func computeCapacity(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 	blockDeviceMapping []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy,
-	networkInterfaces []*v1.NetworkInterface, maxPods *int32, podsPerCore *int32) corev1.ResourceList {
+	networkInterfaces []*v1.NetworkInterface, maxPods *int32, podsPerCore *int32, enablePrefixDelegation bool) corev1.ResourceList {
 
 	resourceList := corev1.ResourceList{
 		corev1.ResourceCPU:              *cpu(info),
 		corev1.ResourceMemory:           *memory(ctx, info),
 		corev1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, blockDeviceMapping, instanceStorePolicy),
-		corev1.ResourcePods:             *pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces),
+		corev1.ResourcePods:             *pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces, enablePrefixDelegation),
 		v1.ResourceAWSPodENI:            *awsPodENI(string(info.InstanceType)),
 		v1.ResourceNVIDIAGPU:            *nvidiaGPUs(info),
 		v1.ResourceAMDGPU:               *amdGPUs(info),
@@ -482,7 +485,7 @@ func efas(info ec2types.InstanceTypeInfo, networkInterfaces []*v1.NetworkInterfa
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo, reservedENIs int, ncNetworkInterfaces []*v1.NetworkInterface) *resource.Quantity {
+func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo, reservedENIs int, ncNetworkInterfaces []*v1.NetworkInterface, enablePrefixDelegation bool) *resource.Quantity {
 	// The number of pods per node is calculated using the formula:
 	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 	// https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/eni-max-pods.txt
@@ -501,7 +504,13 @@ func ENILimitedPods(ctx context.Context, info ec2types.InstanceTypeInfo, reserve
 		return resource.NewQuantity(0, resource.DecimalSI)
 	}
 	addressesPerInterface := *info.NetworkInfo.Ipv4AddressesPerInterface
-	return resources.Quantity(fmt.Sprint(usableNetworkInterfaces*(int64(addressesPerInterface)-1) + 2))
+	availableAddresses := usableNetworkInterfaces * (int64(addressesPerInterface) - 1)
+	// With prefix delegation, each usable IPv4 slot on a Nitro instance delegates a /28 prefix (16 addresses).
+	// Prefix delegation is only supported on Nitro instances.
+	if enablePrefixDelegation && info.Hypervisor == ec2types.InstanceTypeHypervisorNitro {
+		availableAddresses *= 16
+	}
+	return resources.Quantity(fmt.Sprint(availableAddresses + 2))
 }
 
 func privateIPv4Address(instanceTypeName string) *resource.Quantity {
@@ -573,13 +582,13 @@ func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, ev
 	return lo.Assign(overhead, override)
 }
 
-func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, maxPods *int32, podsPerCore *int32, ncNetworkInterfaces []*v1.NetworkInterface) *resource.Quantity {
+func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, maxPods *int32, podsPerCore *int32, ncNetworkInterfaces []*v1.NetworkInterface, enablePrefixDelegation bool) *resource.Quantity {
 	var count int64
 	switch {
 	case maxPods != nil:
 		count = int64(lo.FromPtr(maxPods))
 	case amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
-		count = ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs, ncNetworkInterfaces).Value()
+		count = ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs, ncNetworkInterfaces, enablePrefixDelegation).Value()
 	default:
 		count = 110
 
