@@ -118,6 +118,15 @@ Events:
 Using preferred anti-affinity and topology spreads can reduce the effectiveness of consolidation. At node launch, Karpenter attempts to satisfy affinity and topology spread preferences. In order to reduce node churn, consolidation must also attempt to satisfy these constraints to avoid immediately consolidating nodes after they launch. This means that consolidation may not disrupt nodes in order to avoid violating preferences, even if kube-scheduler can fit the host pods elsewhere.  Karpenter reports these pods via logging to bring awareness to the possible issues they can cause (e.g. `pod default/inflate-anti-self-55894c5d8b-522jd has a preferred Anti-Affinity which can prevent consolidation`).
 {{% /alert %}}
 
+{{% alert title="Note" color="primary" %}}
+Pod anti-affinity (like topology spread) is a **scheduling** constraint, and its two strengths affect consolidation differently:
+
+- **`required`** (`requiredDuringSchedulingIgnoredDuringExecution`) anti-affinity does **not** exempt a node from voluntary consolidation. Karpenter's consolidation simulation honors the constraint, but the node remains eligible as long as its pods can be rescheduled somewhere that still satisfies it — a `required` anti-affinity only constrains *where* an evicted pod may land, not whether its current node may be consolidated.
+- **`preferred`** (`preferredDuringSchedulingIgnoredDuringExecution`) anti-affinity and topology spread behave as the warning above describes: Karpenter attempts to honor them during consolidation and may decline to disrupt a node to avoid violating them, which *reduces* — but does not guarantee against — consolidation.
+
+In neither case should anti-affinity be relied on as a *disruption* control. To prevent a workload from being voluntarily disrupted, use a [`PodDisruptionBudget`](https://kubernetes.io/docs/tasks/run-application/configure-pdb/), the [`karpenter.sh/do-not-disrupt`]({{<ref "#pod-level-controls" >}}) annotation, or place the workload in its own NodePool. This matters most when a fixed-size workload shares a `WhenEmptyOrUnderutilized` NodePool with an autoscaling workload (for example, one driven by HPA or KEDA): the autoscaler continually changes the pool's free capacity, which continually creates consolidation opportunities for the fixed workload's nodes — using `required` anti-affinity to keep the two on separate nodes does not prevent this.
+{{% /alert %}}
+
 #### Spot consolidation
 For spot nodes, Karpenter has deletion consolidation enabled by default. If you would like to enable replacement with spot consolidation, you need to enable the feature through the [`SpotToSpotConsolidation` feature flag]({{<ref "../reference/settings#features-gates" >}}).
 
