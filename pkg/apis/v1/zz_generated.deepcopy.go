@@ -358,6 +358,11 @@ func (in *EC2NodeClassSpec) DeepCopyInto(out *EC2NodeClassSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.EnablePrefixDelegation != nil {
+		in, out := &in.EnablePrefixDelegation, &out.EnablePrefixDelegation
+		*out = new(bool)
+		**out = **in
+	}
 	if in.AMISelectorTerms != nil {
 		in, out := &in.AMISelectorTerms, &out.AMISelectorTerms
 		*out = make([]AMISelectorTerm, len(*in))
