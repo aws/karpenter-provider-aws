@@ -85,7 +85,15 @@ spec:
 
 ### Consolidation
 
-Consolidation is configured by `consolidationPolicy` and `consolidateAfter`. `consolidationPolicy` determines the pre-conditions for nodes to be considered consolidatable, and are `WhenEmpty` or `WhenEmptyOrUnderutilized`. If a node has no running non-daemon pods, it is considered empty.  `consolidateAfter` can be set to indicate how long Karpenter should wait after a pod schedules or is removed from the node before considering the node consolidatable. With `WhenEmptyOrUnderutilized`, Karpenter will consider a node consolidatable when its `consolidateAfter` has been reached, empty or not.
+Consolidation is configured by `consolidationPolicy` and `consolidateAfter`. `consolidationPolicy` determines which nodes Karpenter considers for consolidation, trading off cost savings against how much Karpenter disrupts your running pods to achieve them:
+
+| Policy | Nodes it considers | Choose it when |
+|---|---|---|
+| `WhenEmpty` | Only empty nodes (a node is empty when it has only pods with no disruption cost, such as daemonsets or user overrides) | You want the most conservative behavior: nodes are removed only once nothing is running on them, so consolidation never evicts a running pod. |
+| `Balanced` | Nodes where the cost savings outweigh the disruption to running pods | You want most of the savings of `WhenEmptyOrUnderutilized` but not the churn from marginal, low-value consolidations. Karpenter still removes empty and clearly-underutilized nodes, but skips actions where the disruption isn't worth the savings. See [Balanced consolidation]({{<ref "#balanced-consolidation" >}}). |
+| `WhenEmptyOrUnderutilized` | Any node that can be removed or replaced to reduce cost | You want the lowest possible cost and are willing to accept the pod disruption it takes to get there. |
+
+`consolidateAfter` determines how long Karpenter should wait for new work to land on a node before considering it in consolidation. Karpenter resets this timer whenever a pod is added to or removed from the node, so a node only becomes a consolidation candidate once it has been stable for the full `consolidateAfter` duration. Setting a longer value gives churning workloads time to settle and reduces how aggressively Karpenter consolidates; setting it to `Never` disables consolidation for the NodePool entirely.
 
 Karpenter has two mechanisms for cluster consolidation:
 1. **Deletion** - A node is eligible for deletion if all of its pods can run on free capacity of other nodes in the cluster.
@@ -117,6 +125,20 @@ Events:
 {{% alert title="Warning" color="warning" %}}
 Using preferred anti-affinity and topology spreads can reduce the effectiveness of consolidation. At node launch, Karpenter attempts to satisfy affinity and topology spread preferences. In order to reduce node churn, consolidation must also attempt to satisfy these constraints to avoid immediately consolidating nodes after they launch. This means that consolidation may not disrupt nodes in order to avoid violating preferences, even if kube-scheduler can fit the host pods elsewhere.  Karpenter reports these pods via logging to bring awareness to the possible issues they can cause (e.g. `pod default/inflate-anti-self-55894c5d8b-522jd has a preferred Anti-Affinity which can prevent consolidation`).
 {{% /alert %}}
+
+#### Balanced consolidation
+
+`Balanced` scores each consolidation action by weighing how much of the NodePool's cost it saves against how much of the NodePool's total pod disruption it causes, and takes the action only when the savings are large enough relative to the disruption.
+
+```yaml
+spec:
+  disruption:
+    consolidationPolicy: Balanced
+```
+
+By default every pod contributes an equal weight to disruption, so an action's disruption is effectively the number of pods it evicts, and scoring reduces to a comparison of savings against pod count. Pods that are more expensive to move can carry more weight — for example, higher-priority pods count as more disruptive — which makes their node less likely to be consolidated.
+
+Karpenter records each scoring decision so you can see why an action was or wasn't taken. Approved actions emit a `ConsolidationApproved` event (on the NodeClaim for single-node actions, on the NodePool for multi-node actions) that includes the score and the savings and disruption percentages. Scoring decisions are also exported as the `karpenter_consolidation_score` and `karpenter_consolidation_moves_total` [metrics]({{<ref "../reference/metrics" >}}), labeled by decision, NodePool, and policy, and logged at `--log-level debug`.
 
 #### Spot consolidation
 For spot nodes, Karpenter has deletion consolidation enabled by default. If you would like to enable replacement with spot consolidation, you need to enable the feature through the [`SpotToSpotConsolidation` feature flag]({{<ref "../reference/settings#features-gates" >}}).
