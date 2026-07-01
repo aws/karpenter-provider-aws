@@ -123,8 +123,9 @@ spec:
   disruption:
     # Describes which types of Nodes Karpenter should consider for consolidation
     # If using 'WhenEmptyOrUnderutilized', Karpenter will consider all nodes for consolidation and attempt to remove or replace Nodes when it discovers that the Node is empty or underutilized and could be changed to reduce cost
+    # If using 'Balanced', Karpenter considers the same nodes as 'WhenEmptyOrUnderutilized' but only consolidates when the estimated savings are worth the disruption to running pods
     # If using `WhenEmpty`, Karpenter will only consider nodes for consolidation that contain no workload pods
-    consolidationPolicy: WhenEmptyOrUnderutilized | WhenEmpty
+    consolidationPolicy: WhenEmptyOrUnderutilized | Balanced | WhenEmpty
 
     # The amount of time Karpenter should wait to consolidate a node after a pod has been added or removed from the node.
     # You can choose to disable consolidation entirely by setting the string value 'Never' here
