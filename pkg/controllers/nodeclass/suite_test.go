@@ -330,6 +330,23 @@ var _ = Describe("NodeClass Termination", func() {
 		Expect(awsEnv.IAMAPI.DeleteInstanceProfileBehavior.Calls()).To(BeZero())
 		Expect(awsEnv.IAMAPI.RemoveRoleFromInstanceProfileBehavior.Calls()).To(BeZero())
 	})
+	It("should skip legacy instance profile cleanup when the synthesized name is not IAM-valid", func() {
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{ClusterName: lo.ToPtr("aws:12345678910:eu-central-1:kubernetes")}))
+
+		nodeClass.Spec.Role = ""
+		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		ExpectNotFound(ctx, env.Client, nodeClass)
+
+		Expect(awsEnv.IAMAPI.GetInstanceProfileBehavior.Calls()).To(BeZero())
+		Expect(awsEnv.IAMAPI.DeleteInstanceProfileBehavior.Calls()).To(BeZero())
+		Expect(awsEnv.IAMAPI.RemoveRoleFromInstanceProfileBehavior.Calls()).To(BeZero())
+	})
 	It("should skip instance profile cleanup in isolated VPCs", func() {
 		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{IsolatedVPC: lo.ToPtr(true)}))
 
