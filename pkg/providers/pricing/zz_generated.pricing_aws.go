@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2026-06-15T15:13:55Z for us-east-1
+// generated at 2026-07-03T19:44:09Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -151,6 +151,14 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		// c8ine family
 		"c8ine.12xlarge": 4.082400, "c8ine.2xlarge": 0.680400, "c8ine.4xlarge": 1.360800, "c8ine.8xlarge": 2.721600,
 		"c8ine.large": 0.170100, "c8ine.xlarge": 0.340200,
+		// c9g family
+		"c9g.12xlarge": 2.086560, "c9g.16xlarge": 2.782080, "c9g.24xlarge": 4.173120, "c9g.2xlarge": 0.347760,
+		"c9g.48xlarge": 8.346240, "c9g.4xlarge": 0.695520, "c9g.8xlarge": 1.391040, "c9g.large": 0.086940,
+		"c9g.medium": 0.043470, "c9g.metal-48xl": 9.180860, "c9g.xlarge": 0.173880,
+		// c9gd family
+		"c9gd.12xlarge": 2.563200, "c9gd.16xlarge": 3.417600, "c9gd.24xlarge": 5.126400, "c9gd.2xlarge": 0.427200,
+		"c9gd.48xlarge": 10.252800, "c9gd.4xlarge": 0.854400, "c9gd.8xlarge": 1.708800, "c9gd.large": 0.106800,
+		"c9gd.medium": 0.053400, "c9gd.metal-48xl": 11.278080, "c9gd.xlarge": 0.213600,
 		// cr1 family
 		"cr1.8xlarge": 3.500000,
 		// d2 family
