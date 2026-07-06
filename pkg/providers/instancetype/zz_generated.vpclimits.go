@@ -20241,4 +20241,849 @@ var Limits = map[string]*VPCLimits{
 		Hypervisor:  "nitro",
 		IsBareMetal: false,
 	},
+	"c7g-flex.2xlarge": {
+		Interface:               4,
+		IPv4PerInterface:        15,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         18,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 4,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"c7g-flex.4xlarge": {
+		Interface:               8,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         34,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 8,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"c7g-flex.8xlarge": {
+		Interface:               8,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         54,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 8,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"c7g-flex.large": {
+		Interface:               3,
+		IPv4PerInterface:        10,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         3,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 3,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"c7g-flex.medium": {
+		Interface:               2,
+		IPv4PerInterface:        4,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         1,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 2,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"c7g-flex.xlarge": {
+		Interface:               4,
+		IPv4PerInterface:        15,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         8,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 4,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"c8g-flex.12xlarge": {
+		Interface:               8,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         54,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 8,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"c8g-flex.16xlarge": {
+		Interface:               15,
+		IPv4PerInterface:        50,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         47,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 15,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"c8g-flex.2xlarge": {
+		Interface:               4,
+		IPv4PerInterface:        15,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         18,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 4,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"c8g-flex.4xlarge": {
+		Interface:               8,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         34,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 8,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"c8g-flex.8xlarge": {
+		Interface:               8,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         54,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 8,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"c8g-flex.large": {
+		Interface:               3,
+		IPv4PerInterface:        10,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         3,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 3,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"c8g-flex.medium": {
+		Interface:               2,
+		IPv4PerInterface:        4,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         1,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 2,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"c8g-flex.xlarge": {
+		Interface:               4,
+		IPv4PerInterface:        15,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         8,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 4,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"g7.12xlarge": {
+		Interface:               12,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         110,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 12,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"g7.24xlarge": {
+		Interface:               24,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         98,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 24,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"g7.2xlarge": {
+		Interface:               4,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         38,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 4,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"g7.48xlarge": {
+		Interface:               24,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         98,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 12,
+				NetworkCardIndex:         0,
+			},
+
+			{
+				MaximumNetworkInterfaces: 12,
+				NetworkCardIndex:         1,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"g7.4xlarge": {
+		Interface:               8,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         54,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 8,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"g7.8xlarge": {
+		Interface:               10,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         82,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 10,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m7g-flex.2xlarge": {
+		Interface:               4,
+		IPv4PerInterface:        15,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         18,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 4,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m7g-flex.4xlarge": {
+		Interface:               8,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         34,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 8,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m7g-flex.8xlarge": {
+		Interface:               8,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         54,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 8,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m7g-flex.large": {
+		Interface:               3,
+		IPv4PerInterface:        10,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         3,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 3,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m7g-flex.medium": {
+		Interface:               2,
+		IPv4PerInterface:        4,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         1,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 2,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m7g-flex.xlarge": {
+		Interface:               4,
+		IPv4PerInterface:        15,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         8,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 4,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m8g-flex.12xlarge": {
+		Interface:               8,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         54,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 8,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m8g-flex.16xlarge": {
+		Interface:               15,
+		IPv4PerInterface:        50,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         47,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 15,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m8g-flex.2xlarge": {
+		Interface:               4,
+		IPv4PerInterface:        15,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         18,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 4,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m8g-flex.4xlarge": {
+		Interface:               8,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         34,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 8,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m8g-flex.8xlarge": {
+		Interface:               8,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         54,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 8,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m8g-flex.large": {
+		Interface:               3,
+		IPv4PerInterface:        10,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         3,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 3,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m8g-flex.medium": {
+		Interface:               2,
+		IPv4PerInterface:        4,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         1,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 2,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m8g-flex.xlarge": {
+		Interface:               4,
+		IPv4PerInterface:        15,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         8,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 4,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9g.12xlarge": {
+		Interface:               12,
+		IPv4PerInterface:        50,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         50,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 12,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9g.16xlarge": {
+		Interface:               16,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         106,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 16,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9g.24xlarge": {
+		Interface:               24,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         98,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 24,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9g.2xlarge": {
+		Interface:               4,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         38,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 4,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9g.48xlarge": {
+		Interface:               24,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         98,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 24,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9g.4xlarge": {
+		Interface:               8,
+		IPv4PerInterface:        50,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         54,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 8,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9g.8xlarge": {
+		Interface:               10,
+		IPv4PerInterface:        50,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         52,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 10,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9g.large": {
+		Interface:               3,
+		IPv4PerInterface:        20,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         9,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 3,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9g.medium": {
+		Interface:               2,
+		IPv4PerInterface:        20,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         4,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 2,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9g.metal-48xl": {
+		Interface:               24,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         98,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 24,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "",
+		IsBareMetal: true,
+	},
+	"m9g.xlarge": {
+		Interface:               4,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         18,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 4,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9gd.12xlarge": {
+		Interface:               12,
+		IPv4PerInterface:        50,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         50,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 12,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9gd.16xlarge": {
+		Interface:               16,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         106,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 16,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9gd.24xlarge": {
+		Interface:               24,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         98,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 24,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9gd.2xlarge": {
+		Interface:               4,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         38,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 4,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9gd.48xlarge": {
+		Interface:               24,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         98,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 24,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9gd.4xlarge": {
+		Interface:               8,
+		IPv4PerInterface:        50,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         54,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 8,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9gd.8xlarge": {
+		Interface:               10,
+		IPv4PerInterface:        50,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         52,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 10,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9gd.large": {
+		Interface:               3,
+		IPv4PerInterface:        20,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         9,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 3,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9gd.medium": {
+		Interface:               2,
+		IPv4PerInterface:        20,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         4,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 2,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
+	"m9gd.metal-48xl": {
+		Interface:               24,
+		IPv4PerInterface:        64,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         98,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 24,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "",
+		IsBareMetal: true,
+	},
+	"m9gd.xlarge": {
+		Interface:               4,
+		IPv4PerInterface:        30,
+		IsTrunkingCompatible:    true,
+		BranchInterface:         18,
+		DefaultNetworkCardIndex: 0,
+		NetworkCards: []NetworkCard{
+			{
+				MaximumNetworkInterfaces: 4,
+				NetworkCardIndex:         0,
+			},
+		},
+		Hypervisor:  "nitro",
+		IsBareMetal: false,
+	},
 }
