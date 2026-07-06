@@ -6,14 +6,26 @@
   subsections become headings; deeper nesting is walked recursively by the
   llms-pages.txt partial (kept as .txt so plain-text output isn't HTML-escaped).
 */ -}}
+{{- $latest := printf "v%s.%s" (index (split site.Params.latest_release_version ".") 0) (index (split site.Params.latest_release_version ".") 1) -}}
 # {{ site.Title }}
 
 > {{ site.Params.description }}
 
 {{ with site.GetPage "/docs" -}}
-## Documentation
 {{ range .Sections.ByWeight }}
-### {{ .Title }}
+## {{ .Title }}
 {{- partial "llms-pages.txt" (dict "section" . "depth" 0) }}
 {{ end }}
+{{- end }}
+
+## Versions
+
+The links above point at the current stable release ({{ $latest }}), served under the `/docs/` path. The same documentation is archived for other releases under a version-prefixed path. To read any page for a specific version, replace the `/docs/` prefix in its URL with the version prefix below (and append `index.md` for the Markdown form).
+
+Available versions:
+- `/docs/` — current stable release ({{ $latest }})
+{{- range site.Params.versions }}
+{{- if ne . "preview" }}
+- `/{{ . }}/` — the {{ . }} release
+{{- end }}
 {{- end }}
