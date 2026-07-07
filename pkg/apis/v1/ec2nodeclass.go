@@ -266,6 +266,8 @@ type AMISelectorTerm struct {
 	// +optional
 	Owner string `json:"owner,omitempty"`
 	//SSMParameter is the name (or ARN) of the SSM parameter containing the Image ID.
+	// The placeholder {kubernetesVersion} can be used and will be replaced with the effective
+	// Kubernetes version (e.g. "/aws/service/eks/optimized-ami/{kubernetesVersion}/amazon-linux-2023/x86_64/standard/recommended/image_id").
 	// +optional
 	SSMParameter string `json:"ssmParameter,omitempty"`
 }

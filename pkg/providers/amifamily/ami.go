@@ -115,19 +115,20 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 		case term.ID != "":
 			idFilter.Values = append(idFilter.Values, term.ID)
 		case term.SSMParameter != "":
+			ssmParam := interpolateVersionPlaceholder(term.SSMParameter, p.versionProvider.Get(ctx))
 			imageID, err := p.ssmProvider.Get(ctx, ssm.Parameter{
-				Name: term.SSMParameter,
+				Name: ssmParam,
 				Type: ssm.CustomParameterType,
 			})
 			if err != nil {
 				if !errors.IsNotFound(err) {
 					return []DescribeImageQuery{}, fmt.Errorf("resolving ssm parameter, %w", err)
 				}
-				log.FromContext(ctx).WithValues("ssmParameter", term.SSMParameter).V(1).Error(err, "parameter not found")
+				log.FromContext(ctx).WithValues("ssmParameter", ssmParam).V(1).Error(err, "parameter not found")
 				continue
 			}
 			if !strings.HasPrefix(imageID, "ami-") {
-				log.FromContext(ctx).WithValues("ssmParameter", term.SSMParameter, "id", imageID).V(1).Error(nil, "parameter value is an invalid AMI ID")
+				log.FromContext(ctx).WithValues("ssmParameter", ssmParam, "id", imageID).V(1).Error(nil, "parameter value is an invalid AMI ID")
 				continue
 			}
 			idFilter.Values = append(idFilter.Values, imageID)
@@ -265,4 +266,12 @@ func compareAMI(i, j AMI) int {
 	}
 	// If all attributes are are equal, both AMIs are exactly identical
 	return 0
+}
+
+// interpolateVersionPlaceholder replaces the placeholder {kubernetesVersion} in an SSM parameter
+// path with the effective Kubernetes version. Curly braces are not valid characters in SSM
+// parameter names (only a-zA-Z0-9_.-/ are allowed), so this placeholder cannot conflict with
+// real parameter paths.
+func interpolateVersionPlaceholder(ssmParameter, kubernetesVersion string) string {
+	return strings.ReplaceAll(ssmParameter, "{kubernetesVersion}", kubernetesVersion)
 }

@@ -1183,6 +1183,31 @@ var _ = Describe("AMIProvider", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(amis).To(HaveLen(0))
 		})
+		It("should resolve AMIs using SSM parameter with {kubernetesVersion} placeholder", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+				SSMParameter: "/aws/service/bottlerocket/aws-k8s-{kubernetesVersion}/x86_64/latest/image_id",
+			}}
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", k8sVersion): amd64AMI,
+			}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].AmiID).To(Equal(amd64AMI))
+		})
+		It("should not interpolate SSM parameters that do not contain the placeholder", func() {
+			customParameter := "/my/custom/ami/parameter"
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+				SSMParameter: customParameter,
+			}}
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				customParameter: amd64AMI,
+			}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].AmiID).To(Equal(amd64AMI))
+		})
 	})
 })
 
