@@ -197,6 +197,10 @@ spec:
             - name: SUBNET_REFRESH_INTERVAL
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.kubernetesVersion }}
+            - name: KUBERNETES_VERSION
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
