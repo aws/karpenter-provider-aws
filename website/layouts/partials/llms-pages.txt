@@ -1,0 +1,18 @@
+{{- /*
+  Recursively lists a section's pages for llms.txt. Emits each regular page as
+  a bullet, then recurses into subsections (linking the subsection's own
+  index.md and indenting its children) so nesting of any depth is captured.
+
+  Args (dict):
+    section — the section page to walk
+    depth   — current nesting depth (0 at the top level), drives indentation
+*/ -}}
+{{- $section := .section -}}
+{{- $indent := strings.Repeat .depth "  " -}}
+{{- range $section.RegularPages.ByWeight }}
+{{ $indent }}- [{{ .Title }}]({{ .Permalink | replaceRE `/$` "/index.md" }}){{ with .Description }}: {{ . | plainify | chomp | safeHTML }}{{ end }}
+{{- end -}}
+{{- range $section.Sections.ByWeight }}
+{{ $indent }}- [{{ .Title }}]({{ .Permalink | replaceRE `/$` "/index.md" }}){{ with .Description }}: {{ . | plainify | chomp | safeHTML }}{{ end }}
+{{- partial "llms-pages.txt" (dict "section" . "depth" (add $.depth 1)) -}}
+{{- end -}}
