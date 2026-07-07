@@ -23,9 +23,11 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -69,6 +71,10 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
+)
+
+const (
+	DefaultAWSSDKClientTimeout = 4 * time.Minute
 )
 
 func init() {
@@ -320,4 +326,9 @@ func SetupIndexers(ctx context.Context, mgr manager.Manager) {
 		}
 		return []string{id}
 	}), "failed to setup node instanceID indexer")
+}
+
+func NewAWSSDKHTTPClient() *awshttp.BuildableClient {
+	return awshttp.NewBuildableClient().
+		WithTimeout(DefaultAWSSDKClientTimeout)
 }
