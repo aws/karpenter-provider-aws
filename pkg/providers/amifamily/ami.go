@@ -144,7 +144,7 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 				}
 				query.Filters = append(query.Filters, ec2types.Filter{
 					Name:   aws.String("name"),
-					Values: []string{term.Name},
+					Values: []string{interpolateVersionPlaceholder(term.Name, p.versionProvider.Get(ctx))},
 				})
 
 			}
@@ -269,9 +269,11 @@ func compareAMI(i, j AMI) int {
 }
 
 // interpolateVersionPlaceholder replaces the placeholder {kubernetesVersion} in an SSM parameter
-// path with the effective Kubernetes version. Curly braces are not valid characters in SSM
-// parameter names (only a-zA-Z0-9_.-/ are allowed), so this placeholder cannot conflict with
-// real parameter paths.
+// path or AMI name filter with the effective Kubernetes version. Curly braces are not valid
+// characters in SSM parameter names (only a-zA-Z0-9_.-/ are allowed) or AMI names
+// (only alphanumeric, parentheses, square brackets, spaces, periods, slashes, dashes,
+// single quotes, at-signs, and underscores are allowed), so this placeholder cannot
+// conflict with real values.
 func interpolateVersionPlaceholder(ssmParameter, kubernetesVersion string) string {
 	return strings.ReplaceAll(ssmParameter, "{kubernetesVersion}", kubernetesVersion)
 }

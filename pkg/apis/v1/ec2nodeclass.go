@@ -259,6 +259,8 @@ type AMISelectorTerm struct {
 	ID string `json:"id,omitempty"`
 	// Name is the ami name in EC2.
 	// This value is the name field, which is different from the name tag.
+	// The placeholder {kubernetesVersion} can be used and will be replaced with the effective
+	// Kubernetes version (e.g. "my-ami-{kubernetesVersion}-*").
 	// +optional
 	Name string `json:"name,omitempty"`
 	// Owner is the owner for the ami.
