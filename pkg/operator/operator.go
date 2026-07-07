@@ -21,9 +21,11 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
@@ -69,6 +71,10 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
+)
+
+const (
+	DefaultAWSSDKClientTimeout = 4 * time.Minute
 )
 
 func init() {
@@ -375,4 +381,9 @@ func ValidateZonalShiftEnablement(ctx context.Context, eksAPI sdk.EKSAPI, arczon
 		return "", fmt.Errorf("cluster not registered to Zonal Shift %w", getManagedResourceErr)
 	}
 	return *clusterArn, nil
+}
+
+func NewAWSSDKHTTPClient() *awshttp.BuildableClient {
+	return awshttp.NewBuildableClient().
+		WithTimeout(DefaultAWSSDKClientTimeout)
 }
