@@ -7,6 +7,12 @@
   llms-pages.txt partial (kept as .txt so plain-text output isn't HTML-escaped).
 */ -}}
 {{- $latest := printf "v%s.%s" (index (split site.Params.latest_release_version ".") 0) (index (split site.Params.latest_release_version ".") 1) -}}
+{{- /* Prefer an absolute baseURL (deploy previews set one via -b); fall back to
+       the canonical production host so links resolve regardless of context. */ -}}
+{{- $base := site.Params.llms_base_url -}}
+{{- if or (hasPrefix site.BaseURL "http://") (hasPrefix site.BaseURL "https://") -}}
+{{- $base = strings.TrimSuffix "/" site.BaseURL -}}
+{{- end -}}
 # {{ site.Title }}
 
 > {{ site.Params.description }}
@@ -14,18 +20,18 @@
 {{ with site.GetPage "/docs" -}}
 {{ range .Sections.ByWeight }}
 ## {{ .Title }}
-{{- partial "llms-pages.txt" (dict "section" . "depth" 0) }}
+{{- partial "llms-pages.txt" (dict "section" . "depth" 0 "base" $base) }}
 {{ end }}
 {{- end }}
 
 ## Versions
 
-The links above point at the current stable release ({{ $latest }}), served under the `/docs/` path. The same documentation is archived for other releases under a version-prefixed path. To read any page for a specific version, replace the `/docs/` prefix in its URL with the version prefix below (and append `index.md` for the Markdown form).
+The links above point at the current stable release ({{ $latest }}), served under the `{{ $base }}/docs/` path. The same documentation is archived for other releases under a version-prefixed path. To read any page for a specific version, replace the `/docs/` prefix in its URL with the version prefix below (and append `index.md` for the Markdown form).
 
 Available versions:
-- `/docs/` — current stable release ({{ $latest }})
+- {{ $base }}/docs/ : current stable release ({{ $latest }})
 {{- range site.Params.versions }}
 {{- if ne . "preview" }}
-- `/{{ . }}/` — the {{ . }} release
+- {{ $base }}/{{ . }}/ : the {{ . }} release
 {{- end }}
 {{- end }}

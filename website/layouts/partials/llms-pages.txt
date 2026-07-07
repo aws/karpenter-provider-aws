@@ -6,13 +6,15 @@
   Args (dict):
     section — the section page to walk
     depth   — current nesting depth (0 at the top level), drives indentation
+    base    — absolute URL prefix (e.g. https://karpenter.sh) prepended to links
 */ -}}
 {{- $section := .section -}}
+{{- $base := .base -}}
 {{- $indent := strings.Repeat .depth "  " -}}
 {{- range $section.RegularPages.ByWeight }}
-{{ $indent }}- [{{ .Title }}]({{ .Permalink | replaceRE `/$` "/index.md" }}){{ with .Description }}: {{ . | plainify | chomp | safeHTML }}{{ end }}
+{{ $indent }}- [{{ .Title }}]({{ $base }}{{ .RelPermalink | replaceRE `/$` "/index.md" }}){{ with .Description }}: {{ . | plainify | chomp | safeHTML }}{{ end }}
 {{- end -}}
 {{- range $section.Sections.ByWeight }}
-{{ $indent }}- [{{ .Title }}]({{ .Permalink | replaceRE `/$` "/index.md" }}){{ with .Description }}: {{ . | plainify | chomp | safeHTML }}{{ end }}
-{{- partial "llms-pages.txt" (dict "section" . "depth" (add $.depth 1)) -}}
+{{ $indent }}- [{{ .Title }}]({{ $base }}{{ .RelPermalink | replaceRE `/$` "/index.md" }}){{ with .Description }}: {{ . | plainify | chomp | safeHTML }}{{ end }}
+{{- partial "llms-pages.txt" (dict "section" . "depth" (add $.depth 1) "base" $base) -}}
 {{- end -}}
