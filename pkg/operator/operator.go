@@ -103,7 +103,7 @@ type Operator struct {
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
-	cfg := prometheusv2.WithPrometheusMetrics(WithUserAgent(lo.Must(config.LoadDefaultConfig(ctx))), crmetrics.Registry)
+	cfg := prometheusv2.WithPrometheusMetrics(WithUserAgent(lo.Must(config.LoadDefaultConfig(ctx, config.WithHTTPClient(NewAWSSDKHTTPClient())))), crmetrics.Registry)
 	cfg.APIOptions = append(cfg.APIOptions, middleware.StructuredErrorHandler)
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
