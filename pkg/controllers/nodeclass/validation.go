@@ -297,7 +297,7 @@ func (v *Validation) validateRunInstancesAuthorization(
 	// failures on individual subnets are already handled by the early-exit-on-success pattern.
 	var firstSubnetErr error
 	for i, subnet := range nodeClass.Status.Subnets {
-		runInstancesInput := getRunInstancesInput(tags, launchTemplate, amifamily.ResolveNetworkInterfaces(nodeClass.Spec.NetworkInterfaces), &subnet)
+		runInstancesInput := getRunInstancesInput(tags, launchTemplate, amifamily.ResolveNetworkInterfaces(nodeClass.Spec.NetworkInterfaces), &subnet, nodeClass.Spec.MetadataOptions)
 		if _, err = v.ec2api.RunInstances(ctx, runInstancesInput, func(o *ec2.Options) {
 			// Adding NopRetryer to avoid aggressive retry when rate limited
 			o.Retryer = aws.NopRetryer{}
@@ -372,6 +372,7 @@ func getRunInstancesInput(
 	launchTemplate *launchtemplate.LaunchTemplate,
 	networkInterfaces []*amifamily.ResolvedNetworkInterface,
 	subnet *v1.Subnet,
+	metadataOptions *v1.MetadataOptions,
 ) *ec2.RunInstancesInput {
 	return &ec2.RunInstancesInput{
 		DryRun:   lo.ToPtr(true),
@@ -382,6 +383,7 @@ func getRunInstancesInput(
 			Version:            lo.ToPtr("$Latest"),
 		},
 		InstanceType:      ec2types.InstanceType(launchTemplate.InstanceTypes[0].Name),
+		MetadataOptions:   getMetadataOptionsInput(metadataOptions),
 		NetworkInterfaces: getNetworkInterfacesInput(networkInterfaces, subnet),
 		TagSpecifications: []ec2types.TagSpecification{
 			{
@@ -397,6 +399,23 @@ func getRunInstancesInput(
 				Tags:         utils.EC2MergeTags(tags),
 			},
 		},
+	}
+}
+
+// getMetadataOptionsInput maps the NodeClass metadata options onto the dry-run RunInstances request.
+// EC2 only populates the ec2:MetadataHttpTokens condition key from request-level MetadataOptions, not from
+// the referenced launch template, so without this the dry-run authorization check is denied by SCPs that
+// require IMDSv2. The values mirror those set on the launch template (see pkg/providers/launchtemplate).
+func getMetadataOptionsInput(metadataOptions *v1.MetadataOptions) *ec2types.InstanceMetadataOptionsRequest {
+	if metadataOptions == nil {
+		return nil
+	}
+	return &ec2types.InstanceMetadataOptionsRequest{
+		HttpEndpoint:     ec2types.InstanceMetadataEndpointState(lo.FromPtr(metadataOptions.HTTPEndpoint)),
+		HttpProtocolIpv6: ec2types.InstanceMetadataProtocolState(lo.FromPtr(metadataOptions.HTTPProtocolIPv6)),
+		//nolint:gosec
+		HttpPutResponseHopLimit: lo.ToPtr(int32(lo.FromPtr(metadataOptions.HTTPPutResponseHopLimit))),
+		HttpTokens:              ec2types.HttpTokensState(lo.FromPtr(metadataOptions.HTTPTokens)),
 	}
 }
 

@@ -299,6 +299,27 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
 		})
+		It("should set MetadataOptions on the RunInstances dry-run input so SCPs conditioned on ec2:MetadataHttpTokens are evaluated", func() {
+			// Non-default httpProtocolIPv6 and httpPutResponseHopLimit values confirm the configured
+			// options are plumbed onto the request rather than coinciding with the field defaults.
+			nodeClass.Spec.MetadataOptions = &v1.MetadataOptions{
+				HTTPTokens:              lo.ToPtr("required"),
+				HTTPEndpoint:            lo.ToPtr("enabled"),
+				HTTPProtocolIPv6:        lo.ToPtr("enabled"),
+				HTTPPutResponseHopLimit: lo.ToPtr(int64(2)),
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+
+			runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+			Expect(runInstancesInput.MetadataOptions).ToNot(BeNil())
+			Expect(runInstancesInput.MetadataOptions.HttpTokens).To(Equal(ec2types.HttpTokensStateRequired))
+			Expect(runInstancesInput.MetadataOptions.HttpEndpoint).To(Equal(ec2types.InstanceMetadataEndpointStateEnabled))
+			Expect(runInstancesInput.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2types.InstanceMetadataProtocolStateEnabled))
+			Expect(lo.FromPtr(runInstancesInput.MetadataOptions.HttpPutResponseHopLimit)).To(BeNumerically("==", 2))
+		})
 		Context("Windows AMI Validation", func() {
 			DescribeTable(
 				"should fallback to static instance types when windows ami is used",
