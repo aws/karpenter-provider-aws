@@ -165,6 +165,7 @@ Take care to ensure the label domains are correct. A well known label like `karp
 | karpenter.k8s.aws/instance-gpu-manufacturer                    | nvidia      | [AWS Specific] Name of the GPU manufacturer                                                                                                                     |
 | karpenter.k8s.aws/instance-gpu-count                           | 1           | [AWS Specific] Number of GPUs on the instance                                                                                                                   |
 | karpenter.k8s.aws/instance-gpu-memory                          | 16384       | [AWS Specific] Number of mebibytes of memory on the GPU                                                                                                         |
+| karpenter.k8s.aws/instance-gpu-fractional                      | true        | [AWS Specific] Whether the instance uses a fractional (partitioned) GPU. Set to "true" when GpuPartitionSize < 1.0, "false" when >= 1.0, absent when not applicable |
 | karpenter.k8s.aws/instance-local-nvme                          | 900         | [AWS Specific] Number of gibibytes of local nvme storage on the instance                                                                                        |
 | topology.k8s.aws/zone-id                                       | use1-az1             | [AWS Specific] Globally consistent [zone id](https://docs.aws.amazon.com/global-infrastructure/latest/regions/az-ids.html)                             |
 

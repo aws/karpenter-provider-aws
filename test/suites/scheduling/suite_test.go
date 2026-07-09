@@ -250,6 +250,7 @@ var _ = DescribeTableSubtree("Scheduling", Ordered, ContinueOnFailure, func(minV
 				v1.LabelInstanceGPUCount:        "1",
 			}
 			selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
+			selectors.Insert(v1.LabelInstanceGPUFractional) // Conditionally set on GPU instances with partition support; exercised here to ensure it is covered
 			requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {
 				return corev1.NodeSelectorRequirement{Key: key, Operator: corev1.NodeSelectorOpIn, Values: []string{value}}
 			})

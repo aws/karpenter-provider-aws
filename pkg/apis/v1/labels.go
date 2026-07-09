@@ -52,6 +52,7 @@ func init() {
 		LabelInstanceGPUManufacturer,
 		LabelInstanceGPUCount,
 		LabelInstanceGPUMemory,
+		LabelInstanceGPUFractional,
 		LabelInstanceAcceleratorName,
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
@@ -161,6 +162,7 @@ var (
 	LabelInstanceGPUManufacturer              = apis.Group + "/instance-gpu-manufacturer"
 	LabelInstanceGPUCount                     = apis.Group + "/instance-gpu-count"
 	LabelInstanceGPUMemory                    = apis.Group + "/instance-gpu-memory"
+	LabelInstanceGPUFractional                = apis.Group + "/instance-gpu-fractional"
 	LabelInstanceAcceleratorName              = apis.Group + "/instance-accelerator-name"
 	LabelInstanceAcceleratorManufacturer      = apis.Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"

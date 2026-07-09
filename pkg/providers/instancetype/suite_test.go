@@ -272,6 +272,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
 			v1.LabelCapacityReservationInterruptible,
+			// Fractional GPU label only present when GpuPartitionSize is set
+			v1.LabelInstanceGPUFractional,
 			// Placement group labels are only present when a placement group is configured on the NodeClass
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
@@ -338,6 +340,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					v1.LabelInstanceAcceleratorCount,
 					v1.LabelInstanceAcceleratorName,
 					v1.LabelInstanceAcceleratorManufacturer,
+					v1.LabelInstanceGPUFractional,
 					v1.LabelPlacementGroupID,
 					v1.LabelPlacementGroupPartition,
 					corev1.LabelWindowsBuild,
@@ -396,6 +399,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceGPUName,
 			v1.LabelInstanceGPUManufacturer,
 			v1.LabelInstanceGPUMemory,
+			v1.LabelInstanceGPUFractional,
 			v1.LabelInstanceLocalNVME,
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
@@ -787,6 +791,220 @@ var _ = Describe("InstanceTypeProvider", func() {
 			nodeNames.Insert(node.Name)
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
+	})
+	It("should use LogicalGpuCount for nvidia.com/gpu when available", func() {
+		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+			InstanceTypes: []ec2types.InstanceTypeInfo{
+				{
+					InstanceType: "g6f.xlarge",
+					ProcessorInfo: &ec2types.ProcessorInfo{
+						SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+					},
+					VCpuInfo: &ec2types.VCpuInfo{
+						DefaultCores: aws.Int32(2),
+						DefaultVCpus: aws.Int32(4),
+					},
+					MemoryInfo: &ec2types.MemoryInfo{
+						SizeInMiB: aws.Int64(16384),
+					},
+					GpuInfo: &ec2types.GpuInfo{
+						Gpus: []ec2types.GpuDeviceInfo{
+							{
+								Name:             aws.String("L4"),
+								Manufacturer:     aws.String("NVIDIA"),
+								Count:            aws.Int32(0),
+								LogicalGpuCount:  aws.Int32(1),
+								GpuPartitionSize: aws.Float64(0.125),
+								MemoryInfo: &ec2types.GpuDeviceMemoryInfo{
+									SizeInMiB: aws.Int32(2861),
+								},
+							},
+						},
+					},
+					NetworkInfo: &ec2types.NetworkInfo{
+						MaximumNetworkInterfaces:     aws.Int32(4),
+						Ipv4AddressesPerInterface:    aws.Int32(15),
+						EncryptionInTransitSupported: aws.Bool(true),
+						DefaultNetworkCardIndex:      aws.Int32(0),
+						NetworkCards: []ec2types.NetworkCardInfo{{
+							NetworkCardIndex:         aws.Int32(0),
+							MaximumNetworkInterfaces: aws.Int32(4),
+						}},
+					},
+					SupportedUsageClasses: fake.DefaultSupportedUsageClasses,
+					EbsInfo: &ec2types.EbsInfo{
+						EbsOptimizedSupport: "default",
+					},
+				},
+			},
+		})
+		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+			InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
+				{InstanceType: "g6f.xlarge", Location: aws.String("test-zone-1a")},
+			},
+		})
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"g6f.xlarge"},
+		})
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
+				Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "g6f.xlarge"))
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceGPUCount, "1"))
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceGPUFractional, "true"))
+	})
+	It("should fall back to Count when LogicalGpuCount is nil", func() {
+		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+			InstanceTypes: []ec2types.InstanceTypeInfo{
+				{
+					InstanceType: "g5.xlarge",
+					ProcessorInfo: &ec2types.ProcessorInfo{
+						SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+					},
+					VCpuInfo: &ec2types.VCpuInfo{
+						DefaultCores: aws.Int32(2),
+						DefaultVCpus: aws.Int32(4),
+					},
+					MemoryInfo: &ec2types.MemoryInfo{
+						SizeInMiB: aws.Int64(16384),
+					},
+					GpuInfo: &ec2types.GpuInfo{
+						Gpus: []ec2types.GpuDeviceInfo{
+							{
+								Name:         aws.String("A10G"),
+								Manufacturer: aws.String("NVIDIA"),
+								Count:        aws.Int32(1),
+								MemoryInfo: &ec2types.GpuDeviceMemoryInfo{
+									SizeInMiB: aws.Int32(24576),
+								},
+							},
+						},
+					},
+					NetworkInfo: &ec2types.NetworkInfo{
+						MaximumNetworkInterfaces:     aws.Int32(4),
+						Ipv4AddressesPerInterface:    aws.Int32(15),
+						EncryptionInTransitSupported: aws.Bool(true),
+						DefaultNetworkCardIndex:      aws.Int32(0),
+						NetworkCards: []ec2types.NetworkCardInfo{{
+							NetworkCardIndex:         aws.Int32(0),
+							MaximumNetworkInterfaces: aws.Int32(4),
+						}},
+					},
+					SupportedUsageClasses: fake.DefaultSupportedUsageClasses,
+					EbsInfo: &ec2types.EbsInfo{
+						EbsOptimizedSupport: "default",
+					},
+				},
+			},
+		})
+		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+			InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
+				{InstanceType: "g5.xlarge", Location: aws.String("test-zone-1a")},
+			},
+		})
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"g5.xlarge"},
+		})
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
+				Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "g5.xlarge"))
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceGPUCount, "1"))
+		Expect(node.Labels).ToNot(HaveKey(v1.LabelInstanceGPUFractional))
+	})
+	It("should set instance-gpu-fractional to false when GpuPartitionSize is 1.0", func() {
+		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+			InstanceTypes: []ec2types.InstanceTypeInfo{
+				{
+					InstanceType: "g6.xlarge",
+					ProcessorInfo: &ec2types.ProcessorInfo{
+						SupportedArchitectures: []ec2types.ArchitectureType{ec2types.ArchitectureTypeX8664},
+					},
+					VCpuInfo: &ec2types.VCpuInfo{
+						DefaultCores: aws.Int32(2),
+						DefaultVCpus: aws.Int32(4),
+					},
+					MemoryInfo: &ec2types.MemoryInfo{
+						SizeInMiB: aws.Int64(16384),
+					},
+					GpuInfo: &ec2types.GpuInfo{
+						Gpus: []ec2types.GpuDeviceInfo{
+							{
+								Name:             aws.String("L4"),
+								Manufacturer:     aws.String("NVIDIA"),
+								Count:            aws.Int32(1),
+								LogicalGpuCount:  aws.Int32(1),
+								GpuPartitionSize: aws.Float64(1.0),
+								MemoryInfo: &ec2types.GpuDeviceMemoryInfo{
+									SizeInMiB: aws.Int32(24576),
+								},
+							},
+						},
+					},
+					NetworkInfo: &ec2types.NetworkInfo{
+						MaximumNetworkInterfaces:     aws.Int32(4),
+						Ipv4AddressesPerInterface:    aws.Int32(15),
+						EncryptionInTransitSupported: aws.Bool(true),
+						DefaultNetworkCardIndex:      aws.Int32(0),
+						NetworkCards: []ec2types.NetworkCardInfo{{
+							NetworkCardIndex:         aws.Int32(0),
+							MaximumNetworkInterfaces: aws.Int32(4),
+						}},
+					},
+					SupportedUsageClasses: fake.DefaultSupportedUsageClasses,
+					EbsInfo: &ec2types.EbsInfo{
+						EbsOptimizedSupport: "default",
+					},
+				},
+			},
+		})
+		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+			InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
+				{InstanceType: "g6.xlarge", Location: aws.String("test-zone-1a")},
+			},
+		})
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"g6.xlarge"},
+		})
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
+				Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "g6.xlarge"))
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceGPUCount, "1"))
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceGPUFractional, "false"))
 	})
 	It("should launch instances for habana.ai/gaudi resource requests", func() {
 		nodeNames := sets.NewString()

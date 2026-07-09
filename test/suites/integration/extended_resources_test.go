@@ -80,6 +80,73 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectInitializedNodeCount("==", 1)
 	})
+	It("should provision nodes for a deployment that requests nvidia.com/gpu on fractional GPU instances (g6f)", func() {
+		ExpectNvidiaDevicePluginCreated()
+		numPods := 1
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "fractional-gpu-app"},
+				},
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						"nvidia.com/gpu": resource.MustParse("1"),
+					},
+					Limits: corev1.ResourceList{
+						"nvidia.com/gpu": resource.MustParse("1"),
+					},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      v1.LabelInstanceFamily,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"g6f"},
+		})
+		env.ExpectCreated(nodeClass, nodePool, dep)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceGPUFractional, "true"))
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceGPUCount, "1"))
+	})
+	It("should not provision fractional GPU instances when instance-gpu-fractional NotIn true", func() {
+		ExpectNvidiaDevicePluginCreated()
+		numPods := 1
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "full-gpu-app"},
+				},
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						"nvidia.com/gpu": resource.MustParse("1"),
+					},
+					Limits: corev1.ResourceList{
+						"nvidia.com/gpu": resource.MustParse("1"),
+					},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      v1.LabelInstanceCategory,
+			Operator: corev1.NodeSelectorOpExists,
+		})
+		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      v1.LabelInstanceGPUFractional,
+			Operator: corev1.NodeSelectorOpNotIn,
+			Values:   []string{"true"},
+		})
+		env.ExpectCreated(nodeClass, nodePool, dep)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
+		Expect(node.Labels).ToNot(HaveKeyWithValue(v1.LabelInstanceFamily, "g6f"))
+	})
 	It("should provision nodes for a deployment that requests nvidia.com/gpu (Bottlerocket)", func() {
 		// For Bottlerocket, we are testing that resources are initialized without needing a device plugin
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
