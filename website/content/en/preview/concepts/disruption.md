@@ -160,6 +160,40 @@ Behavioral Fields are treated as over-arching settings on the NodePool to dictat
 
 Read the [Drift Design](https://github.com/aws/karpenter-core/blob/main/designs/drift.md) for more.
 
+#### Topology-Aware Drift Ordering (DriftPolicy)
+
+By default, when a drift event affects many nodes at once (for example, an AMI update across an entire fleet), Karpenter fans out and starts disrupting nodes across all availability zones simultaneously. This maximises throughput but increases the blast radius: if the replacement AMI has a problem, many zones degrade at the same time.
+
+`spec.disruption.driftPolicy` lets you constrain that fan-out to one topology domain at a time.
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    driftPolicy:
+      topologyKey: topology.kubernetes.io/zone   # group nodes by availability zone
+      maxConcurrentPerDomain: "2"                # allow at most 2 replacements in-flight per zone
+```
+
+| Field | Description |
+|---|---|
+| `topologyKey` | The node label used to group nodes into domains (e.g. `topology.kubernetes.io/zone`). Required when `driftPolicy` is set. |
+| `maxConcurrentPerDomain` | Maximum number of nodes that may be simultaneously in-flight (deleting) within a single topology domain. Accepts a positive integer (e.g. `"1"`). Defaults to `1` when omitted. |
+
+**How it works:**
+
+- Karpenter picks the *active domain* — the topology domain that is already being disrupted (has in-flight deletions). If no domain is currently being disrupted, it picks the alphabetically first domain that has drifted nodes.
+- Within that domain, disruption proceeds normally subject to the `maxConcurrentPerDomain` ceiling and the existing [NodePool Disruption Budgets](#nodepool-disruption-budgets).
+- Nodes in other domains are held until the active domain finishes (all replacements are healthy and no longer in-flight).
+- Nodes that do not carry the `topologyKey` label are not subject to domain ordering and may be disrupted at any time.
+
+{{% alert title="Note" color="primary" %}}
+`driftPolicy` only affects the *order* in which drift disruptions are issued. It does not bypass [NodePool Disruption Budgets](#nodepool-disruption-budgets) — both constraints are enforced together. `driftPolicy` has no effect on Consolidation or Expiration.
+{{% /alert %}}
 
 Karpenter will add the `Drifted` status condition on NodeClaims if the NodeClaim is drifted from its owning NodePool. Karpenter will also remove the `Drifted` status condition if either:
 1. The `Drift` feature gate is not enabled but the NodeClaim is drifted, Karpenter will remove the status condition.
