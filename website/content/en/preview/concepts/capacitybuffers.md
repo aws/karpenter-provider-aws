@@ -91,7 +91,7 @@ The buffer reads the workload's `spec.template.spec` directly — no running pod
 
 ## spec.replicas
 
-Fixed number of buffer chunks to provision. When used with `percentage` or `limits`, the minimum is taken.
+Fixed number of buffer chunks to provision. When used with `percentage`, the **maximum** of the two is taken. `limits` then caps the result — the final count is `min(max(replicas, percentage), limits)`.
 
 ## spec.percentage
 
@@ -101,7 +101,7 @@ For example, if a Deployment has 10 replicas and `percentage` is 20, the buffer 
 
 ## spec.limits
 
-Resource constraints that cap the number of buffer chunks based on total resource requests. If no other constraints are set (`replicas` and `percentage` are both absent), limits alone determines how many chunks are created. When combined with other constraints, the minimum across all is used.
+Resource constraints that cap the number of buffer chunks based on total resource requests. If no other constraints are set (`replicas` and `percentage` are both absent), limits alone determines how many chunks are created. When combined with `replicas` and/or `percentage`, limits act as an upper bound on `max(replicas, percentage)`.
 
 ```yaml
 spec:
@@ -116,14 +116,15 @@ If each pod requests 2 CPU and 4Gi memory, this produces min(20/2, 40/4) = 10 bu
 
 ## Replica Calculation
 
-When multiple constraints are specified, the minimum across all of them is used:
+`replicas` and `percentage` are combined by taking the **maximum**, and `limits` then caps that value: `min(max(replicas, percentage), limits)`. If neither `replicas` nor `percentage` is set, `limits` alone determines how many chunks fit.
 
 | Configuration | Result |
 |---|---|
 | `replicas: 5` only | 5 |
 | `percentage: 20` with 10-replica Deployment | 2 |
+| `replicas: 5` + `percentage: 80` (10-replica Deployment) | 8 (max of 5, 8) |
 | `replicas: 10` + `limits: {cpu: 3}` (1 CPU per pod) | 3 (min of 10, 3) |
-| `replicas: 5` + `percentage: 20` (10-replica Deployment) | 2 (min of 5, 2) |
+| `replicas: 5` + `percentage: 80` + `limits: {cpu: 4}` (10-replica Deployment, 1 CPU per pod) | 4 (min of max(5, 8), 4) |
 | `limits: {cpu: 5}` only (1 CPU per pod) | 5 |
 
 ## Integration with Disruption
