@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
@@ -42,6 +43,7 @@ type DefaultProvider struct {
 	arcZonalShiftAPI sdk.ARCZonalShiftAPI
 	clk              clock.Clock
 	clusterArn       string
+	hydrated         atomic.Bool
 }
 
 type shiftStatus struct {
@@ -59,8 +61,6 @@ func NewProvider(client sdk.ARCZonalShiftAPI, clk clock.Clock, clusterArn string
 }
 
 func (p *DefaultProvider) UpdateZonalShifts(ctx context.Context) error {
-	p.Lock()
-	defer p.Unlock()
 
 	input := &arczonalshift.GetManagedResourceInput{ResourceIdentifier: &p.clusterArn}
 	result, err := p.arcZonalShiftAPI.GetManagedResource(ctx, input)
@@ -68,8 +68,9 @@ func (p *DefaultProvider) UpdateZonalShifts(ctx context.Context) error {
 		return fmt.Errorf("getting zonal shifts: %w", err)
 	}
 	activeZonalShifts := result.ZonalShifts
-	shiftStatuses := make(map[string]shiftStatus)
 
+	p.Lock()
+	shiftStatuses := make(map[string]shiftStatus)
 	for _, shift := range activeZonalShifts {
 		shiftStatuses[*shift.AwayFrom] = shiftStatus{
 			shiftExpiry: *shift.ExpiryTime,
@@ -84,6 +85,7 @@ func (p *DefaultProvider) UpdateZonalShifts(ctx context.Context) error {
 			p.zonalShiftStatuses[zone] = status
 		}
 	}
+	p.Unlock()
 	log.FromContext(ctx).V(1).Info(fmt.Sprintf("successfully updated zonal shifts %#v", shiftStatuses))
 	return nil
 }
@@ -94,7 +96,21 @@ func (p *DefaultProvider) Reset() {
 	p.zonalShiftStatuses = make(map[string]shiftStatus)
 }
 
+func (p *DefaultProvider) ensureHydrated(ctx context.Context) {
+	if p.hydrated.Load() {
+		return
+	}
+
+	if err := p.UpdateZonalShifts(ctx); err != nil {
+		log.FromContext(ctx).Error(err, "failed to hydrate zonal shift cache")
+		return
+	}
+	p.hydrated.Store(true)
+}
+
 func (p *DefaultProvider) IsZonalShifted(ctx context.Context, zoneId string) bool {
+	p.ensureHydrated(ctx)
+
 	p.RLock()
 	defer p.RUnlock()
 

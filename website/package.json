@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "devDependencies": {
     "ansi-regex": ">=6.2.2",
-    "autoprefixer": "^10.5.0",
-    "postcss": "^8.5.15",
+    "autoprefixer": "^10.5.2",
+    "postcss": "^8.5.16",
     "postcss-cli": "^11.0.1",
     "hugo-extended": "0.163.3"
   },

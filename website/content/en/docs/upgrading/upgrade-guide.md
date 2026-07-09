@@ -209,7 +209,9 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 {{% /alert %}}
 
 * Native ODCR support has graduated to beta and is enabled by default.
-  If you were previously using open ODCRs with Karpenter and have not already migrated to native ODCR support, review the [native ODCR support guide]({{< relref "../tasks/odcrs" >}}) before upgrading.
+  {{% alert title="Warning: breaking change for open ODCR users" color="warning" %}}
+  If you use ODCRs with `open` instance eligibility but have **not** set `spec.capacityReservationSelectorTerms` on your EC2NodeClasses, Karpenter stops using those reservations after this upgrade and falls back to on-demand — leaving reservations unused but still billed. Configure it **before** upgrading; see the [native ODCR support guide]({{< relref "../tasks/odcrs" >}}).
+  {{% /alert %}}
 * Support a new configuration option `MinValuesPolicy` which controls how the Karpenter scheduler treats min values. Options include 'Strict' (fails scheduling when min values can't be met) and 'BestEffort' (relaxes min values when they can't be met). Default is 'Strict' to preserve existing behavior.
 * Support a new configuration option `DisableDryRun` which disables the dry run calls made during EC2NodeClass validation (1.6.2+).
 
