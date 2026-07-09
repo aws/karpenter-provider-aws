@@ -210,6 +210,7 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceGPUManufacturer, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceGPUMemory, corev1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1.LabelInstanceGPUFractional, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorName, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorManufacturer, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpDoesNotExist),
@@ -272,8 +273,19 @@ func computeRequirements(
 		gpu := info.GpuInfo.Gpus[0]
 		requirements.Get(v1.LabelInstanceGPUName).Insert(lowerKabobCase(aws.ToString(gpu.Name)))
 		requirements.Get(v1.LabelInstanceGPUManufacturer).Insert(lowerKabobCase(aws.ToString(gpu.Manufacturer)))
-		requirements.Get(v1.LabelInstanceGPUCount).Insert(fmt.Sprint(lo.FromPtr(gpu.Count)))
+		if gpu.LogicalGpuCount != nil {
+			requirements.Get(v1.LabelInstanceGPUCount).Insert(fmt.Sprint(lo.FromPtr(gpu.LogicalGpuCount)))
+		} else {
+			requirements.Get(v1.LabelInstanceGPUCount).Insert(fmt.Sprint(lo.FromPtr(gpu.Count)))
+		}
 		requirements.Get(v1.LabelInstanceGPUMemory).Insert(fmt.Sprint(lo.FromPtr(gpu.MemoryInfo.SizeInMiB)))
+		if gpu.GpuPartitionSize != nil {
+			if *gpu.GpuPartitionSize < 1.0 {
+				requirements.Get(v1.LabelInstanceGPUFractional).Insert("true")
+			} else {
+				requirements.Get(v1.LabelInstanceGPUFractional).Insert("false")
+			}
+		}
 	}
 	// Accelerators - excluding Neuron
 	if info.InferenceAcceleratorInfo != nil && len(info.InferenceAcceleratorInfo.Accelerators) == 1 && info.NeuronInfo == nil {
@@ -418,7 +430,11 @@ func nvidiaGPUs(info ec2types.InstanceTypeInfo) *resource.Quantity {
 	if info.GpuInfo != nil {
 		for _, gpu := range info.GpuInfo.Gpus {
 			if *gpu.Manufacturer == "NVIDIA" {
-				count += *gpu.Count
+				if gpu.LogicalGpuCount != nil {
+					count += *gpu.LogicalGpuCount
+				} else {
+					count += *gpu.Count
+				}
 			}
 		}
 	}
