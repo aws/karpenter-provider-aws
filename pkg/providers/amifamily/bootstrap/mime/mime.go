@@ -84,7 +84,7 @@ func (ma Archive) Serialize() (string, error) {
 		return "", err
 	}
 	buffer.WriteString(versionHeader + "\n")
-	buffer.WriteString(fmt.Sprintf("Content-Type: %s\n\n", ContentTypeMultipart))
+	fmt.Fprintf(&buffer, "Content-Type: %s\n\n", ContentTypeMultipart)
 	for _, entry := range ma {
 		partWriter, err := writer.CreatePart(textproto.MIMEHeader{
 			"Content-Type": []string{string(entry.ContentType)},
