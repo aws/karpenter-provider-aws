@@ -39,15 +39,15 @@ func (w Windows) Script(_ context.Context) (string, error) {
 	}
 
 	userData.WriteString("[string]$EKSBootstrapScriptFile = \"$env:ProgramFiles\\Amazon\\EKS\\Start-EKSBootstrap.ps1\"\n")
-	userData.WriteString(fmt.Sprintf(`& $EKSBootstrapScriptFile -EKSClusterName '%s' -APIServerEndpoint '%s'`, w.ClusterName, w.ClusterEndpoint))
+	fmt.Fprintf(&userData, `& $EKSBootstrapScriptFile -EKSClusterName '%s' -APIServerEndpoint '%s'`, w.ClusterName, w.ClusterEndpoint)
 	if w.CABundle != nil {
-		userData.WriteString(fmt.Sprintf(` -Base64ClusterCA '%s'`, *w.CABundle))
+		fmt.Fprintf(&userData, ` -Base64ClusterCA '%s'`, *w.CABundle)
 	}
 	if args := w.kubeletExtraArgs(); len(args) > 0 {
-		userData.WriteString(fmt.Sprintf(` -KubeletExtraArgs '%s'`, strings.Join(args, " ")))
+		fmt.Fprintf(&userData, ` -KubeletExtraArgs '%s'`, strings.Join(args, " "))
 	}
 	if w.KubeletConfig != nil && len(w.KubeletConfig.ClusterDNS) > 0 {
-		userData.WriteString(fmt.Sprintf(` -DNSClusterIP '%s'`, w.KubeletConfig.ClusterDNS[0]))
+		fmt.Fprintf(&userData, ` -DNSClusterIP '%s'`, w.KubeletConfig.ClusterDNS[0])
 	}
 	userData.WriteString("\n</powershell>")
 	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
