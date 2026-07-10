@@ -1217,8 +1217,8 @@ var _ = Describe("AMIResolver", func() {
 			},
 		})
 		instanceTypes = []*corecloudprovider.InstanceType{
-			corecloudfake.NewInstanceType(corecloudfake.InstanceTypeOptions{Name: "t3.medium"}),
-			corecloudfake.NewInstanceType(corecloudfake.InstanceTypeOptions{Name: "m5.large"}),
+			corecloudfake.NewInstanceType("t3.medium"),
+			corecloudfake.NewInstanceType("m5.large"),
 		}
 	})
 	DescribeTable(
