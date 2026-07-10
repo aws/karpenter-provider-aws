@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -26,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -33,6 +36,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
@@ -47,9 +51,19 @@ type Resolver interface {
 	Resolve(*v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, string, *Options, string, int32) ([]*LaunchTemplate, error)
 }
 
+// ENILimits holds ENI networking limits for an instance type.
+type ENILimits struct {
+	DefaultENIs int
+	IPv4PerENI  int
+}
+
+// ENILookup is a function that returns ENI limits for a given instance type name.
+type ENILookup func(instanceTypeName string) (ENILimits, bool)
+
 // DefaultResolver is able to fill-in dynamic launch template parameters
 type DefaultResolver struct {
-	region string
+	region    string
+	eniLookup ENILookup
 }
 
 // Options define the static launch template parameters
@@ -134,9 +148,10 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // NewDefaultResolver constructs a new launch template DefaultResolver
-func NewDefaultResolver(region string) *DefaultResolver {
+func NewDefaultResolver(region string, eniLookup ENILookup) *DefaultResolver {
 	return &DefaultResolver{
-		region: region,
+		region:    region,
+		eniLookup: eniLookup,
 	}
 }
 
@@ -166,6 +181,10 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 		type launchTemplateParams struct {
 			efaCount int
 			maxPods  int
+			// resolvedKubeReserved and resolvedSystemReserved hold the evaluated resource values
+			// (serialized as "key1=val1,key2=val2" for comparability) when CEL expressions are used.
+			resolvedKubeReserved   string
+			resolvedSystemReserved string
 			// reservationIDs is encoded as a string rather than a slice to ensure this type is comparable for use by `lo.GroupBy`.
 			reservationIDs           string
 			reservationType          v1.CapacityReservationType
@@ -188,6 +207,13 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 					}
 				}
 			}
+			var kubeReserved, systemReserved map[string]string
+			if nodeClass.Spec.Kubelet != nil {
+				kubeReserved = nodeClass.Spec.Kubelet.KubeReserved
+				systemReserved = nodeClass.Spec.Kubelet.SystemReserved
+			}
+			resolvedKubeReserved := resolveResourceExpressionsForLaunchTemplate(kubeReserved, it, r.eniLookup)
+			resolvedSystemReserved := resolveResourceExpressionsForLaunchTemplate(systemReserved, it, r.eniLookup)
 			return launchTemplateParams{
 				efaCount: lo.Ternary(
 					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA),
@@ -195,6 +221,8 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 					0,
 				),
 				maxPods: int(it.Capacity.Pods().Value()),
+				resolvedKubeReserved:   serializeResourceMap(resolvedKubeReserved),
+				resolvedSystemReserved: serializeResourceMap(resolvedSystemReserved),
 				// If we're dealing with reserved instances, there's only going to be a single instance per group. This invariant
 				// is due to reservation IDs not being shared across instance types. Because of this, we don't need to worry about
 				// ordering in this string.
@@ -206,7 +234,7 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 
 		for params, instanceTypes := range paramsToInstanceTypes {
 			reservationIDs := strings.Split(params.reservationIDs, ",")
-			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition)...)
+			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition, deserializeResourceMap(params.resolvedKubeReserved), deserializeResourceMap(params.resolvedSystemReserved))...)
 		}
 	}
 	return resolvedTemplates, nil
@@ -274,6 +302,8 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	tenancyType string,
 	placementGroupID string,
 	placementGroupPartition int32,
+	resolvedKubeReserved map[string]string,
+	resolvedSystemReserved map[string]string,
 ) []*LaunchTemplate {
 	kubeletConfig := &v1.KubeletConfiguration{}
 	if nodeClass.Spec.Kubelet != nil {
@@ -284,6 +314,13 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		// We know that it's not possible to have values that would overflow int32 here since we control
 		// the maxPods values that we pass in here
 		kubeletConfig.MaxPods = lo.ToPtr(int32(maxPods))
+	}
+	// Use resolved values for kubeReserved/systemReserved when expressions were evaluated
+	if resolvedKubeReserved != nil {
+		kubeletConfig.KubeReserved = resolvedKubeReserved
+	}
+	if resolvedSystemReserved != nil {
+		kubeletConfig.SystemReserved = resolvedSystemReserved
 	}
 	taints := lo.Flatten([][]corev1.Taint{
 		nodeClaim.Spec.Taints,
@@ -378,4 +415,103 @@ func isRestrictedLabel(label string) bool {
 		}
 	}
 	return false
+}
+
+// resolveResourceExpressionsForLaunchTemplate evaluates CEL expressions in a kubeReserved/systemReserved
+// resource map using instance type properties. Values that parse as valid Kubernetes resource quantities
+// are left unchanged. Returns nil if the input map is nil or has no expressions.
+func resolveResourceExpressionsForLaunchTemplate(resourceMap map[string]string, it *cloudprovider.InstanceType, eniLookup ENILookup) map[string]string {
+	if len(resourceMap) == 0 {
+		return resourceMap
+	}
+	hasExpressions := false
+	for _, v := range resourceMap {
+		if _, err := resource.ParseQuantity(v); err != nil {
+			hasExpressions = true
+			break
+		}
+	}
+	if !hasExpressions {
+		return resourceMap
+	}
+	celVars := celVarsFromInstanceType(it, eniLookup)
+	resolved := make(map[string]string, len(resourceMap))
+	for k, v := range resourceMap {
+		if _, err := resource.ParseQuantity(v); err == nil {
+			resolved[k] = v
+			continue
+		}
+		result, err := kubeletcel.EvaluateExpression(v, celVars)
+		if err != nil {
+			log.Log.Error(err, "failed to evaluate kubelet resource expression for launch template", "key", k, "expression", v, "instanceType", it.Name)
+			continue
+		}
+		if result < 0 {
+			continue
+		}
+		resolved[k] = fmt.Sprint(result)
+	}
+	return resolved
+}
+
+// celVarsFromInstanceType builds CEL evaluation variables from a cloudprovider.InstanceType
+// using its requirements (CPU, memory labels) and an ENI lookup function.
+func celVarsFromInstanceType(it *cloudprovider.InstanceType, eniLookup ENILookup) kubeletcel.InstanceTypeVars {
+	vcpus := int64(0)
+	if req := it.Requirements.Get(v1.LabelInstanceCPU); req != nil {
+		if val, err := strconv.ParseInt(req.Any(), 10, 64); err == nil {
+			vcpus = val
+		}
+	}
+	memoryMiB := int64(0)
+	if req := it.Requirements.Get(v1.LabelInstanceMemory); req != nil {
+		if val, err := strconv.ParseInt(req.Any(), 10, 64); err == nil {
+			memoryMiB = val
+		}
+	}
+	defaultENIs := int64(0)
+	ipsPerENI := int64(0)
+	if eniLookup != nil {
+		if limits, ok := eniLookup(it.Name); ok {
+			defaultENIs = int64(limits.DefaultENIs)
+			ipsPerENI = int64(limits.IPv4PerENI)
+		}
+	}
+	maxPods := it.Capacity.Pods().Value()
+	return kubeletcel.InstanceTypeVars{
+		VCPUs:       vcpus,
+		MemoryMiB:   memoryMiB,
+		DefaultENIs: defaultENIs,
+		IPsPerENI:   ipsPerENI,
+		MaxPods:     maxPods,
+	}
+}
+
+// serializeResourceMap converts a resource map to a sorted, comparable string representation.
+func serializeResourceMap(m map[string]string) string {
+	if len(m) == 0 {
+		return ""
+	}
+	keys := lo.Keys(m)
+	sort.Strings(keys)
+	var parts []string
+	for _, k := range keys {
+		parts = append(parts, k+"="+m[k])
+	}
+	return strings.Join(parts, ",")
+}
+
+// deserializeResourceMap converts a serialized resource map string back to a map.
+func deserializeResourceMap(s string) map[string]string {
+	if s == "" {
+		return nil
+	}
+	result := make(map[string]string)
+	for _, part := range strings.Split(s, ",") {
+		kv := strings.SplitN(part, "=", 2)
+		if len(kv) == 2 {
+			result[kv[0]] = kv[1]
+		}
+	}
+	return result
 }

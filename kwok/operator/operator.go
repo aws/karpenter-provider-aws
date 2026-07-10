@@ -172,7 +172,13 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.PlacementGroupAvailabilityTTL, awscache.DefaultCleanupInterval),
 	)
-	amiResolver := amifamily.NewDefaultResolver(cfg.Region)
+	amiResolver := amifamily.NewDefaultResolver(cfg.Region, func(name string) (amifamily.ENILimits, bool) {
+		limits, ok := instancetype.Limits[name]
+		if !ok {
+			return amifamily.ENILimits{}, false
+		}
+		return amifamily.ENILimits{DefaultENIs: limits.Interface, IPv4PerENI: limits.IPv4PerInterface}, true
+	})
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),

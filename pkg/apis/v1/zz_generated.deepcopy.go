@@ -515,6 +515,11 @@ func (in *KubeletConfiguration) DeepCopyInto(out *KubeletConfiguration) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.MaxPodsExpression != nil {
+		in, out := &in.MaxPodsExpression, &out.MaxPodsExpression
+		*out = new(string)
+		**out = **in
+	}
 	if in.PodsPerCore != nil {
 		in, out := &in.PodsPerCore, &out.PodsPerCore
 		*out = new(int32)

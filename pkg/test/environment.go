@@ -164,7 +164,13 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, amiCache)
 	placementGroupProvider := placementgroup.NewProvider(ec2api, placementGroupCache, placementGroupAvailabilityCache)
-	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
+	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, func(name string) (amifamily.ENILimits, bool) {
+		limits, ok := instancetype.Limits[name]
+		if !ok {
+			return amifamily.ENILimits{}, false
+		}
+		return amifamily.ENILimits{DefaultENIs: limits.Interface, IPv4PerENI: limits.IPv4PerInterface}, true
+	})
 	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion)
 	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
 	zonalshiftProvider := arczonalshift.NewProvider(arczonalshiftapi, clock, "")

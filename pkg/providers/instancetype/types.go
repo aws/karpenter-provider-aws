@@ -30,8 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 
@@ -101,6 +103,7 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 	if resolved := nodeClass.KubeletConfiguration(); resolved != nil {
 		kc = resolved
 	}
+	maxPods, kubeReserved, systemReserved := resolveKubeletExpressions(ctx, info, kc, nodeClass.NetworkInterfaces())
 	return NewInstanceType(
 		ctx,
 		info,
@@ -110,10 +113,10 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 		nodeClass.BlockDeviceMappings(),
 		nodeClass.InstanceStorePolicy(),
 		nodeClass.NetworkInterfaces(),
-		kc.MaxPods,
+		maxPods,
 		kc.PodsPerCore,
-		kc.KubeReserved,
-		kc.SystemReserved,
+		kubeReserved,
+		systemReserved,
 		kc.EvictionHard,
 		kc.EvictionSoft,
 		nodeClass.AMIFamily(),
@@ -121,6 +124,76 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 			return cr.InstanceType == string(info.InstanceType)
 		}),
 	)
+}
+
+// resolveKubeletExpressions evaluates CEL expressions for maxPods, kubeReserved, and systemReserved,
+// returning resolved values suitable for use in NewInstanceType.
+func resolveKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, kc *v1.KubeletConfiguration, networkInterfaces []*v1.NetworkInterface) (*int32, map[string]string, map[string]string) {
+	maxPods := kc.MaxPods
+	kubeReserved := kc.KubeReserved
+	systemReserved := kc.SystemReserved
+
+	if kc.MaxPodsExpression != nil {
+		celVars := buildCELVars(ctx, info, networkInterfaces)
+		result, err := kubeletcel.EvaluateExpression(*kc.MaxPodsExpression, celVars)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "failed to evaluate maxPodsExpression", "instanceType", info.InstanceType)
+		} else if result >= 0 {
+			maxPods = lo.ToPtr(int32(result))
+		}
+	}
+
+	kubeReserved = resolveResourceExpressions(ctx, info, kc.KubeReserved, networkInterfaces)
+	systemReserved = resolveResourceExpressions(ctx, info, kc.SystemReserved, networkInterfaces)
+
+	return maxPods, kubeReserved, systemReserved
+}
+
+// resolveResourceExpressions evaluates CEL expressions in a resource map (kubeReserved or systemReserved).
+// Values that parse as valid Kubernetes resource quantities are left as-is.
+// Values that fail to parse as quantities are evaluated as CEL expressions.
+func resolveResourceExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, resourceMap map[string]string, networkInterfaces []*v1.NetworkInterface) map[string]string {
+	if len(resourceMap) == 0 {
+		return resourceMap
+	}
+	resolved := make(map[string]string, len(resourceMap))
+	for k, v := range resourceMap {
+		if _, err := resource.ParseQuantity(v); err == nil {
+			resolved[k] = v
+			continue
+		}
+		celVars := buildCELVars(ctx, info, networkInterfaces)
+		result, err := kubeletcel.EvaluateExpression(v, celVars)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "failed to evaluate kubelet resource expression", "key", k, "expression", v, "instanceType", info.InstanceType)
+			continue
+		}
+		if result < 0 {
+			continue
+		}
+		resolved[k] = fmt.Sprint(result)
+	}
+	return resolved
+}
+
+// buildCELVars constructs the CEL variable bindings from EC2 instance type info.
+func buildCELVars(ctx context.Context, info ec2types.InstanceTypeInfo, networkInterfaces []*v1.NetworkInterface) kubeletcel.InstanceTypeVars {
+	defaultENIs := int64(0)
+	if info.NetworkInfo != nil && info.NetworkInfo.NetworkCards != nil && info.NetworkInfo.DefaultNetworkCardIndex != nil {
+		defaultENIs = int64(lo.FromPtr(info.NetworkInfo.NetworkCards[lo.FromPtr(info.NetworkInfo.DefaultNetworkCardIndex)].MaximumNetworkInterfaces))
+	}
+	ipsPerENI := int64(0)
+	if info.NetworkInfo != nil && info.NetworkInfo.Ipv4AddressesPerInterface != nil {
+		ipsPerENI = int64(lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface))
+	}
+	maxPods := ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs, networkInterfaces).Value()
+	return kubeletcel.InstanceTypeVars{
+		VCPUs:       int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)),
+		MemoryMiB:   int64(lo.FromPtr(info.MemoryInfo.SizeInMiB)),
+		DefaultENIs: defaultENIs,
+		IPsPerENI:   ipsPerENI,
+		MaxPods:     maxPods,
+	}
 }
 
 func NewInstanceType(

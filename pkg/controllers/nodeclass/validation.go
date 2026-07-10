@@ -36,11 +36,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
@@ -57,6 +59,7 @@ const (
 	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
 	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
 	ConditionReasonTagValidationFailed            = "TagValidationFailed"
+	ConditionReasonKubeletExpressionInvalid       = "KubeletExpressionInvalid"
 	ConditionReasonDryRunDisabled                 = "DryRunDisabled"
 )
 
@@ -126,6 +129,15 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			)
 			return reconcile.Result{}, fmt.Errorf("failed to detect the cluster CIDR, %w", err)
 		}
+	}
+
+	if err := validateKubeletExpressions(nodeClass); err != nil {
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonKubeletExpressionInvalid,
+			err.Error(),
+		)
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating kubelet expressions, %w", err))
 	}
 
 	if _, ok := lo.Find(v.requiredConditions(), func(cond string) bool {
@@ -539,6 +551,34 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 	}
 
 	return selectedInstanceTypes
+}
+
+// validateKubeletExpressions checks that all CEL expressions in the kubelet configuration compile successfully.
+func validateKubeletExpressions(nodeClass *v1.EC2NodeClass) error {
+	if nodeClass.Spec.Kubelet == nil {
+		return nil
+	}
+	kc := nodeClass.Spec.Kubelet
+	if kc.MaxPodsExpression != nil {
+		if err := kubeletcel.ValidateExpression(*kc.MaxPodsExpression); err != nil {
+			return fmt.Errorf("spec.kubelet.maxPodsExpression: %w", err)
+		}
+	}
+	for k, v := range kc.KubeReserved {
+		if _, qErr := resource.ParseQuantity(v); qErr != nil {
+			if err := kubeletcel.ValidateExpression(v); err != nil {
+				return fmt.Errorf("spec.kubelet.kubeReserved[%s]: %w", k, err)
+			}
+		}
+	}
+	for k, v := range kc.SystemReserved {
+		if _, qErr := resource.ParseQuantity(v); qErr != nil {
+			if err := kubeletcel.ValidateExpression(v); err != nil {
+				return fmt.Errorf("spec.kubelet.systemReserved[%s]: %w", k, err)
+			}
+		}
+	}
+	return nil
 }
 
 func getNetworkInterfacesInput(ncNetworkInterfaces []*amifamily.ResolvedNetworkInterface, subnet *v1.Subnet) []ec2types.InstanceNetworkInterfaceSpecification {

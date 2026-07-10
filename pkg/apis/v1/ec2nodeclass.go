@@ -115,6 +115,7 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="imageGCHighThresholdPercent must be greater than imageGCLowThresholdPercent",rule="has(self.imageGCHighThresholdPercent) && has(self.imageGCLowThresholdPercent) ?  self.imageGCHighThresholdPercent > self.imageGCLowThresholdPercent  : true"
 	// +kubebuilder:validation:XValidation:message="evictionSoft OwnerKey does not have a matching evictionSoftGracePeriod",rule="has(self.evictionSoft) ? self.evictionSoft.all(e, (e in self.evictionSoftGracePeriod)):true"
 	// +kubebuilder:validation:XValidation:message="evictionSoftGracePeriod OwnerKey does not have a matching evictionSoft",rule="has(self.evictionSoftGracePeriod) ? self.evictionSoftGracePeriod.all(e, (e in self.evictionSoft)):true"
+	// +kubebuilder:validation:XValidation:message="maxPods and maxPodsExpression are mutually exclusive",rule="!(has(self.maxPods) && has(self.maxPodsExpression))"
 	// +optional
 	Kubelet *KubeletConfiguration `json:"kubelet,omitempty"`
 	// BlockDeviceMappings to be applied to provisioned nodes.
@@ -285,6 +286,12 @@ type KubeletConfiguration struct {
 	// +kubebuilder:validation:Minimum:=0
 	// +optional
 	MaxPods *int32 `json:"maxPods,omitempty"`
+	// MaxPodsExpression is a CEL expression that computes the maximum number of pods
+	// per instance type. The expression has access to instance type properties:
+	// vcpus, memory_mib, default_enis, ips_per_eni, gpus, accelerators, max_pods, ephemeral_storage_gib.
+	// This field is mutually exclusive with MaxPods.
+	// +optional
+	MaxPodsExpression *string `json:"maxPodsExpression,omitempty"`
 	// PodsPerCore is an override for the number of pods that can run on a worker node
 	// instance based on the number of cpu cores. This value cannot exceed MaxPods, so, if
 	// MaxPods is a lower value, that value will be used.
