@@ -23,9 +23,11 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	config "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -68,6 +70,10 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 )
 
+const (
+	DefaultAWSSDKClientTimeout = 4 * time.Minute
+)
+
 func init() {
 	karpv1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 }
@@ -107,7 +113,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		stdlog.Fatalf("The kubelet compatibility annotation, %s, is not supported on Karpenter v1.1+. Please refer to the upgrade guide in the docs. The following NodePools still have the compatibility annotation: %s", kubeletCompatibilityAnnotationKey, strings.Join(npNames, ", "))
 	}
 
-	cfg := prometheusv2.WithPrometheusMetrics(WithUserAgent(lo.Must(config.LoadDefaultConfig(ctx))), crmetrics.Registry)
+	cfg := prometheusv2.WithPrometheusMetrics(WithUserAgent(lo.Must(config.LoadDefaultConfig(ctx, config.WithHTTPClient(NewAWSSDKHTTPClient())))), crmetrics.Registry)
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
 		region := lo.Must(imds.NewFromConfig(cfg).GetRegion(ctx, nil))
@@ -272,4 +278,9 @@ func KubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 		return nil, fmt.Errorf("parsing cluster IP")
 	}
 	return kubeDNSIP, nil
+}
+
+func NewAWSSDKHTTPClient() *awshttp.BuildableClient {
+	return awshttp.NewBuildableClient().
+		WithTimeout(DefaultAWSSDKClientTimeout)
 }
