@@ -112,8 +112,8 @@ func coallateEvents(events []corev1.Event) map[corev1.ObjectReference]*corev1.Ev
 // https://github.com/kubernetes/kubernetes/blob/04ee339c7a4d36b4037ce3635993e2a9e395ebf3/staging/src/k8s.io/kubectl/pkg/describe/describe.go#L4232
 func getEventInformation(o corev1.ObjectReference, el *corev1.EventList) string {
 	sb := strings.Builder{}
-	sb.WriteString(fmt.Sprintf("------- %s/%s%s EVENTS -------\n",
-		strings.ToLower(o.Kind), lo.Ternary(o.Namespace != "", o.Namespace+"/", ""), o.Name))
+	fmt.Fprintf(&sb, "------- %s/%s%s EVENTS -------\n",
+		strings.ToLower(o.Kind), lo.Ternary(o.Namespace != "", o.Namespace+"/", ""), o.Name)
 	if len(el.Items) == 0 {
 		return sb.String()
 	}
@@ -126,13 +126,12 @@ func getEventInformation(o corev1.ObjectReference, el *corev1.EventList) string 
 		if eventTime.IsZero() {
 			eventTime = metav1.NewMicroTime(e.FirstTimestamp.Time)
 		}
-		sb.WriteString(fmt.Sprintf("time=%s type=%s reason=%s from=%s message=%s\n",
+		fmt.Fprintf(&sb, "time=%s type=%s reason=%s from=%s message=%s\n",
 			eventTime.Format(time.RFC3339),
 			e.Type,
 			e.Reason,
 			source,
-			strings.TrimSpace(e.Message)),
-		)
+			strings.TrimSpace(e.Message))
 	}
 	return sb.String()
 }
