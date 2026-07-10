@@ -5,7 +5,7 @@ inputs:
     description: "Account ID to access AWS"
     required: true
   suite:
-    type: string
+    description: "Test suite to run"
     required: true
   ecr_account_id:
     description: "Account ID to access ECR Repository"
