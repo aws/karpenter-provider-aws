@@ -23,7 +23,7 @@ require (
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20260430210630-2cd163d6f0d3
 	github.com/aws/smithy-go v1.27.3
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
-	github.com/awslabs/operatorpkg v0.0.0-20260501204335-c49b4ca8d58d
+	github.com/awslabs/operatorpkg v0.0.0-20260708223819-4da4c353c5fa
 	github.com/awslabs/operatorpkg/aws v0.0.0-20250414225955-b47cd315ffe9
 	github.com/go-logr/zapr v1.3.0
 	github.com/google/uuid v1.6.0
@@ -46,7 +46,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20251222233032-718f0e51e6d2
 	sigs.k8s.io/controller-runtime v0.23.1
-	sigs.k8s.io/karpenter v1.13.1-0.20260701171415-43964dc54782
+	sigs.k8s.io/karpenter v1.14.0
 	sigs.k8s.io/yaml v1.6.0
 )
 
