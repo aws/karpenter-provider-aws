@@ -20,7 +20,9 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -64,6 +66,10 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 )
 
+// DefaultAWSSDKClientTimeout is the fixed timeout applied to the HTTP client used by the AWS SDK.
+// This matches Karpenter's auto value and prevents requests from hanging indefinitely.
+const DefaultAWSSDKClientTimeout = 4 * time.Minute
+
 func init() {
 	karpv1beta1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 	karpv1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
@@ -93,6 +99,7 @@ type Operator struct {
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
 	config := &aws.Config{
 		STSRegionalEndpoint: endpoints.RegionalSTSEndpoint,
+		HTTPClient:          &http.Client{Timeout: DefaultAWSSDKClientTimeout},
 	}
 
 	// prometheusv1.WithPrometheusMetrics is used until the upstream aws-sdk-go or aws-sdk-go-v2 supports
