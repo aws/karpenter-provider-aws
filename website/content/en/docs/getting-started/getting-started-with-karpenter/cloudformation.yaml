@@ -43,7 +43,8 @@ Resources:
                 "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
-                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*"
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:capacity-reservation/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:placement-group/*"
               ],
               "Action": [
                 "ec2:RunInstances",
@@ -315,6 +316,7 @@ Resources:
                 "ec2:DescribeInstanceTypeOfferings",
                 "ec2:DescribeInstanceTypes",
                 "ec2:DescribeLaunchTemplates",
+                "ec2:DescribePlacementGroups",
                 "ec2:DescribeSecurityGroups",
                 "ec2:DescribeSpotPriceHistory",
                 "ec2:DescribeSubnets"

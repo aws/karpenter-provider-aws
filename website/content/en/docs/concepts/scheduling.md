@@ -184,6 +184,8 @@ Take care to ensure the label domains are correct. A well known label like `karp
 | karpenter.k8s.aws/instance-local-nvme                          | 900                  | [AWS Specific] Number of gibibytes of local nvme storage on the instance                                                                                                                                                                  |
 | karpenter.k8s.aws/instance-capability-flex                     | true                 | [AWS Specific] Instance with capacity flex                                                                                                                                                                                                |
 | karpenter.k8s.aws/instance-tenancy                             | default              | [AWS Specific] Tenancy types include `default`, and `dedicated`                                                                                                                                                                           |
+| karpenter.k8s.aws/placement-group-id                           | pg-0fa32af67ed0f8da0 | [AWS Specific] The placement group ID.
+| karpenter.k8s.aws/placement-group-partition                    | 7                    | [AWS Specific] The partition number of the partition placement group the instance is in.
 | topology.k8s.aws/zone-id                                       | use1-az1             | [AWS Specific] Globally consistent [zone id](https://docs.aws.amazon.com/global-infrastructure/latest/regions/az-ids.html)                                                                                                                |
 
 
