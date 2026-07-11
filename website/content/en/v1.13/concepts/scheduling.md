@@ -184,6 +184,8 @@ Take care to ensure the label domains are correct. A well known label like `karp
 | karpenter.k8s.aws/instance-local-nvme                          | 900                  | [AWS Specific] Number of gibibytes of local nvme storage on the instance                                                                                                                                                                  |
 | karpenter.k8s.aws/instance-capability-flex                     | true                 | [AWS Specific] Instance with capacity flex                                                                                                                                                                                                |
 | karpenter.k8s.aws/instance-tenancy                             | default              | [AWS Specific] Tenancy types include `default`, and `dedicated`                                                                                                                                                                           |
+| karpenter.k8s.aws/placement-group-id                           | pg-0fa32af67ed0f8da0 | [AWS Specific] The placement group ID.
+| karpenter.k8s.aws/placement-group-partition                    | 7                    | [AWS Specific] The partition number of the partition placement group the instance is in.
 | topology.k8s.aws/zone-id                                       | use1-az1             | [AWS Specific] Globally consistent [zone id](https://docs.aws.amazon.com/global-infrastructure/latest/regions/az-ids.html)                                                                                                                |
 
 
@@ -403,6 +405,15 @@ See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/worklo
 {{% alert title="Note" color="primary" %}}
 NodePools do not attempt to balance or rebalance the availability zones for their nodes. Availability zone balancing may be achieved by defining zonal Topology Spread Constraints for Pods that require multi-zone durability, and NodePools will respect these constraints while optimizing for compute costs.
 {{% /alert %}}
+
+#### Zonal Shift
+If you are using TopologySpreadConstraints to spread across zones, you may want to consider leveraging Zonal Shift to automatically handle availability zone impairments. Zonal Shift is an AWS service that allows you to cordon nodes, stop node termination/pod eviction, and remove pod endpoints from EndpointSlices for nodes and pods in an impaired Availability Zone using a single API.
+For more information [see the documentation on Zonal Shift and Elastic Kubernetes Service](https://docs.aws.amazon.com/r53recovery/latest/dg/arc-zonal-shift.resource-types.eks.html)
+
+If Zonal Shift is enabled for the EKS cluster, Karpenter will watch for Zonal Shifts on the cluster. When a Zonal Shift is active, Karpenter will not launch nodes in the impaired zone.
+Karpenter requires permissions to make `arc-zonal-shift:GetManagedResource` calls and EKS Cluster must be enabled for Zonal Shift.
+
+To enable Zonal Shift handling, see the [Zonal Shift Onboarding]({{<ref "../getting-started/getting-started-with-karpenter/#zonal-shift-onboarding-optional">}}) section of the Getting Started Guide.
 
 ### Pod affinity/anti-affinity
 

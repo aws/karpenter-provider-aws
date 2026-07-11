@@ -2,8 +2,8 @@ apiVersion: v2
 name: karpenter-crd
 description: A Helm chart for Karpenter Custom Resource Definitions (CRDs).
 type: application
-version: 1.12.1
-appVersion: 1.12.1
+version: 1.13.1
+appVersion: 1.13.1
 keywords:
   - cluster
   - node

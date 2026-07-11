@@ -196,10 +196,11 @@ Doing so can result in partially drained nodes stuck in the cluster, driving up 
 
 If interruption-handling is enabled, Karpenter will watch for upcoming involuntary interruption events that would cause disruption to your workloads. These interruption events include:
 
-* Spot Interruption Warnings
-* Scheduled Change Health Events (Maintenance Events)
-* Instance Terminating Events
-* Instance Stopping Events
+* Spot Interruption Warnings 
+* Scheduled Change Health Events (Maintenance Events) 
+* Instance Terminating Events 
+* Instance Stopping Events 
+* Instance Status Check Failures
 
 When Karpenter detects one of these events will occur to your nodes, it automatically taints, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
 
@@ -211,9 +212,17 @@ Karpenter publishes Kubernetes events to the node for all events listed above in
 If you require handling for Spot Rebalance Recommendations, you can use the [AWS Node Termination Handler (NTH)](https://github.com/aws/aws-node-termination-handler) alongside Karpenter; however, note that the AWS Node Termination Handler cordons and drains nodes on rebalance recommendations, potentially causing more node churn in the cluster than with interruptions alone. Further information can be found in the [Troubleshooting Guide]({{< ref "../troubleshooting#aws-node-termination-handler-nth-interactions" >}}).
 {{% /alert %}}
 
-Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. Karpenter requires that an SQS queue be provisioned and EventBridge rules and targets be added that forward interruption events from AWS services to the SQS queue. Karpenter provides details for provisioning this infrastructure in the [CloudFormation template in the Getting Started Guide](../../getting-started/getting-started-with-karpenter/#create-the-karpenter-infrastructure-and-iam-roles).
+Karpenter handles most interruption events by watching an SQS queue which receives critical events from AWS services which may affect your nodes. Karpenter requires that an SQS queue be provisioned and EventBridge rules and targets be added that forward interruption events from AWS services to the SQS queue. Karpenter provides details for provisioning this infrastructure in the [CloudFormation template in the Getting Started Guide](../../getting-started/getting-started-with-karpenter/#create-the-karpenter-infrastructure-and-iam-roles).
 
-To enable interruption handling, configure the `--interruption-queue` CLI argument with the name of the interruption queue provisioned to handle interruption events.
+To enable full interruption handling, configure the `--interruption-queue` CLI argument with the name of the interruption queue provisioned to handle interruption events.
+
+Additionally, Karpenter utilizes the [EC2 DescribeInstanceStatus](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/monitoring-system-instance-status-check.html) API to check for unhealthy EC2 instances managed by Karpenter. The status checks Karpenter responds to are:
+
+* System Status - surfaces failures in the underlying physical host (hardware or software)
+* Instance Status - surfaces failures in the virtual machine 
+* Scheduled Maintenance Events - surfaces upcoming maintenance events that may affect the instance
+
+These status checks do not require the `--interruption-queue` to be configured, just EC2 DescribeInstanceStatus IAM permissions.
 
 ### Node Auto Repair
 
@@ -360,19 +369,31 @@ In this scenario, Karpenter cannot voluntary disrupt the node because:
 
 As seen in this example, the more PDBs there are affecting a Node, the more difficult it will be for Karpenter to find an opportunity to perform voluntary disruption actions.
 
-Secondly, you can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt: "true"` annotation to the pod.
-You can treat this annotation as a single-pod, permanently blocking PDB.
+Secondly, you can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt` annotation to the pod.
+This annotation supports two formats:
+
+| Format | Example | Behavior |
+|--------|---------|----------|
+| **Boolean** | `karpenter.sh/do-not-disrupt: "true"` | Provides permanent protection from disruption |
+| **Duration (Go duration string)** | `karpenter.sh/do-not-disrupt: "30m"` | Provides time-based protection for the specified duration after the pod starts running |
+
+{{% alert title="Note" color="primary" %}}
+If an invalid duration is specified, the annotation will be ignored and an event will be emitted on the pod indicating that the duration format is invalid.
+{{% /alert %}}
+
+You can treat this annotation as a single-pod blocking PDB that is active either permanently (boolean format) or temporarily while the duration hasn't elapsed (duration format).
 This has the following consequences:
-- Nodes with `karpenter.sh/do-not-disrupt` pods will be excluded from [Consolidation]({{<ref "#consolidation" >}}), and conditionally excluded from [Drift]({{<ref "#drift" >}}).
+- Nodes with active `karpenter.sh/do-not-disrupt` pods will be excluded from [Consolidation]({{<ref "#consolidation" >}}), and conditionally excluded from [Drift]({{<ref "#drift" >}}).
   - If the Node's owning NodeClaim has a [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) configured, it will still be eligible for disruption via drift.
-- Like pods with a blocking PDB, pods with the `karpenter.sh/do-not-disrupt` annotation will **not** be gracefully evicted by the [Termination Controller]({{<ref "#termination-controller">}}).
+- Like pods with a blocking PDB, pods with an active `karpenter.sh/do-not-disrupt` annotation will **not** be gracefully evicted by the [Termination Controller]({{<ref "#termination-controller">}}).
   Karpenter will not be able to complete termination of the node until one of the following conditions is met:
-  - All pods with the `karpenter.sh/do-not-disrupt` annotation are removed.
+  - All pods with the `karpenter.sh/do-not-disrupt` annotation are removed, or their annotation becomes inactive (duration has elapsed).
   - All pods with the `karpenter.sh/do-not-disrupt` annotation have entered a [terminal phase](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) (`Succeeded` or `Failed`).
   - The owning NodeClaim's [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) has elapsed.
 
-This is useful for pods that you want to run from start to finish without disruption.
-Examples of pods that you might want to opt-out of disruption include an interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
+#### Examples
+
+**Permanent protection**  - This is useful for pods that you want to run from start to finish without disruption, including an interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
 
 ```yaml
 apiVersion: apps/v1
@@ -382,6 +403,19 @@ spec:
     metadata:
       annotations:
         karpenter.sh/do-not-disrupt: "true"
+```
+
+**Duration-based protection**  - This is useful for pods that are expected to run for a defined period of time, where disruption is acceptable once that period has elapsed. For cluster administrators, this helps ensure that long-running or misbehaving applications and jobs don't block cluster operations like drift or consolidation.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+spec:
+  template:
+    metadata:
+      annotations:
+        # Protect for 30 minutes after pod starts running
+        karpenter.sh/do-not-disrupt: "30m"
 ```
 
 {{% alert title="Note" color="primary" %}}
