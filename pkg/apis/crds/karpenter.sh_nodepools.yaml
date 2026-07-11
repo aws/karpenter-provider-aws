@@ -1069,3 +1069,14 @@ spec:
       storage: false
       subresources:
         status: {}
+  conversion:
+    strategy: Webhook
+    webhook:
+      conversionReviewVersions:
+        - v1beta1
+        - v1
+      clientConfig:
+        service:
+          name: karpenter
+          namespace: kube-system
+          port: 8443
