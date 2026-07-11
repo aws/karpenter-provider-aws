@@ -96,6 +96,7 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 * This version graduates the [Capacity Buffers]({{<ref "../concepts/capacitybuffers.md">}}) API to `v1beta1` and ships a new `autoscaling.x-k8s.io_capacitybuffers` CRD. If you use the standalone `karpenter-crd` Helm chart, upgrade it alongside the controller so the new CRD is installed. See [CRD Upgrades](#crd-upgrades) above.
 * This version adds support for [Dynamic Resource Allocation (DRA)](https://github.com/kubernetes-sigs/karpenter/pull/3113), including consumable capacity and partitionable devices. This is additive and requires no configuration changes to existing NodePools.
 * This version adds a [Balanced consolidation policy](https://github.com/kubernetes-sigs/karpenter/pull/2962). Existing `WhenEmptyOrUnderutilized` NodePools are unaffected unless you opt into the new policy.
+* This version adds support for [preview instance types](https://github.com/aws/karpenter-provider-aws/pull/9249), allowing Karpenter to consider instance types that do not yet have public pricing data. This is gated behind the existing `NodeOverlay` feature gate and is opt-in.
 * No breaking changes 🎉
 
 Full Changelog:
