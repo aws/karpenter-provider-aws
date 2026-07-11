@@ -55,15 +55,21 @@ const (
 	ConditionReasonCreateFleetAuthFailed          = "CreateFleetAuthCheckFailed"
 	ConditionReasonCreateLaunchTemplateAuthFailed = "CreateLaunchTemplateAuthCheckFailed"
 	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
-	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
-	ConditionReasonTagValidationFailed            = "TagValidationFailed"
-	ConditionReasonDryRunDisabled                 = "DryRunDisabled"
+	ConditionReasonCreateFleetValidationFailed          = "CreateFleetValidationFailed"
+	ConditionReasonCreateLaunchTemplateValidationFailed = "CreateLaunchTemplateValidationFailed"
+	ConditionReasonRunInstancesValidationFailed         = "RunInstancesValidationFailed"
+	ConditionReasonDependenciesNotReady                 = "DependenciesNotReady"
+	ConditionReasonTagValidationFailed                  = "TagValidationFailed"
+	ConditionReasonDryRunDisabled                       = "DryRunDisabled"
 )
 
 var ValidationConditionMessages = map[string]string{
-	ConditionReasonCreateFleetAuthFailed:          "Controller isn't authorized to call ec2:CreateFleet",
-	ConditionReasonCreateLaunchTemplateAuthFailed: "Controller isn't authorized to call ec2:CreateLaunchTemplate",
-	ConditionReasonRunInstancesAuthFailed:         "Controller isn't authorized to call ec2:RunInstances",
+	ConditionReasonCreateFleetAuthFailed:                "Controller isn't authorized to call ec2:CreateFleet",
+	ConditionReasonCreateLaunchTemplateAuthFailed:       "Controller isn't authorized to call ec2:CreateLaunchTemplate",
+	ConditionReasonRunInstancesAuthFailed:               "Controller isn't authorized to call ec2:RunInstances",
+	ConditionReasonCreateFleetValidationFailed:          "ec2:CreateFleet was rejected as invalid",
+	ConditionReasonCreateLaunchTemplateValidationFailed: "ec2:CreateLaunchTemplate was rejected as invalid",
+	ConditionReasonRunInstancesValidationFailed:         "ec2:RunInstances was rejected as invalid",
 }
 
 // validationCacheEntry stores a failed validation result with both the condition reason and the
@@ -242,8 +248,16 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 			return nil, reconcile.Result{Requeue: true}, nil
 		}
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
-			// We should only ever receive UnauthorizedOperation so if we receive any other error it would be an unexpected state
-			return nil, reconcile.Result{}, fmt.Errorf("validating ec2:CreateLaunchTemplate authorization, %w", err)
+			// EC2 rejects invalid configuration (e.g. a volume smaller than its snapshot) with an API error
+			// other than UnauthorizedOperation. Surface it on the status condition rather than reporting it
+			// as an authorization failure, which sends users looking for an IAM problem that doesn't exist.
+			if apiErrMessage, ok := awserrors.APIErrorMessage(err); ok {
+				log.FromContext(ctx).Error(err, "failed to validate ec2:CreateLaunchTemplate")
+				v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateLaunchTemplateValidationFailed, apiErrMessage)
+				return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+			}
+			// A non-API error is genuinely unexpected here, so surface it to the controller.
+			return nil, reconcile.Result{}, fmt.Errorf("validating ec2:CreateLaunchTemplate, %w", err)
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateLaunchTemplate")
 		_, reasonMessage := awserrors.ToReasonMessage(err)
@@ -274,9 +288,15 @@ func (v *Validation) validateCreateFleetAuthorization(
 			return reconcile.Result{Requeue: true}, nil
 		}
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
-			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
-			// it would be an unexpected state
-			return reconcile.Result{}, fmt.Errorf("validating ec2:CreateFleet authorization, %w", err)
+			// A dry run can be rejected as invalid rather than unauthorized. Surface the API error on the
+			// status condition instead of misreporting it as an authorization failure.
+			if apiErrMessage, ok := awserrors.APIErrorMessage(err); ok {
+				log.FromContext(ctx).Error(err, "failed to validate ec2:CreateFleet")
+				v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateFleetValidationFailed, apiErrMessage)
+				return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+			}
+			// A non-API error is genuinely unexpected here, so surface it to the controller.
+			return reconcile.Result{}, fmt.Errorf("validating ec2:CreateFleet, %w", err)
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateFleet")
 		_, reasonMessage := awserrors.ToReasonMessage(err)
@@ -317,9 +337,17 @@ func (v *Validation) validateRunInstancesAuthorization(
 		return reconcile.Result{Requeue: true}, nil
 	}
 	if awserrors.IgnoreUnauthorizedOperationError(firstSubnetErr) != nil {
-		// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
-		// it would be an unexpected state
-		return reconcile.Result{}, fmt.Errorf("validating ec2:RunInstances authorization, %w", firstSubnetErr)
+		// A dry run can be rejected as invalid rather than unauthorized — InvalidBlockDeviceMapping when the
+		// requested volume is smaller than its snapshot, for example. Surface the API error on the status
+		// condition so `kubectl describe ec2nodeclass` reports the real cause instead of leaving the
+		// NodeClass sitting in AwaitingReconciliation with the failure buried in the controller logs.
+		if apiErrMessage, ok := awserrors.APIErrorMessage(firstSubnetErr); ok {
+			log.FromContext(ctx).Error(firstSubnetErr, "failed to validate ec2:RunInstances")
+			v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesValidationFailed, apiErrMessage)
+			return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+		}
+		// A non-API error is genuinely unexpected here, so surface it to the controller.
+		return reconcile.Result{}, fmt.Errorf("validating ec2:RunInstances, %w", firstSubnetErr)
 	}
 	log.FromContext(ctx).Error(firstSubnetErr, "unauthorized to call ec2:RunInstances")
 	_, reasonMessage := awserrors.ToReasonMessage(firstSubnetErr)

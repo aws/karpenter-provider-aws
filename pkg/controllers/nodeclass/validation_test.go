@@ -289,6 +289,27 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				}, fake.MaxCalls(4))
 			}, nodeclass.ConditionReasonRunInstancesAuthFailed,
 				"Controller isn't authorized to call ec2:RunInstances: User is not authorized to perform this operation due to a service control policy"),
+			Entry("should surface the API error when RunInstances is rejected as invalid rather than unauthorized", func() {
+				awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+					Code:    "InvalidBlockDeviceMapping",
+					Message: "Volume of size 2GB is smaller than snapshot 'snap-0a8454f13dc7cb861', expect size >= 20GB",
+				}, fake.MaxCalls(4))
+			}, nodeclass.ConditionReasonRunInstancesValidationFailed,
+				"ec2:RunInstances was rejected as invalid: InvalidBlockDeviceMapping: Volume of size 2GB is smaller than snapshot 'snap-0a8454f13dc7cb861', expect size >= 20GB"),
+			Entry("should surface the API error when CreateFleet is rejected as invalid rather than unauthorized", func() {
+				awsEnv.EC2API.CreateFleetBehavior.Error.Set(&smithy.GenericAPIError{
+					Code:    "InvalidBlockDeviceMapping",
+					Message: "Volume of size 2GB is smaller than snapshot 'snap-0a8454f13dc7cb861', expect size >= 20GB",
+				}, fake.MaxCalls(1))
+			}, nodeclass.ConditionReasonCreateFleetValidationFailed,
+				"ec2:CreateFleet was rejected as invalid: InvalidBlockDeviceMapping: Volume of size 2GB is smaller than snapshot 'snap-0a8454f13dc7cb861', expect size >= 20GB"),
+			Entry("should surface the API error when CreateLaunchTemplate is rejected as invalid rather than unauthorized", func() {
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
+					Code:    "InvalidBlockDeviceMapping",
+					Message: "Volume of size 2GB is smaller than snapshot 'snap-0a8454f13dc7cb861', expect size >= 20GB",
+				}, fake.MaxCalls(1))
+			}, nodeclass.ConditionReasonCreateLaunchTemplateValidationFailed,
+				"ec2:CreateLaunchTemplate was rejected as invalid: InvalidBlockDeviceMapping: Volume of size 2GB is smaller than snapshot 'snap-0a8454f13dc7cb861', expect size >= 20GB"),
 		)
 		It("should succeed RunInstances validation when first subnet returns 500 but another subnet succeeds", func() {
 			// Fail the first RunInstances call (first subnet) with a server error,
