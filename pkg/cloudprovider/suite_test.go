@@ -37,7 +37,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	opstatus "github.com/awslabs/operatorpkg/status"
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
