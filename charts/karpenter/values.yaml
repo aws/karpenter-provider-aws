@@ -246,3 +246,7 @@ settings:
     # -- capacityBuffer is ALPHA and is disabled by default.
     # Setting this to true will enable CapacityBuffer support for pre-provisioning spare capacity.
     capacityBuffer: false
+    # -- rolloutRestartDrainStrategy is ALPHA and is disabled by default.
+    # When enabled, draining a node that hosts a pod owned by a singleton (spec.replicas == 1) Deployment or StatefulSet
+    # triggers a `kubectl rollout restart`-style annotation patch on the owner instead of evicting the pod.
+    rolloutRestartDrainStrategy: false
