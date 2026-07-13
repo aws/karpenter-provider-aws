@@ -85,9 +85,6 @@ spec:
     - id: sg-063d7acfb4b06c82c
 
   # Optional, IAM role to use for the node identity.
-  # The "role" field is immutable after EC2NodeClass creation. This may change in the
-  # future, but this restriction is currently in place today to ensure that Karpenter
-  # avoids leaking managed instance profiles in your account.
   # Must specify one of "role" or "instanceProfile" for Karpenter to launch nodes
   role: "KarpenterNodeRole-${CLUSTER_NAME}"
 
@@ -116,6 +113,7 @@ spec:
     - tags:
         karpenter.sh/discovery: ${CLUSTER_NAME}
     - id: cr-123
+    - instanceMatchCriteria: open
 
   # Optional, propagates tags to underlying EC2 resources
   tags:
@@ -529,6 +527,15 @@ max-pods = 110
 </powershell>
 ```
 
+### Windows2025
+
+```powershell
+<powershell>
+[string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
+& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test" --max-pods=110' -DNSClusterIP '10.100.0.10'
+</powershell>
+```
+
 ### Custom
 
 The `Custom` AMIFamily ships without any default userData to allow you to configure custom bootstrapping for control planes or images that don't support the default methods from the other families. For this AMIFamily, kubelet must add the taint `karpenter.sh/unregistered:NoExecute` via the `--register-with-taints` flag ([flags](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/#options)) or the KubeletConfiguration spec ([options](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/#kubelet-config-k8s-io-v1-CredentialProviderConfig) and [docs](https://kubernetes.io/docs/tasks/administer-cluster/kubelet-config-file/)). Karpenter will fail to register nodes that do not have this taint.
@@ -709,6 +716,10 @@ For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-
 
 {{% /alert %}}
 
+{{% alert title="Warning" color="warning" %}}
+When using `spec.instanceProfile`, ensure you are using pre-provisioned instance profiles that you manage yourself.
+{{% /alert %}}
+
 ## spec.amiSelectorTerms
 
 AMI Selector Terms are __required__ and are used to configure AMIs for Karpenter to use. AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
@@ -742,6 +753,7 @@ An `alias` term can be used to select EKS-optimized AMIs. An `alias` is formatte
 * `bottlerocket`
 * `windows2019`
 * `windows2022`
+* `windows2025`
 
 The version string can be set to `latest`, or pinned to a specific AMI using the format of that AMI's GitHub release tags.
 For example, AL2 and AL2023 use dates for their release, so they can be pinned as follows:
@@ -759,19 +771,19 @@ The following commands can be used to determine the versions availble for an ali
 {{< tabpane text=true right=false >}}
   {{% tab "AL2023" %}}
   ```bash
-  export K8S_VERSION="1.33"
+  export K8S_VERSION="1.34"
   aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2023/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $10}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
   ```
   {{% /tab %}}
   {{% tab "AL2" %}}
   ```bash
-  export K8S_VERSION="1.32"
+  export K8S_VERSION="1.34"
   aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $8}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
   ```
   {{% /tab %}}
   {{% tab "Bottlerocket" %}}
   ```bash
-  export K8S_VERSION="1.33"
+  export K8S_VERSION="1.34"
   aws ssm get-parameters-by-path --path "/aws/service/bottlerocket/aws-k8s-$K8S_VERSION" --recursive | jq -cr '.Parameters[].Name' | grep -v "latest" | awk -F '/' '{print $7}' | sort | uniq
   ```
   {{% /tab %}}
@@ -877,11 +889,12 @@ When using a custom SSM parameter, you'll need to expand the `ssm:GetParameter` 
 
 Capacity Reservation Selector Terms allow you to select [on-demand capacity reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html) (ODCRs), which will be made available to NodePools which select the given EC2NodeClass.
 Karpenter will prioritize utilizing the capacity in these reservations before falling back to on-demand and spot.
-Capacity reservations can be discovered using ids or tags.
+Capacity reservations can be discovered using ids, tags, or instance match criteria.
 
 This selection logic is modeled as terms.
-A term can specify an ID or a set of tags to select against.
+A term can specify an ID, a set of tags, or instance match criteria to select against.
 When specifying tags, it will select all capacity reservations accessible from the account with matching tags.
+When specifying instance match criteria, it selects reservations by their matching behavior: `open` (matches all compatible instances) or `targeted` (matches only explicitly targeted instances).
 This can be further restricted by specifying an owner ID.
 
 For more information on utilizing ODCRs with Karpenter, refer to the [Utilizing ODCRs Task]({{< relref "../tasks/odcrs" >}}).
@@ -925,6 +938,26 @@ spec:
   - tags:
       key: foo
     ownerID: 012345678901
+```
+
+Select by instance match criteria:
+
+```yaml
+spec:
+  capacityReservationSelectorTerms:
+  # Select all open capacity reservations
+  - instanceMatchCriteria: open
+```
+
+Select by instance match criteria and tags:
+
+```yaml
+spec:
+  capacityReservationSelectorTerms:
+  # Select targeted capacity reservations with matching tags
+  - instanceMatchCriteria: targeted
+    tags:
+      key: foo
 ```
 
 ## spec.tags
@@ -1032,7 +1065,7 @@ spec:
         encrypted: true
 ```
 
-### Windows2019/Windows2022
+### Windows2019/Windows2022/Windows2025
 ```yaml
 spec:
   blockDeviceMappings:
@@ -1469,7 +1502,7 @@ This allows the container to take ownership of devices allocated to the pod via 
 
 This setting helps you enable Neuron workloads on Bottlerocket instances. See [Accelerators/GPU Resources]({{< ref "./scheduling#acceleratorsgpu-resources" >}}) for more details.
 
-### Windows2019/Windows2022
+### Windows2019/Windows2022/Windows2025
 
 * Your UserData must be specified as PowerShell commands.
 * The UserData specified will be prepended to a Karpenter managed section that will bootstrap the kubelet.
@@ -1534,6 +1567,10 @@ This value is a boolean field that controls whether instances created by Karpent
 If a `NodeClaim` requests `vpc.amazonaws.com/efa` resources, `spec.associatePublicIPAddress` is respected. However, if this `NodeClaim` requests **multiple** EFA resources and the value for `spec.associatePublicIPAddress` is true, the instance will fail to launch. This is due to an EC2 restriction which
 requires that the field is only set to true when configuring an instance with a single ENI at launch. When using this field, it is advised that users segregate their EFA workload to use a separate `NodePool` / `EC2NodeClass` pair.
 {{% /alert %}}
+
+## spec.ipPrefixCount
+
+This value is a integer field that controls how many ip prefixes will be assigned to `NodeClaim`. See the [EC2 Launch Template Network Interface Spec](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ec2-launchtemplate-networkinterface.html) for more information. Sets ipv4PrefixCount if you are using an IPv4 Cluster, or ipv6PrefixCount if you are using IPv6.
 
 ## status.subnets
 [`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.

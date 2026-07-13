@@ -85,7 +85,7 @@ spec:
 
       # Requirements that constrain the parameters of provisioned nodes.
       # These requirements are combined with pod.spec.topologySpreadConstraints, pod.spec.affinity.nodeAffinity, pod.spec.affinity.podAffinity, and pod.spec.nodeSelector rules.
-      # Operators { In, NotIn, Exists, DoesNotExist, Gt, and Lt } are supported.
+      # Operators { In, NotIn, Exists, DoesNotExist, Gt, Lt, Gte, and Lte } are supported.
       # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#operators
       requirements:
         - key: "karpenter.k8s.aws/instance-category"
@@ -105,8 +105,8 @@ spec:
           operator: In
           values: ["nitro"]
         - key: "karpenter.k8s.aws/instance-generation"
-          operator: Gt
-          values: ["2"]
+          operator: Gte
+          values: ["3"]
         - key: "topology.kubernetes.io/zone"
           operator: In
           values: ["us-west-2a", "us-west-2b"]
@@ -212,6 +212,7 @@ For example, an instance type may be specified using a nodeSelector in a pod spe
 - key: `karpenter.k8s.aws/instance-family`
 - key: `karpenter.k8s.aws/instance-category`
 - key: `karpenter.k8s.aws/instance-generation`
+- key: `karpenter.k8s.aws/instance-capability-flex`
 
 Generally, instance types should be a list and not a single value. Leaving these requirements undefined is recommended, as it maximizes choices for efficiently placing pods.
 
@@ -261,6 +262,17 @@ If there are no other possible offerings available for a higher priority capacit
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
+#### Tenancy
+
+- key: `karpenter.k8s.aws/instance-tenancy`
+- values
+    - `default`
+    - `dedicated`
+
+Karpenter supports specifying tenancy type.
+
+If a NodeClaim requires dedicated tenancy, then it will launch on a [Dedicated Instance](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/dedicated-instance.html).  If the NodeClaim does not specify the label, or if both types are allowed, then it will launch with default tenancy.
+
 {{% alert title="Note" color="primary" %}}
 There is currently a limit of 100 on the total number of requirements on both the NodePool and the NodeClaim. It's important to note that `spec.template.metadata.labels` are also propagated as requirements on the NodeClaim when it's created, meaning that you can't have more than 100 requirements and labels combined set on your NodePool.
 {{% /alert %}}
@@ -269,7 +281,7 @@ There is currently a limit of 100 on the total number of requirements on both th
 
 Along with the combination of [key,operator,values] in the requirements, Karpenter also supports `minValues` in the NodePool requirements block, allowing the scheduler to be aware of user-specified flexibility minimums while scheduling pods to a cluster. Depending on the policy configured via the flag `--min-values-policy` or environment variable `MIN_VALUES_POLICY`, if Karpenter cannot meet this minimum flexibility for each key when scheduling a pod, it will either fail the scheduling loop for that NodePool, either falling back to another NodePool which meets the pod requirements or failing scheduling the pod altogether (when policy is set to `Strict`) or relax `minValues` until they can be met (when policy is set to `BestEffort`).
 
-For example, the below spec will use spot instance type for all provisioned instances and enforces `minValues` to various keys where it is defined
+For spot instances, you should specify `karpenter.sh/capacity-type: spot` in your requirements. For example, the below spec will use spot instance type for all provisioned instances and enforces `minValues` to various keys where it is defined
 i.e at least 2 unique instance families from [c,m,r], 5 unique instance families [eg: "m5","m5d","r4","c5","c5d","c4" etc], 10 unique instance types [eg: "c5.2xlarge","c4.xlarge" etc] is required for scheduling the pods.
 
 ```yaml
@@ -283,6 +295,9 @@ spec:
         - key: kubernetes.io/os
           operator: In
           values: ["linux"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]
         - key: karpenter.k8s.aws/instance-category
           operator: In
           values: ["c", "m", "r"]
@@ -294,8 +309,8 @@ spec:
           operator: Exists
           minValues: 10
         - key: karpenter.k8s.aws/instance-generation
-          operator: Gt
-          values: ["2"]
+          operator: Gte
+          values: ["3"]
 ```
 
 Note that `minValues` can be used with multiple operators and multiple requirements. And if the `minValues` are defined with multiple operators for the same requirement key, scheduler considers the max of all the `minValues` for that requirement. For example, the below spec requires scheduler to consider at least 5 instance-family to schedule the pods.
@@ -326,8 +341,8 @@ spec:
           operator: Exists
           minValues: 10
         - key: karpenter.k8s.aws/instance-generation
-          operator: Gt
-          values: ["2"]
+          operator: Gte
+          values: ["3"]
 ```
 
 {{% alert title="Recommended" color="primary" %}}
@@ -353,8 +368,8 @@ spec:
           operator: In
           values: ["c", "m", "r"]
         - key: karpenter.k8s.aws/instance-generation
-          operator: Gt
-          values: ["2"]
+          operator: Gte
+          values: ["3"]
 ```
 
 {{% /alert %}}

@@ -173,10 +173,18 @@ Pod disruption budgets may be used to rate-limit application disruption.
 
 ### Expiration
 
-A node is expired once it's lifetime exceeds the duration set on the owning NodeClaim's `spec.expireAfter` field.
+Expiration is a forceful disruption method that begins draining a node immediately once its lifetime exceeds the duration set on the owning NodeClaim's `spec.expireAfter` field.
 Changes to `spec.template.spec.expireAfter` on the owning NodePool will not update the field for existing NodeClaims - it will induce NodeClaim drift and the replacements will have the updated value.
 Expiration can be used, in conjunction with [`terminationGracePeriod`](#terminationgraceperiod), to enforce a maximum Node lifetime.
 By default, `expireAfter` is set to `720h` (30 days).
+
+{{% alert title="Note" color="primary" %}}
+The `expireAfter` field defines the **maximum** node lifetime (upper bound), not a guaranteed minimum.
+Nodes can be disrupted earlier than the `expireAfter` duration by other disruption methods such as [Drift]({{<ref "#drift" >}}), [Consolidation]({{<ref "#consolidation" >}}), or [Emptiness]({{<ref "#consolidation" >}}) if their [disruption budgets]({{<ref "#nodepool-disruption-budgets" >}}) allow.
+For example, a NodePool with `expireAfter: 720h` (30 days) can still have nodes terminated earlier if the node becomes drifted due to an AMI update and the disruption budget permits drift-based disruptions.
+
+To enforce a true maximum node lifetime that cannot be shortened by other disruption methods, use `expireAfter` in combination with carefully configured disruption budgets that limit or prevent other disruption reasons.
+{{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
 Misconfigured PDBs and pods with the `karpenter.sh/do-not-disrupt` annotation may block draining indefinitely.
