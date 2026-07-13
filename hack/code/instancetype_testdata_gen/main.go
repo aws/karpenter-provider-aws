@@ -128,7 +128,7 @@ func getDescribeInstanceTypeOfferingsOutput() string {
 		"m5.4xlarge":     {"test-zone-1a"},
 		"m5.8xlarge":     {"test-zone-1a"},
 		"g5.12xlarge":    {"test-zone-1a", "test-zone-1b"},
-		"dl1.24xlarge":   {"test-zone-1a", "test-zone-1b"},
+		"p5.48xlarge":    {"test-zone-1a", "test-zone-1b"},
 		"g4dn.8xlarge":   {"test-zone-1a", "test-zone-1b"},
 		"g4ad.16xlarge":  {"test-zone-1a", "test-zone-1b"},
 		"t3.large":       {"test-zone-1a", "test-zone-1b"},

@@ -761,8 +761,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 		pods := []*corev1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
-					Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
+					Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("5")},
+					Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("5")},
 				},
 			}),
 			// Should pack onto same instance
@@ -775,49 +775,18 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// Should pack onto a separate instance
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("4")},
-					Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("4")},
+					Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("5")},
+					Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("5")},
 				},
 			}),
 		}
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
 		for _, pod := range pods {
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "g5.12xlarge"))
+			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "p5.48xlarge"))
 			nodeNames.Insert(node.Name)
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
-	})
-	It("should launch instances for habana.ai/gaudi resource requests", func() {
-		nodeNames := sets.NewString()
-		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-		pods := []*corev1.Pod{
-			coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("1")},
-					Limits:   corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("1")},
-				},
-			}),
-			coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("2")},
-					Limits:   corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("2")},
-				},
-			}),
-			coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("4")},
-					Limits:   corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("4")},
-				},
-			}),
-		}
-		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
-		for _, pod := range pods {
-			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "dl1.24xlarge"))
-			nodeNames.Insert(node.Name)
-		}
-		Expect(nodeNames.Len()).To(Equal(1))
 	})
 	It("should launch instances for aws.amazon.com/neuron resource requests", func() {
 		nodeNames := sets.NewString()
@@ -910,7 +879,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			{
 				Key:      corev1.LabelInstanceTypeStable,
 				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"dl1.24xlarge"},
+				Values:   []string{"p5.48xlarge"},
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -932,7 +901,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		nodes := sets.NewString()
 		for _, pod := range pods {
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "dl1.24xlarge"))
+			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "p5.48xlarge"))
 			nodes.Insert(node.Name)
 		}
 		Expect(nodes.Len()).To(Equal(1))
@@ -1874,7 +1843,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
-				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", lo.FromPtr(info.VCpuInfo.DefaultVCpus)))
+				eniLimitedPods := instancetype.ENILimitedPods(ctx, info, 0, nil).Value()
+				expectedPods := lo.Min([]int64{int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)), eniLimitedPods})
+				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", expectedPods))
 			}
 		})
 		It("should take the minimum of pods-per-core and max-pods", func() {
@@ -2183,13 +2154,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "inf2.24xlarge"))
 		})
-		It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback (Habana)", func() {
-			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "dl1.24xlarge", Zone: "test-zone-1a"}})
+		It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
+			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "p5.48xlarge", Zone: "test-zone-1a"}})
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
-				NodeSelector: map[string]string{corev1.LabelInstanceTypeStable: "dl1.24xlarge"},
+				NodeSelector: map[string]string{corev1.LabelInstanceTypeStable: "p5.48xlarge"},
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("1")},
-					Limits:   corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("1")},
+					Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
+					Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
 				},
 			})
 			pod.Spec.Affinity = &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
@@ -2201,13 +2172,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			// it should've tried to pack them in test-zone-1a on a dl1.24xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
+			// it should've tried to pack them in test-zone-1a on a p5.48xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
 			ExpectNotScheduled(ctx, env.Client, pod)
 
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(SatisfyAll(
-				HaveKeyWithValue(corev1.LabelInstanceTypeStable, "dl1.24xlarge"),
+				HaveKeyWithValue(corev1.LabelInstanceTypeStable, "p5.48xlarge"),
 				HaveKeyWithValue(corev1.LabelTopologyZone, "test-zone-1b")))
 		})
 		It("should launch on-demand capacity if flexible to both spot and on-demand, but spot is unavailable", func() {
@@ -3180,11 +3151,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 				ExpectApplied(ctx, env.Client, nodeClass)
 				instanceTypesBefore, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
-				dl1InstanceBefore, ok := lo.Find(instanceTypesBefore, func(it *corecloudprovider.InstanceType) bool {
-					return it.Name == "dl1.24xlarge"
+				p5InstanceBefore, ok := lo.Find(instanceTypesBefore, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "p5.48xlarge"
 				})
 				Expect(ok).To(BeTrue())
-				availableOfferingsBefore := len(dl1InstanceBefore.Offerings.Available())
+				availableOfferingsBefore := len(p5InstanceBefore.Offerings.Available())
 
 				nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
 					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
@@ -3193,11 +3164,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 				ExpectApplied(ctx, env.Client, nodeClass)
 				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
-				dl1Instance, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
-					return it.Name == "dl1.24xlarge"
+				p5Instance, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "p5.48xlarge"
 				})
 				Expect(ok).To(BeTrue())
-				availableOfferingsAfter := len(dl1Instance.Offerings.Available())
+				availableOfferingsAfter := len(p5Instance.Offerings.Available())
 
 				Expect(availableOfferingsAfter).To(Equal(availableOfferingsBefore))
 			})
@@ -3214,13 +3185,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
-				// dl1.24xlarge only suppports 4 EFAs
-				dl1Instance, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
-					return it.Name == "dl1.24xlarge"
+				// m6idn.32xlarge only suppports 2 EFAs
+				m6idnInstance, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "m6idn.32xlarge"
 				})
 				Expect(ok).To(BeTrue())
 
-				for _, offering := range dl1Instance.Offerings {
+				for _, offering := range m6idnInstance.Offerings {
 					Expect(offering.Available).To(Equal(false))
 				}
 			})
