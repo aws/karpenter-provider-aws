@@ -30,7 +30,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+  - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
     with:
       ref: ${{ inputs.git_ref }}
   - uses: ./.github/actions/e2e/install-helm
@@ -44,7 +44,7 @@ runs:
       kubectl label ns kube-system scrape=enabled --overwrite=true
       kubectl label ns kube-system pod-security.kubernetes.io/warn=restricted --overwrite=true
   - name: login to ecr via docker
-    uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+    uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
     with:
       registry: ${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com
       logout: true
