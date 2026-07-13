@@ -1,7 +1,6 @@
 ---
 title: "Managing AMIs"
 linkTitle: "Managing AMIs"
-weight: 10
 description: >
   Task for managing AMIs in Karpenter
 ---
@@ -22,7 +21,7 @@ Below we describe how Karpenter assigns AMIs to nodes when they are first deploy
 Later, it describes the options you have to assert control over how AMIs are used by Karpenter for your clusters.
 
 Features for managing AMIs described here should be considered as part of the larger upgrade policies that you have for your clusters.
-See [How do I upgrade an EKS Cluster with Karpenter]({{< relref "../faq/#how-do-i-upgrade-an-eks-cluster-with-karpenter" >}}) for details on this process. 
+See [How do I upgrade an EKS Cluster with Karpenter]({{< relref "../faq/#how-do-i-upgrade-an-eks-cluster-with-karpenter" >}}) for details on this process.
 
 ## How Karpenter assigns AMIs to nodes
 
