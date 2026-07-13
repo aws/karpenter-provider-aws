@@ -321,7 +321,6 @@ func (v *Validation) validateRunInstancesAuthorization(
 				ConditionReasonInstanceProfileNotFound,
 				fmt.Sprintf("Instance profile %q not found", lo.FromPtr(nodeClass.Spec.InstanceProfile)),
 			)
-			return reconcile.Result{Requeue: true}, nil
 		}
 		// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
 		// this means there is most likely an eventual consistency issue and we just need to requeue
