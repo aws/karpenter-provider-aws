@@ -313,20 +313,15 @@ func (v *Validation) validateRunInstancesAuthorization(
 	}
 
 	if awserrors.IsInstanceProfileNotFound(firstSubnetErr) {
-		// When spec.instanceProfile is explicitly set, there's no eventual consistency to wait for —
-		// the named profile simply doesn't exist.
+		// When spec.instanceProfile is explicitly set, surface the error for visibility but don't
+		// cache it — the profile may be created concurrently and could be an eventual consistency issue
 		if nodeClass.Spec.InstanceProfile != nil {
-			message := fmt.Sprintf("Instance profile %q not found", lo.FromPtr(nodeClass.Spec.InstanceProfile))
-			v.cache.SetDefault(v.cacheKey(nodeClass, tags), validationCacheEntry{
-				reason:  ConditionReasonInstanceProfileNotFound,
-				message: message,
-			})
 			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 				v1.ConditionTypeValidationSucceeded,
 				ConditionReasonInstanceProfileNotFound,
-				message,
+				fmt.Sprintf("Instance profile %q not found", lo.FromPtr(nodeClass.Spec.InstanceProfile)),
 			)
-			return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+			return reconcile.Result{Requeue: true}, nil
 		}
 		// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
 		// this means there is most likely an eventual consistency issue and we just need to requeue
