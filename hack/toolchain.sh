@@ -16,7 +16,7 @@ tools() {
     # fix - https://github.com/golangci/golangci-lint/issues/6017
     # change to latest once golangci releases new version with the fix
     go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@main
-    go install github.com/google/ko@latest
+    go install github.com/google/ko@v0.18.1
     go install github.com/mikefarah/yq/v4@latest
     go install github.com/norwoodj/helm-docs/cmd/helm-docs@latest
     go install sigs.k8s.io/controller-runtime/tools/setup-envtest@b9bccfd419149d26d14130887a5e5819e4a3b2be
