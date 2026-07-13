@@ -55,6 +55,7 @@ const (
 	ConditionReasonCreateFleetAuthFailed          = "CreateFleetAuthCheckFailed"
 	ConditionReasonCreateLaunchTemplateAuthFailed = "CreateLaunchTemplateAuthCheckFailed"
 	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
+	ConditionReasonInstanceProfileNotFound        = "InstanceProfileNotFound"
 	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
 	ConditionReasonTagValidationFailed            = "TagValidationFailed"
 	ConditionReasonDryRunDisabled                 = "DryRunDisabled"
@@ -311,9 +312,27 @@ func (v *Validation) validateRunInstancesAuthorization(
 		}
 	}
 
-	// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
-	// this means there is most likely an eventual consistency issue and we just need to requeue
-	if awserrors.IsInstanceProfileNotFound(firstSubnetErr) || awserrors.IsRateLimitedError(firstSubnetErr) || awserrors.IsServerError(firstSubnetErr) {
+	if awserrors.IsInstanceProfileNotFound(firstSubnetErr) {
+		// When spec.instanceProfile is explicitly set, there's no eventual consistency to wait for —
+		// the named profile simply doesn't exist.
+		if nodeClass.Spec.InstanceProfile != nil {
+			message := fmt.Sprintf("Instance profile %q not found", lo.FromPtr(nodeClass.Spec.InstanceProfile))
+			v.cache.SetDefault(v.cacheKey(nodeClass, tags), validationCacheEntry{
+				reason:  ConditionReasonInstanceProfileNotFound,
+				message: message,
+			})
+			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+				v1.ConditionTypeValidationSucceeded,
+				ConditionReasonInstanceProfileNotFound,
+				message,
+			)
+			return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+		}
+		// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
+		// this means there is most likely an eventual consistency issue and we just need to requeue
+		return reconcile.Result{Requeue: true}, nil
+	}
+	if awserrors.IsRateLimitedError(firstSubnetErr) || awserrors.IsServerError(firstSubnetErr) {
 		return reconcile.Result{Requeue: true}, nil
 	}
 	if awserrors.IgnoreUnauthorizedOperationError(firstSubnetErr) != nil {
