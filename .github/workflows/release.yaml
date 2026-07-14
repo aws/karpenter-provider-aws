@@ -24,6 +24,32 @@ jobs:
         with:
           repo_token: '${{ secrets.GITHUB_TOKEN }}'
           prerelease: false
+      # GitHub marks the most-recently-published release as "Latest". When we cut a
+      # patch for an older minor (a backport), that patch steals the "Latest" badge from
+      # the true newest version. Recompute the highest semver across all releases and
+      # (re)mark it Latest so /releases/latest always points at the newest version.
+      - name: Correct the Latest release badge
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { repo, owner } = context.repo;
+            const releases = await github.paginate(github.rest.repos.listReleases, { owner, repo, per_page: 100 });
+            const semver = t => {
+              const m = /^v(\d+)\.(\d+)\.(\d+)$/.exec(t); // stable releases only; skip rc/alpha/beta
+              return m ? [ +m[1], +m[2], +m[3] ] : null;
+            };
+            const cmp = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+            const stable = releases
+              .filter(r => !r.draft && !r.prerelease && semver(r.tag_name))
+              .sort((a, b) => cmp(semver(b.tag_name), semver(a.tag_name)));
+            if (stable.length === 0) { core.info('No stable releases found; leaving Latest unchanged.'); return; }
+            const newest = stable[0];
+            if (newest.make_latest === 'true') {
+              core.info(`Latest is already ${newest.tag_name}; nothing to do.`);
+              return;
+            }
+            core.info(`Marking ${newest.tag_name} as Latest (was on a different release).`);
+            await github.rest.repos.updateRelease({ owner, repo, release_id: newest.id, make_latest: 'true' });
       - uses: ./.github/actions/install-deps
         with:
           use-cache: false
