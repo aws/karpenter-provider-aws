@@ -34,6 +34,7 @@ type Query struct {
 	OwnerID               string
 	Tags                  map[string]string
 	InstanceMatchCriteria string
+	AvailabilityZone      string
 }
 
 func QueriesFromSelectorTerms(terms ...v1.CapacityReservationSelectorTerm) []*Query {
@@ -42,11 +43,12 @@ func QueriesFromSelectorTerms(terms ...v1.CapacityReservationSelectorTerm) []*Qu
 		if id := terms[i].ID; id != "" {
 			queries = append(queries, &Query{ID: id})
 		}
-		if len(terms[i].Tags) != 0 || terms[i].InstanceMatchCriteria != "" {
+		if len(terms[i].Tags) != 0 || terms[i].InstanceMatchCriteria != "" || terms[i].AvailabilityZone != "" {
 			queries = append(queries, &Query{
 				OwnerID:               terms[i].OwnerID,
 				Tags:                  terms[i].Tags,
 				InstanceMatchCriteria: terms[i].InstanceMatchCriteria,
+				AvailabilityZone:      terms[i].AvailabilityZone,
 			})
 		}
 	}
@@ -95,6 +97,12 @@ func (q *Query) DescribeCapacityReservationsInput() *ec2.DescribeCapacityReserva
 		filters = append(filters, ec2types.Filter{
 			Name:   lo.ToPtr("instance-match-criteria"),
 			Values: []string{q.InstanceMatchCriteria},
+		})
+	}
+	if q.AvailabilityZone != "" {
+		filters = append(filters, ec2types.Filter{
+			Name:   lo.ToPtr("availability-zone"),
+			Values: []string{q.AvailabilityZone},
 		})
 	}
 	return &ec2.DescribeCapacityReservationsInput{
