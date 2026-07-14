@@ -320,6 +320,32 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
 		})
+		It("should set validation condition to false when spec.instanceProfile does not exist", func() {
+			nodeClass.Spec.Role = ""
+			nodeClass.Spec.InstanceProfile = lo.ToPtr("nonexistent-profile")
+			nodeClass.Status.InstanceProfile = "nonexistent-profile"
+			awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+				Code:    "InvalidParameterValue",
+				Message: "Value (nonexistent-profile) for parameter iamInstanceProfile.name is invalid. Invalid IAM Instance Profile name",
+			}, fake.MaxCalls(4))
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonInstanceProfileNotFound))
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Message).To(ContainSubstring("nonexistent-profile"))
+		})
+		It("should requeue when instance profile not found with spec.role", func() {
+			awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+				Code:    "InvalidParameterValue",
+				Message: "Value (test-profile) for parameter iamInstanceProfile.name is invalid. Invalid IAM Instance Profile name",
+			}, fake.MaxCalls(4))
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			// With spec.role, we treat this as eventual consistency — validation stays unknown/unchanged, not false
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeFalse())
+		})
 		Context("Windows AMI Validation", func() {
 			DescribeTable(
 				"should fallback to static instance types when windows ami is used",
