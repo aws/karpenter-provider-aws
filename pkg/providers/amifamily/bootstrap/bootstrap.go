@@ -49,7 +49,7 @@ func (o Options) kubeletExtraArgs() (args []string) {
 		return lo.Compact(args)
 	}
 	if o.KubeletConfig.MaxPods != nil {
-		args = append(args, fmt.Sprintf("--max-pods=%d", lo.FromPtr(o.KubeletConfig.MaxPods)))
+		args = append(args, fmt.Sprintf("--max-pods=%d", o.KubeletConfig.MaxPods.IntValue()))
 	}
 	if o.KubeletConfig.PodsPerCore != nil {
 		args = append(args, fmt.Sprintf("--pods-per-core=%d", lo.FromPtr(o.KubeletConfig.PodsPerCore)))

@@ -28,6 +28,7 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -129,24 +130,35 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 // resolveKubeletExpressions evaluates CEL expressions for maxPods, kubeReserved, and systemReserved,
 // returning resolved values suitable for use in NewInstanceType.
 func resolveKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, kc *v1.KubeletConfiguration, networkInterfaces []*v1.NetworkInterface) (*int32, map[string]string, map[string]string) {
-	maxPods := kc.MaxPods
-	kubeReserved := kc.KubeReserved
-	systemReserved := kc.SystemReserved
-
-	if kc.MaxPodsExpression != nil {
-		celVars := buildCELVars(ctx, info, networkInterfaces)
-		result, err := kubeletcel.EvaluateExpression(*kc.MaxPodsExpression, celVars)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "failed to evaluate maxPodsExpression", "instanceType", info.InstanceType)
-		} else if result >= 0 {
-			maxPods = lo.ToPtr(int32(result))
-		}
-	}
-
-	kubeReserved = resolveResourceExpressions(ctx, info, kc.KubeReserved, networkInterfaces)
-	systemReserved = resolveResourceExpressions(ctx, info, kc.SystemReserved, networkInterfaces)
-
+	maxPods := resolveMaxPods(ctx, info, kc.MaxPods, networkInterfaces)
+	kubeReserved := resolveResourceExpressions(ctx, info, kc.KubeReserved, networkInterfaces)
+	systemReserved := resolveResourceExpressions(ctx, info, kc.SystemReserved, networkInterfaces)
 	return maxPods, kubeReserved, systemReserved
+}
+
+// resolveMaxPods resolves the MaxPods IntOrString value to a concrete int32.
+// If it's an integer, it's returned directly. If it's a string, it's evaluated as a CEL expression.
+func resolveMaxPods(ctx context.Context, info ec2types.InstanceTypeInfo, maxPods *intstr.IntOrString, networkInterfaces []*v1.NetworkInterface) *int32 {
+	if maxPods == nil {
+		return nil
+	}
+	switch maxPods.Type {
+	case intstr.Int:
+		return lo.ToPtr(int32(maxPods.IntValue()))
+	case intstr.String:
+		celVars := buildCELVars(ctx, info, networkInterfaces)
+		result, err := kubeletcel.EvaluateExpression(maxPods.StrVal, celVars)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "failed to evaluate maxPods expression", "instanceType", info.InstanceType)
+			return nil
+		}
+		if result < 0 {
+			return nil
+		}
+		return lo.ToPtr(int32(result))
+	default:
+		return nil
+	}
 }
 
 // resolveResourceExpressions evaluates CEL expressions in a resource map (kubeReserved or systemReserved).

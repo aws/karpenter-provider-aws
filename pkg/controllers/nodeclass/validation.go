@@ -37,6 +37,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -559,9 +560,9 @@ func validateKubeletExpressions(nodeClass *v1.EC2NodeClass) error {
 		return nil
 	}
 	kc := nodeClass.Spec.Kubelet
-	if kc.MaxPodsExpression != nil {
-		if err := kubeletcel.ValidateExpression(*kc.MaxPodsExpression); err != nil {
-			return fmt.Errorf("spec.kubelet.maxPodsExpression: %w", err)
+	if kc.MaxPods != nil && kc.MaxPods.Type == intstr.String {
+		if err := kubeletcel.ValidateExpression(kc.MaxPods.StrVal); err != nil {
+			return fmt.Errorf("spec.kubelet.maxPods: %w", err)
 		}
 	}
 	for k, v := range kc.KubeReserved {

@@ -49,7 +49,7 @@ func (b Bottlerocket) Script(ctx context.Context) (string, error) {
 	}
 
 	if b.KubeletConfig != nil && b.KubeletConfig.MaxPods != nil {
-		s.Settings.Kubernetes.MaxPods = aws.Int(int(lo.FromPtr(b.KubeletConfig.MaxPods)))
+		s.Settings.Kubernetes.MaxPods = aws.Int(b.KubeletConfig.MaxPods.IntValue())
 	}
 
 	if b.KubeletConfig != nil {

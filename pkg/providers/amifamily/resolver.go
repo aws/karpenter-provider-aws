@@ -27,6 +27,7 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -313,7 +314,10 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		// nolint:gosec
 		// We know that it's not possible to have values that would overflow int32 here since we control
 		// the maxPods values that we pass in here
-		kubeletConfig.MaxPods = lo.ToPtr(int32(maxPods))
+		kubeletConfig.MaxPods = lo.ToPtr(intstr.FromInt32(int32(maxPods)))
+	} else if kubeletConfig.MaxPods.Type == intstr.String {
+		// CEL expression was already evaluated at scheduling time; replace with the resolved static value
+		kubeletConfig.MaxPods = lo.ToPtr(intstr.FromInt32(int32(maxPods)))
 	}
 	// Use resolved values for kubeReserved/systemReserved when expressions were evaluated
 	if resolvedKubeReserved != nil {
