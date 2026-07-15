@@ -447,6 +447,13 @@ This error suggests that there is no instance type available that meets the pod'
 
 The phrase `had a required offering` pertains to the availability of an instance type in a specific location, such as an availability zone. This error can occur if a pod is restricted to a particular availability zone. For instance, consider a pod in a stateful set that previously had an EBS volume attached. If the subnet where the pod is scheduled changes, the pod might end up in a different availability zone than the EBS volume it needs to attach to. This mismatch in availability zones can lead to an error related to the required offering.
 
+### Pods requesting `nvidia.com/gpu` are not scheduled on g6f fractional GPU instances
+
+EC2's `g6f` instance family provides fractional NVIDIA L4 GPUs. However, the EC2 `DescribeInstanceTypes` API reports `Count=0` for g6f GPUs, which causes Karpenter to believe these instances have no GPU capacity. Pods requesting `nvidia.com/gpu: 1` will never be matched to g6f instances and remain Pending.
+
+To work around this, use a [NodeOverlay]({{<ref "./concepts/nodeoverlays#example-fractional-gpu-instances-g6f" >}}) to inject `nvidia.com/gpu: 1` into Karpenter's scheduling simulation for g6f instances. See the [Fractional GPU Instances (g6f)]({{<ref "./concepts/nodeoverlays#example-fractional-gpu-instances-g6f" >}}) section for a complete walkthrough with YAML examples.
+
+
 ## Deprovisioning
 
 ### Nodes not deprovisioned

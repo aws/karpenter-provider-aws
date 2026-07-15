@@ -208,6 +208,66 @@ status:
     message: "conflict with another overlay"
 ```
 
+## Example: Fractional GPU Instances (g6f)
+
+EC2's `g6f` instance family provides fractional NVIDIA L4 GPUs using vGPU (GRID) technology. Each g6f instance presents a slice of a physical L4 GPU (from 1/8th to 1/2) as a single logical GPU device. However, because the EC2 `DescribeInstanceTypes` API reports `Count=0` for g6f GPUs, Karpenter does not natively discover GPU capacity on these instances — pods requesting `nvidia.com/gpu` will never be scheduled on g6f.
+
+You can use a NodeOverlay to override this and tell Karpenter that g6f instances have GPU resources available:
+
+```yaml
+apiVersion: karpenter.sh/v1alpha1
+kind: NodeOverlay
+metadata:
+  name: g6f-fractional-gpu
+spec:
+  requirements:
+    - key: karpenter.k8s.aws/instance-family
+      operator: In
+      values: ["g6f"]
+  capacity:
+    nvidia.com/gpu: "1"
+```
+
+Then create a NodePool that targets g6f instances:
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: fractional-gpu
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: gpu-nodeclass
+      requirements:
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values: ["g6f"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+  limits:
+    nvidia.com/gpu: "4"
+```
+
+With this configuration:
+1. Karpenter's scheduling simulation sees g6f instances as having `nvidia.com/gpu: 1`
+2. Pods requesting `nvidia.com/gpu: 1` can be matched to g6f instances
+3. After the instance launches, the NVIDIA device plugin detects the vGPU device and reports `nvidia.com/gpu: 1` to the kubelet
+4. The pod is scheduled and runs on the fractional GPU
+
+{{% alert title="Note" color="primary" %}}
+The NodeOverlay feature gate must be enabled. Add `--feature-gates NodeOverlay=true` to your Karpenter controller arguments or set it in the ConfigMap.
+{{% /alert %}}
+
+{{% alert title="Important" color="warning" %}}
+The g6f instances have different amounts of GPU memory depending on size: g6f.xlarge has ~3 GB, g6f.2xlarge has ~6 GB, and g6f.4xlarge has ~12 GB. Use the `karpenter.k8s.aws/instance-gpu-memory` label or instance size requirements to ensure your workload lands on an appropriately sized instance.
+{{% /alert %}}
+
+
 ## Limitations and Considerations
 
 * **Resource Scope**: NodeOverlays can only add extended resources; they cannot modify or remove standard resources (CPU, memory, storage)
