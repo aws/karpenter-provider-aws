@@ -35,16 +35,8 @@ jobs:
       actions: read # github/codeql-action/init@v2
       security-events: write # github/codeql-action/init@v2
     steps:
-      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
-      - uses: github/codeql-action/init@df32e399139a3050671466d7d9b3cbacc1cfd034 # v2.22.8
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
         with:
-          languages: javascript
-          config: |
-            packs:
-              # Use the latest version of 'codeql-javascript' published by 'advanced-security'
-              # This will catch things like actions that aren't pinned to a hash
-              - advanced-security/codeql-javascript
-            paths:
-              - '.github/workflows'
-              - '.github/actions'
-      - uses: github/codeql-action/analyze@df32e399139a3050671466d7d9b3cbacc1cfd034 # v2.22.8
+          languages: actions
+      - uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
