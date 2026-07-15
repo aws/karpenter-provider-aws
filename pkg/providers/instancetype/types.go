@@ -215,6 +215,7 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceHypervisor, corev1.NodeSelectorOpIn, string(info.Hypervisor)),
 		scheduling.NewRequirement(v1.LabelInstanceEncryptionInTransitSupported, corev1.NodeSelectorOpIn, fmt.Sprint(aws.ToBool(info.NetworkInfo.EncryptionInTransitSupported))),
+		scheduling.NewRequirement(v1.LabelInstanceNitroEnclavesSupported, corev1.NodeSelectorOpIn, fmt.Sprint(info.NitroEnclavesSupport == ec2types.NitroEnclavesSupportSupported)),
 		scheduling.NewRequirement(v1.LabelInstanceTenancy, corev1.NodeSelectorOpIn, string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)),
 	)
 
