@@ -50,6 +50,7 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -105,7 +106,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock)
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -2428,16 +2429,16 @@ eviction-max-pod-grace-period = 10
 				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeFalse())
 			})
 		})
-		It("should enable enclave options when nip-slots is in the nodeclaim's resource requests", func() {
+		It("should enable enclave options when nitro-sandbox is in the nodeclaim's resource requests", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 
-			// Build a NodeClaim with nip-slots already in Spec.Resources.Requests,
+			// Build a NodeClaim with nitro-sandbox already in Spec.Resources.Requests,
 			// simulating what the scheduler sets when pods request that resource
 			nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
 				Spec: karpv1.NodeClaimSpec{
 					Resources: karpv1.ResourceRequirements{
 						Requests: corev1.ResourceList{
-							v1.ResourceNIPSlots: resource.MustParse("1"),
+							v1.ResourceNitroSandbox: resource.MustParse("1"),
 						},
 					},
 					NodeClassRef: &karpv1.NodeClassReference{
