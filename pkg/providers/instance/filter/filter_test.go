@@ -27,15 +27,13 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
-
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
-
 	. "sigs.k8s.io/karpenter/pkg/utils/testing"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 )
 
 var ctx context.Context
@@ -140,8 +138,8 @@ var _ = Describe("InstanceFiltersTest", func() {
 					corev1.NodeSelectorOpIn,
 					"zone-1a",
 				)), corev1.ResourceList{
-					corev1.ResourceCPU:  resource.MustParse("2000m"),
-					v1.ResourceNIPSlots: resource.MustParse("1"),
+					corev1.ResourceCPU:      resource.MustParse("2000m"),
+					v1.ResourceNitroSandbox: resource.MustParse("1"),
 				})
 				kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 					makeInstanceType("it",
@@ -150,7 +148,7 @@ var _ = Describe("InstanceFiltersTest", func() {
 						withOfferings(
 							makeOffering(karpv1.CapacityTypeOnDemand, baseAvailable, withZone("zone-1a")),
 							makeOffering(karpv1.CapacityTypeOnDemand, overrideAvailable, withZone(overrideZone),
-								withCapacityOverride(corev1.ResourceList{v1.ResourceNIPSlots: resource.MustParse(overrideSlots)})),
+								withCapacityOverride(corev1.ResourceList{v1.ResourceNitroSandbox: resource.MustParse(overrideSlots)})),
 						)),
 				})
 				if expectKept {
@@ -184,7 +182,7 @@ var _ = Describe("InstanceFiltersTest", func() {
 						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a")),
 						// Override offering also present but irrelevant — base group already satisfies.
 						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a"),
-							withCapacityOverride(corev1.ResourceList{v1.ResourceNIPSlots: resource.MustParse("4")}),
+							withCapacityOverride(corev1.ResourceList{v1.ResourceNitroSandbox: resource.MustParse("4")}),
 						),
 					),
 				),
@@ -201,8 +199,8 @@ var _ = Describe("InstanceFiltersTest", func() {
 				corev1.NodeSelectorOpIn,
 				"zone-1a",
 			)), corev1.ResourceList{
-				corev1.ResourceCPU:  resource.MustParse("2000m"),
-				v1.ResourceNIPSlots: resource.MustParse("4"),
+				corev1.ResourceCPU:      resource.MustParse("2000m"),
+				v1.ResourceNitroSandbox: resource.MustParse("4"),
 			})
 			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType(
@@ -214,11 +212,11 @@ var _ = Describe("InstanceFiltersTest", func() {
 						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a")),
 						// Override-A: fits CPU, but only 2 NIP slots — doesn't satisfy 4.
 						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a"),
-							withCapacityOverride(corev1.ResourceList{v1.ResourceNIPSlots: resource.MustParse("2")}),
+							withCapacityOverride(corev1.ResourceList{v1.ResourceNitroSandbox: resource.MustParse("2")}),
 						),
 						// Override-B: available + compatible + 8 NIP slots — satisfies request.
 						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a"),
-							withCapacityOverride(corev1.ResourceList{v1.ResourceNIPSlots: resource.MustParse("8")}),
+							withCapacityOverride(corev1.ResourceList{v1.ResourceNitroSandbox: resource.MustParse("8")}),
 						),
 					),
 				),

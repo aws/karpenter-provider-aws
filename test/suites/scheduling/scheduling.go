@@ -178,6 +178,28 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 				Env.ExpectCreatedNodeCount("==", 1)
 			})
+			It("should support well-known labels for nitro enclaves support", func() {
+				selectors.Insert(v1.LabelInstanceNitroEnclavesSupported) // Add node selector keys to selectors used in testing to ensure we test all labels
+				deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
+					NodePreferences: []corev1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelInstanceNitroEnclavesSupported,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{"true"},
+						},
+					},
+					NodeRequirements: []corev1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelInstanceNitroEnclavesSupported,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{"true"},
+						},
+					},
+				}})
+				Env.ExpectCreated(NodeClass, NodePool, deployment)
+				Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+				Env.ExpectCreatedNodeCount("==", 1)
+			})
 			It("should support well-known deprecated labels", func() {
 				nodeSelector := map[string]string{
 					// Deprecated Labels

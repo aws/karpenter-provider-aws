@@ -275,6 +275,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// Placement group labels are only present when a placement group is configured on the NodeClass
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
+			// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
+			v1.LabelInstanceNitroEnclavesSupported,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		var pods []*corev1.Pod
@@ -328,7 +330,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the accelerator, capacity reservation, and EFA count, and placement group labels
+		// Ensure that we're exercising all well known labels except for the accelerator, capacity reservation, placement group, and NitroEnclavesSupported labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(
 			append(
 				karpv1.WellKnownLabels.Difference(sets.New(
@@ -341,6 +343,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 					v1.LabelPlacementGroupID,
 					v1.LabelPlacementGroupPartition,
 					corev1.LabelWindowsBuild,
+					// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
+					v1.LabelInstanceNitroEnclavesSupported,
 				)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
@@ -387,7 +391,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the gpu, nvme, capacity reservation, and placement group
+		// Ensure that we're exercising all well known labels except for the gpu, nvme, capacity reservation, placement group, and NitroEnclavesSupported labels
 		expectedLabels := append(karpv1.WellKnownLabels.Difference(sets.New(
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
@@ -400,6 +404,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
 			corev1.LabelWindowsBuild,
+			// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
+			v1.LabelInstanceNitroEnclavesSupported,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))
 
@@ -3400,6 +3406,97 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 			Expect(found).To(BeTrue())
 			Expect(previewIT.Offerings.Available()).To(HaveLen(0))
+		})
+	})
+	Context("NitroEnclavesSupported", func() {
+		// makeNitroEnclaveInstanceType returns a minimal ec2types.InstanceTypeInfo for testing
+		// the LabelInstanceNitroEnclavesSupported requirement, parameterized by NitroEnclavesSupport.
+		makeNitroEnclaveInstanceType := func(support ec2types.NitroEnclavesSupport) ec2types.InstanceTypeInfo {
+			return ec2types.InstanceTypeInfo{
+				InstanceType:                  "m5.large",
+				SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+				SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    "nitro",
+				NitroEnclavesSupport:          support,
+				ProcessorInfo: &ec2types.ProcessorInfo{
+					Manufacturer:             aws.String("Intel"),
+					SupportedArchitectures:   []ec2types.ArchitectureType{"x86_64"},
+					SustainedClockSpeedInGhz: aws.Float64(3.1),
+				},
+				VCpuInfo: &ec2types.VCpuInfo{
+					DefaultCores: aws.Int32(1),
+					DefaultVCpus: aws.Int32(2),
+				},
+				MemoryInfo: &ec2types.MemoryInfo{
+					SizeInMiB: aws.Int64(8192),
+				},
+				EbsInfo: &ec2types.EbsInfo{
+					EbsOptimizedSupport: "default",
+					EbsOptimizedInfo: &ec2types.EbsOptimizedInfo{
+						BaselineBandwidthInMbps:  aws.Int32(4750),
+						BaselineIops:             aws.Int32(18750),
+						BaselineThroughputInMBps: aws.Float64(593.75),
+						MaximumBandwidthInMbps:   aws.Int32(4750),
+						MaximumIops:              aws.Int32(18750),
+						MaximumThroughputInMBps:  aws.Float64(593.75),
+					},
+					EncryptionSupport: "supported",
+					NvmeSupport:       "required",
+				},
+				NetworkInfo: &ec2types.NetworkInfo{
+					MaximumNetworkInterfaces:     aws.Int32(3),
+					Ipv4AddressesPerInterface:    aws.Int32(10),
+					EncryptionInTransitSupported: aws.Bool(true),
+					DefaultNetworkCardIndex:      aws.Int32(0),
+					NetworkCards: []ec2types.NetworkCardInfo{{
+						NetworkCardIndex:         aws.Int32(0),
+						MaximumNetworkInterfaces: aws.Int32(3),
+					}},
+				},
+			}
+		}
+		BeforeEach(func() {
+			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+				InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
+					{InstanceType: "m5.large", Location: aws.String("test-zone-1a"), LocationType: "availability-zone"},
+				},
+			})
+		})
+		It("should set LabelInstanceNitroEnclavesSupported to \"true\" when NitroEnclavesSupport is supported", func() {
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+				InstanceTypes: []ec2types.InstanceTypeInfo{makeNitroEnclaveInstanceType(ec2types.NitroEnclavesSupportSupported)},
+			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			ExpectApplied(ctx, env.Client, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+
+			m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})
+			Expect(ok).To(BeTrue())
+			Expect(m5large.Requirements.Get(v1.LabelInstanceNitroEnclavesSupported).Values()).To(ConsistOf("true"))
+		})
+		It("should set LabelInstanceNitroEnclavesSupported to \"false\" when NitroEnclavesSupport is unsupported", func() {
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+				InstanceTypes: []ec2types.InstanceTypeInfo{makeNitroEnclaveInstanceType(ec2types.NitroEnclavesSupportUnsupported)},
+			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			ExpectApplied(ctx, env.Client, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+
+			m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})
+			Expect(ok).To(BeTrue())
+			Expect(m5large.Requirements.Get(v1.LabelInstanceNitroEnclavesSupported).Values()).To(ConsistOf("false"))
 		})
 	})
 	Context("Offering Resolvers", func() {
