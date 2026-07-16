@@ -512,7 +512,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				// because it needs the shifted zone to satisfy the topology spread constraint.
 				podLabels := map[string]string{"test": "zonal-spread-with-shift"}
 				deployment := test.Deployment(test.DeploymentOptions{
-					Replicas: int32(numzones),
+					Replicas: int32(numzones), //nolint:gosec
 					PodOptions: test.PodOptions{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: podLabels,
