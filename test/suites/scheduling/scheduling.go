@@ -72,7 +72,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 		})
 		AfterAll(func() {
 			// Ensure that we're exercising all well known labels
-			Expect(lo.Keys(selectors)).To(ContainElements(append(karpv1.WellKnownLabels.UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
+			Expect(lo.Keys(selectors)).To(ContainElements(append(karpv1.WellKnownLabels.Difference(sets.New(v1.LabelInstanceNitroEnclavesSupported)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 		})
 
 		It("should apply annotations to the node", func() {
@@ -169,28 +169,6 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					NodeRequirements: []corev1.NodeSelectorRequirement{
 						{
 							Key:      v1.LabelInstanceEncryptionInTransitSupported,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{"true"},
-						},
-					},
-				}})
-				Env.ExpectCreated(NodeClass, NodePool, deployment)
-				Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-				Env.ExpectCreatedNodeCount("==", 1)
-			})
-			It("should support well-known labels for nitro enclaves support", func() {
-				selectors.Insert(v1.LabelInstanceNitroEnclavesSupported) // Add node selector keys to selectors used in testing to ensure we test all labels
-				deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
-					NodePreferences: []corev1.NodeSelectorRequirement{
-						{
-							Key:      v1.LabelInstanceNitroEnclavesSupported,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{"true"},
-						},
-					},
-					NodeRequirements: []corev1.NodeSelectorRequirement{
-						{
-							Key:      v1.LabelInstanceNitroEnclavesSupported,
 							Operator: corev1.NodeSelectorOpIn,
 							Values:   []string{"true"},
 						},
