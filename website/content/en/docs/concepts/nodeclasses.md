@@ -141,6 +141,7 @@ spec:
         deleteOnTermination: true
         throughput: 125
         snapshotID: snap-0123456789
+        volumeInitializationRate: 100
 
   # Optional, use instance-store volumes for node ephemeral-storage
   instanceStorePolicy: RAID0
@@ -293,17 +294,6 @@ spec:
 ```
 
 Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kubelet` and `spec.userData`.
-{{% /alert %}}
-
-{{% alert title="Warning" color="warning" %}}
-The Bottlerocket AMIFamily does not support the following fields:
-
-* `evictionSoft`
-* `evictionSoftGracePeriod`
-* `evictionMaxPodGracePeriod`
-
-If any of these fields are specified on a Bottlerocket EC2NodeClass, they will be ommited from generated UserData and ignored for scheduling purposes.
-Support for these fields can be tracked via GitHub issue [#3722](https://github.com/aws/karpenter-provider-aws/issues/3722).
 {{% /alert %}}
 
 #### Pods Per Core
@@ -889,6 +879,10 @@ This selection logic is modeled as terms.
 A term can specify an ID or a set of tags to select against.
 When specifying tags, it will select all capacity reservations accessible from the account with matching tags.
 This can be further restricted by specifying an owner ID.
+
+{{% alert title="Note" color="primary" %}}
+Note that the IAM role Karpenter assumes should have a permissions policy associated with it that grants it permissions to use the [ec2:DescribeCapacityReservations](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-DescribeCapacityReservations) action to discover capacity reservations and the [ec2:RunInstances](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-RunInstances) action to run instances in those capacity reservations.
+{{% /alert %}}
 
 #### Examples
 

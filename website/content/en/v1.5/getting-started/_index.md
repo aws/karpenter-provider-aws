@@ -11,6 +11,8 @@ To get started with Karpenter, the [Getting Started with Karpenter]({{< relref "
 
 See the [AKS Node autoprovisioning article](https://learn.microsoft.com/azure/aks/node-autoprovision) on how to use Karpenter on Azure's AKS or go to the [Karpenter provider for Azure open source repository](https://github.com/Azure/karpenter-provider-azure) for self-hosting on Azure and additional information.
 
+See the [Deploy Karpenter on Alibabacloud's ACK](https://docs.cloudpilot.ai/karpenter/alibabacloud/preview/getting-started/set-up-a-cluster-and-add-karpenter/) to know how to use Karpenter on Alibabacloud's ACK. Or you can go to the [Karpenter-provider-alibabacloud](https://github.com/cloudpilot-ai/karpenter-provider-alibabacloud) for more details.
+
 If you prefer, the following instructions use Terraform to create a cluster and add Karpenter:
 
 * [Amazon EKS Blueprints for Terraform](https://aws-ia.github.io/terraform-aws-eks-blueprints): Follow a basic [Getting Started](https://aws-ia.github.io/terraform-aws-eks-blueprints/getting-started/) guide and also add modules and add-ons. This includes a [Karpenter](https://aws-ia.github.io/terraform-aws-eks-blueprints/patterns/karpenter/) add-on that lets you bypass the instructions in this guide for setting up Karpenter.
