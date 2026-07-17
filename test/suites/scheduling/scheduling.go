@@ -16,11 +16,13 @@ package scheduling
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	arczonalshiftservice "github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/awslabs/operatorpkg/object"
@@ -483,6 +485,75 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				// This can result in a case where all 3 pods are healthy, while there are only two created nodes.
 				// In that case, we still expect to eventually have three nodes.
 				Env.EventuallyExpectNodeCount("==", 3)
+			})
+			It("should provision nodes for a zonal topology spread when a Zonal Shift is active", func() {
+				clusterArn := fmt.Sprintf("arn:aws:eks:%s:%s:cluster/%s", Env.Region, Env.ExpectAccountID(), Env.ClusterName)
+				subnetInfo := lo.UniqBy(Env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": Env.ClusterName}), func(s environmentaws.SubnetInfo) string {
+					return s.Zone
+				})
+				numzones := len(subnetInfo)
+				zoneid := subnetInfo[rand.Intn(len(subnetInfo))].ZoneID //nolint:gosec
+				startzonalshiftresponse, err := Env.ARCZONALSHIFTAPI.StartZonalShift(Env.Context, &arczonalshiftservice.StartZonalShiftInput{
+					ResourceIdentifier: lo.ToPtr(clusterArn),
+					AwayFrom:           lo.ToPtr(zoneid),
+					ExpiresIn:          lo.ToPtr("1h"),
+					Comment:            lo.ToPtr("karpenter e2e test"),
+				})
+				zonalshiftid := startzonalshiftresponse.ZonalShiftId
+				Expect(err).To(BeNil())
+				Env.EventuallyExpectClusterToZonalShift(zoneid)
+
+				// Wait for the in-cluster Karpenter controller to reconcile the shift (polls every 30s)
+				time.Sleep(30 * time.Second)
+
+				// Deploy numzones pods with topology spread requiring one pod per zone (MaxSkew: 1).
+				// With one zone shifted, Karpenter provisions nodes only in numzones-1 zones.
+				// numzones-1 pods get scheduled (one per available zone), and 1 pod stays pending
+				// because it needs the shifted zone to satisfy the topology spread constraint.
+				podLabels := map[string]string{"test": "zonal-spread-with-shift"}
+				deployment := test.Deployment(test.DeploymentOptions{
+					Replicas: int32(numzones), //nolint:gosec
+					PodOptions: test.PodOptions{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: podLabels,
+						},
+						TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+							{
+								MaxSkew:           1,
+								TopologyKey:       corev1.LabelTopologyZone,
+								WhenUnsatisfiable: corev1.DoNotSchedule,
+								LabelSelector:     &metav1.LabelSelector{MatchLabels: podLabels},
+							},
+						},
+					},
+				})
+
+				Env.ExpectCreated(NodeClass, NodePool, deployment)
+				Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), numzones-1)
+				nodes := Env.EventuallyExpectNodeCount("==", numzones-1)
+				// Verify no nodes were provisioned in the shifted zone
+				for _, node := range nodes {
+					Expect(node.Labels).To(HaveKey(v1.LabelTopologyZoneID))
+					Expect(node.Labels[v1.LabelTopologyZoneID]).ToNot(Equal(zoneid))
+				}
+				// Verify the remaining pod is stuck pending
+				Env.EventuallyExpectPendingPodCount(labels.SelectorFromSet(podLabels), 1)
+
+				// Cancel the shift — the pending pod should now get scheduled in the recovered zone
+				_, err = Env.ARCZONALSHIFTAPI.CancelZonalShift(Env.Context, &arczonalshiftservice.CancelZonalShiftInput{
+					ZonalShiftId: zonalshiftid,
+				})
+				Expect(err).To(BeNil())
+				Env.EventuallyExpectClusterToNotHaveZonalShift(zoneid)
+
+				Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), numzones)
+				nodes = Env.EventuallyExpectNodeCount("==", numzones)
+				// Verify the previously-shifted zone is now being used
+				zoneIDs := sets.New[string]()
+				for _, node := range nodes {
+					zoneIDs.Insert(node.Labels[v1.LabelTopologyZoneID])
+				}
+				Expect(zoneIDs.Has(zoneid)).To(BeTrue())
 			})
 			It("should provision a node using a NodePool with higher priority", func() {
 				nodePoolLowPri := test.NodePool(karpv1.NodePool{

@@ -20,7 +20,11 @@ import (
 	"os"
 	"testing"
 
+	servicearczonalshift "github.com/aws/aws-sdk-go-v2/service/arczonalshift"
+	"k8s.io/utils/clock"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
+
+	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 
 	"github.com/aws/amazon-vpc-resource-controller-k8s/apis/vpcresources/v1beta1"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -63,15 +67,17 @@ type Environment struct {
 	*common.Environment
 	Region string
 
-	STSAPI        *sts.Client
-	EC2API        *ec2.Client
-	SSMAPI        *ssm.Client
-	IAMAPI        *iam.Client
-	FISAPI        *fis.Client
-	EKSAPI        *eks.Client
-	TimeStreamAPI sdk.TimestreamWriteAPI
+	STSAPI           *sts.Client
+	EC2API           *ec2.Client
+	SSMAPI           *ssm.Client
+	IAMAPI           *iam.Client
+	FISAPI           *fis.Client
+	EKSAPI           *eks.Client
+	ARCZONALSHIFTAPI *servicearczonalshift.Client
+	TimeStreamAPI    sdk.TimestreamWriteAPI
 
-	SQSProvider sqs.Provider
+	SQSProvider        sqs.Provider
+	ZonalShiftProvider arczonalshift.Provider
 
 	ClusterName       string
 	ClusterEndpoint   string
@@ -94,13 +100,14 @@ func NewEnvironment(t *testing.T) *Environment {
 		Region:      cfg.Region,
 		Environment: env,
 
-		STSAPI:        sts.NewFromConfig(cfg),
-		EC2API:        ec2.NewFromConfig(cfg),
-		SSMAPI:        ssm.NewFromConfig(cfg),
-		IAMAPI:        iam.NewFromConfig(cfg),
-		FISAPI:        fis.NewFromConfig(cfg),
-		EKSAPI:        eks.NewFromConfig(cfg),
-		TimeStreamAPI: GetTimeStreamAPI(env.Context, cfg),
+		STSAPI:           sts.NewFromConfig(cfg),
+		EC2API:           ec2.NewFromConfig(cfg),
+		SSMAPI:           ssm.NewFromConfig(cfg),
+		IAMAPI:           iam.NewFromConfig(cfg),
+		FISAPI:           fis.NewFromConfig(cfg),
+		EKSAPI:           eks.NewFromConfig(cfg),
+		ARCZONALSHIFTAPI: servicearczonalshift.NewFromConfig(cfg),
+		TimeStreamAPI:    GetTimeStreamAPI(env.Context, cfg),
 
 		ClusterName:     lo.Must(os.LookupEnv("CLUSTER_NAME")),
 		ClusterEndpoint: lo.Must(os.LookupEnv("CLUSTER_ENDPOINT")),
@@ -116,6 +123,14 @@ func NewEnvironment(t *testing.T) *Environment {
 		sqsapi := servicesqs.NewFromConfig(cfg)
 		out := lo.Must(sqsapi.GetQueueUrl(env.Context, &servicesqs.GetQueueUrlInput{QueueName: aws.String(v)}))
 		awsEnv.SQSProvider = lo.Must(sqs.NewDefaultProvider(sqsapi, lo.FromPtr(out.QueueUrl)))
+	}
+	// Initialize the Zonal Shift Provider only if the ENABLE_ZONAL_SHIFT environment variable is true
+	// This is where all the AWS set up happens. Will need to make an ARC Client in the test using the env
+	if v, ok := os.LookupEnv("ENABLE_ZONAL_SHIFT"); ok && v == "true" {
+		inputDC := eks.DescribeClusterInput{Name: &awsEnv.ClusterName}
+		outDC := lo.Must(awsEnv.EKSAPI.DescribeCluster(env.Context, &inputDC))
+		clk := clock.RealClock{}
+		awsEnv.ZonalShiftProvider = arczonalshift.NewProvider(awsEnv.ARCZONALSHIFTAPI, clk, lo.FromPtr(outDC.Cluster.Arn))
 	}
 	// Populate ZoneInfo for all AZs in the region
 	awsEnv.ZoneInfo = lo.Map(lo.Must(awsEnv.EC2API.DescribeAvailabilityZones(env.Context, &ec2.DescribeAvailabilityZonesInput{})).AvailabilityZones, func(zone ec2types.AvailabilityZone, _ int) ZoneInfo {
