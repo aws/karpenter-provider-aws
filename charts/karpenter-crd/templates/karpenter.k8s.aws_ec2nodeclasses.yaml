@@ -459,12 +459,15 @@ spec:
                         - message: kubeReserved value cannot be a negative resource quantity
                           rule: self.all(x, !self[x].startsWith('-'))
                     maxPods:
+                      anyOf:
+                        - type: integer
+                        - type: string
                       description: |-
                         MaxPods is an override for the maximum number of pods that can run on
-                        a worker node instance.
-                      format: int32
-                      minimum: 0
-                      type: integer
+                        a worker node instance. When set to an integer, it is used as a static value.
+                        When set to a string, it is evaluated as a CEL expression per instance type with
+                        access to: vcpus, memory_mib, default_enis, ips_per_eni, max_pods.
+                      x-kubernetes-int-or-string: true
                     podsPerCore:
                       description: |-
                         PodsPerCore is an override for the number of pods that can run on a worker node

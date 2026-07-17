@@ -17,6 +17,7 @@ package amifamily
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"sort"
 	"strconv"
@@ -221,7 +222,7 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 					int(lo.ToPtr(it.Capacity[v1.ResourceEFA]).Value()),
 					0,
 				),
-				maxPods: int(it.Capacity.Pods().Value()),
+				maxPods:                int(it.Capacity.Pods().Value()),
 				resolvedKubeReserved:   serializeResourceMap(resolvedKubeReserved),
 				resolvedSystemReserved: serializeResourceMap(resolvedSystemReserved),
 				// If we're dealing with reserved instances, there's only going to be a single instance per group. This invariant
@@ -310,14 +311,11 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	if nodeClass.Spec.Kubelet != nil {
 		kubeletConfig = nodeClass.Spec.Kubelet.DeepCopy()
 	}
+	maxPodsInt32 := int32(min(maxPods, math.MaxInt32)) //nolint:gosec,G115 // maxPods is bounded by Kubernetes pod limits
 	if kubeletConfig.MaxPods == nil {
-		// nolint:gosec
-		// We know that it's not possible to have values that would overflow int32 here since we control
-		// the maxPods values that we pass in here
-		kubeletConfig.MaxPods = lo.ToPtr(intstr.FromInt32(int32(maxPods)))
+		kubeletConfig.MaxPods = lo.ToPtr(intstr.FromInt32(maxPodsInt32))
 	} else if kubeletConfig.MaxPods.Type == intstr.String {
-		// CEL expression was already evaluated at scheduling time; replace with the resolved static value
-		kubeletConfig.MaxPods = lo.ToPtr(intstr.FromInt32(int32(maxPods)))
+		kubeletConfig.MaxPods = lo.ToPtr(intstr.FromInt32(maxPodsInt32))
 	}
 	// Use resolved values for kubeReserved/systemReserved when expressions were evaluated
 	if resolvedKubeReserved != nil {

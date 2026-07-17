@@ -26,6 +26,7 @@ require (
 	github.com/awslabs/operatorpkg v0.0.0-20260501204335-c49b4ca8d58d
 	github.com/awslabs/operatorpkg/aws v0.0.0-20250414225955-b47cd315ffe9
 	github.com/go-logr/zapr v1.3.0
+	github.com/google/cel-go v0.29.2
 	github.com/google/uuid v1.6.0
 	github.com/imdario/mergo v0.3.16
 	github.com/jonathan-innis/aws-sdk-go-prometheus v0.1.1
@@ -91,7 +92,6 @@ require (
 	github.com/go-openapi/swag/yamlutils v0.25.4 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/google/btree v1.1.3 // indirect
-	github.com/google/cel-go v0.29.2 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20260402051712-545e8a4df936 // indirect

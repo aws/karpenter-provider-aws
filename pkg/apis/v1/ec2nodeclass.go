@@ -664,8 +664,7 @@ func (kc *KubeletConfiguration) MaxPodsInt() *int32 {
 		return nil
 	}
 	if kc.MaxPods.Type == intstr.Int {
-		v := int32(kc.MaxPods.IntValue())
-		return &v
+		return &kc.MaxPods.IntVal
 	}
 	return nil
 }

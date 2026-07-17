@@ -30,8 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
@@ -144,7 +144,7 @@ func resolveMaxPods(ctx context.Context, info ec2types.InstanceTypeInfo, maxPods
 	}
 	switch maxPods.Type {
 	case intstr.Int:
-		return lo.ToPtr(int32(maxPods.IntValue()))
+		return &maxPods.IntVal
 	case intstr.String:
 		celVars := buildCELVars(ctx, info, networkInterfaces)
 		result, err := kubeletcel.EvaluateExpression(maxPods.StrVal, celVars)
@@ -152,10 +152,11 @@ func resolveMaxPods(ctx context.Context, info ec2types.InstanceTypeInfo, maxPods
 			log.FromContext(ctx).Error(err, "failed to evaluate maxPods expression", "instanceType", info.InstanceType)
 			return nil
 		}
-		if result < 0 {
+		if result < 0 || result > math.MaxInt32 {
 			return nil
 		}
-		return lo.ToPtr(int32(result))
+		val := int32(result)
+		return &val
 	default:
 		return nil
 	}
@@ -201,7 +202,7 @@ func buildCELVars(ctx context.Context, info ec2types.InstanceTypeInfo, networkIn
 	maxPods := ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs, networkInterfaces).Value()
 	return kubeletcel.InstanceTypeVars{
 		VCPUs:       int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)),
-		MemoryMiB:   int64(lo.FromPtr(info.MemoryInfo.SizeInMiB)),
+		MemoryMiB:   lo.FromPtr(info.MemoryInfo.SizeInMiB),
 		DefaultENIs: defaultENIs,
 		IPsPerENI:   ipsPerENI,
 		MaxPods:     maxPods,
