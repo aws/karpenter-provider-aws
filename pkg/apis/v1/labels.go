@@ -146,7 +146,7 @@ var (
 	LabelCapacityReservationInterruptible     = apis.Group + "/capacity-reservation-interruptible"
 	LabelInstanceHypervisor                   = apis.Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = apis.Group + "/instance-encryption-in-transit-supported"
-	LabelInstanceNitroEnclavesSupported       = apis.Group + "/instance-nitro-enclaves-supported"
+	LabelInstanceNitroEnclavesSupported       = apis.Group + "/nitro-sandbox"
 	LabelInstanceCategory                     = apis.Group + "/instance-category"
 	LabelInstanceCapabilityFlex               = apis.Group + "/instance-capability-flex"
 	LabelInstanceFamily                       = apis.Group + "/instance-family"
