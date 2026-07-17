@@ -8,7 +8,7 @@ description: >
 
 Karpenter surfaces environment variables and CLI parameters to allow you to configure certain global settings on the controllers. These settings are described below.
 
-[comment]: <> (the content below is generated from hack/docs/configuration_gen_docs.go)
+[comment]: <> (the content below is generated from hack/docs/configuration_gen/main.go)
 
 | Environment Variable | CLI Flag | Description |
 |--|--|--|
@@ -19,6 +19,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | CLUSTER_NAME | \-\-cluster-name | [REQUIRED] The kubernetes cluster name for resource discovery.|
 | CPU_REQUESTS | \-\-cpu-requests | CPU requests in millicores on the container running the controller. (default = 1000)|
 | DISABLE_CLUSTER_STATE_OBSERVABILITY | \-\-disable-cluster-state-observability | Disable cluster state metrics and events|
+| DISABLE_CONTROLLER_WARMUP | \-\-disable-controller-warmup | Disable controller warmup which starts controller sources before leader election is won. Controller warmup pre-populates caches and improves leader failover time.|
 | DISABLE_DRY_RUN | \-\-disable-dry-run | If true, then disable dry run validation for EC2NodeClasses.|
 | DISABLE_LEADER_ELECTION | \-\-disable-leader-election | Disable the leader election client before executing the main loop. Disable when running replicated components for high availability is not desired.|
 | EKS_CONTROL_PLANE | \-\-eks-control-plane | Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API |
@@ -43,7 +44,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | RESERVED_ENIS | \-\-reserved-enis | Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html. (default = 0)|
 | VM_MEMORY_OVERHEAD_PERCENT | \-\-vm-memory-overhead-percent | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types when cached information is unavailable. (default = 0.075)|
 
-[comment]: <> (end docs generated content from hack/docs/configuration_gen_docs.go)
+[comment]: <> (end docs generated content from hack/docs/configuration_gen/main.go)
 
 ### Feature Gates
 
