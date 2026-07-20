@@ -12,116 +12,94 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cel
+package cel_test
 
 import (
 	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	"github.com/aws/karpenter-provider-aws/pkg/cel"
 )
 
-func TestEvaluateExpression_ENIFormula(t *testing.T) {
-	// m5.large: 3 ENIs, 10 IPs/ENI -> ((3-1) * (10-1)) + 2 = 20
-	vars := InstanceTypeVars{
-		VCPUs:       2,
-		MemoryMiB:   8192,
-		DefaultENIs: 3,
-		IPsPerENI:   10,
-		MaxPods:     20,
-	}
-	result, err := EvaluateExpression("((default_enis - 1) * (ips_per_eni - 1)) + 2", vars)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result != 20 {
-		t.Fatalf("expected 20, got %d", result)
-	}
+func TestCel(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "CEL Suite")
 }
 
-func TestEvaluateExpression_PrefixDelegation(t *testing.T) {
-	// m5.large with prefix delegation: min(250, ((3-1) * (10-1)) * 16 + 2) = min(250, 290) = 250
-	vars := InstanceTypeVars{
-		VCPUs:       2,
-		MemoryMiB:   8192,
-		DefaultENIs: 3,
-		IPsPerENI:   10,
-		MaxPods:     20,
-	}
-	result, err := EvaluateExpression("min(250, ((default_enis - 1) * (ips_per_eni - 1)) * 16 + 2)", vars)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result != 250 {
-		t.Fatalf("expected 250, got %d", result)
-	}
-}
+var _ = Describe("EvaluateExpression", func() {
+	It("should evaluate the ENI formula", func() {
+		// m5.large: 3 ENIs, 10 IPs/ENI -> ((3-1) * (10-1)) + 2 = 20
+		vars := cel.InstanceTypeVars{
+			VCPUs:       2,
+			MemoryMiB:   8192,
+			DefaultENIs: 3,
+			IPsPerENI:   10,
+			MaxPods:     20,
+		}
+		result, err := cel.EvaluateExpression("((default_enis - 1) * (ips_per_eni - 1)) + 2", vars)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(int64(20)))
+	})
+	It("should evaluate prefix delegation with min", func() {
+		// m5.large with prefix delegation: min(250, ((3-1) * (10-1)) * 16 + 2) = min(250, 290) = 250
+		vars := cel.InstanceTypeVars{
+			VCPUs:       2,
+			MemoryMiB:   8192,
+			DefaultENIs: 3,
+			IPsPerENI:   10,
+			MaxPods:     20,
+		}
+		result, err := cel.EvaluateExpression("min(250, ((default_enis - 1) * (ips_per_eni - 1)) * 16 + 2)", vars)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(int64(250)))
+	})
+	It("should evaluate the kube-reserved CPU formula", func() {
+		// 16 vCPUs: max(60, 16 * 30) * 1000000 = 480000000 (480m in nanocores)
+		vars := cel.InstanceTypeVars{
+			VCPUs:       16,
+			MemoryMiB:   65536,
+			DefaultENIs: 8,
+			IPsPerENI:   30,
+			MaxPods:     58,
+		}
+		result, err := cel.EvaluateExpression("max(60, vcpus * 30) * 1000000", vars)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(int64(480000000)))
+	})
+	It("should evaluate the kube-reserved memory formula", func() {
+		// (11 * 58 + 255) * 1048576
+		vars := cel.InstanceTypeVars{
+			VCPUs:       16,
+			MemoryMiB:   65536,
+			DefaultENIs: 8,
+			IPsPerENI:   30,
+			MaxPods:     58,
+		}
+		result, err := cel.EvaluateExpression("(11 * max_pods + 255) * 1048576", vars)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(int64((11*58 + 255) * 1048576)))
+	})
+	It("should evaluate min against max_pods", func() {
+		vars := cel.InstanceTypeVars{VCPUs: 4, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
+		result, err := cel.EvaluateExpression("min(110, max_pods)", vars)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(int64(20)))
+	})
+})
 
-func TestEvaluateExpression_KubeReservedCPU(t *testing.T) {
-	// 16 vCPUs: max(60, 16 * 30) * 1000000 = 480000000 (480m in nanocores)
-	vars := InstanceTypeVars{
-		VCPUs:       16,
-		MemoryMiB:   65536,
-		DefaultENIs: 8,
-		IPsPerENI:   30,
-		MaxPods:     58,
-	}
-	result, err := EvaluateExpression("max(60, vcpus * 30) * 1000000", vars)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result != 480000000 {
-		t.Fatalf("expected 480000000, got %d", result)
-	}
-}
-
-func TestEvaluateExpression_KubeReservedMemory(t *testing.T) {
-	// (11 * 58 + 255) * 1048576
-	vars := InstanceTypeVars{
-		VCPUs:       16,
-		MemoryMiB:   65536,
-		DefaultENIs: 8,
-		IPsPerENI:   30,
-		MaxPods:     58,
-	}
-	result, err := EvaluateExpression("(11 * max_pods + 255) * 1048576", vars)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	expected := int64((11*58 + 255) * 1048576)
-	if result != expected {
-		t.Fatalf("expected %d, got %d", expected, result)
-	}
-}
-
-func TestEvaluateExpression_MinMax(t *testing.T) {
-	vars := InstanceTypeVars{VCPUs: 4, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
-	result, err := EvaluateExpression("min(110, max_pods)", vars)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result != 20 {
-		t.Fatalf("expected 20, got %d", result)
-	}
-}
-
-func TestValidateExpression_Valid(t *testing.T) {
-	if err := ValidateExpression("((default_enis - 1) * (ips_per_eni - 1)) + 2"); err != nil {
-		t.Fatalf("expected valid expression, got: %v", err)
-	}
-}
-
-func TestValidateExpression_InvalidSyntax(t *testing.T) {
-	if err := ValidateExpression("((default_enis -"); err == nil {
-		t.Fatal("expected error for invalid syntax")
-	}
-}
-
-func TestValidateExpression_UndefinedVariable(t *testing.T) {
-	if err := ValidateExpression("undefined_var + 1"); err == nil {
-		t.Fatal("expected error for undefined variable")
-	}
-}
-
-func TestValidateExpression_WrongReturnType(t *testing.T) {
-	if err := ValidateExpression("vcpus > 4"); err == nil {
-		t.Fatal("expected error for boolean return type")
-	}
-}
+var _ = Describe("ValidateExpression", func() {
+	It("should accept a valid expression", func() {
+		Expect(cel.ValidateExpression("((default_enis - 1) * (ips_per_eni - 1)) + 2")).To(Succeed())
+	})
+	It("should reject invalid syntax", func() {
+		Expect(cel.ValidateExpression("((default_enis -")).ToNot(Succeed())
+	})
+	It("should reject undefined variables", func() {
+		Expect(cel.ValidateExpression("undefined_var + 1")).ToNot(Succeed())
+	})
+	It("should reject a boolean return type", func() {
+		Expect(cel.ValidateExpression("vcpus > 4")).ToNot(Succeed())
+	})
+})
