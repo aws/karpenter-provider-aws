@@ -41,12 +41,16 @@ import (
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
+	"github.com/patrickmn/go-cache"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -1079,4 +1083,131 @@ var _ = Describe("InstanceProvider", func() {
 			})
 		})
 	})
+	Context("Zonal Override Filtering", func() {
+		var instanceProvider *instance.DefaultProvider
+		var mockLTProvider *mockLaunchTemplateProvider
+		BeforeEach(func() {
+			mockLTProvider = &mockLaunchTemplateProvider{}
+			instanceProvider = instance.NewDefaultProvider(
+				ctx,
+				fake.DefaultRegion,
+				events.NewRecorder(&record.FakeRecorder{}),
+				awsEnv.EC2API,
+				awsEnv.UnavailableOfferingsCache,
+				awsEnv.SubnetProvider,
+				mockLTProvider,
+				awsEnv.CapacityReservationProvider,
+				awsEnv.PlacementGroupProvider,
+				awsEnv.ZonalShiftProvider,
+				cache.New(cache.NoExpiration, cache.NoExpiration),
+			)
+		})
+		It("should restrict fleet overrides to matching zone when Zone is set", func() {
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			mockLTProvider.launchTemplates = []*launchtemplate.LaunchTemplate{
+				{Name: "lt-zone-scoped", Zone: "test-zone-1a", InstanceTypes: instanceTypes, ImageID: "ami-test"},
+			}
+			awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+				Instances: []ec2types.CreateFleetInstance{{
+					InstanceIds:  []string{fake.InstanceID()},
+					InstanceType: "m5.xlarge",
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							SubnetId:         lo.ToPtr("subnet-test1"),
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				}},
+			})
+
+			_, err = instanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			for _, ltConfig := range createFleetInput.LaunchTemplateConfigs {
+				for _, override := range ltConfig.Overrides {
+					Expect(lo.FromPtr(override.AvailabilityZone)).To(Equal("test-zone-1a"))
+					Expect(override.SubnetId).To(BeNil())
+				}
+			}
+		})
+		It("should return error when Zone has no matching subnet", func() {
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			mockLTProvider.launchTemplates = []*launchtemplate.LaunchTemplate{
+				{Name: "lt-no-zone", Zone: "test-zone-nonexistent", InstanceTypes: instanceTypes, ImageID: "ami-test"},
+			}
+
+			_, err = instanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("no capacity offerings"))
+		})
+		It("should use all subnets when Zone is empty", func() {
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			mockLTProvider.launchTemplates = []*launchtemplate.LaunchTemplate{
+				{Name: "lt-no-zone", Zone: "", InstanceTypes: instanceTypes, ImageID: "ami-test"},
+			}
+			awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+				Instances: []ec2types.CreateFleetInstance{{
+					InstanceIds:  []string{fake.InstanceID()},
+					InstanceType: "m5.xlarge",
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							SubnetId:         lo.ToPtr("subnet-test1"),
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				}},
+			})
+
+			_, err = instanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			zones := sets.New[string]()
+			for _, ltConfig := range createFleetInput.LaunchTemplateConfigs {
+				for _, override := range ltConfig.Overrides {
+					zones.Insert(lo.FromPtr(override.AvailabilityZone))
+					Expect(override.SubnetId).ToNot(BeNil())
+				}
+			}
+			Expect(zones.Len()).To(BeNumerically(">", 1))
+		})
+	})
 })
+
+type mockLaunchTemplateProvider struct {
+	launchTemplates []*launchtemplate.LaunchTemplate
+}
+
+func (m *mockLaunchTemplateProvider) EnsureAll(_ context.Context, _ *v1.EC2NodeClass, _ *karpv1.NodeClaim,
+	_ []*corecloudprovider.InstanceType, _ string, _ map[string]string, _ string) ([]*launchtemplate.LaunchTemplate, error) {
+	return m.launchTemplates, nil
+}
+
+func (m *mockLaunchTemplateProvider) DeleteAll(_ context.Context, _ *v1.EC2NodeClass) error {
+	return nil
+}
+
+func (m *mockLaunchTemplateProvider) InvalidateCache(_ context.Context, _ string, _ string) {}
+
+func (m *mockLaunchTemplateProvider) ResolveClusterCIDR(_ context.Context) error {
+	return nil
+}
+
+func (m *mockLaunchTemplateProvider) CreateAMIOptions(_ context.Context, _ *v1.EC2NodeClass, _ map[string]string, _ map[string]string) (*amifamily.Options, error) {
+	return nil, nil
+}
