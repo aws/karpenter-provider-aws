@@ -118,6 +118,8 @@ func NewAPI(cfg aws.Config) *pricing.Client {
 		pricingAPIRegion = "ap-south-1"
 	} else if strings.HasPrefix(cfg.Region, "cn-") {
 		pricingAPIRegion = "cn-northwest-1"
+	} else if strings.HasPrefix(cfg.Region, "eusc-") {
+		pricingAPIRegion = "eusc-de-east-1"
 	} else if strings.HasPrefix(cfg.Region, "eu-") {
 		pricingAPIRegion = "eu-central-1"
 	}
