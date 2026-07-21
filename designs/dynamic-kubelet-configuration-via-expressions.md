@@ -184,6 +184,7 @@ The following variables are available in all kubelet expressions, populated from
 
 | Variable | Type | Description | Example (m5.4xlarge) |
 |----------|------|-------------|---------------------|
+| `instance_type` | string | The EC2 instance type name | `"m5.4xlarge"` |
 | `vcpus` | int | Number of vCPUs | 16 |
 | `memory_mib` | int | Memory in MiB | 65536 |
 | `default_enis` | int | Maximum number of ENIs | 8 |
@@ -211,8 +212,8 @@ The `max_pods` variable provides a self-referencing convenience — `kubeReserve
 
 3. CEL compilation validation:
    * Expression must parse as valid CEL syntax
-   * Expression must reference only permitted variables (`vcpus`, `memory_mib`, `default_enis`, `ips_per_eni`, `gpus`, `accelerators`, `max_pods`, `ephemeral_storage_gib`)
-   * Expression must type-check to return `int` or `double`
+   * Expression must reference only permitted variables (`instance_type`, `vcpus`, `memory_mib`, `default_enis`, `ips_per_eni`, `max_pods`)
+   * Expression must type-check to return `int` or `double` (the `instance_type` string may only be used within the expression, e.g. in comparisons — the overall result must still be numeric)
 
 4. Evaluation-time validation (at scheduling):
    * If an expression evaluates to a negative number for a specific instance type, that instance type is excluded from consideration
@@ -220,6 +221,26 @@ The `max_pods` variable provides a self-referencing convenience — `kubeReserve
 ### Static vs Expression Values
 
 A field's value type determines behavior. There is no precedence or exclusivity logic — each field contains a single value that is either interpreted as a literal or evaluated as a CEL expression based on its JSON type. When neither `maxPods`, `kubeReserved`, nor `systemReserved` is set, Karpenter applies its internal defaults (ENI-limited maxPods, graduated kubeReserved formula) exactly as today.
+
+### Testing Expressions Before Deployment
+
+Admission-time validation only catches syntax and type errors — it cannot tell whether an expression produces the *values* the operator intended. A logic mistake (for example, swapping a nested `min` for a `max`) compiles cleanly but could reserve an unexpectedly large fraction of a node's capacity on certain instance sizes. Operators need a way to preview the resolved values across their fleet before applying an expression to a live cluster.
+
+To support this, we can provide a small standalone script that evaluates an expression against a list of instance types and prints the resolved result for each one — entirely offline, without provisioning any nodes. The script sets up the same CEL environment Karpenter uses (identical variable names, types, and functions), compiles the expression once, and evaluates it against each instance type's properties:
+
+```
+$ ./eval-kubelet-expr \
+    --field kubeReserved.cpu \
+    --expression "max(60, vcpus * 30) * 1000000" \
+    --instance-types m5.large,m5.4xlarge,m5.24xlarge
+
+INSTANCE TYPE   vCPUs   RESOLVED kubeReserved.cpu
+m5.large        2       120m
+m5.4xlarge      16      480m
+m5.24xlarge     96      2880m
+```
+
+By printing one row per instance type, the script lets an operator eyeball the full range of outputs and catch a value that is too high or too low before it ever reaches a node. Because the script reuses Karpenter's CEL environment definition, an expression that evaluates successfully here behaves identically when Karpenter evaluates it at scheduling time.
 
 ## Scheduling and Launch Behavior
 
@@ -350,7 +371,6 @@ Using CEL expressions and changing the NodeClass instead would be a better fit s
 | Graduated CPU reservation (EKS recommended) | kubeReserved.cpu | `(min(vcpus, 1) * 60 + min(max(vcpus - 1, 0), 1) * 10 + min(max(vcpus - 2, 0), 2) * 5 + max(vcpus - 4, 0) * 2.5) * 1000000` |
 | Memory reservation scaled by pod count | kubeReserved.memory | `(11 * max_pods + 255) * 1048576` |
 | System memory as percentage of total | systemReserved.memory | `max(104857600, memory_mib * 1048576 / 64)` |
-| GPU-aware system reservation | systemReserved.cpu | `(gpus > 0 ? max(vcpus * 50, 500) : max(vcpus * 20, 100)) * 1000000` |
 
 ### Default Karpenter Formulas as Expressions
 
