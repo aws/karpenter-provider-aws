@@ -1,12 +1,3 @@
-## Scope
-
-This policy applies to:
-
-- [**kubernetes-sigs/karpenter**](https://github.com/kubernetes-sigs/karpenter) — Karpenter core CRDs and Go API
-- [**aws/karpenter-provider-aws**](https://github.com/aws/karpenter-provider-aws) — AWS cloud provider implementation
-
-Both repositories follow the same versioning scheme, release cadence, and support policy. When this document refers to "Karpenter," it encompasses both the core and provider components.
-
 ## Versioning
 
 Karpenter follows [Semantic Versioning 2.0.0](https://semver.org/).
@@ -19,7 +10,7 @@ Karpenter follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 ### Regular Releases
 
-Karpenter publishes minor releases approximately every 3–4 weeks. Regular releases are the primary vehicle for new features, performance improvements, and enhancements.
+Regular minor version releases are the primary vehicle for new features, performance improvements, and enhancements.
 
 Regular releases are supported **only until the next minor release is published**. Users on regular releases are expected to upgrade promptly to stay current.
 
@@ -37,7 +28,7 @@ Each LTS release is supported for **12 months** from its release date. At any po
 | --- | --- | --- |
 | **Active Support** | First 6 months (until the next LTS is released) | Security patches, workload availability fixes, correctness fixes with availability impact |
 | **Maintenance Mode** | Last 6 months (overlaps with the newer LTS) | Security patches only |
-| **End of Life (EOL)** | After 12 months | No further patches; branch is archived |
+| **End of Life (EOL)** | After 12 months | No further patches |
 
 ### Example Timeline
 
@@ -97,10 +88,6 @@ Each LTS release declares a supported Kubernetes version range at release time. 
 - **Kubernetes patch releases** (e.g., 1.30.x -> 1.30.y) within the declared range: Karpenter will maintain compatibility. If a K8s security patch breaks a supported LTS, a fix will be issued.
 - **New Kubernetes minor releases** (e.g., 1.30 -> 1.31) published after the LTS: No guarantee of compatibility. Users who need new K8s minors should adopt the latest Karpenter release.
 
-## Core and Provider Relationship
-
-The `kubernetes-sigs/karpenter` core and `aws/karpenter-provider-aws` provider share the same LTS designations. A supported LTS version refers to the combination of core and provider at the same minor version (e.g., "Karpenter v1.12 LTS" means both `sigs.k8s.io/karpenter@v1.12.x` and `karpenter-provider-aws@v1.12.x`).
-
 ## LTS Release Marking
 
 LTS releases are clearly identified on GitHub through the following conventions:
@@ -129,5 +116,5 @@ v1.14.0 (LTS)
 
 ## Upgrade Guidance
 
-- **Regular/LTS → Regular:** Recommended. Review release notes for behavioral changes.
-- **LTS → LTS:** Upgrade during the 6-month overlap window. Review the cumulative migration guide covering changes between LTS versions.
+- **Regular/LTS -> Regular:** Recommended. Review release notes for behavioral changes.
+- **LTS -> LTS:** Upgrade during the 6-month overlap window. Review the cumulative migration guide covering changes between LTS versions.
