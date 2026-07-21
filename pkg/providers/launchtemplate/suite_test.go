@@ -2429,16 +2429,16 @@ eviction-max-pod-grace-period = 10
 				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeFalse())
 			})
 		})
-		It("should enable enclave options when nip-slots is in the nodeclaim's resource requests", func() {
+		It("should enable enclave options when nitro-sandbox is in the nodeclaim's resource requests", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 
-			// Build a NodeClaim with nip-slots already in Spec.Resources.Requests,
+			// Build a NodeClaim with nitro-sandbox already in Spec.Resources.Requests,
 			// simulating what the scheduler sets when pods request that resource
 			nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
 				Spec: karpv1.NodeClaimSpec{
 					Resources: karpv1.ResourceRequirements{
 						Requests: corev1.ResourceList{
-							v1.ResourceNIPSlots: resource.MustParse("1"),
+							v1.ResourceNitroSandbox: resource.MustParse("1"),
 						},
 					},
 					NodeClassRef: &karpv1.NodeClassReference{

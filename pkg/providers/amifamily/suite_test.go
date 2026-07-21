@@ -1247,9 +1247,9 @@ var _ = Describe("AMIResolver", func() {
 				Expect(lt.EnclaveEnabled).To(BeFalse())
 			})
 		})
-		It("should set EnclaveEnabled to true when ResourceNIPSlots is in the NodeClaim's resource requests", func() {
+		It("should set EnclaveEnabled to true when ResourceNitroSandbox is in the NodeClaim's resource requests", func() {
 			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
-				v1.ResourceNIPSlots: resource.MustParse("1"),
+				v1.ResourceNitroSandbox: resource.MustParse("1"),
 			}
 			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
 			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
@@ -1259,7 +1259,7 @@ var _ = Describe("AMIResolver", func() {
 				Expect(lt.EnclaveEnabled).To(BeTrue())
 			})
 		})
-		It("should set EnclaveEnabled to false when only other resources are requested (not ResourceNIPSlots)", func() {
+		It("should set EnclaveEnabled to false when only other resources are requested (not ResourceNitroSandbox)", func() {
 			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("2"),
 				corev1.ResourceMemory: resource.MustParse("4Gi"),

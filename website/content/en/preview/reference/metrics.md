@@ -8,6 +8,14 @@ description: >
 ---
 <!-- this document is generated from hack/docs/metrics_gen/main.go -->
 Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.kube-system.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)
+### `karpenter_consolidation_score`
+Score of balanced consolidation moves. Labeled by decision, NodePool, and policy.
+- Stability Level: ALPHA
+
+### `karpenter_consolidation_moves_total`
+Number of balanced consolidation moves. Labeled by decision, NodePool, and policy.
+- Stability Level: ALPHA
+
 ### `karpenter_build_info`
 A metric with a constant '1' value labeled by version from which karpenter was built.
 - Stability Level: STABLE
@@ -23,7 +31,7 @@ Duration of NodeClaim termination in seconds.
 - Stability Level: BETA
 
 ### `karpenter_nodeclaims_terminated_total`
-Number of nodeclaims terminated in total by Karpenter. Labeled by the owning nodepool.
+Number of nodeclaims terminated in total by Karpenter. Labeled by the owning nodepool, capacity type, and zone.
 - Stability Level: STABLE
 
 ### `karpenter_nodeclaims_instance_termination_duration_seconds`
@@ -89,7 +97,7 @@ The time taken between a node's deletion request and the removal of its finalize
 - Stability Level: BETA
 
 ### `karpenter_nodes_terminated_total`
-Number of nodes terminated in total by Karpenter. Labeled by owning nodepool.
+Number of nodes terminated in total by Karpenter. Labeled by owning nodepool and zone.
 - Stability Level: STABLE
 
 ### `karpenter_nodes_system_overhead`
@@ -109,7 +117,7 @@ Node age in seconds
 - Stability Level: ALPHA
 
 ### `karpenter_nodes_created_total`
-Number of nodes created in total by Karpenter. Labeled by owning nodepool.
+Number of nodes created in total by Karpenter. Labeled by owning nodepool and zone.
 - Stability Level: STABLE
 
 ### `karpenter_nodes_allocatable`
@@ -390,6 +398,14 @@ Memory, in bytes, for a given instance type.
 
 ### `karpenter_cloudprovider_instance_type_cpu_cores`
 VCPUs cores for a given instance type.
+- Stability Level: BETA
+
+### `karpenter_cloudprovider_instance_termination_failures_total`
+Number of instance termination (TerminateInstances) failures, dimensioned by availability zone and zone ID.
+- Stability Level: BETA
+
+### `karpenter_cloudprovider_instance_launch_failures_total`
+Number of instance launch (CreateFleet offering) failures, dimensioned by availability zone, zone ID, capacity type, and launch failure reason.
 - Stability Level: BETA
 
 ### `karpenter_cloudprovider_errors_total`

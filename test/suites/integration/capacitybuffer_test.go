@@ -25,7 +25,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 
-	autoscalingv1alpha1 "sigs.k8s.io/karpenter/pkg/apis/autoscaling/v1alpha1"
+	autoscalingv1beta1 "sigs.k8s.io/karpenter/pkg/apis/autoscaling/v1beta1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
@@ -66,9 +66,9 @@ var _ = Describe("CapacityBuffer", func() {
 		countBefore := len(nodeClaimsBefore)
 
 		// Apply buffer — should drive node provisioning from zero
-		buffer := test.CapacityBuffer(autoscalingv1alpha1.CapacityBuffer{
-			Spec: autoscalingv1alpha1.CapacityBufferSpec{
-				PodTemplateRef: &autoscalingv1alpha1.LocalObjectRef{Name: "buffer-template"},
+		buffer := test.CapacityBuffer(autoscalingv1beta1.CapacityBuffer{
+			Spec: autoscalingv1beta1.CapacityBufferSpec{
+				PodTemplateRef: &autoscalingv1beta1.LocalObjectRef{Name: "buffer-template"},
 				Replicas:       lo.ToPtr(int32(3)),
 			},
 		})
@@ -83,9 +83,9 @@ var _ = Describe("CapacityBuffer", func() {
 	})
 
 	It("should allow consumer pods to schedule on buffer capacity", func() {
-		buffer := test.CapacityBuffer(autoscalingv1alpha1.CapacityBuffer{
-			Spec: autoscalingv1alpha1.CapacityBufferSpec{
-				PodTemplateRef: &autoscalingv1alpha1.LocalObjectRef{Name: "buffer-template"},
+		buffer := test.CapacityBuffer(autoscalingv1beta1.CapacityBuffer{
+			Spec: autoscalingv1beta1.CapacityBufferSpec{
+				PodTemplateRef: &autoscalingv1beta1.LocalObjectRef{Name: "buffer-template"},
 				Replicas:       lo.ToPtr(int32(2)),
 			},
 		})
@@ -119,9 +119,9 @@ var _ = Describe("CapacityBuffer", func() {
 		nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
 		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
 
-		buffer := test.CapacityBuffer(autoscalingv1alpha1.CapacityBuffer{
-			Spec: autoscalingv1alpha1.CapacityBufferSpec{
-				PodTemplateRef: &autoscalingv1alpha1.LocalObjectRef{Name: "buffer-template"},
+		buffer := test.CapacityBuffer(autoscalingv1beta1.CapacityBuffer{
+			Spec: autoscalingv1beta1.CapacityBufferSpec{
+				PodTemplateRef: &autoscalingv1beta1.LocalObjectRef{Name: "buffer-template"},
 				Replicas:       lo.ToPtr(int32(1)),
 			},
 		})
@@ -139,9 +139,9 @@ var _ = Describe("CapacityBuffer", func() {
 		nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
 		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
 
-		buffer := test.CapacityBuffer(autoscalingv1alpha1.CapacityBuffer{
-			Spec: autoscalingv1alpha1.CapacityBufferSpec{
-				PodTemplateRef: &autoscalingv1alpha1.LocalObjectRef{Name: "buffer-template"},
+		buffer := test.CapacityBuffer(autoscalingv1beta1.CapacityBuffer{
+			Spec: autoscalingv1beta1.CapacityBufferSpec{
+				PodTemplateRef: &autoscalingv1beta1.LocalObjectRef{Name: "buffer-template"},
 				Replicas:       lo.ToPtr(int32(1)),
 			},
 		})
@@ -181,9 +181,9 @@ var _ = Describe("CapacityBuffer", func() {
 		countBefore := len(nodeClaimsBefore)
 
 		// Apply buffer — 20% of 10 = 2 replicas
-		buffer := test.CapacityBuffer(autoscalingv1alpha1.CapacityBuffer{
-			Spec: autoscalingv1alpha1.CapacityBufferSpec{
-				ScalableRef: &autoscalingv1alpha1.ScalableRef{
+		buffer := test.CapacityBuffer(autoscalingv1beta1.CapacityBuffer{
+			Spec: autoscalingv1beta1.CapacityBufferSpec{
+				ScalableRef: &autoscalingv1beta1.ScalableRef{
 					APIGroup: "apps",
 					Kind:     "Deployment",
 					Name:     dep.Name,
