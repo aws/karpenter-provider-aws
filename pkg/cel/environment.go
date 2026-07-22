@@ -68,6 +68,26 @@ func mustNewEnv() *cel.Env {
 					return r
 				}),
 			),
+			cel.Overload("max_int_double", []*cel.Type{cel.IntType, cel.DoubleType}, cel.DoubleType,
+				cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
+					l := types.Double(lhs.(types.Int))
+					r := rhs.(types.Double)
+					if l > r {
+						return l
+					}
+					return r
+				}),
+			),
+			cel.Overload("max_double_int", []*cel.Type{cel.DoubleType, cel.IntType}, cel.DoubleType,
+				cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
+					l := lhs.(types.Double)
+					r := types.Double(rhs.(types.Int))
+					if l > r {
+						return l
+					}
+					return r
+				}),
+			),
 		),
 		cel.Function("min",
 			cel.Overload("min_int_int", []*cel.Type{cel.IntType, cel.IntType}, cel.IntType,
@@ -84,6 +104,26 @@ func mustNewEnv() *cel.Env {
 				cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
 					l := lhs.(types.Double)
 					r := rhs.(types.Double)
+					if l < r {
+						return l
+					}
+					return r
+				}),
+			),
+			cel.Overload("min_int_double", []*cel.Type{cel.IntType, cel.DoubleType}, cel.DoubleType,
+				cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
+					l := types.Double(lhs.(types.Int))
+					r := rhs.(types.Double)
+					if l < r {
+						return l
+					}
+					return r
+				}),
+			),
+			cel.Overload("min_double_int", []*cel.Type{cel.DoubleType, cel.IntType}, cel.DoubleType,
+				cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
+					l := lhs.(types.Double)
+					r := types.Double(rhs.(types.Int))
 					if l < r {
 						return l
 					}

@@ -87,6 +87,20 @@ var _ = Describe("EvaluateExpression", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(Equal(int64(20)))
 	})
+	It("should evaluate max with mixed int and double args", func() {
+		// max(int, double): max(vcpus, 60.5) = max(4, 60.5) = 60.5 -> truncated to 60
+		vars := cel.InstanceTypeVars{VCPUs: 4, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
+		result, err := cel.EvaluateExpression("max(vcpus, 60.5)", vars)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(int64(60)))
+	})
+	It("should evaluate min with mixed double and int args", func() {
+		// min(double, int): min(110.5, max_pods) = min(110.5, 20) = 20
+		vars := cel.InstanceTypeVars{VCPUs: 4, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
+		result, err := cel.EvaluateExpression("min(110.5, max_pods)", vars)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(int64(20)))
+	})
 })
 
 var _ = Describe("ValidateExpression", func() {
