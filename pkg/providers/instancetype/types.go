@@ -304,7 +304,7 @@ func computeRequirements(
 		requirements.Get(v1.LabelInstanceCPUSustainedClockSpeedMhz).Insert(fmt.Sprint(int(math.Round(aws.ToFloat64(info.ProcessorInfo.SustainedClockSpeedInGhz) * 1000))))
 	}
 	// EBS Max Bandwidth
-	if info.EbsInfo != nil && info.EbsInfo.EbsOptimizedInfo != nil && info.EbsInfo.EbsOptimizedSupport == ec2types.EbsOptimizedSupportDefault {
+	if info.EbsInfo != nil && info.EbsInfo.EbsOptimizedInfo != nil && (info.EbsInfo.EbsOptimizedSupport == ec2types.EbsOptimizedSupportDefault || info.EbsInfo.EbsOptimizedSupport == ec2types.EbsOptimizedSupportSupported) {
 		requirements.Get(v1.LabelInstanceEBSBandwidth).Insert(fmt.Sprint(lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.MaximumBandwidthInMbps)))
 	}
 
