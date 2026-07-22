@@ -146,15 +146,31 @@ func EvaluateKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeI
 		return nil
 	}
 	celVars := buildCELVars(ctx, info, networkInterfaces)
-	if kc.MaxPods != nil && kc.MaxPods.Type == intstr.String {
-		result, err := kubeletcel.EvaluateExpression(kc.MaxPods.StrVal, celVars)
-		if err != nil {
-			return fmt.Errorf("evaluating maxPods expression %q for instance type %s: %w", kc.MaxPods.StrVal, info.InstanceType, err)
-		}
-		if result < 0 || result > math.MaxInt32 {
-			return fmt.Errorf("maxPods expression %q evaluated to %d for instance type %s, which is outside the valid range [0, %d]", kc.MaxPods.StrVal, result, info.InstanceType, math.MaxInt32)
-		}
+	if err := evaluateMaxPodsExpression(kc, celVars, info); err != nil {
+		return err
 	}
+	return evaluateResourceExpressions(kc, celVars, info)
+}
+
+// evaluateMaxPodsExpression validates the maxPods CEL expression (if any) for the given instance type,
+// returning an error if it fails to evaluate or falls outside the valid int32 range.
+func evaluateMaxPodsExpression(kc *v1.KubeletConfiguration, celVars kubeletcel.InstanceTypeVars, info ec2types.InstanceTypeInfo) error {
+	if kc.MaxPods == nil || kc.MaxPods.Type != intstr.String {
+		return nil
+	}
+	result, err := kubeletcel.EvaluateExpression(kc.MaxPods.StrVal, celVars)
+	if err != nil {
+		return fmt.Errorf("evaluating maxPods expression %q for instance type %s: %w", kc.MaxPods.StrVal, info.InstanceType, err)
+	}
+	if result < 0 || result > math.MaxInt32 {
+		return fmt.Errorf("maxPods expression %q evaluated to %d for instance type %s, which is outside the valid range [0, %d]", kc.MaxPods.StrVal, result, info.InstanceType, math.MaxInt32)
+	}
+	return nil
+}
+
+// evaluateResourceExpressions validates the kubeReserved and systemReserved CEL expressions for the given
+// instance type, returning an error for the first expression that fails to evaluate or produces a negative value.
+func evaluateResourceExpressions(kc *v1.KubeletConfiguration, celVars kubeletcel.InstanceTypeVars, info ec2types.InstanceTypeInfo) error {
 	for _, resourceExpressions := range []struct {
 		field string
 		m     map[string]string
