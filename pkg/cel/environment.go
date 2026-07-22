@@ -16,7 +16,6 @@ package cel
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/google/cel-go/cel"
@@ -35,70 +34,68 @@ type InstanceTypeVars struct {
 	InstanceType string
 }
 
-var (
-	envOnce sync.Once
-	envInst *cel.Env
-	envErr  error
-)
+// env is the shared CEL environment configured with instance type variables. It is built once at
+// package initialization. Construction has no runtime-variable inputs (a fixed set of variables and
+// functions, no I/O), so a failure here is a programming error in this declaration
+var env = mustNewEnv()
 
-// Environment returns the shared CEL environment configured with instance type variables.
-// The environment is created once and cached for the lifetime of the process.
-func Environment() (*cel.Env, error) {
-	envOnce.Do(func() {
-		envInst, envErr = cel.NewEnv(
-			cel.Variable("vcpus", cel.IntType),
-			cel.Variable("memory_mib", cel.IntType),
-			cel.Variable("default_enis", cel.IntType),
-			cel.Variable("ips_per_eni", cel.IntType),
-			cel.Variable("max_pods", cel.IntType),
-			cel.Variable("instance_type", cel.StringType),
-			cel.Function("max",
-				cel.Overload("max_int_int", []*cel.Type{cel.IntType, cel.IntType}, cel.IntType,
-					cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
-						l := lhs.(types.Int)
-						r := rhs.(types.Int)
-						if l > r {
-							return l
-						}
-						return r
-					}),
-				),
-				cel.Overload("max_double_double", []*cel.Type{cel.DoubleType, cel.DoubleType}, cel.DoubleType,
-					cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
-						l := lhs.(types.Double)
-						r := rhs.(types.Double)
-						if l > r {
-							return l
-						}
-						return r
-					}),
-				),
+func mustNewEnv() *cel.Env {
+	e, err := cel.NewEnv(
+		cel.Variable("vcpus", cel.IntType),
+		cel.Variable("memory_mib", cel.IntType),
+		cel.Variable("default_enis", cel.IntType),
+		cel.Variable("ips_per_eni", cel.IntType),
+		cel.Variable("max_pods", cel.IntType),
+		cel.Variable("instance_type", cel.StringType),
+		cel.Function("max",
+			cel.Overload("max_int_int", []*cel.Type{cel.IntType, cel.IntType}, cel.IntType,
+				cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
+					l := lhs.(types.Int)
+					r := rhs.(types.Int)
+					if l > r {
+						return l
+					}
+					return r
+				}),
 			),
-			cel.Function("min",
-				cel.Overload("min_int_int", []*cel.Type{cel.IntType, cel.IntType}, cel.IntType,
-					cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
-						l := lhs.(types.Int)
-						r := rhs.(types.Int)
-						if l < r {
-							return l
-						}
-						return r
-					}),
-				),
-				cel.Overload("min_double_double", []*cel.Type{cel.DoubleType, cel.DoubleType}, cel.DoubleType,
-					cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
-						l := lhs.(types.Double)
-						r := rhs.(types.Double)
-						if l < r {
-							return l
-						}
-						return r
-					}),
-				),
+			cel.Overload("max_double_double", []*cel.Type{cel.DoubleType, cel.DoubleType}, cel.DoubleType,
+				cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
+					l := lhs.(types.Double)
+					r := rhs.(types.Double)
+					if l > r {
+						return l
+					}
+					return r
+				}),
 			),
-		)
-	})
-	return envInst, envErr
+		),
+		cel.Function("min",
+			cel.Overload("min_int_int", []*cel.Type{cel.IntType, cel.IntType}, cel.IntType,
+				cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
+					l := lhs.(types.Int)
+					r := rhs.(types.Int)
+					if l < r {
+						return l
+					}
+					return r
+				}),
+			),
+			cel.Overload("min_double_double", []*cel.Type{cel.DoubleType, cel.DoubleType}, cel.DoubleType,
+				cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
+					l := lhs.(types.Double)
+					r := rhs.(types.Double)
+					if l < r {
+						return l
+					}
+					return r
+				}),
+			),
+		),
+	)
+	if err != nil {
+		panic(fmt.Sprintf("building CEL environment: %v", err))
+	}
+	return e
 }
 
 // CompiledExpression is a pre-compiled CEL program ready for evaluation.
@@ -108,10 +105,6 @@ type CompiledExpression struct {
 
 // Compile parses and type-checks a CEL expression against the kubelet expression environment.
 func Compile(expression string) (*CompiledExpression, error) {
-	env, err := Environment()
-	if err != nil {
-		return nil, fmt.Errorf("creating CEL environment: %w", err)
-	}
 	ast, issues := env.Compile(expression)
 	if issues != nil && issues.Err() != nil {
 		return nil, fmt.Errorf("compiling expression %q: %w", expression, issues.Err())
