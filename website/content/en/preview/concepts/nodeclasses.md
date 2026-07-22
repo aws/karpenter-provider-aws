@@ -1686,6 +1686,14 @@ requires that the field is only set to true when configuring an instance with a 
 
 This value is a integer field that controls how many ip prefixes will be assigned to `NodeClaim`. See the [EC2 Launch Template Network Interface Spec](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ec2-launchtemplate-networkinterface.html) for more information. Sets ipv4PrefixCount if you are using an IPv4 Cluster, or ipv6PrefixCount if you are using IPv6.
 
+## spec.enablePrefixDelegation
+
+This value is a boolean field that controls whether [prefix delegation](https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html) is considered when Karpenter calculates the maximum number of pods that can run on a node. When enabled, each usable IPv4 address on a Nitro instance's network interfaces is treated as a `/28` prefix (16 addresses), matching the VPC CNI's prefix delegation behavior, which significantly increases the computed pod capacity. This only affects Nitro instances; the value is ignored for non-Nitro instance types.
+
+{{% alert title="Note" color="warning" %}}
+This field only changes Karpenter's max-pods calculation. You must independently configure the VPC CNI with `ENABLE_PREFIX_DELEGATION=true` so that the kubelet's actual max-pods value matches Karpenter's. If the two disagree, pods scheduled to a node may remain `Pending`. Prefer setting `enablePrefixDelegation` per `EC2NodeClass` so it can vary alongside the CNI configuration in mixed clusters.
+{{% /alert %}}
+
 ## status.subnets
 [`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
 

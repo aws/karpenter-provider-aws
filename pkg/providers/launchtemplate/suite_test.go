@@ -1051,6 +1051,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Spec.Kubelet.EvictionSoft,
 				nodeClass.AMIFamily(),
 				nil,
+				false,
 			)
 
 			overhead := it.Overhead.Total()
@@ -1105,6 +1106,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Spec.Kubelet.EvictionSoft,
 				nodeClass.AMIFamily(),
 				nil,
+				false,
 			)
 
 			overhead := it.Overhead.Total()
@@ -1133,6 +1135,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Spec.Kubelet.EvictionSoft,
 				nodeClass.AMIFamily(),
 				nil,
+				false,
 			)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1565Mi"))
