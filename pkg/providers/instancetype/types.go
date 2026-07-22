@@ -136,6 +136,49 @@ func resolveKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeIn
 	return maxPods, kubeReserved, systemReserved
 }
 
+// EvaluateKubeletExpressions evaluates all CEL expressions in the kubelet configuration against the given
+// instance type's variables and returns an error describing the first expression that fails to evaluate,
+// produces a negative result, or (for maxPods) overflows int32. It is used at validation time to surface
+// per-instance-type evaluation failures that a compile-only check cannot catch. A nil return means every
+// expression evaluated to a usable value for this instance type.
+func EvaluateKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, kc *v1.KubeletConfiguration, networkInterfaces []*v1.NetworkInterface) error {
+	if kc == nil {
+		return nil
+	}
+	celVars := buildCELVars(ctx, info, networkInterfaces)
+	if kc.MaxPods != nil && kc.MaxPods.Type == intstr.String {
+		result, err := kubeletcel.EvaluateExpression(kc.MaxPods.StrVal, celVars)
+		if err != nil {
+			return fmt.Errorf("evaluating maxPods expression %q for instance type %s: %w", kc.MaxPods.StrVal, info.InstanceType, err)
+		}
+		if result < 0 || result > math.MaxInt32 {
+			return fmt.Errorf("maxPods expression %q evaluated to %d for instance type %s, which is outside the valid range [0, %d]", kc.MaxPods.StrVal, result, info.InstanceType, math.MaxInt32)
+		}
+	}
+	for _, resourceExpressions := range []struct {
+		field string
+		m     map[string]string
+	}{
+		{"kubeReserved", kc.KubeReserved},
+		{"systemReserved", kc.SystemReserved},
+	} {
+		for k, v := range resourceExpressions.m {
+			// Values that parse as valid Kubernetes resource quantities are used as-is, not evaluated.
+			if _, qErr := resource.ParseQuantity(v); qErr == nil {
+				continue
+			}
+			result, err := kubeletcel.EvaluateExpression(v, celVars)
+			if err != nil {
+				return fmt.Errorf("evaluating %s[%s] expression %q for instance type %s: %w", resourceExpressions.field, k, v, info.InstanceType, err)
+			}
+			if result < 0 {
+				return fmt.Errorf("%s[%s] expression %q evaluated to a negative value %d for instance type %s", resourceExpressions.field, k, v, result, info.InstanceType)
+			}
+		}
+	}
+	return nil
+}
+
 // resolveMaxPods resolves the MaxPods IntOrString value to a concrete int32.
 // If it's an integer, it's returned directly. If it's a string, it's evaluated as a CEL expression.
 func resolveMaxPods(ctx context.Context, info ec2types.InstanceTypeInfo, maxPods *intstr.IntOrString, networkInterfaces []*v1.NetworkInterface) *int32 {
@@ -153,6 +196,7 @@ func resolveMaxPods(ctx context.Context, info ec2types.InstanceTypeInfo, maxPods
 			return nil
 		}
 		if result < 0 || result > math.MaxInt32 {
+			log.FromContext(ctx).Error(fmt.Errorf("result %d is out of range [0, %d]", result, math.MaxInt32), "maxPods expression evaluated to an invalid value", "expression", maxPods.StrVal, "instanceType", info.InstanceType)
 			return nil
 		}
 		val := int32(result)
@@ -182,6 +226,7 @@ func resolveResourceExpressions(ctx context.Context, info ec2types.InstanceTypeI
 			continue
 		}
 		if result < 0 {
+			log.FromContext(ctx).Error(fmt.Errorf("result %d is negative", result), "kubelet resource expression evaluated to an invalid value", "key", k, "expression", v, "instanceType", info.InstanceType)
 			continue
 		}
 		resolved[k] = fmt.Sprint(result)
@@ -201,11 +246,12 @@ func buildCELVars(ctx context.Context, info ec2types.InstanceTypeInfo, networkIn
 	}
 	maxPods := ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs, networkInterfaces).Value()
 	return kubeletcel.InstanceTypeVars{
-		VCPUs:       int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)),
-		MemoryMiB:   lo.FromPtr(info.MemoryInfo.SizeInMiB),
-		DefaultENIs: defaultENIs,
-		IPsPerENI:   ipsPerENI,
-		MaxPods:     maxPods,
+		VCPUs:        int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)),
+		MemoryMiB:    lo.FromPtr(info.MemoryInfo.SizeInMiB),
+		DefaultENIs:  defaultENIs,
+		IPsPerENI:    ipsPerENI,
+		MaxPods:      maxPods,
+		InstanceType: string(info.InstanceType),
 	}
 }
 

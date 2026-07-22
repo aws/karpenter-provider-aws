@@ -25,11 +25,12 @@ import (
 
 // InstanceTypeVars holds the variables available to CEL expressions for kubelet configuration.
 type InstanceTypeVars struct {
-	VCPUs       int64
-	MemoryMiB   int64
-	DefaultENIs int64
-	IPsPerENI   int64
-	MaxPods     int64
+	VCPUs        int64
+	MemoryMiB    int64
+	DefaultENIs  int64
+	IPsPerENI    int64
+	MaxPods      int64
+	InstanceType string
 }
 
 var (
@@ -48,6 +49,7 @@ func Environment() (*cel.Env, error) {
 			cel.Variable("default_enis", cel.IntType),
 			cel.Variable("ips_per_eni", cel.IntType),
 			cel.Variable("max_pods", cel.IntType),
+			cel.Variable("instance_type", cel.StringType),
 			cel.Function("max",
 				cel.Overload("max_int_int", []*cel.Type{cel.IntType, cel.IntType}, cel.IntType,
 					cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
@@ -125,11 +127,12 @@ func Compile(expression string) (*CompiledExpression, error) {
 // Evaluate runs the compiled expression with the given instance type variables and returns the integer result.
 func (c *CompiledExpression) Evaluate(vars InstanceTypeVars) (int64, error) {
 	activation := map[string]any{
-		"vcpus":        vars.VCPUs,
-		"memory_mib":   vars.MemoryMiB,
-		"default_enis": vars.DefaultENIs,
-		"ips_per_eni":  vars.IPsPerENI,
-		"max_pods":     vars.MaxPods,
+		"vcpus":         vars.VCPUs,
+		"memory_mib":    vars.MemoryMiB,
+		"default_enis":  vars.DefaultENIs,
+		"ips_per_eni":   vars.IPsPerENI,
+		"max_pods":      vars.MaxPods,
+		"instance_type": vars.InstanceType,
 	}
 	out, _, err := c.program.Eval(activation)
 	if err != nil {

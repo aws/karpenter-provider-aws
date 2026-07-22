@@ -61,6 +61,7 @@ const (
 	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
 	ConditionReasonTagValidationFailed            = "TagValidationFailed"
 	ConditionReasonKubeletExpressionInvalid       = "KubeletExpressionInvalid"
+	ConditionReasonKubeletExpressionEvalFailed    = "KubeletExpressionEvaluationFailed"
 	ConditionReasonDryRunDisabled                 = "DryRunDisabled"
 )
 
@@ -163,6 +164,18 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			"Awaiting AMI, Instance Profile, Security Group, and Subnet resolution",
 		)
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+	}
+
+	// Evaluate the kubelet CEL expressions against every known instance type. This catches per-instance-type evaluation failures
+	// (eval errors, negative results, int32 overflow) that the compile-only check above cannot, surfacing
+	// them on the status instead of silently misconfiguring nodes at resolution time.
+	if err := v.instanceTypeProvider.ValidateKubeletExpressions(ctx, nodeClass); err != nil {
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonKubeletExpressionEvalFailed,
+			err.Error(),
+		)
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("evaluating kubelet expressions, %w", err))
 	}
 
 	nodeClaim := &karpv1.NodeClaim{

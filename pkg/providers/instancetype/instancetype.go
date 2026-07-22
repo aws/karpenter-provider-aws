@@ -73,6 +73,10 @@ type Provider interface {
 	Get(context.Context, NodeClass, ec2types.InstanceType) (*cloudprovider.InstanceType, error)
 	List(context.Context, NodeClass) ([]*cloudprovider.InstanceType, error)
 	FilterForNodeClass(context.Context, []*cloudprovider.InstanceType, NodeClass) []*cloudprovider.InstanceType
+	// ValidateKubeletExpressions evaluates the NodeClass' kubelet CEL expressions against every known instance
+	// type and returns an error describing the first per-instance-type evaluation failure. A compile-only check
+	// cannot catch these because the instance-type variables aren't known until an instance type is in hand.
+	ValidateKubeletExpressions(context.Context, NodeClass) error
 }
 
 type DefaultProvider struct {
@@ -232,6 +236,28 @@ func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2
 		instanceTypeLabel: string(info.InstanceType),
 	})
 	return it, nil
+}
+
+// ValidateKubeletExpressions evaluates the NodeClass' kubelet CEL expressions against every known instance type.
+// It returns the first evaluation failure encountered so the caller can surface it on the NodeClass status,
+// rather than silently misconfiguring nodes at resolution time.
+func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeClass NodeClass) error {
+	kc := nodeClass.KubeletConfiguration()
+	if kc == nil {
+		return nil
+	}
+	p.muInstanceTypesInfo.RLock()
+	defer p.muInstanceTypesInfo.RUnlock()
+
+	if len(p.instanceTypesInfo) == 0 {
+		return fmt.Errorf("no instance types found")
+	}
+	for _, info := range p.instanceTypesInfo {
+		if err := EvaluateKubeletExpressions(ctx, info, kc, nodeClass.NetworkInterfaces()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *DefaultProvider) cacheKey(nodeClass NodeClass) string {
