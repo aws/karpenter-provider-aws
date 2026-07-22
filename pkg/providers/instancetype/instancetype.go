@@ -238,6 +238,23 @@ func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2
 	return it, nil
 }
 
+// ENILimits returns the default ENI count and IPv4-addresses-per-ENI for an instance type, sourced from
+// the live EC2 network info (DescribeInstanceTypes) held in the provider's cache. It returns ok=false when
+// the instance type isn't present (e.g. the cache hasn't hydrated yet). This backs the amifamily resolver's
+// CEL evaluation so that kubeReserved expressions in the launch template use the same live ENI values as the
+// scheduler's reserved-capacity overhead calculation.
+func (p *DefaultProvider) ENILimits(name string) (amifamily.ENILimits, bool) {
+	p.muInstanceTypesInfo.RLock()
+	defer p.muInstanceTypesInfo.RUnlock()
+
+	info, ok := p.instanceTypesInfo[ec2types.InstanceType(name)]
+	if !ok {
+		return amifamily.ENILimits{}, false
+	}
+	defaultENIs, ipsPerENI := extractENILimits(info)
+	return amifamily.ENILimits{DefaultENIs: int(defaultENIs), IPv4PerENI: int(ipsPerENI)}, true
+}
+
 // ValidateKubeletExpressions evaluates the NodeClass' kubelet CEL expressions against every known instance type.
 // It returns the first evaluation failure encountered so the caller can surface it on the NodeClass status,
 // rather than silently misconfiguring nodes at resolution time.

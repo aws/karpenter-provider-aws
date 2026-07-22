@@ -181,12 +181,15 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.PlacementGroupAvailabilityTTL, awscache.DefaultCleanupInterval),
 	)
+	// instanceTypeProvider is forward-declared so the resolver's ENI lookup can source live EC2 network
+	// info (DescribeInstanceTypes) rather than the static vpclimits table. The closure captures the
+	// variable by reference and is only invoked at launch template resolution time, after assignment below.
+	var instanceTypeProvider *instancetype.DefaultProvider
 	amiResolver := amifamily.NewDefaultResolver(cfg.Region, func(name string) (amifamily.ENILimits, bool) {
-		limits, ok := instancetype.Limits[name]
-		if !ok {
+		if instanceTypeProvider == nil {
 			return amifamily.ENILimits{}, false
 		}
-		return amifamily.ENILimits{DefaultENIs: limits.Interface, IPv4PerENI: limits.IPv4PerInterface}, true
+		return instanceTypeProvider.ENILimits(name)
 	})
 	caBundle := lo.Must(GetCABundle(ctx, operator.GetConfig()))
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
@@ -209,7 +212,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.CapacityReservationAvailabilityTTL, awscache.DefaultCleanupInterval),
 	)
-	instanceTypeProvider := instancetype.NewDefaultProvider(
+	instanceTypeProvider = instancetype.NewDefaultProvider(
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval),

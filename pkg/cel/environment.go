@@ -18,9 +18,11 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/go-logr/logr"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/types"
 	"github.com/google/cel-go/common/types/ref"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 // InstanceTypeVars holds the variables available to CEL expressions for kubelet configuration.
@@ -162,4 +164,44 @@ func EvaluateExpression(expression string, vars InstanceTypeVars) (int64, error)
 func ValidateExpression(expression string) error {
 	_, err := Compile(expression)
 	return err
+}
+
+// ResolveResourceMap evaluates the CEL expressions in a kubelet resource map (kubeReserved or
+// systemReserved). Values that already parse as valid Kubernetes resource quantities are passed
+// through unchanged; values that don't are evaluated as CEL expressions and replaced with their
+// integer result. Entries whose expression fails to evaluate or yields a negative value are
+// dropped (and logged).
+//
+// varsFn is called at most once, and only when the map actually contains an expression, so callers
+// can defer expensive variable construction. This is the single evaluation path shared by both the
+// scheduler (reserved-capacity overhead) and the launch template resolver so that identical inputs
+// always produce identical results.
+func ResolveResourceMap(resourceMap map[string]string, varsFn func() InstanceTypeVars, log logr.Logger) map[string]string {
+	if len(resourceMap) == 0 {
+		return resourceMap
+	}
+	var vars InstanceTypeVars
+	varsBuilt := false
+	resolved := make(map[string]string, len(resourceMap))
+	for k, v := range resourceMap {
+		if _, err := resource.ParseQuantity(v); err == nil {
+			resolved[k] = v
+			continue
+		}
+		if !varsBuilt {
+			vars = varsFn()
+			varsBuilt = true
+		}
+		result, err := EvaluateExpression(v, vars)
+		if err != nil {
+			log.Error(err, "failed to evaluate kubelet resource expression", "key", k, "expression", v, "instanceType", vars.InstanceType)
+			continue
+		}
+		if result < 0 {
+			log.Error(fmt.Errorf("result %d is negative", result), "kubelet resource expression evaluated to an invalid value", "key", k, "expression", v, "instanceType", vars.InstanceType)
+			continue
+		}
+		resolved[k] = fmt.Sprint(result)
+	}
+	return resolved
 }

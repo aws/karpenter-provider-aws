@@ -210,40 +210,28 @@ func resolveMaxPods(ctx context.Context, info ec2types.InstanceTypeInfo, maxPods
 // Values that parse as valid Kubernetes resource quantities are left as-is.
 // Values that fail to parse as quantities are evaluated as CEL expressions.
 func resolveResourceExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, resourceMap map[string]string, networkInterfaces []*v1.NetworkInterface) map[string]string {
-	if len(resourceMap) == 0 {
-		return resourceMap
+	return kubeletcel.ResolveResourceMap(resourceMap, func() kubeletcel.InstanceTypeVars {
+		return buildCELVars(ctx, info, networkInterfaces)
+	}, log.FromContext(ctx))
+}
+
+// extractENILimits pulls the default ENI count and IPv4-addresses-per-ENI from the live EC2
+// network info (DescribeInstanceTypes). It is the single source of truth for these values so
+// that CEL evaluation during scheduling (buildCELVars) and during launch template resolution
+// (via the provider's ENILimits accessor) can never diverge.
+func extractENILimits(info ec2types.InstanceTypeInfo) (defaultENIs, ipsPerENI int64) {
+	if info.NetworkInfo != nil && info.NetworkInfo.NetworkCards != nil && info.NetworkInfo.DefaultNetworkCardIndex != nil {
+		defaultENIs = int64(lo.FromPtr(info.NetworkInfo.NetworkCards[lo.FromPtr(info.NetworkInfo.DefaultNetworkCardIndex)].MaximumNetworkInterfaces))
 	}
-	resolved := make(map[string]string, len(resourceMap))
-	for k, v := range resourceMap {
-		if _, err := resource.ParseQuantity(v); err == nil {
-			resolved[k] = v
-			continue
-		}
-		celVars := buildCELVars(ctx, info, networkInterfaces)
-		result, err := kubeletcel.EvaluateExpression(v, celVars)
-		if err != nil {
-			log.FromContext(ctx).Error(err, "failed to evaluate kubelet resource expression", "key", k, "expression", v, "instanceType", info.InstanceType)
-			continue
-		}
-		if result < 0 {
-			log.FromContext(ctx).Error(fmt.Errorf("result %d is negative", result), "kubelet resource expression evaluated to an invalid value", "key", k, "expression", v, "instanceType", info.InstanceType)
-			continue
-		}
-		resolved[k] = fmt.Sprint(result)
+	if info.NetworkInfo != nil && info.NetworkInfo.Ipv4AddressesPerInterface != nil {
+		ipsPerENI = int64(lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface))
 	}
-	return resolved
+	return defaultENIs, ipsPerENI
 }
 
 // buildCELVars constructs the CEL variable bindings from EC2 instance type info.
 func buildCELVars(ctx context.Context, info ec2types.InstanceTypeInfo, networkInterfaces []*v1.NetworkInterface) kubeletcel.InstanceTypeVars {
-	defaultENIs := int64(0)
-	if info.NetworkInfo != nil && info.NetworkInfo.NetworkCards != nil && info.NetworkInfo.DefaultNetworkCardIndex != nil {
-		defaultENIs = int64(lo.FromPtr(info.NetworkInfo.NetworkCards[lo.FromPtr(info.NetworkInfo.DefaultNetworkCardIndex)].MaximumNetworkInterfaces))
-	}
-	ipsPerENI := int64(0)
-	if info.NetworkInfo != nil && info.NetworkInfo.Ipv4AddressesPerInterface != nil {
-		ipsPerENI = int64(lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface))
-	}
+	defaultENIs, ipsPerENI := extractENILimits(info)
 	maxPods := ENILimitedPods(ctx, info, options.FromContext(ctx).ReservedENIs, networkInterfaces).Value()
 	return kubeletcel.InstanceTypeVars{
 		VCPUs:        int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)),
