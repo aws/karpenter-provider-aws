@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2026-07-10T23:10:06Z for us-east-1
+// generated at 2026-07-20T13:44:38Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -105,6 +105,10 @@ var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 		"i8g.12xlarge": 4.963200, "i8g.16xlarge": 6.617600, "i8g.24xlarge": 9.926400, "i8g.2xlarge": 0.827200,
 		"i8g.48xlarge": 19.852800, "i8g.4xlarge": 1.654400, "i8g.8xlarge": 3.308800, "i8g.large": 0.206800,
 		"i8g.metal-24xl": 10.919040, "i8g.metal-48xl": 21.838080, "i8g.xlarge": 0.413600,
+		// i8ge family
+		"i8ge.12xlarge": 6.879600, "i8ge.18xlarge": 10.319400, "i8ge.24xlarge": 13.759200, "i8ge.2xlarge": 1.146600,
+		"i8ge.3xlarge": 1.719900, "i8ge.48xlarge": 27.518400, "i8ge.6xlarge": 3.439800, "i8ge.large": 0.286700,
+		"i8ge.metal-24xl": 14.651300, "i8ge.metal-48xl": 29.302600, "i8ge.xlarge": 0.573300,
 		// inf1 family
 		"inf1.24xlarge": 5.953000, "inf1.2xlarge": 0.456000, "inf1.6xlarge": 1.488000, "inf1.xlarge": 0.288000,
 		// m5 family
@@ -404,6 +408,10 @@ var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 		"i8g.12xlarge": 4.963200, "i8g.16xlarge": 6.617600, "i8g.24xlarge": 9.926400, "i8g.2xlarge": 0.827200,
 		"i8g.48xlarge": 19.852800, "i8g.4xlarge": 1.654400, "i8g.8xlarge": 3.308800, "i8g.large": 0.206800,
 		"i8g.metal-24xl": 10.919040, "i8g.metal-48xl": 21.838080, "i8g.xlarge": 0.413600,
+		// i8ge family
+		"i8ge.12xlarge": 6.879600, "i8ge.18xlarge": 10.319400, "i8ge.24xlarge": 13.759200, "i8ge.2xlarge": 1.146600,
+		"i8ge.3xlarge": 1.719900, "i8ge.48xlarge": 27.518400, "i8ge.6xlarge": 3.439800, "i8ge.large": 0.286700,
+		"i8ge.metal-24xl": 14.651300, "i8ge.metal-48xl": 29.302600, "i8ge.xlarge": 0.573300,
 		// inf1 family
 		"inf1.24xlarge": 5.953000, "inf1.2xlarge": 0.456000, "inf1.6xlarge": 1.488000, "inf1.xlarge": 0.288000,
 		// m1 family
