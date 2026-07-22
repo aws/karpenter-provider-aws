@@ -54,13 +54,14 @@ func (r *ReservedCapacityResolver) ResolveOfferings(
 	allZones sets.Set[string],
 	shiftedZones sets.Set[string],
 	pg *placementgroup.PlacementGroup,
+	rc *ResolveContext,
 ) cloudprovider.Offerings {
 	if !options.FromContext(ctx).FeatureGates.ReservedCapacity {
 		return offerings
 	}
 
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
-	zoneInfo := nodeClass.ZoneInfo()
+	zoneInfo := rc.ZoneInfo
 	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(instanceTypeInfo, nodeClass, pg)
 
 	capacityReservations := nodeClass.CapacityReservations()
