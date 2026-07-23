@@ -621,10 +621,10 @@ func (in *EC2NodeClass) InstanceProfileRole() string {
 	return in.Spec.Role
 }
 
-func (in *EC2NodeClass) InstanceProfileTags(clusterName string, region string) map[string]string {
+func (in *EC2NodeClass) InstanceProfileTags(clusterName, clusterNameTagKey, region string) map[string]string {
 	return lo.Assign(in.Spec.Tags, map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", clusterName): "owned",
-		EKSClusterNameTagKey:   clusterName,
+		clusterNameTagKey:      clusterName,
 		LabelNodeClass:         in.Name,
 		v1.LabelTopologyRegion: region,
 	})

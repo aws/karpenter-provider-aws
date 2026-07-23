@@ -98,6 +98,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.14.0 \
 | settings.clusterCABundle | string | `""` | Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server. |
 | settings.clusterEndpoint | string | `""` | Cluster endpoint. If not set, will be discovered during startup (EKS only). |
 | settings.clusterName | string | `""` | Cluster name. |
+| settings.clusterNameTagKey | string | `""` | The tag key used to identify the cluster name on Karpenter-managed AWS resources. Defaults to `eks:eks-cluster-name` when unset. Do NOT change this if you are running on EKS, as it would break resource discovery and the IAM permissions provided by the getting-started CloudFormation template. |
 | settings.disableClusterStateObservability | bool | `false` | Disable cluster state metrics and events. |
 | settings.disableDryRun | bool | `false` | Disable dry run validation for EC2NodeClasses. |
 | settings.eksControlPlane | bool | `false` | Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API. |

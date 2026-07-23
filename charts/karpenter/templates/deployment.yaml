@@ -149,6 +149,10 @@ spec:
           {{- end }}
             - name: CLUSTER_NAME
               value: "{{ required "Chart cannot be installed without a valid settings.clusterName!" (tpl .Values.settings.clusterName .) }}"
+          {{- with .Values.settings.clusterNameTagKey }}
+            - name: CLUSTER_NAME_TAG_KEY
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.settings.clusterEndpoint }}
             - name: CLUSTER_ENDPOINT
               value: "{{ tpl (toString .) $ }}"

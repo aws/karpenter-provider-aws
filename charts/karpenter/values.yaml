@@ -194,6 +194,9 @@ settings:
   clusterCABundle: ""
   # -- Cluster name.
   clusterName: ""
+  # -- The tag key used to identify the cluster name on Karpenter-managed AWS resources. Defaults to `eks:eks-cluster-name` when unset.
+  # Do NOT change this if you are running on EKS, as it would break resource discovery and the IAM permissions provided by the getting-started CloudFormation template.
+  clusterNameTagKey: ""
   # -- Cluster endpoint. If not set, will be discovered during startup (EKS only).
   clusterEndpoint: ""
   # -- If true then assume we can't reach AWS services which don't have a VPC endpoint.

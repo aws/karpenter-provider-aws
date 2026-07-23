@@ -434,12 +434,13 @@ func cpuOptions(cpuOptions *v1.CPUOptions) *ec2types.LaunchTemplateCpuOptionsReq
 // Any error during hydration will result in a panic
 func (p *DefaultProvider) hydrateCache(ctx context.Context) {
 	clusterName := options.FromContext(ctx).ClusterName
-	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("tag-key", v1.EKSClusterNameTagKey, "tag-value", clusterName))
+	clusterNameTagKey := options.FromContext(ctx).ClusterNameTagKey
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("tag-key", clusterNameTagKey, "tag-value", clusterName))
 
 	paginator := ec2.NewDescribeLaunchTemplatesPaginator(p.ec2api, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []ec2types.Filter{
 			{
-				Name:   aws.String(fmt.Sprintf("tag:%s", v1.EKSClusterNameTagKey)),
+				Name:   aws.String(fmt.Sprintf("tag:%s", clusterNameTagKey)),
 				Values: []string{clusterName},
 			},
 		},
@@ -488,7 +489,7 @@ func (p *DefaultProvider) DeleteAll(ctx context.Context, nodeClass *v1.EC2NodeCl
 	paginator := ec2.NewDescribeLaunchTemplatesPaginator(p.ec2api, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []ec2types.Filter{
 			{
-				Name:   aws.String(fmt.Sprintf("tag:%s", v1.EKSClusterNameTagKey)),
+				Name:   aws.String(fmt.Sprintf("tag:%s", options.FromContext(ctx).ClusterNameTagKey)),
 				Values: []string{clusterName},
 			},
 			{
