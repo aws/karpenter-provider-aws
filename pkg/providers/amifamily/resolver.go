@@ -458,11 +458,12 @@ func celVarsFromInstanceType(it *cloudprovider.InstanceType, eniLookup ENILookup
 	}
 	maxPods := it.Capacity.Pods().Value()
 	return kubeletcel.InstanceTypeVars{
-		VCPUs:       vcpus,
-		MemoryMiB:   memoryMiB,
-		DefaultENIs: defaultENIs,
-		IPsPerENI:   ipsPerENI,
-		MaxPods:     maxPods,
+		VCPUs:        vcpus,
+		MemoryMiB:    memoryMiB,
+		DefaultENIs:  defaultENIs,
+		IPsPerENI:    ipsPerENI,
+		MaxPods:      maxPods,
+		InstanceType: it.Name,
 	}
 }
 
