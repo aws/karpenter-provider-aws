@@ -21,6 +21,7 @@ import (
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/types"
 	"github.com/google/cel-go/common/types/ref"
+	"github.com/patrickmn/go-cache"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -138,9 +139,29 @@ func mustNewEnv() *cel.Env {
 	return e
 }
 
+// compiledCache memoizes successful compilations keyed by expression string. A compiled program is a
+// pure function of (expression, env) and env is the package-level singleton, so a cached program never
+// goes stale — hence cache.NoExpiration.
+var compiledCache = cache.New(cache.NoExpiration, cache.NoExpiration)
+
 // CompiledExpression is a pre-compiled CEL program ready for evaluation.
 type CompiledExpression struct {
 	program cel.Program
+}
+
+// compileCached returns a cached CompiledExpression for the expression, compiling and caching it on the
+// first request. Only successful compilations are cached; failures are returned without being stored so a
+// later corrected expression (or a transient issue) isn't pinned to its error.
+func compileCached(expression string) (*CompiledExpression, error) {
+	if cached, ok := compiledCache.Get(expression); ok {
+		return cached.(*CompiledExpression), nil
+	}
+	compiled, err := Compile(expression)
+	if err != nil {
+		return nil, err
+	}
+	compiledCache.SetDefault(expression, compiled)
+	return compiled, nil
 }
 
 // Compile parses and type-checks a CEL expression against the kubelet expression environment.
@@ -186,7 +207,7 @@ func (c *CompiledExpression) Evaluate(vars InstanceTypeVars) (int64, error) {
 // EvaluateExpression compiles and evaluates a CEL expression in one call.
 // For repeated evaluations with the same expression, prefer Compile() followed by Evaluate().
 func EvaluateExpression(expression string, vars InstanceTypeVars) (int64, error) {
-	compiled, err := Compile(expression)
+	compiled, err := compileCached(expression)
 	if err != nil {
 		return 0, err
 	}
@@ -195,7 +216,7 @@ func EvaluateExpression(expression string, vars InstanceTypeVars) (int64, error)
 
 // ValidateExpression checks if a CEL expression compiles successfully without evaluating it.
 func ValidateExpression(expression string) error {
-	_, err := Compile(expression)
+	_, err := compileCached(expression)
 	return err
 }
 
