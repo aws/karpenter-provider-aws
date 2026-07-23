@@ -269,8 +269,9 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	if len(p.instanceTypesInfo) == 0 {
 		return fmt.Errorf("no instance types found")
 	}
+	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 	for _, info := range p.instanceTypesInfo {
-		if err := EvaluateKubeletExpressions(ctx, info, kc, nodeClass.NetworkInterfaces()); err != nil {
+		if err := EvaluateKubeletExpressions(ctx, info, kc, amiFamily, nodeClass.NetworkInterfaces()); err != nil {
 			return err
 		}
 	}
