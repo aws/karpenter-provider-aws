@@ -27,15 +27,13 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
-
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
-
 	. "sigs.k8s.io/karpenter/pkg/utils/testing"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 )
 
 var ctx context.Context
@@ -126,6 +124,105 @@ var _ = Describe("InstanceFiltersTest", func() {
 			})
 			expectInstanceTypes(kept, "available-instance")
 			expectInstanceTypes(rejected, "unavailable-instance")
+		})
+		// CapacityOverride tests: offerings carry a CapacityOverride that adds/replaces resources.
+		// The filter must use AllocatableOfferingsList() so that within-group fit+availability is checked
+		// correctly, mirroring the scheduler's fits() logic.
+		//
+		// These four cases all share the same shape: a zone requirement + CPU/NIP-slots requests,
+		// one instance type with a base offering and one override offering, expect kept/rejected.
+		DescribeTable("CapacityOverride offering groups",
+			func(baseAvailable, overrideAvailable bool, overrideZone string, overrideSlots string, expectKept bool) {
+				f := filter.CompatibleAvailableFilter(scheduling.NewRequirements(scheduling.NewRequirement(
+					corev1.LabelTopologyZone,
+					corev1.NodeSelectorOpIn,
+					"zone-1a",
+				)), corev1.ResourceList{
+					corev1.ResourceCPU:      resource.MustParse("2000m"),
+					v1.ResourceNitroSandbox: resource.MustParse("1"),
+				})
+				kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
+					makeInstanceType("it",
+						withRequirements(scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, "zone-1a")),
+						withResource(corev1.ResourceCPU, resource.MustParse("4000m")),
+						withOfferings(
+							makeOffering(karpv1.CapacityTypeOnDemand, baseAvailable, withZone("zone-1a")),
+							makeOffering(karpv1.CapacityTypeOnDemand, overrideAvailable, withZone(overrideZone),
+								withCapacityOverride(corev1.ResourceList{v1.ResourceNitroSandbox: resource.MustParse(overrideSlots)})),
+						)),
+				})
+				if expectKept {
+					expectInstanceTypes(kept, "it")
+					Expect(rejected).To(BeEmpty())
+				} else {
+					expectInstanceTypes(rejected, "it")
+					Expect(kept).To(BeEmpty())
+				}
+			},
+			Entry("override group satisfies request", true, true, "zone-1a", "4", true),
+			Entry("override group unavailable", true, false, "zone-1a", "4", false),
+			Entry("override group incompatible zone", true, true, "zone-1b", "4", false),
+			Entry("base unavailable, override valid", false, true, "zone-1a", "4", true),
+		)
+		It("should keep an instance type satisfying requests via the base group even when override offerings also exist", func() {
+			f := filter.CompatibleAvailableFilter(scheduling.NewRequirements(scheduling.NewRequirement(
+				corev1.LabelTopologyZone,
+				corev1.NodeSelectorOpIn,
+				"zone-1a",
+			)), corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("1000m"),
+			})
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
+				makeInstanceType(
+					"base-fits-instance",
+					withRequirements(scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, "zone-1a")),
+					withResource(corev1.ResourceCPU, resource.MustParse("4000m")),
+					withOfferings(
+						// Base offering satisfies the request.
+						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a")),
+						// Override offering also present but irrelevant — base group already satisfies.
+						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a"),
+							withCapacityOverride(corev1.ResourceList{v1.ResourceNitroSandbox: resource.MustParse("4")}),
+						),
+					),
+				),
+			})
+			expectInstanceTypes(kept, "base-fits-instance")
+			Expect(rejected).To(BeEmpty())
+		})
+		It("should keep an instance type when only the second of multiple override groups satisfies requests", func() {
+			// Three allocatable groups: base (no NIP slots), override-A (2 slots — not enough),
+			// override-B (8 slots — satisfies the request of 4). Validates the loop iterates past a
+			// non-fitting override group before finding one that does fit.
+			f := filter.CompatibleAvailableFilter(scheduling.NewRequirements(scheduling.NewRequirement(
+				corev1.LabelTopologyZone,
+				corev1.NodeSelectorOpIn,
+				"zone-1a",
+			)), corev1.ResourceList{
+				corev1.ResourceCPU:      resource.MustParse("2000m"),
+				v1.ResourceNitroSandbox: resource.MustParse("4"),
+			})
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
+				makeInstanceType(
+					"multi-override-instance",
+					withRequirements(scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, "zone-1a")),
+					withResource(corev1.ResourceCPU, resource.MustParse("4000m")),
+					withOfferings(
+						// Base offering: available + compatible, but no NIP slots — doesn't fit.
+						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a")),
+						// Override-A: fits CPU, but only 2 NIP slots — doesn't satisfy 4.
+						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a"),
+							withCapacityOverride(corev1.ResourceList{v1.ResourceNitroSandbox: resource.MustParse("2")}),
+						),
+						// Override-B: available + compatible + 8 NIP slots — satisfies request.
+						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a"),
+							withCapacityOverride(corev1.ResourceList{v1.ResourceNitroSandbox: resource.MustParse("8")}),
+						),
+					),
+				),
+			})
+			expectInstanceTypes(kept, "multi-override-instance")
+			Expect(rejected).To(BeEmpty())
 		})
 	})
 
@@ -806,6 +903,12 @@ func makeOffering(capacityType string, available bool, opts ...mockOfferingOptio
 	))
 	offering.Available = available
 	return offering
+}
+
+func withCapacityOverride(capacityOverride corev1.ResourceList) mockOfferingOptions {
+	return func(o *cloudprovider.Offering) {
+		o.CapacityOverride = capacityOverride
+	}
 }
 
 func withInterruptible(interruptible bool) mockOfferingOptions {

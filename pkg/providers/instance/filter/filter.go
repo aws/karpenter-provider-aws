@@ -56,13 +56,20 @@ func (f compatibleAvailableFilter) FilterReject(instanceTypes []*cloudprovider.I
 		if !f.requirements.IsCompatible(i.Requirements, scheduling.AllowUndefinedWellKnownLabels) {
 			return false
 		}
-		if !resources.Fits(f.requests, i.Allocatable()) {
-			return false
+		// Mirror the scheduler's fits() logic: within an allocatable group, the requests must fit
+		// AND a compatible available offering must exist. Offerings with CapacityOverride or
+		// OverheadOverride produce distinct allocatable groups; i.Allocatable() only returns the
+		// base group and would incorrectly reject instance types the scheduler has already deemed
+		// valid.
+		for _, group := range i.AllocatableOfferingsList() {
+			if !resources.Fits(f.requests, group.Allocatable) {
+				continue
+			}
+			if group.Offerings.HasCompatible(f.requirements) {
+				return true
+			}
 		}
-		if len(i.Offerings.Compatible(f.requirements).Available()) == 0 {
-			return false
-		}
-		return true
+		return false
 	})
 }
 

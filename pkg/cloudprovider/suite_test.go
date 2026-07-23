@@ -51,6 +51,7 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -96,7 +97,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr("test-ca-bundle"))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock)
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -1322,7 +1323,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod1)
 			awsEnv.EC2API.CreateFleetBehavior.Error.Set(fmt.Errorf("CreateFleet synthetic error"))
 			bindings := ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1)
-			Expect(len(bindings)).To(Equal(0))
+			Expect(len(bindings.Bindings)).To(Equal(0))
 		})
 		It("should launch instances into subnets that are excluded by another NodePool", func() {
 			awsEnv.EC2API.Subnets.Store("test-zone-1a", ec2types.Subnet{
@@ -1441,7 +1442,7 @@ var _ = Describe("CloudProvider", func() {
 				{
 					Key:      corev1.LabelInstanceTypeStable,
 					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"dl1.24xlarge"},
+					Values:   []string{"p5.48xlarge"},
 				},
 			}
 			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{v1.ResourceEFA: resource.MustParse("1")}
@@ -1458,7 +1459,7 @@ var _ = Describe("CloudProvider", func() {
 				{
 					Key:      corev1.LabelInstanceTypeStable,
 					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"dl1.24xlarge"},
+					Values:   []string{"p5.48xlarge"},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
@@ -1483,7 +1484,7 @@ var _ = Describe("CloudProvider", func() {
 				{
 					Key:      corev1.LabelInstanceTypeStable,
 					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"dl1.24xlarge"},
+					Values:   []string{"p5.48xlarge"},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
@@ -1511,7 +1512,7 @@ var _ = Describe("CloudProvider", func() {
 				{
 					Key:      corev1.LabelInstanceTypeStable,
 					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"dl1.24xlarge"},
+					Values:   []string{"p5.48xlarge"},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)

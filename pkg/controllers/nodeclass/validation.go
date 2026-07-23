@@ -58,6 +58,7 @@ const (
 	ConditionReasonCreateFleetAuthFailed          = "CreateFleetAuthCheckFailed"
 	ConditionReasonCreateLaunchTemplateAuthFailed = "CreateLaunchTemplateAuthCheckFailed"
 	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
+	ConditionReasonInstanceProfileNotFound        = "InstanceProfileNotFound"
 	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
 	ConditionReasonTagValidationFailed            = "TagValidationFailed"
 	ConditionReasonKubeletExpressionInvalid       = "KubeletExpressionInvalid"
@@ -337,9 +338,21 @@ func (v *Validation) validateRunInstancesAuthorization(
 		}
 	}
 
-	// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
-	// this means there is most likely an eventual consistency issue and we just need to requeue
-	if awserrors.IsInstanceProfileNotFound(firstSubnetErr) || awserrors.IsRateLimitedError(firstSubnetErr) || awserrors.IsServerError(firstSubnetErr) {
+	if awserrors.IsInstanceProfileNotFound(firstSubnetErr) {
+		// When spec.instanceProfile is explicitly set, surface the error for visibility but don't
+		// cache it — the profile may be created concurrently and could be an eventual consistency issue
+		if nodeClass.Spec.InstanceProfile != nil {
+			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+				v1.ConditionTypeValidationSucceeded,
+				ConditionReasonInstanceProfileNotFound,
+				fmt.Sprintf("Instance profile %q not found", lo.FromPtr(nodeClass.Spec.InstanceProfile)),
+			)
+		}
+		// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
+		// this means there is most likely an eventual consistency issue and we just need to requeue
+		return reconcile.Result{Requeue: true}, nil
+	}
+	if awserrors.IsRateLimitedError(firstSubnetErr) || awserrors.IsServerError(firstSubnetErr) {
 		return reconcile.Result{Requeue: true}, nil
 	}
 	if awserrors.IgnoreUnauthorizedOperationError(firstSubnetErr) != nil {

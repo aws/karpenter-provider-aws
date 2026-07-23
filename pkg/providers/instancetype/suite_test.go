@@ -49,6 +49,7 @@ import (
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	karpv1alpha1 "sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -67,6 +68,8 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/offering"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
 
@@ -93,7 +96,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster, fakeClock)
+	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -273,6 +276,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// Placement group labels are only present when a placement group is configured on the NodeClass
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
+			// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
+			v1.LabelInstanceNitroEnclavesSupported,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		var pods []*corev1.Pod
@@ -326,7 +331,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the accelerator, capacity reservation, and EFA count, and placement group labels
+		// Ensure that we're exercising all well known labels except for the accelerator, capacity reservation, placement group, and NitroEnclavesSupported labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(
 			append(
 				karpv1.WellKnownLabels.Difference(sets.New(
@@ -339,6 +344,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 					v1.LabelPlacementGroupID,
 					v1.LabelPlacementGroupPartition,
 					corev1.LabelWindowsBuild,
+					// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
+					v1.LabelInstanceNitroEnclavesSupported,
 				)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
@@ -385,7 +392,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the gpu, nvme, capacity reservation, and placement group
+		// Ensure that we're exercising all well known labels except for the gpu, nvme, capacity reservation, placement group, and NitroEnclavesSupported labels
 		expectedLabels := append(karpv1.WellKnownLabels.Difference(sets.New(
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
@@ -398,6 +405,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
 			corev1.LabelWindowsBuild,
+			// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
+			v1.LabelInstanceNitroEnclavesSupported,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))
 
@@ -759,8 +768,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 		pods := []*corev1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
-					Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
+					Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("5")},
+					Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("5")},
 				},
 			}),
 			// Should pack onto same instance
@@ -773,49 +782,18 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// Should pack onto a separate instance
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("4")},
-					Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("4")},
+					Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("5")},
+					Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("5")},
 				},
 			}),
 		}
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
 		for _, pod := range pods {
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "g5.12xlarge"))
+			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "p5.48xlarge"))
 			nodeNames.Insert(node.Name)
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
-	})
-	It("should launch instances for habana.ai/gaudi resource requests", func() {
-		nodeNames := sets.NewString()
-		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-		pods := []*corev1.Pod{
-			coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("1")},
-					Limits:   corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("1")},
-				},
-			}),
-			coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("2")},
-					Limits:   corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("2")},
-				},
-			}),
-			coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("4")},
-					Limits:   corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("4")},
-				},
-			}),
-		}
-		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
-		for _, pod := range pods {
-			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "dl1.24xlarge"))
-			nodeNames.Insert(node.Name)
-		}
-		Expect(nodeNames.Len()).To(Equal(1))
 	})
 	It("should launch instances for aws.amazon.com/neuron resource requests", func() {
 		nodeNames := sets.NewString()
@@ -908,7 +886,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			{
 				Key:      corev1.LabelInstanceTypeStable,
 				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"dl1.24xlarge"},
+				Values:   []string{"p5.48xlarge"},
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -930,7 +908,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		nodes := sets.NewString()
 		for _, pod := range pods {
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "dl1.24xlarge"))
+			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "p5.48xlarge"))
 			nodes.Insert(node.Name)
 		}
 		Expect(nodes.Len()).To(Equal(1))
@@ -1872,7 +1850,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.AMIFamily(),
 					nil,
 				)
-				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", lo.FromPtr(info.VCpuInfo.DefaultVCpus)))
+				eniLimitedPods := instancetype.ENILimitedPods(ctx, info, 0, nil).Value()
+				expectedPods := lo.Min([]int64{int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)), eniLimitedPods})
+				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", expectedPods))
 			}
 		})
 		It("should take the minimum of pods-per-core and max-pods", func() {
@@ -2181,13 +2161,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "inf2.24xlarge"))
 		})
-		It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback (Habana)", func() {
-			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "dl1.24xlarge", Zone: "test-zone-1a"}})
+		It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
+			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "p5.48xlarge", Zone: "test-zone-1a"}})
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
-				NodeSelector: map[string]string{corev1.LabelInstanceTypeStable: "dl1.24xlarge"},
+				NodeSelector: map[string]string{corev1.LabelInstanceTypeStable: "p5.48xlarge"},
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("1")},
-					Limits:   corev1.ResourceList{v1.ResourceHabanaGaudi: resource.MustParse("1")},
+					Requests: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
+					Limits:   corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
 				},
 			})
 			pod.Spec.Affinity = &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
@@ -2199,13 +2179,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			// it should've tried to pack them in test-zone-1a on a dl1.24xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
+			// it should've tried to pack them in test-zone-1a on a p5.48xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
 			ExpectNotScheduled(ctx, env.Client, pod)
 
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(SatisfyAll(
-				HaveKeyWithValue(corev1.LabelInstanceTypeStable, "dl1.24xlarge"),
+				HaveKeyWithValue(corev1.LabelInstanceTypeStable, "p5.48xlarge"),
 				HaveKeyWithValue(corev1.LabelTopologyZone, "test-zone-1b")))
 		})
 		It("should launch on-demand capacity if flexible to both spot and on-demand, but spot is unavailable", func() {
@@ -3178,11 +3158,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 				ExpectApplied(ctx, env.Client, nodeClass)
 				instanceTypesBefore, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
-				dl1InstanceBefore, ok := lo.Find(instanceTypesBefore, func(it *corecloudprovider.InstanceType) bool {
-					return it.Name == "dl1.24xlarge"
+				p5InstanceBefore, ok := lo.Find(instanceTypesBefore, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "p5.48xlarge"
 				})
 				Expect(ok).To(BeTrue())
-				availableOfferingsBefore := len(dl1InstanceBefore.Offerings.Available())
+				availableOfferingsBefore := len(p5InstanceBefore.Offerings.Available())
 
 				nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
 					{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
@@ -3191,11 +3171,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 				ExpectApplied(ctx, env.Client, nodeClass)
 				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
-				dl1Instance, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
-					return it.Name == "dl1.24xlarge"
+				p5Instance, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "p5.48xlarge"
 				})
 				Expect(ok).To(BeTrue())
-				availableOfferingsAfter := len(dl1Instance.Offerings.Available())
+				availableOfferingsAfter := len(p5Instance.Offerings.Available())
 
 				Expect(availableOfferingsAfter).To(Equal(availableOfferingsBefore))
 			})
@@ -3212,13 +3192,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
-				// dl1.24xlarge only suppports 4 EFAs
-				dl1Instance, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
-					return it.Name == "dl1.24xlarge"
+				// m6idn.32xlarge only suppports 2 EFAs
+				m6idnInstance, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "m6idn.32xlarge"
 				})
 				Expect(ok).To(BeTrue())
 
-				for _, offering := range dl1Instance.Offerings {
+				for _, offering := range m6idnInstance.Offerings {
 					Expect(offering.Available).To(Equal(false))
 				}
 			})
@@ -3429,6 +3409,140 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(previewIT.Offerings.Available()).To(HaveLen(0))
 		})
 	})
+	Context("NitroEnclavesSupported", func() {
+		// makeNitroEnclaveInstanceType returns a minimal ec2types.InstanceTypeInfo for testing
+		// the LabelInstanceNitroEnclavesSupported requirement, parameterized by NitroEnclavesSupport.
+		makeNitroEnclaveInstanceType := func(support ec2types.NitroEnclavesSupport) ec2types.InstanceTypeInfo {
+			return ec2types.InstanceTypeInfo{
+				InstanceType:                  "m5.large",
+				SupportedUsageClasses:         []ec2types.UsageClassType{"on-demand", "spot"},
+				SupportedVirtualizationTypes:  []ec2types.VirtualizationType{"hvm"},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    "nitro",
+				NitroEnclavesSupport:          support,
+				ProcessorInfo: &ec2types.ProcessorInfo{
+					Manufacturer:             aws.String("Intel"),
+					SupportedArchitectures:   []ec2types.ArchitectureType{"x86_64"},
+					SustainedClockSpeedInGhz: aws.Float64(3.1),
+				},
+				VCpuInfo: &ec2types.VCpuInfo{
+					DefaultCores: aws.Int32(1),
+					DefaultVCpus: aws.Int32(2),
+				},
+				MemoryInfo: &ec2types.MemoryInfo{
+					SizeInMiB: aws.Int64(8192),
+				},
+				EbsInfo: &ec2types.EbsInfo{
+					EbsOptimizedSupport: "default",
+					EbsOptimizedInfo: &ec2types.EbsOptimizedInfo{
+						BaselineBandwidthInMbps:  aws.Int32(4750),
+						BaselineIops:             aws.Int32(18750),
+						BaselineThroughputInMBps: aws.Float64(593.75),
+						MaximumBandwidthInMbps:   aws.Int32(4750),
+						MaximumIops:              aws.Int32(18750),
+						MaximumThroughputInMBps:  aws.Float64(593.75),
+					},
+					EncryptionSupport: "supported",
+					NvmeSupport:       "required",
+				},
+				NetworkInfo: &ec2types.NetworkInfo{
+					MaximumNetworkInterfaces:     aws.Int32(3),
+					Ipv4AddressesPerInterface:    aws.Int32(10),
+					EncryptionInTransitSupported: aws.Bool(true),
+					DefaultNetworkCardIndex:      aws.Int32(0),
+					NetworkCards: []ec2types.NetworkCardInfo{{
+						NetworkCardIndex:         aws.Int32(0),
+						MaximumNetworkInterfaces: aws.Int32(3),
+					}},
+				},
+			}
+		}
+		BeforeEach(func() {
+			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+				InstanceTypeOfferings: []ec2types.InstanceTypeOffering{
+					{InstanceType: "m5.large", Location: aws.String("test-zone-1a"), LocationType: "availability-zone"},
+				},
+			})
+		})
+		It("should set LabelInstanceNitroEnclavesSupported to \"true\" when NitroEnclavesSupport is supported", func() {
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+				InstanceTypes: []ec2types.InstanceTypeInfo{makeNitroEnclaveInstanceType(ec2types.NitroEnclavesSupportSupported)},
+			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			ExpectApplied(ctx, env.Client, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+
+			m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})
+			Expect(ok).To(BeTrue())
+			Expect(m5large.Requirements.Get(v1.LabelInstanceNitroEnclavesSupported).Values()).To(ConsistOf("true"))
+		})
+		It("should set LabelInstanceNitroEnclavesSupported to \"false\" when NitroEnclavesSupport is unsupported", func() {
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+				InstanceTypes: []ec2types.InstanceTypeInfo{makeNitroEnclaveInstanceType(ec2types.NitroEnclavesSupportUnsupported)},
+			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			ExpectApplied(ctx, env.Client, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+
+			m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})
+			Expect(ok).To(BeTrue())
+			Expect(m5large.Requirements.Get(v1.LabelInstanceNitroEnclavesSupported).Values()).To(ConsistOf("false"))
+		})
+	})
+	Context("Offering Resolvers", func() {
+		It("should call additional resolvers registered via variadic param", func() {
+			resolver := &fakeOfferingResolver{
+				resourceName: corev1.ResourceName("test.com/extended-slots"),
+				slotCount:    4,
+			}
+			// Create a new provider with the additional resolver
+			provider := instancetype.NewDefaultProvider(
+				awsEnv.InstanceTypeCache,
+				awsEnv.OfferingCache,
+				awsEnv.DiscoveredCapacityCache,
+				awsEnv.EC2API,
+				awsEnv.SubnetProvider,
+				awsEnv.PricingProvider,
+				awsEnv.CapacityReservationProvider,
+				awsEnv.PlacementGroupProvider,
+				awsEnv.UnavailableOfferingsCache,
+				awsEnv.InstanceTypesResolver,
+				awsEnv.ZonalShiftProvider,
+				env.Client,
+				resolver,
+			)
+			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			nodeClass := &v1.EC2NodeClass{Status: v1.EC2NodeClassStatus{Subnets: []v1.Subnet{{ID: "subnet-test", Zone: "us-east-1a", ZoneID: "use1-az1"}}}}
+			nodeClass.StatusConditions().SetTrue(status.ConditionReady)
+			instanceTypes, err := provider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+			Expect(resolver.called).To(BeTrue(), "additional resolver should be called during List")
+
+			// Verify at least one instance type has offerings with the extended resource override
+			extendedResource := corev1.ResourceName("test.com/extended-slots")
+			Expect(lo.SomeBy(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return lo.SomeBy(it.Offerings, func(o *corecloudprovider.Offering) bool {
+					qty, exists := o.CapacityOverride[extendedResource]
+					return exists && qty.Value() == 4
+				})
+			})).To(BeTrue(), "expected at least one offering with CapacityOverride from the registered resolver")
+		})
+	})
+
 })
 
 func ExpectSameInstanceTypeLists(instanceTypesLists ...[]*corecloudprovider.InstanceType) {
@@ -3519,4 +3633,38 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *karpv1.NodeP
 		}
 	}
 	return rsp
+}
+
+// fakeOfferingResolver is a test resolver that appends offerings with a CapacityOverride.
+type fakeOfferingResolver struct {
+	called       bool
+	resourceName corev1.ResourceName
+	slotCount    int
+}
+
+func (r *fakeOfferingResolver) ResolveOfferings(
+	_ context.Context,
+	_ *corecloudprovider.InstanceType,
+	offerings corecloudprovider.Offerings,
+	_ ec2types.InstanceTypeInfo,
+	_ offering.NodeClass,
+	_ sets.Set[string],
+	_ sets.Set[string],
+	_ *placementgroup.PlacementGroup,
+) corecloudprovider.Offerings {
+	r.called = true
+	baseOfferings := make([]*corecloudprovider.Offering, len(offerings))
+	copy(baseOfferings, offerings)
+	for _, o := range baseOfferings {
+		if len(o.CapacityOverride) > 0 || o.OverheadOverride != nil {
+			continue
+		}
+		offerings = append(offerings, &corecloudprovider.Offering{
+			Requirements:     o.Requirements,
+			Price:            o.Price,
+			Available:        o.Available,
+			CapacityOverride: corev1.ResourceList{r.resourceName: *resource.NewQuantity(int64(r.slotCount), resource.DecimalSI)},
+		})
+	}
+	return offerings
 }
