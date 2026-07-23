@@ -105,7 +105,12 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 		kc = resolved
 	}
 	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
-	maxPods, kubeReserved, systemReserved := resolveKubeletExpressions(ctx, info, kc, amiFamily, nodeClass.NetworkInterfaces())
+	// maxPods is resolved first so that kubeReserved/systemReserved expressions see the resolved maxPods value
+	// (per design: their max_pods reference is the resolved maxPods, whether from a static value, the maxPods
+	// expression, or the default).
+	maxPods := resolveMaxPods(ctx, info, kc.MaxPods, amiFamily, kc.PodsPerCore, nodeClass.NetworkInterfaces())
+	kubeReserved := resolveResourceExpressions(ctx, info, kc.KubeReserved, amiFamily, maxPods, kc.PodsPerCore, nodeClass.NetworkInterfaces())
+	systemReserved := resolveResourceExpressions(ctx, info, kc.SystemReserved, amiFamily, maxPods, kc.PodsPerCore, nodeClass.NetworkInterfaces())
 	return NewInstanceType(
 		ctx,
 		info,
@@ -126,18 +131,6 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 			return cr.InstanceType == string(info.InstanceType)
 		}),
 	)
-}
-
-// resolveKubeletExpressions evaluates CEL expressions for maxPods, kubeReserved, and systemReserved,
-// returning resolved values suitable for use in NewInstanceType.
-func resolveKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, kc *v1.KubeletConfiguration, amiFamily amifamily.AMIFamily, networkInterfaces []*v1.NetworkInterface) (*int32, map[string]string, map[string]string) {
-	// maxPods is resolved first so that kubeReserved/systemReserved expressions see the resolved maxPods value
-	// (per design: their max_pods reference is the resolved maxPods, whether from a static value, the maxPods
-	// expression, or the default). 
-	maxPods := resolveMaxPods(ctx, info, kc.MaxPods, amiFamily, kc.PodsPerCore, networkInterfaces)
-	kubeReserved := resolveResourceExpressions(ctx, info, kc.KubeReserved, amiFamily, maxPods, kc.PodsPerCore, networkInterfaces)
-	systemReserved := resolveResourceExpressions(ctx, info, kc.SystemReserved, amiFamily, maxPods, kc.PodsPerCore, networkInterfaces)
-	return maxPods, kubeReserved, systemReserved
 }
 
 // EvaluateKubeletExpressions evaluates all CEL expressions in the kubelet configuration against the given
