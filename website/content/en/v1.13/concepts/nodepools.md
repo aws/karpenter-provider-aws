@@ -193,7 +193,7 @@ See [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-evic
 
 ## spec.template.spec.startupTaints
 
-Taints that are added to nodes to indicate that a certain condition must be met, such as starting an agent or setting up networking, before the node is can be initialized.
+Taints that are added to nodes to indicate that a certain condition must be met, such as starting an agent or setting up networking, before the node can be initialized.
 These taints must be cleared before pods can be deployed to a node.
 
 ## spec.template.spec.expireAfter
