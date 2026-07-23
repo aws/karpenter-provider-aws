@@ -16,12 +16,12 @@ package cel
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/types"
 	"github.com/google/cel-go/common/types/ref"
-	"github.com/patrickmn/go-cache"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -139,10 +139,8 @@ func mustNewEnv() *cel.Env {
 	return e
 }
 
-// compiledCache memoizes successful compilations keyed by expression string. A compiled program is a
-// pure function of (expression, env) and env is the package-level singleton, so a cached program never
-// goes stale — hence cache.NoExpiration.
-var compiledCache = cache.New(cache.NoExpiration, cache.NoExpiration)
+// compiledCache memoizes successful compilations keyed by expression string.
+var compiledCache sync.Map
 
 // CompiledExpression is a pre-compiled CEL program ready for evaluation.
 type CompiledExpression struct {
@@ -153,14 +151,14 @@ type CompiledExpression struct {
 // first request. Only successful compilations are cached; failures are returned without being stored so a
 // later corrected expression (or a transient issue) isn't pinned to its error.
 func compileCached(expression string) (*CompiledExpression, error) {
-	if cached, ok := compiledCache.Get(expression); ok {
+	if cached, ok := compiledCache.Load(expression); ok {
 		return cached.(*CompiledExpression), nil
 	}
 	compiled, err := Compile(expression)
 	if err != nil {
 		return nil, err
 	}
-	compiledCache.SetDefault(expression, compiled)
+	compiledCache.Store(expression, compiled)
 	return compiled, nil
 }
 
@@ -180,8 +178,14 @@ func Compile(expression string) (*CompiledExpression, error) {
 	return &CompiledExpression{program: prg}, nil
 }
 
-// Evaluate runs the compiled expression with the given instance type variables and returns the integer result.
-func (c *CompiledExpression) Evaluate(vars InstanceTypeVars) (int64, error) {
+// EvaluateExpression compiles (via the compilation cache) and evaluates a CEL expression against the
+// given instance type variables, returning the integer result. Repeated calls with the same expression
+// reuse the cached compiled program.
+func EvaluateExpression(expression string, vars InstanceTypeVars) (int64, error) {
+	compiled, err := compileCached(expression)
+	if err != nil {
+		return 0, err
+	}
 	activation := map[string]any{
 		"vcpus":         vars.VCPUs,
 		"memory_mib":    vars.MemoryMiB,
@@ -190,7 +194,7 @@ func (c *CompiledExpression) Evaluate(vars InstanceTypeVars) (int64, error) {
 		"max_pods":      vars.MaxPods,
 		"instance_type": vars.InstanceType,
 	}
-	out, _, err := c.program.Eval(activation)
+	out, _, err := compiled.program.Eval(activation)
 	if err != nil {
 		return 0, fmt.Errorf("evaluating expression: %w", err)
 	}
@@ -202,16 +206,6 @@ func (c *CompiledExpression) Evaluate(vars InstanceTypeVars) (int64, error) {
 	default:
 		return 0, fmt.Errorf("expression returned unexpected type %T", out.Value())
 	}
-}
-
-// EvaluateExpression compiles and evaluates a CEL expression in one call.
-// For repeated evaluations with the same expression, prefer Compile() followed by Evaluate().
-func EvaluateExpression(expression string, vars InstanceTypeVars) (int64, error) {
-	compiled, err := compileCached(expression)
-	if err != nil {
-		return 0, err
-	}
-	return compiled.Evaluate(vars)
 }
 
 // ValidateExpression checks if a CEL expression compiles successfully without evaluating it.
