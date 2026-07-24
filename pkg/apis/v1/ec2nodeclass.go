@@ -259,6 +259,8 @@ type AMISelectorTerm struct {
 	ID string `json:"id,omitempty"`
 	// Name is the ami name in EC2.
 	// This value is the name field, which is different from the name tag.
+	// The placeholder {kubernetesVersion} can be used and will be replaced with the effective
+	// Kubernetes version (e.g. "my-ami-{kubernetesVersion}-*").
 	// +optional
 	Name string `json:"name,omitempty"`
 	// Owner is the owner for the ami.
@@ -266,6 +268,8 @@ type AMISelectorTerm struct {
 	// +optional
 	Owner string `json:"owner,omitempty"`
 	//SSMParameter is the name (or ARN) of the SSM parameter containing the Image ID.
+	// The placeholder {kubernetesVersion} can be used and will be replaced with the effective
+	// Kubernetes version (e.g. "/aws/service/eks/optimized-ami/{kubernetesVersion}/amazon-linux-2023/x86_64/standard/recommended/image_id").
 	// +optional
 	SSMParameter string `json:"ssmParameter,omitempty"`
 }

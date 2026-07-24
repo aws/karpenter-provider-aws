@@ -225,6 +225,11 @@ settings:
   # -- How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of
   # DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.
   subnetRefreshInterval: 1m
+  # -- Override the Kubernetes version used for decision making. When set, Karpenter will use this version instead
+  # of auto-detecting via the K8s API or EKS DescribeCluster. This is useful for node version downgrades, e.g. to
+  # support EKS control plane version upgrade rollbacks. Expected format: major.minor (e.g. 1.30).
+  # Leave empty to auto-detect.
+  kubernetesVersion: ""
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features.
   featureGates:

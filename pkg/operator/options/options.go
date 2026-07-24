@@ -47,6 +47,7 @@ type Options struct {
 	EnableZonalShift        bool
 	AMIRefreshInterval      time.Duration
 	SubnetRefreshInterval   time.Duration
+	KubernetesVersion       string
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
@@ -62,6 +63,7 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.BoolVarWithEnv(&o.EnableZonalShift, "enable-zonal-shift", "ENABLE_ZONAL_SHIFT", false, "If true, then enable zonal shifting feature.")
 	fs.DurationVar(&o.AMIRefreshInterval, "ami-refresh-interval", env.WithDefaultDuration("AMI_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m.")
 	fs.DurationVar(&o.SubnetRefreshInterval, "subnet-refresh-interval", env.WithDefaultDuration("SUBNET_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.")
+	fs.StringVar(&o.KubernetesVersion, "kubernetes-version", env.WithDefaultString("KUBERNETES_VERSION", ""), "Override the Kubernetes version used for decision making. When set, Karpenter will use this version instead of auto-detecting via the K8s API or EKS DescribeCluster. This is useful for node version downgrades, e.g. to support EKS control plane version upgrade rollbacks. Expected format: major.minor (e.g. 1.30).")
 }
 
 func (o *Options) Parse(fs *coreoptions.FlagSet, args ...string) error {

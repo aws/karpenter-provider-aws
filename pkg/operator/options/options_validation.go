@@ -17,6 +17,7 @@ package options
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"time"
 
 	"github.com/awslabs/operatorpkg/serrors"
@@ -31,6 +32,7 @@ func (o *Options) Validate() error {
 		o.validateRequiredFields(),
 		o.validateAMIRefreshInterval(),
 		o.validateSubnetRefreshInterval(),
+		o.validateKubernetesVersion(),
 	)
 }
 
@@ -78,6 +80,18 @@ func (o *Options) validateReservedENIs() error {
 func (o *Options) validateRequiredFields() error {
 	if o.ClusterName == "" {
 		return fmt.Errorf("missing field, cluster-name")
+	}
+	return nil
+}
+
+var kubernetesVersionRegexp = regexp.MustCompile(`^\d+\.\d+$`)
+
+func (o *Options) validateKubernetesVersion() error {
+	if o.KubernetesVersion == "" {
+		return nil
+	}
+	if !kubernetesVersionRegexp.MatchString(o.KubernetesVersion) {
+		return fmt.Errorf("kubernetes-version must be in format major.minor (e.g. 1.30), got %q", o.KubernetesVersion)
 	}
 	return nil
 }

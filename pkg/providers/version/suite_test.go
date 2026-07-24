@@ -95,4 +95,20 @@ var _ = Describe("Operator", func() {
 			Expect(version).To(Equal(testEnv.K8sVersion()))
 		})
 	})
+
+	Context("with KUBERNETES_VERSION override", func() {
+		It("should use the overridden version instead of auto-detecting", func() {
+			options.FromContext(ctx).KubernetesVersion = "1.28"
+			ExpectSingletonReconciled(ctx, versionController)
+			version := awsEnv.VersionProvider.Get(ctx)
+			Expect(version).To(Equal("1.28"))
+		})
+		It("should use the overridden version even when EKS control plane is enabled", func() {
+			options.FromContext(ctx).EKSControlPlane = true
+			options.FromContext(ctx).KubernetesVersion = "1.27"
+			ExpectSingletonReconciled(ctx, versionController)
+			version := awsEnv.VersionProvider.Get(ctx)
+			Expect(version).To(Equal("1.27"))
+		})
+	})
 })
