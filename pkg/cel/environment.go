@@ -35,19 +35,32 @@ type InstanceTypeVars struct {
 	InstanceType string
 }
 
+// Used to both declare the variables on the CEL environment and to build the
+// activation map at evaluation time
+var celVars = []struct {
+	name    string
+	celType *cel.Type
+	get     func(InstanceTypeVars) any
+}{
+	{"vcpus", cel.IntType, func(v InstanceTypeVars) any { return v.VCPUs }},
+	{"memory_mib", cel.IntType, func(v InstanceTypeVars) any { return v.MemoryMiB }},
+	{"default_enis", cel.IntType, func(v InstanceTypeVars) any { return v.DefaultENIs }},
+	{"ips_per_eni", cel.IntType, func(v InstanceTypeVars) any { return v.IPsPerENI }},
+	{"max_pods", cel.IntType, func(v InstanceTypeVars) any { return v.MaxPods }},
+	{"instance_type", cel.StringType, func(v InstanceTypeVars) any { return v.InstanceType }},
+}
+
 // env is the shared CEL environment configured with instance type variables. It is built once at
 // package initialization. Construction has no runtime-variable inputs (a fixed set of variables and
 // functions, no I/O), so a failure here is a programming error in this declaration
 var env = mustNewEnv()
 
 func mustNewEnv() *cel.Env {
-	e, err := cel.NewEnv(
-		cel.Variable("vcpus", cel.IntType),
-		cel.Variable("memory_mib", cel.IntType),
-		cel.Variable("default_enis", cel.IntType),
-		cel.Variable("ips_per_eni", cel.IntType),
-		cel.Variable("max_pods", cel.IntType),
-		cel.Variable("instance_type", cel.StringType),
+	opts := make([]cel.EnvOption, 0, len(celVars)+2)
+	for _, v := range celVars {
+		opts = append(opts, cel.Variable(v.name, v.celType))
+	}
+	opts = append(opts,
 		cel.Function("max",
 			cel.Overload("max_int_int", []*cel.Type{cel.IntType, cel.IntType}, cel.IntType,
 				cel.BinaryBinding(func(lhs, rhs ref.Val) ref.Val {
@@ -133,6 +146,7 @@ func mustNewEnv() *cel.Env {
 			),
 		),
 	)
+	e, err := cel.NewEnv(opts...)
 	if err != nil {
 		panic(fmt.Sprintf("building CEL environment: %v", err))
 	}
@@ -186,13 +200,9 @@ func EvaluateExpression(expression string, vars InstanceTypeVars) (int64, error)
 	if err != nil {
 		return 0, err
 	}
-	activation := map[string]any{
-		"vcpus":         vars.VCPUs,
-		"memory_mib":    vars.MemoryMiB,
-		"default_enis":  vars.DefaultENIs,
-		"ips_per_eni":   vars.IPsPerENI,
-		"max_pods":      vars.MaxPods,
-		"instance_type": vars.InstanceType,
+	activation := make(map[string]any, len(celVars))
+	for _, cv := range celVars {
+		activation[cv.name] = cv.get(vars)
 	}
 	out, _, err := compiled.program.Eval(activation)
 	if err != nil {
@@ -242,7 +252,8 @@ func ResolveResourceMap(resourceMap map[string]string, varsFn func() InstanceTyp
 		}
 		result, err := EvaluateExpression(v, vars)
 		if err != nil {
-			log.Error(err, "failed to evaluate kubelet resource expression", "key", k, "expression", v, "instanceType", vars.InstanceType)
+			log.Error(err, "failed to evaluate kubelet resource expression", "key", k, "expression", v, "instanceType", vars.InstanceType,
+				"vcpus", vars.VCPUs, "memory_mib", vars.MemoryMiB, "default_enis", vars.DefaultENIs, "ips_per_eni", vars.IPsPerENI, "max_pods", vars.MaxPods)
 			continue
 		}
 		if result < 0 {
