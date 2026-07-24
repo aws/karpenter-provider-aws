@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/awslabs/operatorpkg/option"
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	"github.com/samber/lo"
 	"k8s.io/client-go/tools/record"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
