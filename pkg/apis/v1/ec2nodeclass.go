@@ -26,6 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
@@ -281,10 +282,12 @@ type KubeletConfiguration struct {
 	//+optional
 	ClusterDNS []string `json:"clusterDNS,omitempty"`
 	// MaxPods is an override for the maximum number of pods that can run on
-	// a worker node instance.
-	// +kubebuilder:validation:Minimum:=0
+	// a worker node instance. When set to an integer, it is used as a static value.
+	// When set to a string, it is evaluated as a CEL expression per instance type with
+	// access to: vcpus, memory_mib, default_enis, ips_per_eni, max_pods.
+	// +kubebuilder:validation:XIntOrString
 	// +optional
-	MaxPods *int32 `json:"maxPods,omitempty"`
+	MaxPods *intstr.IntOrString `json:"maxPods,omitempty"`
 	// PodsPerCore is an override for the number of pods that can run on a worker node
 	// instance based on the number of cpu cores. This value cannot exceed MaxPods, so, if
 	// MaxPods is a lower value, that value will be used.
@@ -652,6 +655,18 @@ func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {
 
 func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {
 	return in.Spec.Kubelet
+}
+
+// MaxPodsInt returns the MaxPods value as *int32 if it's set to an integer, or nil otherwise.
+// This is a convenience for callers that need the static integer value and handle expressions separately.
+func (kc *KubeletConfiguration) MaxPodsInt() *int32 {
+	if kc == nil || kc.MaxPods == nil {
+		return nil
+	}
+	if kc.MaxPods.Type == intstr.Int {
+		return &kc.MaxPods.IntVal
+	}
+	return nil
 }
 
 func (in *EC2NodeClass) CPUOptions() *CPUOptions {

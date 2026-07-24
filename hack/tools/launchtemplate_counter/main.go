@@ -143,7 +143,13 @@ func main() {
 	})
 	fmt.Printf("Got %d instance types after filtering\n", len(instanceTypes))
 
-	resolver := amifamily.NewDefaultResolver(region)
+	resolver := amifamily.NewDefaultResolver(region, func(name string) (amifamily.ENILimits, bool) {
+		limits, ok := instancetype.Limits[name]
+		if !ok {
+			return amifamily.ENILimits{}, false
+		}
+		return amifamily.ENILimits{DefaultENIs: limits.Interface, IPv4PerENI: limits.IPv4PerInterface}, true
+	})
 	launchTemplates, err := resolver.Resolve(nodeClass, &karpv1.NodeClaim{}, lo.Slice(instanceTypes, 0, 60), karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}, "", 0)
 
 	if err != nil {

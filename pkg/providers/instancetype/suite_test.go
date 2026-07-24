@@ -41,6 +41,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
@@ -981,7 +982,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
 				nil,
-				nodeClass.Spec.Kubelet.MaxPods,
+				nodeClass.Spec.Kubelet.MaxPodsInt(),
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
 				nodeClass.Spec.Kubelet.SystemReserved,
@@ -1006,7 +1007,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				windowsNodeClass.Spec.BlockDeviceMappings,
 				windowsNodeClass.Spec.InstanceStorePolicy,
 				nil,
-				nodeClass.Spec.Kubelet.MaxPods,
+				nodeClass.Spec.Kubelet.MaxPodsInt(),
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
 				nodeClass.Spec.Kubelet.SystemReserved,
@@ -1092,7 +1093,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1121,7 +1122,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1146,7 +1147,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1180,7 +1181,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1221,7 +1222,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPods,
+						nodeClass.Spec.Kubelet.MaxPodsInt(),
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
 						nodeClass.Spec.Kubelet.SystemReserved,
@@ -1252,7 +1253,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPods,
+						nodeClass.Spec.Kubelet.MaxPodsInt(),
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
 						nodeClass.Spec.Kubelet.SystemReserved,
@@ -1283,7 +1284,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPods,
+						nodeClass.Spec.Kubelet.MaxPodsInt(),
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
 						nodeClass.Spec.Kubelet.SystemReserved,
@@ -1314,7 +1315,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPods,
+						nodeClass.Spec.Kubelet.MaxPodsInt(),
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
 						nodeClass.Spec.Kubelet.SystemReserved,
@@ -1347,7 +1348,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPods,
+						nodeClass.Spec.Kubelet.MaxPodsInt(),
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
 						nodeClass.Spec.Kubelet.SystemReserved,
@@ -1381,7 +1382,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPods,
+						nodeClass.Spec.Kubelet.MaxPodsInt(),
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
 						nodeClass.Spec.Kubelet.SystemReserved,
@@ -1412,7 +1413,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPods,
+						nodeClass.Spec.Kubelet.MaxPodsInt(),
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
 						nodeClass.Spec.Kubelet.SystemReserved,
@@ -1447,7 +1448,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPods,
+						nodeClass.Spec.Kubelet.MaxPodsInt(),
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
 						nodeClass.Spec.Kubelet.SystemReserved,
@@ -1469,7 +1470,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1505,7 +1506,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1540,7 +1541,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1575,7 +1576,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1602,7 +1603,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPods,
+						nodeClass.Spec.Kubelet.MaxPodsInt(),
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
 						nodeClass.Spec.Kubelet.SystemReserved,
@@ -1622,7 +1623,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPods,
+						nodeClass.Spec.Kubelet.MaxPodsInt(),
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
 						nodeClass.Spec.Kubelet.SystemReserved,
@@ -1639,7 +1640,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods: lo.ToPtr(int32(10)),
+				MaxPods: lo.ToPtr(intstr.FromInt32(10)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
@@ -1650,7 +1651,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1675,7 +1676,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodeClass.Spec.AMIFamily = lo.ToPtr(family)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					MaxPods: lo.ToPtr(int32(10)),
+					MaxPods: lo.ToPtr(intstr.FromInt32(10)),
 				}
 				it := instancetype.NewInstanceType(ctx,
 					t3Large,
@@ -1685,7 +1686,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1714,7 +1715,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods: lo.ToPtr(int32(10)),
+				MaxPods: lo.ToPtr(intstr.FromInt32(10)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
@@ -1725,7 +1726,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1762,7 +1763,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1807,7 +1808,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
 				nil,
-				nodeClass.Spec.Kubelet.MaxPods,
+				nodeClass.Spec.Kubelet.MaxPodsInt(),
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
 				nodeClass.Spec.Kubelet.SystemReserved,
@@ -1840,7 +1841,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1859,7 +1860,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				PodsPerCore: lo.ToPtr(int32(4)),
-				MaxPods:     lo.ToPtr(int32(20)),
+				MaxPods:     lo.ToPtr(intstr.FromInt32(20)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
@@ -1870,7 +1871,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1898,7 +1899,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPods,
+					nodeClass.Spec.Kubelet.MaxPodsInt(),
 					nodeClass.Spec.Kubelet.PodsPerCore,
 					nodeClass.Spec.Kubelet.KubeReserved,
 					nodeClass.Spec.Kubelet.SystemReserved,
@@ -1927,7 +1928,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPods,
+						nodeClass.Spec.Kubelet.MaxPodsInt(),
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
 						nodeClass.Spec.Kubelet.SystemReserved,
@@ -1947,7 +1948,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPods,
+						nodeClass.Spec.Kubelet.MaxPodsInt(),
 						nodeClass.Spec.Kubelet.PodsPerCore,
 						nodeClass.Spec.Kubelet.KubeReserved,
 						nodeClass.Spec.Kubelet.SystemReserved,
@@ -2635,13 +2636,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 				EvictionSoftGracePeriod: map[string]metav1.Duration{
 					"nodefs.available": {Duration: time.Minute},
 				},
-				MaxPods: aws.Int32(10),
+				MaxPods: lo.ToPtr(intstr.FromInt32(10)),
 			}
 			kubeletChanges := []*v1.KubeletConfiguration{
 				{KubeReserved: map[string]string{string(corev1.ResourceCPU): "20"}},
 				{SystemReserved: map[string]string{string(corev1.ResourceMemory): "10Gi"}},
 				{EvictionHard: map[string]string{"memory.available": "52%"}},
-				{MaxPods: aws.Int32(20)},
+				{MaxPods: lo.ToPtr(intstr.FromInt32(20))},
 			}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			// Adding the general set of to the instancetype into the cache

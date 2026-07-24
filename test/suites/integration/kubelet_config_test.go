@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -42,7 +43,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		BeforeEach(func() {
 			// MaxPods needs to account for the daemonsets that will run on the nodes
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods:     lo.ToPtr(int32(110)),
+				MaxPods:     lo.ToPtr(intstr.FromInt32(110)),
 				PodsPerCore: lo.ToPtr(int32(10)),
 				SystemReserved: map[string]string{
 					string(corev1.ResourceCPU):              "200m",
@@ -152,7 +153,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// Get the DS pod count and use it to calculate the DS pod overhead
 		dsCount := env.GetDaemonSetCount(nodePool)
 		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-			MaxPods: lo.ToPtr(1 + int32(dsCount)),
+			MaxPods: lo.ToPtr(intstr.FromInt32(1 + int32(dsCount))),
 		}
 
 		numPods := 3
