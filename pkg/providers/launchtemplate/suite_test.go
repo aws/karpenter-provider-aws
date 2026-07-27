@@ -1686,6 +1686,26 @@ eviction-max-pod-grace-period = 10
 					Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 10))
 				})
 			})
+			It("should specify max pods value when passing maxPods as a CEL expression string", func() {
+				// min(110, 20 * 2) resolves to 40 independent of instance type, so the assertion is
+				// deterministic across whichever instance types get launch templates.
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					MaxPods: lo.ToPtr(intstr.FromString("min(110, 20 * 2)")),
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
+					Expect(err).To(BeNil())
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
+					Expect(config.Settings.Kubernetes.MaxPods).ToNot(BeNil())
+					Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 40))
+				})
+			})
 			It("should pass ImageGCHighThresholdPercent when specified", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					ImageGCHighThresholdPercent: aws.Int32(50),
