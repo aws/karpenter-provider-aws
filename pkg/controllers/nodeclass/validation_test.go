@@ -53,7 +53,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 	Context("Preconditions", func() {
 		var reconciler *nodeclass.Validation
 		BeforeEach(func() {
-			reconciler = nodeclass.NewValidationReconciler(env.Clock, env.Client, cloudProvider, awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache, options.FromContext(ctx).DisableDryRun)
+			reconciler = nodeclass.NewValidationReconciler(env.Clock, env.Client, cloudProvider, awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache, awsEnv.CELEnvironment, options.FromContext(ctx).DisableDryRun)
 			for _, cond := range []string{
 				v1.ConditionTypeAMIsReady,
 				v1.ConditionTypeInstanceProfileReady,
@@ -674,6 +674,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			awsEnv.ValidationCache,
 			awsEnv.RecreationCache,
 			awsEnv.AMIResolver,
+			awsEnv.CELEnvironment,
 			true,
 		)
 		ExpectApplied(ctx, env.Client, nodeClass)

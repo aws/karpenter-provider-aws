@@ -24,8 +24,16 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cel"
 )
 
+// celEnv is the shared CEL environment under test, constructed once for the suite.
+var celEnv *cel.CELEnvironment
+
 func TestCel(t *testing.T) {
 	RegisterFailHandler(Fail)
+	var err error
+	celEnv, err = cel.NewEnvironment()
+	if err != nil {
+		t.Fatalf("building CEL environment: %v", err)
+	}
 	RunSpecs(t, "CEL Suite")
 }
 
@@ -39,7 +47,7 @@ var _ = Describe("EvaluateExpression", func() {
 			IPsPerENI:   10,
 			MaxPods:     20,
 		}
-		result, err := cel.EvaluateExpression("((default_enis - 1) * (ips_per_eni - 1)) + 2", vars)
+		result, err := celEnv.EvaluateExpression("((default_enis - 1) * (ips_per_eni - 1)) + 2", vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(Equal(int64(20)))
 	})
@@ -52,7 +60,7 @@ var _ = Describe("EvaluateExpression", func() {
 			IPsPerENI:   10,
 			MaxPods:     20,
 		}
-		result, err := cel.EvaluateExpression("min(250, ((default_enis - 1) * (ips_per_eni - 1)) * 16 + 2)", vars)
+		result, err := celEnv.EvaluateExpression("min(250, ((default_enis - 1) * (ips_per_eni - 1)) * 16 + 2)", vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(Equal(int64(250)))
 	})
@@ -65,7 +73,7 @@ var _ = Describe("EvaluateExpression", func() {
 			IPsPerENI:   30,
 			MaxPods:     58,
 		}
-		result, err := cel.EvaluateExpression("max(60, vcpus * 30) * 1000000", vars)
+		result, err := celEnv.EvaluateExpression("max(60, vcpus * 30) * 1000000", vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(Equal(int64(480000000)))
 	})
@@ -78,69 +86,69 @@ var _ = Describe("EvaluateExpression", func() {
 			IPsPerENI:   30,
 			MaxPods:     58,
 		}
-		result, err := cel.EvaluateExpression("(11 * max_pods + 255) * 1048576", vars)
+		result, err := celEnv.EvaluateExpression("(11 * max_pods + 255) * 1048576", vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(Equal(int64((11*58 + 255) * 1048576)))
 	})
 	It("should evaluate min against max_pods", func() {
 		vars := cel.InstanceTypeVars{VCPUs: 4, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
-		result, err := cel.EvaluateExpression("min(110, max_pods)", vars)
+		result, err := celEnv.EvaluateExpression("min(110, max_pods)", vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(Equal(int64(20)))
 	})
 	It("should evaluate max with mixed int and double args", func() {
 		// max(int, double): max(vcpus, 60.5) = max(4, 60.5) = 60.5 -> truncated to 60
 		vars := cel.InstanceTypeVars{VCPUs: 4, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
-		result, err := cel.EvaluateExpression("max(vcpus, 60.5)", vars)
+		result, err := celEnv.EvaluateExpression("max(vcpus, 60.5)", vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(Equal(int64(60)))
 	})
 	It("should evaluate min with mixed double and int args", func() {
 		// min(double, int): min(110.5, max_pods) = min(110.5, 20) = 20
 		vars := cel.InstanceTypeVars{VCPUs: 4, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
-		result, err := cel.EvaluateExpression("min(110.5, max_pods)", vars)
+		result, err := celEnv.EvaluateExpression("min(110.5, max_pods)", vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(Equal(int64(20)))
 	})
 	It("should evaluate an expression that uses instance_type", func() {
 		// instance_type is a string variable usable in conditionals; the result must still be numeric.
 		vars := cel.InstanceTypeVars{VCPUs: 4, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20, InstanceType: "m5.large"}
-		result, err := cel.EvaluateExpression(`instance_type == "m5.large" ? vcpus * 2 : vcpus`, vars)
+		result, err := celEnv.EvaluateExpression(`instance_type == "m5.large" ? vcpus * 2 : vcpus`, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(Equal(int64(8)))
 		// A non-matching instance type takes the other branch.
 		vars.InstanceType = "c5.xlarge"
-		result, err = cel.EvaluateExpression(`instance_type == "m5.large" ? vcpus * 2 : vcpus`, vars)
+		result, err = celEnv.EvaluateExpression(`instance_type == "m5.large" ? vcpus * 2 : vcpus`, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(Equal(int64(4)))
 	})
 	It("should return a negative result without erroring (dropping is handled by ResolveResourceMap)", func() {
 		vars := cel.InstanceTypeVars{VCPUs: 2, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
-		result, err := cel.EvaluateExpression("vcpus - 100", vars)
+		result, err := celEnv.EvaluateExpression("vcpus - 100", vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(Equal(int64(-98)))
 	})
 	It("should error on integer division by zero", func() {
 		vars := cel.InstanceTypeVars{VCPUs: 2, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
-		_, err := cel.EvaluateExpression("100 / (vcpus - vcpus)", vars)
+		_, err := celEnv.EvaluateExpression("100 / (vcpus - vcpus)", vars)
 		Expect(err).To(HaveOccurred())
 	})
 	It("should error on integer modulo by zero", func() {
 		vars := cel.InstanceTypeVars{VCPUs: 2, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
-		_, err := cel.EvaluateExpression("100 % (vcpus - vcpus)", vars)
+		_, err := celEnv.EvaluateExpression("100 % (vcpus - vcpus)", vars)
 		Expect(err).To(HaveOccurred())
 	})
 	It("should error on double division by zero (+Inf is non-finite)", func() {
 		// Unlike integer division, CEL follows IEEE-754 and returns +Inf rather than erroring; we must
 		// reject the non-finite result so it can't be truncated to a garbage int64 and slip through.
 		vars := cel.InstanceTypeVars{VCPUs: 2, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
-		_, err := cel.EvaluateExpression("100.0 / 0.0", vars)
+		_, err := celEnv.EvaluateExpression("100.0 / 0.0", vars)
 		Expect(err).To(HaveOccurred())
 	})
 	It("should error on a NaN result", func() {
 		// 0.0 / 0.0 is NaN under IEEE-754; it must be rejected like the infinities.
 		vars := cel.InstanceTypeVars{VCPUs: 2, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
-		_, err := cel.EvaluateExpression("0.0 / 0.0", vars)
+		_, err := celEnv.EvaluateExpression("0.0 / 0.0", vars)
 		Expect(err).To(HaveOccurred())
 	})
 })
@@ -160,16 +168,16 @@ var _ = Describe("EvaluateExpression across instance type sizes", func() {
 	DescribeTable("evaluates reserved-resource expressions without overflow or error",
 		func(vars cel.InstanceTypeVars) {
 			for _, expr := range []string{maxPodsExpr, kubeReservedMem, systemReservedMem, kubeReservedCPU, systemReservedMemP} {
-				result, err := cel.EvaluateExpression(expr, vars)
+				result, err := celEnv.EvaluateExpression(expr, vars)
 				Expect(err).ToNot(HaveOccurred(), "expression %q overflowed or errored for %s (memory_mib=%d)", expr, vars.InstanceType, vars.MemoryMiB)
 				Expect(result).To(BeNumerically(">=", int64(0)), "expression %q produced a negative value for %s", expr, vars.InstanceType)
 			}
 			// systemReserved.memory must equal memory_mib*1048576/100 exactly (the value the cluster test verified).
-			sysMem, err := cel.EvaluateExpression(systemReservedMem, vars)
+			sysMem, err := celEnv.EvaluateExpression(systemReservedMem, vars)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(sysMem).To(Equal(vars.MemoryMiB * 1048576 / 100))
 			// kubeReserved.memory must equal max_pods*11*1048576 exactly.
-			kubeMem, err := cel.EvaluateExpression(kubeReservedMem, vars)
+			kubeMem, err := celEnv.EvaluateExpression(kubeReservedMem, vars)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(kubeMem).To(Equal(vars.MaxPods * 11 * 1048576))
 		},
@@ -188,7 +196,7 @@ var _ = Describe("max and min overloads", func() {
 	vars := cel.InstanceTypeVars{VCPUs: 4, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
 	DescribeTable("evaluates to the expected result",
 		func(expr string, expected int64) {
-			result, err := cel.EvaluateExpression(expr, vars)
+			result, err := celEnv.EvaluateExpression(expr, vars)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(expected))
 		},
@@ -208,23 +216,23 @@ var _ = Describe("ResolveResourceMap", func() {
 		return cel.InstanceTypeVars{VCPUs: 2, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20, InstanceType: "m5.large"}
 	}
 	It("should pass through values that are already valid resource quantities", func() {
-		resolved := cel.ResolveResourceMap(map[string]string{"cpu": "100m", "memory": "256Mi"}, vars, logr.Discard())
+		resolved := celEnv.ResolveResourceMap(map[string]string{"cpu": "100m", "memory": "256Mi"}, vars, logr.Discard())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "100m", "memory": "256Mi"}))
 	})
 	It("should evaluate an expression and replace it with its integer result", func() {
-		resolved := cel.ResolveResourceMap(map[string]string{"cpu": "vcpus * 30"}, vars, logr.Discard())
+		resolved := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus * 30"}, vars, logr.Discard())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "60"}))
 	})
 	It("should drop entries whose expression evaluates to a negative value", func() {
-		resolved := cel.ResolveResourceMap(map[string]string{"cpu": "vcpus - 100"}, vars, logr.Discard())
+		resolved := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus - 100"}, vars, logr.Discard())
 		Expect(resolved).ToNot(HaveKey("cpu"))
 	})
 	It("should drop entries whose expression errors (e.g. division by zero)", func() {
-		resolved := cel.ResolveResourceMap(map[string]string{"cpu": "100 / (vcpus - vcpus)"}, vars, logr.Discard())
+		resolved := celEnv.ResolveResourceMap(map[string]string{"cpu": "100 / (vcpus - vcpus)"}, vars, logr.Discard())
 		Expect(resolved).ToNot(HaveKey("cpu"))
 	})
 	It("should keep valid entries while dropping invalid ones", func() {
-		resolved := cel.ResolveResourceMap(map[string]string{
+		resolved := celEnv.ResolveResourceMap(map[string]string{
 			"good":     "vcpus * 30",
 			"negative": "vcpus - 100",
 			"literal":  "128Mi",
@@ -232,12 +240,12 @@ var _ = Describe("ResolveResourceMap", func() {
 		Expect(resolved).To(Equal(map[string]string{"good": "60", "literal": "128Mi"}))
 	})
 	It("should keep an entry that evaluates to zero (only negatives are dropped)", func() {
-		resolved := cel.ResolveResourceMap(map[string]string{"cpu": "vcpus - vcpus"}, vars, logr.Discard())
+		resolved := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus - vcpus"}, vars, logr.Discard())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "0"}))
 	})
 	It("should truncate a double-returning expression to its integer string", func() {
 		// double(memory_mib) * 0.5 = 4096.0, truncated to "4096".
-		resolved := cel.ResolveResourceMap(map[string]string{"memory": "double(memory_mib) * 0.5"}, vars, logr.Discard())
+		resolved := celEnv.ResolveResourceMap(map[string]string{"memory": "double(memory_mib) * 0.5"}, vars, logr.Discard())
 		Expect(resolved).To(Equal(map[string]string{"memory": "4096"}))
 	})
 	It("should return an empty map unchanged without invoking varsFn", func() {
@@ -246,7 +254,7 @@ var _ = Describe("ResolveResourceMap", func() {
 			called = true
 			return vars()
 		}
-		resolved := cel.ResolveResourceMap(map[string]string{}, countingVars, logr.Discard())
+		resolved := celEnv.ResolveResourceMap(map[string]string{}, countingVars, logr.Discard())
 		Expect(resolved).To(BeEmpty())
 		Expect(called).To(BeFalse())
 	})
@@ -256,7 +264,7 @@ var _ = Describe("ResolveResourceMap", func() {
 			called = true
 			return vars()
 		}
-		resolved := cel.ResolveResourceMap(nil, countingVars, logr.Discard())
+		resolved := celEnv.ResolveResourceMap(nil, countingVars, logr.Discard())
 		Expect(resolved).To(BeEmpty())
 		Expect(called).To(BeFalse())
 	})
@@ -266,7 +274,7 @@ var _ = Describe("ResolveResourceMap", func() {
 			called = true
 			return vars()
 		}
-		resolved := cel.ResolveResourceMap(map[string]string{"cpu": "100m", "memory": "256Mi"}, countingVars, logr.Discard())
+		resolved := celEnv.ResolveResourceMap(map[string]string{"cpu": "100m", "memory": "256Mi"}, countingVars, logr.Discard())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "100m", "memory": "256Mi"}))
 		Expect(called).To(BeFalse(), "varsFn must not be built when there are no expressions to evaluate")
 	})
@@ -276,7 +284,7 @@ var _ = Describe("ResolveResourceMap", func() {
 			callCount++
 			return vars()
 		}
-		resolved := cel.ResolveResourceMap(map[string]string{
+		resolved := celEnv.ResolveResourceMap(map[string]string{
 			"cpu":    "vcpus * 30",
 			"memory": "max_pods * 11",
 		}, countingVars, logr.Discard())
@@ -287,26 +295,26 @@ var _ = Describe("ResolveResourceMap", func() {
 
 var _ = Describe("ValidateExpression", func() {
 	It("should accept a valid expression", func() {
-		Expect(cel.ValidateExpression("((default_enis - 1) * (ips_per_eni - 1)) + 2")).To(Succeed())
+		Expect(celEnv.ValidateExpression("((default_enis - 1) * (ips_per_eni - 1)) + 2")).To(Succeed())
 	})
 	It("should reject invalid syntax", func() {
-		Expect(cel.ValidateExpression("((default_enis -")).ToNot(Succeed())
+		Expect(celEnv.ValidateExpression("((default_enis -")).ToNot(Succeed())
 	})
 	It("should reject undefined variables", func() {
-		Expect(cel.ValidateExpression("undefined_var + 1")).ToNot(Succeed())
+		Expect(celEnv.ValidateExpression("undefined_var + 1")).ToNot(Succeed())
 	})
 	It("should reject a boolean return type", func() {
-		Expect(cel.ValidateExpression("vcpus > 4")).ToNot(Succeed())
+		Expect(celEnv.ValidateExpression("vcpus > 4")).ToNot(Succeed())
 	})
 	It("should reject a string return type", func() {
 		// instance_type is a valid variable, but a bare reference returns a string, which the
 		// output-type check must reject just like a boolean.
-		Expect(cel.ValidateExpression("instance_type")).ToNot(Succeed())
+		Expect(celEnv.ValidateExpression("instance_type")).ToNot(Succeed())
 	})
 	It("should reject an empty expression", func() {
-		Expect(cel.ValidateExpression("")).ToNot(Succeed())
+		Expect(celEnv.ValidateExpression("")).ToNot(Succeed())
 	})
 	It("should reject a whitespace-only expression", func() {
-		Expect(cel.ValidateExpression("   ")).ToNot(Succeed())
+		Expect(celEnv.ValidateExpression("   ")).ToNot(Succeed())
 	})
 })

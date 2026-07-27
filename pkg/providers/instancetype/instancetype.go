@@ -25,6 +25,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
@@ -102,6 +103,7 @@ type DefaultProvider struct {
 
 	placementGroupProvider placementgroup.Provider
 	offeringProvider       *offering.DefaultProvider
+	celEnv                 *kubeletcel.CELEnvironment
 }
 
 func NewDefaultProvider(
@@ -117,6 +119,7 @@ func NewDefaultProvider(
 	instanceTypesResolver Resolver,
 	zonalshiftProvider arczonalshift.Provider,
 	kubeClient client.Client,
+	celEnv *kubeletcel.CELEnvironment,
 	additionalResolvers ...offering.OfferingResolver,
 ) *DefaultProvider {
 	p := &DefaultProvider{
@@ -129,6 +132,7 @@ func NewDefaultProvider(
 		discoveredCapacityCache: discoveredCapacityCache,
 		cm:                      pretty.NewChangeMonitor(),
 		placementGroupProvider:  placementGroupProvider,
+		celEnv:                  celEnv,
 		offeringProvider: offering.NewDefaultProvider(
 			pricingProvider,
 			capacityReservationProvider,
@@ -274,7 +278,7 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	}
 	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 	for _, info := range p.instanceTypesInfo {
-		if err := EvaluateKubeletExpressions(ctx, info, kc, amiFamily, nodeClass.NetworkInterfaces()); err != nil {
+		if err := EvaluateKubeletExpressions(p.celEnv, ctx, info, kc, amiFamily, nodeClass.NetworkInterfaces()); err != nil {
 			return err
 		}
 	}

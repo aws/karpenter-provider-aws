@@ -51,12 +51,19 @@ var celVars = []struct {
 	{"instance_type", cel.StringType, func(v InstanceTypeVars) any { return v.InstanceType }},
 }
 
-// env is the shared CEL environment configured with instance type variables. It is built once at
-// package initialization. Construction has no runtime-variable inputs (a fixed set of variables and
-// functions, no I/O), so a failure here is a programming error in this declaration
-var env = mustNewEnv()
+// CELEnvironment wraps a configured CEL environment together with a compilation cache. Callers construct
+// one via NewEnvironment and inject it wherever kubelet expressions are compiled or evaluated, so the same
+// environment (and cache) is shared across the scheduler, the launch template resolver, and validation.
+type CELEnvironment struct {
+	env *cel.Env
+	// compiledCache memoizes successful compilations keyed by expression string.
+	compiledCache sync.Map
+}
 
-func mustNewEnv() *cel.Env {
+// NewEnvironment builds a CELEnvironment configured with the kubelet expression variables and functions.
+// Construction has no runtime-variable inputs (a fixed set of variables and functions, no I/O), so an error
+// here indicates a programming error in this package rather than bad user input.
+func NewEnvironment() (*CELEnvironment, error) {
 	opts := make([]cel.EnvOption, 0, len(celVars)+2)
 	for _, v := range celVars {
 		opts = append(opts, cel.Variable(v.name, v.celType))
@@ -149,13 +156,10 @@ func mustNewEnv() *cel.Env {
 	)
 	e, err := cel.NewEnv(opts...)
 	if err != nil {
-		panic(fmt.Sprintf("building CEL environment: %v", err))
+		return nil, fmt.Errorf("building CEL environment: %w", err)
 	}
-	return e
+	return &CELEnvironment{env: e}, nil
 }
-
-// compiledCache memoizes successful compilations keyed by expression string.
-var compiledCache sync.Map
 
 // CompiledExpression is a pre-compiled CEL program ready for evaluation.
 type CompiledExpression struct {
@@ -165,28 +169,28 @@ type CompiledExpression struct {
 // compileCached returns a cached CompiledExpression for the expression, compiling and caching it on the
 // first request. Only successful compilations are cached; failures are returned without being stored so a
 // later corrected expression (or a transient issue) isn't pinned to its error.
-func compileCached(expression string) (*CompiledExpression, error) {
-	if cached, ok := compiledCache.Load(expression); ok {
+func (c *CELEnvironment) compileCached(expression string) (*CompiledExpression, error) {
+	if cached, ok := c.compiledCache.Load(expression); ok {
 		return cached.(*CompiledExpression), nil
 	}
-	compiled, err := Compile(expression)
+	compiled, err := c.Compile(expression)
 	if err != nil {
 		return nil, err
 	}
-	compiledCache.Store(expression, compiled)
+	c.compiledCache.Store(expression, compiled)
 	return compiled, nil
 }
 
 // Compile parses and type-checks a CEL expression against the kubelet expression environment.
-func Compile(expression string) (*CompiledExpression, error) {
-	ast, issues := env.Compile(expression)
+func (c *CELEnvironment) Compile(expression string) (*CompiledExpression, error) {
+	ast, issues := c.env.Compile(expression)
 	if issues != nil && issues.Err() != nil {
 		return nil, fmt.Errorf("compiling expression %q: %w", expression, issues.Err())
 	}
 	if ast.OutputType() != cel.IntType && ast.OutputType() != cel.DoubleType {
 		return nil, fmt.Errorf("expression %q must return int or double, got %v", expression, ast.OutputType())
 	}
-	prg, err := env.Program(ast)
+	prg, err := c.env.Program(ast)
 	if err != nil {
 		return nil, fmt.Errorf("creating program for expression %q: %w", expression, err)
 	}
@@ -196,8 +200,8 @@ func Compile(expression string) (*CompiledExpression, error) {
 // EvaluateExpression compiles (via the compilation cache) and evaluates a CEL expression against the
 // given instance type variables, returning the integer result. Repeated calls with the same expression
 // reuse the cached compiled program.
-func EvaluateExpression(expression string, vars InstanceTypeVars) (int64, error) {
-	compiled, err := compileCached(expression)
+func (c *CELEnvironment) EvaluateExpression(expression string, vars InstanceTypeVars) (int64, error) {
+	compiled, err := c.compileCached(expression)
 	if err != nil {
 		return 0, err
 	}
@@ -224,8 +228,8 @@ func EvaluateExpression(expression string, vars InstanceTypeVars) (int64, error)
 }
 
 // ValidateExpression checks if a CEL expression compiles successfully without evaluating it.
-func ValidateExpression(expression string) error {
-	_, err := compileCached(expression)
+func (c *CELEnvironment) ValidateExpression(expression string) error {
+	_, err := c.compileCached(expression)
 	return err
 }
 
@@ -239,7 +243,7 @@ func ValidateExpression(expression string) error {
 // can defer expensive variable construction. This is the single evaluation path shared by both the
 // scheduler (reserved-capacity overhead) and the launch template resolver so that identical inputs
 // always produce identical results.
-func ResolveResourceMap(resourceMap map[string]string, varsFn func() InstanceTypeVars, log logr.Logger) map[string]string {
+func (c *CELEnvironment) ResolveResourceMap(resourceMap map[string]string, varsFn func() InstanceTypeVars, log logr.Logger) map[string]string {
 	if len(resourceMap) == 0 {
 		return resourceMap
 	}
@@ -255,7 +259,7 @@ func ResolveResourceMap(resourceMap map[string]string, varsFn func() InstanceTyp
 			vars = varsFn()
 			varsBuilt = true
 		}
-		result, err := EvaluateExpression(v, vars)
+		result, err := c.EvaluateExpression(v, vars)
 		if err != nil {
 			log.Error(err, "failed to evaluate kubelet resource expression", "key", k, "expression", v, "instanceType", vars.InstanceType,
 				"vcpus", vars.VCPUs, "memory_mib", vars.MemoryMiB, "default_enis", vars.DefaultENIs, "ips_per_eni", vars.IPsPerENI, "max_pods", vars.MaxPods)

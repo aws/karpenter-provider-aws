@@ -105,6 +105,7 @@ var _ = BeforeEach(func() {
 		awsEnv.ValidationCache,
 		awsEnv.RecreationCache,
 		awsEnv.AMIResolver,
+		awsEnv.CELEnvironment,
 		options.FromContext(ctx).DisableDryRun,
 	)
 })

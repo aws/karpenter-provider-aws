@@ -3520,6 +3520,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				awsEnv.InstanceTypesResolver,
 				awsEnv.ZonalShiftProvider,
 				env.Client,
+				awsEnv.CELEnvironment,
 				resolver,
 			)
 			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())

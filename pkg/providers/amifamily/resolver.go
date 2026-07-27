@@ -66,6 +66,7 @@ type ENILookup func(instanceTypeName string) (ENILimits, bool)
 type DefaultResolver struct {
 	region    string
 	eniLookup ENILookup
+	celEnv    *kubeletcel.CELEnvironment
 }
 
 // Options define the static launch template parameters
@@ -150,10 +151,11 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // NewDefaultResolver constructs a new launch template DefaultResolver
-func NewDefaultResolver(region string, eniLookup ENILookup) *DefaultResolver {
+func NewDefaultResolver(region string, eniLookup ENILookup, celEnv *kubeletcel.CELEnvironment) *DefaultResolver {
 	return &DefaultResolver{
 		region:    region,
 		eniLookup: eniLookup,
+		celEnv:    celEnv,
 	}
 }
 
@@ -217,8 +219,8 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 			// kubeReserved and systemReserved are resolved through the same shared CEL evaluation path
 			// (kubeletcel.ResolveResourceMap) against the same live-EC2-backed ENI lookup used by the
 			// scheduler, so the launch template configures exactly what the scheduler reserved.
-			resolvedKubeReserved := resolveResourceExpressionsForLaunchTemplate(kubeReserved, it, r.eniLookup)
-			resolvedSystemReserved := resolveResourceExpressionsForLaunchTemplate(systemReserved, it, r.eniLookup)
+			resolvedKubeReserved := resolveResourceExpressionsForLaunchTemplate(r.celEnv, kubeReserved, it, r.eniLookup)
+			resolvedSystemReserved := resolveResourceExpressionsForLaunchTemplate(r.celEnv, systemReserved, it, r.eniLookup)
 			return launchTemplateParams{
 				efaCount: lo.Ternary(
 					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA),
@@ -427,8 +429,8 @@ func isRestrictedLabel(label string) bool {
 // are left unchanged. It delegates to the shared kubeletcel.ResolveResourceMap so the launch template uses
 // the exact same evaluation logic as the scheduler; the only difference is the ENI data source, which is
 // unified to live EC2 info via eniLookup.
-func resolveResourceExpressionsForLaunchTemplate(resourceMap map[string]string, it *cloudprovider.InstanceType, eniLookup ENILookup) map[string]string {
-	return kubeletcel.ResolveResourceMap(resourceMap, func() kubeletcel.InstanceTypeVars {
+func resolveResourceExpressionsForLaunchTemplate(celEnv *kubeletcel.CELEnvironment, resourceMap map[string]string, it *cloudprovider.InstanceType, eniLookup ENILookup) map[string]string {
+	return celEnv.ResolveResourceMap(resourceMap, func() kubeletcel.InstanceTypeVars {
 		return celVarsFromInstanceType(it, eniLookup)
 	}, log.Log)
 }

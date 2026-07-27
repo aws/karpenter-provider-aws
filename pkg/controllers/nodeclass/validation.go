@@ -88,6 +88,7 @@ type Validation struct {
 	launchTemplateProvider launchtemplate.Provider
 	cache                  *cache.Cache
 	clk                    clock.Clock
+	celEnv                 *kubeletcel.CELEnvironment
 	dryRunDisabled         bool
 }
 
@@ -100,6 +101,7 @@ func NewValidationReconciler(
 	instanceTypeProvider instancetype.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	cache *cache.Cache,
+	celEnv *kubeletcel.CELEnvironment,
 	dryRunDisabled bool,
 ) *Validation {
 	return &Validation{
@@ -111,6 +113,7 @@ func NewValidationReconciler(
 		launchTemplateProvider: launchTemplateProvider,
 		cache:                  cache,
 		clk:                    clk,
+		celEnv:                 celEnv,
 		dryRunDisabled:         dryRunDisabled,
 	}
 }
@@ -134,7 +137,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		}
 	}
 
-	if err := validateKubeletExpressions(nodeClass); err != nil {
+	if err := validateKubeletExpressions(v.celEnv, nodeClass); err != nil {
 		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 			v1.ConditionTypeValidationSucceeded,
 			ConditionReasonKubeletExpressionInvalid,
@@ -581,26 +584,26 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 }
 
 // validateKubeletExpressions checks that all CEL expressions in the kubelet configuration compile successfully.
-func validateKubeletExpressions(nodeClass *v1.EC2NodeClass) error {
+func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, nodeClass *v1.EC2NodeClass) error {
 	if nodeClass.Spec.Kubelet == nil {
 		return nil
 	}
 	kc := nodeClass.Spec.Kubelet
 	if kc.MaxPods != nil && kc.MaxPods.Type == intstr.String {
-		if err := kubeletcel.ValidateExpression(kc.MaxPods.StrVal); err != nil {
+		if err := celEnv.ValidateExpression(kc.MaxPods.StrVal); err != nil {
 			return fmt.Errorf("spec.kubelet.maxPods: %w", err)
 		}
 	}
 	for k, v := range kc.KubeReserved {
 		if _, qErr := resource.ParseQuantity(v); qErr != nil {
-			if err := kubeletcel.ValidateExpression(v); err != nil {
+			if err := celEnv.ValidateExpression(v); err != nil {
 				return fmt.Errorf("spec.kubelet.kubeReserved[%s]: %w", k, err)
 			}
 		}
 	}
 	for k, v := range kc.SystemReserved {
 		if _, qErr := resource.ParseQuantity(v); qErr != nil {
-			if err := kubeletcel.ValidateExpression(v); err != nil {
+			if err := celEnv.ValidateExpression(v); err != nil {
 				return fmt.Errorf("spec.kubelet.systemReserved[%s]: %w", k, err)
 			}
 		}
