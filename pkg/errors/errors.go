@@ -15,13 +15,23 @@ limitations under the License.
 package errors
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
+
+// httpStatusCoder mirrors the interface the SDK's own retry policy matches on
+// (retry.RetryableHTTPStatusCode) — the transport error types the SDK wraps API errors in are the
+// only place the HTTP status code of the failed response survives.
+type httpStatusCoder interface {
+	error
+	HTTPStatusCode() int
+}
 
 const (
 	launchTemplateNameNotFoundCode                 = "InvalidLaunchTemplateName.NotFoundException"
@@ -47,6 +57,18 @@ var (
 	)
 	alreadyExistsErrorCodes = sets.New(
 		"EntityAlreadyExists",
+	)
+
+	// nonTerminalErrorCodes are codes a request can fail with for reasons unrelated to the request
+	// itself, on top of the retryable and throttle codes the SDK already defines. AuthFailure and
+	// RequestExpired come from credential or clock skew, PendingVerification from account state, and
+	// the launch template codes from a template being garbage collected out from under a caller.
+	nonTerminalErrorCodes = sets.New(
+		"AuthFailure",
+		"RequestExpired",
+		"PendingVerification",
+		launchTemplateNameNotFoundCode,
+		"InvalidLaunchTemplateId.NotFound",
 	)
 
 	reservationCapacityExceededErrorCode = "ReservationCapacityExceeded"
@@ -156,10 +178,37 @@ func IsServerError(err error) bool {
 	if err == nil {
 		return false
 	}
-	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
-		return apiErr.ErrorFault() == smithy.FaultServer
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok && apiErr.ErrorFault() == smithy.FaultServer {
+		return true
+	}
+	// EC2's generated deserializers return a smithy.GenericAPIError with no fault set, so the fault
+	// check above never matches an EC2 error. Fall back to the status code of the failed response,
+	// using the same set the SDK's own retry policy considers retryable.
+	if respErr, ok := lo.ErrorsAs[httpStatusCoder](err); ok {
+		_, retryable := retry.DefaultRetryableHTTPStatusCodes[respErr.HTTPStatusCode()]
+		return retryable
 	}
 	return false
+}
+
+// IsNonTerminalError returns true if err is an AWS API error that a retry can resolve on its own,
+// without a change to the request that produced it. Callers that would otherwise treat an error as
+// a terminal, user-visible failure should requeue on these instead.
+func IsNonTerminalError(err error) bool {
+	if err == nil {
+		return false
+	}
+	apiErr, ok := lo.ErrorsAs[smithy.APIError](err)
+	if !ok {
+		return false
+	}
+	if _, ok := retry.DefaultRetryableErrorCodes[apiErr.ErrorCode()]; ok {
+		return true
+	}
+	if _, ok := retry.DefaultThrottleErrorCodes[apiErr.ErrorCode()]; ok {
+		return true
+	}
+	return nonTerminalErrorCodes.Has(apiErr.ErrorCode())
 }
 
 func IgnoreServerError(err error) error {
@@ -167,6 +216,22 @@ func IgnoreServerError(err error) error {
 		return nil
 	}
 	return err
+}
+
+// ToAPIErrorMessage returns a "<code>: <message>" summary of err when err is, or wraps, an AWS API
+// error. The second return value reports whether err was an AWS API error at all.
+func ToAPIErrorMessage(err error) (string, bool) {
+	if err == nil {
+		return "", false
+	}
+	apiErr, ok := lo.ErrorsAs[smithy.APIError](err)
+	if !ok {
+		return "", false
+	}
+	if apiErr.ErrorMessage() == "" {
+		return apiErr.ErrorCode(), true
+	}
+	return fmt.Sprintf("%s: %s", apiErr.ErrorCode(), apiErr.ErrorMessage()), true
 }
 
 // IsUnfulfillableCapacity returns true if the Fleet err means capacity is temporarily unavailable for launching. This
