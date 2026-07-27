@@ -56,27 +56,42 @@ import (
 )
 
 const (
-	requeueAfterTime                               = 10 * time.Minute
-	ConditionReasonCreateFleetAuthFailed           = "CreateFleetAuthCheckFailed"
-	ConditionReasonCreateLaunchTemplateAuthFailed  = "CreateLaunchTemplateAuthCheckFailed"
-	ConditionReasonRunInstancesAuthFailed          = "RunInstancesAuthCheckFailed"
-	ConditionReasonInstanceProfileNotFound         = "InstanceProfileNotFound"
-	ConditionReasonDependenciesNotReady            = "DependenciesNotReady"
-	ConditionReasonTagValidationFailed             = "TagValidationFailed"
-	ConditionReasonInvalidKubeletConfiguration     = "InvalidKubeletConfiguration"
-	ConditionReasonKubeletExpressionInvalid        = "KubeletExpressionInvalid"
-	ConditionReasonKubeletExpressionEvalFailed     = "KubeletExpressionEvaluationFailed"
-	ConditionReasonKubeletExpressionsDisabled      = "KubeletExpressionsDisabled"
-	ConditionReasonUnsupportedKubeletConfiguration = "UnsupportedKubeletConfiguration"
-	ConditionReasonDryRunDisabled                  = "DryRunDisabled"
-	ConditionReasonUserDataTooLarge                = "UserDataSizeLimitExceeded"
+	requeueAfterTime                                    = 10 * time.Minute
+	ConditionReasonCreateFleetAuthFailed                = "CreateFleetAuthCheckFailed"
+	ConditionReasonCreateLaunchTemplateAuthFailed       = "CreateLaunchTemplateAuthCheckFailed"
+	ConditionReasonRunInstancesAuthFailed               = "RunInstancesAuthCheckFailed"
+	ConditionReasonCreateFleetValidationFailed          = "CreateFleetValidationFailed"
+	ConditionReasonCreateLaunchTemplateValidationFailed = "CreateLaunchTemplateValidationFailed"
+	ConditionReasonRunInstancesValidationFailed         = "RunInstancesValidationFailed"
+	ConditionReasonInstanceProfileNotFound              = "InstanceProfileNotFound"
+	ConditionReasonDependenciesNotReady                 = "DependenciesNotReady"
+	ConditionReasonTagValidationFailed                  = "TagValidationFailed"
+	ConditionReasonInvalidKubeletConfiguration          = "InvalidKubeletConfiguration"
+	ConditionReasonKubeletExpressionInvalid             = "KubeletExpressionInvalid"
+	ConditionReasonKubeletExpressionEvalFailed          = "KubeletExpressionEvaluationFailed"
+	ConditionReasonKubeletExpressionsDisabled           = "KubeletExpressionsDisabled"
+	ConditionReasonUnsupportedKubeletConfiguration      = "UnsupportedKubeletConfiguration"
+	ConditionReasonDryRunDisabled                       = "DryRunDisabled"
+	ConditionReasonUserDataTooLarge                     = "UserDataSizeLimitExceeded"
 )
 
 var ValidationConditionMessages = map[string]string{
-	ConditionReasonCreateFleetAuthFailed:          "Controller isn't authorized to call ec2:CreateFleet",
-	ConditionReasonCreateLaunchTemplateAuthFailed: "Controller isn't authorized to call ec2:CreateLaunchTemplate",
-	ConditionReasonRunInstancesAuthFailed:         "Controller isn't authorized to call ec2:RunInstances",
-	ConditionReasonUserDataTooLarge:               "ec2:CreateLaunchTemplate rejected the rendered user data as too large",
+	ConditionReasonCreateFleetAuthFailed:                "Controller isn't authorized to call ec2:CreateFleet",
+	ConditionReasonCreateLaunchTemplateAuthFailed:       "Controller isn't authorized to call ec2:CreateLaunchTemplate",
+	ConditionReasonRunInstancesAuthFailed:               "Controller isn't authorized to call ec2:RunInstances",
+	ConditionReasonUserDataTooLarge:                     "ec2:CreateLaunchTemplate rejected the rendered user data as too large",
+	ConditionReasonCreateFleetValidationFailed:          "EC2 rejected the ec2:CreateFleet dry run",
+	ConditionReasonCreateLaunchTemplateValidationFailed: "EC2 rejected the ec2:CreateLaunchTemplate request",
+	ConditionReasonRunInstancesValidationFailed:         "EC2 rejected the ec2:RunInstances dry run",
+}
+
+// isTransientError returns true for errors that a retry can resolve without a change to the
+// EC2NodeClass, so validation should requeue rather than record a failure against the spec.
+func isTransientError(err error) bool {
+	return awserrors.IsRateLimitedError(err) ||
+		awserrors.IsServerError(err) ||
+		awserrors.IsNonTerminalError(err) ||
+		awserrors.IsInstanceProfileNotFound(err)
 }
 
 // validationCacheEntry stores a failed validation result with both the condition reason and the
@@ -337,7 +352,7 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 
 	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes[:1], karpv1.CapacityTypeOnDemand, tags, string(tenancyType))
 	if err != nil {
-		if awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
+		if isTransientError(err) {
 			return nil, reconcile.Result{Requeue: true}, nil
 		}
 		if awserrors.IsUserDataTooLarge(err) {
@@ -347,7 +362,13 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 			return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 		}
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
-			// We should only ever receive UnauthorizedOperation so if we receive any other error it would be an unexpected state
+			// EC2 also rejects requests it considers malformed, which retrying can't resolve until the
+			// EC2NodeClass itself changes. Surface those on the status condition rather than returning an
+			// error that is only ever logged, and logged as if it were an authorization failure.
+			if message, ok := awserrors.ToAPIErrorMessage(err); ok {
+				v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateLaunchTemplateValidationFailed, message)
+				return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+			}
 			return nil, reconcile.Result{}, fmt.Errorf("validating ec2:CreateLaunchTemplate authorization, %w", err)
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateLaunchTemplate")
@@ -375,12 +396,17 @@ func (v *Validation) validateCreateFleetAuthorization(
 	if _, err := v.ec2api.CreateFleet(ctx, createFleetInput, func(o *ec2.Options) {
 		o.Retryer = aws.NopRetryer{}
 	}); awserrors.IgnoreDryRunError(err) != nil {
-		if awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
+		if isTransientError(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
-			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
-			// it would be an unexpected state
+			// A dry run also fails when EC2 considers the request itself invalid, which retrying can't
+			// resolve until the EC2NodeClass changes. Surface those on the status condition rather than
+			// returning an error that is only ever logged, and logged as if it were an authorization failure.
+			if message, ok := awserrors.ToAPIErrorMessage(err); ok {
+				v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateFleetValidationFailed, message)
+				return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+			}
 			return reconcile.Result{}, fmt.Errorf("validating ec2:CreateFleet authorization, %w", err)
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateFleet")
@@ -430,12 +456,18 @@ func (v *Validation) validateRunInstancesAuthorization(
 		// this means there is most likely an eventual consistency issue and we just need to requeue
 		return reconcile.Result{Requeue: true}, nil
 	}
-	if awserrors.IsRateLimitedError(firstSubnetErr) || awserrors.IsServerError(firstSubnetErr) {
+	if isTransientError(firstSubnetErr) {
 		return reconcile.Result{Requeue: true}, nil
 	}
 	if awserrors.IgnoreUnauthorizedOperationError(firstSubnetErr) != nil {
-		// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
-		// it would be an unexpected state
+		// A dry run also fails when EC2 considers the request itself invalid, e.g. a block device mapping
+		// whose volume is smaller than the AMI's snapshot. Retrying can't resolve that until the
+		// EC2NodeClass changes, so surface it on the status condition rather than returning an error that
+		// is only ever logged, and logged as if it were an authorization failure.
+		if message, ok := awserrors.ToAPIErrorMessage(firstSubnetErr); ok {
+			v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesValidationFailed, message)
+			return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+		}
 		return reconcile.Result{}, fmt.Errorf("validating ec2:RunInstances authorization, %w", firstSubnetErr)
 	}
 	log.FromContext(ctx).Error(firstSubnetErr, "unauthorized to call ec2:RunInstances")
