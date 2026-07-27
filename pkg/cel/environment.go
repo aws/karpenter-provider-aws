@@ -16,6 +16,7 @@ package cel
 
 import (
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/go-logr/logr"
@@ -212,6 +213,10 @@ func EvaluateExpression(expression string, vars InstanceTypeVars) (int64, error)
 	case int64:
 		return v, nil
 	case float64:
+		// Reject non-finite doubles (+Inf, -Inf, NaN) — e.g. from double division by zero.
+		if math.IsInf(v, 0) || math.IsNaN(v) {
+			return 0, fmt.Errorf("expression returned non-finite value %v", v)
+		}
 		return int64(v), nil
 	default:
 		return 0, fmt.Errorf("expression returned unexpected type %T", out.Value())

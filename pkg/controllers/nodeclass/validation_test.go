@@ -30,6 +30,7 @@ import (
 	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/aws/smithy-go"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -229,6 +230,68 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
 			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
+		})
+	})
+	Context("Kubelet Expression Validation", func() {
+		// The compile-only check (validateKubeletExpressions) runs before the required-condition gate and
+		// surfaces KubeletExpressionInvalid. The per-instance-type evaluation check runs after and surfaces
+		// KubeletExpressionEvaluationFailed for expressions that compile but fail to evaluate.
+		DescribeTable("should set KubeletExpressionInvalid when an expression fails to compile",
+			func(kc *v1.KubeletConfiguration) {
+				nodeClass.Spec.Kubelet = kc
+				ExpectApplied(ctx, env.Client, nodeClass)
+				err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				Expect(err).To(HaveOccurred())
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonKubeletExpressionInvalid))
+			},
+			Entry("maxPods with a syntax error", &v1.KubeletConfiguration{
+				MaxPods: lo.ToPtr(intstr.FromString("min(110,")),
+			}),
+			Entry("maxPods referencing an undefined variable", &v1.KubeletConfiguration{
+				MaxPods: lo.ToPtr(intstr.FromString("undefined_var + 1")),
+			}),
+			Entry("maxPods with a non-numeric (boolean) return type", &v1.KubeletConfiguration{
+				MaxPods: lo.ToPtr(intstr.FromString("vcpus > 4")),
+			}),
+			Entry("kubeReserved with a syntax error", &v1.KubeletConfiguration{
+				KubeReserved: map[string]string{"cpu": "vcpus *"},
+			}),
+			Entry("systemReserved referencing an undefined variable", &v1.KubeletConfiguration{
+				SystemReserved: map[string]string{"memory": "bogus_var * 1048576"},
+			}),
+		)
+		DescribeTable("should set KubeletExpressionEvaluationFailed when an expression compiles but fails evaluation",
+			func(kc *v1.KubeletConfiguration) {
+				nodeClass.Spec.Kubelet = kc
+				ExpectApplied(ctx, env.Client, nodeClass)
+				err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				Expect(err).To(HaveOccurred())
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonKubeletExpressionEvalFailed))
+			},
+			Entry("kubeReserved that evaluates to a negative value", &v1.KubeletConfiguration{
+				KubeReserved: map[string]string{"cpu": "0 - 1"},
+			}),
+			Entry("systemReserved that divides by zero", &v1.KubeletConfiguration{
+				SystemReserved: map[string]string{"memory": "1048576 / (vcpus - vcpus)"},
+			}),
+			Entry("maxPods that evaluates to a negative value (out of range)", &v1.KubeletConfiguration{
+				MaxPods: lo.ToPtr(intstr.FromString("0 - 1")),
+			}),
+		)
+		It("should succeed validation when all kubelet expressions are valid", func() {
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				MaxPods:        lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
+				KubeReserved:   map[string]string{"cpu": "max(60, vcpus * 30) * 1000000"},
+				SystemReserved: map[string]string{"memory": "max_pods * 11 * 1048576"},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
 		})
 	})
 	Context("Authorization Validation", func() {
