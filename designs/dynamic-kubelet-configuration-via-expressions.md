@@ -193,31 +193,6 @@ The following variables are available in all kubelet expressions, populated from
 
 The `max_pods` variable provides a self-referencing convenience — `kubeReserved` and `systemReserved` expressions can reference the resolved maxPods value (whether from a maxPods expression, a static maxPods value, or the default ENI-limited calculation).
 
-### Expression Validation
-
-**Validation flow (controller-side, during reconciliation):**
-
-1. Extract `maxPods` from the kubelet map:
-   * If JSON number → valid static value, must be non-negative
-   * If JSON string → compile as CEL. If compilation fails → `ValidationSucceeded: False`
-   * If any other JSON type → `ValidationSucceeded: False`
-
-2. Extract `kubeReserved` / `systemReserved` from the kubelet map:
-   * Must be a JSON object (map of resource name to value)
-   * Keys must be one of: `cpu`, `memory`, `ephemeral-storage`, `pid`
-   * For each value string:
-     * Try `resource.ParseQuantity()` → if succeeds, valid static quantity (must not be negative)
-     * If fails → compile as CEL → if compilation fails → `ValidationSucceeded: False`
-     * CEL expressions must reference only permitted variables and return a numeric type
-
-3. CEL compilation validation:
-   * Expression must parse as valid CEL syntax
-   * Expression must reference only permitted variables (`instance_type`, `vcpus`, `memory_mib`, `default_enis`, `ips_per_eni`, `max_pods`)
-   * Expression must type-check to return `int` or `double` (the `instance_type` string may only be used within the expression, e.g. in comparisons — the overall result must still be numeric)
-
-4. Evaluation-time validation (at scheduling):
-   * If an expression evaluates to a negative number for a specific instance type, that instance type is excluded from consideration
-
 ### Static vs Expression Values
 
 A field's value type determines behavior. There is no precedence or exclusivity logic — each field contains a single value that is either interpreted as a literal or evaluated as a CEL expression based on its JSON type. When neither `maxPods`, `kubeReserved`, nor `systemReserved` is set, Karpenter applies its internal defaults (ENI-limited maxPods, graduated kubeReserved formula) exactly as today.
@@ -226,21 +201,7 @@ A field's value type determines behavior. There is no precedence or exclusivity 
 
 Admission-time validation only catches syntax and type errors — it cannot tell whether an expression produces the *values* the operator intended. A logic mistake (for example, swapping a nested `min` for a `max`) compiles cleanly but could reserve an unexpectedly large fraction of a node's capacity on certain instance sizes. Operators need a way to preview the resolved values across their fleet before applying an expression to a live cluster.
 
-To support this, we can provide a small standalone script that evaluates an expression against a list of instance types and prints the resolved result for each one — entirely offline, without provisioning any nodes. The script sets up the same CEL environment Karpenter uses (identical variable names, types, and functions), compiles the expression once, and evaluates it against each instance type's properties:
-
-```
-$ ./eval-kubelet-expr \
-    --field kubeReserved.cpu \
-    --expression "max(60, vcpus * 30) * 1000000" \
-    --instance-types m5.large,m5.4xlarge,m5.24xlarge
-
-INSTANCE TYPE   vCPUs   RESOLVED kubeReserved.cpu
-m5.large        2       120m
-m5.4xlarge      16      480m
-m5.24xlarge     96      2880m
-```
-
-By printing one row per instance type, the script lets an operator eyeball the full range of outputs and catch a value that is too high or too low before it ever reaches a node. Because the script reuses Karpenter's CEL environment definition, an expression that evaluates successfully here behaves identically when Karpenter evaluates it at scheduling time.
+To support this, we can provide a small standalone script that evaluates an expression against a list of instance types and prints the resolved result for each one — entirely offline, without provisioning any nodes. The script sets up the same CEL environment Karpenter uses (identical variable names, types, and functions), compiles the expression once, and evaluates it against each instance type's properties.
 
 ## Scheduling and Launch Behavior
 
@@ -395,3 +356,5 @@ These are provided for documentation purposes. When neither kubeReserved nor a k
 * Logical: `&&`, `||`, `!`
 * Built-in: `max(a, b)`, `min(a, b)`, `int()`, `double()`
 * Conditional: `condition ? trueValue : falseValue`
+
+Note: This plan was made in mind to be compatible with potential future changes to the kubelet config struct switching from selected, hardcoded fields to an open map that gives users access to any field from a selected Kubernetes library version.  
