@@ -276,7 +276,7 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 		return nil
 	}
 	// If every kubelet value is a static literal there are no CEL expressions to evaluate, so skip the
-	// per-instance-type loop entirely 
+	// per-instance-type loop entirely
 	if !kc.HasExpressions() {
 		return nil
 	}

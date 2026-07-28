@@ -17,13 +17,19 @@ package cel
 import (
 	"fmt"
 	"math"
-	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/types"
 	"github.com/google/cel-go/common/types/ref"
+	"github.com/patrickmn/go-cache"
 	"k8s.io/apimachinery/pkg/api/resource"
+)
+
+const (
+	compiledExpressionTTL             = 12 * time.Hour
+	compiledExpressionCleanupInterval = 1 * time.Hour
 )
 
 // InstanceTypeVars holds the variables available to CEL expressions for kubelet configuration.
@@ -56,8 +62,8 @@ var celVars = []struct {
 // environment (and cache) is shared across the scheduler, the launch template resolver, and validation.
 type CELEnvironment struct {
 	env *cel.Env
-	// compiledCache memoizes successful compilations keyed by expression string.
-	compiledCache sync.Map
+	// compiledCache memoizes successful compilations keyed by expression string. It uses a sliding-window TTL
+	compiledCache *cache.Cache
 }
 
 // NewEnvironment builds a CELEnvironment configured with the kubelet expression variables and functions.
@@ -158,7 +164,10 @@ func NewEnvironment() (*CELEnvironment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("building CEL environment: %w", err)
 	}
-	return &CELEnvironment{env: e}, nil
+	return &CELEnvironment{
+		env:           e,
+		compiledCache: cache.New(compiledExpressionTTL, compiledExpressionCleanupInterval),
+	}, nil
 }
 
 // CompiledExpression is a pre-compiled CEL program ready for evaluation.
@@ -170,14 +179,16 @@ type CompiledExpression struct {
 // first request. Only successful compilations are cached; failures are returned without being stored so a
 // later corrected expression (or a transient issue) isn't pinned to its error.
 func (c *CELEnvironment) compileCached(expression string) (*CompiledExpression, error) {
-	if cached, ok := c.compiledCache.Load(expression); ok {
+	if cached, ok := c.compiledCache.Get(expression); ok {
+		// Refresh the TTL so a live expression isn't evicted out from under active use.
+		c.compiledCache.Set(expression, cached, cache.DefaultExpiration)
 		return cached.(*CompiledExpression), nil
 	}
 	compiled, err := c.Compile(expression)
 	if err != nil {
 		return nil, err
 	}
-	c.compiledCache.Store(expression, compiled)
+	c.compiledCache.Set(expression, compiled, cache.DefaultExpiration)
 	return compiled, nil
 }
 
