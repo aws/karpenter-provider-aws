@@ -171,7 +171,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*clo
 		// so that modifications to the ordering of the data don't affect the original
 		instanceTypes = item.([]*cloudprovider.InstanceType)
 	} else {
-		// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type) 
+		// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type)
 		instanceTypes = make([]*cloudprovider.InstanceType, 0, len(p.instanceTypesInfo))
 		for name := range p.instanceTypesInfo {
 			it, err := p.get(ctx, nodeClass, name)
@@ -275,6 +275,11 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	if kc == nil {
 		return nil
 	}
+	// If every kubelet value is a static literal there are no CEL expressions to evaluate, so skip the
+	// per-instance-type loop entirely 
+	if !kc.HasExpressions() {
+		return nil
+	}
 	p.muInstanceTypesInfo.RLock()
 	defer p.muInstanceTypesInfo.RUnlock()
 
@@ -304,6 +309,11 @@ func (p *DefaultProvider) evaluateKubeletExpressions(ctx context.Context, info e
 	maxPodsVars := buildCELVars(ctx, info, amiFamily, nil, kc.PodsPerCore, networkInterfaces)
 	if err := evaluateMaxPodsExpression(p.celEnv, kc, maxPodsVars, info); err != nil {
 		return err
+	}
+	// Building the reserved-capacity vars requires resolving maxPods for this instance type, which is
+	// wasted work when neither kubeReserved nor systemReserved holds an expression to evaluate against it.
+	if !kc.HasResourceExpressions() {
+		return nil
 	}
 	resolvedMaxPods := resolveMaxPods(ctx, p.celEnv, info, kc.MaxPods, amiFamily, kc.PodsPerCore, networkInterfaces)
 	reservedVars := buildCELVars(ctx, info, amiFamily, resolvedMaxPods, kc.PodsPerCore, networkInterfaces)

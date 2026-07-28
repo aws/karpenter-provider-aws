@@ -669,6 +669,36 @@ func (kc *KubeletConfiguration) MaxPodsInt() *int32 {
 	return nil
 }
 
+// HasExpressions reports whether any field holds a CEL expression rather than a static value. The definition of "is an expression" must match what the evaluators actually treat as
+// one: a string-typed maxPods, or a kubeReserved/systemReserved value that isn't a parseable resource
+// quantity.
+func (kc *KubeletConfiguration) HasExpressions() bool {
+	if kc == nil {
+		return false
+	}
+	if kc.MaxPods != nil && kc.MaxPods.Type == intstr.String {
+		return true
+	}
+	return kc.HasResourceExpressions()
+}
+
+// HasResourceExpressions reports whether kubeReserved or systemReserved holds a CEL expression - that is,
+// a value that isn't a parseable resource quantity. Callers use this to skip resolving maxPods and building
+// the reserved-capacity CEL variables when neither map has anything to evaluate.
+func (kc *KubeletConfiguration) HasResourceExpressions() bool {
+	if kc == nil {
+		return false
+	}
+	for _, m := range []map[string]string{kc.KubeReserved, kc.SystemReserved} {
+		for _, v := range m {
+			if _, err := resource.ParseQuantity(v); err != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (in *EC2NodeClass) CPUOptions() *CPUOptions {
 	return in.Spec.CPUOptions
 }

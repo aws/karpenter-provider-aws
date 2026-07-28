@@ -242,7 +242,7 @@ func (c *CELEnvironment) ValidateExpression(expression string) error {
 // varsFn is called at most once, and only when the map actually contains an expression, so callers
 // can defer expensive variable construction. If varsFn returns an error (e.g. the instance type's
 // inputs couldn't be resolved), it is returned to the caller so the failure can be surfaced up the
-// call chain. This is the single evaluation path shared by both the scheduler (reserved-capacity overhead) 
+// call chain. This is the single evaluation path shared by both the scheduler (reserved-capacity overhead)
 // and the launch template resolver so that identical inputs always produce identical results.
 func (c *CELEnvironment) ResolveResourceMap(resourceMap map[string]string, varsFn func() (InstanceTypeVars, error), log logr.Logger) (map[string]string, error) {
 	if len(resourceMap) == 0 {

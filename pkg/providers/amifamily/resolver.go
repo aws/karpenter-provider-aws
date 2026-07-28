@@ -441,7 +441,7 @@ func isRestrictedLabel(label string) bool {
 }
 
 // celVarsFromInstanceType builds CEL evaluation variables from a cloudprovider.InstanceType
-// using its requirements (CPU, memory labels) and an ENI lookup function. 
+// using its requirements (CPU, memory labels) and an ENI lookup function.
 func celVarsFromInstanceType(it *cloudprovider.InstanceType, eniLookup ENILookup) (kubeletcel.InstanceTypeVars, error) {
 	req := it.Requirements.Get(v1.LabelInstanceCPU)
 	if req == nil {
