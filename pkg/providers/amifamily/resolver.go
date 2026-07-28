@@ -219,8 +219,9 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 			// kubeReserved and systemReserved are resolved through the same shared CEL evaluation path
 			// (kubeletcel.ResolveResourceMap) against the same live-EC2-backed ENI lookup used by the
 			// scheduler, so the launch template configures exactly what the scheduler reserved.
-			resolvedKubeReserved := resolveResourceExpressionsForLaunchTemplate(r.celEnv, kubeReserved, it, r.eniLookup)
-			resolvedSystemReserved := resolveResourceExpressionsForLaunchTemplate(r.celEnv, systemReserved, it, r.eniLookup)
+			celVars := func() kubeletcel.InstanceTypeVars { return celVarsFromInstanceType(it, r.eniLookup) }
+			resolvedKubeReserved := r.celEnv.ResolveResourceMap(kubeReserved, celVars, log.Log)
+			resolvedSystemReserved := r.celEnv.ResolveResourceMap(systemReserved, celVars, log.Log)
 			return launchTemplateParams{
 				efaCount: lo.Ternary(
 					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA),
@@ -422,17 +423,6 @@ func isRestrictedLabel(label string) bool {
 		}
 	}
 	return false
-}
-
-// resolveResourceExpressionsForLaunchTemplate evaluates CEL expressions in a kubeReserved/systemReserved
-// resource map using instance type properties. Values that parse as valid Kubernetes resource quantities
-// are left unchanged. It delegates to the shared kubeletcel.ResolveResourceMap so the launch template uses
-// the exact same evaluation logic as the scheduler; the only difference is the ENI data source, which is
-// unified to live EC2 info via eniLookup.
-func resolveResourceExpressionsForLaunchTemplate(celEnv *kubeletcel.CELEnvironment, resourceMap map[string]string, it *cloudprovider.InstanceType, eniLookup ENILookup) map[string]string {
-	return celEnv.ResolveResourceMap(resourceMap, func() kubeletcel.InstanceTypeVars {
-		return celVarsFromInstanceType(it, eniLookup)
-	}, log.Log)
 }
 
 // celVarsFromInstanceType builds CEL evaluation variables from a cloudprovider.InstanceType
