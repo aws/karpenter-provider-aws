@@ -171,13 +171,15 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*clo
 		// so that modifications to the ordering of the data don't affect the original
 		instanceTypes = item.([]*cloudprovider.InstanceType)
 	} else {
-		instanceTypes = lo.FilterMapToSlice(p.instanceTypesInfo, func(name ec2types.InstanceType, info ec2types.InstanceTypeInfo) (*cloudprovider.InstanceType, bool) {
+		// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type) 
+		instanceTypes = make([]*cloudprovider.InstanceType, 0, len(p.instanceTypesInfo))
+		for name := range p.instanceTypesInfo {
 			it, err := p.get(ctx, nodeClass, name)
 			if err != nil {
-				return nil, false
+				return nil, err
 			}
-			return it, true
-		})
+			instanceTypes = append(instanceTypes, it)
+		}
 		p.instanceTypesCache.SetDefault(key, instanceTypes)
 	}
 	// Offerings aren't cached along with the rest of the instance type info because reserved offerings need to have up to
@@ -229,7 +231,10 @@ func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2
 	if !ok {
 		return nil, fmt.Errorf("instance type %s not found in cache", name)
 	}
-	it := p.instanceTypesResolver.Resolve(ctx, info, p.instanceTypesOfferings[info.InstanceType].UnsortedList(), nodeClass)
+	it, err := p.instanceTypesResolver.Resolve(ctx, info, p.instanceTypesOfferings[info.InstanceType].UnsortedList(), nodeClass)
+	if err != nil {
+		return nil, fmt.Errorf("resolving instance type %s, %w", name, err)
+	}
 	if it == nil {
 		return nil, fmt.Errorf("failed to generate instance type %s", name)
 	}
@@ -278,11 +283,31 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	}
 	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 	for _, info := range p.instanceTypesInfo {
-		if err := EvaluateKubeletExpressions(p.celEnv, ctx, info, kc, amiFamily, nodeClass.NetworkInterfaces()); err != nil {
+		if err := p.evaluateKubeletExpressions(ctx, info, kc, amiFamily, nodeClass.NetworkInterfaces()); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// evaluateKubeletExpressions evaluates all CEL expressions in the kubelet configuration against the given
+// instance type's variables and returns an error describing the first expression that fails to evaluate,
+// produces a negative result, or (for maxPods) overflows int32. It is used at validation time to surface
+// per-instance-type evaluation failures that a compile-only check cannot catch. A nil return means every
+// expression evaluated to a usable value for this instance type.
+func (p *DefaultProvider) evaluateKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, kc *v1.KubeletConfiguration, amiFamily amifamily.AMIFamily, networkInterfaces []*v1.NetworkInterface) error {
+	if kc == nil {
+		return nil
+	}
+	// The maxPods expression evaluates against the default max_pods (it can't self-reference), while
+	// kubeReserved/systemReserved evaluate against the resolved maxPods.
+	maxPodsVars := buildCELVars(ctx, info, amiFamily, nil, kc.PodsPerCore, networkInterfaces)
+	if err := evaluateMaxPodsExpression(p.celEnv, kc, maxPodsVars, info); err != nil {
+		return err
+	}
+	resolvedMaxPods := resolveMaxPods(ctx, p.celEnv, info, kc.MaxPods, amiFamily, kc.PodsPerCore, networkInterfaces)
+	reservedVars := buildCELVars(ctx, info, amiFamily, resolvedMaxPods, kc.PodsPerCore, networkInterfaces)
+	return evaluateResourceExpressions(p.celEnv, kc, reservedVars, info)
 }
 
 func (p *DefaultProvider) cacheKey(nodeClass NodeClass) string {

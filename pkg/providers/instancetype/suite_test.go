@@ -3526,9 +3526,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
-			nodeClass := &v1.EC2NodeClass{Status: v1.EC2NodeClassStatus{Subnets: []v1.Subnet{{ID: "subnet-test", Zone: "us-east-1a", ZoneID: "use1-az1"}}}}
-			nodeClass.StatusConditions().SetTrue(status.ConditionReady)
-			instanceTypes, err := provider.List(ctx, nodeClass)
+			offeringNodeClass := &v1.EC2NodeClass{Status: v1.EC2NodeClassStatus{Subnets: []v1.Subnet{{ID: "subnet-test", Zone: "us-east-1a", ZoneID: "use1-az1"}}}}
+			offeringNodeClass.StatusConditions().SetTrue(status.ConditionReady)
+			instanceTypes, err := provider.List(ctx, offeringNodeClass)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(instanceTypes).ToNot(BeEmpty())
 			Expect(resolver.called).To(BeTrue(), "additional resolver should be called during List")
@@ -3541,6 +3541,82 @@ var _ = Describe("InstanceTypeProvider", func() {
 					return exists && qty.Value() == 4
 				})
 			})).To(BeTrue(), "expected at least one offering with CapacityOverride from the registered resolver")
+		})
+	})
+	Context("Resolution Failures", func() {
+		// A resolution failure for a single instance type will fail the whole List call.
+		var newProviderWithFailingResolver func(resolver instancetype.Resolver) *instancetype.DefaultProvider
+		BeforeEach(func() {
+			newProviderWithFailingResolver = func(resolver instancetype.Resolver) *instancetype.DefaultProvider {
+				return instancetype.NewDefaultProvider(
+					awsEnv.InstanceTypeCache,
+					awsEnv.OfferingCache,
+					awsEnv.DiscoveredCapacityCache,
+					awsEnv.EC2API,
+					awsEnv.SubnetProvider,
+					awsEnv.PricingProvider,
+					awsEnv.CapacityReservationProvider,
+					awsEnv.PlacementGroupProvider,
+					awsEnv.UnavailableOfferingsCache,
+					resolver,
+					awsEnv.ZonalShiftProvider,
+					env.Client,
+					awsEnv.CELEnvironment,
+				)
+			}
+		})
+		It("should propagate a per-instance-type resolution failure out of List", func() {
+			provider := newProviderWithFailingResolver(&failingResolver{
+				delegate:    awsEnv.InstanceTypesResolver,
+				failOn:      "m5.large",
+				failureText: "evaluating kubeReserved expression for instance type m5.large",
+			})
+			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := provider.List(ctx, nodeClass)
+			Expect(err).To(MatchError(ContainSubstring("evaluating kubeReserved expression for instance type m5.large")))
+			Expect(instanceTypes).To(BeNil(), "a resolution failure must not return a partial instance type list")
+		})
+		It("should not cache a partial instance type list when resolution fails", func() {
+			resolver := &failingResolver{
+				delegate:    awsEnv.InstanceTypesResolver,
+				failOn:      "m5.large",
+				failureText: "evaluating kubeReserved expression for instance type m5.large",
+			}
+			provider := newProviderWithFailingResolver(resolver)
+			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			_, err := provider.List(ctx, nodeClass)
+			Expect(err).To(HaveOccurred())
+
+			// Once the underlying failure clears, List must return the full set rather than serving a
+			// truncated list cached by the failed call.
+			resolver.failOn = ""
+			instanceTypes, err := provider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(lo.SomeBy(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})).To(BeTrue(), "m5.large must be present once resolution succeeds")
+		})
+		It("should return the full instance type list when every instance type resolves", func() {
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+			expected, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(expected).ToNot(BeEmpty())
+
+			provider := newProviderWithFailingResolver(&failingResolver{
+				delegate: awsEnv.InstanceTypesResolver,
+				failOn:   "",
+			})
+			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := provider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).To(HaveLen(len(expected)), "a resolver that never fails must not drop any instance type")
 		})
 	})
 
@@ -3668,4 +3744,24 @@ func (r *fakeOfferingResolver) ResolveOfferings(
 		})
 	}
 	return offerings
+}
+
+// failingResolver is a test Resolver that fails to resolve a single named instance type, standing in for a
+// per-instance-type resolution failure such as a kubelet CEL expression that can't be evaluated. Every
+// other instance type is delegated to the real resolver so only the targeted failure is exercised.
+type failingResolver struct {
+	delegate    instancetype.Resolver
+	failOn      ec2types.InstanceType
+	failureText string
+}
+
+func (r *failingResolver) CacheKey(nodeClass instancetype.NodeClass) string {
+	return r.delegate.CacheKey(nodeClass)
+}
+
+func (r *failingResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass instancetype.NodeClass) (*corecloudprovider.InstanceType, error) {
+	if info.InstanceType == r.failOn {
+		return nil, fmt.Errorf("%s", r.failureText)
+	}
+	return r.delegate.Resolve(ctx, info, zones, nodeClass)
 }

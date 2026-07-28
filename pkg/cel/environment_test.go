@@ -15,6 +15,7 @@ limitations under the License.
 package cel_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -212,84 +213,111 @@ var _ = Describe("max and min overloads", func() {
 })
 
 var _ = Describe("ResolveResourceMap", func() {
-	vars := func() cel.InstanceTypeVars {
-		return cel.InstanceTypeVars{VCPUs: 2, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20, InstanceType: "m5.large"}
+	vars := func() (cel.InstanceTypeVars, error) {
+		return cel.InstanceTypeVars{VCPUs: 2, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20, InstanceType: "m5.large"}, nil
 	}
 	It("should pass through values that are already valid resource quantities", func() {
-		resolved := celEnv.ResolveResourceMap(map[string]string{"cpu": "100m", "memory": "256Mi"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "100m", "memory": "256Mi"}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "100m", "memory": "256Mi"}))
 	})
 	It("should evaluate an expression and replace it with its integer result", func() {
-		resolved := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus * 30"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus * 30"}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "60"}))
 	})
 	It("should drop entries whose expression evaluates to a negative value", func() {
-		resolved := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus - 100"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus - 100"}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).ToNot(HaveKey("cpu"))
 	})
 	It("should drop entries whose expression errors (e.g. division by zero)", func() {
-		resolved := celEnv.ResolveResourceMap(map[string]string{"cpu": "100 / (vcpus - vcpus)"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "100 / (vcpus - vcpus)"}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).ToNot(HaveKey("cpu"))
 	})
 	It("should keep valid entries while dropping invalid ones", func() {
-		resolved := celEnv.ResolveResourceMap(map[string]string{
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{
 			"good":     "vcpus * 30",
 			"negative": "vcpus - 100",
 			"literal":  "128Mi",
 		}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"good": "60", "literal": "128Mi"}))
 	})
 	It("should keep an entry that evaluates to zero (only negatives are dropped)", func() {
-		resolved := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus - vcpus"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus - vcpus"}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "0"}))
 	})
 	It("should truncate a double-returning expression to its integer string", func() {
 		// double(memory_mib) * 0.5 = 4096.0, truncated to "4096".
-		resolved := celEnv.ResolveResourceMap(map[string]string{"memory": "double(memory_mib) * 0.5"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"memory": "double(memory_mib) * 0.5"}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"memory": "4096"}))
 	})
 	It("should return an empty map unchanged without invoking varsFn", func() {
 		called := false
-		countingVars := func() cel.InstanceTypeVars {
+		countingVars := func() (cel.InstanceTypeVars, error) {
 			called = true
 			return vars()
 		}
-		resolved := celEnv.ResolveResourceMap(map[string]string{}, countingVars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{}, countingVars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(BeEmpty())
 		Expect(called).To(BeFalse())
 	})
 	It("should return a nil map unchanged without invoking varsFn", func() {
 		called := false
-		countingVars := func() cel.InstanceTypeVars {
+		countingVars := func() (cel.InstanceTypeVars, error) {
 			called = true
 			return vars()
 		}
-		resolved := celEnv.ResolveResourceMap(nil, countingVars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(nil, countingVars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(BeEmpty())
 		Expect(called).To(BeFalse())
 	})
 	It("should not invoke varsFn when the map contains only literal quantities", func() {
 		called := false
-		countingVars := func() cel.InstanceTypeVars {
+		countingVars := func() (cel.InstanceTypeVars, error) {
 			called = true
 			return vars()
 		}
-		resolved := celEnv.ResolveResourceMap(map[string]string{"cpu": "100m", "memory": "256Mi"}, countingVars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "100m", "memory": "256Mi"}, countingVars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "100m", "memory": "256Mi"}))
 		Expect(called).To(BeFalse(), "varsFn must not be built when there are no expressions to evaluate")
 	})
 	It("should invoke varsFn exactly once even with multiple expressions", func() {
 		callCount := 0
-		countingVars := func() cel.InstanceTypeVars {
+		countingVars := func() (cel.InstanceTypeVars, error) {
 			callCount++
 			return vars()
 		}
-		resolved := celEnv.ResolveResourceMap(map[string]string{
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{
 			"cpu":    "vcpus * 30",
 			"memory": "max_pods * 11",
 		}, countingVars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "60", "memory": "220"}))
 		Expect(callCount).To(Equal(1), "varsFn should be built at most once and reused across expressions")
+	})
+	It("should return the error when varsFn fails, without resolving any entries", func() {
+		failingVars := func() (cel.InstanceTypeVars, error) {
+			return cel.InstanceTypeVars{}, fmt.Errorf("instance type inputs unavailable")
+		}
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus * 30", "literal": "128Mi"}, failingVars, logr.Discard())
+		Expect(err).To(MatchError(ContainSubstring("instance type inputs unavailable")))
+		Expect(resolved).To(BeNil(), "a varsFn failure must not return a partially resolved map")
+	})
+	It("should not invoke varsFn (and so not fail) when there are no expressions to evaluate", func() {
+		failingVars := func() (cel.InstanceTypeVars, error) {
+			return cel.InstanceTypeVars{}, fmt.Errorf("instance type inputs unavailable")
+		}
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "100m"}, failingVars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
+		Expect(resolved).To(Equal(map[string]string{"cpu": "100m"}))
 	})
 })
 

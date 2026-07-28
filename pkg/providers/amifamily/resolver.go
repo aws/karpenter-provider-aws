@@ -194,7 +194,8 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 			reservationType          v1.CapacityReservationType
 			reservationInterruptible bool
 		}
-		paramsToInstanceTypes := lo.GroupBy(instanceTypes, func(it *cloudprovider.InstanceType) launchTemplateParams {
+		// paramsForInstanceType computes the launch template grouping key for an instance type.
+		paramsForInstanceType := func(it *cloudprovider.InstanceType) (launchTemplateParams, error) {
 			var reservationType v1.CapacityReservationType
 			var reservationInterruptible bool
 			var reservationIDs []string
@@ -219,9 +220,15 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 			// kubeReserved and systemReserved are resolved through the same shared CEL evaluation path
 			// (kubeletcel.ResolveResourceMap) against the same live-EC2-backed ENI lookup used by the
 			// scheduler, so the launch template configures exactly what the scheduler reserved.
-			celVars := func() kubeletcel.InstanceTypeVars { return celVarsFromInstanceType(it, r.eniLookup) }
-			resolvedKubeReserved := r.celEnv.ResolveResourceMap(kubeReserved, celVars, log.Log)
-			resolvedSystemReserved := r.celEnv.ResolveResourceMap(systemReserved, celVars, log.Log)
+			celVars := func() (kubeletcel.InstanceTypeVars, error) { return celVarsFromInstanceType(it, r.eniLookup) }
+			resolvedKubeReserved, err := r.celEnv.ResolveResourceMap(kubeReserved, celVars, log.Log)
+			if err != nil {
+				return launchTemplateParams{}, fmt.Errorf("resolving kubeReserved for instance type %s: %w", it.Name, err)
+			}
+			resolvedSystemReserved, err := r.celEnv.ResolveResourceMap(systemReserved, celVars, log.Log)
+			if err != nil {
+				return launchTemplateParams{}, fmt.Errorf("resolving systemReserved for instance type %s: %w", it.Name, err)
+			}
 			return launchTemplateParams{
 				efaCount: lo.Ternary(
 					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA),
@@ -237,8 +244,16 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 				reservationIDs:           strings.Join(reservationIDs, ","),
 				reservationType:          reservationType,
 				reservationInterruptible: reservationInterruptible,
+			}, nil
+		}
+		paramsToInstanceTypes := map[launchTemplateParams][]*cloudprovider.InstanceType{}
+		for _, it := range instanceTypes {
+			params, err := paramsForInstanceType(it)
+			if err != nil {
+				return nil, err
 			}
-		})
+			paramsToInstanceTypes[params] = append(paramsToInstanceTypes[params], it)
+		}
 
 		for params, instanceTypes := range paramsToInstanceTypes {
 			reservationIDs := strings.Split(params.reservationIDs, ",")
@@ -426,19 +441,23 @@ func isRestrictedLabel(label string) bool {
 }
 
 // celVarsFromInstanceType builds CEL evaluation variables from a cloudprovider.InstanceType
-// using its requirements (CPU, memory labels) and an ENI lookup function.
-func celVarsFromInstanceType(it *cloudprovider.InstanceType, eniLookup ENILookup) kubeletcel.InstanceTypeVars {
-	vcpus := int64(0)
-	if req := it.Requirements.Get(v1.LabelInstanceCPU); req != nil {
-		if val, err := strconv.ParseInt(req.Any(), 10, 64); err == nil {
-			vcpus = val
-		}
+// using its requirements (CPU, memory labels) and an ENI lookup function. 
+func celVarsFromInstanceType(it *cloudprovider.InstanceType, eniLookup ENILookup) (kubeletcel.InstanceTypeVars, error) {
+	req := it.Requirements.Get(v1.LabelInstanceCPU)
+	if req == nil {
+		return kubeletcel.InstanceTypeVars{}, fmt.Errorf("instance type %s is missing the %s label required for CEL evaluation", it.Name, v1.LabelInstanceCPU)
 	}
-	memoryMiB := int64(0)
-	if req := it.Requirements.Get(v1.LabelInstanceMemory); req != nil {
-		if val, err := strconv.ParseInt(req.Any(), 10, 64); err == nil {
-			memoryMiB = val
-		}
+	vcpus, err := strconv.ParseInt(req.Any(), 10, 64)
+	if err != nil {
+		return kubeletcel.InstanceTypeVars{}, fmt.Errorf("parsing %s label %q for instance type %s: %w", v1.LabelInstanceCPU, req.Any(), it.Name, err)
+	}
+	req = it.Requirements.Get(v1.LabelInstanceMemory)
+	if req == nil {
+		return kubeletcel.InstanceTypeVars{}, fmt.Errorf("instance type %s is missing the %s label required for CEL evaluation", it.Name, v1.LabelInstanceMemory)
+	}
+	memoryMiB, err := strconv.ParseInt(req.Any(), 10, 64)
+	if err != nil {
+		return kubeletcel.InstanceTypeVars{}, fmt.Errorf("parsing %s label %q for instance type %s: %w", v1.LabelInstanceMemory, req.Any(), it.Name, err)
 	}
 	defaultENIs := int64(0)
 	ipsPerENI := int64(0)
@@ -456,7 +475,7 @@ func celVarsFromInstanceType(it *cloudprovider.InstanceType, eniLookup ENILookup
 		IPsPerENI:    ipsPerENI,
 		MaxPods:      maxPods,
 		InstanceType: it.Name,
-	}
+	}, nil
 }
 
 // serializeResourceMap converts a resource map to a sorted, comparable string representation.

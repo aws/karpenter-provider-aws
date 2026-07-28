@@ -240,12 +240,13 @@ func (c *CELEnvironment) ValidateExpression(expression string) error {
 // dropped (and logged).
 //
 // varsFn is called at most once, and only when the map actually contains an expression, so callers
-// can defer expensive variable construction. This is the single evaluation path shared by both the
-// scheduler (reserved-capacity overhead) and the launch template resolver so that identical inputs
-// always produce identical results.
-func (c *CELEnvironment) ResolveResourceMap(resourceMap map[string]string, varsFn func() InstanceTypeVars, log logr.Logger) map[string]string {
+// can defer expensive variable construction. If varsFn returns an error (e.g. the instance type's
+// inputs couldn't be resolved), it is returned to the caller so the failure can be surfaced up the
+// call chain. This is the single evaluation path shared by both the scheduler (reserved-capacity overhead) 
+// and the launch template resolver so that identical inputs always produce identical results.
+func (c *CELEnvironment) ResolveResourceMap(resourceMap map[string]string, varsFn func() (InstanceTypeVars, error), log logr.Logger) (map[string]string, error) {
 	if len(resourceMap) == 0 {
-		return resourceMap
+		return resourceMap, nil
 	}
 	var vars InstanceTypeVars
 	varsBuilt := false
@@ -256,7 +257,10 @@ func (c *CELEnvironment) ResolveResourceMap(resourceMap map[string]string, varsF
 			continue
 		}
 		if !varsBuilt {
-			vars = varsFn()
+			var err error
+			if vars, err = varsFn(); err != nil {
+				return nil, err
+			}
 			varsBuilt = true
 		}
 		result, err := c.EvaluateExpression(v, vars)
@@ -271,5 +275,5 @@ func (c *CELEnvironment) ResolveResourceMap(resourceMap map[string]string, varsF
 		}
 		resolved[k] = fmt.Sprint(result)
 	}
-	return resolved
+	return resolved, nil
 }
