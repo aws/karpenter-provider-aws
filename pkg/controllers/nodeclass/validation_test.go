@@ -15,6 +15,7 @@ limitations under the License.
 package nodeclass_test
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -46,6 +47,7 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
@@ -268,6 +270,9 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				ExpectApplied(ctx, env.Client, nodeClass)
 				err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
 				Expect(err).To(HaveOccurred())
+				// A genuine evaluation failure is unfixable without a spec change, so it must be terminal
+				// (no requeue). This also guards the transient-cache carve-out from over-matching.
+				Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
 				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonKubeletExpressionEvalFailed))
@@ -292,6 +297,28 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
+		It("should requeue instead of marking the NodeClass invalid when the instance-type cache is transiently empty", func() {
+			// Simulate the instance-type cache not yet being hydrated (e.g. before the first UpdateInstanceTypes
+			// refresh completes on startup). A valid expression should not be terminally failed in this case.
+			reconciler := nodeclass.NewValidationReconciler(env.Clock, env.Client, cloudProvider, awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache, awsEnv.CELEnvironment, options.FromContext(ctx).DisableDryRun)
+			for _, cond := range []string{
+				v1.ConditionTypeAMIsReady,
+				v1.ConditionTypeInstanceProfileReady,
+				v1.ConditionTypeSecurityGroupsReady,
+				v1.ConditionTypeSubnetsReady,
+			} {
+				nodeClass.StatusConditions().SetTrue(cond)
+			}
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				MaxPods: lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
+			}
+			awsEnv.InstanceTypesProvider.Reset()
+			result, err := reconciler.Reconcile(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			//nolint:staticcheck
+			Expect(result.Requeue).To(BeTrue())
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonKubeletExpressionEvalFailed))
 		})
 	})
 	Context("Authorization Validation", func() {

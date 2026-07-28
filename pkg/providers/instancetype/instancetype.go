@@ -16,6 +16,7 @@ package instancetype
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -54,6 +55,9 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
+
+// ErrInstanceTypesNotHydrated is returned when the instance-type cache is empty. 
+var ErrInstanceTypesNotHydrated = errors.New("no instance types found")
 
 type NodeClass interface {
 	client.Object
@@ -284,7 +288,7 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	defer p.muInstanceTypesInfo.RUnlock()
 
 	if len(p.instanceTypesInfo) == 0 {
-		return fmt.Errorf("no instance types found")
+		return ErrInstanceTypesNotHydrated
 	}
 	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 	for _, info := range p.instanceTypesInfo {
