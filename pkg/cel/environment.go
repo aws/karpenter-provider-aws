@@ -31,6 +31,21 @@ import (
 const (
 	compiledExpressionTTL             = 12 * time.Hour
 	compiledExpressionCleanupInterval = 1 * time.Hour
+
+	// cpuRoundingMilliCores and memoryRoundingMiB are the granularities that cpu and memory expression
+	// results are rounded up to.
+	//
+	// These are set to the granularity users already write these values at -- 10m of CPU and 16Mi of
+	// memory -- so the adjustment stays within the noise of a hand-written reservation: the worst case is
+	// +9m of CPU and +15Mi of memory, and the relative cost shrinks as the reservation grows.
+	//
+	// Rounding is always up, so a reservation is never smaller than the expression asked for.
+	// Under-reserving risks node instability, whereas over-reserving by these amounts does not. Note that
+	// how much rounding actually collapses depends on how far apart an expression's results are: formulas
+	// whose results step by more than the granularity (e.g. "vcpus * 30", which steps by 30m) are
+	// unaffected, while ones with finer steps (e.g. "70 + vcpus") collapse substantially.
+	cpuRoundingMilliCores = 10
+	memoryRoundingMiB     = 16
 )
 
 // InstanceTypeVars holds the variables available to CEL expressions for kubelet configuration.
@@ -297,28 +312,44 @@ func (c *CELEnvironment) ResolveResourceMap(resourceMap map[string]string, varsF
 // cpu is millicores ("480m"): without the suffix, resource.ParseQuantity reads a bare integer as whole
 // cores, so "max(60, vcpus * 30)" would reserve 480 *cores*, and a sub-core reservation would be
 // inexpressible (the fractional value needed would truncate to 0 on the double -> int64 conversion in
-// EvaluateExpression).
+// EvaluateExpression). Results are rounded up to cpuRoundingMilliCores.
 //
 // memory is mebibytes ("630Mi"), matching both the Mi quantities users write for this field and
-// memory_mib's own unit, so that "memory_mib / 100" means 1% of node memory with no scale factor. MiB
-// granularity costs at most ~1MiB against a byte-exact result (0.011% of node memory on the smallest
-// instance types, less on larger ones, and nothing at all for power-of-two divisors), which is immaterial
-// next to the 100Mi eviction threshold it sits beside.
+// memory_mib's own unit, so that "memory_mib / 100" means 1% of node memory with no scale factor. Results
+// are rounded up to memoryRoundingMiB, which subsumes the sub-MiB truncation that the double -> int64
+// conversion already performs.
 //
 // ephemeral-storage is gibibytes ("3Gi"), the unit its static quantities and Karpenter's own 1Gi default
 // use. Note that this makes GiB the granularity floor: a sub-GiB reservation is not expressible, which
-// suits the whole-GiB values this field takes in practice but is coarser than memory's.
+// suits the whole-GiB values this field takes in practice but is coarser than memory's. It is not rounded
+// further, since GiB is already coarse enough that any additional bucket would multiply the reservation
+// rather than nudge it.
 //
-// pid is a unitless process count and is emitted bare.
+// pid is a unitless process count and is emitted bare. It isn't rounded: a process count has no natural
+// granularity to round to, and unlike cpu/memory it doesn't consume a divisible node resource.
 func formatResourceResult(key string, result int64) string {
 	switch key {
 	case string(corev1.ResourceCPU):
-		return fmt.Sprintf("%dm", result)
+		return fmt.Sprintf("%dm", roundUpTo(result, cpuRoundingMilliCores))
 	case string(corev1.ResourceMemory):
-		return fmt.Sprintf("%dMi", result)
+		return fmt.Sprintf("%dMi", roundUpTo(result, memoryRoundingMiB))
 	case string(corev1.ResourceEphemeralStorage):
 		return fmt.Sprintf("%dGi", result)
 	default:
 		return fmt.Sprint(result)
 	}
+}
+
+// roundUpTo rounds value up to the next multiple of granularity, leaving exact multiples (including zero)
+// untouched. Values within granularity of math.MaxInt64 are returned unrounded rather than overflowed into
+// a negative quantity; such a value is nonsensical as a reservation either way, but it must not silently
+// become negative, since ResolveResourceMap has already passed its non-negative check by this point.
+func roundUpTo(value, granularity int64) int64 {
+	if granularity <= 1 || value <= 0 || value%granularity == 0 {
+		return value
+	}
+	if value > math.MaxInt64-granularity {
+		return value
+	}
+	return ((value / granularity) + 1) * granularity
 }

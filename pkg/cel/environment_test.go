@@ -257,32 +257,105 @@ var _ = Describe("ResolveResourceMap", func() {
 		}, vars, logr.Discard())
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{
-			"memory":            "220Mi",
+			// 20 * 11 = 220, rounded up to the next multiple of 16.
+			"memory": "224Mi",
+			// ephemeral-storage is already whole GiB, so it is not rounded further.
 			"ephemeral-storage": "2Gi",
-			"pid":               "200",
+			// pid is a process count with no natural granularity, so it is not rounded.
+			"pid": "200",
 		}))
 		mem, err := resource.ParseQuantity(resolved["memory"])
 		Expect(err).ToNot(HaveOccurred())
-		Expect(mem.Value()).To(Equal(int64(220 * 1048576)))
+		Expect(mem.Value()).To(Equal(int64(224 * 1048576)))
 		storage, err := resource.ParseQuantity(resolved["ephemeral-storage"])
 		Expect(err).ToNot(HaveOccurred())
 		Expect(storage.Value()).To(Equal(int64(2 * 1073741824)))
 	})
 	It("should express a percentage of node memory without a byte scale factor", func() {
-		// memory_mib / 100 is 1% of node memory. On m5.large (8192 MiB) that is 81Mi: the exact value is
-		// 81.92Mi, so MiB granularity loses 0.92Mi -- 0.011% of the node's memory.
+		// memory_mib / 100 is 1% of node memory. On m5.large (8192 MiB) the exact value is 81.92Mi, which
+		// truncates to 81Mi and then rounds up to 96Mi. The 14Mi of over-reservation is 0.18% of the
+		// node's memory, and shrinks in relative terms as instance size grows.
 		resolved, err := celEnv.ResolveResourceMap(map[string]string{"memory": "memory_mib / 100"}, vars, logr.Discard())
 		Expect(err).ToNot(HaveOccurred())
-		Expect(resolved).To(Equal(map[string]string{"memory": "81Mi"}))
+		Expect(resolved).To(Equal(map[string]string{"memory": "96Mi"}))
 	})
 	It("should be exact for power-of-two divisors of node memory", func() {
-		// memory_mib / 64 divides evenly, so MiB granularity costs nothing: 8192/64 = 128Mi exactly.
+		// memory_mib / 64 divides evenly and 128 is already a multiple of 16, so neither MiB granularity
+		// nor rounding costs anything: 8192/64 = 128Mi exactly.
 		resolved, err := celEnv.ResolveResourceMap(map[string]string{"memory": "memory_mib / 64"}, vars, logr.Discard())
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"memory": "128Mi"}))
 		q, err := resource.ParseQuantity(resolved["memory"])
 		Expect(err).ToNot(HaveOccurred())
 		Expect(q.Value()).To(Equal(int64(8192) * 1048576 / 64))
+	})
+	It("should round a cpu result up to the next 10m", func() {
+		// 70 + vcpus = 72, which is not a multiple of 10.
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "70 + vcpus"}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
+		Expect(resolved).To(Equal(map[string]string{"cpu": "80m"}))
+	})
+	It("should leave a cpu result that is already a multiple of 10m unchanged", func() {
+		// vcpus * 30 = 60, already a multiple of 10, so rounding is a no-op. Expressions whose results
+		// step by more than the granularity are unaffected by rounding entirely.
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus * 30"}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
+		Expect(resolved).To(Equal(map[string]string{"cpu": "60m"}))
+	})
+	It("should round up rather than down, so a reservation is never smaller than requested", func() {
+		// 60 + vcpus - 1 = 61m, which must not become 60m: under-reserving risks node instability, so
+		// rounding is always upward.
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "60 + vcpus - 1"}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
+		Expect(resolved).To(Equal(map[string]string{"cpu": "70m"}))
+		q, err := resource.ParseQuantity(resolved["cpu"])
+		Expect(err).ToNot(HaveOccurred())
+		Expect(q.MilliValue()).To(BeNumerically(">=", 61))
+	})
+	It("should collapse cpu results that differ by less than the rounding granularity", func() {
+		// This is the mechanism by which rounding reduces launch templates: two instance types whose
+		// expressions yield 71m and 78m resolve to the same 80m, so they share a launch template.
+		low, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "70 + vcpus - 1"}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
+		high, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "80 - vcpus"}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
+		Expect(low["cpu"]).To(Equal(high["cpu"]))
+		Expect(low["cpu"]).To(Equal("80m"))
+	})
+	It("should round a memory result up to the next 16Mi", func() {
+		// max_pods + vcpus = 22, which rounds up to 32.
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"memory": "max_pods + vcpus"}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
+		Expect(resolved).To(Equal(map[string]string{"memory": "32Mi"}))
+	})
+	It("should not round a zero result up to the granularity", func() {
+		// A zero reservation is meaningful (reserve nothing) and must not become 10m or 16Mi.
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{
+			"cpu":    "vcpus - vcpus",
+			"memory": "vcpus - vcpus",
+		}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
+		Expect(resolved).To(Equal(map[string]string{"cpu": "0m", "memory": "0Mi"}))
+	})
+	It("should not round pid or ephemeral-storage", func() {
+		// pid has no natural granularity and ephemeral-storage is already whole GiB. 70 + vcpus - 1 = 71
+		// and vcpus + 1 = 3, neither of which is a multiple of 10 or 16.
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{
+			"pid":               "70 + vcpus - 1",
+			"ephemeral-storage": "vcpus + 1",
+		}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
+		Expect(resolved).To(Equal(map[string]string{"pid": "71", "ephemeral-storage": "3Gi"}))
+	})
+	It("should not overflow into a negative quantity when rounding a near-max result", func() {
+		// int64 max is not a sensible reservation, but rounding it must not wrap it negative: the
+		// non-negative check in ResolveResourceMap has already run by the time formatting happens.
+		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "9223372036854775807 - vcpus + 2"}, vars, logr.Discard())
+		Expect(err).ToNot(HaveOccurred())
+		Expect(resolved).To(HaveKey("cpu"))
+		q, err := resource.ParseQuantity(resolved["cpu"])
+		Expect(err).ToNot(HaveOccurred())
+		Expect(q.MilliValue()).To(BeNumerically(">", 0), "rounding must not wrap a near-max value negative")
 	})
 	It("should drop entries whose expression evaluates to a negative value", func() {
 		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus - 100"}, vars, logr.Discard())
@@ -358,7 +431,7 @@ var _ = Describe("ResolveResourceMap", func() {
 			"memory": "max_pods * 11",
 		}, countingVars, logr.Discard())
 		Expect(err).ToNot(HaveOccurred())
-		Expect(resolved).To(Equal(map[string]string{"cpu": "60m", "memory": "220Mi"}))
+		Expect(resolved).To(Equal(map[string]string{"cpu": "60m", "memory": "224Mi"}))
 		Expect(callCount).To(Equal(1), "varsFn should be built at most once and reused across expressions")
 	})
 	It("should return the error when varsFn fails, without resolving any entries", func() {
