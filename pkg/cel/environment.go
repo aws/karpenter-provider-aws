@@ -197,14 +197,14 @@ type CompiledExpression struct {
 func (c *CELEnvironment) compileCached(expression string) (*CompiledExpression, error) {
 	if cached, ok := c.compiledCache.Get(expression); ok {
 		// Refresh the TTL so a live expression isn't evicted out from under active use.
-		c.compiledCache.Set(expression, cached, cache.DefaultExpiration)
+		c.compiledCache.SetDefault(expression, cached)
 		return cached.(*CompiledExpression), nil
 	}
 	compiled, err := c.Compile(expression)
 	if err != nil {
 		return nil, err
 	}
-	c.compiledCache.Set(expression, compiled, cache.DefaultExpiration)
+	c.compiledCache.SetDefault(expression, compiled)
 	return compiled, nil
 }
 
