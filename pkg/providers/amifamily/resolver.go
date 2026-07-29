@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -50,7 +49,7 @@ var DefaultEBS = v1.BlockDevice{
 }
 
 type Resolver interface {
-	Resolve(*v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, string, *Options, string, int32) ([]*LaunchTemplate, error)
+	Resolve(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, string, *Options, string, int32) ([]*LaunchTemplate, error)
 }
 
 // ENILimits holds ENI networking limits for an instance type.
@@ -163,7 +162,7 @@ func NewDefaultResolver(region string, eniLookup ENILookup, celEnv *kubeletcel.C
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 //
 //nolint:gocyclo
-func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options, placementGroupID string, placementGroupPartition int32) ([]*LaunchTemplate, error) {
+func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options, placementGroupID string, placementGroupPartition int32) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.AMIFamily(), options)
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
@@ -221,11 +220,11 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 			// (kubeletcel.ResolveResourceMap) against the same live-EC2-backed ENI lookup used by the
 			// scheduler, so the launch template configures exactly what the scheduler reserved.
 			celVars := func() (kubeletcel.InstanceTypeVars, error) { return celVarsFromInstanceType(it, r.eniLookup) }
-			resolvedKubeReserved, err := r.celEnv.ResolveResourceMap(kubeReserved, celVars, log.Log)
+			resolvedKubeReserved, err := r.celEnv.ResolveResourceMap(ctx, kubeReserved, celVars)
 			if err != nil {
 				return launchTemplateParams{}, fmt.Errorf("resolving kubeReserved for instance type %s: %w", it.Name, err)
 			}
-			resolvedSystemReserved, err := r.celEnv.ResolveResourceMap(systemReserved, celVars, log.Log)
+			resolvedSystemReserved, err := r.celEnv.ResolveResourceMap(ctx, systemReserved, celVars)
 			if err != nil {
 				return launchTemplateParams{}, fmt.Errorf("resolving systemReserved for instance type %s: %w", it.Name, err)
 			}

@@ -216,9 +216,9 @@ func resolveMaxPods(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info
 // Values that parse as valid Kubernetes resource quantities are left as-is.
 // Values that fail to parse as quantities are evaluated as CEL expressions.
 func resolveResourceExpressions(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info ec2types.InstanceTypeInfo, resourceMap map[string]string, amiFamily amifamily.AMIFamily, maxPods, podsPerCore *int32, networkInterfaces []*v1.NetworkInterface) (map[string]string, error) {
-	return celEnv.ResolveResourceMap(resourceMap, func() (kubeletcel.InstanceTypeVars, error) {
+	return celEnv.ResolveResourceMap(ctx, resourceMap, func() (kubeletcel.InstanceTypeVars, error) {
 		return buildCELVars(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces), nil
-	}, log.FromContext(ctx))
+	})
 }
 
 // extractENILimits pulls the default ENI count and IPv4-addresses-per-ENI from the live EC2

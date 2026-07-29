@@ -15,17 +15,18 @@ limitations under the License.
 package cel
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/types"
 	"github.com/google/cel-go/common/types/ref"
 	"github.com/patrickmn/go-cache"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -271,7 +272,7 @@ func (c *CELEnvironment) ValidateExpression(expression string) error {
 // inputs couldn't be resolved), it is returned to the caller so the failure can be surfaced up the
 // call chain. This is the single evaluation path shared by both the scheduler (reserved-capacity overhead)
 // and the launch template resolver so that identical inputs always produce identical results.
-func (c *CELEnvironment) ResolveResourceMap(resourceMap map[string]string, varsFn func() (InstanceTypeVars, error), log logr.Logger) (map[string]string, error) {
+func (c *CELEnvironment) ResolveResourceMap(ctx context.Context, resourceMap map[string]string, varsFn func() (InstanceTypeVars, error)) (map[string]string, error) {
 	if len(resourceMap) == 0 {
 		return resourceMap, nil
 	}
@@ -292,12 +293,12 @@ func (c *CELEnvironment) ResolveResourceMap(resourceMap map[string]string, varsF
 		}
 		result, err := c.EvaluateExpression(v, vars)
 		if err != nil {
-			log.Error(err, "failed to evaluate kubelet resource expression", "key", k, "expression", v, "instanceType", vars.InstanceType,
+			log.FromContext(ctx).Error(err, "failed to evaluate kubelet resource expression", "key", k, "expression", v, "instanceType", vars.InstanceType,
 				"vcpus", vars.VCPUs, "memory_mib", vars.MemoryMiB, "default_enis", vars.DefaultENIs, "ips_per_eni", vars.IPsPerENI, "max_pods", vars.MaxPods)
 			continue
 		}
 		if result < 0 {
-			log.Error(fmt.Errorf("result %d is negative", result), "kubelet resource expression evaluated to an invalid value", "key", k, "expression", v, "instanceType", vars.InstanceType)
+			log.FromContext(ctx).Error(fmt.Errorf("result %d is negative", result), "kubelet resource expression evaluated to an invalid value", "key", k, "expression", v, "instanceType", vars.InstanceType)
 			continue
 		}
 		resolved[k] = formatResourceResult(k, result)

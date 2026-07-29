@@ -15,6 +15,7 @@ limitations under the License.
 package cel_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -22,12 +23,17 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/aws/karpenter-provider-aws/pkg/cel"
 )
 
 // celEnv is the shared CEL environment under test, constructed once for the suite.
 var celEnv *cel.CELEnvironment
+
+// ctx carries a discarding logger so the dropped-entry diagnostics ResolveResourceMap emits stay out of
+// the test output.
+var ctx context.Context
 
 func TestCel(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -36,6 +42,7 @@ func TestCel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("building CEL environment: %v", err)
 	}
+	ctx = log.IntoContext(context.Background(), logr.Discard())
 	RunSpecs(t, "CEL Suite")
 }
 
@@ -218,20 +225,20 @@ var _ = Describe("ResolveResourceMap", func() {
 		return cel.InstanceTypeVars{VCPUs: 2, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20, InstanceType: "m5.large"}, nil
 	}
 	It("should pass through values that are already valid resource quantities", func() {
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "100m", "memory": "256Mi"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "100m", "memory": "256Mi"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "100m", "memory": "256Mi"}))
 	})
 	It("should evaluate an expression and replace it with its integer result", func() {
 		// cpu results are millicores, so they carry an "m" suffix.
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus * 30"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "vcpus * 30"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "60m"}))
 	})
 	It("should suffix a cpu result with m so it is interpreted as millicores", func() {
 		// Without the suffix, "480" would parse as 480 whole cores rather than 480m, driving allocatable
 		// CPU to zero on the node.
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "max(60, vcpus * 30)"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "max(60, vcpus * 30)"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "60m"}))
 		q, err := resource.ParseQuantity(resolved["cpu"])
@@ -239,7 +246,7 @@ var _ = Describe("ResolveResourceMap", func() {
 		Expect(q.MilliValue()).To(Equal(int64(60)))
 	})
 	It("should allow a sub-core cpu reservation to be expressed", func() {
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus * 250"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "vcpus * 250"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "500m"}))
 		q, err := resource.ParseQuantity(resolved["cpu"])
@@ -250,11 +257,11 @@ var _ = Describe("ResolveResourceMap", func() {
 	It("should suffix memory with Mi and ephemeral-storage with Gi, leaving pid bare", func() {
 		// Each key uses the unit its static quantities use: Mi for memory, Gi for ephemeral-storage.
 		// pid is a unitless process count.
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{
 			"memory":            "max_pods * 11",
 			"ephemeral-storage": "1 + 1",
 			"pid":               "max_pods * 10",
-		}, vars, logr.Discard())
+		}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{
 			// 20 * 11 = 220, rounded up to the next multiple of 16.
@@ -275,14 +282,14 @@ var _ = Describe("ResolveResourceMap", func() {
 		// memory_mib / 100 is 1% of node memory. On m5.large (8192 MiB) the exact value is 81.92Mi, which
 		// truncates to 81Mi and then rounds up to 96Mi. The 14Mi of over-reservation is 0.18% of the
 		// node's memory, and shrinks in relative terms as instance size grows.
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"memory": "memory_mib / 100"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"memory": "memory_mib / 100"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"memory": "96Mi"}))
 	})
 	It("should be exact for power-of-two divisors of node memory", func() {
 		// memory_mib / 64 divides evenly and 128 is already a multiple of 16, so neither MiB granularity
 		// nor rounding costs anything: 8192/64 = 128Mi exactly.
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"memory": "memory_mib / 64"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"memory": "memory_mib / 64"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"memory": "128Mi"}))
 		q, err := resource.ParseQuantity(resolved["memory"])
@@ -291,21 +298,21 @@ var _ = Describe("ResolveResourceMap", func() {
 	})
 	It("should round a cpu result up to the next 10m", func() {
 		// 70 + vcpus = 72, which is not a multiple of 10.
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "70 + vcpus"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "70 + vcpus"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "80m"}))
 	})
 	It("should leave a cpu result that is already a multiple of 10m unchanged", func() {
 		// vcpus * 30 = 60, already a multiple of 10, so rounding is a no-op. Expressions whose results
 		// step by more than the granularity are unaffected by rounding entirely.
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus * 30"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "vcpus * 30"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "60m"}))
 	})
 	It("should round up rather than down, so a reservation is never smaller than requested", func() {
 		// 60 + vcpus - 1 = 61m, which must not become 60m: under-reserving risks node instability, so
 		// rounding is always upward.
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "60 + vcpus - 1"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "60 + vcpus - 1"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "70m"}))
 		q, err := resource.ParseQuantity(resolved["cpu"])
@@ -315,42 +322,42 @@ var _ = Describe("ResolveResourceMap", func() {
 	It("should collapse cpu results that differ by less than the rounding granularity", func() {
 		// This is the mechanism by which rounding reduces launch templates: two instance types whose
 		// expressions yield 71m and 78m resolve to the same 80m, so they share a launch template.
-		low, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "70 + vcpus - 1"}, vars, logr.Discard())
+		low, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "70 + vcpus - 1"}, vars)
 		Expect(err).ToNot(HaveOccurred())
-		high, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "80 - vcpus"}, vars, logr.Discard())
+		high, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "80 - vcpus"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(low["cpu"]).To(Equal(high["cpu"]))
 		Expect(low["cpu"]).To(Equal("80m"))
 	})
 	It("should round a memory result up to the next 16Mi", func() {
 		// max_pods + vcpus = 22, which rounds up to 32.
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"memory": "max_pods + vcpus"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"memory": "max_pods + vcpus"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"memory": "32Mi"}))
 	})
 	It("should not round a zero result up to the granularity", func() {
 		// A zero reservation is meaningful (reserve nothing) and must not become 10m or 16Mi.
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{
 			"cpu":    "vcpus - vcpus",
 			"memory": "vcpus - vcpus",
-		}, vars, logr.Discard())
+		}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "0m", "memory": "0Mi"}))
 	})
 	It("should not round pid or ephemeral-storage", func() {
 		// pid has no natural granularity and ephemeral-storage is already whole GiB. 70 + vcpus - 1 = 71
 		// and vcpus + 1 = 3, neither of which is a multiple of 10 or 16.
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{
 			"pid":               "70 + vcpus - 1",
 			"ephemeral-storage": "vcpus + 1",
-		}, vars, logr.Discard())
+		}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"pid": "71", "ephemeral-storage": "3Gi"}))
 	})
 	It("should not overflow into a negative quantity when rounding a near-max result", func() {
 		// int64 max is not a sensible reservation, but rounding it must not wrap it negative: the
 		// non-negative check in ResolveResourceMap has already run by the time formatting happens.
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "9223372036854775807 - vcpus + 2"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "9223372036854775807 - vcpus + 2"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(HaveKey("cpu"))
 		q, err := resource.ParseQuantity(resolved["cpu"])
@@ -358,32 +365,32 @@ var _ = Describe("ResolveResourceMap", func() {
 		Expect(q.MilliValue()).To(BeNumerically(">", 0), "rounding must not wrap a near-max value negative")
 	})
 	It("should drop entries whose expression evaluates to a negative value", func() {
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus - 100"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "vcpus - 100"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).ToNot(HaveKey("cpu"))
 	})
 	It("should drop entries whose expression errors (e.g. division by zero)", func() {
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "100 / (vcpus - vcpus)"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "100 / (vcpus - vcpus)"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).ToNot(HaveKey("cpu"))
 	})
 	It("should keep valid entries while dropping invalid ones", func() {
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{
 			"good":     "vcpus * 30",
 			"negative": "vcpus - 100",
 			"literal":  "128Mi",
-		}, vars, logr.Discard())
+		}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"good": "60", "literal": "128Mi"}))
 	})
 	It("should keep an entry that evaluates to zero (only negatives are dropped)", func() {
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus - vcpus"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "vcpus - vcpus"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "0m"}))
 	})
 	It("should truncate a double-returning expression to its integer string", func() {
 		// double(memory_mib) * 0.5 = 4096.0, truncated to "4096".
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"memory": "double(memory_mib) * 0.5"}, vars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"memory": "double(memory_mib) * 0.5"}, vars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"memory": "4096Mi"}))
 	})
@@ -393,7 +400,7 @@ var _ = Describe("ResolveResourceMap", func() {
 			called = true
 			return vars()
 		}
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{}, countingVars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{}, countingVars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(BeEmpty())
 		Expect(called).To(BeFalse())
@@ -404,7 +411,7 @@ var _ = Describe("ResolveResourceMap", func() {
 			called = true
 			return vars()
 		}
-		resolved, err := celEnv.ResolveResourceMap(nil, countingVars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, nil, countingVars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(BeEmpty())
 		Expect(called).To(BeFalse())
@@ -415,7 +422,7 @@ var _ = Describe("ResolveResourceMap", func() {
 			called = true
 			return vars()
 		}
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "100m", "memory": "256Mi"}, countingVars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "100m", "memory": "256Mi"}, countingVars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "100m", "memory": "256Mi"}))
 		Expect(called).To(BeFalse(), "varsFn must not be built when there are no expressions to evaluate")
@@ -426,10 +433,10 @@ var _ = Describe("ResolveResourceMap", func() {
 			callCount++
 			return vars()
 		}
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{
 			"cpu":    "vcpus * 30",
 			"memory": "max_pods * 11",
-		}, countingVars, logr.Discard())
+		}, countingVars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "60m", "memory": "224Mi"}))
 		Expect(callCount).To(Equal(1), "varsFn should be built at most once and reused across expressions")
@@ -438,7 +445,7 @@ var _ = Describe("ResolveResourceMap", func() {
 		failingVars := func() (cel.InstanceTypeVars, error) {
 			return cel.InstanceTypeVars{}, fmt.Errorf("instance type inputs unavailable")
 		}
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "vcpus * 30", "literal": "128Mi"}, failingVars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "vcpus * 30", "literal": "128Mi"}, failingVars)
 		Expect(err).To(MatchError(ContainSubstring("instance type inputs unavailable")))
 		Expect(resolved).To(BeNil(), "a varsFn failure must not return a partially resolved map")
 	})
@@ -446,7 +453,7 @@ var _ = Describe("ResolveResourceMap", func() {
 		failingVars := func() (cel.InstanceTypeVars, error) {
 			return cel.InstanceTypeVars{}, fmt.Errorf("instance type inputs unavailable")
 		}
-		resolved, err := celEnv.ResolveResourceMap(map[string]string{"cpu": "100m"}, failingVars, logr.Discard())
+		resolved, err := celEnv.ResolveResourceMap(ctx, map[string]string{"cpu": "100m"}, failingVars)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resolved).To(Equal(map[string]string{"cpu": "100m"}))
 	})
