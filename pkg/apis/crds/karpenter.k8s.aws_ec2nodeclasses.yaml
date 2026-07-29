@@ -468,6 +468,9 @@ spec:
                         When set to a string, it is evaluated as a CEL expression per instance type with
                         access to: vcpus, memory_mib, default_enis, ips_per_eni, max_pods, instance_type.
                       x-kubernetes-int-or-string: true
+                      x-kubernetes-validations:
+                        - message: maxPods must be a non-negative integer when set to an integer
+                          rule: type(self) != int || self >= 0
                     podsPerCore:
                       description: |-
                         PodsPerCore is an override for the number of pods that can run on a worker node

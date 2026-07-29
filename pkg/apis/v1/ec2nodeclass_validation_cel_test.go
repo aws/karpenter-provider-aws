@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
@@ -787,6 +788,24 @@ var _ = Describe("CEL/Validation", func() {
 		)
 	})
 	Context("Kubelet", func() {
+		It("should succeed on a non-negative integer maxPods", func() {
+			nc.Spec.Kubelet = &v1.KubeletConfiguration{
+				MaxPods: lo.ToPtr(intstr.FromInt32(110)),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail on a negative integer maxPods", func() {
+			nc.Spec.Kubelet = &v1.KubeletConfiguration{
+				MaxPods: lo.ToPtr(intstr.FromInt32(-1)),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should succeed on a string maxPods expression", func() {
+			nc.Spec.Kubelet = &v1.KubeletConfiguration{
+				MaxPods: lo.ToPtr(intstr.FromString("vcpus * 10")),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
 		It("should fail on kubeReserved with invalid keys", func() {
 			nc.Spec.Kubelet = &v1.KubeletConfiguration{
 				KubeReserved: map[string]string{
