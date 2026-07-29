@@ -284,7 +284,7 @@ type KubeletConfiguration struct {
 	// MaxPods is an override for the maximum number of pods that can run on
 	// a worker node instance. When set to an integer, it is used as a static value.
 	// When set to a string, it is evaluated as a CEL expression per instance type with
-	// access to: vcpus, memory_mib, default_enis, ips_per_eni, max_pods.
+	// access to: vcpus, memory_mib, default_enis, ips_per_eni, max_pods, instance_type.
 	// +kubebuilder:validation:XIntOrString
 	// +optional
 	MaxPods *intstr.IntOrString `json:"maxPods,omitempty"`
@@ -295,11 +295,17 @@ type KubeletConfiguration struct {
 	// +optional
 	PodsPerCore *int32 `json:"podsPerCore,omitempty"`
 	// SystemReserved contains resources reserved for OS system daemons and kernel memory.
+	// Values may be static resource quantities (e.g. "100Mi") or CEL expressions evaluated per
+	// instance type. An expression returns a bare number in the unit that key's static quantities
+	// use: millicores for cpu, MiB for memory, GiB for ephemeral-storage, and a plain count for pid.
 	// +kubebuilder:validation:XValidation:message="valid keys for systemReserved are ['cpu','memory','ephemeral-storage','pid']",rule="self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')"
 	// +kubebuilder:validation:XValidation:message="systemReserved value cannot be a negative resource quantity",rule="self.all(x, !self[x].startsWith('-'))"
 	// +optional
 	SystemReserved map[string]string `json:"systemReserved,omitempty"`
 	// KubeReserved contains resources reserved for Kubernetes system components.
+	// Values may be static resource quantities (e.g. "100Mi") or CEL expressions evaluated per
+	// instance type. An expression returns a bare number in the unit that key's static quantities
+	// use: millicores for cpu, MiB for memory, GiB for ephemeral-storage, and a plain count for pid.
 	// +kubebuilder:validation:XValidation:message="valid keys for kubeReserved are ['cpu','memory','ephemeral-storage','pid']",rule="self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')"
 	// +kubebuilder:validation:XValidation:message="kubeReserved value cannot be a negative resource quantity",rule="self.all(x, !self[x].startsWith('-'))"
 	// +optional

@@ -56,7 +56,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
-// ErrInstanceTypesNotHydrated is returned when the instance-type cache is empty. 
+// ErrInstanceTypesNotHydrated is returned when the instance-type cache is empty.
 var ErrInstanceTypesNotHydrated = errors.New("no instance types found")
 
 type NodeClass interface {

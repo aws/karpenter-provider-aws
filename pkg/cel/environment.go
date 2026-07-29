@@ -24,6 +24,7 @@ import (
 	"github.com/google/cel-go/common/types"
 	"github.com/google/cel-go/common/types/ref"
 	"github.com/patrickmn/go-cache"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -284,7 +285,40 @@ func (c *CELEnvironment) ResolveResourceMap(resourceMap map[string]string, varsF
 			log.Error(fmt.Errorf("result %d is negative", result), "kubelet resource expression evaluated to an invalid value", "key", k, "expression", v, "instanceType", vars.InstanceType)
 			continue
 		}
-		resolved[k] = fmt.Sprint(result)
+		resolved[k] = formatResourceResult(k, result)
 	}
 	return resolved, nil
+}
+
+// formatResourceResult renders an expression's integer result as a Kubernetes resource quantity, attaching
+// the unit suffix implied by the resource key. Expressions are written in the same units users already use
+// for the static quantities in this field, so a formula reads like the value it replaces.
+//
+// cpu is millicores ("480m"): without the suffix, resource.ParseQuantity reads a bare integer as whole
+// cores, so "max(60, vcpus * 30)" would reserve 480 *cores*, and a sub-core reservation would be
+// inexpressible (the fractional value needed would truncate to 0 on the double -> int64 conversion in
+// EvaluateExpression).
+//
+// memory is mebibytes ("630Mi"), matching both the Mi quantities users write for this field and
+// memory_mib's own unit, so that "memory_mib / 100" means 1% of node memory with no scale factor. MiB
+// granularity costs at most ~1MiB against a byte-exact result (0.011% of node memory on the smallest
+// instance types, less on larger ones, and nothing at all for power-of-two divisors), which is immaterial
+// next to the 100Mi eviction threshold it sits beside.
+//
+// ephemeral-storage is gibibytes ("3Gi"), the unit its static quantities and Karpenter's own 1Gi default
+// use. Note that this makes GiB the granularity floor: a sub-GiB reservation is not expressible, which
+// suits the whole-GiB values this field takes in practice but is coarser than memory's.
+//
+// pid is a unitless process count and is emitted bare.
+func formatResourceResult(key string, result int64) string {
+	switch key {
+	case string(corev1.ResourceCPU):
+		return fmt.Sprintf("%dm", result)
+	case string(corev1.ResourceMemory):
+		return fmt.Sprintf("%dMi", result)
+	case string(corev1.ResourceEphemeralStorage):
+		return fmt.Sprintf("%dGi", result)
+	default:
+		return fmt.Sprint(result)
+	}
 }

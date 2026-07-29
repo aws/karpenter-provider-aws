@@ -290,8 +290,8 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		It("should succeed validation when all kubelet expressions are valid", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				MaxPods:        lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
-				KubeReserved:   map[string]string{"cpu": "max(60, vcpus * 30) * 1000000"},
-				SystemReserved: map[string]string{"memory": "max_pods * 11 * 1048576"},
+				KubeReserved:   map[string]string{"cpu": "max(60, vcpus * 30)"},
+				SystemReserved: map[string]string{"memory": "max_pods * 11"},
 			}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
