@@ -21,6 +21,7 @@ helm upgrade --install karpenter "${CHART}" \
   --set settings.featureGates.reservedCapacity=true \
   --set settings.featureGates.nodeOverlay=true \
   --set settings.featureGates.staticCapacity=true \
+  --set settings.featureGates.capacityBuffer=true \
   --set controller.resources.requests.cpu=5 \
   --set controller.resources.requests.memory=3Gi \
   --set controller.resources.limits.cpu=5 \

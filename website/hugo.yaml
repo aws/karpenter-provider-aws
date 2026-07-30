@@ -35,6 +35,32 @@ blackfriday:
   hrefTargetBlank: true
   angledQuotes: false
   latexDashes: true
+outputFormats:
+  md:
+    mediaType: text/markdown
+    baseName: index
+    isPlainText: true
+    isHTML: false
+    permalinkable: true
+  llms:
+    mediaType: text/plain
+    baseName: llms
+    isPlainText: true
+    isHTML: false
+    rel: alternate
+    root: true
+outputs:
+  home:
+    - HTML
+    - RSS
+    - llms
+  page:
+    - HTML
+    - md
+  section:
+    - HTML
+    - RSS
+    - md
 markup:
   goldmark:
     renderer:
@@ -50,6 +76,10 @@ params:
   github_repo: "https://github.com/aws/karpenter-provider-aws"
   github_subdir: website
   github_branch: main
+  # Canonical production host, used to build absolute URLs in llms.txt (the
+  # site's baseURL is "/", which yields root-relative links an LLM can't
+  # resolve). Deploy previews override baseURL and are preferred when absolute.
+  llms_base_url: "https://karpenter.sh"
   images:
     - banner.png
   version_menu: Releases
@@ -76,12 +106,12 @@ params:
         url: "https://slack.k8s.io/"
         icon: fab fa-slack
         desc: "Chat with us on Slack in the #aws-provider channel"
-  latest_release_version: "1.13.0"
+  latest_release_version: "1.14.0"
   latest_k8s_version: "1.36"
   versions:
+    - v1.14
     - v1.13
     - v1.12
-    - v1.11
     - v1.0
     - preview
 menu:

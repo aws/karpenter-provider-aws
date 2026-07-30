@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	autoscalingv1alpha1 "sigs.k8s.io/karpenter/pkg/apis/autoscaling/v1alpha1"
+	autoscalingv1beta1 "sigs.k8s.io/karpenter/pkg/apis/autoscaling/v1beta1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	"sigs.k8s.io/karpenter/pkg/test"
@@ -55,7 +55,7 @@ var (
 		&appsv1.Deployment{},
 		&appsv1.StatefulSet{},
 		// autoscaling.x-k8s.io
-		&autoscalingv1alpha1.CapacityBuffer{},
+		&autoscalingv1beta1.CapacityBuffer{},
 		// core
 		&corev1.LimitRange{},
 		&corev1.Node{},

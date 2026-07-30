@@ -36,6 +36,7 @@ func init() {
 		LabelCapacityReservationInterruptible,
 		LabelInstanceHypervisor,
 		LabelInstanceEncryptionInTransitSupported,
+		LabelInstanceNitroEnclavesSupported,
 		LabelInstanceCategory,
 		LabelInstanceCapabilityFlex,
 		LabelInstanceFamily,
@@ -138,13 +139,14 @@ var (
 	ResourceAWSPodENI          corev1.ResourceName = "vpc.amazonaws.com/pod-eni"
 	ResourcePrivateIPv4Address corev1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
 	ResourceEFA                corev1.ResourceName = "vpc.amazonaws.com/efa"
-	ResourceNIPSlots           corev1.ResourceName = "eks.amazonaws.com/nip-slots"
+	ResourceNitroSandbox       corev1.ResourceName = "eks.amazonaws.com/nitro-sandbox"
 
 	LabelCapacityReservationID                = apis.Group + "/capacity-reservation-id"
 	LabelCapacityReservationType              = apis.Group + "/capacity-reservation-type"
 	LabelCapacityReservationInterruptible     = apis.Group + "/capacity-reservation-interruptible"
 	LabelInstanceHypervisor                   = apis.Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = apis.Group + "/instance-encryption-in-transit-supported"
+	LabelInstanceNitroEnclavesSupported       = apis.Group + "/nitro-sandbox"
 	LabelInstanceCategory                     = apis.Group + "/instance-category"
 	LabelInstanceCapabilityFlex               = apis.Group + "/instance-capability-flex"
 	LabelInstanceFamily                       = apis.Group + "/instance-family"

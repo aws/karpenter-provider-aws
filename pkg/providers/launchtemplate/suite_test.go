@@ -51,6 +51,7 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -106,7 +107,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock)
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -369,6 +370,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Effect:   "NoSchedule",
 			}
 
+			// Force each pod onto its own node via hostname anti-affinity so that a multi-GPU
+			// instance type can't pack both pods together
+			antiAffinityLabels := map[string]string{"test-group": "equivalent-constraints"}
+			antiAffinity := []corev1.PodAffinityTerm{{
+				LabelSelector: &metav1.LabelSelector{MatchLabels: antiAffinityLabels},
+				TopologyKey:   corev1.LabelHostname,
+			}}
 			// constrain the packer to a single launch template type
 			rr := corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
@@ -380,7 +388,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{
+				ObjectMeta:           metav1.ObjectMeta{Labels: antiAffinityLabels},
 				Tolerations:          []corev1.Toleration{t1, t2, t3},
+				PodAntiRequirements:  antiAffinity,
 				ResourceRequirements: rr,
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1)
@@ -393,7 +403,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 
 			pod2 := coretest.UnschedulablePod(coretest.PodOptions{
+				ObjectMeta:           metav1.ObjectMeta{Labels: antiAffinityLabels},
 				Tolerations:          []corev1.Toleration{t2, t3, t1},
+				PodAntiRequirements:  antiAffinity,
 				ResourceRequirements: rr,
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod2)
@@ -2431,16 +2443,16 @@ eviction-max-pod-grace-period = 10
 				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeFalse())
 			})
 		})
-		It("should enable enclave options when nip-slots is in the nodeclaim's resource requests", func() {
+		It("should enable enclave options when nitro-sandbox is in the nodeclaim's resource requests", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 
-			// Build a NodeClaim with nip-slots already in Spec.Resources.Requests,
+			// Build a NodeClaim with nitro-sandbox already in Spec.Resources.Requests,
 			// simulating what the scheduler sets when pods request that resource
 			nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
 				Spec: karpv1.NodeClaimSpec{
 					Resources: karpv1.ResourceRequirements{
 						Requests: corev1.ResourceList{
-							v1.ResourceNIPSlots: resource.MustParse("1"),
+							v1.ResourceNitroSandbox: resource.MustParse("1"),
 						},
 					},
 					NodeClassRef: &karpv1.NodeClassReference{

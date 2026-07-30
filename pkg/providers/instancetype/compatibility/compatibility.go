@@ -110,15 +110,9 @@ func (c networkInterfaceCheck) compatibleCheck(info ec2types.InstanceTypeInfo) b
 		// (4) the configured secondary IP count exceeds instance type capacity.
 		// Only one of SecondaryIPPrefixCount and SecondaryIPCount can be configured.
 		secondaryIPsConfigured := max(lo.FromPtrOr(networkInterface.SecondaryIPPrefixCount, int32(0)), lo.FromPtrOr(networkInterface.SecondaryIPCount, int32(0)))
-		if secondaryIPsConfigured > 0 {
-			totalAddressesConsumed := secondaryIPsConfigured
-			// For the primary ENI, account for the node IP which consumes one address slot
-			if networkInterface.NetworkCardIndex == 0 && networkInterface.DeviceIndex == 0 {
-				totalAddressesConsumed++
-			}
-			if totalAddressesConsumed > lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface) {
-				return false
-			}
+		// Account for the primary IP which consumes one address slot
+		if secondaryIPsConfigured > 0 && secondaryIPsConfigured+1 > lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface) {
+			return false
 		}
 	}
 	// (5) the configured number of EFA-only interfaces is greater than what the instance type offers
