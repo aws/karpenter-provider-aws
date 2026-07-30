@@ -376,119 +376,446 @@ spec:
                   minimum: 0
                   type: integer
                 kubelet:
-                  description: |-
-                    Kubelet defines args to be used when configuring kubelet on provisioned nodes.
-                    They are a subset of the upstream types, recognizing not all options may be supported.
-                    Wherever possible, the types and names should reflect the upstream kubelet types.
                   properties:
-                    clusterDNS:
-                      description: |-
-                        clusterDNS is a list of IP addresses for the cluster DNS server.
-                        Note that not all providers may use all addresses.
+                    address:
+                      type: string
+                    allowedUnsafeSysctls:
                       items:
                         type: string
                       type: array
-                    cpuCFSQuota:
-                      description: CPUCFSQuota enables CPU CFS quota enforcement for containers that specify CPU limits.
+                    authentication:
+                      properties:
+                        anonymous:
+                          properties:
+                            enabled:
+                              type: boolean
+                          type: object
+                        webhook:
+                          properties:
+                            cacheTTL:
+                              type: string
+                            enabled:
+                              type: boolean
+                          type: object
+                        x509:
+                          properties:
+                            clientCAFile:
+                              type: string
+                          type: object
+                      type: object
+                    authorization:
+                      properties:
+                        mode:
+                          type: string
+                        webhook:
+                          properties:
+                            cacheAuthorizedTTL:
+                              type: string
+                            cacheUnauthorizedTTL:
+                              type: string
+                          type: object
+                      type: object
+                    cgroupDriver:
+                      type: string
+                    cgroupRoot:
+                      type: string
+                    cgroupsPerQOS:
                       type: boolean
+                    clusterDNS:
+                      items:
+                        type: string
+                      type: array
+                    clusterDomain:
+                      type: string
+                    configMapAndSecretChangeDetectionStrategy:
+                      type: string
+                    containerLogMaxFiles:
+                      format: int32
+                      type: integer
+                    containerLogMaxSize:
+                      type: string
+                    containerLogMaxWorkers:
+                      format: int32
+                      type: integer
+                    containerLogMonitorInterval:
+                      type: string
+                    containerRuntimeEndpoint:
+                      type: string
+                    contentType:
+                      type: string
+                    cpuCFSQuota:
+                      type: boolean
+                    cpuCFSQuotaPeriod:
+                      type: string
+                    cpuManagerPolicy:
+                      type: string
+                    cpuManagerPolicyOptions:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    cpuManagerReconcilePeriod:
+                      type: string
+                    crashLoopBackOff:
+                      properties:
+                        maxContainerRestartPeriod:
+                          type: string
+                      type: object
+                    enableContentionProfiling:
+                      type: boolean
+                    enableControllerAttachDetach:
+                      type: boolean
+                    enableDebugFlagsHandler:
+                      type: boolean
+                    enableDebuggingHandlers:
+                      type: boolean
+                    enableProfilingHandler:
+                      type: boolean
+                    enableServer:
+                      type: boolean
+                    enableSystemLogHandler:
+                      type: boolean
+                    enableSystemLogQuery:
+                      type: boolean
+                    enforceNodeAllocatable:
+                      items:
+                        type: string
+                      type: array
+                    eventBurst:
+                      format: int32
+                      type: integer
+                    eventRecordQPS:
+                      format: int32
+                      type: integer
                     evictionHard:
                       additionalProperties:
                         type: string
                         pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%||(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
-                      description: EvictionHard is the map of signal names to quantities that define hard eviction thresholds
                       type: object
                       x-kubernetes-validations:
                         - message: valid keys for evictionHard are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
                           rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
+                      maxProperties: 6
                     evictionMaxPodGracePeriod:
-                      description: |-
-                        EvictionMaxPodGracePeriod is the maximum allowed grace period (in seconds) to use when terminating pods in
-                        response to soft eviction thresholds being met.
                       format: int32
                       type: integer
+                      minimum: 0
+                    evictionMinimumReclaim:
+                      additionalProperties:
+                        type: string
+                        pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%||(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
+                      type: object
+                      x-kubernetes-validations:
+                        - message: valid keys for evictionMinimumReclaim are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
+                          rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
+                      maxProperties: 6
+                    evictionPressureTransitionPeriod:
+                      type: string
                     evictionSoft:
                       additionalProperties:
                         type: string
                         pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%||(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
-                      description: EvictionSoft is the map of signal names to quantities that define soft eviction thresholds
                       type: object
                       x-kubernetes-validations:
                         - message: valid keys for evictionSoft are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
                           rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
+                      maxProperties: 6
                     evictionSoftGracePeriod:
                       additionalProperties:
                         type: string
-                      description: EvictionSoftGracePeriod is the map of signal names to quantities that define grace periods for each eviction signal
                       type: object
                       x-kubernetes-validations:
                         - message: valid keys for evictionSoftGracePeriod are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
                           rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
-                    imageGCHighThresholdPercent:
-                      description: |-
-                        ImageGCHighThresholdPercent is the percent of disk usage after which image
-                        garbage collection is always run. The percent is calculated by dividing this
-                        field value by 100, so this field must be between 0 and 100, inclusive.
-                        When specified, the value must be greater than ImageGCLowThresholdPercent.
+                      maxProperties: 6
+                    failCgroupV1:
+                      type: boolean
+                    failSwapOn:
+                      type: boolean
+                    featureGates:
+                      additionalProperties:
+                        type: boolean
+                      type: object
+                    fileCheckFrequency:
+                      type: string
+                    hairpinMode:
+                      type: string
+                    healthzBindAddress:
+                      type: string
+                    healthzPort:
                       format: int32
-                      maximum: 100
-                      minimum: 0
                       type: integer
-                    imageGCLowThresholdPercent:
-                      description: |-
-                        ImageGCLowThresholdPercent is the percent of disk usage before which image
-                        garbage collection is never run. Lowest disk usage to garbage collect to.
-                        The percent is calculated by dividing this field value by 100,
-                        so the field value must be between 0 and 100, inclusive.
-                        When specified, the value must be less than imageGCHighThresholdPercent
+                    httpCheckFrequency:
+                      type: string
+                    imageGCHighThresholdPercent:
                       format: int32
-                      maximum: 100
+                      type: integer
                       minimum: 0
+                      maximum: 100
+                    imageGCLowThresholdPercent:
+                      format: int32
+                      type: integer
+                      minimum: 0
+                      maximum: 100
+                    imageMaximumGCAge:
+                      type: string
+                    imageMinimumGCAge:
+                      type: string
+                    imagePullCredentialsVerificationPolicy:
+                      type: string
+                    imageServiceEndpoint:
+                      type: string
+                    iptablesDropBit:
+                      format: int32
+                      type: integer
+                    iptablesMasqueradeBit:
+                      format: int32
+                      type: integer
+                    kernelMemcgNotification:
+                      type: boolean
+                    kubeAPIBurst:
+                      format: int32
+                      type: integer
+                    kubeAPIQPS:
+                      format: int32
                       type: integer
                     kubeReserved:
                       additionalProperties:
                         type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      description: KubeReserved contains resources reserved for Kubernetes system components.
                       type: object
                       x-kubernetes-validations:
                         - message: valid keys for kubeReserved are ['cpu','memory','ephemeral-storage','pid']
                           rule: self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')
                         - message: kubeReserved value cannot be a negative resource quantity
                           rule: self.all(x, !self[x].startsWith('-'))
-                    maxPods:
-                      description: |-
-                        MaxPods is an override for the maximum number of pods that can run on
-                        a worker node instance.
+                    kubeReservedCgroup:
+                      type: string
+                    kubeletCgroups:
+                      type: string
+                    localStorageCapacityIsolation:
+                      type: boolean
+                    logging:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    makeIPTablesUtilChains:
+                      type: boolean
+                    maxOpenFiles:
+                      format: int64
+                      type: integer
+                    maxParallelImagePulls:
                       format: int32
-                      minimum: 0
+                      type: integer
+                    maxPods:
+                      anyOf:
+                        - type: integer
+                        - type: string
+                      x-kubernetes-int-or-string: true
+                      x-kubernetes-validations:
+                        - message: maxPods must be a non-negative integer when set to an integer
+                          rule: type(self) != int || self >= 0
+                    memoryManagerPolicy:
+                      type: string
+                    memorySwap:
+                      properties:
+                        swapBehavior:
+                          type: string
+                      type: object
+                    memoryThrottlingFactor:
+                      type: number
+                    mergeDefaultEvictionSettings:
+                      type: boolean
+                    nodeLeaseDurationSeconds:
+                      format: int32
+                      type: integer
+                    nodeStatusMaxImages:
+                      format: int32
+                      type: integer
+                    nodeStatusReportFrequency:
+                      type: string
+                    nodeStatusUpdateFrequency:
+                      type: string
+                    oomScoreAdj:
+                      format: int32
+                      type: integer
+                    podCIDR:
+                      type: string
+                    podLogsDir:
+                      type: string
+                    podPidsLimit:
+                      format: int64
                       type: integer
                     podsPerCore:
-                      description: |-
-                        PodsPerCore is an override for the number of pods that can run on a worker node
-                        instance based on the number of cpu cores. This value cannot exceed MaxPods, so, if
-                        MaxPods is a lower value, that value will be used.
                       format: int32
-                      minimum: 0
                       type: integer
+                      minimum: 0
+                    port:
+                      format: int32
+                      type: integer
+                    preloadedImagesVerificationAllowlist:
+                      items:
+                        type: string
+                      type: array
+                    protectKernelDefaults:
+                      type: boolean
+                    providerID:
+                      type: string
+                    qosReserved:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    readOnlyPort:
+                      format: int32
+                      type: integer
+                    registerNode:
+                      type: boolean
+                    registerWithTaints:
+                      items:
+                        properties:
+                          effect:
+                            type: string
+                          key:
+                            type: string
+                          timeAdded:
+                            format: date-time
+                            type: string
+                          value:
+                            type: string
+                        type: object
+                      type: array
+                    registryBurst:
+                      format: int32
+                      type: integer
+                    registryPullQPS:
+                      format: int32
+                      type: integer
+                    reservedMemory:
+                      items:
+                        properties:
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                                - type: integer
+                                - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            type: object
+                          numaNode:
+                            format: int32
+                            type: integer
+                        type: object
+                      type: array
+                    reservedSystemCPUs:
+                      type: string
+                    resolvConf:
+                      type: string
+                    rotateCertificates:
+                      type: boolean
+                    runOnce:
+                      type: boolean
+                    runtimeRequestTimeout:
+                      type: string
+                    seccompDefault:
+                      type: boolean
+                    serializeImagePulls:
+                      type: boolean
+                    serverTLSBootstrap:
+                      type: boolean
+                    showHiddenMetricsForVersion:
+                      type: string
+                    shutdownGracePeriod:
+                      type: string
+                    shutdownGracePeriodByPodPriority:
+                      items:
+                        properties:
+                          priority:
+                            format: int32
+                            type: integer
+                          shutdownGracePeriodSeconds:
+                            format: int64
+                            type: integer
+                        type: object
+                      type: array
+                    shutdownGracePeriodCriticalPods:
+                      type: string
+                    singleProcessOOMKill:
+                      type: boolean
+                    staticPodPath:
+                      type: string
+                    staticPodURL:
+                      type: string
+                    staticPodURLHeader:
+                      additionalProperties:
+                        items:
+                          type: string
+                        type: array
+                      type: object
+                    streamingConnectionIdleTimeout:
+                      type: string
+                    syncFrequency:
+                      type: string
+                    systemCgroups:
+                      type: string
                     systemReserved:
                       additionalProperties:
                         type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      description: SystemReserved contains resources reserved for OS system daemons and kernel memory.
                       type: object
                       x-kubernetes-validations:
                         - message: valid keys for systemReserved are ['cpu','memory','ephemeral-storage','pid']
                           rule: self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')
                         - message: systemReserved value cannot be a negative resource quantity
                           rule: self.all(x, !self[x].startsWith('-'))
+                    systemReservedCgroup:
+                      type: string
+                    tlsCertFile:
+                      type: string
+                    tlsCipherSuites:
+                      items:
+                        type: string
+                      type: array
+                    tlsMinVersion:
+                      type: string
+                    tlsPrivateKeyFile:
+                      type: string
+                    topologyManagerPolicy:
+                      type: string
+                    topologyManagerPolicyOptions:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    topologyManagerScope:
+                      type: string
+                    tracing:
+                      properties:
+                        endpoint:
+                          type: string
+                        samplingRatePerMillion:
+                          format: int32
+                          type: integer
+                      type: object
+                    userNamespaces:
+                      properties:
+                        idsPerPod:
+                          format: int64
+                          type: integer
+                      type: object
+                    volumePluginDir:
+                      type: string
+                    volumeStatsAggPeriod:
+                      type: string
                   type: object
+                  description: |-
+                    Kubelet configures the kubelet on provisioned nodes. Any field of the upstream
+                    KubeletConfiguration for the Kubernetes version Karpenter was built against may be set;
+                    see the k8s.io/kubelet version in go.mod for the exact set.
+                    Karpenter reads the fields relevant to scheduling (maxPods, podsPerCore, kubeReserved,
+                    systemReserved, evictionHard) and passes all others through to UserData unchanged.
+                    Field names and types are validated by the API server on apply.
                   x-kubernetes-validations:
+                    - message: every evictionSoft key must have a matching evictionSoftGracePeriod
+                      rule: 'has(self.evictionSoft) ? self.evictionSoft.all(e, (e in self.?evictionSoftGracePeriod.orValue({}))) : true'
+                    - message: every evictionSoftGracePeriod key must have a matching evictionSoft
+                      rule: 'has(self.evictionSoftGracePeriod) ? self.evictionSoftGracePeriod.all(e, (e in self.?evictionSoft.orValue({}))) : true'
                     - message: imageGCHighThresholdPercent must be greater than imageGCLowThresholdPercent
-                      rule: 'has(self.imageGCHighThresholdPercent) && has(self.imageGCLowThresholdPercent) ?  self.imageGCHighThresholdPercent > self.imageGCLowThresholdPercent  : true'
-                    - message: evictionSoft OwnerKey does not have a matching evictionSoftGracePeriod
-                      rule: has(self.evictionSoft) ? self.evictionSoft.all(e, (e in self.evictionSoftGracePeriod)):true
-                    - message: evictionSoftGracePeriod OwnerKey does not have a matching evictionSoft
-                      rule: has(self.evictionSoftGracePeriod) ? self.evictionSoftGracePeriod.all(e, (e in self.evictionSoft)):true
+                      rule: '(has(self.imageGCHighThresholdPercent) && has(self.imageGCLowThresholdPercent)) ? self.imageGCHighThresholdPercent > self.imageGCLowThresholdPercent : true'
                 metadataOptions:
                   default:
                     httpEndpoint: enabled

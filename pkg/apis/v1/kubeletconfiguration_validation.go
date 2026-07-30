@@ -17,187 +17,67 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
-	"net"
-	"reflect"
-	"strings"
-	"time"
+	"maps"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/sets"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
+
+	// sigs.k8s.io/json reports unknown fields as errors rather than ignoring them, which
+	// encoding/json can't do.
+	sigsjson "sigs.k8s.io/json"
 )
 
-// knownKubeletFields is derived at init time from the upstream KubeletConfiguration struct
-// so it stays in sync with the Kubernetes version Karpenter depends on.
-var knownKubeletFields = initKnownKubeletFields()
-
-func initKnownKubeletFields() sets.Set[string] {
-	s := sets.New[string]()
-	t := reflect.TypeOf(kubeletconfigv1beta1.KubeletConfiguration{})
-	for i := range t.NumField() {
-		field := t.Field(i)
-		jsonTag := field.Tag.Get("json")
-		if jsonTag == "" || jsonTag == "-" {
-			continue
-		}
-		name := strings.Split(jsonTag, ",")[0]
-		if name != "" {
-			s.Insert(name)
-		}
-	}
-	return s
-}
-
-var validEvictionSignals = sets.New(
-	"memory.available",
-	"nodefs.available",
-	"nodefs.inodesFree",
-	"imagefs.available",
-	"imagefs.inodesFree",
-	"pid.available",
-)
-
-var validReservedResourceKeys = sets.New(
-	"cpu",
-	"memory",
-	"ephemeral-storage",
-	"pid",
-)
-
-// ValidateKubeletConfig validates the unstructured kubelet configuration map.
-// It checks field names against the upstream kubelet schema (derived via reflection)
-// and validates known fields for correct types and values.
+// ValidateKubeletConfig catches invalid kubelet configuration that the CRD schema structurally
+// cannot reject.
+//
+// The EC2NodeClass CRD carries a typed schema for spec.kubelet generated from the k8s.io/kubelet
+// version in go.mod (see hack/code/kubeletschema_gen), so the API server enforces types and the
+// CEL rules for every client. Unknown fields are handled differently depending on where they sit
+// and how the request was made:
+//
+//   - A top-level unknown field is rejected at apply time when the client requests Strict field
+//     validation (kubectl, Helm, and Argo all do), and silently pruned when it doesn't. Pruning
+//     happens before persistence, so by the time this function reads spec.kubelet back from the
+//     cluster the field is already gone -- this is NOT the case being backstopped, because there
+//     is nothing left to detect.
+//
+//   - A field nested inside a subtree the generated schema marks
+//     x-kubernetes-preserve-unknown-fields (`logging` is the one such subtree today, because its
+//     upstream type is opaque) is accepted and persisted no matter what the client asks for:
+//     preserve-unknown-fields suppresses both pruning and the Strict unknown-field check.
+//
+// The second case is what this exists for. Decoding the persisted config against the upstream
+// struct surfaces those fields as a status condition instead of leaving a typo the user believes
+// is in effect but that the kubelet will never honor.
 func ValidateKubeletConfig(kc KubeletConfiguration) []error {
 	if len(kc) == 0 {
 		return nil
 	}
-
-	var errs []error
-
-	// Validate all field names are known upstream kubelet fields
-	for key := range kc {
-		if !knownKubeletFields.Has(key) {
-			errs = append(errs, fmt.Errorf("spec.kubelet.%s: unrecognized kubelet configuration field", key))
-		}
+	// Fields that may hold a CEL expression are checked against the upstream type with a
+	// placeholder standing in for the expression. Upstream types maxPods as int32, so an
+	// expression string would fail to decode and mask every other field in the same document.
+	// Only the shape matters here; the expression itself is validated where it's evaluated.
+	if maxPods, ok := kc["maxPods"]; ok && isJSONString(maxPods) {
+		kc = maps.Clone(kc)
+		kc["maxPods"] = JSONValue(0)
 	}
-
-	// Parse and validate scheduling-relevant and known passthrough fields
-	parsed, err := ParseKubeletConfig(kc)
+	data, err := json.Marshal(kc)
 	if err != nil {
-		errs = append(errs, err)
-		return errs
+		return []error{fmt.Errorf("spec.kubelet: %w", err)}
 	}
-
-	if parsed.MaxPods != nil && *parsed.MaxPods < 0 {
-		errs = append(errs, fmt.Errorf("spec.kubelet.maxPods: must be a non-negative integer"))
+	strictErrs, err := sigsjson.UnmarshalStrict(data, &kubeletconfigv1beta1.KubeletConfiguration{})
+	if err != nil {
+		return []error{fmt.Errorf("spec.kubelet: %w", err)}
 	}
-	if parsed.PodsPerCore != nil && *parsed.PodsPerCore < 0 {
-		errs = append(errs, fmt.Errorf("spec.kubelet.podsPerCore: must be a non-negative integer"))
-	}
-
-	errs = append(errs, validateReservedResources("kubeReserved", parsed.KubeReserved)...)
-	errs = append(errs, validateReservedResources("systemReserved", parsed.SystemReserved)...)
-	errs = append(errs, validateEvictionMap("evictionHard", parsed.EvictionHard)...)
-	errs = append(errs, validateEvictionMap("evictionSoft", parsed.EvictionSoft)...)
-
-	// Validate evictionSoftGracePeriod keys and durations
-	if parsed.EvictionSoftGracePeriod != nil {
-		for key := range parsed.EvictionSoftGracePeriod {
-			if !validEvictionSignals.Has(key) {
-				errs = append(errs, fmt.Errorf("spec.kubelet.evictionSoftGracePeriod: invalid eviction signal %q", key))
-			}
-		}
-	}
-
-	// Validate evictionSoft and evictionSoftGracePeriod are matched
-	if parsed.EvictionSoft != nil {
-		for key := range parsed.EvictionSoft {
-			if parsed.EvictionSoftGracePeriod == nil {
-				errs = append(errs, fmt.Errorf("spec.kubelet.evictionSoft: key %q does not have a matching evictionSoftGracePeriod", key))
-				break
-			}
-			if _, ok := parsed.EvictionSoftGracePeriod[key]; !ok {
-				errs = append(errs, fmt.Errorf("spec.kubelet.evictionSoft: key %q does not have a matching evictionSoftGracePeriod", key))
-			}
-		}
-	}
-	if parsed.EvictionSoftGracePeriod != nil {
-		for key := range parsed.EvictionSoftGracePeriod {
-			if parsed.EvictionSoft == nil {
-				errs = append(errs, fmt.Errorf("spec.kubelet.evictionSoftGracePeriod: key %q does not have a matching evictionSoft", key))
-				break
-			}
-			if _, ok := parsed.EvictionSoft[key]; !ok {
-				errs = append(errs, fmt.Errorf("spec.kubelet.evictionSoftGracePeriod: key %q does not have a matching evictionSoft", key))
-			}
-		}
-	}
-
-	if parsed.EvictionMaxPodGracePeriod != nil && *parsed.EvictionMaxPodGracePeriod < 0 {
-		errs = append(errs, fmt.Errorf("spec.kubelet.evictionMaxPodGracePeriod: must be a non-negative integer"))
-	}
-
-	// Validate imageGC thresholds
-	if parsed.ImageGCHighThresholdPercent != nil {
-		if *parsed.ImageGCHighThresholdPercent < 0 || *parsed.ImageGCHighThresholdPercent > 100 {
-			errs = append(errs, fmt.Errorf("spec.kubelet.imageGCHighThresholdPercent: must be between 0 and 100"))
-		}
-	}
-	if parsed.ImageGCLowThresholdPercent != nil {
-		if *parsed.ImageGCLowThresholdPercent < 0 || *parsed.ImageGCLowThresholdPercent > 100 {
-			errs = append(errs, fmt.Errorf("spec.kubelet.imageGCLowThresholdPercent: must be between 0 and 100"))
-		}
-	}
-	if parsed.ImageGCHighThresholdPercent != nil && parsed.ImageGCLowThresholdPercent != nil {
-		if *parsed.ImageGCHighThresholdPercent <= *parsed.ImageGCLowThresholdPercent {
-			errs = append(errs, fmt.Errorf("spec.kubelet.imageGCHighThresholdPercent: must be greater than imageGCLowThresholdPercent"))
-		}
-	}
-
-	// Validate clusterDNS
-	for _, ip := range parsed.ClusterDNS {
-		if net.ParseIP(ip) == nil {
-			errs = append(errs, fmt.Errorf("spec.kubelet.clusterDNS: %q is not a valid IP address", ip))
-		}
-	}
-
-	// Validate evictionSoftGracePeriod duration values from raw input
-	if v, ok := kc["evictionSoftGracePeriod"]; ok {
-		raw := map[string]string{}
-		if unmarshalErr := json.Unmarshal(v.Raw, &raw); unmarshalErr == nil {
-			for key, durStr := range raw {
-				if _, parseErr := time.ParseDuration(durStr); parseErr != nil {
-					errs = append(errs, fmt.Errorf("spec.kubelet.evictionSoftGracePeriod: invalid duration %q for key %q", durStr, key))
-				}
-			}
-		}
-	}
-
-	return errs
-}
-
-func validateReservedResources(field string, m map[string]string) []error {
-	var errs []error
-	for key, val := range m {
-		if !validReservedResourceKeys.Has(key) {
-			errs = append(errs, fmt.Errorf("spec.kubelet.%s: invalid key %q, valid keys are [cpu, memory, ephemeral-storage, pid]", field, key))
-		}
-		if _, err := resource.ParseQuantity(val); err != nil {
-			errs = append(errs, fmt.Errorf("spec.kubelet.%s: invalid resource quantity %q for key %q", field, val, key))
-		}
-		if strings.HasPrefix(val, "-") {
-			errs = append(errs, fmt.Errorf("spec.kubelet.%s: value for key %q cannot be negative", field, key))
-		}
+	errs := make([]error, 0, len(strictErrs))
+	for _, strictErr := range strictErrs {
+		errs = append(errs, fmt.Errorf("spec.kubelet: %w", strictErr))
 	}
 	return errs
 }
 
-func validateEvictionMap(field string, m map[string]string) []error {
-	var errs []error
-	for key := range m {
-		if !validEvictionSignals.Has(key) {
-			errs = append(errs, fmt.Errorf("spec.kubelet.%s: invalid eviction signal %q", field, key))
-		}
-	}
-	return errs
+// isJSONString reports whether a raw JSON value is a string.
+func isJSONString(v apiextensionsv1.JSON) bool {
+	var s string
+	return json.Unmarshal(v.Raw, &s) == nil
 }

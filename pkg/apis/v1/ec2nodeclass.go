@@ -110,11 +110,12 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.k8s.aws/ec2nodeclass",rule="self.all(k, k !='karpenter.k8s.aws/ec2nodeclass')"
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
-	// Kubelet is an unstructured map that accepts any kubelet configuration field.
-	// Karpenter extracts scheduling-relevant fields (maxPods, podsPerCore, kubeReserved,
+	// Kubelet configures the kubelet on provisioned nodes. Any field of the upstream
+	// KubeletConfiguration for the Kubernetes version Karpenter was built against may be set;
+	// see the k8s.io/kubelet version in go.mod for the exact set.
+	// Karpenter reads the fields relevant to scheduling (maxPods, podsPerCore, kubeReserved,
 	// systemReserved, evictionHard) and passes all others through to UserData unchanged.
-	// All field names are validated against the upstream kubelet configuration schema
-	// during controller reconciliation.
+	// Field names and types are validated by the API server on apply.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Type=object
 	// +optional
@@ -272,9 +273,20 @@ type AMISelectorTerm struct {
 	SSMParameter string `json:"ssmParameter,omitempty"`
 }
 
-// KubeletConfiguration is an unstructured map that accepts any kubelet configuration field.
-// Karpenter extracts scheduling-relevant fields (maxPods, podsPerCore, kubeReserved,
-// systemReserved, evictionHard) and passes all others through to UserData unchanged.
+// KubeletConfiguration mirrors the upstream kubelet KubeletConfiguration as an open map.
+//
+// It's deliberately not a typed struct. Upstream declares maxPods and podsPerCore as
+// non-pointer int32 with omitempty, so a typed mirror couldn't tell "unset" from an explicit
+// 0 for the two fields Karpenter reads to make scheduling decisions. Keeping the map also
+// means new kubelet fields need no Go change to pass through to UserData.
+//
+// The tradeoff is that the Go type carries no field information, so the API server can't
+// validate it from the type alone. The CRD's schema for spec.kubelet is therefore generated
+// from the upstream struct instead (hack/code/kubeletschema_gen, injected by
+// hack/validation/kubelet.sh), which is what makes unknown fields and type errors fail on
+// apply rather than at node registration. A CEL rule can't substitute for that generated
+// schema: the API server refuses to compile x-kubernetes-validations against a map marked
+// x-kubernetes-preserve-unknown-fields.
 // +kubebuilder:pruning:PreserveUnknownFields
 // +kubebuilder:validation:Type=object
 type KubeletConfiguration map[string]apiextensionsv1.JSON

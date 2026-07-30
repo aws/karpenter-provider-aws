@@ -25,6 +25,7 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -240,20 +241,26 @@ func (o Options) DefaultMetadataOptions() *v1.MetadataOptions {
 	}
 }
 
-func (r DefaultResolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.ParsedKubeletConfig) *v1.ParsedKubeletConfig {
+// defaultClusterDNS fills in clusterDNS from the discovered kube-dns address when the user hasn't
+// set it. It updates raw alongside the parsed config: nodeadm-based AMI families render the raw
+// map as inline kubelet config, so a default applied only to the parsed struct would be dropped
+// for them. raw is mutated in place, having already been deep-copied from the NodeClass.
+func (r DefaultResolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.ParsedKubeletConfig, raw v1.KubeletConfiguration) *v1.ParsedKubeletConfig {
 	if opts.KubeDNSIP == nil {
 		return kubeletConfig
 	}
 	if kubeletConfig != nil && len(kubeletConfig.ClusterDNS) != 0 {
 		return kubeletConfig
 	}
+	clusterDNS := []string{opts.KubeDNSIP.String()}
+	if raw != nil {
+		raw["clusterDNS"] = v1.JSONValue(clusterDNS)
+	}
 	if kubeletConfig == nil {
-		return &v1.ParsedKubeletConfig{
-			ClusterDNS: []string{opts.KubeDNSIP.String()},
-		}
+		return &v1.ParsedKubeletConfig{ClusterDNS: clusterDNS}
 	}
 	newKubeletConfig := kubeletConfig.DeepCopy()
-	newKubeletConfig.ClusterDNS = []string{opts.KubeDNSIP.String()}
+	newKubeletConfig.ClusterDNS = clusterDNS
 	return newKubeletConfig
 }
 
@@ -280,11 +287,23 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	if parsedKubeletConfig == nil {
 		parsedKubeletConfig = &v1.ParsedKubeletConfig{}
 	}
-	if parsedKubeletConfig.MaxPods == nil {
+	// maxPods is the count already resolved for this instance type, so it stands in both when the
+	// user set nothing and when they set a CEL expression: bootstrap needs a concrete number, and
+	// an expression can't be evaluated without an instance type.
+	//
+	// Both representations are updated because AMI families consume different ones -- the parsed
+	// struct drives the flag-based bootstrappers, while nodeadm-based AL2023 passes the raw map
+	// through as inline kubelet config. Leaving the raw map alone would ship the unevaluated
+	// expression to the node, or omit maxPods entirely when it was defaulted here.
+	if _, ok := parsedKubeletConfig.MaxPodsValue(); !ok {
 		// nolint:gosec
 		// We know that it's not possible to have values that would overflow int32 here since we control
 		// the maxPods values that we pass in here
-		parsedKubeletConfig.MaxPods = lo.ToPtr(int32(maxPods))
+		parsedKubeletConfig.MaxPods = lo.ToPtr(intstr.FromInt32(int32(maxPods)))
+		if kubeletConfigRaw == nil {
+			kubeletConfigRaw = v1.KubeletConfiguration{}
+		}
+		kubeletConfigRaw["maxPods"] = v1.JSONValue(maxPods)
 	}
 	taints := lo.Flatten([][]corev1.Taint{
 		nodeClaim.Spec.Taints,
@@ -315,7 +334,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		resolved := &LaunchTemplate{
 			Options: options,
 			UserData: amiFamily.UserData(
-				r.defaultClusterDNS(options, parsedKubeletConfig),
+				r.defaultClusterDNS(options, parsedKubeletConfig, kubeletConfigRaw),
 				kubeletConfigRaw,
 				taints,
 				RejectForbiddenLabels(options.Labels),

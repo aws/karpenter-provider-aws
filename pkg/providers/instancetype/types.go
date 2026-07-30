@@ -99,6 +99,9 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 		// If parsing fails, use empty defaults — validation will catch this at reconciliation time
 		parsed = &v1.ParsedKubeletConfig{}
 	}
+	// A maxPods CEL expression resolves per instance type elsewhere; an unresolved expression is
+	// treated as unset here so capacity falls back to the computed pod limit.
+	maxPods, _ := parsed.MaxPodsValue()
 	return NewInstanceType(
 		ctx,
 		info,
@@ -108,7 +111,7 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 		nodeClass.BlockDeviceMappings(),
 		nodeClass.InstanceStorePolicy(),
 		nodeClass.NetworkInterfaces(),
-		parsed.MaxPods,
+		maxPods,
 		parsed.PodsPerCore,
 		parsed.KubeReserved,
 		parsed.SystemReserved,

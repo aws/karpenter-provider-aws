@@ -42,6 +42,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
@@ -407,7 +408,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(lts1.Equal(lts2)).To(BeTrue())
 		})
 		It("should recover from an out-of-sync launch template cache", func() {
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: aws.Int32(1)}
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(1))})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -476,7 +477,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				{SystemReserved: map[string]string{string(corev1.ResourceMemory): "10Gi"}},
 				{EvictionHard: map[string]string{"memory.available": "52%"}},
 				{EvictionSoft: map[string]string{"nodefs.available": "132%"}},
-				{MaxPods: lo.ToPtr[int32](20)},
+				{MaxPods: lo.ToPtr(intstr.FromInt32(20))},
 			}
 			launchtemplateResult := []string{}
 			for _, kubelet := range kubeletChanges {
@@ -1087,7 +1088,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}))
 
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
+			kc := &v1.ParsedKubeletConfig{}
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				"",
@@ -1096,12 +1098,12 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
 				nil,
-				nodeClass.Spec.Kubelet.MaxPods,
-				nodeClass.Spec.Kubelet.PodsPerCore,
-				nodeClass.Spec.Kubelet.KubeReserved,
-				nodeClass.Spec.Kubelet.SystemReserved,
-				nodeClass.Spec.Kubelet.EvictionHard,
-				nodeClass.Spec.Kubelet.EvictionSoft,
+				maxPodsOf(kc),
+				kc.PodsPerCore,
+				kc.KubeReserved,
+				kc.SystemReserved,
+				kc.EvictionHard,
+				kc.EvictionSoft,
 				nodeClass.AMIFamily(),
 				nil,
 			)
@@ -1115,7 +1117,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}))
 
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+			kc := &v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(110))}
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				"",
@@ -1124,12 +1127,12 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
 				nil,
-				nodeClass.Spec.Kubelet.MaxPods,
-				nodeClass.Spec.Kubelet.PodsPerCore,
-				nodeClass.Spec.Kubelet.KubeReserved,
-				nodeClass.Spec.Kubelet.SystemReserved,
-				nodeClass.Spec.Kubelet.EvictionHard,
-				nodeClass.Spec.Kubelet.EvictionSoft,
+				maxPodsOf(kc),
+				kc.PodsPerCore,
+				kc.KubeReserved,
+				kc.SystemReserved,
+				kc.EvictionHard,
+				kc.EvictionSoft,
 				nodeClass.AMIFamily(),
 				nil,
 			)
@@ -1148,7 +1151,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in NodePool", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: aws.Int32(10)}
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(10))})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1158,9 +1161,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		It("should generate different launch templates for different maxPods values when specifying kubelet configuration", func() {
 			// We validate that we no longer combine instance types into the same launch template with the same --max-pods values
 			// that shouldn't have been combined but were combined due to a pointer error
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				ClusterDNS: []string{"test"},
-			}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1169,13 +1172,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
 		})
 		It("should specify systemReserved when overriding system reserved values", func() {
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				SystemReserved: map[string]string{
 					string(corev1.ResourceCPU):              "500m",
 					string(corev1.ResourceMemory):           "1Gi",
 					string(corev1.ResourceEphemeralStorage): "2Gi",
 				},
-			}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1191,13 +1194,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 		})
 		It("should specify kubeReserved when overriding system reserved values", func() {
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				KubeReserved: map[string]string{
 					string(corev1.ResourceCPU):              "500m",
 					string(corev1.ResourceMemory):           "1Gi",
 					string(corev1.ResourceEphemeralStorage): "2Gi",
 				},
-			}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1213,13 +1216,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 		})
 		It("should pass evictionHard threshold values when specified", func() {
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				EvictionHard: map[string]string{
 					"memory.available":  "10%",
 					"nodefs.available":  "15%",
 					"nodefs.inodesFree": "5%",
 				},
-			}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1233,7 +1236,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 		})
 		It("should pass evictionSoft threshold values when specified", func() {
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				EvictionSoft: map[string]string{
 					"memory.available":  "10%",
 					"nodefs.available":  "15%",
@@ -1244,7 +1247,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					"nodefs.available":  {Duration: time.Second * 180},
 					"nodefs.inodesFree": {Duration: time.Minute * 5},
 				},
-			}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1258,7 +1261,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 		})
 		It("should pass evictionSoftGracePeriod values when specified", func() {
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				EvictionSoftGracePeriod: map[string]metav1.Duration{
 					"memory.available":  {Duration: time.Minute},
 					"nodefs.available":  {Duration: time.Second * 180},
@@ -1269,7 +1272,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					"nodefs.available":  "15%",
 					"nodefs.inodesFree": "5%",
 				},
-			}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1283,9 +1286,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 		})
 		It("should pass evictionMaxPodGracePeriod when specified", func() {
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				EvictionMaxPodGracePeriod: aws.Int32(300),
-			}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1296,9 +1299,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 		})
 		It("should specify podsPerCore", func() {
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				PodsPerCore: aws.Int32(2),
-			}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1309,10 +1312,10 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 		})
 		It("should specify podsPerCore with maxPods enabled", func() {
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				PodsPerCore: aws.Int32(2),
-				MaxPods:     aws.Int32(100),
-			}
+				MaxPods:     lo.ToPtr(intstr.FromInt32(100)),
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1348,9 +1351,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 		})
 		It("should pass ImageGCHighThresholdPercent when specified", func() {
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				ImageGCHighThresholdPercent: aws.Int32(50),
-			}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1361,9 +1364,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 		})
 		It("should pass ImageGCLowThresholdPercent when specified", func() {
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				ImageGCLowThresholdPercent: aws.Int32(50),
-			}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1374,9 +1377,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 		})
 		It("should pass cpuCFSQuota when specified", func() {
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				CPUCFSQuota: aws.Bool(false),
-			}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1502,7 +1505,7 @@ essential = true
 		Context("Bottlerocket", func() {
 			BeforeEach(func() {
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(110))})
 			})
 			It("should merge in custom user data", func() {
 				content, err := os.ReadFile("testdata/br_userdata_input.golden")
@@ -1555,13 +1558,13 @@ essential = true
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 			It("should override system reserved values in user data", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceCPU):              "2",
 						string(corev1.ResourceMemory):           "3Gi",
 						string(corev1.ResourceEphemeralStorage): "10Gi",
 					},
-				}
+				})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1579,13 +1582,13 @@ essential = true
 				})
 			})
 			It("should override kube reserved values in user data", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 					KubeReserved: map[string]string{
 						string(corev1.ResourceCPU):              "2",
 						string(corev1.ResourceMemory):           "3Gi",
 						string(corev1.ResourceEphemeralStorage): "10Gi",
 					},
-				}
+				})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1603,12 +1606,12 @@ essential = true
 				})
 			})
 			It("should override soft eviction values in user data", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 					EvictionSoft: map[string]string{"memory.available": "10%"},
 					EvictionSoftGracePeriod: map[string]metav1.Duration{
 						"memory.available": {Duration: time.Minute},
 					},
-				}
+				})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1623,10 +1626,10 @@ essential = true
 `)
 			})
 			It("should override max pod grace period in user data", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					MaxPods:                   aws.Int32(35),
+				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+					MaxPods:                   lo.ToPtr(intstr.FromInt32(35)),
 					EvictionMaxPodGracePeriod: aws.Int32(10),
-				}
+				})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1643,13 +1646,13 @@ eviction-max-pod-grace-period = 10
 `)
 			})
 			It("should override kube reserved values in user data", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 					EvictionHard: map[string]string{
 						"memory.available":  "10%",
 						"nodefs.available":  "15%",
 						"nodefs.inodesFree": "5%",
 					},
-				}
+				})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1667,9 +1670,9 @@ eviction-max-pod-grace-period = 10
 				})
 			})
 			It("should specify max pods value when passing maxPods in configuration", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					MaxPods: aws.Int32(10),
-				}
+				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+					MaxPods: lo.ToPtr(intstr.FromInt32(10)),
+				})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1685,9 +1688,9 @@ eviction-max-pod-grace-period = 10
 				})
 			})
 			It("should pass ImageGCHighThresholdPercent when specified", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 					ImageGCHighThresholdPercent: aws.Int32(50),
-				}
+				})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1705,9 +1708,9 @@ eviction-max-pod-grace-period = 10
 				})
 			})
 			It("should pass ImageGCLowThresholdPercent when specified", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 					ImageGCLowThresholdPercent: aws.Int32(50),
-				}
+				})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1740,9 +1743,9 @@ eviction-max-pod-grace-period = 10
 				})
 			})
 			It("should pass CPUCFSQuota when specified", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 					CPUCFSQuota: aws.Bool(false),
-				}
+				})
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1804,7 +1807,7 @@ eviction-max-pod-grace-period = 10
 		})
 		Context("AL2 Custom UserData", func() {
 			BeforeEach(func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(110))})
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			})
 			It("should merge in custom user data", func() {
@@ -1950,8 +1953,8 @@ eviction-max-pod-grace-period = 10
 				})
 				DescribeTable(
 					"should specify KubletConfiguration field when specified in NodePool",
-					func(field string, kc v1.KubeletConfiguration) {
-						nodeClass.Spec.Kubelet = &kc
+					func(field string, kc v1.ParsedKubeletConfig) {
+						nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
 						ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 						pod := coretest.UnschedulablePod()
 						ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1975,28 +1978,28 @@ eviction-max-pod-grace-period = 10
 							Expect(configs[0].Spec.Kubelet.Config[field]).To(Equal(inlineConfig[field]))
 						}
 					},
-					Entry("systemReserved", "systemReserved", v1.KubeletConfiguration{
+					Entry("systemReserved", "systemReserved", v1.ParsedKubeletConfig{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceCPU):              "500m",
 							string(corev1.ResourceMemory):           "1Gi",
 							string(corev1.ResourceEphemeralStorage): "2Gi",
 						},
 					}),
-					Entry("kubeReserved", "kubeReserved", v1.KubeletConfiguration{
+					Entry("kubeReserved", "kubeReserved", v1.ParsedKubeletConfig{
 						KubeReserved: map[string]string{
 							string(corev1.ResourceCPU):              "500m",
 							string(corev1.ResourceMemory):           "1Gi",
 							string(corev1.ResourceEphemeralStorage): "2Gi",
 						},
 					}),
-					Entry("evictionHard", "evictionHard", v1.KubeletConfiguration{
+					Entry("evictionHard", "evictionHard", v1.ParsedKubeletConfig{
 						EvictionHard: map[string]string{
 							"memory.available":  "10%",
 							"nodefs.available":  "15%",
 							"nodefs.inodesFree": "5%",
 						},
 					}),
-					Entry("evictionSoft", "evictionSoft", v1.KubeletConfiguration{
+					Entry("evictionSoft", "evictionSoft", v1.ParsedKubeletConfig{
 						EvictionSoft: map[string]string{
 							"memory.available":  "10%",
 							"nodefs.available":  "15%",
@@ -2008,7 +2011,7 @@ eviction-max-pod-grace-period = 10
 							"nodefs.inodesFree": {Duration: time.Minute * 5},
 						},
 					}),
-					Entry("evictionSoftGracePeriod", "evictionSoftGracePeriod", v1.KubeletConfiguration{
+					Entry("evictionSoftGracePeriod", "evictionSoftGracePeriod", v1.ParsedKubeletConfig{
 						EvictionSoft: map[string]string{
 							"memory.available":  "10%",
 							"nodefs.available":  "15%",
@@ -2020,22 +2023,22 @@ eviction-max-pod-grace-period = 10
 							"nodefs.inodesFree": {Duration: time.Minute * 5},
 						},
 					}),
-					Entry("evictionMaxPodGracePeriod", "evictionMaxPodGracePeriod", v1.KubeletConfiguration{
+					Entry("evictionMaxPodGracePeriod", "evictionMaxPodGracePeriod", v1.ParsedKubeletConfig{
 						EvictionMaxPodGracePeriod: lo.ToPtr[int32](300),
 					}),
-					Entry("podsPerCore", "podsPerCore", v1.KubeletConfiguration{
+					Entry("podsPerCore", "podsPerCore", v1.ParsedKubeletConfig{
 						PodsPerCore: lo.ToPtr[int32](2),
 					}),
-					Entry("clusterDNS", "clusterDNS", v1.KubeletConfiguration{
+					Entry("clusterDNS", "clusterDNS", v1.ParsedKubeletConfig{
 						ClusterDNS: []string{"10.0.100.0"},
 					}),
-					Entry("imageGCHighThresholdPercent", "imageGCHighThresholdPercent", v1.KubeletConfiguration{
+					Entry("imageGCHighThresholdPercent", "imageGCHighThresholdPercent", v1.ParsedKubeletConfig{
 						ImageGCHighThresholdPercent: lo.ToPtr[int32](50),
 					}),
-					Entry("imageGCLowThresholdPercent", "imageGCLowThresholdPercent", v1.KubeletConfiguration{
+					Entry("imageGCLowThresholdPercent", "imageGCLowThresholdPercent", v1.ParsedKubeletConfig{
 						ImageGCLowThresholdPercent: lo.ToPtr[int32](50),
 					}),
-					Entry("cpuCFSQuota", "cpuCFSQuota", v1.KubeletConfiguration{
+					Entry("cpuCFSQuota", "cpuCFSQuota", v1.ParsedKubeletConfig{
 						CPUCFSQuota: lo.ToPtr(false),
 					}),
 				)
@@ -2060,7 +2063,7 @@ eviction-max-pod-grace-period = 10
 						Expect(err).To(BeNil())
 						nodeClass.Spec.UserData = lo.ToPtr(string(content))
 					}
-					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+					nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(110))})
 					ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 					pod := coretest.UnschedulablePod()
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2357,7 +2360,7 @@ eviction-max-pod-grace-period = 10
 			BeforeEach(func() {
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Windows)}}}
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(110))})
 			})
 			It("should merge and bootstrap with custom user data", func() {
 				content, err := os.ReadFile("testdata/windows_userdata_input.golden")
@@ -3016,4 +3019,11 @@ func ExpectParseNodeConfigKubeletField[T any](userData, fieldName string) T {
 	raw := configs[0].Spec.Kubelet.Config[fieldName]
 	Expect(yaml.Unmarshal(raw.Raw, &ret)).To(Succeed())
 	return ret
+}
+
+// maxPodsOf returns the parsed maxPods as the *int32 NewInstanceType takes, dropping a CEL
+// expression that only resolves against a specific instance type.
+func maxPodsOf(kc *v1.ParsedKubeletConfig) *int32 {
+	maxPods, _ := kc.MaxPodsValue()
+	return maxPods
 }

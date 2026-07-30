@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -41,8 +42,8 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 	Context("All kubelet configuration set", func() {
 		BeforeEach(func() {
 			// MaxPods needs to account for the daemonsets that will run on the nodes
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods:     lo.ToPtr(int32(110)),
+			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods:     lo.ToPtr(intstr.FromInt32(110)),
 				PodsPerCore: lo.ToPtr(int32(10)),
 				SystemReserved: map[string]string{
 					string(corev1.ResourceCPU):              "200m",
@@ -82,7 +83,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				ImageGCHighThresholdPercent: lo.ToPtr(int32(50)),
 				ImageGCLowThresholdPercent:  lo.ToPtr(int32(10)),
 				CPUCFSQuota:                 lo.ToPtr(false),
-			}
+			})
 		})
 		DescribeTable("Linux AMIFamilies",
 			func(alias string) {
@@ -151,9 +152,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 	It("should schedule pods onto separate nodes when maxPods is set", func() {
 		// Get the DS pod count and use it to calculate the DS pod overhead
 		dsCount := env.GetDaemonSetCount(nodePool)
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-			MaxPods: lo.ToPtr(1 + int32(dsCount)),
-		}
+		nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			MaxPods: lo.ToPtr(intstr.FromInt32(1 + int32(dsCount))),
+		})
 
 		numPods := 3
 		dep := test.Deployment(test.DeploymentOptions{
@@ -207,9 +208,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		//      Since we restrict node to two cores, we will allow 6 pods. Both nodes will have
 		//      4 DS pods and 2 test pods.
 		dsCount := env.GetDaemonSetCount(nodePool)
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+		nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 			PodsPerCore: lo.ToPtr(int32(math.Ceil(float64(2+dsCount) / 2))),
-		}
+		})
 
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -228,7 +229,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			},
 		)
 
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{PodsPerCore: lo.ToPtr(int32(1))}
+		nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{PodsPerCore: lo.ToPtr(int32(1))})
 		numPods := 6
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),

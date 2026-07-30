@@ -128,7 +128,9 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		}
 	}
 
-	// Validate kubelet configuration before proceeding with other checks
+	// The CRD schema validates spec.kubelet on apply; this catches unknown fields that the schema
+	// structurally can't reject, which today means fields nested inside the opaque `logging`
+	// subtree. See v1.ValidateKubeletConfig.
 	if errs := v1.ValidateKubeletConfig(nodeClass.Spec.Kubelet); len(errs) > 0 {
 		messages := make([]string, 0, len(errs))
 		for _, e := range errs {
