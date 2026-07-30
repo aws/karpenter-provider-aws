@@ -369,6 +369,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Effect:   "NoSchedule",
 			}
 
+			// Force each pod onto its own node via hostname anti-affinity so that a multi-GPU
+			// instance type can't pack both pods together
+			antiAffinityLabels := map[string]string{"test-group": "equivalent-constraints"}
+			antiAffinity := []corev1.PodAffinityTerm{{
+				LabelSelector: &metav1.LabelSelector{MatchLabels: antiAffinityLabels},
+				TopologyKey:   corev1.LabelHostname,
+			}}
 			// constrain the packer to a single launch template type
 			rr := corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
@@ -380,7 +387,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{
+				ObjectMeta:           metav1.ObjectMeta{Labels: antiAffinityLabels},
 				Tolerations:          []corev1.Toleration{t1, t2, t3},
+				PodAntiRequirements:  antiAffinity,
 				ResourceRequirements: rr,
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1)
@@ -393,7 +402,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 
 			pod2 := coretest.UnschedulablePod(coretest.PodOptions{
+				ObjectMeta:           metav1.ObjectMeta{Labels: antiAffinityLabels},
 				Tolerations:          []corev1.Toleration{t2, t3, t1},
+				PodAntiRequirements:  antiAffinity,
 				ResourceRequirements: rr,
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod2)
