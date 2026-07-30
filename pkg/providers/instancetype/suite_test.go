@@ -3672,6 +3672,8 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *karpv1.NodeP
 func maxPodsOf(kc *v1.ParsedKubeletConfig) *int32 {
 	maxPods, _ := kc.MaxPodsValue()
 	return maxPods
+}
+
 // fakeOfferingResolver is a test resolver that appends offerings with a CapacityOverride.
 type fakeOfferingResolver struct {
 	called       bool
