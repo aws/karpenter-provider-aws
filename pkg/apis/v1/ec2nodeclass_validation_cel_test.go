@@ -834,6 +834,16 @@ var _ = Describe("CEL/Validation", func() {
 					}
 					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 				})
+				It("should fail on an empty value in evictionHard", func() {
+					// An empty value reaches resource.MustParse() unparsed and panics the
+					// instance type resolver, so the schema has to reject it.
+					nc.Spec.Kubelet = &v1.KubeletConfiguration{
+						EvictionHard: map[string]string{
+							"memory.available": "",
+						},
+					}
+					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+				})
 				It("should fail on invalid percentage value (too large) in evictionHard", func() {
 					nc.Spec.Kubelet = &v1.KubeletConfiguration{
 						EvictionHard: map[string]string{

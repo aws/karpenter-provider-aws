@@ -220,7 +220,7 @@ spec:
                                  * st1 and sc1: 125-16,384
 
                                  * standard: 1-1,024
-                            pattern: ^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$
+                            pattern: ^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]|[1-5][0-7]|58)Ti|([1-9]|[1-5][0-9]|6[0-3]|64)T)$
                             type: string
                           volumeType:
                             description: |-
@@ -394,7 +394,7 @@ spec:
                     evictionHard:
                       additionalProperties:
                         type: string
-                        pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%||(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
+                        pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%|(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
                       description: EvictionHard is the map of signal names to quantities that define hard eviction thresholds
                       type: object
                       x-kubernetes-validations:
@@ -409,7 +409,7 @@ spec:
                     evictionSoft:
                       additionalProperties:
                         type: string
-                        pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%||(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
+                        pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%|(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
                       description: EvictionSoft is the map of signal names to quantities that define soft eviction thresholds
                       type: object
                       x-kubernetes-validations:
