@@ -24,6 +24,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -113,11 +114,15 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 	maxPods := resolveMaxPods(ctx, d.celEnv, info, kc.MaxPods, amiFamily, kc.PodsPerCore, nodeClass.NetworkInterfaces())
 	kubeReserved, err := resolveResourceExpressions(ctx, d.celEnv, info, kc.KubeReserved, amiFamily, maxPods, kc.PodsPerCore, nodeClass.NetworkInterfaces())
 	if err != nil {
-		return nil, fmt.Errorf("resolving kubeReserved for instance type %s: %w", info.InstanceType, err)
+		return nil, serrors.Wrap(
+			fmt.Errorf("resolving kubeReserved, %w", err),
+			"instance-type", info.InstanceType)
 	}
 	systemReserved, err := resolveResourceExpressions(ctx, d.celEnv, info, kc.SystemReserved, amiFamily, maxPods, kc.PodsPerCore, nodeClass.NetworkInterfaces())
 	if err != nil {
-		return nil, fmt.Errorf("resolving systemReserved for instance type %s: %w", info.InstanceType, err)
+		return nil, serrors.Wrap(
+			fmt.Errorf("resolving systemReserved, %w", err),
+			"instance-type", info.InstanceType)
 	}
 	return NewInstanceType(
 		ctx,
@@ -149,10 +154,19 @@ func evaluateMaxPodsExpression(celEnv *kubeletcel.CELEnvironment, kc *v1.Kubelet
 	}
 	result, err := celEnv.EvaluateExpression(kc.MaxPods.StrVal, celVars)
 	if err != nil {
-		return fmt.Errorf("evaluating maxPods expression %q for instance type %s: %w", kc.MaxPods.StrVal, info.InstanceType, err)
+		return serrors.Wrap(
+			fmt.Errorf("evaluating maxPods expression, %w", err),
+			"instance-type", info.InstanceType,
+			"expression", kc.MaxPods.StrVal,
+		)
 	}
 	if result < 0 || result > math.MaxInt32 {
-		return fmt.Errorf("maxPods expression %q evaluated to %d for instance type %s, which is outside the valid range [0, %d]", kc.MaxPods.StrVal, result, info.InstanceType, math.MaxInt32)
+		return serrors.Wrap(
+			fmt.Errorf("maxPods expression evaluated to a value outside the valid range [0, %d]", math.MaxInt32),
+			"instance-type", info.InstanceType,
+			"expression", kc.MaxPods.StrVal,
+			"result", result,
+		)
 	}
 	return nil
 }
@@ -174,10 +188,23 @@ func evaluateResourceExpressions(celEnv *kubeletcel.CELEnvironment, kc *v1.Kubel
 			}
 			result, err := celEnv.EvaluateExpression(v, celVars)
 			if err != nil {
-				return fmt.Errorf("evaluating %s[%s] expression %q for instance type %s: %w", resourceExpressions.field, k, v, info.InstanceType, err)
+				return serrors.Wrap(
+					fmt.Errorf("evaluating kubelet resource expression, %w", err),
+					"instance-type", info.InstanceType,
+					"field", resourceExpressions.field,
+					"key", k,
+					"expression", v,
+				)
 			}
 			if result < 0 {
-				return fmt.Errorf("%s[%s] expression %q evaluated to a negative value %d for instance type %s", resourceExpressions.field, k, v, result, info.InstanceType)
+				return serrors.Wrap(
+					fmt.Errorf("kubelet resource expression evaluated to a negative value"),
+					"instance-type", info.InstanceType,
+					"field", resourceExpressions.field,
+					"key", k,
+					"expression", v,
+					"result", result,
+				)
 			}
 		}
 	}
@@ -198,11 +225,18 @@ func resolveMaxPods(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info
 		celVars := buildCELVars(ctx, info, amiFamily, nil, podsPerCore, networkInterfaces)
 		result, err := celEnv.EvaluateExpression(maxPods.StrVal, celVars)
 		if err != nil {
-			log.FromContext(ctx).Error(err, "failed to evaluate maxPods expression", "instanceType", info.InstanceType)
+			log.FromContext(ctx).WithValues(
+				"instance-type", info.InstanceType,
+				"expression", maxPods.StrVal,
+			).Error(err, "failed to evaluate maxPods expression")
 			return nil
 		}
 		if result < 0 || result > math.MaxInt32 {
-			log.FromContext(ctx).Error(fmt.Errorf("result %d is out of range [0, %d]", result, math.MaxInt32), "maxPods expression evaluated to an invalid value", "expression", maxPods.StrVal, "instanceType", info.InstanceType)
+			log.FromContext(ctx).WithValues(
+				"instance-type", info.InstanceType,
+				"expression", maxPods.StrVal,
+				"result", result,
+			).Error(fmt.Errorf("result is out of range [0, %d]", math.MaxInt32), "maxPods expression evaluated to an invalid value")
 			return nil
 		}
 		val := int32(result)

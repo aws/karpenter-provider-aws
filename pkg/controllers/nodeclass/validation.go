@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
@@ -598,20 +599,29 @@ func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, nodeClass *v1
 	kc := nodeClass.Spec.Kubelet
 	if kc.MaxPods != nil && kc.MaxPods.Type == intstr.String {
 		if err := celEnv.ValidateExpression(kc.MaxPods.StrVal); err != nil {
-			return fmt.Errorf("spec.kubelet.maxPods: %w", err)
+			return serrors.Wrap(
+				fmt.Errorf("validating expression, %w", err),
+				"field",
+				"spec.kubelet.maxPods")
 		}
 	}
 	for k, v := range kc.KubeReserved {
 		if _, qErr := resource.ParseQuantity(v); qErr != nil {
 			if err := celEnv.ValidateExpression(v); err != nil {
-				return fmt.Errorf("spec.kubelet.kubeReserved[%s]: %w", k, err)
+				return serrors.Wrap(
+					fmt.Errorf("validating expression, %w", err),
+					"field",
+					fmt.Sprintf("spec.kubelet.kubeReserved[%s]", k))
 			}
 		}
 	}
 	for k, v := range kc.SystemReserved {
 		if _, qErr := resource.ParseQuantity(v); qErr != nil {
 			if err := celEnv.ValidateExpression(v); err != nil {
-				return fmt.Errorf("spec.kubelet.systemReserved[%s]: %w", k, err)
+				return serrors.Wrap(
+					fmt.Errorf("validating expression, %w", err),
+					"field",
+					fmt.Sprintf("spec.kubelet.systemReserved[%s]", k))
 			}
 		}
 	}

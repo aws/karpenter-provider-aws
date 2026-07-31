@@ -20,6 +20,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/types"
 	"github.com/google/cel-go/common/types/ref"
@@ -179,7 +180,7 @@ func NewEnvironment() (*CELEnvironment, error) {
 	)
 	e, err := cel.NewEnv(opts...)
 	if err != nil {
-		return nil, fmt.Errorf("building CEL environment: %w", err)
+		return nil, fmt.Errorf("building CEL environment, %w", err)
 	}
 	return &CELEnvironment{
 		env:           e,
@@ -213,14 +214,20 @@ func (c *CELEnvironment) compileCached(expression string) (*CompiledExpression, 
 func (c *CELEnvironment) Compile(expression string) (*CompiledExpression, error) {
 	ast, issues := c.env.Compile(expression)
 	if issues != nil && issues.Err() != nil {
-		return nil, fmt.Errorf("compiling expression %q: %w", expression, issues.Err())
+		return nil, serrors.Wrap(fmt.Errorf("compiling expression, %w", issues.Err()), "expression", expression)
 	}
 	if ast.OutputType() != cel.IntType && ast.OutputType() != cel.DoubleType {
-		return nil, fmt.Errorf("expression %q must return int or double, got %v", expression, ast.OutputType())
+		return nil, serrors.Wrap(
+			fmt.Errorf("expression must return int or double"),
+			"expression", expression,
+			"output-type", ast.OutputType(),
+		)
 	}
 	prg, err := c.env.Program(ast)
 	if err != nil {
-		return nil, fmt.Errorf("creating program for expression %q: %w", expression, err)
+		return nil, serrors.Wrap(
+			fmt.Errorf("creating program for expression, %w", err),
+			"expression", expression)
 	}
 	return &CompiledExpression{program: prg}, nil
 }
@@ -239,7 +246,11 @@ func (c *CELEnvironment) EvaluateExpression(expression string, vars InstanceType
 	}
 	out, _, err := compiled.program.Eval(activation)
 	if err != nil {
-		return 0, fmt.Errorf("evaluating expression: %w", err)
+		return 0, serrors.Wrap(
+			fmt.Errorf("evaluating expression, %w", err),
+			"expression", expression,
+			"instance-type", vars.InstanceType,
+		)
 	}
 	switch v := out.Value().(type) {
 	case int64:
@@ -247,11 +258,21 @@ func (c *CELEnvironment) EvaluateExpression(expression string, vars InstanceType
 	case float64:
 		// Reject non-finite doubles (+Inf, -Inf, NaN) — e.g. from double division by zero.
 		if math.IsInf(v, 0) || math.IsNaN(v) {
-			return 0, fmt.Errorf("expression returned non-finite value %v", v)
+			return 0, serrors.Wrap(
+				fmt.Errorf("expression returned a non-finite value"),
+				"expression", expression,
+				"instance-type", vars.InstanceType,
+				"value", v,
+			)
 		}
 		return int64(v), nil
 	default:
-		return 0, fmt.Errorf("expression returned unexpected type %T", out.Value())
+		return 0, serrors.Wrap(
+			fmt.Errorf("expression returned an unexpected type"),
+			"expression", expression,
+			"instance-type", vars.InstanceType,
+			"type", fmt.Sprintf("%T", out.Value()),
+		)
 	}
 }
 
@@ -293,12 +314,25 @@ func (c *CELEnvironment) ResolveResourceMap(ctx context.Context, resourceMap map
 		}
 		result, err := c.EvaluateExpression(v, vars)
 		if err != nil {
-			log.FromContext(ctx).Error(err, "failed to evaluate kubelet resource expression", "key", k, "expression", v, "instanceType", vars.InstanceType,
-				"vcpus", vars.VCPUs, "memory_mib", vars.MemoryMiB, "default_enis", vars.DefaultENIs, "ips_per_eni", vars.IPsPerENI, "max_pods", vars.MaxPods)
+			log.FromContext(ctx).WithValues(
+				"key", k,
+				"expression", v,
+				"instance-type", vars.InstanceType,
+				"vcpus", vars.VCPUs,
+				"memory-mib", vars.MemoryMiB,
+				"default-enis", vars.DefaultENIs,
+				"ips-per-eni", vars.IPsPerENI,
+				"max-pods", vars.MaxPods,
+			).Error(err, "failed to evaluate kubelet resource expression")
 			continue
 		}
 		if result < 0 {
-			log.FromContext(ctx).Error(fmt.Errorf("result %d is negative", result), "kubelet resource expression evaluated to an invalid value", "key", k, "expression", v, "instanceType", vars.InstanceType)
+			log.FromContext(ctx).WithValues(
+				"key", k,
+				"expression", v,
+				"instance-type", vars.InstanceType,
+				"result", result,
+			).Error(fmt.Errorf("result is negative"), "kubelet resource expression evaluated to an invalid value")
 			continue
 		}
 		resolved[k] = formatResourceResult(k, result)

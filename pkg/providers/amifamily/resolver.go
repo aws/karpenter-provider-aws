@@ -25,6 +25,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -222,11 +223,15 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 			celVars := func() (kubeletcel.InstanceTypeVars, error) { return celVarsFromInstanceType(it, r.eniLookup) }
 			resolvedKubeReserved, err := r.celEnv.ResolveResourceMap(ctx, kubeReserved, celVars)
 			if err != nil {
-				return launchTemplateParams{}, fmt.Errorf("resolving kubeReserved for instance type %s: %w", it.Name, err)
+				return launchTemplateParams{}, serrors.Wrap(
+					fmt.Errorf("resolving kubeReserved, %w", err),
+					"instance-type", it.Name)
 			}
 			resolvedSystemReserved, err := r.celEnv.ResolveResourceMap(ctx, systemReserved, celVars)
 			if err != nil {
-				return launchTemplateParams{}, fmt.Errorf("resolving systemReserved for instance type %s: %w", it.Name, err)
+				return launchTemplateParams{}, serrors.Wrap(
+					fmt.Errorf("resolving systemReserved, %w", err),
+					"instance-type", it.Name)
 			}
 			return launchTemplateParams{
 				efaCount: lo.Ternary(
@@ -444,19 +449,37 @@ func isRestrictedLabel(label string) bool {
 func celVarsFromInstanceType(it *cloudprovider.InstanceType, eniLookup ENILookup) (kubeletcel.InstanceTypeVars, error) {
 	req := it.Requirements.Get(v1.LabelInstanceCPU)
 	if req == nil {
-		return kubeletcel.InstanceTypeVars{}, fmt.Errorf("instance type %s is missing the %s label required for CEL evaluation", it.Name, v1.LabelInstanceCPU)
+		return kubeletcel.InstanceTypeVars{}, serrors.Wrap(
+			fmt.Errorf("instance type is missing the label required for CEL evaluation"),
+			"instance-type", it.Name,
+			"label", v1.LabelInstanceCPU,
+		)
 	}
 	vcpus, err := strconv.ParseInt(req.Any(), 10, 64)
 	if err != nil {
-		return kubeletcel.InstanceTypeVars{}, fmt.Errorf("parsing %s label %q for instance type %s: %w", v1.LabelInstanceCPU, req.Any(), it.Name, err)
+		return kubeletcel.InstanceTypeVars{}, serrors.Wrap(
+			fmt.Errorf("parsing label, %w", err),
+			"instance-type", it.Name,
+			"label", v1.LabelInstanceCPU,
+			"value", req.Any(),
+		)
 	}
 	req = it.Requirements.Get(v1.LabelInstanceMemory)
 	if req == nil {
-		return kubeletcel.InstanceTypeVars{}, fmt.Errorf("instance type %s is missing the %s label required for CEL evaluation", it.Name, v1.LabelInstanceMemory)
+		return kubeletcel.InstanceTypeVars{}, serrors.Wrap(
+			fmt.Errorf("instance type is missing the label required for CEL evaluation"),
+			"instance-type", it.Name,
+			"label", v1.LabelInstanceMemory,
+		)
 	}
 	memoryMiB, err := strconv.ParseInt(req.Any(), 10, 64)
 	if err != nil {
-		return kubeletcel.InstanceTypeVars{}, fmt.Errorf("parsing %s label %q for instance type %s: %w", v1.LabelInstanceMemory, req.Any(), it.Name, err)
+		return kubeletcel.InstanceTypeVars{}, serrors.Wrap(
+			fmt.Errorf("parsing label, %w", err),
+			"instance-type", it.Name,
+			"label", v1.LabelInstanceMemory,
+			"value", req.Any(),
+		)
 	}
 	defaultENIs := int64(0)
 	ipsPerENI := int64(0)
