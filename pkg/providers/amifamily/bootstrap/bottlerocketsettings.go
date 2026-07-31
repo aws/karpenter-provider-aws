@@ -43,8 +43,14 @@ type BottlerocketConfig struct {
 // BottlerocketSettings is a subset of all configuration in https://github.com/bottlerocket-os/bottlerocket/blob/d427c40931cba6e6bedc5b75e9c084a6e1818db9/sources/models/src/lib.rs#L260
 // These settings apply across all K8s versions that karpenter supports.
 type BottlerocketSettings struct {
+	Autoscaling       BottlerocketAutoscaling     `toml:"autoscaling"`
 	Kubernetes        BottlerocketKubernetes      `toml:"kubernetes"`
 	BootstrapCommands map[string]BootstrapCommand `toml:"bootstrap-commands,omitempty"`
+}
+
+// BottlerocketAutoscaling contains settings used by instances in EC2 Auto Scaling groups.
+type BottlerocketAutoscaling struct {
+	ShouldWait *bool `toml:"should-wait,omitempty"`
 }
 
 // BottlerocketKubernetes is k8s specific configuration for bottlerocket api
@@ -185,6 +191,14 @@ func (c *BottlerocketConfig) UnmarshalTOML(ctx context.Context, data []byte) err
 func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
 	if c.SettingsRaw == nil {
 		c.SettingsRaw = map[string]any{}
+	}
+	if c.Settings.Autoscaling.ShouldWait != nil {
+		autoscaling, ok := c.SettingsRaw["autoscaling"].(map[string]any)
+		if !ok {
+			autoscaling = map[string]any{}
+		}
+		autoscaling["should-wait"] = *c.Settings.Autoscaling.ShouldWait
+		c.SettingsRaw["autoscaling"] = autoscaling
 	}
 	c.SettingsRaw["kubernetes"] = c.Settings.Kubernetes
 	if c.Settings.BootstrapCommands != nil {
