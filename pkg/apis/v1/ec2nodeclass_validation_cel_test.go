@@ -15,6 +15,7 @@ limitations under the License.
 package v1_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -786,10 +787,10 @@ var _ = Describe("CEL/Validation", func() {
 			Entry("Windows2025", "windows2025@v1.0.0"),
 		)
 	})
-	// spec.kubelet is an open map whose schema is generated from the k8s.io/kubelet version in
-	// go.mod (see hack/code/kubeletschema_gen), so these assertions exercise the generated schema
-	// and the CEL rules hack/validation/kubelet.sh layers onto it -- both enforced by the API
-	// server at admission rather than by Karpenter's reconcile loop.
+	// spec.kubelet is an open map with x-kubernetes-preserve-unknown-fields, so the API server
+	// neither knows its fields nor will compile CEL against it. It is validated in the reconcile
+	// loop instead -- see TestValidateKubeletConfig in kubeletconfiguration_validation_test.go.
+	// The only thing admission enforces is the map's own shape, which is what these cover.
 	Context("Kubelet", func() {
 		It("should succeed for valid inputs", func() {
 			nc.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
@@ -801,101 +802,50 @@ var _ = Describe("CEL/Validation", func() {
 			})
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 		})
-		It("should succeed for a field the generated schema derives from the kubelet library", func() {
-			// Not a field Karpenter has any Go representation for -- it's accepted purely because
-			// the upstream type declares it, which is what makes the map a passthrough.
+		It("should persist a field Karpenter has no Go representation for", func() {
+			// The passthrough guarantee: a field Karpenter knows nothing about survives a
+			// round-trip unaltered, which is what lets a user set a kubelet field newer than the
+			// one Karpenter was built against.
 			nc.Spec.Kubelet = v1.KubeletConfiguration{"serializeImagePulls": v1.JSONValue(false)}
-			Expect(env.Client.Create(ctx, nc)).To(Succeed())
-		})
-		It("should fail for a field the kubelet library doesn't declare when the client requests strict validation", func() {
-			// Rejecting an unknown field is the one check that depends on the request opting into
-			// Strict field validation, which is why it's asserted explicitly here. kubectl opts in
-			// by default; see the following spec for what a client that doesn't gets instead.
-			nc.Spec.Kubelet = v1.KubeletConfiguration{"notAKubeletField": v1.JSONValue(true)}
-			Expect(env.Client.Create(ctx, nc, client.FieldValidation(metav1.FieldValidationStrict))).ToNot(Succeed())
-		})
-		It("should prune a field the kubelet library doesn't declare when the client doesn't request strict validation", func() {
-			// The field is dropped rather than rejected, leaving the user believing a kubelet
-			// setting is in effect when it isn't. Pruning happens before persistence, so
-			// ValidateKubeletConfig can't recover this -- it only ever sees the pruned object.
-			// Asserted so that silent data loss is at least a documented, tested behavior.
-			nc.Spec.Kubelet = v1.KubeletConfiguration{
-				"notAKubeletField": v1.JSONValue(true),
-				"podsPerCore":      v1.JSONValue(10),
-			}
-			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			Expect(env.Client.Create(ctx, nc, client.FieldValidation(metav1.FieldValidationStrict))).To(Succeed())
 			persisted := &v1.EC2NodeClass{}
 			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(nc), persisted)).To(Succeed())
-			Expect(persisted.Spec.Kubelet).ToNot(HaveKey("notAKubeletField"))
-			Expect(persisted.Spec.Kubelet).To(HaveKey("podsPerCore"))
-			Expect(v1.ValidateKubeletConfig(persisted.Spec.Kubelet)).To(BeEmpty())
+			Expect(persisted.Spec.Kubelet).To(HaveKey("serializeImagePulls"))
 		})
-		It("should persist an unknown field nested in an opaque subtree even under strict validation", func() {
-			// `logging` is marked x-kubernetes-preserve-unknown-fields because its upstream type is
-			// opaque, which suppresses both pruning and the Strict unknown-field check. This is the
-			// one path where an invalid field survives into storage, so it's the path
-			// ValidateKubeletConfig is actually backstopping.
+		It("should admit a configuration the kubelet library rejects", func() {
+			// Nothing here is admission's job to catch: the API server has no schema for these
+			// fields, and strict validation can't help since an unknown field under a
+			// preserve-unknown-fields map isn't unknown to the API server at all. This is the
+			// reason validation lives in the controller, so it is asserted rather than assumed --
+			// admission accepts it, and ValidateKubeletConfig is what reports it.
 			nc.Spec.Kubelet = v1.KubeletConfiguration{
-				"logging": v1.JSONValue(map[string]any{"bogusLoggingField": true}),
+				"notAKubeletField": v1.JSONValue(true),
+				"podsPerCore":      v1.JSONValue("ten"),
 			}
 			Expect(env.Client.Create(ctx, nc, client.FieldValidation(metav1.FieldValidationStrict))).To(Succeed())
 			persisted := &v1.EC2NodeClass{}
 			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(nc), persisted)).To(Succeed())
-			Expect(persisted.Spec.Kubelet).To(HaveKey("logging"))
-			Expect(v1.ValidateKubeletConfig(persisted.Spec.Kubelet)).To(ConsistOf(
-				MatchError(`spec.kubelet: unknown field "logging.bogusLoggingField"`),
-			))
+			Expect(persisted.Spec.Kubelet).To(HaveKey("notAKubeletField"))
+			Expect(v1.ValidateKubeletConfig(persisted.Spec.Kubelet)).ToNot(BeEmpty())
 		})
-		It("should fail when a field has the wrong type", func() {
-			nc.Spec.Kubelet = v1.KubeletConfiguration{"podsPerCore": v1.JSONValue("ten")}
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		It("should preserve a nested subtree unaltered", func() {
+			// logging nests three levels deep and mixes a duration string with a quantity, so it
+			// is the sharpest check that preserve-unknown-fields doesn't flatten or coerce
+			// anything on the way to storage.
+			logging := map[string]any{
+				"format":         "json",
+				"flushFrequency": "5s",
+				"options":        map[string]any{"json": map[string]any{"infoBufferSize": "100Mi", "splitStream": true}},
+			}
+			nc.Spec.Kubelet = v1.KubeletConfiguration{"logging": v1.JSONValue(logging)}
+			Expect(env.Client.Create(ctx, nc, client.FieldValidation(metav1.FieldValidationStrict))).To(Succeed())
+			persisted := &v1.EC2NodeClass{}
+			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(nc), persisted)).To(Succeed())
+			var roundTripped map[string]any
+			Expect(json.Unmarshal(persisted.Spec.Kubelet["logging"].Raw, &roundTripped)).To(Succeed())
+			Expect(roundTripped).To(Equal(logging))
+			Expect(v1.ValidateKubeletConfig(persisted.Spec.Kubelet)).To(BeEmpty())
 		})
-		DescribeTable(
-			"should fail for negative values",
-			func(field string) {
-				nc.Spec.Kubelet = v1.KubeletConfiguration{field: v1.JSONValue(-1)}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			},
-			Entry("maxPods", "maxPods"),
-			Entry("podsPerCore", "podsPerCore"),
-			Entry("evictionMaxPodGracePeriod", "evictionMaxPodGracePeriod"),
-		)
-		DescribeTable(
-			"should fail for an invalid reserved resource key",
-			func(field string) {
-				nc.Spec.Kubelet = v1.KubeletConfiguration{field: v1.JSONValue(map[string]string{"gpu": "1"})}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			},
-			Entry("kubeReserved", "kubeReserved"),
-			Entry("systemReserved", "systemReserved"),
-		)
-		DescribeTable(
-			"should fail for a negative reserved resource quantity",
-			func(field string) {
-				nc.Spec.Kubelet = v1.KubeletConfiguration{field: v1.JSONValue(map[string]string{"cpu": "-1"})}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			},
-			Entry("kubeReserved", "kubeReserved"),
-			Entry("systemReserved", "systemReserved"),
-		)
-		// These fields accept a CEL expression that Karpenter evaluates per instance type, so the
-		// schema has to admit a string where the upstream kubelet type wants an integer or a
-		// resource quantity. Kept alongside the rejection cases above so a future schema change
-		// can't tighten one without visibly breaking the other.
-		DescribeTable(
-			"should succeed for a CEL expression",
-			func(kubelet v1.KubeletConfiguration) {
-				nc.Spec.Kubelet = kubelet
-				Expect(env.Client.Create(ctx, nc)).To(Succeed())
-			},
-			Entry("maxPods", v1.KubeletConfiguration{"maxPods": v1.JSONValue("vcpus * 10")}),
-			Entry("kubeReserved", v1.KubeletConfiguration{
-				"kubeReserved": v1.JSONValue(map[string]string{"memory": "memory * 0.1"}),
-			}),
-			Entry("systemReserved", v1.KubeletConfiguration{
-				"systemReserved": v1.JSONValue(map[string]string{"cpu": "vcpus * 10m"}),
-			}),
-		)
 	})
 	Context("MetadataOptions", func() {
 		It("should succeed for valid inputs", func() {

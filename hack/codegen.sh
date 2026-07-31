@@ -110,8 +110,3 @@ vpcLimits
 echo "Updating instance type data..."
 instanceTypeTestData
 echo "Finished codegen"
-
-# The kubelet schema is not generated here: it's derived from the k8s.io/kubelet version in
-# go.mod rather than from an AWS API, and is regenerated as part of "make verify" so the CRD
-# can never disagree with the library the controller compiles against. See
-# hack/validation/kubelet.sh.

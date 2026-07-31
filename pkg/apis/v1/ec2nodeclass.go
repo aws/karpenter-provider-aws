@@ -115,7 +115,8 @@ type EC2NodeClassSpec struct {
 	// see the k8s.io/kubelet version in go.mod for the exact set.
 	// Karpenter reads the fields relevant to scheduling (maxPods, podsPerCore, kubeReserved,
 	// systemReserved, evictionHard) and passes all others through to UserData unchanged.
-	// Field names and types are validated by the API server on apply.
+	// Field names and types are validated by Karpenter, which reports a rejected configuration
+	// on status.conditions as ValidationSucceeded=False rather than failing the apply.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Type=object
 	// +optional
@@ -280,13 +281,14 @@ type AMISelectorTerm struct {
 // 0 for the two fields Karpenter reads to make scheduling decisions. Keeping the map also
 // means new kubelet fields need no Go change to pass through to UserData.
 //
-// The tradeoff is that the Go type carries no field information, so the API server can't
-// validate it from the type alone. The CRD's schema for spec.kubelet is therefore generated
-// from the upstream struct instead (hack/code/kubeletschema_gen, injected by
-// hack/validation/kubelet.sh), which is what makes unknown fields and type errors fail on
-// apply rather than at node registration. A CEL rule can't substitute for that generated
-// schema: the API server refuses to compile x-kubernetes-validations against a map marked
-// x-kubernetes-preserve-unknown-fields.
+// The tradeoff is that the Go type carries no field information, so the CRD schema for
+// spec.kubelet is an unconstrained object and the API server can't validate it at all -- not
+// from the type, and not with a CEL rule either, since it refuses to compile
+// x-kubernetes-validations against a map marked x-kubernetes-preserve-unknown-fields.
+// Validation happens in the controller instead: ValidateKubeletConfig decodes this against the
+// upstream kubelet type and surfaces failures as ValidationSucceeded=False, which blocks node
+// launch. That keeps the CRD unchanged as k8s.io/kubelet moves, at the cost of the user
+// reading a status condition rather than having their apply rejected.
 // +kubebuilder:pruning:PreserveUnknownFields
 // +kubebuilder:validation:Type=object
 type KubeletConfiguration map[string]apiextensionsv1.JSON
