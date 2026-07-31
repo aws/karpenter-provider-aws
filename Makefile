@@ -136,6 +136,9 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	go generate ./...
 	hack/boilerplate.sh
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
+	# The scripts below rewrite the CRDs they edit in yq's formatting rather than controller-gen's.
+	# ec2nodeclasses.yaml is no longer one of them, so it's passed through yq to keep its formatting stable
+	yq eval --inplace '.' pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 	bash -c 'source ./hack/validation/requirements.sh && injectDomainRequirementRestrictions "karpenter.k8s.aws"'
 	bash -c 'source ./hack/validation/labels.sh && injectDomainLabelRestrictions "karpenter.k8s.aws"'
 	cp pkg/apis/crds/* charts/karpenter-crd/templates
