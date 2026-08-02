@@ -131,10 +131,17 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		arczonalshiftAPI := arczonalshift.NewFromConfig(cfg)
 		clusterArn, err := ValidateZonalShiftEnablement(ctx, eksapi, arczonalshiftAPI)
 		if err != nil {
-			// Resource is not found/registered in Zonal Shift. Throw an error.
-			panic(fmt.Sprintf("Unable to find Cluster %v in Zonal Shift. Please check that the cluster is enabled for Zonal Shift and roles have appropriate permissions %v", clusterArn, err))
+			// Zonal shift is an optional resiliency feature. If the cluster is not
+			// registered with ARC zonal shift (or the controller role lacks
+			// arc-zonal-shift permissions), degrade to the no-op provider instead of
+			// panicking: a crash-looping controller stops all node provisioning, which
+			// is a worse availability outcome than running without zonal shift.
+			log.FromContext(ctx).Error(err, "disabling zonal shift support",
+				"hint", "register the cluster for ARC zonal shift and grant arc-zonal-shift permissions to the controller role, or set settings.enableZonalShift to false")
+			zsProvider = zonalshiftprovider.NewNoopProvider()
+		} else {
+			zsProvider = zonalshiftprovider.NewProvider(arczonalshiftAPI, operator.Clock, clusterArn)
 		}
-		zsProvider = zonalshiftprovider.NewProvider(arczonalshiftAPI, operator.Clock, clusterArn)
 	} else {
 		zsProvider = zonalshiftprovider.NewNoopProvider()
 	}
