@@ -663,13 +663,11 @@ spec:
         MyTag: '*'
 ```
 
-Select by name and tag (all criteria must match):
+Select by name:
 ```yaml
 spec:
   securityGroupSelectorTerms:
     - name: my-security-group
-      tags:
-        MyTag: '*' # matches all resources with the tag
 ```
 
 Select using multiple tag terms:
