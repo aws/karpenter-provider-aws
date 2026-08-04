@@ -385,7 +385,7 @@ Current count of nodes in cluster state
 ## Cloudprovider Metrics
 
 ### `karpenter_cloudprovider_instance_type_offering_price_estimate`
-Instance type offering estimated hourly price used when making informed decisions on node cost calculation, based on instance type, capacity type, and zone.
+Instance type offering estimated hourly price used when making informed decisions on node cost calculation, based on instance type, capacity type, and zone. This metric is not NodePool-specific; when NodeOverlays produce different prices across NodePools for the same offering labels, the emitted value reflects one reconciled estimate.
 - Stability Level: BETA
 
 ### `karpenter_cloudprovider_instance_type_offering_available`
