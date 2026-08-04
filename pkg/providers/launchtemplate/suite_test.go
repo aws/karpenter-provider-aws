@@ -1698,6 +1698,10 @@ eviction-max-pod-grace-period = 10
 				})
 			})
 			It("should specify max pods value when passing maxPods as a CEL expression string", func() {
+				ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{
+					ReservedCapacity: lo.ToPtr(true),
+					Additional:       map[string]bool{options.KubeletExpressionsGate: true},
+				}}))
 				// min(110, 20 * 2) resolves to 40 independent of instance type, so the assertion is
 				// deterministic across whichever instance types get launch templates.
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{

@@ -63,7 +63,7 @@ run: ## Run Karpenter controller binary against your local cluster with latest C
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
 		ENABLE_ZONAL_SHIFT=true \
-		FEATURE_GATES="SpotToSpotConsolidation=true,NodeOverlay=true,StaticCapacity=true" \
+		FEATURE_GATES="SpotToSpotConsolidation=true,NodeOverlay=true,StaticCapacity=true,KubeletExpressions=true" \
 		LOG_LEVEL="debug" \
 		go run ./cmd/controller/main.go
 

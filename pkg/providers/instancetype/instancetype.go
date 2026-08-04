@@ -34,6 +34,8 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	corev1 "k8s.io/api/core/v1"
@@ -280,8 +282,9 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 		return nil
 	}
 	// If every kubelet value is a static literal there are no CEL expressions to evaluate, so skip the
-	// per-instance-type loop entirely
-	if !kc.HasExpressions() {
+	// per-instance-type loop entirely. The same applies when expressions are gated off -- the validation
+	// controller has already rejected the NodeClass by this point.
+	if !kc.HasExpressions() || !options.KubeletExpressionsEnabled(ctx) {
 		return nil
 	}
 	p.muInstanceTypesInfo.RLock()

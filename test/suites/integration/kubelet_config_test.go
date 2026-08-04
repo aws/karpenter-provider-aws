@@ -177,6 +177,8 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.EventuallyExpectUniqueNodeNames(selector, 3)
 	})
 	It("should schedule pods onto separate nodes when maxPods is set as a CEL expression", func() {
+		// Requires the KubeletExpressions gate, which the e2e install enables via
+		// test/hack/e2e_scripts/install_karpenter.sh.
 		// Get the DS pod count and use it to calculate the DS pod overhead
 		dsCount := env.GetDaemonSetCount(nodePool)
 		// maxPods as a CEL expression string. min(110, 1+dsCount) resolves to 1+dsCount so each node

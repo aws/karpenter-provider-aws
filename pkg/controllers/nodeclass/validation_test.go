@@ -35,6 +35,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -235,6 +236,14 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		})
 	})
 	Context("Kubelet Expression Validation", func() {
+		// Expressions are behind an alpha gate that is off by default, so every spec in this Context has to
+		// opt in. The gate-off rejection path is covered separately below.
+		BeforeEach(func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{
+				ReservedCapacity: lo.ToPtr(true),
+				Additional:       map[string]bool{options.KubeletExpressionsGate: true},
+			}}))
+		})
 		// The compile-only check (validateKubeletExpressions) runs before the required-condition gate and
 		// surfaces KubeletExpressionInvalid. The per-instance-type evaluation check runs after and surfaces
 		// KubeletExpressionEvaluationFailed for expressions that compile but fail to evaluate.
@@ -319,6 +328,59 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			//nolint:staticcheck
 			Expect(result.Requeue).To(BeTrue())
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonKubeletExpressionEvalFailed))
+		})
+	})
+	Context("Kubelet Expression Feature Gate", func() {
+		// The default here is the shipped default -- the KubeletExpressions gate is absent from the suite's
+		// options, so these specs exercise exactly what a user gets without opting in.
+		DescribeTable("should reject a NodeClass carrying an expression while the gate is disabled",
+			func(kc *v1.KubeletConfiguration) {
+				nodeClass.Spec.Kubelet = kc
+				ExpectApplied(ctx, env.Client, nodeClass)
+				err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				Expect(err).To(HaveOccurred())
+				// Nothing the controller can do will make this succeed, so it must not requeue forever.
+				Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonKubeletExpressionsDisabled))
+				Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
+			},
+			Entry("maxPods", &v1.KubeletConfiguration{
+				MaxPods: lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
+			}),
+			Entry("kubeReserved", &v1.KubeletConfiguration{
+				KubeReserved: map[string]string{"cpu": "max(60, vcpus * 30)"},
+			}),
+			Entry("systemReserved", &v1.KubeletConfiguration{
+				SystemReserved: map[string]string{"memory": "max_pods * 11"},
+			}),
+		)
+		It("should not reject static kubelet values while the gate is disabled", func() {
+			// The gate only guards expressions -- integer maxPods and quantity-literal reservations must keep
+			// working untouched for every user who never opts in.
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				MaxPods:        lo.ToPtr(intstr.FromInt32(110)),
+				KubeReserved:   map[string]string{"cpu": "100m"},
+				SystemReserved: map[string]string{"memory": "100Mi"},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
+		It("should accept an expression once the gate is enabled", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{
+				ReservedCapacity: lo.ToPtr(true),
+				Additional:       map[string]bool{options.KubeletExpressionsGate: true},
+			}}))
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				MaxPods: lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
 		})
 	})
 	Context("Authorization Validation", func() {
